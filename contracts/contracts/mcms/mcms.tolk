@@ -3,6 +3,7 @@ tolk 1.4.2
 
 import "../lib/utils";
 import "../lib/budget/gas";
+import "../lib/budget/min_value";
 import "../lib/secp256k1";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/crypto/merkle_proof.tolk";
@@ -724,8 +725,6 @@ fun MCMS<T>.load(context: T? = null, hooks: MCMS_Hooks<T>? = null): MCMS<T> {
 ///
 /// @dev this method can be executed by anyone who has the root and valid signatures.
 /// as we validate the correctness of signatures, this imposes no risk.
-// minval:check-admission gate=A/static MCMS_SetRoot
-// minval.detail: must cover the set-root cost; rejects on shortfall
 fun MCMS<T>.setRoot(
     mutate self,
     sender: address,
@@ -738,9 +737,9 @@ fun MCMS<T>.setRoot(
     signatures: SnakedCell<Signature>,
 ) {
     // Verify value covers the fee
-    if (value < MCMS_Costs.setRoot()) {
-        throw MCMS_Error.InsufficientFee;
-    }
+    // minval:check-admission gate=A/static MCMS_SetRoot
+    // minval.detail: must cover the set-root cost; rejects on shortfall
+    assertMinValue(value, MCMS_Costs.setRoot(), MCMS_Error.InsufficientFee);
 
     if (validUntil < blockchain.now()) {
         throw MCMS_Error.ValidUntilHasAlreadyPassed;
@@ -959,8 +958,6 @@ fun MCMS<T>.setRoot(
 ///
 /// @dev the gas limit of the call can be freely determined by the caller of this function.
 /// We expect callees to revert if they run out of gas.
-// minval:check-admission gate=A/dynamic MCMS_Execute
-// minval.detail: covers the execute cost and the op.value floor; fans out to the target
 fun MCMS<T>.execute(
     mutate self,
     sender: address,
@@ -970,9 +967,9 @@ fun MCMS<T>.execute(
     proof: SnakedCell<uint256>,
 ) {
     // Verify value covers the fee
-    if (value < MCMS_Costs.execute()) {
-        throw MCMS_Error.InsufficientFee;
-    }
+    // minval:check-admission gate=A/dynamic MCMS_Execute
+    // minval.detail: covers the execute cost and the op.value floor; fans out to the target
+    assertMinValue(value, MCMS_Costs.execute(), MCMS_Error.InsufficientFee);
 
     // Unpack the root info from the contract data
     val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
@@ -1007,9 +1004,7 @@ fun MCMS<T>.execute(
 
     // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
     // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-    if (op.value < calculateGasFeeDefault()) {
-        throw MCMS_Error.InsufficientValue;
-    }
+    assertMinValue(op.value, calculateGasFeeDefault(), MCMS_Error.InsufficientValue);
 
     // verify that the op exists in the merkle tree
     // @dev we use the standard sha256 hash function to hash the leaf.
@@ -1083,8 +1078,6 @@ fun MCMS<T>.execute(
 /// invalidate the current root, so to prevent further ops from being executed. This
 /// might be used when the current root was signed under a loser group configuration or when
 /// some previous signers aren't trusted any more.
-// minval:check-admission gate=A/static MCMS_SetConfig
-// minval.detail: must cover the set-config cost; rejects on shortfall
 fun MCMS<T>.setConfig(
     mutate self,
     sender: address,
@@ -1099,9 +1092,9 @@ fun MCMS<T>.setConfig(
     self.data.ownable.requireOwner(sender);
 
     // Verify value covers the fee
-    if (value < MCMS_Costs.setConfig()) {
-        throw MCMS_Error.InsufficientFee;
-    }
+    // minval:check-admission gate=A/static MCMS_SetConfig
+    // minval.detail: must cover the set-config cost; rejects on shortfall
+    assertMinValue(value, MCMS_Costs.setConfig(), MCMS_Error.InsufficientFee);
 
     // Validate input lengths
     var signerAddrsIterator = signerAddresses.iter();
@@ -1282,8 +1275,6 @@ fun MCMS<T>.setConfig(
 
 /// Changes the timeout required to finalize the currently executing op
 /// @see {MCMS_UpdateOpFinalizationTimeout} for more information.
-// minval:best-effort gate=none MCMS_UpdateOpFinalizationTimeout
-// minval.detail: GAP: owner-only, no value gate; add a safety check (check-bounce)
 fun MCMS<T>.updateOpFinalizationTimeout(
     mutate self,
     sender: address,
@@ -1291,6 +1282,8 @@ fun MCMS<T>.updateOpFinalizationTimeout(
     queryId: uint64,
     newOpFinalizationTimeout: uint32
 ): void {
+// minval:best-effort gate=none MCMS_UpdateOpFinalizationTimeout
+// minval.detail: GAP: owner-only, no value gate; add a safety check (check-bounce)
     self.data.ownable.requireOwner(sender);
 
     // Unpack the root info from the contract data
@@ -1322,8 +1315,6 @@ fun MCMS<T>.updateOpFinalizationTimeout(
 /// Submit an oracle error report, which marks the current root as invalid.
 ///
 /// @see <MCMS_SubmitErrorReport> for more information.
-// minval:check-admission gate=A/static MCMS_SubmitErrorReport
-// minval.detail: must cover the error-report cost; rejects on shortfall
 fun MCMS<T>.submitErrorReport(
     mutate self,
     sender: address,
@@ -1341,9 +1332,9 @@ fun MCMS<T>.submitErrorReport(
     }
 
     // Verify value covers the fee
-    if (value < MCMS_Costs.submitErrorReport()) {
-        throw MCMS_Error.InsufficientFee;
-    }
+    // minval:check-admission gate=A/static MCMS_SubmitErrorReport
+    // minval.detail: must cover the error-report cost; rejects on shortfall
+    assertMinValue(value, MCMS_Costs.submitErrorReport(), MCMS_Error.InsufficientFee);
 
     // Check if right environment via chainId
     if (op.chainId != globalId() as int256) {
@@ -1409,8 +1400,6 @@ fun MCMS<T>.submitErrorReport(
 /// Transfer the error oracle role - requires owner.
 ///
 /// @see <MCMS_TransferOracleRole> for more information.
-// minval:best-effort gate=none MCMS_TransferOracleRole
-// minval.detail: GAP: owner-only, no value gate; add a safety check (check-bounce)
 fun MCMS<T>.transferOracleRole(
     mutate self,
     sender: address,
@@ -1418,6 +1407,8 @@ fun MCMS<T>.transferOracleRole(
     queryId: uint64,
     newOracle: address
 ) {
+// minval:best-effort gate=none MCMS_TransferOracleRole
+// minval.detail: GAP: owner-only, no value gate; add a safety check (check-bounce)
     self.data.ownable.requireOwner(sender);
 
     val oldOracle = self.data.oracle;
@@ -1435,8 +1426,6 @@ fun MCMS<T>.transferOracleRole(
 /// Delete expired roots from storage map to reduce (accumulated) rent - requires owner.
 ///
 /// @see <MCMS_CleanExpiredRoots> for more information.
-// minval:best-effort gate=none MCMS_CleanExpiredRoots
-// minval.detail: GAP: owner-only, no value gate; loops over roots; add a safety check
 fun MCMS<T>.cleanExpiredRoots(
     mutate self,
     sender: address,
@@ -1444,6 +1433,8 @@ fun MCMS<T>.cleanExpiredRoots(
     queryId: uint64,
     roots: SnakedCell<RootDescriptor>,
 ) {
+// minval:best-effort gate=none MCMS_CleanExpiredRoots
+// minval.detail: GAP: owner-only, no value gate; loops over roots; add a safety check
     self.data.ownable.requireOwner(sender);
 
     var rootsIter = roots.iter();

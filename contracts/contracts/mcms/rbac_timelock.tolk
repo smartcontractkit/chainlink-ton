@@ -3,6 +3,7 @@ tolk 1.4.2
 
 import "../lib/utils";
 import "../lib/budget/gas";
+import "../lib/budget/min_value";
 import "../lib/access/access_control";
 
 const Timelock_FACILITY_NAME = "link.chain.ton.mcms.Timelock";
@@ -731,8 +732,6 @@ fun Timelock<T>.hashOperationBatch(self, op: Timelock_OperationBatch): uint256 {
 }
 
 /// Initializes the contract
-// minval:check-admission gate=A/static Timelock_Init
-// minval.detail: must cover the init cost and rent reserve; rejects on shortfall
 fun Timelock<T>.init(
     mutate self,
     sender: address,
@@ -750,7 +749,9 @@ fun Timelock<T>.init(
     // @dev: anyone can call init, but only once. The deployer should send init message with stateInit (deployment).
     // Check that the contract is not already initialized
     assert(!self.isInitialized()) throw Timelock_Error.ContractAlreadyInitialized;
-    assert(value >= Timelock_Costs.init()) throw Timelock_Error.InsufficientFee;
+    // minval:check-admission gate=A/static Timelock_Init
+    // minval.detail: must cover the init cost and rent reserve; rejects on shortfall
+    assertMinValue(value, Timelock_Costs.init(), Timelock_Error.InsufficientFee);
 
     var rbac = self.hookTrait__AccessControl();
 
@@ -815,8 +816,6 @@ fun Timelock<T>.init(
 /// - the caller must have the 'proposer' or 'admin' role.
 /// - all payloads must not start with a blocked function selector.
 ///
-// minval:check-admission gate=A/dynamic Timelock_ScheduleBatch
-// minval.detail: size-scaled (per-call event fees + reply); rejects on shortfall
 fun Timelock<T>.scheduleBatch(
     mutate self,
     sender: address,
@@ -841,9 +840,7 @@ fun Timelock<T>.scheduleBatch(
 
         // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
         // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-        if (call.value < calculateGasFeeDefault()) {
-            throw Timelock_Error.InsufficientValue;
-        }
+        assertMinValue(call.value, calculateGasFeeDefault(), Timelock_Error.InsufficientValue);
 
         val body = Timelock_CallScheduled{
             queryId,
@@ -859,7 +856,9 @@ fun Timelock<T>.scheduleBatch(
         index += 1;
     }
 
-    assert(value >= Timelock_Costs.scheduleBatch(index)) throw Timelock_Error.InsufficientFee;
+    // minval:check-admission gate=A/dynamic Timelock_ScheduleBatch
+    // minval.detail: size-scaled (per-call event fees + reply); rejects on shortfall
+    assertMinValue(value, Timelock_Costs.scheduleBatch(index), Timelock_Error.InsufficientFee);
 
     val reply = createMessage({
         bounce: false,
@@ -885,9 +884,9 @@ fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint32): void {
 ///
 /// - the caller must have the 'canceller' or 'admin' role.
 ///
+fun Timelock<T>.cancel(mutate self, sender: address, _value: coins, queryId: uint64, id: uint256): void {
 // minval:best-effort gate=none Timelock_Cancel
 // minval.detail: GAP: role-gated, no value gate; add a safety check (check-bounce)
-fun Timelock<T>.cancel(mutate self, sender: address, _value: coins, queryId: uint64, id: uint256): void {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     self.onlyRoleOrAdminRole(CANCELLER_ROLE, sender);
     assert(self.isOperationPending(id)) throw Timelock_Error.OperationCanNotBeCancelled;
@@ -920,8 +919,6 @@ fun Timelock<T>.cancel(mutate self, sender: address, _value: coins, queryId: uin
 ///         2. Message bounced back                              [predecessor invalidated, can't retry]
 ///         3. Oracle reported an error (e.g., out-of-gas error) [predecessor invalidated, can't retry]
 ///
-// minval:check-admission gate=A/dynamic Timelock_ExecuteBatch
-// minval.detail: size-scaled (per-call event fees + reply); rejects on shortfall
 fun Timelock<T>.executeBatch(
     mutate self,
     sender: address,
@@ -969,7 +966,9 @@ fun Timelock<T>.executeBatch(
         index += 1;
     }
 
-    assert(value >= Timelock_Costs.executeBatch(index)) throw Timelock_Error.InsufficientFee;
+    // minval:check-admission gate=A/dynamic Timelock_ExecuteBatch
+    // minval.detail: size-scaled (per-call event fees + reply); rejects on shortfall
+    assertMinValue(value, Timelock_Costs.executeBatch(index), Timelock_Error.InsufficientFee);
 
     self.afterCall(id);
 
@@ -1029,8 +1028,6 @@ fun Timelock<T>.afterCall(mutate self, id: uint256): void {
 
 /// Changes the minimum timelock duration for future operations.
 /// @see {Timelock_UpdateDelay} for more information.
-// minval:best-effort gate=none Timelock_UpdateDelay
-// minval.detail: GAP: admin-only, no value gate; add a safety check (check-bounce)
 fun Timelock<T>.updateDelay(
     mutate self,
     sender: address,
@@ -1038,6 +1035,8 @@ fun Timelock<T>.updateDelay(
     queryId: uint64,
     newDelay: uint32
 ): void {
+// minval:best-effort gate=none Timelock_UpdateDelay
+// minval.detail: GAP: admin-only, no value gate; add a safety check (check-bounce)
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
@@ -1060,8 +1059,6 @@ fun Timelock<T>.updateDelay(
 
 /// Changes the timeout required to finalize the currently executing op
 /// @see {Timelock_UpdateOpFinalizationTimeout} for more information.
-// minval:best-effort gate=none Timelock_UpdateOpFinalizationTimeout
-// minval.detail: GAP: admin-only, no value gate; add a safety check (check-bounce)
 fun Timelock<T>.updateOpFinalizationTimeout(
     mutate self,
     sender: address,
@@ -1069,6 +1066,8 @@ fun Timelock<T>.updateOpFinalizationTimeout(
     queryId: uint64,
     newOpFinalizationTimeout: uint32
 ): void {
+// minval:best-effort gate=none Timelock_UpdateOpFinalizationTimeout
+// minval.detail: GAP: admin-only, no value gate; add a safety check (check-bounce)
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
@@ -1104,8 +1103,6 @@ fun Timelock<T>.updateOpFinalizationTimeout(
 ///
 /// - the caller must have the 'admin' role.
 ///
-// minval:best-effort gate=none Timelock_BlockFunctionSelector
-// minval.detail: GAP: admin-only, no value gate; add a safety check (check-bounce)
 fun Timelock<T>.blockFunctionSelector(
     mutate self,
     sender: address,
@@ -1113,6 +1110,8 @@ fun Timelock<T>.blockFunctionSelector(
     queryId: uint64,
     selector: uint32
 ): bool {
+// minval:best-effort gate=none Timelock_BlockFunctionSelector
+// minval.detail: GAP: admin-only, no value gate; add a safety check (check-bounce)
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
@@ -1141,8 +1140,6 @@ fun Timelock<T>.blockFunctionSelector(
 ///
 /// - the caller must have the 'admin' role.
 ///
-// minval:best-effort gate=none Timelock_UnblockFunctionSelector
-// minval.detail: GAP: admin-only, no value gate; add a safety check (check-bounce)
 fun Timelock<T>.unblockFunctionSelector(
     mutate self,
     sender: address,
@@ -1150,6 +1147,8 @@ fun Timelock<T>.unblockFunctionSelector(
     queryId: uint64,
     selector: uint32,
 ): bool {
+// minval:best-effort gate=none Timelock_UnblockFunctionSelector
+// minval.detail: GAP: admin-only, no value gate; add a safety check (check-bounce)
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
@@ -1180,8 +1179,6 @@ fun Timelock<T>.unblockFunctionSelector(
 ///
 /// - the caller must have the 'bypasser' or 'admin' role.
 ///
-// minval:check-admission gate=A/dynamic Timelock_BypasserExecuteBatch
-// minval.detail: size-scaled (per-call fees + reply); rejects on shortfall
 fun Timelock<T>.bypasserExecuteBatch(
     mutate self,
     sender: address,
@@ -1220,7 +1217,9 @@ fun Timelock<T>.bypasserExecuteBatch(
         index += 1;
     }
 
-    assert(value >= Timelock_Costs.bypasserExecuteBatch(index)) throw Timelock_Error.InsufficientFee;
+    // minval:check-admission gate=A/dynamic Timelock_BypasserExecuteBatch
+    // minval.detail: size-scaled (per-call fees + reply); rejects on shortfall
+    assertMinValue(value, Timelock_Costs.bypasserExecuteBatch(index), Timelock_Error.InsufficientFee);
 
     val reply = createMessage({
         bounce: false,
@@ -1234,8 +1233,6 @@ fun Timelock<T>.bypasserExecuteBatch(
 /// Updates the executor role check (enabled/disabled) which guards the execution of operations.
 ///
 /// @see <Timelock_UpdateExecutorRoleCheck> for more information.
-// minval:best-effort gate=none Timelock_UpdateExecutorRoleCheck
-// minval.detail: GAP: admin-only, no value gate; add a safety check (check-bounce)
 fun Timelock<T>.updateExecutorRoleCheck(
     mutate self,
     sender: address,
@@ -1243,6 +1240,8 @@ fun Timelock<T>.updateExecutorRoleCheck(
     queryId: uint64,
     enabled: bool,
 ): void {
+// minval:best-effort gate=none Timelock_UpdateExecutorRoleCheck
+// minval.detail: GAP: admin-only, no value gate; add a safety check (check-bounce)
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
@@ -1261,8 +1260,6 @@ fun Timelock<T>.updateExecutorRoleCheck(
 /// Submit an oracle error report, which marks the current operation in error state.
 ///
 /// @see <Timelock_SubmitErrorReport> for more information.
-// minval:check-admission gate=A/static Timelock_SubmitErrorReport
-// minval.detail: must cover the error-report cost; rejects on shortfall
 fun Timelock<T>.submitErrorReport(
     mutate self,
     sender: address,
@@ -1274,7 +1271,9 @@ fun Timelock<T>.submitErrorReport(
     errorCode: uint32
 ) {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
-    assert(value >= Timelock_Costs.submitErrorReport()) throw Timelock_Error.InsufficientFee;
+    // minval:check-admission gate=A/static Timelock_SubmitErrorReport
+    // minval.detail: must cover the error-report cost; rejects on shortfall
+    assertMinValue(value, Timelock_Costs.submitErrorReport(), Timelock_Error.InsufficientFee);
 
     // Only the oracle can submit error reports
     val rbac = self.hookTrait__AccessControl();
