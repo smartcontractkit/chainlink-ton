@@ -12,6 +12,12 @@ struct OnRamp_Storage {
     config: Cell<OnRamp_DynamicConfig>;
 
     destChainConfigs: map<uint64, OnRamp_DestChainConfig> = []; // chainSelector -> DestChainConfig
+
+    // Total amount of fees currently reserved for in-flight send executors.
+    // Reserved fees stay on the contract's balance but are committed: they are
+    // excluded from `onWithdrawFeeTokens` and released (decremented) when the
+    // executor reports success (fee consumed) or error (fee refunded).
+    pendingFeeReservations: coins = 0;
 }
 
 fun OnRamp_Storage.load(): OnRamp_Storage {

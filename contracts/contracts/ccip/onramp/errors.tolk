@@ -10,4 +10,5 @@ enum OnRamp_Error {
     InsufficientValue
     InvalidDestTokenAddress
     SourceTokenDataTooLarge
+    PendingFeeReservationsUnderflow
 }
