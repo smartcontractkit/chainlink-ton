@@ -190,6 +190,7 @@ export class FeeQuoterSetup {
    */
   async setupFeeQuoterContract(
     extraPrices: Map<Address, feeQuoter.TimestampedPrice> = new Map(),
+    excludeTokenPrices: Address[] = [],
   ): Promise<void> {
     const data = feeQuoter.Storage.create({
       id: generateRandomContractId(),
@@ -212,6 +213,9 @@ export class FeeQuoterSetup {
       FeeQuoterSetup.CUSTOM_TOKEN,
       FeeQuoterSetup.CUSTOM_TOKEN_2,
     ]) {
+      if (excludeTokenPrices.some((a) => a.equals(token.token))) {
+        continue
+      }
       data.usdPerToken.set(
         token.token,
         feeQuoter.TimestampedPrice.create({
@@ -254,7 +258,7 @@ export class FeeQuoterSetup {
   /**
    * Deploy and initialize the FeeQuoter contract (following setupTestFeeQuoter pattern)
    */
-  async deployFeeQuoterContract(): Promise<void> {
+  async deployFeeQuoterContract(excludeTokenPrices: Address[] = []): Promise<void> {
     const deployResult = await this.bind.feeQuoter.sendDeploy(
       this.acc.deployer.getSender(),
       toNano('1'),
@@ -330,7 +334,9 @@ export class FeeQuoterSetup {
       success: true,
     })
 
-    const pricedTokens = FeeQuoterSetup.SOURCE_FEE_TOKENS.concat(FeeQuoterSetup.DEST_FEE_TOKENS)
+    const pricedTokens = FeeQuoterSetup.SOURCE_FEE_TOKENS.concat(
+      FeeQuoterSetup.DEST_FEE_TOKENS,
+    ).filter(({ token }) => !excludeTokenPrices.some((a) => a.equals(token)))
 
     const priceUpdates = feeQuoter.PriceUpdates.create({
       tokenPriceUpdates: pricedTokens.map(({ token, price }) =>
@@ -438,10 +444,11 @@ export class FeeQuoterSetup {
     testId: string,
     blockchain: Blockchain,
     extraPrices?: Map<Address, feeQuoter.TimestampedPrice>,
+    excludeTokenPrices?: Address[],
   ): Promise<void> {
     await this.initializeBlockchain(blockchain)
-    await this.setupFeeQuoterContract(extraPrices)
-    await this.deployFeeQuoterContract()
+    await this.setupFeeQuoterContract(extraPrices, excludeTokenPrices)
+    await this.deployFeeQuoterContract(excludeTokenPrices)
     await this.setupCounterContract()
     await this.deployCounterContract()
   }
@@ -648,8 +655,9 @@ export class FeeQuoterFeeSetup extends FeeQuoterSetup {
     testId: string,
     blockchain: Blockchain,
     extraPrices?: Map<Address, feeQuoter.TimestampedPrice>,
+    excludeTokenPrices?: Address[],
   ): Promise<void> {
-    await super.setupAll(testId, blockchain, extraPrices)
+    await super.setupAll(testId, blockchain, extraPrices, excludeTokenPrices)
     // In TON, we'll focus on native TON fees rather than complex token pricing
   }
 }

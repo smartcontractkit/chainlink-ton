@@ -851,6 +851,68 @@ describe('FeeQuoter GetValidatedFee', () => {
         feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenNotSupported'],
       )
     })
+
+    // LINK-conversion path: when paying with a non-LINK fee token, calculateFeeValueJuels
+    // converts the fee to juels via getValidatedTokenPrice(st.linkToken), so an invalid LINK
+    // price must revert even though the fee token itself is priced. Each case re-deploys with
+    // LINK excluded from both the storage seed and the deploy-time updatePrices push (which
+    // would otherwise overwrite the invalid entry), then re-seeds it in the broken shape.
+    async function setupWithInvalidLinkPrice(linkPrice: feeQuoter.TimestampedPrice) {
+      const linkToken = FeeQuoterSetup.SOURCE_LINK.token
+      setup = new FeeQuoterFeeSetup(blockchain)
+      setup.code = await FeeQuoterSetup.compileContracts()
+      await setup.setupAll('getValidatedFee', blockchain, new Map([[linkToken, linkPrice]]), [
+        linkToken,
+      ])
+      return linkToken
+    }
+
+    async function expectLinkConversionReverts(linkPrice: feeQuoter.TimestampedPrice) {
+      const linkToken = await setupWithInvalidLinkPrice(linkPrice)
+
+      // Sanity: the invalid LINK entry survived setup.
+      await expect(setup.bind.feeQuoter.getValidatedTokenPrice(linkToken)).rejects.toThrow()
+
+      // Pay in NATIVE_TON (a valid non-LINK fee token) to force the LINK conversion.
+      const message = setup.generateEmptyMessage({ feeToken: FeeQuoterSetup.NATIVE_TON.token })
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenNotSupported'],
+      )
+    }
+
+    it('reverts with TokenNotSupported when LINK has no price entry and the fee is paid in another token', async () => {
+      const linkToken = await setupWithInvalidLinkPrice(
+        // No entry seeded at all: deploy-time push is excluded for LINK.
+        feeQuoter.TimestampedPrice.create({ value: 0n, timestamp: 0n }),
+      )
+      // Overwrite the seed with nothing: delete the entry so LINK has no price at all.
+      await expect(setup.bind.feeQuoter.getValidatedTokenPrice(linkToken)).rejects.toThrow()
+
+      // Pay in NATIVE_TON (a valid non-LINK fee token) to force the LINK conversion.
+      const message = setup.generateEmptyMessage({ feeToken: FeeQuoterSetup.NATIVE_TON.token })
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenNotSupported'],
+      )
+    })
+
+    it('reverts with TokenNotSupported when LINK price is zero and the fee is paid in another token', async () => {
+      await expectLinkConversionReverts(
+        feeQuoter.TimestampedPrice.create({ value: 0n, timestamp: 1n }),
+      )
+    })
+
+    it('reverts with TokenNotSupported when LINK price was never timestamped and the fee is paid in another token', async () => {
+      // A nonzero value with timestamp 0 is exactly what the previous raw-lookup + zero-value
+      // guard accepted; this test pins the regression.
+      await expectLinkConversionReverts(
+        feeQuoter.TimestampedPrice.create({
+          value: FeeQuoterSetup.SOURCE_LINK.price,
+          timestamp: 0n,
+        }),
+      )
+    })
   })
 
   // extraArgs validation
