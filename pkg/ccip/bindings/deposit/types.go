@@ -37,7 +37,6 @@ type Data struct {
 type PendingInit struct {
 	QueryID uint64     `tlb:"## 64"`
 	Context *cell.Cell `tlb:"maybe ^"`
-	Value   tlb.Coins  `tlb:"."`
 }
 
 // --- Messages (incoming) ---

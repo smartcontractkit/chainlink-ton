@@ -108,7 +108,6 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
     data.pendingInit = DepositAccount_PendingInit {
         queryId: msg.queryId,
         context: msg.context,
-        value: msgValue - initCost,
     }.toCell();
     data.store();
     val query = createMessage({
@@ -138,20 +137,21 @@ fun onResponseWalletAddress(sender: address, msg: ResponseWalletAddress) {
 fun replyToPendingInit(mutate data: DepositAccount_Data, walletLearned: bool) {
     val pending = data.pendingInit!.load();
     data.pendingInit = null;
+    reserveGramsOnBalance(DepositAccount_MIN_GRAM_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
     if (walletLearned) {
         createMessage({
             bounce: BounceMode.NoBounce,
-            value: pending.value,
+            value: 0,
             dest: data.owner,
             body: DepositAccount_Initialized { queryId: pending.queryId, context: pending.context },
-        }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+        }).send(SEND_MODE_CARRY_ALL_BALANCE);
     } else {
         createMessage({
             bounce: BounceMode.NoBounce,
-            value: pending.value,
+            value: 0,
             dest: data.owner,
             body: DepositAccount_WalletUnavailable { queryId: pending.queryId, context: pending.context },
-        }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+        }).send(SEND_MODE_CARRY_ALL_BALANCE);
     }
 }
 

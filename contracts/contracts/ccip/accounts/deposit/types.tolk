@@ -29,8 +29,6 @@ struct DepositAccount_Data {
 struct DepositAccount_PendingInit {
     queryId: uint64;
     context: cell?;
-    /// Init value returned with the reply.
-    value: coins;
 }
 
 /// Facility ID used for error code derivation; (crc32(<facility>) % 640) + 10

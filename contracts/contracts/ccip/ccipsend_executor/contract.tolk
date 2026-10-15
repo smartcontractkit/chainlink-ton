@@ -193,7 +193,7 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
 
 /// The original sender's on-ramp account for `token`, holding the jettons to transfer.
 fun senderOnRampAccount(sender: address, token: address, router: address): address {
-    return Router_onRampAccount(router, sender, token, deployableCompiledCode()).calculateAddress();
+    return Router.onRampAccount(router, sender, token, deployableCompiledCode()).calculateAddress();
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated) {

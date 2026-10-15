@@ -556,7 +556,7 @@ get fun onRampAccountAddress(user: address, token: address): address {
 }
 
 fun onRampAccount(user: address, token: address): AutoDeployAddress {
-    return Router_onRampAccount(contract.getAddress(), user, token, deployableCompiledCode());
+    return Router.onRampAccount(contract.getAddress(), user, token, deployableCompiledCode());
 }
 
 /*
@@ -1188,7 +1188,7 @@ fun onTokenTransferDelivered(msg: Router_TokenTransferDelivered) {
 }
 
 fun offRampAccount(receiver: address, token: address): AutoDeployAddress {
-    return Router_offRampAccount(contract.getAddress(), receiver, token, deployableCompiledCode());
+    return Router.offRampAccount(contract.getAddress(), receiver, token, deployableCompiledCode());
 }
 
 /*
