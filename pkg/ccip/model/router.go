@@ -28,10 +28,16 @@ type RouterStorage struct {
 }
 
 type RMNRemote struct {
-	Admin          Ownable2Step                           `json:"admin"`
-	Roles          *tlbe.Dict[tlbe.Uint256, rbac.RoleRef] `json:"-"`
-	CursedSubjects []*big.Int                             `json:"cursedSubjects"`
-	ForwardUpdates []*address.Address                     `json:"forwardUpdates"`
+	Admin                 Ownable2Step                           `json:"admin"`
+	Roles                 *tlbe.Dict[tlbe.Uint256, rbac.RoleRef] `json:"-"`
+	CursedSubjects        []*big.Int                             `json:"cursedSubjects"`
+	CursedSubjectsVersion uint64                                 `json:"cursedSubjectsVersion"`
+	ForwardUpdates        []RMNForwardUpdate                     `json:"forwardUpdates"`
+}
+
+type RMNForwardUpdate struct {
+	OffRamp      *address.Address `json:"offRamp"`
+	AckedVersion uint64           `json:"ackedVersion"`
 }
 
 // ---------- Builder ----------
@@ -109,12 +115,23 @@ func (b *RouterStorageBuilder) WithRMNRemote(owner, pending *address.Address) *R
 	return b
 }
 
-func (b *RouterStorageBuilder) WithRMNRemoteForwardUpdates(forwardUpdate *address.Address) *RouterStorageBuilder {
+func (b *RouterStorageBuilder) WithRMNRemoteForwardUpdates(offRamp *address.Address, ackedVersion uint64) *RouterStorageBuilder {
 	if b.err != nil {
 		return b
 	}
 
-	b.storage.RMNRemote.ForwardUpdates = append(b.storage.RMNRemote.ForwardUpdates, forwardUpdate)
+	b.storage.RMNRemote.ForwardUpdates = append(b.storage.RMNRemote.ForwardUpdates, RMNForwardUpdate{
+		OffRamp:      offRamp,
+		AckedVersion: ackedVersion,
+	})
+	return b
+}
+
+func (b *RouterStorageBuilder) WithRMNRemoteCursedSubjectsVersion(version uint64) *RouterStorageBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.storage.RMNRemote.CursedSubjectsVersion = version
 	return b
 }
 
@@ -145,7 +162,8 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 			raw.Ownable.PendingOwner,
 		).
 		WithWrapperNative(raw.WrappedNative).
-		WithRMNRemote(raw.RMNRemote.Policy.Admin.Owner, raw.RMNRemote.Policy.Admin.PendingOwner)
+		WithRMNRemote(raw.RMNRemote.Policy.Admin.Owner, raw.RMNRemote.Policy.Admin.PendingOwner).
+		WithRMNRemoteCursedSubjectsVersion(raw.RMNRemote.CursedSubjectsVersion)
 	b.storage.RMNRemote.Roles = raw.RMNRemote.Policy.RBAC.Roles
 	// OnRamp
 	onRamps, err := raw.OnRamps.LoadAll()
@@ -197,7 +215,12 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 			return fmt.Errorf("error while decoding ForwardUpdates value: %w", err2)
 		}
 
-		b = b.WithRMNRemoteForwardUpdates(forwardUpdate.Val)
+		ackedVersion, err2 := fu.Value.LoadUInt(64)
+		if err2 != nil {
+			return fmt.Errorf("error while decoding ForwardUpdates acked version: %w", err2)
+		}
+
+		b = b.WithRMNRemoteForwardUpdates(forwardUpdate.Val, ackedVersion)
 	}
 
 	// RMNRemote.CursedSubjects
@@ -240,6 +263,7 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 				},
 				RBAC: rbac.Data{Roles: s.RMNRemote.Roles},
 			},
+			CursedSubjectsVersion: s.RMNRemote.CursedSubjectsVersion,
 		},
 	}
 
@@ -287,8 +311,8 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 	st.RMNRemote.ForwardUpdates = cell.NewDict(267)
 	for _, fu := range s.RMNRemote.ForwardUpdates {
 		if err := st.RMNRemote.ForwardUpdates.Set(
-			cell.BeginCell().MustStoreAddr(fu).EndCell(),
-			tvm.EmptyCell,
+			cell.BeginCell().MustStoreAddr(fu.OffRamp).EndCell(),
+			cell.BeginCell().MustStoreUInt(fu.AckedVersion, 64).EndCell(),
 		); err != nil {
 			return nil, fmt.Errorf("error while setting ForwardUpdates: %w", err)
 		}

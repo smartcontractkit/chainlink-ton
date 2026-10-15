@@ -77,6 +77,7 @@ type Storage struct {
 	Config                    StorageConfig        `tlb:"^"`
 	OCR3Base                  OCR3Base             `tlb:"^"`
 	CursedSubjects            *cell.Dictionary     `tlb:"dict 128"`
+	CursedSubjectsVersion     uint64               `tlb:"## 64"`
 	SourceChainConfigs        *cell.Dictionary     `tlb:"dict 64"`
 	LatestPriceSequenceNumber uint64               `tlb:"## 64"`
 }

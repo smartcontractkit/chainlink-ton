@@ -19,6 +19,12 @@ struct OffRampRemoved {
     offRampRemoved: address;
 }
 
+const OFF_RAMP_CURSED_SUBJECTS_SYNCED_TOPIC = "OffRampCursedSubjectsSynced".crc32();
+struct OffRampCursedSubjectsSynced {
+    offRamp: address,
+    version: uint64,
+}
+
 const MESSAGE_TO_OFF_RAMP_BOUNCED_TOPIC = "MessageToOffRampBounced".crc32();
 struct MessageToOffRampBounced {
     offRamp: address,
