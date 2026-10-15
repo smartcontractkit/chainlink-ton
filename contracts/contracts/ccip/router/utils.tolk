@@ -13,7 +13,7 @@ fun Router_onRampAccount(router: address, user: address, token: address, deploya
 /// The Router's deposit account receiving off-ramped `token` for `receiver`.
 fun Router_offRampAccount(router: address, receiver: address, token: address, deployableCode: cell): AutoDeployAddress {
     return NamespacedDeployableAddress<Router_DepositAccountID>(deployableCode, {
-        namespace: DeployableNamespace_DepositAccount,
+        namespace: DeployableNamespace_OffRampAccount,
         owner: router,
         id: Router_DepositAccountID { user: receiver, token },
     });

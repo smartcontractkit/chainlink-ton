@@ -200,7 +200,7 @@ fun onTransferNotification(sender: address, msg: TransferNotificationForRecipien
     val notification = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
-        dest: notifyTarget != null ? notifyTarget : data.user,
+        dest: notifyTarget.unwrapOr(data.user),
         body: DepositAccount_ForwardNotification {
             notification: beginCell().storeSlice(body).endCell() as Cell<TransferNotificationForRecipient>,
         },
