@@ -413,11 +413,10 @@ fun _tokenTransferFee(st: Storage, destChainConfig: DestChainConfig, tokenAmount
     var premiumFeeUsdWei = 0;
     if (config.deciBps > 0) {
         val tokenPrice = st.getValidatedTokenPrice(tokenAmount.token);
+        // If price is not available, premiumFeeUsdWei here remains 0 and its value is clamped bellow
         if (tokenPrice != null) {
-            if (tokenPrice > 0) {
-                val tokenValueUsdWei = mustProd(tokenAmount.amount, tokenPrice, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E18;
-                premiumFeeUsdWei = mustProd(tokenValueUsdWei, config.deciBps, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E5;
-            }
+            val tokenValueUsdWei = mustProd(tokenAmount.amount, tokenPrice, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E18;
+            premiumFeeUsdWei = mustProd(tokenValueUsdWei, config.deciBps, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E5;
         }
     }
 
@@ -428,7 +427,8 @@ fun _tokenTransferFee(st: Storage, destChainConfig: DestChainConfig, tokenAmount
     return (premiumFeeUsdWei, config.destGasOverhead, config.destBytesOverhead);
 }
 
-/// @notice Gets the token price for a given token and reverts if the token is not supported.
+/// @notice Gets the token price for a given token and throws `FeeQuoter_Error.TokenNotSupported` if the token was registered but received no price updates.
+/// Returns null if the token was not found, otherwise returns the token price.
 /// @param token The address of the token to get the price for.
 /// @return tokenPriceValue The token price.
 fun Storage.getValidatedTokenPrice(self, token: address): uint224? {
