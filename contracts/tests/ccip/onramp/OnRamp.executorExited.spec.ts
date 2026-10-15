@@ -144,6 +144,16 @@ describe('OnRamp - executor exit', () => {
     const nextSeqNum = await onramp.getExpectedNextSequenceNumber(
       ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     )
+    // The success report consumes the fee the executor previously reserved on
+    // the OnRamp; reserve it first (as the executor does after fee validation),
+    // otherwise the report is rejected with PendingFeeReservationsUnderflow.
+    const fee = 1n
+    await onramp.sendOnRampExecutorReserveFee(executorSender, fee + toNano('0.05'), {
+      executorID: executorID,
+      fee,
+    })
+    expect(await onramp.getPendingFeeReservations()).toBe(fee)
+
     const result = await onramp.sendOnRampExecutorFinishedSuccessfully(
       executorSender,
       toNano('0.5'),
@@ -189,6 +199,9 @@ describe('OnRamp - executor exit', () => {
         ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       ),
     ).toBe(nextSeqNum + 1n)
+
+    // The success report released the reservation.
+    expect(await onramp.getPendingFeeReservations()).toBe(0n)
   })
 
   it('should return message rejected to router', async () => {
@@ -352,7 +365,10 @@ describe('OnRamp - executor exit', () => {
         ex.FeeQuoter_MessageValidated.create({
           fee: ex.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
           msg: ccipSend,
-          destGasOverheads: [90_000n],
+          destOverheads: [
+            ex.FeeQuoter_DestOverhead.create({ destGasOverhead: 90_000n, destBytesOverhead: 0n }),
+          ],
+          chainFamilySelector: ChainFamilySelectors.evm,
         }),
       )
       expect(result.transactions).toHaveTransaction({
@@ -374,14 +390,24 @@ describe('OnRamp - executor exit', () => {
       })
       expect(await onramp.getPendingFeeReservations()).toBe(0n)
 
-      // A fabricated success report without a reservation must not underflow
-      // the counter (saturating release).
-      await onramp.sendOnRampExecutorFinishedSuccessfully(executorSender, toNano('0.5'), {
-        executorID: executorID,
-        fee: or.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
-        msg: ccipSend,
-        metadata: or.Metadata.create({ sender: senderAddress, value: toNano('42') }),
-        tokenTransfer: null,
+      // A fabricated success report without a reservation is rejected: the fee
+      // check aborts the transaction instead of underflowing the counter.
+      const fabricated = await onramp.sendOnRampExecutorFinishedSuccessfully(
+        executorSender,
+        toNano('0.5'),
+        {
+          executorID: executorID,
+          fee: or.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
+          msg: ccipSend,
+          metadata: or.Metadata.create({ sender: senderAddress, value: toNano('42') }),
+          tokenTransfer: null,
+        },
+      )
+      expect(fabricated.transactions).toHaveTransaction({
+        from: executorSender.address,
+        to: onramp.address,
+        success: false,
+        exitCode: or.OnRamp.Errors['OnRamp_Error.PendingFeeReservationsUnderflow'],
       })
       expect(await onramp.getPendingFeeReservations()).toBe(0n)
     })
@@ -441,6 +467,39 @@ describe('OnRamp - executor exit', () => {
         op: or.OnRamp_ExecutorFeeReserved.PREFIX,
       })
     })
+  })
+
+  it('should reject a success report whose fee exceeds the pending reservation', async () => {
+    // Reserve less than the reported fee: the success report must abort rather
+    // than underflow the reservation counter.
+    const reserved = toNano('0.04')
+    await onramp.sendOnRampExecutorReserveFee(executorSender, reserved + toNano('0.05'), {
+      executorID: executorID,
+      fee: reserved,
+    })
+    expect(await onramp.getPendingFeeReservations()).toBe(reserved)
+
+    const reportedFee = toNano('0.1')
+    const result = await onramp.sendOnRampExecutorFinishedSuccessfully(
+      executorSender,
+      toNano('0.5'),
+      {
+        executorID: executorID,
+        fee: or.Fee.create({ feeTokenAmount: reportedFee, feeValueJuels: reportedFee }),
+        msg: ccipSend,
+        metadata: or.Metadata.create({ sender: senderAddress, value: toNano('42') }),
+        tokenTransfer: null,
+      },
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: executorSender.address,
+      to: onramp.address,
+      success: false,
+      exitCode: or.OnRamp.Errors['OnRamp_Error.PendingFeeReservationsUnderflow'],
+    })
+
+    // The aborted report left the reservation untouched.
+    expect(await onramp.getPendingFeeReservations()).toBe(reserved)
   })
 
   it('should fail to send message sent if sender is not executor', async () => {

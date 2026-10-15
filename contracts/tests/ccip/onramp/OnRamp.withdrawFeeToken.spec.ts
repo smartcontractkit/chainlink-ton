@@ -9,7 +9,7 @@ import * as dep from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
 import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { ChainSelectors } from '../../utils/Selectors'
+import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
 import { findTransactionRequired } from '@ton/test-utils'
@@ -242,7 +242,10 @@ describe('OnRamp - WithdrawFeeTokens', () => {
       ex.FeeQuoter_MessageValidated.create({
         fee: ex.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
         msg: ccipSend,
-        destGasOverheads: [90_000n],
+        destOverheads: [
+          ex.FeeQuoter_DestOverhead.create({ destGasOverhead: 90_000n, destBytesOverhead: 0n }),
+        ],
+        chainFamilySelector: ChainFamilySelectors.evm,
       }),
     )
     expect(reserveResult.transactions).toHaveTransaction({

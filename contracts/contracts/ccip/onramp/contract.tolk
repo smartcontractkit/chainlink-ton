@@ -414,12 +414,6 @@ fun processPoolReturnData(msg: OnRamp_ExecutorRequestsWithdraw) {
 Stores the validated fee before the executor begins any token work. Reserving
 against the original balance leaves the fee on the OnRamp while carrying the
 request's extra TON back to the executor for the remaining execution steps.
-
-The reserved amount is also accumulated in `pendingFeeReservations` so that
-`onWithdrawFeeTokens` cannot withdraw committed fees while the executor is
-awaiting token callbacks. If the reserve action fails, the whole transaction
-is reverted (RESERVE_MODE_BOUNCE_ON_ACTION_FAIL), so the counter and the
-balance stay consistent.
 */
 fun onExecutorReserveFee(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorReserveFee, sendExecutor: address) {
     st.pendingFeeReservations = st.pendingFeeReservations + msg.fee;
@@ -453,10 +447,8 @@ fun onExecutorFinishedSuccessfully(mutate st: OnRamp_Storage, msg: OnRamp_Execut
     // assign sequence number, we can't do this sooner since the message might fail validation/getFee
     destChainConfig.sequenceNumber = destChainConfig.sequenceNumber + 1;
     st.destChainConfigs.set(ccipsend.destChainSelector, destChainConfig);
-    // The fee was consumed by this successful send: release its reservation.
-    // Saturating: a buggy executor reporting a fee it never reserved must not
-    // underflow the counter (which would inflate the spendable balance).
-    st.pendingFeeReservations = max(st.pendingFeeReservations - msg.fee.feeTokenAmount, 0);
+    assert (st.pendingFeeReservations >= msg.fee.feeTokenAmount) throw OnRamp_Error.PendingFeeReservationsUnderflow;  
+    st.pendingFeeReservations = st.pendingFeeReservations - msg.fee.feeTokenAmount;  
 
     var rampMessage = TVM2AnyRampMessage {
         header: RampMessageHeader {
