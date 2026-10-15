@@ -297,11 +297,10 @@ describe('FeeQuoter Token Transfer Fee', () => {
     }
   })
 
-  it('treats a missing token price as a zero bps component (does not revert), still clamped to the configured min', async () => {
+  it('reverts with TokenNotSupported when a transferred token has no price entry', async () => {
     // Config is enabled with deciBps > 0, but the transferred token has no usdPerToken entry.
-    // Matches Solana's graceful-degradation behavior (network_fee_for_a_supported_token_with_no_fee_token_config):
-    // the bps-derived component is treated as 0 rather than reverting, and the result still goes
-    // through the min/max clamp.
+    // Unlike Solana's graceful degradation, the Tolk FeeQuoter requires the price to have been
+    // set at least once before a bps-based transfer fee can be computed.
     const token = Address.parse(
       `0:${Buffer.from('NO_PRICE_TOKEN').toString('hex').padStart(64, '0')}`,
     )
@@ -334,28 +333,11 @@ describe('FeeQuoter Token Transfer Fee', () => {
       success: true,
     })
 
-    const amount = 15_000_000_000_000_000n
-    const message = messageWithTokens([{ token, amount }], FEE_TOKEN.token)
-    const result = await setup.getValidatedFee(message)
-
-    const expected = await expectedFee(
-      [{ token, amount, config }],
-      FEE_TOKEN.token,
-      FEE_TOKEN.price,
+    const message = messageWithTokens([{ token, amount: toNano('1') }], FEE_TOKEN.token)
+    await setup.assertGetFeeValidationError(
+      message,
+      feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenNotSupported'],
     )
-    expect(result.fee.feeTokenAmount).toEqual(expected)
-
-    const { premiumFeeUsdWei } = computeTokenTransferFee(config, undefined, amount)
-    expect(premiumFeeUsdWei).toEqual(usdCentsToWei(config.minFeeUsdCents))
-
-    // Changing deciBps has no effect while the price remains unknown.
-    const configWithHigherBps = { ...config, deciBps: 20_000n }
-    const { premiumFeeUsdWei: premiumWithHigherBps } = computeTokenTransferFee(
-      configWithHigherBps,
-      undefined,
-      amount,
-    )
-    expect(premiumWithHigherBps).toEqual(premiumFeeUsdWei)
   })
 
   it('sums the premium, dest gas overhead and dest bytes overhead across multiple tokens', async () => {

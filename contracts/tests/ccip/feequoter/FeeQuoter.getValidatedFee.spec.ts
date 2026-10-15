@@ -617,10 +617,12 @@ describe('FeeQuoter GetValidatedFee', () => {
       expect(bitCount).toBeLessThanOrEqual(257) // Ensure fits within uint257
     })
 
-    it('should handle token price too low error', async () => {
+    it('should revert with TokenNotSupported for a zero fee token price', async () => {
+      // Mirrors EVM getValidatedFee, which validates the fee token via getValidatedTokenPrice:
+      // a zero (or never-timestamped) price reverts TokenNotSupported, not TokenPriceTooLow.
       await testOverflowScenario(
-        'token price too low',
-        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenPriceTooLow'],
+        'zero fee token price',
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenNotSupported'],
         {
           feeTokenPrice: 0n, // Zero token price should trigger error
         },
@@ -692,10 +694,8 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
   })
 
-  // Token price validation: a price entry that was never timestamped, or carries a zero value,
-  // reverts with TokenNotSupported (getValidatedTokenPrice). A token with no price entry at all is
-  // NOT an error: the bps component is treated as zero and the fee is clamped to the configured
-  // minimum (mirroring the Solana FeeQuoter's graceful degradation).
+  // Token price validation: getValidatedTokenPrice reverts with TokenNotSupported when the token
+  // has no price entry, was never timestamped, or carries a zero value.
   describe('Token Price Validation', () => {
     function uniqueToken(name: string): Address {
       return Address.parse(`0:${Buffer.from(name).toString('hex').padStart(64, '0')}`)
@@ -765,9 +765,10 @@ describe('FeeQuoter GetValidatedFee', () => {
       expect(price).toBe(FeeQuoterSetup.SOURCE_FEE_TOKEN.price)
     })
 
-    it('validatedTokenPrice returns null for a token with no price entry', async () => {
-      const price = await setup.bind.feeQuoter.getValidatedTokenPrice(uniqueToken('NO_ENTRY'))
-      expect(price).toBeNull()
+    it('validatedTokenPrice reverts for a token with no price entry', async () => {
+      await expect(
+        setup.bind.feeQuoter.getValidatedTokenPrice(uniqueToken('NO_ENTRY')),
+      ).rejects.toThrow()
     })
 
     it('validatedTokenPrice reverts for a zero price', async () => {
@@ -840,13 +841,15 @@ describe('FeeQuoter GetValidatedFee', () => {
       )
     })
 
-    it('does not revert when a transferred token has no price entry (bps component treated as zero)', async () => {
+    it('reverts with TokenNotSupported when a transferred token has no price entry', async () => {
       const token = uniqueToken('NO_PRICE_ENTRY_FEE')
       await addTokenTransferFeeConfig(token) // deciBps > 0, but no usdPerToken entry
 
       const message = setup.generateSingleTokenMessage({ token, amount: toNano('1') })
-      const result = await setup.getValidatedFee(message)
-      expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenNotSupported'],
+      )
     })
   })
 

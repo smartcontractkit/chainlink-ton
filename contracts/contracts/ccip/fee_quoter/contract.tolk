@@ -265,7 +265,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<FeeQuoter_DestO
     assert(msg.feeToken != null, FeeQuoter_Error.FeeTokenNotSupported);
     val feeToken = msg.feeToken!;
     val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported);
-    val feeTokenPrice = st.usdPerToken.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported);
+    val feeTokenPrice = st.getValidatedTokenPrice(feeToken);
 
     val it = (msg.data as SnakedCell<uint8>).iter();
     val (msgDataLen, errorCode) = it.countBytesSafe();
@@ -332,9 +332,8 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<FeeQuoter_DestO
     val premiumFee = mustProd(premiumFeeUsdWei, premiumMultiplier, FeeQuoter_Error.PremiumFeeOverflow);
     val feeTokenValue = mustAdd(premiumFee, executionCost, FeeQuoter_Error.FeeCalculationOverflow);
 
-    // Check for division by zero (zero token prices)
-    assert(feeTokenPrice.value > 0, FeeQuoter_Error.TokenPriceTooLow);
-    val feeTokenAmount = (feeTokenValue / feeTokenPrice.value);
+    // feeTokenPrice is guaranteed non-zero by getValidatedTokenPrice.
+    val feeTokenAmount = (feeTokenValue / feeTokenPrice);
 
     // Equivalent to processMessageArgs in Solidity FeeQuoter
     val feeValueJuels = calculateFeeValueJuels(st, feeToken, feeTokenValue, feeTokenAmount);
@@ -352,11 +351,10 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<FeeQuoter_DestO
 fun calculateFeeValueJuels(st: Storage, feeToken: address, feeTokenValue: coins, feeTokenAmount: coins): coins {
     var feeValueJuels = feeTokenAmount;
     if (feeToken != st.linkToken) {
-        val linkTokenPrice = st.usdPerToken.mustGet(st.linkToken, FeeQuoter_Error.TokenNotSupported);
-        // Check for division by zero (zero token prices)
-        assert(linkTokenPrice.value > 0, FeeQuoter_Error.TokenPriceTooLow);
+        // getValidatedTokenPrice asserts that the LINK price was set at least once and is non-zero.
+        val linkTokenPrice = st.getValidatedTokenPrice(st.linkToken);
         // convert from USD to juels
-        feeValueJuels = feeTokenValue / linkTokenPrice.value;
+        feeValueJuels = feeTokenValue / linkTokenPrice;
     }
 
     assert (feeValueJuels <= st.maxFeeJuelsPerMsg) throw FeeQuoter_Error.MessageFeeTooHigh;
@@ -364,15 +362,13 @@ fun calculateFeeValueJuels(st: Storage, feeToken: address, feeTokenValue: coins,
 }
 
 // Computes the token-transfer premium fee (USD, 1e18-scaled), dest gas overhead and dest bytes
-// overhead for a single token. Mirrors the EVM/Solana FeeQuoter token-transfer fee model:
+// overhead for a single token. Mirrors the EVM FeeQuoter token-transfer fee model:
 // - if a per-(destChain, token) TokenTransferFeeConfig override exists and is enabled, the premium
 //   is `deciBps` of the transferred value (in USD), clamped to [minFeeUsdCents, maxFeeUsdCents];
 // - otherwise, falls back to the dest chain's flat defaultTokenFeeUsdCents/defaultTokenDestGasOverhead,
 //   with CCIP_LOCK_OR_BURN_V1_RET_BYTES as the default bytes overhead.
-// NOTE: as in Solana's fee-quoter, a missing price for the transferred token does not revert;
-// the bps-based component is simply treated as 0 and the result still goes through the min/max clamp.
-// This lets a transfer fee override be configured ahead of the token's price feed being populated.
-// A price that was never timestamped, or is zero, reverts with TokenNotSupported instead.
+// NOTE: as in the EVM FeeQuoter, a transferred token must have a valid (set-at-least-once,
+// non-zero) price: getValidatedTokenPrice reverts with TokenNotSupported otherwise.
 fun getEnabledTokenTransferFeeConfig(destChainConfig: DestChainConfig, token: address): TokenTransferFeeConfig? {
     val configEntry = destChainConfig.tokenTransferFeeConfigs.get(token);
     if (configEntry.isFound) {
@@ -413,11 +409,8 @@ fun _tokenTransferFee(st: Storage, destChainConfig: DestChainConfig, tokenAmount
     var premiumFeeUsdWei = 0;
     if (config.deciBps > 0) {
         val tokenPrice = st.getValidatedTokenPrice(tokenAmount.token);
-        // If price is not available, premiumFeeUsdWei here remains 0 and its value is clamped bellow
-        if (tokenPrice != null) {
-            val tokenValueUsdWei = mustProd(tokenAmount.amount, tokenPrice, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E18;
-            premiumFeeUsdWei = mustProd(tokenValueUsdWei, config.deciBps, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E5;
-        }
+        val tokenValueUsdWei = mustProd(tokenAmount.amount, tokenPrice, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E18;
+        premiumFeeUsdWei = mustProd(tokenValueUsdWei, config.deciBps, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E5;
     }
 
     val minFeeUsdWei = mustProd(config.minFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
@@ -427,15 +420,12 @@ fun _tokenTransferFee(st: Storage, destChainConfig: DestChainConfig, tokenAmount
     return (premiumFeeUsdWei, config.destGasOverhead, config.destBytesOverhead);
 }
 
-/// @notice Gets the token price for a given token and throws `FeeQuoter_Error.TokenNotSupported` if the token was registered but received no price updates.
-/// Returns null if the token was not found, otherwise returns the token price.
+/// @notice Gets the token price for a given token and throws `FeeQuoter_Error.TokenNotSupported` if the token is not registered, or if it was registered but received no price updates.
 /// @param token The address of the token to get the price for.
 /// @return tokenPriceValue The token price.
-fun Storage.getValidatedTokenPrice(self, token: address): uint224? {
+fun Storage.getValidatedTokenPrice(self, token: address): uint224 {
     val priceEntry = self.usdPerToken.get(token);
-    if (!priceEntry.isFound) {
-        return null;
-    }
+    assert (priceEntry.isFound)  throw FeeQuoter_Error.TokenNotSupported;
     val tokenPrice = priceEntry.loadValue();
     // Token price must be set at least once (non-zero timestamp) and be non-zero.
     assert(tokenPrice.timestamp != 0 && tokenPrice.value != 0, FeeQuoter_Error.TokenNotSupported);
@@ -444,7 +434,7 @@ fun Storage.getValidatedTokenPrice(self, token: address): uint224? {
     return tokenPrice.value;
 }
 
-get fun validatedTokenPrice(token: address): uint224? {
+get fun validatedTokenPrice(token: address): uint224 {
     val st = lazy Storage.load();
     return st.getValidatedTokenPrice(token);
 }

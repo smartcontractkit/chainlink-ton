@@ -70,7 +70,6 @@ const (
 	ErrorPremiumFeeOverflow
 	ErrorDataAvailabilityCostOverflow
 	ErrorFeeCalculationOverflow
-	ErrorTokenPriceTooLow
 	ErrorFeeOverflow
 	ErrorMessageFeeTooHigh
 )

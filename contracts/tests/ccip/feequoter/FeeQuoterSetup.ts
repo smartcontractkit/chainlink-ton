@@ -705,8 +705,6 @@ function printErrorName(error: number): string {
       return 'DataAvailabilityCostOverflow'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.FeeCalculationOverflow']:
       return 'FeeCalculationOverflow'
-    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenPriceTooLow']:
-      return 'TokenPriceTooLow'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.FeeOverflow']:
       return 'FeeOverflow'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.MessageFeeTooHigh']:
