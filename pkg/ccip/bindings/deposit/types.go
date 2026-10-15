@@ -35,18 +35,18 @@ type Data struct {
 
 // PendingInit is an init waiting for the account's jetton wallet to be learned.
 type PendingInit struct {
-	QueryID        uint64     `tlb:"## 64"`
-	ForwardPayload *cell.Cell `tlb:"maybe ^"`
-	Value          tlb.Coins  `tlb:"."`
+	QueryID uint64     `tlb:"## 64"`
+	Context *cell.Cell `tlb:"maybe ^"`
+	Value   tlb.Coins  `tlb:"."`
 }
 
 // --- Messages (incoming) ---
 
 // Init activates the account. Only the owner may send it.
 type Init struct {
-	_              tlb.Magic  `tlb:"#6890a205" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64     `tlb:"## 64"`
-	ForwardPayload *cell.Cell `tlb:"maybe ^"`
+	_       tlb.Magic  `tlb:"#6890a205" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64     `tlb:"## 64"`
+	Context *cell.Cell `tlb:"maybe ^"`
 }
 
 // Withdraw lets a beneficiary transfer jettons out of the account's learned jetton wallet.
@@ -60,16 +60,16 @@ type Withdraw struct {
 
 // Initialized is sent to the owner on successful initialization.
 type Initialized struct {
-	_              tlb.Magic  `tlb:"#784d98e9" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64     `tlb:"## 64"`
-	ForwardPayload *cell.Cell `tlb:"maybe ^"`
+	_       tlb.Magic  `tlb:"#784d98e9" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64     `tlb:"## 64"`
+	Context *cell.Cell `tlb:"maybe ^"`
 }
 
 // WalletUnavailable replies to an init when the token could not report the account's wallet.
 type WalletUnavailable struct {
-	_              tlb.Magic  `tlb:"#9293d68e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64     `tlb:"## 64"`
-	ForwardPayload *cell.Cell `tlb:"maybe ^"`
+	_       tlb.Magic  `tlb:"#9293d68e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64     `tlb:"## 64"`
+	Context *cell.Cell `tlb:"maybe ^"`
 }
 
 // ForwardNotification forwards a jetton transfer notification received by the account.

@@ -8,4 +8,7 @@ enum OnRamp_Error {
     InvalidConfig
     UnknownToken
     InsufficientValue
+    InvalidDestTokenAddress
+    SourceTokenDataTooLarge
+    PendingFeeReservationsUnderflow
 }

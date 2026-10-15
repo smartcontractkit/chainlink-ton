@@ -649,9 +649,9 @@ function printErrorName(error: number): string {
       return 'InvalidExtraArgsData'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.UnsupportedNumberOfTokens']:
       return 'UnsupportedNumberOfTokens'
-    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidEVMReceiverAddress']:
+    case feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.InvalidEVMAddress']:
       return 'InvalidEVMReceiverAddress'
-    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.Invalid32ByteReceiverAddress']:
+    case feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.Invalid32ByteAddress']:
       return 'Invalid32ByteReceiverAddress'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidSuiReceiverAddress']:
       return 'InvalidSuiReceiverAddress'

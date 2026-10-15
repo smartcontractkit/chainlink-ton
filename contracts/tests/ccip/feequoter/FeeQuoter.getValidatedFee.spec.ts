@@ -1115,7 +1115,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         })
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidEVMReceiverAddress'],
+          feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.InvalidEVMAddress'],
         )
       })
 
@@ -1139,7 +1139,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidEVMReceiverAddress'],
+          feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.InvalidEVMAddress'],
         )
       })
 
@@ -1230,7 +1230,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.Invalid32ByteReceiverAddress'],
+          feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.Invalid32ByteAddress'],
         )
       })
     })
@@ -1274,7 +1274,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.Invalid32ByteReceiverAddress'],
+          feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.Invalid32ByteAddress'],
         )
       })
     })
@@ -1345,7 +1345,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.Invalid32ByteReceiverAddress'],
+          feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.Invalid32ByteAddress'],
         )
       })
 
@@ -1368,7 +1368,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.Invalid32ByteReceiverAddress'],
+          feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.Invalid32ByteAddress'],
         )
       })
 

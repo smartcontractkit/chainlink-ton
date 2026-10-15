@@ -14,17 +14,17 @@ import "../../../lib/jetton/messages"
 struct (0x6890a205) DepositAccount_Init {
     queryId: uint64;
     /// Echoed back in the reply.
-    forwardPayload: cell?;
+    context: cell?;
 }
 
 struct (0x784d98e9) DepositAccount_Initialized {
     queryId: uint64;
-    forwardPayload: cell?;
+    context: cell?;
 }
 
 struct (0x9293d68e) DepositAccount_WalletUnavailable {
     queryId: uint64;
-    forwardPayload: cell?;
+    context: cell?;
 }
 
 /// A jetton transfer notification received by the account, forwarded to the account's `user`, or

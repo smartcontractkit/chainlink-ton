@@ -93,7 +93,7 @@ describe('Router.getOnRampAccount', () => {
     return { ...answer, transactions: [...request.transactions, ...answer.transactions] }
   }
 
-  // Router_OnRampAccountContext { user, token } echoed through DepositAccount_Init.forwardPayload.
+  // Router_OnRampAccountContext { user, token } echoed through DepositAccount_Init.context.
   const ON_RAMP_ACCOUNT_CONTEXT_PREFIX = 0x9e339227
   const onRampAccountContext = (user: Address, jetton: Address): Cell =>
     beginCell()
@@ -138,7 +138,7 @@ describe('Router.getOnRampAccount', () => {
       body(body) {
         if (!body) return false
         const reply = deposit.DepositAccount_Initialized.fromSlice(body.beginParse())
-        return reply.forwardPayload?.equals(onRampAccountContext(sender.address, token)) === true
+        return reply.context?.equals(onRampAccountContext(sender.address, token)) === true
       },
     })
 
@@ -235,7 +235,7 @@ describe('Router.getOnRampAccount', () => {
       attacker.getSender(),
       toNano('0.5'),
       {
-        forwardPayload: onRampAccountContext(sender.address, token),
+        context: onRampAccountContext(sender.address, token),
       },
     )
     expect(spoofed.transactions).toHaveTransaction({
@@ -290,7 +290,7 @@ describe('Router.getOnRampAccount', () => {
     const result = await router.sendDepositAccountInitialized(
       blockchain.sender(expectedAccountAddress(sender.address, token)),
       toNano('0.5'),
-      { forwardPayload: onRampAccountContext(sender.address, otherToken) },
+      { context: onRampAccountContext(sender.address, otherToken) },
     )
     expect(result.transactions).toHaveTransaction({
       to: router.address,
@@ -361,7 +361,7 @@ describe('Router.getOnRampAccount', () => {
       attacker.getSender(),
       toNano('0.5'),
       {
-        forwardPayload: onRampAccountContext(sender.address, token),
+        context: onRampAccountContext(sender.address, token),
       },
     )
     expect(result.transactions).toHaveTransaction({

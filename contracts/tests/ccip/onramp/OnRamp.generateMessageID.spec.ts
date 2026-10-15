@@ -145,6 +145,15 @@ describe('OnRamp - generate message id', () => {
   })
 
   it('should generate same message id with same message', async () => {
+    // The success report consumes the fee the executor previously reserved on
+    // the OnRamp; reserve it first (as the executor does after fee validation),
+    // otherwise the report is rejected with PendingFeeReservationsUnderflow.
+    const fee = 1n
+    await onramp.sendOnRampExecutorReserveFee(executorSender, fee + toNano('0.05'), {
+      executorID: executorID,
+      fee,
+    })
+
     const result = await onramp.sendOnRampExecutorFinishedSuccessfully(
       executorSender,
       toNano('0.5'),
@@ -162,8 +171,10 @@ describe('OnRamp - generate message id', () => {
         tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
           sourcePoolAddress: senderAddress,
           amount: 0n,
-          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
-          extraData: Cell.EMPTY,
+          lockOrBurnOut: or.TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress: EVM_ADDRESS,
+            destPoolData: Cell.EMPTY,
+          }),
           destExecData: Cell.EMPTY,
         }),
       },
@@ -186,7 +197,7 @@ describe('OnRamp - generate message id', () => {
           on.TVM2AnyTokenTransfer.create({
             sourcePoolAddress: senderAddress,
             amount: 0n,
-            destTokenAddress: cca.codec.encode(Buffer.alloc(0)).asCell().beginParse(),
+            destTokenAddress: EVM_ADDRESS,
             extraData: Cell.EMPTY,
             destExecData: Cell.EMPTY,
           }),

@@ -188,9 +188,7 @@ describe('Router.relayReleaseOrMint', () => {
         body(body) {
           if (!body) return false
           const reply = deposit.DepositAccount_Initialized.fromSlice(body.beginParse())
-          return (
-            reply.forwardPayload?.equals(rt.Router_RelayReleaseOrMint.toCell(relayMsg)) === true
-          )
+          return reply.context?.equals(rt.Router_RelayReleaseOrMint.toCell(relayMsg)) === true
         },
       })
       expectRelayedToPool(result, 1n, account)
@@ -260,7 +258,7 @@ describe('Router.relayReleaseOrMint', () => {
         attacker.getSender(),
         toNano('0.5'),
         {
-          forwardPayload: rt.Router_RelayReleaseOrMint.toCell(relayOf(10n)),
+          context: rt.Router_RelayReleaseOrMint.toCell(relayOf(10n)),
         },
       )
       expect(result.transactions).toHaveTransaction({
@@ -282,7 +280,7 @@ describe('Router.relayReleaseOrMint', () => {
       const result = await router.sendDepositAccountInitialized(
         blockchain.sender(receiverAccountFor()),
         toNano('0.5'),
-        { forwardPayload: rt.Router_RelayReleaseOrMint.toCell(relayOf(12n, otherToken)) },
+        { context: rt.Router_RelayReleaseOrMint.toCell(relayOf(12n, otherToken)) },
       )
       expect(result.transactions).toHaveTransaction({
         to: router.address,
@@ -325,7 +323,7 @@ describe('Router.relayReleaseOrMint', () => {
       const result = await router.sendDepositAccountWalletUnavailable(
         blockchain.sender(receiverAccountFor()),
         toNano('0.5'),
-        { queryId: 15n, forwardPayload: rt.Router_RelayReleaseOrMint.toCell(relayOf(15n)) },
+        { queryId: 15n, context: rt.Router_RelayReleaseOrMint.toCell(relayOf(15n)) },
       )
       expect(result.transactions).toHaveTransaction({
         from: router.address,
@@ -349,7 +347,7 @@ describe('Router.relayReleaseOrMint', () => {
       const result = await router.sendDepositAccountWalletUnavailable(
         attacker.getSender(),
         toNano('0.5'),
-        { forwardPayload: rt.Router_RelayReleaseOrMint.toCell(relayOf(14n)) },
+        { context: rt.Router_RelayReleaseOrMint.toCell(relayOf(14n)) },
       )
       expect(result.transactions).toHaveTransaction({
         from: attacker.address,

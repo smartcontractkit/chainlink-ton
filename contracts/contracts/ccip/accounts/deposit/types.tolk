@@ -28,7 +28,7 @@ struct DepositAccount_Data {
 
 struct DepositAccount_PendingInit {
     queryId: uint64;
-    forwardPayload: cell?;
+    context: cell?;
     /// Init value returned with the reply.
     value: coins;
 }

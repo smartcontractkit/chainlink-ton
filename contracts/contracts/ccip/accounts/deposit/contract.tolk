@@ -81,7 +81,6 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
     var data = DepositAccount_Data.load();
     assert(sender == data.owner, DepositAccount_Error.OnlyOwner);
     val waitForWallet = data.wallet == null;
-    assert(!(waitForWallet && data.pendingInit != null), DepositAccount_Error.InitPending);
     val initCost = DepositAccount_MIN_GRAM_TO_INIT + (waitForWallet ? DepositAccount_WALLET_QUERY_VALUE : 0);
     // `getOriginalBalance` already includes the inbound value.
     assert(
@@ -97,7 +96,7 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
             dest: sender,
             body: DepositAccount_Initialized {
                 queryId: msg.queryId,
-                forwardPayload: msg.forwardPayload,
+                context: msg.context,
             },
         });
         // SAFETY: reserveGramsOnBalance is called before
@@ -105,9 +104,10 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
         return;
     }
 
+    assert(data.pendingInit == null, DepositAccount_Error.InitPending);
     data.pendingInit = DepositAccount_PendingInit {
         queryId: msg.queryId,
-        forwardPayload: msg.forwardPayload,
+        context: msg.context,
         value: msgValue - initCost,
     }.toCell();
     data.store();
@@ -128,11 +128,10 @@ fun onResponseWalletAddress(sender: address, msg: ResponseWalletAddress) {
     var data = DepositAccount_Data.load();
     assert(sender == data.token, DepositAccount_Error.OnlyToken);
     assert(data.pendingInit != null, DepositAccount_Error.NoPendingInit);
-    val walletLearned = msg.jettonWalletAddress != null;
-    if (walletLearned) {
-        data.wallet = msg.jettonWalletAddress!.toCell();
+    if (msg.jettonWalletAddress != null) {
+        data.wallet = msg.jettonWalletAddress.toCell();
     }
-    replyToPendingInit(mutate data, walletLearned);
+    replyToPendingInit(mutate data, msg.jettonWalletAddress != null);
     data.store();
 }
 
@@ -144,14 +143,14 @@ fun replyToPendingInit(mutate data: DepositAccount_Data, walletLearned: bool) {
             bounce: BounceMode.NoBounce,
             value: pending.value,
             dest: data.owner,
-            body: DepositAccount_Initialized { queryId: pending.queryId, forwardPayload: pending.forwardPayload },
+            body: DepositAccount_Initialized { queryId: pending.queryId, context: pending.context },
         }).send(SEND_MODE_PAY_FEES_SEPARATELY);
     } else {
         createMessage({
             bounce: BounceMode.NoBounce,
             value: pending.value,
             dest: data.owner,
-            body: DepositAccount_WalletUnavailable { queryId: pending.queryId, forwardPayload: pending.forwardPayload },
+            body: DepositAccount_WalletUnavailable { queryId: pending.queryId, context: pending.context },
         }).send(SEND_MODE_PAY_FEES_SEPARATELY);
     }
 }

@@ -28,6 +28,7 @@ type Router_InMsg =
     | OnRamp_MessageValidationFailed
     | Router_RouteMessage
     | Router_WithdrawToTokenPool
+    | Router_WithdrawToTokenPoolFailed
     | Router_CCIPReceiveConfirm
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
@@ -126,6 +127,16 @@ struct (0xf28658e0) Router_UseOnRampAccount {
 struct (0x2c734db9) Router_OnRampAccountFailed {
     queryId: uint64;
     error: uint256;
+}
+
+/// Sent by the OnRamp when it rejects a `Router_WithdrawToTokenPool` request before the
+/// Router moves custody. The Router relays the failure to the token pool so it can reinstate
+/// the rate limit consumed at admission and fail the send.
+struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
+    queryID: uint64;
+    destChainSelector: uint64;
+    withdrawRequest: Cell<Router_WithdrawRequest>;
+    error: uint16;
 }
 
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
@@ -237,7 +248,7 @@ struct (0x9e339227) Router_OnRampAccountContext {
     token: address;
 }
 
-/// The two contexts the Router carries in a `DepositAccount_Init.forwardPayload` and gets back in
+/// The two contexts the Router carries in a `DepositAccount_Init.context` and gets back in
 /// the account's `DepositAccount_Initialized`: the inbound release/mint relay to resume, or the
 /// user-initiated on-ramp account deployment to confirm.
 type Router_DepositAccountInitContext =

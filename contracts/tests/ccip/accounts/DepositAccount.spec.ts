@@ -46,10 +46,10 @@ describe('DepositAccount', () => {
   const init = async (
     via: SandboxContract<TreasuryContract>,
     account: SandboxContract<da.DepositAccount>,
-    forwardPayload: Cell | null = null,
+    context: Cell | null = null,
   ) => {
     return account.sendDepositAccountInit(via.getSender(), toNano('0.5'), {
-      forwardPayload,
+      context,
     })
   }
 
@@ -99,7 +99,7 @@ describe('DepositAccount', () => {
   // Deploys the account the way the Router does: `Deployable_Initialize` followed by
   // `DepositAccount_Init` from the owner. The init is left waiting for the token's wallet response.
   const deployViaDeployable = async (
-    forwardPayload: Cell | null = null,
+    context: Cell | null = null,
     via: SandboxContract<TreasuryContract> = recipient,
     deploymentValues = {
       deploy: toNano('0.5'),
@@ -114,7 +114,7 @@ describe('DepositAccount', () => {
       via.getSender(),
       deploymentValues.init,
       {
-        forwardPayload,
+        context,
       },
     )
 
@@ -190,11 +190,11 @@ describe('DepositAccount', () => {
   const initAccount = (
     account: SandboxContract<da.DepositAccount>,
     queryId = 0n,
-    forwardPayload: Cell | null = null,
+    context: Cell | null = null,
   ) =>
     account.sendDepositAccountInit(recipient.getSender(), toNano('0.5'), {
       queryId,
-      forwardPayload,
+      context,
     })
 
   const answerWalletQuery = (
@@ -208,8 +208,8 @@ describe('DepositAccount', () => {
       ownerAddress: null,
     })
 
-  const deployWithLearnedWallet = async (forwardPayload: Cell | null = null) => {
-    const deployed = await deployViaDeployable(forwardPayload)
+  const deployWithLearnedWallet = async (context: Cell | null = null) => {
+    const deployed = await deployViaDeployable(context)
     const answerRes = await answerWalletQuery(deployed.depositAccount, notifier.address)
     return { ...deployed, answerRes }
   }
@@ -229,9 +229,8 @@ describe('DepositAccount', () => {
   })
 
   it('deploys via Deployable_Initialize + DepositAccount_Init and replies to the owner', async () => {
-    const forwardPayload = beginCell().storeUint(0xed696f9b, 32).endCell()
-    const { depositAccount, deployRes, res, answerRes } =
-      await deployWithLearnedWallet(forwardPayload)
+    const context = beginCell().storeUint(0xed696f9b, 32).endCell()
+    const { depositAccount, deployRes, res, answerRes } = await deployWithLearnedWallet(context)
 
     // The Deployable shell upgrades into the account (code/data installed).
     expect(deployRes.transactions).toHaveTransaction({
@@ -250,7 +249,7 @@ describe('DepositAccount', () => {
       success: true,
     })
 
-    // Once the token reports the wallet, the account replies to the owner, echoing `forwardPayload`.
+    // Once the token reports the wallet, the account replies to the owner, echoing `context`.
     expect(answerRes.transactions).toHaveTransaction({
       from: depositAccount.address,
       to: recipient.address,
@@ -259,7 +258,7 @@ describe('DepositAccount', () => {
       body(body) {
         if (!body) return false
         const reply = da.DepositAccount_Initialized.fromSlice(body.beginParse())
-        return reply.forwardPayload?.equals(forwardPayload) === true
+        return reply.context?.equals(context) === true
       },
     })
 
@@ -379,8 +378,8 @@ describe('DepositAccount', () => {
     // below MIN_GRAM_TO_RESERVE + MIN_GRAM_TO_INIT.
     const initValue = MIN_GRAM_TO_INIT - 1n
     const deployValue = MIN_GRAM_TO_RESERVE
-    const forwardPayload = beginCell().storeUint(0xdeadbeef, 32).endCell()
-    const { depositAccount, res } = await deployViaDeployable(forwardPayload, recipient, {
+    const context = beginCell().storeUint(0xdeadbeef, 32).endCell()
+    const { depositAccount, res } = await deployViaDeployable(context, recipient, {
       deploy: deployValue,
       init: initValue,
     })
@@ -613,9 +612,9 @@ describe('DepositAccount', () => {
   describe('learning the jetton wallet', () => {
     it('queries the token and replies only once the wallet is known', async () => {
       const { depositAccount } = await installAccount()
-      const forwardPayload = beginCell().storeUint(0x1234, 16).endCell()
+      const context = beginCell().storeUint(0x1234, 16).endCell()
 
-      const initRes = await initAccount(depositAccount, 7n, forwardPayload)
+      const initRes = await initAccount(depositAccount, 7n, context)
       expect(initRes.transactions).toHaveTransaction({
         from: depositAccount.address,
         to: token,
@@ -642,7 +641,7 @@ describe('DepositAccount', () => {
         body(body) {
           if (!body) return false
           const reply = da.DepositAccount_Initialized.fromSlice(body.beginParse())
-          return reply.queryId === 7n && reply.forwardPayload?.equals(forwardPayload) === true
+          return reply.queryId === 7n && reply.context?.equals(context) === true
         },
       })
     })

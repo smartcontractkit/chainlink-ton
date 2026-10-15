@@ -29,6 +29,7 @@ describe('Router', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
+    blockchain.now = 1
     blockchain.verbosity = {
       print: true,
       blockchainLogs: false,
@@ -65,6 +66,7 @@ describe('Router', () => {
 
     const totalSendValue = offchainFee + ccipSendCost + toNano('3') // TODO temporarily raise value to cover for fixed cost of TokenPool
     {
+      const onrampBalanceBefore = (await blockchain.getContract(onRamp.address)).balance
       const result = await router.sendRouterCCIPSend(sender.getSender(), totalSendValue, ccipSend)
       // we called the router
       expect(result.transactions).toHaveTransaction({
@@ -133,6 +135,17 @@ describe('Router', () => {
         deploy: false,
         success: true,
       })
+
+      // The executor locked the validated fee on the OnRamp (OnRamp_ExecutorReserveFee)
+      // before finalizing: the OnRamp's balance grew by exactly the fee.
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: onRamp.address,
+        op: or.OnRamp_ExecutorReserveFee.PREFIX,
+        success: true,
+      })
+      const onrampBalanceAfter = (await blockchain.getContract(onRamp.address)).balance
+      expect(onrampBalanceAfter).toBe(onrampBalanceBefore + offchainFee)
 
       // assert CCIPMessageSent
       assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {

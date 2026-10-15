@@ -91,6 +91,7 @@ describe('BurnMintTokenPool', () => {
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
+    blockchain.now = 1
     deployer = await blockchain.treasury('deployer')
     offRamp = await blockchain.treasury('offramp')
     unauthorized = await blockchain.treasury('unauthorized')

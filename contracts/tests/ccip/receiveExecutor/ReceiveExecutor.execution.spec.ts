@@ -917,7 +917,7 @@ describe('ReceiveExecutor - Execution', () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
       })
 
-      it('should resend ReleaseOrMint to the same pool when retrying from ReleaseOrMintFailed', async () => {
+      it('should re-query TokenAdminRegistry when retrying from ReleaseOrMintFailed', async () => {
         // First transfer fails.
         await transitionToReleaseOrMint(receiveExecutorWithToken)
         await receiveExecutorWithToken.sendTokenPoolReleaseOrMintFailure(
@@ -928,18 +928,8 @@ describe('ReceiveExecutor - Execution', () => {
           },
         )
 
-        // Retry InitExecute: the pool and initiator are known, so it goes straight to ReleaseOrMint.
-        const result = await initExecute(receiveExecutorWithToken)
-        expect(result.transactions).toHaveTransaction({
-          from: receiveExecutorWithToken.address,
-          to: deployer.address,
-          success: true,
-          op: of.OffRamp_ReleaseOrMint.PREFIX,
-        })
-        expect(result.transactions).not.toHaveTransaction({
-          from: receiveExecutorWithToken.address,
-          to: tokenAdminRegistry.address,
-        })
+        // Retry InitExecute: should query TokenAdminRegistry again.
+        await transitionToReleaseOrMint(receiveExecutorWithToken)
 
         const delivered = await forwardNotification(
           receiveExecutorWithToken,
@@ -1109,6 +1099,42 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
+      it('should dispatch the delivered amount instead of the source amount', async () => {
+        const sourceAmount = 10n ** 18n
+        const destinationAmount = 10n ** 9n
+        const token = (await blockchain.treasury('localToken')).address
+        messageWithTT = createTestMessageWithToken({
+          receiver: deployer.address,
+          data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
+          amount: sourceAmount,
+          token,
+        })
+        receiveExecutorPtt = await setupTestReceiveExecutor(
+          blockchain,
+          deployer,
+          receiveExecutorCode,
+          messageWithTT,
+        )
+        defaultInitExecute = { ...defaultInitExecute, messageId: messageWithTT.header.messageId }
+
+        await transitionToReleaseOrMint(receiveExecutorPtt)
+        const result = await forwardNotification(receiveExecutorPtt, destinationAmount)
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutorPtt.address,
+          to: deployer.address,
+          success: true,
+          op: of.OffRamp_DispatchValidated.PREFIX,
+          body: (body) => {
+            const msg = of.OffRamp_DispatchValidated.fromSlice(body!.beginParse())
+            return (
+              msg.tokenAmounts?.length === 1 &&
+              msg.tokenAmounts[0].amount === destinationAmount &&
+              msg.tokenAmounts[0].token.equals(token)
+            )
+          },
+        })
+      })
+
       it('should send NotifySuccess without a delivery on Confirm after PTT execution', async () => {
         await transitionToPttExecute()
         const result = await receiveExecutorPtt.sendReceiveExecutorCCIPReceiveConfirm(
@@ -1210,15 +1236,57 @@ describe('ReceiveExecutor - Execution', () => {
           },
         )
 
-        // Retry InitExecute: should resend ReleaseOrMint, then execute the message.
-        const retryResult = await initExecute(receiveExecutorPtt)
-        expect(retryResult.transactions).toHaveTransaction({
+        // Retry InitExecute: should re-query TokenAdminRegistry, then execute the message.
+        await transitionToReleaseOrMint(receiveExecutorPtt)
+        await deliverAndExecute()
+      })
+
+      it('should use the current registry pool when retrying from ReleaseOrMintFailed', async () => {
+        await transitionToReleaseOrMint(receiveExecutorPtt)
+        await receiveExecutorPtt.sendTokenPoolReleaseOrMintFailure(
+          tokenPool.getSender(),
+          toNano('0.05'),
+          {
+            errorCode: 1n,
+          },
+        )
+
+        // Token admin re-points the registry entry to a new pool.
+        const newTokenPool = await blockchain.treasury('newTokenPool')
+        await initExecuteQueriesRegistry(receiveExecutorPtt)
+        const returnResult = await returnTokenInfoWithPool(receiveExecutorPtt, newTokenPool.address)
+        expect(returnResult.transactions).toHaveTransaction({
           from: receiveExecutorPtt.address,
           to: deployer.address,
           success: true,
           op: of.OffRamp_ReleaseOrMint.PREFIX,
+          body: (body) => {
+            const msg = of.OffRamp_ReleaseOrMint.fromSlice(body!.beginParse())
+            return msg.tokenPool.equals(newTokenPool.address)
+          },
         })
-        await deliverAndExecute()
+
+        // A transfer initiated by the stale pool is no longer matched.
+        const staleResult = await forwardNotification(
+          receiveExecutorPtt,
+          messageWithTT.tokenAmounts![0].amount,
+        )
+        expect(staleResult.transactions).not.toHaveTransaction({
+          from: receiveExecutorPtt.address,
+          op: of.OffRamp_DispatchValidated.PREFIX,
+        })
+
+        const finishedResult = await forwardNotification(
+          receiveExecutorPtt,
+          messageWithTT.tokenAmounts![0].amount,
+          { initiator: newTokenPool.address },
+        )
+        expect(finishedResult.transactions).toHaveTransaction({
+          from: receiveExecutorPtt.address,
+          to: deployer.address,
+          success: true,
+          op: of.OffRamp_DispatchValidated.PREFIX,
+        })
       })
     })
   })

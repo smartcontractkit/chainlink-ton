@@ -117,6 +117,12 @@ fun onInternalMessage(in: InMessage) {
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
             onWithdrawToTokenPool(mutate st, msg);
         }
+        // Sender must be OnRamp
+        Router_WithdrawToTokenPoolFailed => {
+            val st = lazy Storage.load();
+            assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
+            onWithdrawToTokenPoolFailed(msg);
+        }
         // Permissionless (authorization is handle at the ReceiverExecutor)
         Router_CCIPReceiveConfirm => {
             // Check that the amount sent by the receiver is enough to cover confirmation trace costs. 
@@ -321,8 +327,8 @@ fun onBouncedMessage(in: InMessageBounced) {
             Deployable_Initialize => {}
             // The deposit account was not deployed or rejected the init.
             DepositAccount_Init => {
-                if (richMsg.forwardPayload != null) {
-                    val context = lazy Router_DepositAccountInitContext.fromCell(richMsg.forwardPayload!);
+                if (richMsg.context != null) {
+                    val context = lazy Router_DepositAccountInitContext.fromCell(richMsg.context!);
                     match (context) {
                         Router_RelayReleaseOrMint => {
                             sendDepositAccountInitFailure(context, rich.exitCode);
@@ -467,7 +473,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
         dest: account.calculateAddress(),
         body: DepositAccount_Init {
             queryId: msg.queryId,
-            forwardPayload: Router_OnRampAccountContext { user: sender, token: msg.token }.toCell(),
+            context: Router_OnRampAccountContext { user: sender, token: msg.token }.toCell(),
         },
     });
     // SAFETY: reserveGramsOnBalance is called before sending the init message, ensuring the account has enough balance to cover the reserved grams.
@@ -551,6 +557,25 @@ get fun onRampAccountAddress(user: address, token: address): address {
 
 fun onRampAccount(user: address, token: address): AutoDeployAddress {
     return Router_onRampAccount(contract.getAddress(), user, token, deployableCompiledCode());
+}
+
+/*
+Relays an OnRamp withdrawal rejection to the token pool so it can reinstate the rate limit
+consumed at admission and fail the send.
+*/
+fun onWithdrawToTokenPoolFailed(msg: Router_WithdrawToTokenPoolFailed) {
+    val withdrawRequest = lazy msg.withdrawRequest.load();
+    val failure = createMessage({
+        bounce: false,
+        value: 0,
+        dest: withdrawRequest.tokenPool,
+        body: TokenPool_LockOrBurnWithdrawFailed {
+            queryId: msg.queryID,
+            forwardPayload: withdrawRequest.forwardPayload,
+            errorCode: msg.error,
+        },
+    });
+    failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /*
@@ -1057,7 +1082,7 @@ fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
         dest: account.calculateAddress(),
         body: DepositAccount_Init {
             queryId: msg.queryID,
-            forwardPayload: msg.toCell(),
+            context: msg.toCell(),
         },
     });
     // SAFETY: reserveGramsOnBalance keeps the Router's original balance, only the inbound value is sent.
@@ -1065,10 +1090,10 @@ fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
 }
 
 /// Routes a `DepositAccount_Initialized` to the leg that initiated the deployment, told apart by the
-/// context the Router echoed through `DepositAccount_Init.forwardPayload`. Each leg verifies the
+/// context the Router echoed through `DepositAccount_Init.context`. Each leg verifies the
 /// sender against its own derived account address.
 fun onDepositAccountInitialized(msg: DepositAccount_Initialized, sender: address) {
-    val context = lazy Router_DepositAccountInitContext.fromCell(msg.forwardPayload!);
+    val context = lazy Router_DepositAccountInitContext.fromCell(msg.context!);
     match (context) {
         Router_RelayReleaseOrMint => {
             onReceiverAccountReady(context, sender);
@@ -1108,7 +1133,7 @@ fun onReceiverAccountReady(relay: Router_RelayReleaseOrMint, sender: address) {
 /// A deposit account could not learn its jetton wallet. A relay fails before the pool is called, so
 /// no rate limit was consumed.
 fun onDepositAccountWalletUnavailable(msg: DepositAccount_WalletUnavailable, sender: address) {
-    val context = lazy Router_DepositAccountInitContext.fromCell(msg.forwardPayload!);
+    val context = lazy Router_DepositAccountInitContext.fromCell(msg.context!);
     match (context) {
         Router_RelayReleaseOrMint => {
             val request = lazy context.request.load();
