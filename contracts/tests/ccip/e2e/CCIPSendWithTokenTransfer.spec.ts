@@ -490,6 +490,19 @@ describe('CCIPSend with token transfer (e2e)', () => {
       op: fq.FeeQuoter_MessageValidated.PREFIX,
       success: true,
     })
+    // executor locks the validated fee on the OnRamp before any token work
+    expect(result.transactions).toHaveTransaction({
+      from: executorAddress,
+      to: onRamp.address,
+      op: or.OnRamp_ExecutorReserveFee.PREFIX,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: onRamp.address,
+      to: executorAddress,
+      op: or.OnRamp_ExecutorFeeReserved.PREFIX,
+      success: true,
+    })
     // executor -> TokenAdminRegistry -> entry -> TokenAdminRegistry -> executor
     expect(result.transactions).toHaveTransaction({
       from: executorAddress,
@@ -569,7 +582,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
               extraData: beginCell().storeUint(0, 256).endCell(),
               // The FeeQuoter's per-token destGasOverhead override, encoded as a bare 32-bit
               // integer — distinct from the lane default, proving the executor forwards the
-              // FeeQuoter's destGasOverheads value rather than a hardcoded default.
+              // FeeQuoter's destGasOverhead value rather than a hardcoded default.
               destExecData: beginCell().storeUint(destGasOverheadOverride, 32).endCell(),
             },
           ],

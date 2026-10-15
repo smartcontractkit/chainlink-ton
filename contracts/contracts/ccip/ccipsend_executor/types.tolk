@@ -31,6 +31,7 @@ struct CCIPSendExecutor_Addresses {
 type CCIPSendExecutor_State =
     | Cell<CCIPSendExecutor_State_Initialized>
     | Cell<CCIPSendExecutor_State_OnGoingFeeValidation>
+    | Cell<CCIPSendExecutor_State_OnGoingFeeReservation>
     | Cell<CCIPSendExecutor_State_TokenRegistryAccess>
     | Cell<CCIPSendExecutor_State_WalletAddressValidation>
     | Cell<CCIPSendExecutor_State_TokenPool_LockOrBurn>
@@ -43,10 +44,19 @@ struct CCIPSendExecutor_State_Initialized {
 struct CCIPSendExecutor_State_OnGoingFeeValidation {
 }
 
-struct CCIPSendExecutor_State_TokenRegistryAccess {
+struct CCIPSendExecutor_State_OnGoingFeeReservation {
+    // `fee` is not considered charged until the OnRamp has reserved it and returned `OnRamp_ExecutorFeeReserved`.
     fee: Fee,
+    // Null for tokenless messages: the FeeQuoter reports no destOverhead when the
+    // send carries no token transfers, and the value is only consumed by the token path.
+    destOverhead: FeeQuoter_DestOverhead?,
+    chainFamilySelector: uint32,
+}
+
+struct CCIPSendExecutor_State_TokenRegistryAccess {
+    chargedFee: Fee,
     token: address,
-    destOverheads: FeeQuoter_DestOverheads,
+    destOverhead: FeeQuoter_DestOverhead,
     chainFamilySelector: uint32,
 }
 
@@ -54,16 +64,16 @@ struct CCIPSendExecutor_State_TokenRegistryAccess {
 // TODO By default, the Executor should JettonWallet address validation via async req/resp with the JettonMinter
 // Unless explicitly disabled by TokenRegistry info, then this is skipped and handed off to the TP (which indicates it has the code stored and will verify locally/synchronously).
 struct CCIPSendExecutor_State_WalletAddressValidation {
-    fee: Fee,
-    destOverheads: FeeQuoter_DestOverheads,
+    chargedFee: Fee,
+    destOverhead: FeeQuoter_DestOverhead,
     chainFamilySelector: uint32,
     minterAddress: address,
     tokenPool: address,
 }
 
 struct CCIPSendExecutor_State_TokenPool_LockOrBurn {
-    fee: Fee,
-    destOverheads: FeeQuoter_DestOverheads,
+    chargedFee: Fee,
+    destOverhead: FeeQuoter_DestOverhead,
     chainFamilySelector: uint32,
     tokenPool: address,
     /// Jetton wallet of the sender's deposit account
@@ -71,8 +81,8 @@ struct CCIPSendExecutor_State_TokenPool_LockOrBurn {
 }
 
 struct CCIPSendExecutor_State_TokenPool_Withdraw {
-    fee: Fee,
-    destOverheads: FeeQuoter_DestOverheads,
+    chargedFee: Fee,
+    destOverhead: FeeQuoter_DestOverhead,
     chainFamilySelector: uint32,
     tokenPool: address,
     /// Jetton wallet of the sender's deposit account
