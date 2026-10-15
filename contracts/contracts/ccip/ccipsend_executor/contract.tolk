@@ -371,7 +371,6 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
         state: CCIPSendExecutor_State_TokenPool_LockOrBurn {
             chargedFee: state.chargedFee,
             destOverhead: state.destOverhead,
-            minterAddress: state.minterAddress.toCell(),
             chainFamilySelector: state.chainFamilySelector,
             tokenPool: state.tokenPool,
             senderDepositAccountWallet: msg.jettonWalletAddress!, // TODO what to do if null
@@ -392,7 +391,6 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
         state: CCIPSendExecutor_State_TokenPool_Withdraw {
             chargedFee: state.chargedFee,
             destOverhead: state.destOverhead,
-            minterAddress: state.minterAddress,
             chainFamilySelector: state.chainFamilySelector,
             tokenPool: state.tokenPool,
             senderDepositAccountWallet: state.senderDepositAccountWallet,
