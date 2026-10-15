@@ -203,11 +203,11 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         self.exitSuccessfully(msg.fee, null);
         return;
     }
-    if (msg.destGasOverheads == null) {
+    if (msg.destOverheads == null) {
         return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee);
     }
-    val destGasOverhead = msg.destGasOverheads.asSingle();
-    if (destGasOverhead == null) {
+    val destOverheads = msg.destOverheads.asSingle();
+    if (destOverheads == null) {
         return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee);
     }
 
@@ -237,7 +237,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         state: CCIPSendExecutor_State_TokenRegistryAccess {
             fee: msg.fee,
             token: tokenAmount.token,
-            destGasOverhead,
+            destOverheads,
+            chainFamilySelector: msg.chainFamilySelector,
         }.toCell(),
     };
     newState.store();
@@ -267,7 +268,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
         addresses: self.addresses,
         state: CCIPSendExecutor_State_WalletAddressValidation {
             fee: state.fee,
-            destGasOverhead: state.destGasOverhead,
+            destOverheads: state.destOverheads,
+            chainFamilySelector: state.chainFamilySelector,
             minterAddress: msg.minterAddress,
             tokenPool: msg.tokenPool,
         }.toCell(),
@@ -302,7 +304,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenPool_LockOrBurn {
             fee: state.fee,
-            destGasOverhead: state.destGasOverhead,
+            destOverheads: state.destOverheads,
+            chainFamilySelector: state.chainFamilySelector,
             tokenPool: state.tokenPool,
             senderDepositAccountWallet: msg.jettonWalletAddress!, // TODO what to do if null
         }.toCell(),
@@ -312,15 +315,21 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockOrBurn(mutate self, msg: TokenPool_LockOrBurnWithdraw) {
     val state = self.state.load();
+    // Snapshot pool return data before custody moves so the pool cannot alter it in its
+    // TokenPool_LockOrBurnFinished reply; the OnRamp validates destTokenAddress pre-custody.
+    val prepared = lazy msg.forwardPayload.prepared.load();
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw> {
         id: self.id,
         onrampSend: self.onrampSend,
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenPool_Withdraw {
             fee: state.fee,
-            destGasOverhead: state.destGasOverhead,
+            destOverheads: state.destOverheads,
+            chainFamilySelector: state.chainFamilySelector,
             tokenPool: state.tokenPool,
             senderDepositAccountWallet: state.senderDepositAccountWallet,
+            destTokenAmount: prepared.destTokenAmount,
+            lockOrBurnOut: prepared.out.toCell(),
         }.toCell(),
     };
     newState.store();
@@ -337,6 +346,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
             queryID: self.onrampSend.msg.load().queryID,
             executorID: self.id,
             destChainSelector: self.onrampSend.msg.load().destChainSelector,
+            chainFamilySelector: state.chainFamilySelector,
+            destBytesOverhead: state.destOverheads.destBytesOverheads,
             withdrawRequest: Router_WithdrawRequest {
                 accountWalletAddress: state.senderDepositAccountWallet,
                 depositAccount: depositAccountAddress(self.onrampSend.metadata.sender, tokenAmount.token, self.addresses.load().router),
@@ -351,17 +362,14 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdraw(mutate self, msg: TokenPool_LockOrBurnFinished) {
     setGasLimitToMaximum();
-    // Forward what the pool returned so the OnRamp can emit it. sourcePoolAddress comes
-    // from our own state (the pool we routed the lockOrBurn to) rather than from the
-    // pool's reply, so it stays trusted.
+    // Emit from our pre-custody snapshot, not the pool's reply, so a misbehaving pool
+    // cannot alter lockOrBurnOut/destTokenAmount after the tokens were locked/burned.
     val state = self.state.load();
-    val out = msg.out.load();
     val tokenTransfer = OnRamp_ExecutorTokenTransfer {
         sourcePoolAddress: state.tokenPool,
-        amount: msg.destTokenAmount as uint256,
-        destTokenAddress: out.destTokenAddress,
-        extraData: out.destPoolData,
-        destExecData: encodeDestExecData(state.destGasOverhead),
+        amount: state.destTokenAmount as uint256,
+        lockOrBurnOut: state.lockOrBurnOut,
+        destExecData: encodeDestExecData(state.destOverheads.destGasOverheads),
     }.toCell();
     self.exitSuccessfully(state.fee, tokenTransfer);
 }

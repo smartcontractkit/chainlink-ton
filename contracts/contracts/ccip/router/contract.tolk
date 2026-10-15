@@ -116,6 +116,12 @@ fun onInternalMessage(in: InMessage) {
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
             onWithdrawToTokenPool(mutate st, msg);
         }
+        // Sender must be OnRamp
+        Router_WithdrawToTokenPoolFailed => {
+            val st = lazy Storage.load();
+            assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
+            onWithdrawToTokenPoolFailed(msg);
+        }
         // Permissionless (authorization is handle at the ReceiverExecutor)
         Router_CCIPReceiveConfirm => {
             // Check that the amount sent by the receiver is enough to cover confirmation trace costs. 
@@ -533,6 +539,25 @@ get fun onRampAccountAutodeployAddress(sender: address, token: address): AutoDep
 /// owned by this Router, keyed by the (user, token) pair).
 get fun onRampAccountAddress(sender: address, token: address): address {
     return onRampAccountAutodeployAddress(sender, token).calculateAddress();
+}
+
+/*
+Relays an OnRamp withdrawal rejection to the token pool so it can reinstate the rate limit
+consumed at admission and fail the send.
+*/
+fun onWithdrawToTokenPoolFailed(msg: Router_WithdrawToTokenPoolFailed) {
+    val withdrawRequest = lazy msg.withdrawRequest.load();
+    val failure = createMessage({
+        bounce: false,
+        value: 0,
+        dest: withdrawRequest.tokenPool,
+        body: TokenPool_LockOrBurnWithdrawFailed {
+            queryId: msg.queryID,
+            forwardPayload: withdrawRequest.forwardPayload,
+            errorCode: msg.error,
+        },
+    });
+    failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /*

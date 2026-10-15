@@ -238,7 +238,7 @@ export const Receiver_CCIPReceiveV2 = {
  >     sourceChainSelector: uint64
  >     sender: CrossChainAddress
  >     data: cell
- >     tokenAmounts: cell?
+ >     tokenAmounts: SnakedCell<TokenAmount>?
  > }
  */
 export interface Any2TVMMessage {
@@ -247,7 +247,7 @@ export interface Any2TVMMessage {
     sourceChainSelector: uint64
     sender: CrossChainAddress
     data: c.Cell
-    tokenAmounts: c.Cell | null
+    tokenAmounts: SnakedCell<TokenAmount> | null
 }
 
 export const Any2TVMMessage = {
@@ -256,7 +256,7 @@ export const Any2TVMMessage = {
         sourceChainSelector: uint64
         sender: CrossChainAddress
         data: c.Cell
-        tokenAmounts: c.Cell | null
+        tokenAmounts: SnakedCell<TokenAmount> | null
     }): Any2TVMMessage {
         return {
             $: 'Any2TVMMessage',
@@ -270,7 +270,7 @@ export const Any2TVMMessage = {
             sourceChainSelector: s.loadUintBig(64),
             sender: CrossChainAddress.fromSlice(s),
             data: s.loadRef(),
-            tokenAmounts: s.loadBoolean() ? s.loadRef() : null,
+            tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, TokenAmount.fromSlice) : null,
         }
     },
     store(self: Any2TVMMessage, b: c.Builder): void {
@@ -278,9 +278,7 @@ export const Any2TVMMessage = {
         b.storeUint(self.sourceChainSelector, 64);
         CrossChainAddress.store(self.sender, b);
         b.storeRef(self.data);
-        storeTolkNullable<c.Cell>(self.tokenAmounts, b,
-            (v,b) => b.storeRef(v)
-        );
+        storeTolkNullable<SnakedCell<TokenAmount>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, TokenAmount.store));
     },
     toCell(self: Any2TVMMessage): c.Cell {
         return makeCellFrom<Any2TVMMessage>(self, Any2TVMMessage.store);
@@ -303,6 +301,94 @@ export const CrossChainAddress = {
         return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
     }
 }
+
+/**
+ > struct TokenAmount {
+ >     amount: coins
+ >     token: address
+ > }
+ */
+export interface TokenAmount {
+    readonly $: 'TokenAmount'
+    amount: coins
+    token: c.Address
+}
+
+export const TokenAmount = {
+    create(args: {
+        amount: coins
+        token: c.Address
+    }): TokenAmount {
+        return {
+            $: 'TokenAmount',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenAmount {
+        return {
+            $: 'TokenAmount',
+            amount: s.loadCoins(),
+            token: s.loadAddress(),
+        }
+    },
+    store(self: TokenAmount, b: c.Builder): void {
+        b.storeCoins(self.amount);
+        b.storeAddress(self.token);
+    },
+    toCell(self: TokenAmount): c.Cell {
+        return makeCellFrom<TokenAmount>(self, TokenAmount.store);
+    }
+}
+
+/**
+ > type SnakedCell<T> = cell
+ */
+export type SnakedCell<T> = T[]
+
+function buildSnakedCellOf<T>(v: SnakedCell<T>, storeFn_T: StoreCallback<T>): c.Cell {
+    if (v.length === 0) {
+        return c.Cell.EMPTY;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    return current;
+}
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    b.storeRef(buildSnakedCellOf(v, storeFn_T));
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 // ————————————————————————————————————————————
 //    class Receiver
