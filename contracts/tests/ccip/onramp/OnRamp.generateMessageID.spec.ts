@@ -145,6 +145,15 @@ describe('OnRamp - generate message id', () => {
   })
 
   it('should generate same message id with same message', async () => {
+    // The success report consumes the fee the executor previously reserved on
+    // the OnRamp; reserve it first (as the executor does after fee validation),
+    // otherwise the report is rejected with PendingFeeReservationsUnderflow.
+    const fee = 1n
+    await onramp.sendOnRampExecutorReserveFee(executorSender, fee + toNano('0.05'), {
+      executorID: executorID,
+      fee,
+    })
+
     const result = await onramp.sendOnRampExecutorFinishedSuccessfully(
       executorSender,
       toNano('0.5'),
