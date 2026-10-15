@@ -32,7 +32,11 @@ describe('OnRamp - WithdrawFeeTokens', () => {
   })
 
   beforeEach(async () => {
-    ;({ deployer, onramp, config } = await setup(blockchain))
+    // we need the token registry not to bounce
+    let mockTokenRegistry = await blockchain.treasury('mockTokenRegistry')
+    ;({ deployer, onramp, config } = await setup(blockchain, {
+      tokenAdminRegistry: mockTokenRegistry.address,
+    }))
   })
 
   it('should succeed to withdraw empty fee tokens', async () => {
