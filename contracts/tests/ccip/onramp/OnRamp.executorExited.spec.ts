@@ -250,9 +250,9 @@ describe('OnRamp - executor exit', () => {
         ex.FeeQuoter_MessageValidated.create({
           fee: ex.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
           destOverheads: [
-            ex.FeeQuoter_DestOverheads.create({
-              destGasOverheads: 90_000n,
-              destBytesOverheads: 0n,
+            ex.FeeQuoter_DestOverhead.create({
+              destGasOverhead: 90_000n,
+              destBytesOverhead: 0n,
             }),
           ],
           chainFamilySelector: ChainFamilySelectors.evm,

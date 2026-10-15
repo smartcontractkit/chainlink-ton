@@ -582,7 +582,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
               extraData: beginCell().storeUint(0, 256).endCell(),
               // The FeeQuoter's per-token destGasOverhead override, encoded as a bare 32-bit
               // integer — distinct from the lane default, proving the executor forwards the
-              // FeeQuoter's destGasOverheads value rather than a hardcoded default.
+              // FeeQuoter's destGasOverhead value rather than a hardcoded default.
               destExecData: beginCell().storeUint(destGasOverheadOverride, 32).endCell(),
             },
           ],

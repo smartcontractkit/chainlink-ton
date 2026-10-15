@@ -996,7 +996,7 @@ export const FeeQuoter_GetValidatedFee = {
 /**
  > struct (0xfbf78e40) FeeQuoter_MessageValidated {
  >     fee: Fee
- >     destOverheads: lisp_list<FeeQuoter_DestOverheads>?
+ >     destOverheads: lisp_list<FeeQuoter_DestOverhead>?
  >     chainFamilySelector: uint32
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
@@ -1005,7 +1005,7 @@ export const FeeQuoter_GetValidatedFee = {
 export interface FeeQuoter_MessageValidated {
     readonly $: 'FeeQuoter_MessageValidated'
     fee: Fee
-    destOverheads: lisp_list<FeeQuoter_DestOverheads> | null
+    destOverheads: lisp_list<FeeQuoter_DestOverhead> | null
     chainFamilySelector: uint32
     msg: Router_CCIPSend
     context: c.Cell | null /* = null */
@@ -1016,7 +1016,7 @@ export const FeeQuoter_MessageValidated = {
 
     create(args: {
         fee: Fee
-        destOverheads: lisp_list<FeeQuoter_DestOverheads> | null
+        destOverheads: lisp_list<FeeQuoter_DestOverhead> | null
         chainFamilySelector: uint32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
@@ -1032,7 +1032,7 @@ export const FeeQuoter_MessageValidated = {
         return {
             $: 'FeeQuoter_MessageValidated',
             fee: Fee.fromSlice(s),
-            destOverheads: s.loadBoolean() ? loadLispListOf<FeeQuoter_DestOverheads>(s, FeeQuoter_DestOverheads.fromSlice) : null,
+            destOverheads: s.loadBoolean() ? loadLispListOf<FeeQuoter_DestOverhead>(s, FeeQuoter_DestOverhead.fromSlice) : null,
             chainFamilySelector: s.loadUintBig(32),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
@@ -1041,8 +1041,8 @@ export const FeeQuoter_MessageValidated = {
     store(self: FeeQuoter_MessageValidated, b: c.Builder): void {
         b.storeUint(0xfbf78e40, 32);
         Fee.store(self.fee, b);
-        storeTolkNullable<lisp_list<FeeQuoter_DestOverheads>>(self.destOverheads, b,
-            (v,b) => storeLispListOf<FeeQuoter_DestOverheads>(v, b, FeeQuoter_DestOverheads.store)
+        storeTolkNullable<lisp_list<FeeQuoter_DestOverhead>>(self.destOverheads, b,
+            (v,b) => storeLispListOf<FeeQuoter_DestOverhead>(v, b, FeeQuoter_DestOverhead.store)
         );
         b.storeUint(self.chainFamilySelector, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
@@ -1106,40 +1106,40 @@ export const FeeQuoter_MessageValidationFailed = {
 }
 
 /**
- > struct FeeQuoter_DestOverheads {
- >     destGasOverheads: uint32
- >     destBytesOverheads: uint32
+ > struct FeeQuoter_DestOverhead {
+ >     destGasOverhead: uint32
+ >     destBytesOverhead: uint32
  > }
  */
-export interface FeeQuoter_DestOverheads {
-    readonly $: 'FeeQuoter_DestOverheads'
-    destGasOverheads: uint32
-    destBytesOverheads: uint32
+export interface FeeQuoter_DestOverhead {
+    readonly $: 'FeeQuoter_DestOverhead'
+    destGasOverhead: uint32
+    destBytesOverhead: uint32
 }
 
-export const FeeQuoter_DestOverheads = {
+export const FeeQuoter_DestOverhead = {
     create(args: {
-        destGasOverheads: uint32
-        destBytesOverheads: uint32
-    }): FeeQuoter_DestOverheads {
+        destGasOverhead: uint32
+        destBytesOverhead: uint32
+    }): FeeQuoter_DestOverhead {
         return {
-            $: 'FeeQuoter_DestOverheads',
+            $: 'FeeQuoter_DestOverhead',
             ...args
         }
     },
-    fromSlice(s: c.Slice): FeeQuoter_DestOverheads {
+    fromSlice(s: c.Slice): FeeQuoter_DestOverhead {
         return {
-            $: 'FeeQuoter_DestOverheads',
-            destGasOverheads: s.loadUintBig(32),
-            destBytesOverheads: s.loadUintBig(32),
+            $: 'FeeQuoter_DestOverhead',
+            destGasOverhead: s.loadUintBig(32),
+            destBytesOverhead: s.loadUintBig(32),
         }
     },
-    store(self: FeeQuoter_DestOverheads, b: c.Builder): void {
-        b.storeUint(self.destGasOverheads, 32);
-        b.storeUint(self.destBytesOverheads, 32);
+    store(self: FeeQuoter_DestOverhead, b: c.Builder): void {
+        b.storeUint(self.destGasOverhead, 32);
+        b.storeUint(self.destBytesOverhead, 32);
     },
-    toCell(self: FeeQuoter_DestOverheads): c.Cell {
-        return makeCellFrom<FeeQuoter_DestOverheads>(self, FeeQuoter_DestOverheads.store);
+    toCell(self: FeeQuoter_DestOverhead): c.Cell {
+        return makeCellFrom<FeeQuoter_DestOverhead>(self, FeeQuoter_DestOverhead.store);
     }
 }
 
@@ -2335,21 +2335,21 @@ export const CCIPSendExecutor_State_OnGoingFeeValidation = {
 /**
  > struct CCIPSendExecutor_State_OnGoingFeeReservation {
  >     fee: Fee
- >     destOverhead: FeeQuoter_DestOverheads?
+ >     destOverhead: FeeQuoter_DestOverhead?
  >     chainFamilySelector: uint32
  > }
  */
 export interface CCIPSendExecutor_State_OnGoingFeeReservation {
     readonly $: 'CCIPSendExecutor_State_OnGoingFeeReservation'
     fee: Fee
-    destOverhead: FeeQuoter_DestOverheads | null
+    destOverhead: FeeQuoter_DestOverhead | null
     chainFamilySelector: uint32
 }
 
 export const CCIPSendExecutor_State_OnGoingFeeReservation = {
     create(args: {
         fee: Fee
-        destOverhead: FeeQuoter_DestOverheads | null
+        destOverhead: FeeQuoter_DestOverhead | null
         chainFamilySelector: uint32
     }): CCIPSendExecutor_State_OnGoingFeeReservation {
         return {
@@ -2361,13 +2361,13 @@ export const CCIPSendExecutor_State_OnGoingFeeReservation = {
         return {
             $: 'CCIPSendExecutor_State_OnGoingFeeReservation',
             fee: Fee.fromSlice(s),
-            destOverhead: s.loadBoolean() ? FeeQuoter_DestOverheads.fromSlice(s) : null,
+            destOverhead: s.loadBoolean() ? FeeQuoter_DestOverhead.fromSlice(s) : null,
             chainFamilySelector: s.loadUintBig(32),
         }
     },
     store(self: CCIPSendExecutor_State_OnGoingFeeReservation, b: c.Builder): void {
         Fee.store(self.fee, b);
-        storeTolkNullable<FeeQuoter_DestOverheads>(self.destOverhead, b, FeeQuoter_DestOverheads.store);
+        storeTolkNullable<FeeQuoter_DestOverhead>(self.destOverhead, b, FeeQuoter_DestOverhead.store);
         b.storeUint(self.chainFamilySelector, 32);
     },
     toCell(self: CCIPSendExecutor_State_OnGoingFeeReservation): c.Cell {
@@ -2379,7 +2379,7 @@ export const CCIPSendExecutor_State_OnGoingFeeReservation = {
  > struct CCIPSendExecutor_State_TokenRegistryAccess {
  >     chargedFee: Fee
  >     token: address
- >     destOverheads: FeeQuoter_DestOverheads
+ >     destOverhead: FeeQuoter_DestOverhead
  >     chainFamilySelector: uint32
  > }
  */
@@ -2387,7 +2387,7 @@ export interface CCIPSendExecutor_State_TokenRegistryAccess {
     readonly $: 'CCIPSendExecutor_State_TokenRegistryAccess'
     chargedFee: Fee
     token: c.Address
-    destOverheads: FeeQuoter_DestOverheads
+    destOverhead: FeeQuoter_DestOverhead
     chainFamilySelector: uint32
 }
 
@@ -2395,7 +2395,7 @@ export const CCIPSendExecutor_State_TokenRegistryAccess = {
     create(args: {
         chargedFee: Fee
         token: c.Address
-        destOverheads: FeeQuoter_DestOverheads
+        destOverhead: FeeQuoter_DestOverhead
         chainFamilySelector: uint32
     }): CCIPSendExecutor_State_TokenRegistryAccess {
         return {
@@ -2408,14 +2408,14 @@ export const CCIPSendExecutor_State_TokenRegistryAccess = {
             $: 'CCIPSendExecutor_State_TokenRegistryAccess',
             chargedFee: Fee.fromSlice(s),
             token: s.loadAddress(),
-            destOverheads: FeeQuoter_DestOverheads.fromSlice(s),
+            destOverhead: FeeQuoter_DestOverhead.fromSlice(s),
             chainFamilySelector: s.loadUintBig(32),
         }
     },
     store(self: CCIPSendExecutor_State_TokenRegistryAccess, b: c.Builder): void {
         Fee.store(self.chargedFee, b);
         b.storeAddress(self.token);
-        FeeQuoter_DestOverheads.store(self.destOverheads, b);
+        FeeQuoter_DestOverhead.store(self.destOverhead, b);
         b.storeUint(self.chainFamilySelector, 32);
     },
     toCell(self: CCIPSendExecutor_State_TokenRegistryAccess): c.Cell {
@@ -2426,7 +2426,7 @@ export const CCIPSendExecutor_State_TokenRegistryAccess = {
 /**
  > struct CCIPSendExecutor_State_WalletAddressValidation {
  >     chargedFee: Fee
- >     destOverheads: FeeQuoter_DestOverheads
+ >     destOverhead: FeeQuoter_DestOverhead
  >     chainFamilySelector: uint32
  >     minterAddress: address
  >     tokenPool: address
@@ -2435,7 +2435,7 @@ export const CCIPSendExecutor_State_TokenRegistryAccess = {
 export interface CCIPSendExecutor_State_WalletAddressValidation {
     readonly $: 'CCIPSendExecutor_State_WalletAddressValidation'
     chargedFee: Fee
-    destOverheads: FeeQuoter_DestOverheads
+    destOverhead: FeeQuoter_DestOverhead
     chainFamilySelector: uint32
     minterAddress: c.Address
     tokenPool: c.Address
@@ -2444,7 +2444,7 @@ export interface CCIPSendExecutor_State_WalletAddressValidation {
 export const CCIPSendExecutor_State_WalletAddressValidation = {
     create(args: {
         chargedFee: Fee
-        destOverheads: FeeQuoter_DestOverheads
+        destOverhead: FeeQuoter_DestOverhead
         chainFamilySelector: uint32
         minterAddress: c.Address
         tokenPool: c.Address
@@ -2458,7 +2458,7 @@ export const CCIPSendExecutor_State_WalletAddressValidation = {
         return {
             $: 'CCIPSendExecutor_State_WalletAddressValidation',
             chargedFee: Fee.fromSlice(s),
-            destOverheads: FeeQuoter_DestOverheads.fromSlice(s),
+            destOverhead: FeeQuoter_DestOverhead.fromSlice(s),
             chainFamilySelector: s.loadUintBig(32),
             minterAddress: s.loadAddress(),
             tokenPool: s.loadAddress(),
@@ -2466,7 +2466,7 @@ export const CCIPSendExecutor_State_WalletAddressValidation = {
     },
     store(self: CCIPSendExecutor_State_WalletAddressValidation, b: c.Builder): void {
         Fee.store(self.chargedFee, b);
-        FeeQuoter_DestOverheads.store(self.destOverheads, b);
+        FeeQuoter_DestOverhead.store(self.destOverhead, b);
         b.storeUint(self.chainFamilySelector, 32);
         b.storeAddress(self.minterAddress);
         b.storeAddress(self.tokenPool);
@@ -2479,7 +2479,7 @@ export const CCIPSendExecutor_State_WalletAddressValidation = {
 /**
  > struct CCIPSendExecutor_State_TokenPool_LockOrBurn {
  >     chargedFee: Fee
- >     destOverheads: FeeQuoter_DestOverheads
+ >     destOverhead: FeeQuoter_DestOverhead
  >     minterAddress: Cell<address>
  >     chainFamilySelector: uint32
  >     tokenPool: address
@@ -2489,7 +2489,7 @@ export const CCIPSendExecutor_State_WalletAddressValidation = {
 export interface CCIPSendExecutor_State_TokenPool_LockOrBurn {
     readonly $: 'CCIPSendExecutor_State_TokenPool_LockOrBurn'
     chargedFee: Fee
-    destOverheads: FeeQuoter_DestOverheads
+    destOverhead: FeeQuoter_DestOverhead
     minterAddress: c.Address
     chainFamilySelector: uint32
     tokenPool: c.Address
@@ -2499,7 +2499,7 @@ export interface CCIPSendExecutor_State_TokenPool_LockOrBurn {
 export const CCIPSendExecutor_State_TokenPool_LockOrBurn = {
     create(args: {
         chargedFee: Fee
-        destOverheads: FeeQuoter_DestOverheads
+        destOverhead: FeeQuoter_DestOverhead
         minterAddress: c.Address
         chainFamilySelector: uint32
         tokenPool: c.Address
@@ -2514,7 +2514,7 @@ export const CCIPSendExecutor_State_TokenPool_LockOrBurn = {
         return {
             $: 'CCIPSendExecutor_State_TokenPool_LockOrBurn',
             chargedFee: Fee.fromSlice(s),
-            destOverheads: FeeQuoter_DestOverheads.fromSlice(s),
+            destOverhead: FeeQuoter_DestOverhead.fromSlice(s),
             minterAddress: loadCellRef<c.Address>(s,
                 (s) => s.loadAddress()
             ),
@@ -2525,7 +2525,7 @@ export const CCIPSendExecutor_State_TokenPool_LockOrBurn = {
     },
     store(self: CCIPSendExecutor_State_TokenPool_LockOrBurn, b: c.Builder): void {
         Fee.store(self.chargedFee, b);
-        FeeQuoter_DestOverheads.store(self.destOverheads, b);
+        FeeQuoter_DestOverhead.store(self.destOverhead, b);
         storeCellRef<c.Address>(self.minterAddress, b,
             (v,b) => b.storeAddress(v)
         );
@@ -2542,7 +2542,7 @@ export const CCIPSendExecutor_State_TokenPool_LockOrBurn = {
  > struct CCIPSendExecutor_State_TokenPool_Withdraw {
  >     chargedFee: Fee
  >     minterAddress: Cell<address>
- >     destOverheads: FeeQuoter_DestOverheads
+ >     destOverhead: FeeQuoter_DestOverhead
  >     chainFamilySelector: uint32
  >     tokenPool: address
  >     senderDepositAccountWallet: address
@@ -2554,7 +2554,7 @@ export interface CCIPSendExecutor_State_TokenPool_Withdraw {
     readonly $: 'CCIPSendExecutor_State_TokenPool_Withdraw'
     chargedFee: Fee
     minterAddress: c.Address
-    destOverheads: FeeQuoter_DestOverheads
+    destOverhead: FeeQuoter_DestOverhead
     chainFamilySelector: uint32
     tokenPool: c.Address
     senderDepositAccountWallet: c.Address
@@ -2566,7 +2566,7 @@ export const CCIPSendExecutor_State_TokenPool_Withdraw = {
     create(args: {
         chargedFee: Fee
         minterAddress: c.Address
-        destOverheads: FeeQuoter_DestOverheads
+        destOverhead: FeeQuoter_DestOverhead
         chainFamilySelector: uint32
         tokenPool: c.Address
         senderDepositAccountWallet: c.Address
@@ -2585,7 +2585,7 @@ export const CCIPSendExecutor_State_TokenPool_Withdraw = {
             minterAddress: loadCellRef<c.Address>(s,
                 (s) => s.loadAddress()
             ),
-            destOverheads: FeeQuoter_DestOverheads.fromSlice(s),
+            destOverhead: FeeQuoter_DestOverhead.fromSlice(s),
             chainFamilySelector: s.loadUintBig(32),
             tokenPool: s.loadAddress(),
             senderDepositAccountWallet: s.loadAddress(),
@@ -2598,7 +2598,7 @@ export const CCIPSendExecutor_State_TokenPool_Withdraw = {
         storeCellRef<c.Address>(self.minterAddress, b,
             (v,b) => b.storeAddress(v)
         );
-        FeeQuoter_DestOverheads.store(self.destOverheads, b);
+        FeeQuoter_DestOverhead.store(self.destOverhead, b);
         b.storeUint(self.chainFamilySelector, 32);
         b.storeAddress(self.tokenPool);
         b.storeAddress(self.senderDepositAccountWallet);
@@ -2855,7 +2855,7 @@ export class CCIPSendExecutor implements c.Contract {
 
     static createCellOfFeeQuoterMessageValidated(body: {
         fee: Fee
-        destOverheads: lisp_list<FeeQuoter_DestOverheads> | null
+        destOverheads: lisp_list<FeeQuoter_DestOverhead> | null
         chainFamilySelector: uint32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
@@ -2961,7 +2961,7 @@ export class CCIPSendExecutor implements c.Contract {
 
     async sendFeeQuoterMessageValidated(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         fee: Fee
-        destOverheads: lisp_list<FeeQuoter_DestOverheads> | null
+        destOverheads: lisp_list<FeeQuoter_DestOverhead> | null
         chainFamilySelector: uint32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */

@@ -47,16 +47,16 @@ struct CCIPSendExecutor_State_OnGoingFeeValidation {
 struct CCIPSendExecutor_State_OnGoingFeeReservation {
     // `fee` is not considered charged until the OnRamp has reserved it and returned `OnRamp_ExecutorFeeReserved`.
     fee: Fee,
-    // Null for tokenless messages: the FeeQuoter reports no destGasOverheads when the
+    // Null for tokenless messages: the FeeQuoter reports no destOverhead when the
     // send carries no token transfers, and the value is only consumed by the token path.
-    destOverhead: FeeQuoter_DestOverheads?,
+    destOverhead: FeeQuoter_DestOverhead?,
     chainFamilySelector: uint32,
 }
 
 struct CCIPSendExecutor_State_TokenRegistryAccess {
     chargedFee: Fee,
     token: address,
-    destOverheads: FeeQuoter_DestOverheads,
+    destOverhead: FeeQuoter_DestOverhead,
     chainFamilySelector: uint32,
 }
 
@@ -65,7 +65,7 @@ struct CCIPSendExecutor_State_TokenRegistryAccess {
 // Unless explicitly disabled by TokenRegistry info, then this is skipped and handed off to the TP (which indicates it has the code stored and will verify locally/synchronously).
 struct CCIPSendExecutor_State_WalletAddressValidation {
     chargedFee: Fee,
-    destOverheads: FeeQuoter_DestOverheads,
+    destOverhead: FeeQuoter_DestOverhead,
     chainFamilySelector: uint32,
     minterAddress: address,
     tokenPool: address,
@@ -73,7 +73,7 @@ struct CCIPSendExecutor_State_WalletAddressValidation {
 
 struct CCIPSendExecutor_State_TokenPool_LockOrBurn {
     chargedFee: Fee,
-    destOverheads: FeeQuoter_DestOverheads,
+    destOverhead: FeeQuoter_DestOverhead,
     minterAddress: Cell<address>,
     chainFamilySelector: uint32,
     tokenPool: address,
@@ -84,7 +84,7 @@ struct CCIPSendExecutor_State_TokenPool_LockOrBurn {
 struct CCIPSendExecutor_State_TokenPool_Withdraw {
     chargedFee: Fee,
     minterAddress: Cell<address>,
-    destOverheads: FeeQuoter_DestOverheads,
+    destOverhead: FeeQuoter_DestOverhead,
     chainFamilySelector: uint32,
     tokenPool: address,
     /// Jetton wallet of the sender's deposit account

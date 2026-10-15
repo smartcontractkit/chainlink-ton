@@ -220,7 +220,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     // message legitimately carries null there, so the single-overhead requirement below
     // applies to the token path only. It must hold BEFORE the fee is locked: a malformed
     // validated fee is a validation failure, not a post-reservation refund.
-    var destOverhead: FeeQuoter_DestOverheads? = null;
+    var destOverhead: FeeQuoter_DestOverhead? = null;
     if (!self.onrampSend.msg.load().tokenAmounts.empty()) {
         if (msg.destOverheads == null) {
             return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee, NO_FEE_CHARGED);
@@ -301,7 +301,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onFeeReserved
         state: CCIPSendExecutor_State_TokenRegistryAccess {
             chargedFee,
             token: tokenAmount.token,
-            destOverheads: state.destOverhead,
+            destOverhead: state.destOverhead,
             chainFamilySelector: state.chainFamilySelector,
         }.toCell(),
     };
@@ -334,7 +334,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
         addresses: self.addresses,
         state: CCIPSendExecutor_State_WalletAddressValidation {
             chargedFee: state.chargedFee,
-            destOverheads: state.destOverheads,
+            destOverhead: state.destOverhead,
             chainFamilySelector: state.chainFamilySelector,
             minterAddress: msg.minterAddress,
             tokenPool: msg.tokenPool,
@@ -370,7 +370,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenPool_LockOrBurn {
             chargedFee: state.chargedFee,
-            destOverheads: state.destOverheads,
+            destOverhead: state.destOverhead,
             minterAddress: state.minterAddress.toCell(),
             chainFamilySelector: state.chainFamilySelector,
             tokenPool: state.tokenPool,
@@ -391,7 +391,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenPool_Withdraw {
             chargedFee: state.chargedFee,
-            destOverheads: state.destOverheads,
+            destOverhead: state.destOverhead,
             minterAddress: state.minterAddress,
             chainFamilySelector: state.chainFamilySelector,
             tokenPool: state.tokenPool,
@@ -415,7 +415,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
             executorID: self.id,
             destChainSelector: self.onrampSend.msg.load().destChainSelector,
             chainFamilySelector: state.chainFamilySelector,
-            destBytesOverhead: state.destOverheads.destBytesOverheads,
+            destBytesOverhead: state.destOverhead.destBytesOverhead,
             withdrawRequest: Router_WithdrawRequest {
                 accountWalletAddress: state.senderDepositAccountWallet,
                 depositAccount: depositAccountAddress(self.onrampSend.metadata.sender, self.addresses.load().router),
@@ -437,7 +437,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdra
         sourcePoolAddress: state.tokenPool,
         amount: state.destTokenAmount as uint256,
         lockOrBurnOut: state.lockOrBurnOut,
-        destExecData: encodeDestExecData(state.destOverheads.destGasOverheads),
+        destExecData: encodeDestExecData(state.destOverhead.destGasOverhead),
     }.toCell();
     self.exitSuccessfully(state.chargedFee, tokenTransfer);
 }

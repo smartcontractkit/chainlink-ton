@@ -241,9 +241,9 @@ describe('SendExecutor - Unit tests', () => {
         }),
         destOverheads: opts?.tokenRegistry
           ? [
-              sx.FeeQuoter_DestOverheads.create({
-                destGasOverheads: 90_000n,
-                destBytesOverheads: 0n,
+              sx.FeeQuoter_DestOverhead.create({
+                destGasOverhead: 90_000n,
+                destBytesOverhead: 0n,
               }),
             ]
           : [],
@@ -434,8 +434,8 @@ describe('SendExecutor - Unit tests', () => {
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         destOverheads:
-          destOverheads?.map(([destGasOverheads, destBytesOverheads]) =>
-            sx.FeeQuoter_DestOverheads.create({ destGasOverheads, destBytesOverheads }),
+          destOverheads?.map(([destGasOverhead, destBytesOverhead]) =>
+            sx.FeeQuoter_DestOverhead.create({ destGasOverhead, destBytesOverhead }),
           ) ?? null,
         chainFamilySelector: ChainFamilySelectors.evm,
         msg: tokenOnrampSend.msg,
@@ -841,7 +841,7 @@ describe('SendExecutor - Unit tests', () => {
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         destOverheads: [
-          sx.FeeQuoter_DestOverheads.create({ destGasOverheads: 90_000n, destBytesOverheads: 0n }),
+          sx.FeeQuoter_DestOverhead.create({ destGasOverhead: 90_000n, destBytesOverhead: 0n }),
         ],
         chainFamilySelector: ChainFamilySelectors.evm,
         msg: tokenOnrampSend.msg,
@@ -885,7 +885,7 @@ describe('SendExecutor - Unit tests', () => {
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         destOverheads: [
-          sx.FeeQuoter_DestOverheads.create({ destGasOverheads: 90_000n, destBytesOverheads: 0n }),
+          sx.FeeQuoter_DestOverhead.create({ destGasOverhead: 90_000n, destBytesOverhead: 0n }),
         ],
         chainFamilySelector: ChainFamilySelectors.evm,
         msg: tokenOnrampSend.msg,
@@ -919,7 +919,7 @@ describe('SendExecutor - Unit tests', () => {
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         destOverheads: [
-          sx.FeeQuoter_DestOverheads.create({ destGasOverheads: 90_000n, destBytesOverheads: 0n }),
+          sx.FeeQuoter_DestOverhead.create({ destGasOverhead: 90_000n, destBytesOverhead: 0n }),
         ],
         chainFamilySelector: ChainFamilySelectors.evm,
         msg: tokenOnrampSend.msg,
@@ -1003,7 +1003,7 @@ describe('SendExecutor - Unit tests', () => {
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({ feeTokenAmount: FeeTokenAmount, feeValueJuels: toNano('0.1') }),
         destOverheads: [
-          sx.FeeQuoter_DestOverheads.create({ destGasOverheads: 90_000n, destBytesOverheads: 0n }),
+          sx.FeeQuoter_DestOverhead.create({ destGasOverhead: 90_000n, destBytesOverhead: 0n }),
         ],
         chainFamilySelector: ChainFamilySelectors.evm,
         msg: tokenOnrampSend.msg,
