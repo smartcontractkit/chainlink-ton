@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../onramp/messages.tolk";
 import "../fee_quoter/types"
+import "../pools/lib/token_pool/types"
 
 const CCIPSendExecutor_FACILITY_NAME = "link.chain.ton.ccip.CCIPSendExecutor";
 const CCIPSendExecutor_FACILITY_ID = CCIPSendExecutor_FACILITY_NAME.crc32() % 640 + 10;  // 178
@@ -48,13 +49,15 @@ struct CCIPSendExecutor_State_OnGoingFeeReservation {
     fee: Fee,
     // Null for tokenless messages: the FeeQuoter reports no destGasOverheads when the
     // send carries no token transfers, and the value is only consumed by the token path.
-    destGasOverhead: uint32?,
+    destOverhead: FeeQuoter_DestOverheads?,
+    chainFamilySelector: uint32,
 }
 
 struct CCIPSendExecutor_State_TokenRegistryAccess {
     chargedFee: Fee,
     token: address,
-    destGasOverhead: uint32,
+    destOverheads: FeeQuoter_DestOverheads,
+    chainFamilySelector: uint32,
 }
 
 // TODO Impl wallet address validation through JettonMinter/ stored wallet code
@@ -62,15 +65,17 @@ struct CCIPSendExecutor_State_TokenRegistryAccess {
 // Unless explicitly disabled by TokenRegistry info, then this is skipped and handed off to the TP (which indicates it has the code stored and will verify locally/synchronously).
 struct CCIPSendExecutor_State_WalletAddressValidation {
     chargedFee: Fee,
-    destGasOverhead: uint32,
+    destOverheads: FeeQuoter_DestOverheads,
+    chainFamilySelector: uint32,
     minterAddress: address,
     tokenPool: address,
 }
 
 struct CCIPSendExecutor_State_TokenPool_LockOrBurn {
     chargedFee: Fee,
-    destGasOverhead: uint32,
+    destOverheads: FeeQuoter_DestOverheads,
     minterAddress: Cell<address>,
+    chainFamilySelector: uint32,
     tokenPool: address,
     /// Jetton wallet of the sender's deposit account
     senderDepositAccountWallet: address,
@@ -78,11 +83,16 @@ struct CCIPSendExecutor_State_TokenPool_LockOrBurn {
 
 struct CCIPSendExecutor_State_TokenPool_Withdraw {
     chargedFee: Fee,
-    destGasOverhead: uint32,
     minterAddress: Cell<address>,
+    destOverheads: FeeQuoter_DestOverheads,
+    chainFamilySelector: uint32,
     tokenPool: address,
     /// Jetton wallet of the sender's deposit account
     senderDepositAccountWallet: address,
+    /// Snapshotted from the prepared forward payload before custody moves, so the pool
+    /// cannot alter it in the `TokenPool_LockOrBurnFinished` reply.
+    destTokenAmount: coins,
+    lockOrBurnOut: Cell<TokenPool_LockOrBurnOutV1>,
 }
 
 struct CCIPSendExecutor_State_Finalized {

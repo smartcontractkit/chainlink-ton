@@ -216,17 +216,17 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         return;
     }
 
-    // The FeeQuoter only reports destGasOverheads for token-transfer messages; a tokenless
+    // The FeeQuoter only reports destOverheads for token-transfer messages; a tokenless
     // message legitimately carries null there, so the single-overhead requirement below
     // applies to the token path only. It must hold BEFORE the fee is locked: a malformed
     // validated fee is a validation failure, not a post-reservation refund.
-    var destGasOverhead: uint32? = null;
+    var destOverhead: FeeQuoter_DestOverheads? = null;
     if (!self.onrampSend.msg.load().tokenAmounts.empty()) {
-        if (msg.destGasOverheads == null) {
+        if (msg.destOverheads == null) {
             return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee, NO_FEE_CHARGED);
         }
-        destGasOverhead = msg.destGasOverheads.asSingle();
-        if (destGasOverhead == null) {
+        destOverhead = msg.destOverheads.asSingle();
+        if (destOverhead == null) {
             return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee, NO_FEE_CHARGED);
         }
     }
@@ -247,7 +247,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         addresses: self.addresses,
         state: CCIPSendExecutor_State_OnGoingFeeReservation {
             fee: msg.fee,
-            destGasOverhead,
+            destOverhead,
+            chainFamilySelector: msg.chainFamilySelector,
         }.toCell(),
     };
     newState.store();
@@ -256,10 +257,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onFeeReserved(mutate self, msg: OnRamp_ExecutorFeeReserved) {
     assert(msg.executorID == self.id) throw CCIPSendExecutor_Error.Unauthorized;
     val state = self.state.load();
-    self.continueAfterFeeReservation(state.fee, state.destGasOverhead);
-}
-
-fun CCIPSendExecutor<T>.continueAfterFeeReservation(mutate self, chargedFee: Fee, destGasOverhead: uint32?) {
+    val chargedFee = state.fee;
     val message = Router_CCIPSend.fromCell(self.onrampSend.msg);
     val tokenAmounts = message.tokenAmounts;
     // If token amounts is empty finalize the message.
@@ -267,6 +265,11 @@ fun CCIPSendExecutor<T>.continueAfterFeeReservation(mutate self, chargedFee: Fee
         setGasLimitToMaximum();
         // No token transfer, so there are no pool-supplied details to report.
         self.exitSuccessfully(chargedFee, null);
+        return;
+    }
+
+    if (state.destOverhead == null) {
+        self.exitWithError(CCIPSendExecutor_Error.MissingDestOverhead, chargedFee.feeTokenAmount);
         return;
     }
 
@@ -278,7 +281,6 @@ fun CCIPSendExecutor<T>.continueAfterFeeReservation(mutate self, chargedFee: Fee
     }
     // Token transfers always carry exactly one destGasOverhead (validated before the fee
     // was reserved), so it must be present here.
-    val tokenDestGasOverhead = destGasOverhead!;
     val tokenRegistry = self.addresses.load().tokenRegistry!;
 
     //TODO: Possible optimization: We could do this earlier in onExecute. We can send to FQ and TR at the same time, then wait for both messages to continue. It increases complexity but it's slightly faster.
@@ -299,7 +301,8 @@ fun CCIPSendExecutor<T>.continueAfterFeeReservation(mutate self, chargedFee: Fee
         state: CCIPSendExecutor_State_TokenRegistryAccess {
             chargedFee,
             token: tokenAmount.token,
-            destGasOverhead: tokenDestGasOverhead,
+            destOverheads: state.destOverhead,
+            chainFamilySelector: state.chainFamilySelector,
         }.toCell(),
     };
     newState.store();
@@ -331,7 +334,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
         addresses: self.addresses,
         state: CCIPSendExecutor_State_WalletAddressValidation {
             chargedFee: state.chargedFee,
-            destGasOverhead: state.destGasOverhead,
+            destOverheads: state.destOverheads,
+            chainFamilySelector: state.chainFamilySelector,
             minterAddress: msg.minterAddress,
             tokenPool: msg.tokenPool,
         }.toCell(),
@@ -366,8 +370,9 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenPool_LockOrBurn {
             chargedFee: state.chargedFee,
-            destGasOverhead: state.destGasOverhead,
+            destOverheads: state.destOverheads,
             minterAddress: state.minterAddress.toCell(),
+            chainFamilySelector: state.chainFamilySelector,
             tokenPool: state.tokenPool,
             senderDepositAccountWallet: msg.jettonWalletAddress!, // TODO what to do if null
         }.toCell(),
@@ -377,16 +382,22 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockOrBurn(mutate self, msg: TokenPool_LockOrBurnWithdraw) {
     val state = self.state.load();
+    // Snapshot pool return data before custody moves so the pool cannot alter it in its
+    // TokenPool_LockOrBurnFinished reply; the OnRamp validates destTokenAddress pre-custody.
+    val prepared = lazy msg.forwardPayload.prepared.load();
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw> {
         id: self.id,
         onrampSend: self.onrampSend,
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenPool_Withdraw {
             chargedFee: state.chargedFee,
-            destGasOverhead: state.destGasOverhead,
+            destOverheads: state.destOverheads,
             minterAddress: state.minterAddress,
+            chainFamilySelector: state.chainFamilySelector,
             tokenPool: state.tokenPool,
             senderDepositAccountWallet: state.senderDepositAccountWallet,
+            destTokenAmount: prepared.destTokenAmount,
+            lockOrBurnOut: prepared.out.toCell(),
         }.toCell(),
     };
     newState.store();
@@ -403,6 +414,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
             queryID: self.onrampSend.msg.load().queryID,
             executorID: self.id,
             destChainSelector: self.onrampSend.msg.load().destChainSelector,
+            chainFamilySelector: state.chainFamilySelector,
+            destBytesOverhead: state.destOverheads.destBytesOverheads,
             withdrawRequest: Router_WithdrawRequest {
                 accountWalletAddress: state.senderDepositAccountWallet,
                 depositAccount: depositAccountAddress(self.onrampSend.metadata.sender, self.addresses.load().router),
@@ -417,17 +430,14 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdraw(mutate self, msg: TokenPool_LockOrBurnFinished) {
     setGasLimitToMaximum();
-    // Forward what the pool returned so the OnRamp can emit it. sourcePoolAddress comes
-    // from our own state (the pool we routed the lockOrBurn to) rather than from the
-    // pool's reply, so it stays trusted.
+    // Emit from our pre-custody snapshot, not the pool's reply, so a misbehaving pool
+    // cannot alter lockOrBurnOut/destTokenAmount after the tokens were locked/burned.
     val state = self.state.load();
-    val out = msg.out.load();
     val tokenTransfer = OnRamp_ExecutorTokenTransfer {
         sourcePoolAddress: state.tokenPool,
-        amount: msg.destTokenAmount as uint256,
-        destTokenAddress: out.destTokenAddress,
-        extraData: out.destPoolData,
-        destExecData: encodeDestExecData(state.destGasOverhead),
+        amount: state.destTokenAmount as uint256,
+        lockOrBurnOut: state.lockOrBurnOut,
+        destExecData: encodeDestExecData(state.destOverheads.destGasOverheads),
     }.toCell();
     self.exitSuccessfully(state.chargedFee, tokenTransfer);
 }

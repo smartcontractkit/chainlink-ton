@@ -11,7 +11,7 @@ import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { ChainSelectors } from '../../utils/Selectors'
+import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
@@ -161,8 +161,10 @@ describe('OnRamp - executor exit', () => {
         tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
           sourcePoolAddress: senderAddress,
           amount: 0n,
-          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
-          extraData: Cell.EMPTY,
+          lockOrBurnOut: or.TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress: EVM_ADDRESS,
+            destPoolData: Cell.EMPTY,
+          }),
           destExecData: Cell.EMPTY,
         }),
       },
@@ -247,7 +249,13 @@ describe('OnRamp - executor exit', () => {
         toNano('0.3'),
         ex.FeeQuoter_MessageValidated.create({
           fee: ex.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
-          destGasOverheads: [90_000n],
+          destOverheads: [
+            ex.FeeQuoter_DestOverheads.create({
+              destGasOverheads: 90_000n,
+              destBytesOverheads: 0n,
+            }),
+          ],
+          chainFamilySelector: ChainFamilySelectors.evm,
           msg: ccipSend,
           context: Cell.EMPTY,
         }),
@@ -376,8 +384,10 @@ describe('OnRamp - executor exit', () => {
         tokenTransfer: or.OnRamp_ExecutorTokenTransfer.create({
           sourcePoolAddress: senderAddress,
           amount: 0n,
-          destTokenAddress: cca.codec.encode(Buffer.alloc(0)).endCell().beginParse(),
-          extraData: Cell.EMPTY,
+          lockOrBurnOut: or.TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress: EVM_ADDRESS,
+            destPoolData: Cell.EMPTY,
+          }),
           destExecData: Cell.EMPTY,
         }),
       },

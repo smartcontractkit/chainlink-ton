@@ -24,6 +24,39 @@ fun getErrorCode(crc32Key: int, local: uint16): uint16 {
     return code
 }
 
+/// Returns the number of bytes encoded in a snake cell chain, matching how the Go
+/// bindings encode/decode snake data (cciplib `common.SnakeBytes`/`common.SnakedCell`,
+/// see packByteArrayToCell/unloadCellToByteArray): a strict linear chain of cells,
+/// each holding whole bytes, linked by a single ref to the next cell.
+///
+/// Throws Utils_Error.InvalidData if the cell is not a strict snake chain:
+/// - any cell has more than one ref (the chain branches),
+/// - any cell holds a non-whole number of bytes (the Go decoder pads partial
+///   bytes per cell, so the count would not match),
+/// - the chain is deeper than 128 cells (same gas bound as Iterator.countBytes).
+fun snakedBytesLen(data: cell): int {
+    val maxCells = 128;
+    var s = data.beginParse();
+    var totalBits = 0;
+    var cellsCount = 0;
+    var done = false;
+    while (!done) {
+        cellsCount += 1;
+        assert(cellsCount <= maxCells, Utils_Error.InvalidData);
+        val (bits, refs) = s.remainingBitsAndRefsCount();
+        assert(bits % 8 == 0, Utils_Error.InvalidData);
+        totalBits += bits;
+        if (refs == 0) {
+            done = true;
+        } else {
+            // Strict chain: exactly one ref, pointing to the next cell.
+            assert(refs == 1, Utils_Error.InvalidData);
+            s = s.loadRef().beginParse();
+        }
+    }
+    return totalBits / 8;
+}
+
 /// The default message forwarding budget fee for messages (replies, notifications, sends)
 /// in gas units. The expectation is this is enough to cover the basic transaction costs
 /// for the recipient, at least validation and bounces, to avoid out of gas errors (no bounces).

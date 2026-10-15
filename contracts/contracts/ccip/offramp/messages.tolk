@@ -89,6 +89,8 @@ struct (0x58cfcb02) OffRamp_DispatchValidated {
     execId: uint192;
     // Gas limit to use for the message execution
     effectiveGasLimit: coins;
+    // Token amounts delivered to the receiver, denominated in local token decimals.
+    tokenAmounts: SnakedCell<TokenAmount>?;
 }
 
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {

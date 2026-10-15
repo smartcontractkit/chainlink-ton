@@ -576,6 +576,11 @@ type Proof struct {
 	Value *big.Int `tlb:"## 256"` // The value of the struct
 }
 
+// UInt32 is a LispList element wrapper for Tolk's lisp_list<uint32>.
+type UInt32 struct {
+	Value uint32 `tlb:"## 32"`
+}
+
 // LispList is a generic Go binding for Tolk's lisp_list<T> (from @stdlib/lisp-lists).
 // It serializes as reversed snake refs: each chain cell stores ref[0]=next-chain
 // and ref[1]=element-cell. The terminator is a completely empty cell (0 bits, 0 refs).
@@ -586,7 +591,7 @@ type Proof struct {
 // ref is at position 1 — there is no reliance on "bits == 0" to distinguish chain
 // links from elements.
 //
-// T must implement tlb.Marshaller (ToCell) and tlb.Unmarshaler (LoadFromCell).
+// T must be a struct with tlb tags or implement tlb.Marshaller (ToCell) and tlb.Unmarshaler (LoadFromCell).
 // Each element is serialized to its own cell ref and stored as ref[1] in the chain.
 //
 // Wire format for [A, B]:
@@ -596,7 +601,7 @@ type Proof struct {
 //	           │            ├── ref[0] → empty cell (terminator)
 //	           │            └── ref[1] → A (element)
 //	           └── ref[1] → B (element)
-type LispList[T tlb.Marshaller] []*T
+type LispList[T any] []*T
 
 // ToCell packs the LispList into a cell matching Tolk's lisp_list.packToBuilder format.
 // The returned cell is the root of the reversed snake chain (to be stored as a ^ ref
@@ -607,7 +612,7 @@ func (l LispList[T]) ToCell() (*cell.Cell, error) {
 		if v == nil {
 			return nil, fmt.Errorf("element at index %d is nil", i)
 		}
-		elemCell, err := (*v).ToCell()
+		elemCell, err := tlb.ToCell(*v)
 		if err != nil {
 			return nil, fmt.Errorf("failed to serialize element %d: %w", i, err)
 		}

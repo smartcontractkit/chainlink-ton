@@ -375,9 +375,18 @@ describe('FeeQuoter Token Transfer Fee', () => {
     const result = await setup.getValidatedFee(message)
     const expected = await expectedFee(legs, FEE_TOKEN.token, FEE_TOKEN.price)
     expect(result.fee.feeTokenAmount).toEqual(expected)
-    // The per-token gas overheads are emitted in message token order, for the executor
-    // to build the emitted transfer's destExecData from.
-    expect(result.destGasOverheads).toEqual([configA.destGasOverhead, configB.destGasOverhead])
+    // The per-token overheads are emitted in message token order, for the executor
+    // to build the emitted transfer's destExecData from and to bound the pool data.
+    expect(result.destOverheads).toEqual([
+      feeQuoter.FeeQuoter_DestOverheads.create({
+        destGasOverheads: configA.destGasOverhead,
+        destBytesOverheads: configA.destBytesOverhead,
+      }),
+      feeQuoter.FeeQuoter_DestOverheads.create({
+        destGasOverheads: configB.destGasOverhead,
+        destBytesOverheads: configB.destBytesOverhead,
+      }),
+    ])
 
     // The combined fee must exceed either token's fee taken alone (premium/gas/bytes all sum).
     const soloA = await expectedFee([legs[0]], FEE_TOKEN.token, FEE_TOKEN.price)
@@ -386,12 +395,12 @@ describe('FeeQuoter Token Transfer Fee', () => {
     expect(result.fee.feeTokenAmount).toBeGreaterThan(soloB)
   })
 
-  // destGasOverheads is the list the CCIPSendExecutor consumes to build the emitted
-  // transfer's destExecData, so it must carry the same per-token destGasOverhead the fee
-  // math above charged: the configured override when one exists, the dest chain default
-  // otherwise, in message token order. Without these assertions the FeeQuoter could bill
-  // one overhead while the destination chain executes another.
-  it('serializes the per-token destGasOverhead override into destGasOverheads', async () => {
+  // destOverheads is the list the CCIPSendExecutor consumes to build the emitted
+  // transfer's destExecData and to bound the pool's destPoolData, so it must carry the
+  // same per-token overheads the fee math above charged: the configured override when one
+  // exists, the dest chain default otherwise, in message token order. Without these
+  // assertions the FeeQuoter could bill one overhead while the destination executes another.
+  it('serializes the per-token destGasOverhead override into destOverheads', async () => {
     const token = FeeQuoterSetup.SOURCE_FEE_TOKEN
     const config = await setup.bind.feeQuoter.getTokenTransferFeeConfig(DEST_CHAIN, token.token)
     // Guard the test's validity: the override must differ from the default fallback,
@@ -407,10 +416,15 @@ describe('FeeQuoter Token Transfer Fee', () => {
     // agree on the same per-token overhead.
     const expected = await expectedFee(legs, FEE_TOKEN.token, FEE_TOKEN.price)
     expect(result.fee.feeTokenAmount).toEqual(expected)
-    expect(result.destGasOverheads).toEqual([config.destGasOverhead])
+    expect(result.destOverheads).toEqual([
+      feeQuoter.FeeQuoter_DestOverheads.create({
+        destGasOverheads: config.destGasOverhead,
+        destBytesOverheads: config.destBytesOverhead,
+      }),
+    ])
   })
 
-  it('falls back to the dest chain default destGasOverhead in destGasOverheads without an override', async () => {
+  it('falls back to the dest chain default destGasOverhead in destOverheads without an override', async () => {
     const token = FeeQuoterSetup.CUSTOM_TOKEN_2 // no TokenTransferFeeConfig on this lane
     await expect(
       setup.bind.feeQuoter.getTokenTransferFeeConfig(DEST_CHAIN, token.token),
@@ -419,10 +433,15 @@ describe('FeeQuoter Token Transfer Fee', () => {
     const legs: TokenLeg[] = [{ token: token.token, amount: 10_000n * VAL_1E18 }]
     const result = await setup.getValidatedFee(messageWithTokens(legs, FEE_TOKEN.token))
 
-    expect(result.destGasOverheads).toEqual([FeeQuoterSetup.DEFAULT_TOKEN_DEST_GAS_OVERHEAD])
+    expect(result.destOverheads).toEqual([
+      feeQuoter.FeeQuoter_DestOverheads.create({
+        destGasOverheads: FeeQuoterSetup.DEFAULT_TOKEN_DEST_GAS_OVERHEAD,
+        destBytesOverheads: 32n,
+      }),
+    ])
   })
 
-  it('preserves message token order in destGasOverheads across mixed override and default tokens', async () => {
+  it('preserves message token order in destOverheads across mixed override and default tokens', async () => {
     const tokenA = FeeQuoterSetup.SOURCE_FEE_TOKEN // configured override
     const tokenB = FeeQuoterSetup.CUSTOM_TOKEN_2 // default fallback
     const configA = await setup.bind.feeQuoter.getTokenTransferFeeConfig(DEST_CHAIN, tokenA.token)
@@ -438,16 +457,22 @@ describe('FeeQuoter Token Transfer Fee', () => {
     expect(result.fee.feeTokenAmount).toEqual(expected)
     // A reversed list (or an override/default swap) would fail here: the first token's
     // override must be emitted first, the second token's default second.
-    expect(result.destGasOverheads).toEqual([
-      configA.destGasOverhead,
-      FeeQuoterSetup.DEFAULT_TOKEN_DEST_GAS_OVERHEAD,
+    expect(result.destOverheads).toEqual([
+      feeQuoter.FeeQuoter_DestOverheads.create({
+        destGasOverheads: configA.destGasOverhead,
+        destBytesOverheads: configA.destBytesOverhead,
+      }),
+      feeQuoter.FeeQuoter_DestOverheads.create({
+        destGasOverheads: FeeQuoterSetup.DEFAULT_TOKEN_DEST_GAS_OVERHEAD,
+        destBytesOverheads: 32n,
+      }),
     ])
   })
 
-  it('emits no destGasOverheads for a token-less message', async () => {
+  it('emits no destOverheads for a token-less message', async () => {
     const message = setup.generateEmptyMessage({ feeToken: FEE_TOKEN.token })
     const result = await setup.getValidatedFee(message)
-    expect(result.destGasOverheads).toBeNull()
+    expect(result.destOverheads).toBeNull()
   })
 
   it('reverts with UnsupportedNumberOfTokens when the message exceeds maxNumberOfTokensPerMsg', async () => {

@@ -6,6 +6,7 @@ import "types"
 import "storage"
 
 import "../common/types";
+import "../common/errors"
 import "../common/cross_chain_address_validation"
 import "../pools/lib/token_pool/types"
 import "../../lib/access/ownable_2step";
@@ -26,7 +27,7 @@ contract FeeQuoter {
 
     storage: Storage
     incomingMessages: FeeQuoter_InMessage | Ownable2Step_Messages
-    thrownErrors: FeeQuoter_Error | Ownable2Step_Error | Upgradeable_Error | Withdrawable_Error | Utils_Error
+    thrownErrors: FeeQuoter_Error | Ownable2Step_Error | Upgradeable_Error | Withdrawable_Error | Utils_Error | DestFamilyAddressValidation_Error
 }
 
 const CONTRACT_VERSION = "1.7.0".literalSlice();
@@ -248,12 +249,12 @@ get fun validatedFeeCell(msg: Cell<Router_CCIPSend>): coins {
 }
 
 get fun validatedFee(msg: Router_CCIPSend): coins {
-    val (fee, _) = calculateValidatedFee(msg);
+    val (fee, _, _) = calculateValidatedFee(msg);
     return fee.feeTokenAmount;
 }
 
-// @returns (fee, destGasOverheads)
-fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<uint32>?) {
+// @returns (fee, destOverheads, chainFamilySelector)
+fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<FeeQuoter_DestOverheads>?, uint32) {
     var st = lazy Storage.load();
 
     val destChainConfigResult = st.destChainConfigs.get(msg.destChainSelector);
@@ -296,21 +297,24 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<uint32>?) {
     var premiumFeeUsdWei = 0;
     var tokenTransferGas = 0;
 
-    var destGasOverheads: lisp_list<uint32>? = null;
+    var destOverheads: lisp_list<FeeQuoter_DestOverheads>? = null;
     var tokenAmountsIter = msg.tokenAmounts.iter();
     if (!tokenAmountsIter.empty()) {
-        var backwardsDestGasOverheads: lisp_list<uint32> = [];
+        var backwardsDestOverheads: lisp_list<FeeQuoter_DestOverheads> = [];
         while (!tokenAmountsIter.empty()) {
             val tokenAmount = tokenAmountsIter.next();
 
-            val (tokenPremiumFeeUsdWei, destGasOverhead, _) = _tokenTransferFee(st, destChainConfig, tokenAmount);
-            val tokenGas= destGasOverhead as int;
+            val (tokenPremiumFeeUsdWei, destGasOverhead, destBytesOverhead) = _tokenTransferFee(st, destChainConfig, tokenAmount);
+            val tokenGas = destGasOverhead as int;
 
             premiumFeeUsdWei = mustAdd(premiumFeeUsdWei, tokenPremiumFeeUsdWei, FeeQuoter_Error.PremiumFeeOverflow);
             tokenTransferGas = mustAdd(tokenTransferGas, tokenGas, FeeQuoter_Error.ExecutionCostOverflow);
-            backwardsDestGasOverheads.prependHead(tokenGas);
+            backwardsDestOverheads.prependHead(FeeQuoter_DestOverheads {
+                destGasOverheads: destGasOverhead,
+                destBytesOverheads: destBytesOverhead,
+            });
         }
-        destGasOverheads = backwardsDestGasOverheads.calculateReversed();
+        destOverheads = backwardsDestOverheads.calculateReversed();
     } else {
         premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
     }
@@ -340,7 +344,8 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<uint32>?) {
             feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow),
             feeValueJuels: feeValueJuels as uint96, // safe because already checked against maxFeeJuelsPerMsg
         },
-        destGasOverheads
+        destOverheads,
+        destChainConfig.config.chainFamilySelector,
     );
 }
 
@@ -432,13 +437,13 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, 
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_TVM) {
         val gasLimit = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
-        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
+        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit == 0);
         return (gasLimit, 0);
     }
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
         val suiExtraArgs = parseSuiExtraArgs(extraArgs, config.maxPerMsgGasLimit);
         val gasLimit = suiExtraArgs.gasLimit;
-        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
+        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit == 0);
         assert (tokenCount == 0 || suiExtraArgs.tokenReceiver != 0) throw FeeQuoter_Error.InvalidTokenReceiver;
 
         // objectIds are 32 bytes long
@@ -475,7 +480,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, 
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
         val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.maxPerMsgGasLimit);
         val gasLimit = svmExtraArgs.computeUnits;
-        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
+        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit == 0);
 
         // accounts are 32 bytes long
         val accounts = svmExtraArgs.accounts.iter();
@@ -562,27 +567,11 @@ fun parseSuiExtraArgs(extraArgs: Cell<ExtraArgs>, maxPerMsgGasLimit: uint32): Su
     return extra;
 }
 
-fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainAddress, gasLimit: int) {
-    if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM) {
-        return receiver.validateEVMAddress(FeeQuoter_Error.InvalidEVMReceiverAddress);
-    } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
-        // SVM addresses don't have a precompile space at the first X addresses, instead we validate that if the gasLimit
-        // is non-zero, the address must not be 0x0.
-        return receiver.validate32ByteAddress(gasLimit > 0 ? 1 : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress);
-    } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS) {
-        return receiver.validate32ByteAddress(APTOS_PRECOMPILE_SPACE, FeeQuoter_Error.Invalid32ByteReceiverAddress);
-    } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
-        return receiver.validate32ByteAddress(gasLimit > 0 ? SUI_PRECOMPILE_SPACE : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress);
-    } else {
-        throw FeeQuoter_Error.UnsupportedChainFamilySelector;
-    }
-}
-
 fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
     val msg = payload.msg.load();
     var response: OutMessage;
     try {
-        val (fee, destGasOverheads) = calculateValidatedFee(msg);
+        val (fee, destOverheads, chainFamilySelector) = calculateValidatedFee(msg);
 
         response = createMessage({
             bounce: true,
@@ -590,7 +579,8 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
             dest: sender,
             body: FeeQuoter_MessageValidated {
                 fee,
-                destGasOverheads,
+                destOverheads,
+                chainFamilySelector,
                 msg: payload.msg,
                 context: payload.context,
             }

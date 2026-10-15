@@ -14,4 +14,5 @@ enum CCIPSendExecutor_Error {
     InvalidValidatedFee
     TokenRegistryBounce
     MinterBounce
+    MissingDestOverhead
 }
