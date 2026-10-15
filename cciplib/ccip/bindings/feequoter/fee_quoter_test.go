@@ -127,9 +127,9 @@ func TestMessageValidated_TLBEncodeDecode(t *testing.T) {
 			FeeTokenAmount: ptrCoins(tlb.MustFromTON("0.5")),
 			FeeValueJuels:  big.NewInt(123456),
 		},
-		DestOverheads: &common.LispList[DestOverheads]{
-			{DestGasOverheads: 90000, DestBytesOverheads: 32},
-			{DestGasOverheads: 123456, DestBytesOverheads: 64},
+		DestOverheads: &common.LispList[DestOverhead]{
+			{DestGasOverhead: 90000, DestBytesOverhead: 32},
+			{DestGasOverhead: 123456, DestBytesOverhead: 64},
 		},
 		ChainFamilySelector: 0x2812d52c,
 		Msg:                 msgCell,
@@ -150,10 +150,10 @@ func TestMessageValidated_TLBEncodeDecode(t *testing.T) {
 	require.Equal(t, orig.ChainFamilySelector, decoded.ChainFamilySelector)
 	require.NotNil(t, decoded.DestOverheads)
 	require.Len(t, *decoded.DestOverheads, 2)
-	require.Equal(t, uint32(90000), (*decoded.DestOverheads)[0].DestGasOverheads)
-	require.Equal(t, uint32(32), (*decoded.DestOverheads)[0].DestBytesOverheads)
-	require.Equal(t, uint32(123456), (*decoded.DestOverheads)[1].DestGasOverheads)
-	require.Equal(t, uint32(64), (*decoded.DestOverheads)[1].DestBytesOverheads)
+	require.Equal(t, uint32(90000), (*decoded.DestOverheads)[0].DestGasOverhead)
+	require.Equal(t, uint32(32), (*decoded.DestOverheads)[0].DestBytesOverhead)
+	require.Equal(t, uint32(123456), (*decoded.DestOverheads)[1].DestGasOverhead)
+	require.Equal(t, uint32(64), (*decoded.DestOverheads)[1].DestBytesOverhead)
 }
 
 // TestMessageValidated_NilDestOverheads covers the messaging-only case (null

@@ -26,6 +26,8 @@ export function createBlockchain(): Promise<Blockchain> {
       blockchain.verbosity.print = false
       blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
+    // Prevent rent collection by freezing time
+    blockchain.now = 1
     return blockchain
   })
 }
