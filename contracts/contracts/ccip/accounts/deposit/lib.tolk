@@ -145,7 +145,7 @@ fun DepositAccount<T>.onInternalMessage(
 ///      the account is expected to be its owner (e.g. the pool for off-ramp accounts, the Router
 ///      for on-ramp accounts), and the `DepositAccount_Reply` is sent to that owner so it can
 ///      correlate the deployment back to the operation that triggered it (via
-///      `msg.forwardPayload`). The init is a ping: the account always replies, confirming it is
+///      `msg.context`). The init is a ping: the account always replies, confirming it is
 ///      deployed.
 fun DepositAccount<T>.onInit(
     mutate self,
@@ -173,7 +173,7 @@ fun DepositAccount<T>.onInit(
         assert(self.data.pendingInit == null, DepositAccount_Error.InitPending);
         self.data.pendingInit = DepositAccount_PendingInit {
             queryId: msg.queryId,
-            forwardPayload: msg.forwardPayload,
+            context: msg.context,
             value: msgValue - initCost,
         }.toCell();
         val query = createMessage({
@@ -200,7 +200,7 @@ fun DepositAccount<T>.onInit(
         dest: sender,
         body: DepositAccount_Reply {
             queryId: msg.queryId,
-            forwardPayload: msg.forwardPayload,
+            context: msg.context,
         },
     });
     // SAFETY: reserveGramsOnBalance is called before
@@ -230,14 +230,14 @@ fun DepositAccount<T>.answerPendingInit(mutate self, walletLearned: bool) {
             bounce: BounceMode.NoBounce,
             value: pending.value,
             dest: self.data.owner,
-            body: DepositAccount_Reply { queryId: pending.queryId, forwardPayload: pending.forwardPayload },
+            body: DepositAccount_Reply { queryId: pending.queryId, context: pending.context },
         }).send(SEND_MODE_PAY_FEES_SEPARATELY);
     } else {
         createMessage({
             bounce: BounceMode.NoBounce,
             value: pending.value,
             dest: self.data.owner,
-            body: DepositAccount_WalletUnavailable { queryId: pending.queryId, forwardPayload: pending.forwardPayload },
+            body: DepositAccount_WalletUnavailable { queryId: pending.queryId, context: pending.context },
         }).send(SEND_MODE_PAY_FEES_SEPARATELY);
     }
 }

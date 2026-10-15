@@ -304,21 +304,21 @@ export const DepositAccount_Data = {
 /**
  > struct DepositAccount_PendingInit {
  >     queryId: uint64
- >     forwardPayload: cell?
+ >     context: cell?
  >     value: coins
  > }
  */
 export interface DepositAccount_PendingInit {
     readonly $: 'DepositAccount_PendingInit'
     queryId: uint64
-    forwardPayload: c.Cell | null
+    context: c.Cell | null
     value: coins
 }
 
 export const DepositAccount_PendingInit = {
     create(args: {
         queryId?: uint64
-        forwardPayload: c.Cell | null
+        context: c.Cell | null
         value: coins
     }): DepositAccount_PendingInit {
         return {
@@ -331,13 +331,13 @@ export const DepositAccount_PendingInit = {
         return {
             $: 'DepositAccount_PendingInit',
             queryId: s.loadUintBig(64),
-            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+            context: s.loadBoolean() ? s.loadRef() : null,
             value: s.loadCoins(),
         }
     },
     store(self: DepositAccount_PendingInit, b: c.Builder): void {
         b.storeUint(self.queryId, 64);
-        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+        storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
         );
         b.storeCoins(self.value);
@@ -350,14 +350,14 @@ export const DepositAccount_PendingInit = {
 /**
  > struct (0x6890a205) DepositAccount_Init {
  >     queryId: uint64
- >     forwardPayload: cell?
+ >     context: cell?
  >     learnWallet: bool
  > }
  */
 export interface DepositAccount_Init {
     readonly $: 'DepositAccount_Init'
     queryId: uint64
-    forwardPayload: c.Cell | null
+    context: c.Cell | null
     learnWallet: boolean /* = false */
 }
 
@@ -366,7 +366,7 @@ export const DepositAccount_Init = {
 
     create(args: {
         queryId?: uint64
-        forwardPayload: c.Cell | null
+        context: c.Cell | null
         learnWallet?: boolean /* = false */
     }): DepositAccount_Init {
         return {
@@ -381,14 +381,14 @@ export const DepositAccount_Init = {
         return {
             $: 'DepositAccount_Init',
             queryId: s.loadUintBig(64),
-            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+            context: s.loadBoolean() ? s.loadRef() : null,
             learnWallet: s.loadBoolean(),
         }
     },
     store(self: DepositAccount_Init, b: c.Builder): void {
         b.storeUint(0x6890a205, 32);
         b.storeUint(self.queryId, 64);
-        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+        storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
         );
         b.storeBit(self.learnWallet);
@@ -401,13 +401,13 @@ export const DepositAccount_Init = {
 /**
  > struct (0xda04630c) DepositAccount_Reply {
  >     queryId: uint64
- >     forwardPayload: cell?
+ >     context: cell?
  > }
  */
 export interface DepositAccount_Reply {
     readonly $: 'DepositAccount_Reply'
     queryId: uint64
-    forwardPayload: c.Cell | null
+    context: c.Cell | null
 }
 
 export const DepositAccount_Reply = {
@@ -415,7 +415,7 @@ export const DepositAccount_Reply = {
 
     create(args: {
         queryId?: uint64
-        forwardPayload: c.Cell | null
+        context: c.Cell | null
     }): DepositAccount_Reply {
         return {
             $: 'DepositAccount_Reply',
@@ -428,13 +428,13 @@ export const DepositAccount_Reply = {
         return {
             $: 'DepositAccount_Reply',
             queryId: s.loadUintBig(64),
-            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+            context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: DepositAccount_Reply, b: c.Builder): void {
         b.storeUint(0xda04630c, 32);
         b.storeUint(self.queryId, 64);
-        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+        storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
         );
     },
@@ -446,13 +446,13 @@ export const DepositAccount_Reply = {
 /**
  > struct (0x9293d68e) DepositAccount_WalletUnavailable {
  >     queryId: uint64
- >     forwardPayload: cell?
+ >     context: cell?
  > }
  */
 export interface DepositAccount_WalletUnavailable {
     readonly $: 'DepositAccount_WalletUnavailable'
     queryId: uint64
-    forwardPayload: c.Cell | null
+    context: c.Cell | null
 }
 
 export const DepositAccount_WalletUnavailable = {
@@ -460,7 +460,7 @@ export const DepositAccount_WalletUnavailable = {
 
     create(args: {
         queryId?: uint64
-        forwardPayload: c.Cell | null
+        context: c.Cell | null
     }): DepositAccount_WalletUnavailable {
         return {
             $: 'DepositAccount_WalletUnavailable',
@@ -473,13 +473,13 @@ export const DepositAccount_WalletUnavailable = {
         return {
             $: 'DepositAccount_WalletUnavailable',
             queryId: s.loadUintBig(64),
-            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+            context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: DepositAccount_WalletUnavailable, b: c.Builder): void {
         b.storeUint(0x9293d68e, 32);
         b.storeUint(self.queryId, 64);
-        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+        storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
         );
     },
@@ -1055,7 +1055,7 @@ export class DepositAccount implements c.Contract {
 
     static createCellOfDepositAccountInit(body: {
         queryId?: uint64
-        forwardPayload: c.Cell | null
+        context: c.Cell | null
         learnWallet?: boolean /* = false */
     }) {
         return DepositAccount_Init.toCell(DepositAccount_Init.create(body));
@@ -1104,7 +1104,7 @@ export class DepositAccount implements c.Contract {
 
     async sendDepositAccountInit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        forwardPayload: c.Cell | null
+        context: c.Cell | null
         learnWallet?: boolean /* = false */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {

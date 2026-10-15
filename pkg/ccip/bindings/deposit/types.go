@@ -35,9 +35,9 @@ type Data struct {
 
 // PendingInit is an init waiting for the account's jetton wallet to be learned.
 type PendingInit struct {
-	QueryID        uint64     `tlb:"## 64"`
-	ForwardPayload *cell.Cell `tlb:"maybe ^"`
-	Value          tlb.Coins  `tlb:"."`
+	QueryID uint64     `tlb:"## 64"`
+	Context *cell.Cell `tlb:"maybe ^"`
+	Value   tlb.Coins  `tlb:"."`
 }
 
 // Identity is what an account reports about itself so a recipient can re-derive its address.
@@ -51,9 +51,9 @@ type Identity struct {
 
 // Init activates the account. Only the owner may send it.
 type Init struct {
-	_              tlb.Magic  `tlb:"#6890a205" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64     `tlb:"## 64"`
-	ForwardPayload *cell.Cell `tlb:"maybe ^"`
+	_       tlb.Magic  `tlb:"#6890a205" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64     `tlb:"## 64"`
+	Context *cell.Cell `tlb:"maybe ^"`
 	// LearnWallet makes the account reply only once it knows its jetton wallet (TEP-89 query to Token).
 	LearnWallet bool `tlb:"bool"`
 }
@@ -70,16 +70,16 @@ type Withdraw struct {
 
 // Reply is sent to the initiator on successful initialization.
 type Reply struct {
-	_              tlb.Magic  `tlb:"#da04630c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64     `tlb:"## 64"`
-	ForwardPayload *cell.Cell `tlb:"maybe ^"`
+	_       tlb.Magic  `tlb:"#da04630c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64     `tlb:"## 64"`
+	Context *cell.Cell `tlb:"maybe ^"`
 }
 
 // WalletUnavailable replies to an init with LearnWallet when the token could not report the wallet.
 type WalletUnavailable struct {
-	_              tlb.Magic  `tlb:"#9293d68e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64     `tlb:"## 64"`
-	ForwardPayload *cell.Cell `tlb:"maybe ^"`
+	_       tlb.Magic  `tlb:"#9293d68e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64     `tlb:"## 64"`
+	Context *cell.Cell `tlb:"maybe ^"`
 }
 
 // InMessageForward holds the metadata of an original incoming message forwarded

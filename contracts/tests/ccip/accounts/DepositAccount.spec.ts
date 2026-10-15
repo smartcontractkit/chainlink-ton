@@ -39,10 +39,10 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
   const init = async (
     via: SandboxContract<TreasuryContract>,
     account: SandboxContract<da.DepositAccount>,
-    forwardPayload: Cell | null = null,
+    context: Cell | null = null,
   ) => {
     return account.sendDepositAccountInit(via.getSender(), toNano('0.5'), {
-      forwardPayload,
+      context,
     })
   }
 
@@ -68,7 +68,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
   // activates it. The two messages are enqueued and processed in order. Returns the opened account
   // at the shell address.
   const deployViaDeployable = async (
-    forwardPayload: Cell | null = null,
+    context: Cell | null = null,
     via: SandboxContract<TreasuryContract> = recipient,
     deploymentValues = {
       deploy: toNano('0.5'),
@@ -101,7 +101,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       via.getSender(),
       deploymentValues.init,
       {
-        forwardPayload,
+        context,
       },
     )
 
@@ -177,11 +177,11 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
   const initLearningWallet = (
     account: SandboxContract<da.DepositAccount>,
     queryId = 0n,
-    forwardPayload: Cell | null = null,
+    context: Cell | null = null,
   ) =>
     account.sendDepositAccountInit(recipient.getSender(), toNano('0.5'), {
       queryId,
-      forwardPayload,
+      context,
       learnWallet: true,
     })
 
@@ -218,8 +218,8 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
   })
 
   it('deploys via Deployable_Initialize + DepositAccount_Init and replies to the owner', async () => {
-    const forwardPayload = beginCell().storeUint(0xed696f9b, 32).endCell()
-    const { depositAccount, deployRes, res } = await deployViaDeployable(forwardPayload)
+    const context = beginCell().storeUint(0xed696f9b, 32).endCell()
+    const { depositAccount, deployRes, res } = await deployViaDeployable(context)
 
     // The Deployable shell upgrades into the account (code/data installed).
     expect(deployRes.transactions).toHaveTransaction({
@@ -238,7 +238,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       success: true,
     })
 
-    // The account sent DepositAccount_Reply back to the owner, echoing `forwardPayload`.
+    // The account sent DepositAccount_Reply back to the owner, echoing `context`.
     expect(res.transactions).toHaveTransaction({
       from: depositAccount.address,
       to: recipient.address,
@@ -247,7 +247,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
       body(body) {
         if (!body) return false
         const reply = da.DepositAccount_Reply.fromSlice(body.beginParse())
-        return reply.forwardPayload?.equals(forwardPayload) === true
+        return reply.context?.equals(context) === true
       },
     })
 
@@ -367,8 +367,8 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
     // below MIN_GRAM_TO_RESERVE + MIN_GRAM_TO_INIT.
     const initValue = MIN_GRAM_TO_INIT - 1n
     const deployValue = MIN_GRAM_TO_RESERVE
-    const forwardPayload = beginCell().storeUint(0xdeadbeef, 32).endCell()
-    const { depositAccount, res } = await deployViaDeployable(forwardPayload, recipient, {
+    const context = beginCell().storeUint(0xdeadbeef, 32).endCell()
+    const { depositAccount, res } = await deployViaDeployable(context, recipient, {
       deploy: deployValue,
       init: initValue,
     })
@@ -601,9 +601,9 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
   describe('learning the jetton wallet (learnWallet init)', () => {
     it('queries the token and replies only once the wallet is known', async () => {
       const { depositAccount } = await deployViaDeployable()
-      const forwardPayload = beginCell().storeUint(0x1234, 16).endCell()
+      const context = beginCell().storeUint(0x1234, 16).endCell()
 
-      const initRes = await initLearningWallet(depositAccount, 7n, forwardPayload)
+      const initRes = await initLearningWallet(depositAccount, 7n, context)
       expect(initRes.transactions).toHaveTransaction({
         from: depositAccount.address,
         to: token,
@@ -630,7 +630,7 @@ describe('DepositAccount (default forward hook, off-ramp role)', () => {
         body(body) {
           if (!body) return false
           const reply = da.DepositAccount_Reply.fromSlice(body.beginParse())
-          return reply.queryId === 7n && reply.forwardPayload?.equals(forwardPayload) === true
+          return reply.queryId === 7n && reply.context?.equals(context) === true
         },
       })
     })

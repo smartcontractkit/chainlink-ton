@@ -245,7 +245,7 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must be the receiver's deposit account (verified against the derived address)
         DepositAccount_WalletUnavailable => {
-            onDepositAccountWalletUnavailable(msg.forwardPayload!, in.senderAddress);
+            onDepositAccountWalletUnavailable(msg.context!, in.senderAddress);
         }
         // Sender must be the sender's on-ramp account (verified against the derived address)
         DepositAccount_WithdrawFailed => {
@@ -326,8 +326,8 @@ fun onBouncedMessage(in: InMessageBounced) {
             Deployable_Initialize => {}
             // The receiver's deposit account was not deployed or rejected the init.
             DepositAccount_Init => {
-                if (richMsg.forwardPayload != null) {
-                    val context = lazy Router_DepositAccountInitContext.fromCell(richMsg.forwardPayload!);
+                if (richMsg.context != null) {
+                    val context = lazy Router_DepositAccountInitContext.fromCell(richMsg.context!);
                     match (context) {
                         Router_RelayReleaseOrMint => {
                             sendDepositAccountInitFailure(context, rich.exitCode);
@@ -458,7 +458,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
         dest: oaa.calculateAddress(),
         body: DepositAccount_Init {
             queryId: msg.queryId,
-            forwardPayload: Router_OnRampAccountContext { user: sender, token: msg.token }.toCell(),
+            context: Router_OnRampAccountContext { user: sender, token: msg.token }.toCell(),
         },
     });
     // SAFETY: reserveGramsOnBalance is called before sending the init message, ensuring the account has enough balance to cover the reserved grams.
@@ -1062,7 +1062,7 @@ fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
         dest: account.calculateAddress(),
         body: DepositAccount_Init {
             queryId: msg.queryID,
-            forwardPayload: msg.toCell(),
+            context: msg.toCell(),
             learnWallet: true,
         },
     });
@@ -1071,10 +1071,10 @@ fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
 }
 
 /// Routes a `DepositAccount_Reply` to the leg that initiated the deployment, told apart by the
-/// context the Router echoed through `DepositAccount_Init.forwardPayload`. Each leg verifies the
+/// context the Router echoed through `DepositAccount_Init.context`. Each leg verifies the
 /// sender against its own derived account address.
 fun onDepositAccountReply(msg: DepositAccount_Reply, sender: address) {
-    val context = lazy Router_DepositAccountInitContext.fromCell(msg.forwardPayload!);
+    val context = lazy Router_DepositAccountInitContext.fromCell(msg.context!);
     match (context) {
         Router_RelayReleaseOrMint => {
             onReceiverAccountReady(context, sender);
@@ -1113,8 +1113,8 @@ fun onReceiverAccountReady(relay: Router_RelayReleaseOrMint, sender: address) {
 
 /// A deposit account could not initialize. The relay fails before the pool is called, so no rate
 /// limit was consumed; an on-ramp account deployment has no operation to fail and is retried by the user.
-fun onDepositAccountWalletUnavailable(forwardPayload: cell, sender: address) {
-    val context = lazy Router_DepositAccountInitContext.fromCell(forwardPayload);
+fun onDepositAccountWalletUnavailable(initContext: cell, sender: address) {
+    val context = lazy Router_DepositAccountInitContext.fromCell(initContext);
     match (context) {
         Router_RelayReleaseOrMint => {
             val request = lazy context.request.load();

@@ -16,8 +16,8 @@ import "../../../lib/deployable/types"
 struct (0x6890a205) DepositAccount_Init {
     /// Correlation ID echoed in the DepositAccount_Reply.
     queryId: uint64;
-    /// Optional context forwarded back in the DepositAccount_Reply.
-    forwardPayload: cell?;
+    /// Optional context returned in the DepositAccount_Reply.
+    context: cell?;
     /// Reply only once the account knows its jetton wallet, learned from `token` with TEP-89.
     learnWallet: bool = false;
 }
@@ -26,13 +26,13 @@ struct (0x6890a205) DepositAccount_Init {
 /// TODO rename to `DepositAccount_Initialized`
 struct (0xda04630c) DepositAccount_Reply {
     queryId: uint64;
-    forwardPayload: cell?;
+    context: cell?;
 }
 
 /// Reply to an init with `learnWallet` when the token could not report the account's jetton wallet.
 struct (0x9293d68e) DepositAccount_WalletUnavailable {
     queryId: uint64;
-    forwardPayload: cell?;
+    context: cell?;
 }
 
 /// Forwarded notification sent to the proxy on messages from specific jetton wallet.
