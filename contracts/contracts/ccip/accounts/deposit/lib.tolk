@@ -161,7 +161,6 @@ fun DepositAccount<T>.onInit(
 
     assert(sender == self.data.owner, DepositAccount_Error.OnlyOwner);
     val waitForWallet = msg.learnWallet && self.data.wallet == null;
-    assert(!(waitForWallet && self.data.pendingInit != null), DepositAccount_Error.InitPending);
     val initCost = DepositAccount_MIN_GRAM_TO_INIT + (waitForWallet ? DepositAccount_WALLET_QUERY_VALUE : 0);
     // `contract.getOriginalBalance()` (TVM `BALANCE`) is the balance at the start of the compute
     // phase, (balance + inbound message's value)
@@ -171,6 +170,7 @@ fun DepositAccount<T>.onInit(
     );
 
     if (waitForWallet) {
+        assert(self.data.pendingInit == null, DepositAccount_Error.InitPending);
         self.data.pendingInit = DepositAccount_PendingInit {
             queryId: msg.queryId,
             forwardPayload: msg.forwardPayload,
@@ -218,7 +218,7 @@ fun DepositAccount<T>.onResponseWalletAddress(
     if (msg.jettonWalletAddress == null) {
         return self.answerPendingInit(false);
     }
-    self.data.wallet = msg.jettonWalletAddress!.toCell();
+    self.data.wallet = msg.jettonWalletAddress.toCell();
     self.answerPendingInit(true);
 }
 
