@@ -1088,15 +1088,9 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
-  it('should exit with error and refund the charged fee when the minter bounces', async () => {
-    // A jetton minter that bounces everything: the RequestWalletAddress query
-    // sent after the token info reply bounces back, so the executor must
-    // finalize with an error and refund the fee already reserved on the OnRamp.
-    const minterBouncer = blockchain.openContract(
-      bouncer.ContractClient.createFromConfig(await contractCode.ccip.local('tests.mock.Bouncer')),
-    )
-    await minterBouncer.sendDeploy(deployer.getSender(), toNano('0.05'))
-
+  it('should exit with error and refund the charged fee when the minter is not the token', async () => {
+    // On-ramp accounts are keyed by the token, so a registry entry whose minter differs from
+    // the token is rejected after the fee was reserved on the OnRamp, which must refund it.
     const { sendExecutor } = await afterFeeReserved({
       send: tokenOnrampSend,
       tokenRegistry: tokenRegistryMock.address,
@@ -1108,21 +1102,13 @@ describe('SendExecutor - Unit tests', () => {
       {
         queryId: 0n,
         token: WRAPPED_NATIVE,
-        minterAddress: minterBouncer.address,
+        minterAddress: deployer.address,
         tokenPool: deployer.address, // non-null so the executor proceeds
+        transferInitiator: null,
         version: 0n,
       },
     )
 
-    // The wallet-address query bounced back to the executor.
-    expect(result.transactions).toHaveTransaction({
-      from: minterBouncer.address,
-      to: sendExecutor.address,
-      success: true,
-      op: 0xffffffff,
-    })
-
-    // The executor finalizes with the minter bounce error and refunds the fee.
     expect(result.transactions).toHaveTransaction({
       from: sendExecutor.address,
       to: onRampMock.address,
@@ -1135,7 +1121,7 @@ describe('SendExecutor - Unit tests', () => {
         return (
           executorFinishedWithError.executorID === 0n &&
           executorFinishedWithError.error ===
-            BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.MinterBounce']) &&
+            BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenMinterMismatch']) &&
           executorFinishedWithError.refund === FeeTokenAmount
         )
       },
@@ -1158,6 +1144,7 @@ describe('SendExecutor - Unit tests', () => {
         token: WRAPPED_NATIVE,
         minterAddress: deployer.address,
         tokenPool: null, // token not enabled
+        transferInitiator: null,
         version: 0n,
       },
     )

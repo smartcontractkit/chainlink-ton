@@ -1,104 +1,83 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 import "../../../lib/jetton/messages"
-import "../../../lib/deployable/types"
 
-/// Initialization message sent by the owner to activate the account.
-/// @dev Wallet/sender authorization is NOT held in the account: it's verified by the party that
-///      knows the token set (off-ramp: the pool on `DepositAccount_ForwardNotification`; on-ramp:
-///      the token-handling layer before a withdraw). The account is a token-agnostic escrow hub,
-///      so one account per user serves any number of jettons.
-///      The message is only accepted from the account's owner: the deployment sequence is
-///      `Deployable_Initialize` (installs the account's code/data) followed by this init sent
-///      directly by the owner. The account always replies with `DepositAccount_Reply`, confirming
-///      it is deployed.
+/// Activates the account; only accepted from the owner. Answered to the owner with
+/// `DepositAccount_Initialized` once the account knows its jetton wallet, or
+/// `DepositAccount_WalletUnavailable` when the token can't report it.
+///
+/// @dev Deployment is `Deployable_Initialize` (installs code/data) followed by this init. Every
+///      init is answered, so re-sending it to a deployed account confirms it exists.
+///      The first init waits for the token's TEP-89 response; another init arriving meanwhile
+///      bounces with `InitPending`, so concurrent first inits to the same account fail all but
+///      one and must be retried by the owner.
 struct (0x6890a205) DepositAccount_Init {
-    /// Correlation ID echoed in the DepositAccount_Reply.
     queryId: uint64;
-    /// Optional context forwarded back in the DepositAccount_Reply.
-    forwardPayload: cell?;
+    /// Echoed back in the reply.
+    context: cell?;
 }
 
-/// Reply message on successful initialization
-/// TODO rename to `DepositAccount_Initialized`
-struct (0xda04630c) DepositAccount_Reply {
+struct (0x784d98e9) DepositAccount_Initialized {
     queryId: uint64;
-    forwardPayload: cell?;
+    context: cell?;
 }
 
-/// Reply message on failed initialization due to insufficient value.
-struct (0x83462e93) DepositAccount_NotEnoughValue {
+struct (0x9293d68e) DepositAccount_WalletUnavailable {
     queryId: uint64;
-    forwardPayload: cell?;
+    context: cell?;
 }
 
-/// Forwarded notification sent to the proxy on messages from specific jetton wallet.
-/// @dev Carries the full original in-message metadata so the proxy (e.g, TP, Router, etc.) can verify everything.
+/// A jetton transfer notification received by the account, forwarded to the account's `user`, or
+/// to the `DepositAccount_Notify` target when the transfer carries one.
 struct (0xb4fe5c0c) DepositAccount_ForwardNotification {
-    // Forwarded in-message
-    message: Cell<DepositAccount_InMessageForward>;
+    notification: Cell<TransferNotificationForRecipient>;
 }
 
-/// Metadata about a forwarded incoming message, sent to the pool for verification.
-/// @dev Contains the original message body cell for the pool to parse as a jetton notification.
-/// Other fields (valueCoins, valueExtra, etc.) are captured for auditability but may not be consumed by all pool types.
-struct DepositAccount_InMessageForward {
-    senderAddress: address
-    valueCoins: coins
-    valueExtra: ExtraCurrenciesMap
-    originalForwardFee: coins
-    createdLt: uint64
-    createdAt: uint32
-    body: cell
+/// Routing envelope placed as a jetton transfer's forward payload, directly or inside a
+/// `Jetton_ForwardPayloadWrap`: the account forwards the notification to `notify`.
+///
+/// @dev Only honored for transfers from the account's learned jetton wallet. The rest of the
+///      notification is untrusted: `notify` must authenticate the transfer initiator itself.
+struct (0x88e0ef3e) DepositAccount_Notify {
+    notify: address;
 }
 
-/// Sent by the beneficiary to transfer jettons from this account's wallet to an external recipient.
-/// @dev `ask.sendExcessesTo` MUST equal the requester (the beneficiary sending this message): it is
-///      validated by the default `onWithdraw` handler and is what a bounced withdraw is correlated
-///      back to, so the requester can be notified on the failure path.
+/// Sent by a beneficiary to transfer jettons out of the account's jetton wallet.
 struct (0x1936d112) DepositAccount_Withdraw {
     queryId: uint64;
-    /// Jetton wallet address to send the AskToTransfer to.
-    walletAddress: address;
-    /// Jetton transfer params (amount, recipient, etc.) sent as the outgoing message body.
-    /// `ask.sendExcessesTo` must be the requester.
+    /// `ask.sendExcessesTo` must be the requester: a bounced withdraw is reported back to it.
     ask: Cell<AskToTransfer>;
 }
 
-/// Notification sent to the withdraw requester (the beneficiary that sent the `DepositAccount_Withdraw`,
-/// identified by the bounced `AskToTransfer`'s `sendExcessesTo`) when the transfer bounced and the
-/// funds could not be transferred out.
+/// Sent to the withdraw requester when its `AskToTransfer` bounced and the jettons stayed in the
+/// account.
+///
+/// @dev `user` and `token` are self-reported: the recipient must re-derive the account address
+///      from them and match it against the sender before believing them.
 struct (0xa51b6cba) DepositAccount_WithdrawFailed {
     queryId: uint64;
-    /// Required to verify the deposit account.
-    owner: address;
-    /// Required to verify the deposit account.
-    proxy: address;
-    /// Jetton wallet the failed AskToTransfer was sent to.
+    user: address;
+    token: address;
+    /// Jetton wallet the failed `ask` was sent to.
     walletAddress: address;
-    /// The bounced AskToTransfer (carries amount + recipient + the requester in `sendExcessesTo` for reconciliation).
     ask: Cell<AskToTransfer>;
 }
 
-/// The subset of outgoing messages that can bounce back into this account, used to match bounced
-/// bodies in `onBouncedMessage`. A bounced `AskToTransfer` (from withdraw) is the recoverable case.
+/// Outgoing messages that can bounce back into the account.
 type DepositAccount_BouncedMessage =
-    | AskToTransfer;
+    | AskToTransfer
+    | RequestWalletAddress;
 
-/// All recognized incoming message types.
-///
-/// `TransferNotificationForRecipient` is the jetton deposit notification: the only external
-/// message (besides control messages) the account accepts — it is routed to the
-/// forward-notification path. Everything else bounces.
 type DepositAccount_InMessage =
     | DepositAccount_Init
     | DepositAccount_Withdraw
-    | TransferNotificationForRecipient;
+    | TransferNotificationForRecipient
+    | ResponseWalletAddress;
 
-/// All outgoing message types this contract may produce.
 type DepositAccount_OutMessage =
     | DepositAccount_ForwardNotification
-    | DepositAccount_Reply
-    | DepositAccount_NotEnoughValue
+    | DepositAccount_Initialized
+    | DepositAccount_WalletUnavailable
     | DepositAccount_WithdrawFailed
-    | AskToTransfer;
+    | AskToTransfer
+    | RequestWalletAddress;

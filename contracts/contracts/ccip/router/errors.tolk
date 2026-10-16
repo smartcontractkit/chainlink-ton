@@ -15,5 +15,10 @@ enum Router_Error {
     TokenAmountMismatch
     ForwardPayloadIsNotCCIPSend
     SourceChainSelectorMismatch
+    SenderIsNotDepositAccount
     SenderIsNotOnRampAccount
+    DepositAccountWalletUnavailable
+    /// The withdraw's forward payload doesn't name the executor that requested it.
+    WithdrawExecutorMismatch
+    OnRampAccountWithdrawFailed
 }

@@ -15,7 +15,6 @@ type CCIPSendExecutor_InMessage =
     | OnRamp_ExecutorFeeReserved
     | TokenAdminRegistry_TokenInfo
     | TokenAdminRegistry_GetTokenInfoFailed
-    | ResponseWalletAddress
     | TokenPool_LockOrBurnWithdraw
     | TokenPool_LockOrBurnFinished
     | TokenPool_LockOrBurnFailure
@@ -70,5 +69,4 @@ type CCIPSendExecutor_BouncedMessage =
     | FeeQuoter_GetValidatedFee
     | OnRamp_ExecutorReserveFee
     | TokenAdminRegistry_GetTokenInfo
-    | RequestWalletAddress
     ;

@@ -21,12 +21,14 @@ func newTestAddress(seed byte) *address.Address {
 
 func TestData_EncodingAndDecoding(t *testing.T) {
 	owner := newTestAddress(0x01)
-	proxy := newTestAddress(0x02)
+	user := newTestAddress(0x02)
+	token := newTestAddress(0x04)
 	beneficiary := newTestAddress(0x03)
 
 	data := Data{
 		Owner: owner,
-		Proxy: proxy,
+		User:  user,
+		Token: token,
 		Beneficiaries: tlbe.NewDict[common.AddressWrap, struct{}](map[common.AddressWrap]struct{}{
 			{Val: beneficiary}: {},
 		}),
@@ -40,7 +42,8 @@ func TestData_EncodingAndDecoding(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, data.Owner, decoded.Owner)
-	require.Equal(t, data.Proxy, decoded.Proxy)
+	require.Equal(t, data.User, decoded.User)
+	require.Equal(t, data.Token, decoded.Token)
 	require.Len(t, decoded.Beneficiaries.AsMap(), 1)
 
 	// Compare the decoded beneficiary address by value (AddressWrap keys hold pointers, so
@@ -59,15 +62,15 @@ func TestMessages_EncodingAndDecoding(t *testing.T) {
 
 	// Init
 	initMsg := Init{
-		QueryID:        123,
-		ForwardPayload: cell.BeginCell().EndCell(),
+		QueryID: 123,
+		Context: cell.BeginCell().EndCell(),
 	}
 	c, err := tlb.ToCell(initMsg)
 	require.NoError(t, err)
 	var decodedInit Init
 	require.NoError(t, tlb.Parse(&decodedInit, c))
 	require.Equal(t, initMsg.QueryID, decodedInit.QueryID)
-	require.NotNil(t, decodedInit.ForwardPayload)
+	require.NotNil(t, decodedInit.Context)
 
 	// Withdraw (ask is boxed Cell<AskToTransfer>)
 	ask := AskToTransfer{
@@ -81,24 +84,22 @@ func TestMessages_EncodingAndDecoding(t *testing.T) {
 	askCell, err := tlb.ToCell(ask)
 	require.NoError(t, err)
 	withdraw := Withdraw{
-		QueryID:       7,
-		WalletAddress: addr,
-		Ask:           askCell,
+		QueryID: 7,
+		Ask:     askCell,
 	}
 	c, err = tlb.ToCell(withdraw)
 	require.NoError(t, err)
 	var decodedWithdraw Withdraw
 	require.NoError(t, tlb.Parse(&decodedWithdraw, c))
 	require.Equal(t, withdraw.QueryID, decodedWithdraw.QueryID)
-	require.Equal(t, withdraw.WalletAddress, decodedWithdraw.WalletAddress)
 	require.Equal(t, askCell.Hash(), decodedWithdraw.Ask.Hash())
 
-	// Reply
-	reply := Reply{QueryID: 5, ForwardPayload: nil}
+	// Initialized
+	reply := Initialized{QueryID: 5, Context: nil}
 	c, err = tlb.ToCell(reply)
 	require.NoError(t, err)
-	var decodedReply Reply
+	var decodedReply Initialized
 	require.NoError(t, tlb.Parse(&decodedReply, c))
 	require.Equal(t, reply.QueryID, decodedReply.QueryID)
-	require.Nil(t, decodedReply.ForwardPayload)
+	require.Nil(t, decodedReply.Context)
 }

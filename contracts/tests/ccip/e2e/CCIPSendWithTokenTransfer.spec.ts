@@ -5,7 +5,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { assertLog } from '../../Logs'
-import { WRAPPED_NATIVE } from '../../../src/utils'
+import { WRAPPED_NATIVE, generateRandomTonAddress } from '../../../src/utils'
 import { createEmptyCursePolicy } from '../../../wrappers/ccip/Router'
 
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
@@ -255,7 +255,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     })
   })
 
-  async function registerToken() {
+  async function registerToken(minterAddress: Address = minter.address) {
     const registrationResult = await tokenAdminRegistry.sendTokenAdminRegistryRegisterToken(
       deployer.getSender(),
       toNano('0.2'),
@@ -263,7 +263,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
         tokenAddress: minter.address,
         tokenInfo: tar.TokenRegistry_TokenInfo.create({
           tokenPool: tokenPool.address,
-          minterAddress: minter.address,
+          minterAddress,
           version: 1n,
         }),
         administrator: deployer.address,
@@ -340,7 +340,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       jw.JettonWallet.createFromAddress(await minter.getWalletAddress(sender.address)),
     )
     const onRampAcccount = await (async () => {
-      const addr = await router.getOnRampAccountAddress(sender.address)
+      const addr = await router.getOnRampAccountAddress(sender.address, minter.address)
       return dep.DepositAccount.fromAddress(addr)
     })()
     console.log('onRampAcccount.address', onRampAcccount.address)
@@ -350,7 +350,9 @@ describe('CCIPSend with token transfer (e2e)', () => {
 
     // Deploy OnRamp account
     {
-      const result = await router.sendRouterGetOnRampAccount(sender.getSender(), toNano('0.5'), {})
+      const result = await router.sendRouterGetOnRampAccount(sender.getSender(), toNano('0.5'), {
+        token: minter.address,
+      })
       expect(result.transactions).toHaveTransaction({
         from: router.address,
         to: onRampAcccount.address,
@@ -639,6 +641,31 @@ describe('CCIPSend with token transfer (e2e)', () => {
         return (
           or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse()).error ===
           BigInt(exe.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenNotEnabled'])
+        )
+      },
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.Router_CCIPSendNACK.PREFIX,
+      success: true,
+    })
+  })
+
+  it('fails the CCIP send when the registered minter is not the token', async () => {
+    await registerToken(await generateRandomTonAddress())
+    const { result, executorAddress } = await sendTokenTransfer()
+
+    expect(result.transactions).toHaveTransaction({
+      from: executorAddress,
+      to: onRamp.address,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+      success: true,
+      body(x) {
+        if (!x) return false
+        return (
+          or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse()).error ===
+          BigInt(exe.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenMinterMismatch'])
         )
       },
     })
