@@ -26,10 +26,10 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600  // 5 years
 // they must be absolutely equal to consumed gas; if not, tests fail;
 // actual consumed gas (desired value of these constants) are printed to console after tests run
 
-const GAS_CONSUMPTION_JettonTransfer    = 6153
-const GAS_CONSUMPTION_JettonReceive     = 7253
-const GAS_CONSUMPTION_BurnRequest       = 4368
-const GAS_CONSUMPTION_BurnNotification  = 3855
+const GAS_CONSUMPTION_JettonTransfer    = 6218
+const GAS_CONSUMPTION_JettonReceive     = 7481
+const GAS_CONSUMPTION_BurnRequest       = 4402
+const GAS_CONSUMPTION_BurnNotification  = 3915
 
 
 fun calculateJettonWalletMinStorageFee() {
