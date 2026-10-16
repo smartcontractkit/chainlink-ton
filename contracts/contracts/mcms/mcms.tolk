@@ -1282,8 +1282,9 @@ fun MCMS<T>.updateOpFinalizationTimeout(
     queryId: uint64,
     newOpFinalizationTimeout: uint32
 ): void {
-// minval:best-effort gate=none MCMS_UpdateOpFinalizationTimeout
-// GAP: owner-only, no value gate; add a safety check (check-bounce)
+    // minval:best-effort gate=none MCMS_UpdateOpFinalizationTimeout
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     self.data.ownable.requireOwner(sender);
 
     // Unpack the root info from the contract data
@@ -1331,7 +1332,6 @@ fun MCMS<T>.submitErrorReport(
         throw MCMS_Error.UnauthorizedOracle;
     }
 
-    // Verify value covers the fee
     // minval:check-admission gate=A/static MCMS_SubmitErrorReport
     // must cover the error-report cost; rejects on shortfall
     assertMinValue(value, MCMS_Costs.submitErrorReport(), MCMS_Error.InsufficientFee);
@@ -1407,8 +1407,9 @@ fun MCMS<T>.transferOracleRole(
     queryId: uint64,
     newOracle: address
 ) {
-// minval:best-effort gate=none MCMS_TransferOracleRole
-// GAP: owner-only, no value gate; add a safety check (check-bounce)
+    // minval:best-effort gate=none MCMS_TransferOracleRole
+    // the caller's dispatch owns funding; TODO: check-bounce
+    
     self.data.ownable.requireOwner(sender);
 
     val oldOracle = self.data.oracle;
@@ -1433,8 +1434,9 @@ fun MCMS<T>.cleanExpiredRoots(
     queryId: uint64,
     roots: SnakedCell<RootDescriptor>,
 ) {
-// minval:best-effort gate=none MCMS_CleanExpiredRoots
-// GAP: owner-only, no value gate; loops over roots; add a safety check
+    // minval:best-effort gate=none MCMS_CleanExpiredRoots
+    // TODO: no value gate; loops over roots; add a safety check
+
     self.data.ownable.requireOwner(sender);
 
     var rootsIter = roots.iter();

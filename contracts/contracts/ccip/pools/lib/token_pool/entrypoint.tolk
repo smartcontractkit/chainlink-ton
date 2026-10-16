@@ -5,24 +5,25 @@ import "@stdlib/gas-payments"
 import "../../../../lib/math"
 import "../../../../lib/utils"
 import "../../../../lib/budget/min_value"
-import "../../../budget/min_value"
 import "../../../../lib/jetton/messages"
 import "../../../../lib/jetton/jetton_client"
-import "../../../../lib/jetton/jetton-utils"
 import "../../../../lib/access/ownable_2step"
 import "../../../../lib/access/access_control"
 import "../../../../lib/deployable/namespace"
 import "../../../../lib/funding/jetton_withdrawable"
+
+import "../../../budget/min_value"
 import "../../../common/types"
 import "../../../rmn_remote/lib"
 import "../../../router/types"
+
+import "../rate_limiter"
 
 import "types"
 import "errors"
 import "messages"
 import "events"
 import "recovery"
-import "../rate_limiter"
 
 /// @notice Base abstract class with common functions for all token pools.
 /// A token pool serves as isolated place for holding tokens and token specific logic
@@ -150,10 +151,11 @@ struct TokenPool_Hooks<T> {
 
     /// Continuation after custody is confirmed.
     /// @param sender   The msg.sender of the original request.
+    /// @param msgValue The value of the inbound message.
     /// @param msg      The full inbound request.
     /// @param prepared The validated release/mint data.
     /// @return The (possibly mutated) context, or `null`.
-    onReleaseOrMintContinue: ((T?, address, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?)?;
+    onReleaseOrMintContinue: ((T?, address, coins, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?)?;
 
     // ----------------------------------------------------------------------
     // LockOrBurn flow (outbound)
@@ -608,6 +610,7 @@ fun TokenPool<T>.applyChainUpdates(
 ) {
     // minval:check-bounce gate=S TokenPool_ApplyChainUpdates
     // owner-only chain/rate-limit config
+    // TODO: A/dynamic - loops removals/additions/remote pools; a static S does not bound large inputs
     val minValue = self.data.budget.safety.resolve(ccipMinValue());
     assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
 
@@ -954,7 +957,7 @@ fun TokenPool<T>.onPostflightCheckFinished(
         return;
     }
 
-    self.onReleaseOrMintContinue(fwdp.originalSender, requestMsg, prepared);
+    self.onReleaseOrMintContinue(fwdp.originalSender, msgValue, requestMsg, prepared);
 }
 
 fun TokenPool<T>.onPostflightCheckFailed(
@@ -1092,9 +1095,10 @@ fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
     disableChainSelectors: SnakedCell<uint64>,
 ) {
     // minval:check-bounce gate=S TokenPool_ApplyTokenTransferFeeConfigUpdates
-    // owner-only fee config
+    // TODO: A/dynamic - consider adding a cost function for this operation
     val minValue = self.data.budget.safety.resolve(ccipMinValue());
     assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
+
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
 
     var iter = updates.iter();
@@ -1923,17 +1927,18 @@ fun TokenPool<T>.onReleaseOrMint(
         return; // Async hook was triggered; will resume via onPostflightCheckFinished/Failed.
     }
 
-    self.onReleaseOrMintContinue(sender, msg, prepared);
+    self.onReleaseOrMintContinue(sender, msgValue, msg, prepared);
 }
 
 fun TokenPool<T>.onReleaseOrMintContinue(
     mutate self,
     sender: address,
+    msgValue: coins,
     msg: TokenPool_ReleaseOrMint,
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): void {
     if (self.hooks != null && self.hooks.onReleaseOrMintContinue != null) {
-        self.context = self.hooks.onReleaseOrMintContinue(self.context, sender, msg, prepared);
+        self.context = self.hooks.onReleaseOrMintContinue(self.context, sender, msgValue, msg, prepared);
 
         return;
     }
@@ -2400,6 +2405,7 @@ fun TokenPool<T>.setRateLimitConfig(
 ) {
     // minval:check-bounce gate=S TokenPool_SetRateLimitConfig
     // owner/rate-limit-admin config
+    // TODO: A/dynamic - loops over updates; a static S does not bound large inputs
     val minValue = self.data.budget.safety.resolve(ccipMinValue());
     assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
 
@@ -2472,6 +2478,7 @@ fun TokenPool<T>.onWithdrawFeeTokensDispatch(
 
     // minval:check-bounce gate=S JettonWithdrawable_Withdraw
     // owner/fee-admin fee relay; replacement hook owns its funding policy
+    // TODO: A/dynamic - loops over the withdrawal list; a static S does not bound large inputs
     val minValue = self.data.budget.safety.resolve(ccipMinValue());
     assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
 

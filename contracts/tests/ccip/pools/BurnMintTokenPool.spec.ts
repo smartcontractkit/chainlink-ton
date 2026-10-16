@@ -526,7 +526,7 @@ describe('BurnMintTokenPool', () => {
   })
 
   it.each([
-    { inbound: '0.1', returned: false },
+    { inbound: '0.01', returned: false },
     { inbound: '0.3', returned: true },
   ])(
     'does not refund capacity for an unauthorized deposit with $inbound TON',
@@ -953,10 +953,12 @@ describe('BurnMintTokenPool', () => {
   })
 
   it.each([
-    { poolBalance: '0.08', bounceValue: '0.05', returnExpected: false },
-    { poolBalance: '0.12', bounceValue: '0.05', returnExpected: false },
-    { poolBalance: '0.25', bounceValue: '0.05', returnExpected: false },
+    // Recovery is funded from the inbound bounce value, not the pool's balance.
+    { poolBalance: '0.08', bounceValue: '0.05', returnExpected: true },
+    { poolBalance: '0.12', bounceValue: '0.05', returnExpected: true },
+    { poolBalance: '0.25', bounceValue: '0.05', returnExpected: true },
     { poolBalance: '0.12', bounceValue: '0.2', returnExpected: true },
+    { poolBalance: '0.12', bounceValue: '0.01', returnExpected: false },
   ])(
     'recovers a burn bounce with $poolBalance TON balance and $bounceValue TON inbound',
     async ({ poolBalance, bounceValue, returnExpected }) => {
@@ -1167,6 +1169,80 @@ describe('BurnMintTokenPool', () => {
       to: cctMinter.address,
     })
   })
+
+  function mintToRecipient(funding: string, queryId: bigint, offchainTokenData: Cell | null) {
+    return burnMintPool.sendTokenPoolReleaseOrMint(deployer.getSender(), toNano(funding), {
+      queryId,
+      request: TokenPool_ReleaseOrMintInV1.create({
+        transfer: TokenPool_Transfer.create({
+          id: queryId,
+          details: TokenPool_TransferDetails.create({
+            originalSender: sourcePoolAddress,
+            remoteChainSelector,
+            receiver: recipient.address,
+            amount: toNano('2'),
+            localToken: cctMinter.address,
+          }),
+        }),
+        sourcePoolAddress,
+        sourcePoolData: null,
+        offchainTokenData,
+      }),
+      requestedFinalityConfig: 0n,
+      replyTo: deployer.address,
+      delivery: deliveryTo(recipient.address, deployer.address),
+    })
+  }
+
+  it.each([
+    { payload: 'normal', offchainTokenData: null },
+    {
+      payload: 'large',
+      offchainTokenData: beginCell()
+        .storeBuffer(Buffer.alloc(120, 0xab))
+        .storeRef(beginCell().storeBuffer(Buffer.alloc(120, 0xcd)).endCell())
+        .endCell(),
+    },
+  ])(
+    'mints and forwards unused funding to the continuation ($payload payload)',
+    async ({ offchainTokenData }) => {
+      // Leave only the minter's storage reserve: minting must be funded by the message.
+      const minterAccount = await blockchain.getContract(cctMinter.address)
+      minterAccount.balance = toNano('0.01')
+
+      // First mint creates the recipient wallet; the second reuses it with more funding.
+      for (const [index, funding] of ['0.3', '0.6'].entries()) {
+        const queryId = 22n + BigInt(index)
+        const minterBalance = minterAccount.balance
+        const poolBalance = (await blockchain.getContract(burnMintPool.address)).balance
+        const supplyBefore = (await cctMinterRuntime.getJettonData()).totalSupply
+        const result = await mintToRecipient(funding, queryId, offchainTokenData)
+
+        expect(result.transactions).toHaveTransaction({
+          from: burnMintPool.address,
+          to: cctMinter.address,
+          op: cct.MintNewJettons.PREFIX,
+          success: true,
+        })
+        // At most 0.1 TON is consumed/retained by deployment, minting and transfer costs.
+        // The rest must follow the continuation, even when the caller adds more funding.
+        expect(result.transactions).toHaveTransaction({
+          to: recipient.address,
+          op: TransferNotificationForRecipient.PREFIX,
+          value: (value) => value !== undefined && value > toNano(funding) - toNano('0.1'),
+          success: true,
+        })
+        expect((await cctMinterRuntime.getJettonData()).totalSupply).toEqual(
+          supplyBefore + toNano('2'),
+        )
+        expect(minterAccount.balance).toBeGreaterThanOrEqual(minterBalance)
+        expect(minterAccount.balance - minterBalance).toBeLessThan(toNano('0.02'))
+        expect((await blockchain.getContract(burnMintPool.address)).balance).toBeGreaterThanOrEqual(
+          poolBalance,
+        )
+      }
+    },
+  )
 
   it('rejects forged CCT burn completions from an untrusted sender', async () => {
     const forged = await unauthorized.send({

@@ -2,9 +2,6 @@
 /// JettonLockBox message types for deposit, withdrawal, and initialization.
 
 import "../../../lib/jetton/messages"
-import "../../../lib/budget/gas"
-
-import "../lib/token_pool/recovery"
 
 /// Embedded in a jetton transfer's forwardPayload to identify the deposit context.
 /// The lockbox extracts this from `TransferNotificationForRecipient.forwardPayload` on deposit.
@@ -18,6 +15,10 @@ struct (0x9e9ec361) JettonLockBox_Deposit {
     amount: coins;
     /// Optional pool-specific context forwarded back in the Deposited reply.
     context: cell?;
+    /// Where to return custody if the deposit is rejected. Defaults to the transfer initiator
+    /// (the depositor). Lets the lockbox return directly to the original account, skipping a hop
+    /// through the pool.
+    returnAddress: address? = null;
 }
 
 /// Extra fields for withdraw — stored in a cell ref to keep the main struct compact.
@@ -59,7 +60,7 @@ struct (0x6d077f2e) JettonLockBox_Deposited {
 }
 
 /// Logical rejection; returnAttempted means a return was queued, not that custody arrived.
-/// Also carried by the returned jettons to authenticate completed restitution to the pool.
+/// Custody is returned separately to returnAddress, without a notification relay through the pool.
 struct (0x5e28ebd8) JettonLockBox_DepositFailed {
     queryId: uint64;
     token: address;
@@ -69,10 +70,6 @@ struct (0x5e28ebd8) JettonLockBox_DepositFailed {
     context: Cell<JettonLockBox_Deposit>?;
     errorCode: int32;                               // Raw TVM exit code (signed).
     returnAttempted: bool;
-}
-
-fun jettonLockBoxReturnForwardValue(): coins {
-    return TokenPool_RETURN_TRANSFER_VALUE + calculateGasFeeFor(FEE_SIZE_LARGE);
 }
 
 /// One-time init message — sets jetton addresses and grants admin role.
