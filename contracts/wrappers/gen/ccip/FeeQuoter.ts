@@ -329,7 +329,7 @@ export const UnsafeBodyNoRef = {
 }
 
 /**
- > enum FeeQuoter_Error { 31 variants }
+ > enum FeeQuoter_Error { 28 variants }
  */
 export type FeeQuoter_Error = bigint
 
@@ -339,32 +339,29 @@ export const FeeQuoter_Error = {
     ExtraArgOutOfOrderExecutionMustBeTrue: 34402n,
     InvalidExtraArgsData: 34403n,
     UnsupportedNumberOfTokens: 34404n,
-    InvalidEVMReceiverAddress: 34405n,
-    Invalid32ByteReceiverAddress: 34406n,
-    InvalidSuiReceiverAddress: 34407n,
-    InvalidSVMReceiverAddress: 34408n,
-    InvalidTokenReceiver: 34409n,
-    TooManySuiExtraArgsReceiverObjectIds: 34410n,
-    MsgDataTooLarge: 34411n,
-    StaleGasPrice: 34412n,
-    DestChainNotEnabled: 34413n,
-    FeeTokenNotSupported: 34414n,
-    InvalidMsgData: 34415n,
-    TokenNotSupported: 34416n,
-    UnknownDestChainSelector: 34417n,
-    InsufficientFee: 34418n,
-    TokenTransfersNotSupported: 34419n,
-    UnauthorizedPriceUpdater: 34420n,
-    ExecutionCostOverflow: 34421n,
-    PremiumFeeOverflow: 34422n,
-    DataAvailabilityCostOverflow: 34423n,
-    FeeCalculationOverflow: 34424n,
-    TokenPriceTooLow: 34425n,
-    FeeOverflow: 34426n,
-    MessageFeeTooHigh: 34427n,
-    TokenTransferConfigMustBeEnabled: 34428n,
-    InvalidDestBytesOverhead: 34429n,
-    InvalidSVMExtraArgsWritableBitmap: 34430n,
+    InvalidSuiReceiverAddress: 34405n,
+    InvalidSVMReceiverAddress: 34406n,
+    InvalidTokenReceiver: 34407n,
+    TooManySuiExtraArgsReceiverObjectIds: 34408n,
+    MsgDataTooLarge: 34409n,
+    StaleGasPrice: 34410n,
+    DestChainNotEnabled: 34411n,
+    FeeTokenNotSupported: 34412n,
+    InvalidMsgData: 34413n,
+    TokenNotSupported: 34414n,
+    UnknownDestChainSelector: 34415n,
+    InsufficientFee: 34416n,
+    TokenTransfersNotSupported: 34417n,
+    UnauthorizedPriceUpdater: 34418n,
+    ExecutionCostOverflow: 34419n,
+    PremiumFeeOverflow: 34420n,
+    DataAvailabilityCostOverflow: 34421n,
+    FeeCalculationOverflow: 34422n,
+    FeeOverflow: 34423n,
+    MessageFeeTooHigh: 34424n,
+    TokenTransferConfigMustBeEnabled: 34425n,
+    InvalidDestBytesOverhead: 34426n,
+    InvalidSVMExtraArgsWritableBitmap: 34427n,
 
     fromSlice(s: c.Slice): FeeQuoter_Error {
         return s.loadUintBig(16);
@@ -601,7 +598,8 @@ export const FeeQuoter_UpdateFeeTokens = {
 /**
  > struct (0xfbf78e40) FeeQuoter_MessageValidated {
  >     fee: Fee
- >     destGasOverheads: lisp_list<uint32>?
+ >     destOverheads: lisp_list<FeeQuoter_DestOverhead>?
+ >     chainFamilySelector: uint32
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
  > }
@@ -609,7 +607,8 @@ export const FeeQuoter_UpdateFeeTokens = {
 export interface FeeQuoter_MessageValidated {
     readonly $: 'FeeQuoter_MessageValidated'
     fee: Fee
-    destGasOverheads: lisp_list<uint32> | null
+    destOverheads: lisp_list<FeeQuoter_DestOverhead> | null
+    chainFamilySelector: uint32
     msg: Router_CCIPSend
     context: c.Cell | null /* = null */
 }
@@ -619,7 +618,8 @@ export const FeeQuoter_MessageValidated = {
 
     create(args: {
         fee: Fee
-        destGasOverheads: lisp_list<uint32> | null
+        destOverheads: lisp_list<FeeQuoter_DestOverhead> | null
+        chainFamilySelector: uint32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }): FeeQuoter_MessageValidated {
@@ -634,9 +634,8 @@ export const FeeQuoter_MessageValidated = {
         return {
             $: 'FeeQuoter_MessageValidated',
             fee: Fee.fromSlice(s),
-            destGasOverheads: s.loadBoolean() ? loadLispListOf<uint32>(s,
-                (s) => s.loadUintBig(32)
-            ) : null,
+            destOverheads: s.loadBoolean() ? loadLispListOf<FeeQuoter_DestOverhead>(s, FeeQuoter_DestOverhead.fromSlice) : null,
+            chainFamilySelector: s.loadUintBig(32),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
@@ -644,11 +643,10 @@ export const FeeQuoter_MessageValidated = {
     store(self: FeeQuoter_MessageValidated, b: c.Builder): void {
         b.storeUint(0xfbf78e40, 32);
         Fee.store(self.fee, b);
-        storeTolkNullable<lisp_list<uint32>>(self.destGasOverheads, b,
-            (v,b) => { storeLispListOf<uint32>(v, b,
-                (v,b) => b.storeUint(v, 32)
-            ); }
+        storeTolkNullable<lisp_list<FeeQuoter_DestOverhead>>(self.destOverheads, b,
+            (v,b) => storeLispListOf<FeeQuoter_DestOverhead>(v, b, FeeQuoter_DestOverhead.store)
         );
+        b.storeUint(self.chainFamilySelector, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -1234,6 +1232,44 @@ export const TokenTransferFeeConfig = {
 }
 
 /**
+ > struct FeeQuoter_DestOverhead {
+ >     destGasOverhead: uint32
+ >     destBytesOverhead: uint32
+ > }
+ */
+export interface FeeQuoter_DestOverhead {
+    readonly $: 'FeeQuoter_DestOverhead'
+    destGasOverhead: uint32
+    destBytesOverhead: uint32
+}
+
+export const FeeQuoter_DestOverhead = {
+    create(args: {
+        destGasOverhead: uint32
+        destBytesOverhead: uint32
+    }): FeeQuoter_DestOverhead {
+        return {
+            $: 'FeeQuoter_DestOverhead',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): FeeQuoter_DestOverhead {
+        return {
+            $: 'FeeQuoter_DestOverhead',
+            destGasOverhead: s.loadUintBig(32),
+            destBytesOverhead: s.loadUintBig(32),
+        }
+    },
+    store(self: FeeQuoter_DestOverhead, b: c.Builder): void {
+        b.storeUint(self.destGasOverhead, 32);
+        b.storeUint(self.destBytesOverhead, 32);
+    },
+    toCell(self: FeeQuoter_DestOverhead): c.Cell {
+        return makeCellFrom<FeeQuoter_DestOverhead>(self, FeeQuoter_DestOverhead.store);
+    }
+}
+
+/**
  > struct DestChainConfig {
  >     config: FeeQuoterDestChainConfig
  >     usdPerUnitGas: Cell<GasPrice>
@@ -1743,6 +1779,27 @@ export const TokenAmount = {
     },
     toCell(self: TokenAmount): c.Cell {
         return makeCellFrom<TokenAmount>(self, TokenAmount.store);
+    }
+}
+
+/**
+ > enum DestFamilyAddressValidation_Error { 3 variants }
+ */
+export type DestFamilyAddressValidation_Error = bigint
+
+export const DestFamilyAddressValidation_Error = {
+    InvalidEVMAddress: 35100n,
+    Invalid32ByteAddress: 35101n,
+    UnsupportedChainFamilySelector: 35102n,
+
+    fromSlice(s: c.Slice): DestFamilyAddressValidation_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: DestFamilyAddressValidation_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: DestFamilyAddressValidation_Error): c.Cell {
+        return makeCellFrom<DestFamilyAddressValidation_Error>(self, DestFamilyAddressValidation_Error.store);
     }
 }
 
@@ -2328,7 +2385,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class FeeQuoter implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,
@@ -2339,32 +2396,32 @@ export class FeeQuoter implements c.Contract {
         'FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue': 34402,
         'FeeQuoter_Error.InvalidExtraArgsData': 34403,
         'FeeQuoter_Error.UnsupportedNumberOfTokens': 34404,
-        'FeeQuoter_Error.InvalidEVMReceiverAddress': 34405,
-        'FeeQuoter_Error.Invalid32ByteReceiverAddress': 34406,
-        'FeeQuoter_Error.InvalidSuiReceiverAddress': 34407,
-        'FeeQuoter_Error.InvalidSVMReceiverAddress': 34408,
-        'FeeQuoter_Error.InvalidTokenReceiver': 34409,
-        'FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds': 34410,
-        'FeeQuoter_Error.MsgDataTooLarge': 34411,
-        'FeeQuoter_Error.StaleGasPrice': 34412,
-        'FeeQuoter_Error.DestChainNotEnabled': 34413,
-        'FeeQuoter_Error.FeeTokenNotSupported': 34414,
-        'FeeQuoter_Error.InvalidMsgData': 34415,
-        'FeeQuoter_Error.TokenNotSupported': 34416,
-        'FeeQuoter_Error.UnknownDestChainSelector': 34417,
-        'FeeQuoter_Error.InsufficientFee': 34418,
-        'FeeQuoter_Error.TokenTransfersNotSupported': 34419,
-        'FeeQuoter_Error.UnauthorizedPriceUpdater': 34420,
-        'FeeQuoter_Error.ExecutionCostOverflow': 34421,
-        'FeeQuoter_Error.PremiumFeeOverflow': 34422,
-        'FeeQuoter_Error.DataAvailabilityCostOverflow': 34423,
-        'FeeQuoter_Error.FeeCalculationOverflow': 34424,
-        'FeeQuoter_Error.TokenPriceTooLow': 34425,
-        'FeeQuoter_Error.FeeOverflow': 34426,
-        'FeeQuoter_Error.MessageFeeTooHigh': 34427,
-        'FeeQuoter_Error.TokenTransferConfigMustBeEnabled': 34428,
-        'FeeQuoter_Error.InvalidDestBytesOverhead': 34429,
-        'FeeQuoter_Error.InvalidSVMExtraArgsWritableBitmap': 34430,
+        'FeeQuoter_Error.InvalidSuiReceiverAddress': 34405,
+        'FeeQuoter_Error.InvalidSVMReceiverAddress': 34406,
+        'FeeQuoter_Error.InvalidTokenReceiver': 34407,
+        'FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds': 34408,
+        'FeeQuoter_Error.MsgDataTooLarge': 34409,
+        'FeeQuoter_Error.StaleGasPrice': 34410,
+        'FeeQuoter_Error.DestChainNotEnabled': 34411,
+        'FeeQuoter_Error.FeeTokenNotSupported': 34412,
+        'FeeQuoter_Error.InvalidMsgData': 34413,
+        'FeeQuoter_Error.TokenNotSupported': 34414,
+        'FeeQuoter_Error.UnknownDestChainSelector': 34415,
+        'FeeQuoter_Error.InsufficientFee': 34416,
+        'FeeQuoter_Error.TokenTransfersNotSupported': 34417,
+        'FeeQuoter_Error.UnauthorizedPriceUpdater': 34418,
+        'FeeQuoter_Error.ExecutionCostOverflow': 34419,
+        'FeeQuoter_Error.PremiumFeeOverflow': 34420,
+        'FeeQuoter_Error.DataAvailabilityCostOverflow': 34421,
+        'FeeQuoter_Error.FeeCalculationOverflow': 34422,
+        'FeeQuoter_Error.FeeOverflow': 34423,
+        'FeeQuoter_Error.MessageFeeTooHigh': 34424,
+        'FeeQuoter_Error.TokenTransferConfigMustBeEnabled': 34425,
+        'FeeQuoter_Error.InvalidDestBytesOverhead': 34426,
+        'FeeQuoter_Error.InvalidSVMExtraArgsWritableBitmap': 34427,
+        'DestFamilyAddressValidation_Error.InvalidEVMAddress': 35100,
+        'DestFamilyAddressValidation_Error.Invalid32ByteAddress': 35101,
+        'DestFamilyAddressValidation_Error.UnsupportedChainFamilySelector': 35102,
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
         'Ownable2Step_Error.CannotTransferToSelf': 49801,
         'Ownable2Step_Error.MustBeProposedOwner': 49802,
@@ -2643,6 +2700,15 @@ export class FeeQuoter implements c.Contract {
                 (v,b) => b.storeAddress(v)
             ) },
             { type: 'cell', cell: ExtraArgs.toCell(msg.extraArgs) },
+        ]));
+        return r.readBigInt();
+    }
+
+    async getValidatedTokenPrice(provider: ContractProvider, token: c.Address): Promise<uint224> {
+        const r = StackReader.fromGetMethod(1, await provider.get('validatedTokenPrice', [
+            { type: 'slice', cell: makeCellFrom<c.Address>(token,
+                (v,b) => b.storeAddress(v)
+            ) },
         ]));
         return r.readBigInt();
     }

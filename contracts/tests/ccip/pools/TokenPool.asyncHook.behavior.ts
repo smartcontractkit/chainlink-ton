@@ -17,9 +17,10 @@ import {
   TokenPool_ReleaseOrMintPrepared,
   TokenPool_Transfer,
   TokenPool_TransferDetails,
+  TokenPool_LockOrBurnFailure,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
-import { TokenPoolBehaviorContext, releaseRequest } from './TokenPool.behavior'
+import { TokenPoolBehaviorContext, deliveryTo, releaseRequest } from './TokenPool.behavior'
 // Async Hook Behavior Tests (TON-TP/6)
 // ———————————————————————————————————————————————————————————————————————————————
 
@@ -215,6 +216,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.offRamp.address),
         },
       )
 
@@ -248,6 +250,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.offRamp.address),
         },
       )
 
@@ -352,6 +355,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
         },
       )
 
@@ -428,6 +432,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request: requestEven,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.offRamp.address),
         },
       )
 
@@ -447,6 +452,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request: requestOdd,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.offRamp.address),
         },
       )
 
@@ -461,6 +467,113 @@ export function runTokenPoolAsyncHookBehaviorTests(
         from: ctx.pool.address,
         to: ctx.offRamp.address,
         success: true,
+      })
+    })
+
+    it('refunds the outbound rate limit and fails the executor on LockOrBurnWithdrawFailed', async () => {
+      const ctx = await setup()
+
+      const request = lockOrBurnIn(ctx)
+      const requestMsg = TokenPool_LockOrBurn.create({
+        queryId: 9n,
+        request,
+        requestedFinalityConfig: 0n,
+        tokenArgs: null,
+        replyTo: ctx.deployer.address,
+      })
+      const prepared = TokenPool_LockOrBurnPrepared.create({
+        feeAmount: 0n,
+        destTokenAmount: toNano('1'),
+        out: TokenPool_LockOrBurnOutV1.create({
+          destTokenAddress: ctx.destTokenAddress,
+          destPoolData: Cell.EMPTY,
+        }),
+      })
+      const fwdp = TokenPool_LockOrBurnForwardPayload.create({
+        originalSender: ctx.deployer.address,
+        requestMsg,
+        prepared,
+      })
+
+      // Consume the outbound rate limit through the real admission path: queryId=8 is even,
+      // so the mock hooks accept the preflight and the pool proceeds to the withdraw leg,
+      // leaving the bucket debited. (Refunding into a full bucket would be capped and
+      // prove nothing.)
+      await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
+        queryId: 8n,
+        request,
+        requestedFinalityConfig: 0n,
+        tokenArgs: null,
+        replyTo: ctx.deployer.address,
+      })
+      const bucketBefore = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+      expect(bucketBefore.outbound.tokens).toBe(toNano('99'))
+
+      const result = await ctx.pool.sendTokenPoolLockOrBurnWithdrawFailed(
+        ctx.deployer.getSender(), // the pool's configured Router is the deployer in this setup
+        toNano('1'),
+        {
+          queryId: 9n,
+          forwardPayload: fwdp,
+          errorCode: 4242n,
+        },
+      )
+
+      // The pool must reinstate the rate limit consumed at admission.
+      const bucketAfter = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+      expect(bucketAfter.outbound.tokens).toBe(bucketBefore.outbound.tokens + toNano('1'))
+
+      // ...and notify the executor (replyTo) with a LockOrBurnFailure carrying the
+      // OnRamp's relayed error code.
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.deployer.address,
+        success: true,
+        op: TokenPool_LockOrBurnFailure.PREFIX,
+        body(x) {
+          if (!x) return false
+          const failure = TokenPool_LockOrBurnFailure.fromSlice(x.beginParse())
+          return failure.queryId === 9n && failure.errorCode === 4242n
+        },
+      })
+    })
+
+    it('rejects LockOrBurnWithdrawFailed from a sender that is not the Router', async () => {
+      const ctx = await setup()
+
+      const request = lockOrBurnIn(ctx)
+      const fwdp = TokenPool_LockOrBurnForwardPayload.create({
+        originalSender: ctx.deployer.address,
+        requestMsg: TokenPool_LockOrBurn.create({
+          queryId: 10n,
+          request,
+          requestedFinalityConfig: 0n,
+          tokenArgs: null,
+          replyTo: ctx.deployer.address,
+        }),
+        prepared: TokenPool_LockOrBurnPrepared.create({
+          feeAmount: 0n,
+          destTokenAmount: toNano('1'),
+          out: TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress: ctx.destTokenAddress,
+            destPoolData: Cell.EMPTY,
+          }),
+        }),
+      })
+
+      const result = await ctx.pool.sendTokenPoolLockOrBurnWithdrawFailed(
+        ctx.unauthorized.getSender(),
+        toNano('1'),
+        {
+          queryId: 10n,
+          forwardPayload: fwdp,
+          errorCode: 1n,
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        to: ctx.pool.address,
+        success: false,
       })
     })
   })

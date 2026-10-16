@@ -10,6 +10,7 @@ import {
   EntryErrors,
   Fixture,
   RegistryErrors,
+  answerPoolProbe,
   asEntry,
   coverageConfig,
   createBlockchain,
@@ -20,6 +21,7 @@ import {
   messageFromRoot,
   registerAndAccept,
   registerToken,
+  requestSetPool,
   returnedTokenInfo,
   setPool,
   setup,
@@ -71,6 +73,7 @@ describe('TokenAdminRegistry - Get Token Info', () => {
         token: fx.token,
         minterAddress: fx.token,
         tokenPool: fx.pool,
+        transferInitiator: null,
         version: 1n,
       }),
     )
@@ -104,6 +107,51 @@ describe('TokenAdminRegistry - Get Token Info', () => {
     expect(returnedTokenInfo(fx, result, fx.other.address).tokenPool).toBeNull()
   })
 
+  it('returns no pool while a pool update awaits the probe answer', async () => {
+    await registerAndAccept(fx)
+    await requestSetPool(fx, fx.administrator, fx.replacementPool)
+
+    const pending = await getTokenInfo()
+    expect(returnedTokenInfo(fx, pending, fx.other.address).tokenPool).toBeNull()
+
+    await answerPoolProbe(fx, { from: fx.replacementPool })
+    const answered = await getTokenInfo()
+    expect(returnedTokenInfo(fx, answered, fx.other.address).tokenPool).toEqualAddress(
+      fx.replacementPool,
+    )
+  })
+
+  it('returns no pool after the new pool bounced the probe', async () => {
+    await registerAndAccept(fx)
+    // The registry root rejects the unknown probe message, so it bounces back to the entry.
+    await requestSetPool(fx, fx.administrator, fx.registry.address)
+
+    const result = await getTokenInfo()
+    expect(returnedTokenInfo(fx, result, fx.other.address).tokenPool).toBeNull()
+  })
+
+  it('returns the transfer initiator reported by the pool', async () => {
+    await registerAndAccept(fx)
+    const initiator = fx.other.address
+    await setPool(fx, fx.administrator, fx.pool, 0n, undefined, initiator)
+
+    const result = await getTokenInfo()
+    const info = returnedTokenInfo(fx, result, fx.other.address)
+    expect(info.tokenPool).toEqualAddress(fx.pool)
+    expect(info.transferInitiator).toEqualAddress(initiator)
+  })
+
+  it('returns no transfer initiator for a delisted token even if the pool reported one', async () => {
+    await registerAndAccept(fx)
+    await setPool(fx, fx.administrator, fx.pool, 0n, undefined, fx.other.address)
+    await setPool(fx, fx.administrator, null)
+
+    const result = await getTokenInfo()
+    const info = returnedTokenInfo(fx, result, fx.other.address)
+    expect(info.tokenPool).toBeNull()
+    expect(info.transferInitiator).toBeNull()
+  })
+
   it('relays resolved token info from the deterministic entry', async () => {
     const result = await fx.registry.sendTokenAdminRegistryEntryTokenInfo(
       asEntry(fx),
@@ -116,6 +164,7 @@ describe('TokenAdminRegistry - Get Token Info', () => {
         token: fx.token,
         minterAddress: fx.token,
         tokenPool: fx.pool,
+        transferInitiator: null,
         version: 1n,
       }),
     )

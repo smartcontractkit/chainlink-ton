@@ -15,7 +15,9 @@ type TokenAdminRegistry_InMessage =
     | Upgradeable_Upgrade
     | TokenAdminRegistry_AdministratorTransferRequested
     | TokenAdminRegistry_AdministratorTransferred
-    | TokenAdminRegistry_PoolSet;
+    | TokenAdminRegistry_PoolSet
+    | TokenAdminRegistry_VerifyToken
+    | TokenAdminRegistry_RefreshTransferInitiator;
 
 /// Root messages to an entry that may come back as rich bounces.
 type TokenAdminRegistry_BouncedEntryMessage =
@@ -62,8 +64,24 @@ struct (0xbe28e166) TokenAdminRegistry_AcceptAdminRole {
 struct (0x37bcaede) TokenAdminRegistry_SetPool {
     queryId: uint64;
     tokenAddress: address;
-    /// A null pool delists the token from CCIP.
+    /// A null pool delists the token from CCIP. A new pool is only set once it answers the
+    /// `TokenPool_GetTransferInitiator` probe.
     tokenPool: address?;
+}
+
+/// Permissionless: has the derived entry re-probe its pool's transfer initiator.
+// crc32('TokenAdminRegistry_RefreshTransferInitiator')
+struct (0x2fb10afd) TokenAdminRegistry_RefreshTransferInitiator {
+    queryId: uint64;
+    tokenAddress: address;
+}
+
+/// Permissionless: has the derived entry re-send its TEP-89 query, enabling the token if its
+/// master answers with a wallet. A no-op for a verified token.
+// crc32('TokenAdminRegistry_VerifyToken')
+struct (0x182affc2) TokenAdminRegistry_VerifyToken {
+    queryId: uint64;
+    tokenAddress: address;
 }
 
 /// CCIP read path: resolves the token info of the entry derived from `token`
@@ -88,6 +106,9 @@ struct (0x0a9bf5d1) TokenAdminRegistry_TokenInfo {
     minterAddress: address;
     /// A null pool means the token is delisted from CCIP.
     tokenPool: address?;
+    /// `transferInitiator` of the jetton transfers delivering a release/mint, as reported by the
+    /// pool. Null when the pool delivers by minting.
+    transferInitiator: Cell<address>?;
     /// Pool interface version.
     version: uint32;
 }
@@ -146,4 +167,6 @@ struct (0xcef01a87) TokenAdminRegistry_PoolSet {
     token: address;
     previousPool: address?;
     newPool: address?;
+    transferInitiator: Cell<address>?;
 }
+

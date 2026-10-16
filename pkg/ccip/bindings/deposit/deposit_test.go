@@ -59,15 +59,15 @@ func TestMessages_EncodingAndDecoding(t *testing.T) {
 
 	// Init
 	initMsg := Init{
-		QueryID:        123,
-		ForwardPayload: cell.BeginCell().EndCell(),
+		QueryID: 123,
+		Context: cell.BeginCell().EndCell(),
 	}
 	c, err := tlb.ToCell(initMsg)
 	require.NoError(t, err)
 	var decodedInit Init
 	require.NoError(t, tlb.Parse(&decodedInit, c))
 	require.Equal(t, initMsg.QueryID, decodedInit.QueryID)
-	require.NotNil(t, decodedInit.ForwardPayload)
+	require.NotNil(t, decodedInit.Context)
 
 	// Withdraw (ask is boxed Cell<AskToTransfer>)
 	ask := AskToTransfer{
@@ -94,11 +94,11 @@ func TestMessages_EncodingAndDecoding(t *testing.T) {
 	require.Equal(t, askCell.Hash(), decodedWithdraw.Ask.Hash())
 
 	// Reply
-	reply := Reply{QueryID: 5, ForwardPayload: nil}
+	reply := Reply{QueryID: 5, Context: nil}
 	c, err = tlb.ToCell(reply)
 	require.NoError(t, err)
 	var decodedReply Reply
 	require.NoError(t, tlb.Parse(&decodedReply, c))
 	require.Equal(t, reply.QueryID, decodedReply.QueryID)
-	require.Nil(t, decodedReply.ForwardPayload)
+	require.Nil(t, decodedReply.Context)
 }

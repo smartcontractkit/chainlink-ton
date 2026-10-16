@@ -7,8 +7,12 @@ enum CCIPSendExecutor_Error {
     InsufficientFunds
     InsufficientFee
     FeeQuoterBounce
+    OnRampFeeReservationBounce
     TokenNotEnabled
     TokenPoolBounce
     UnsupportedNumberOfTokens
     InvalidValidatedFee
+    TokenRegistryBounce
+    MinterBounce
+    MissingDestOverhead
 }

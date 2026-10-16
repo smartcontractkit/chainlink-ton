@@ -23,14 +23,20 @@ var (
 
 type Storage struct {
 	TokenAddress *address.Address `tlb:"addr"`
-	TokenInfo    TokenInfo        `tlb:"."`
+	TokenInfo    TokenInfo        `tlb:"^"`
 	AdminConfig  AdminConfig      `tlb:"^"`
+	// TokenVerified is set once the token answers a TEP-89 query with a wallet.
+	TokenVerified bool `tlb:"bool"`
+	// PendingPool has not answered the transfer initiator probe yet.
+	PendingPool *address.Address `tlb:"addr"`
 }
 
 type TokenInfo struct {
-	TokenPool     *address.Address `tlb:"addr"`
-	MinterAddress *address.Address `tlb:"addr"`
-	Version       uint32           `tlb:"## 32"`
+	TokenPool *address.Address `tlb:"addr"`
+	// TransferInitiator reported by the pool; nil when the pool delivers by minting.
+	TransferInitiator *address.Address `tlb:"addr"`
+	MinterAddress     *address.Address `tlb:"addr"`
+	Version           uint32           `tlb:"## 32"`
 }
 
 type AdminConfig struct {
@@ -45,7 +51,9 @@ type RootMessage interface {
 		ProposeAdministrator |
 		TransferAdminRole |
 		AcceptAdminRole |
-		SetPool
+		SetPool |
+		VerifyToken |
+		RefreshTransferInitiator
 }
 
 // crc32('TokenAdminRegistryEntry_MessageFromRoot')
@@ -109,6 +117,16 @@ type SetPool struct {
 	TokenPool *address.Address `tlb:"addr"`
 }
 
+// crc32('TokenAdminRegistryEntry_VerifyToken')
+type VerifyToken struct {
+	_ tlb.Magic `tlb:"#a14b0288" json:"-"` //nolint:revive // used by tlb reflection for encoding
+}
+
+// crc32('TokenAdminRegistryEntry_RefreshTransferInitiator')
+type RefreshTransferInitiator struct {
+	_ tlb.Magic `tlb:"#91f8fb81" json:"-"` //nolint:revive // used by tlb reflection for encoding
+}
+
 // crc32('TokenAdminRegistryEntry_Resume')
 // Sent by the root right after an Upgrade to replay a deferred request.
 type Resume struct {
@@ -125,6 +143,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	TransferAdminRole{},
 	AcceptAdminRole{},
 	SetPool{},
+	VerifyToken{},
 	upgradeable.Upgrade{},
 	Resume{},
 }).MustWithStorageType(Storage{})

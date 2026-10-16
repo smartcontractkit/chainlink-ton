@@ -1,14 +1,17 @@
 import "../../lib/deployable/namespace"
+import "../accounts/deposit/types"
 
-fun onRampAccountAutodeployAddressForRouter(sender: address, router: address, deployableCode: cell): AutoDeployAddress {
-    return AutoDeployAddress {
-        stateInit: ContractState {
-            code: deployableCode,
-            data: NamespacedDeployableData<address>({
-                namespace: DeployableNamespace_OnRampAccount,
-                owner: router,
-                id: sender,
-            }),
-        },
-    };
+fun onRampAccountAutodeployAddressForRouter(
+    sender: address,
+    token: address,
+    router: address,
+    deployableCode: cell,
+): AutoDeployAddress {
+    return calcAddressOfAccount(
+        deployableCode,
+        DeployableNamespace_OnRampAccount,
+        router,
+        sender,
+        token,
+    );
 }

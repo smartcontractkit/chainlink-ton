@@ -3,6 +3,7 @@ tolk 1.4.2
 
 import "@stdlib/gas-payments"
 import "../jetton/forward_payload_wrap"
+import "../jetton/jetton_client"
 import "../jetton/messages"
 import "../utils"
 
@@ -146,7 +147,7 @@ fun JettonWithdrawable.onWithdraw(
         val wrap = Jetton_ForwardPayloadWrap {
             initiator: sender,
             context: JettonWithdrawable_WithdrawContext {}.toCell(),
-            forwardPayload: ask.forwardPayload,
+            forwardPayload: loadForwardPayloadAsCell(ask.forwardPayload),
         };
 
         val taggedAsk = AskToTransfer {

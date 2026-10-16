@@ -167,6 +167,14 @@ class StackReader {
         return this.popCellLike().beginParse();
     }
 
+    readNullable<T>(readFn_T: (r: StackReader) => T): T | null {
+        if (this.tuple[0].type === 'null') {
+            this.tuple.shift();
+            return null;
+        }
+        return readFn_T(this);
+    }
+
     readDictionary<K extends c.DictionaryKeyTypes, V>(keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
         if (this.tuple[0].type === 'null') {
             this.tuple.shift();
@@ -220,24 +228,35 @@ export const ExtraCurrenciesMap = {
  > struct DepositAccount_Data {
  >     owner: address
  >     proxy: address
+ >     token: address
  >     beneficiaries: map<address, ()>
+ >     wallet: Cell<address>?
+ >     pendingInit: Cell<DepositAccount_PendingInit>?
  > }
  */
 export interface DepositAccount_Data {
     readonly $: 'DepositAccount_Data'
     owner: c.Address
     proxy: c.Address
+    token: c.Address
     beneficiaries: Set<c.Address>
+    wallet: c.Address | null /* = null */
+    pendingInit: DepositAccount_PendingInit | null /* = null */
 }
 
 export const DepositAccount_Data = {
     create(args: {
         owner: c.Address
         proxy: c.Address
+        token: c.Address
         beneficiaries: Set<c.Address>
+        wallet?: c.Address | null /* = null */
+        pendingInit?: DepositAccount_PendingInit | null /* = null */
     }): DepositAccount_Data {
         return {
             $: 'DepositAccount_Data',
+            wallet: null,
+            pendingInit: null,
             ...args
         }
     },
@@ -246,15 +265,21 @@ export const DepositAccount_Data = {
             $: 'DepositAccount_Data',
             owner: s.loadAddress(),
             proxy: s.loadAddress(),
+            token: s.loadAddress(),
             beneficiaries: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
                             (s) => [],
                             (v,b) => { {} }
                         ), s)),
+            wallet: s.loadBoolean() ? loadCellRef<c.Address>(s,
+                (s) => s.loadAddress()
+            ) : null,
+            pendingInit: s.loadBoolean() ? loadCellRef<DepositAccount_PendingInit>(s, DepositAccount_PendingInit.fromSlice) : null,
         }
     },
     store(self: DepositAccount_Data, b: c.Builder): void {
         b.storeAddress(self.owner);
         b.storeAddress(self.proxy);
+        b.storeAddress(self.token);
         b.storeDict<c.Address, []>(setToDict(self.beneficiaries, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
                         (s) => [],
                         (v,b) => { {} }
@@ -262,6 +287,14 @@ export const DepositAccount_Data = {
             (s) => [],
             (v,b) => { {} }
         ));
+        storeTolkNullable<c.Address>(self.wallet, b,
+            (v,b) => { storeCellRef<c.Address>(v, b,
+                (v,b) => b.storeAddress(v)
+            ); }
+        );
+        storeTolkNullable<DepositAccount_PendingInit>(self.pendingInit, b,
+            (v,b) => storeCellRef<DepositAccount_PendingInit>(v, b, DepositAccount_PendingInit.store)
+        );
     },
     toCell(self: DepositAccount_Data): c.Cell {
         return makeCellFrom<DepositAccount_Data>(self, DepositAccount_Data.store);
@@ -269,15 +302,63 @@ export const DepositAccount_Data = {
 }
 
 /**
+ > struct DepositAccount_PendingInit {
+ >     queryId: uint64
+ >     context: cell?
+ >     value: coins
+ > }
+ */
+export interface DepositAccount_PendingInit {
+    readonly $: 'DepositAccount_PendingInit'
+    queryId: uint64
+    context: c.Cell | null
+    value: coins
+}
+
+export const DepositAccount_PendingInit = {
+    create(args: {
+        queryId?: uint64
+        context: c.Cell | null
+        value: coins
+    }): DepositAccount_PendingInit {
+        return {
+            $: 'DepositAccount_PendingInit',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): DepositAccount_PendingInit {
+        return {
+            $: 'DepositAccount_PendingInit',
+            queryId: s.loadUintBig(64),
+            context: s.loadBoolean() ? s.loadRef() : null,
+            value: s.loadCoins(),
+        }
+    },
+    store(self: DepositAccount_PendingInit, b: c.Builder): void {
+        b.storeUint(self.queryId, 64);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+        b.storeCoins(self.value);
+    },
+    toCell(self: DepositAccount_PendingInit): c.Cell {
+        return makeCellFrom<DepositAccount_PendingInit>(self, DepositAccount_PendingInit.store);
+    }
+}
+
+/**
  > struct (0x6890a205) DepositAccount_Init {
  >     queryId: uint64
- >     forwardPayload: cell?
+ >     context: cell?
+ >     learnWallet: bool
  > }
  */
 export interface DepositAccount_Init {
     readonly $: 'DepositAccount_Init'
     queryId: uint64
-    forwardPayload: c.Cell | null
+    context: c.Cell | null
+    learnWallet: boolean /* = false */
 }
 
 export const DepositAccount_Init = {
@@ -285,10 +366,12 @@ export const DepositAccount_Init = {
 
     create(args: {
         queryId?: uint64
-        forwardPayload: c.Cell | null
+        context: c.Cell | null
+        learnWallet?: boolean /* = false */
     }): DepositAccount_Init {
         return {
             $: 'DepositAccount_Init',
+            learnWallet: false,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -298,15 +381,17 @@ export const DepositAccount_Init = {
         return {
             $: 'DepositAccount_Init',
             queryId: s.loadUintBig(64),
-            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+            context: s.loadBoolean() ? s.loadRef() : null,
+            learnWallet: s.loadBoolean(),
         }
     },
     store(self: DepositAccount_Init, b: c.Builder): void {
         b.storeUint(0x6890a205, 32);
         b.storeUint(self.queryId, 64);
-        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+        storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
         );
+        b.storeBit(self.learnWallet);
     },
     toCell(self: DepositAccount_Init): c.Cell {
         return makeCellFrom<DepositAccount_Init>(self, DepositAccount_Init.store);
@@ -316,13 +401,13 @@ export const DepositAccount_Init = {
 /**
  > struct (0xda04630c) DepositAccount_Reply {
  >     queryId: uint64
- >     forwardPayload: cell?
+ >     context: cell?
  > }
  */
 export interface DepositAccount_Reply {
     readonly $: 'DepositAccount_Reply'
     queryId: uint64
-    forwardPayload: c.Cell | null
+    context: c.Cell | null
 }
 
 export const DepositAccount_Reply = {
@@ -330,7 +415,7 @@ export const DepositAccount_Reply = {
 
     create(args: {
         queryId?: uint64
-        forwardPayload: c.Cell | null
+        context: c.Cell | null
     }): DepositAccount_Reply {
         return {
             $: 'DepositAccount_Reply',
@@ -343,13 +428,13 @@ export const DepositAccount_Reply = {
         return {
             $: 'DepositAccount_Reply',
             queryId: s.loadUintBig(64),
-            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+            context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: DepositAccount_Reply, b: c.Builder): void {
         b.storeUint(0xda04630c, 32);
         b.storeUint(self.queryId, 64);
-        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+        storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
         );
     },
@@ -359,47 +444,47 @@ export const DepositAccount_Reply = {
 }
 
 /**
- > struct (0x83462e93) DepositAccount_NotEnoughValue {
+ > struct (0x9293d68e) DepositAccount_WalletUnavailable {
  >     queryId: uint64
- >     forwardPayload: cell?
+ >     context: cell?
  > }
  */
-export interface DepositAccount_NotEnoughValue {
-    readonly $: 'DepositAccount_NotEnoughValue'
+export interface DepositAccount_WalletUnavailable {
+    readonly $: 'DepositAccount_WalletUnavailable'
     queryId: uint64
-    forwardPayload: c.Cell | null
+    context: c.Cell | null
 }
 
-export const DepositAccount_NotEnoughValue = {
-    PREFIX: 0x83462e93,
+export const DepositAccount_WalletUnavailable = {
+    PREFIX: 0x9293d68e,
 
     create(args: {
         queryId?: uint64
-        forwardPayload: c.Cell | null
-    }): DepositAccount_NotEnoughValue {
+        context: c.Cell | null
+    }): DepositAccount_WalletUnavailable {
         return {
-            $: 'DepositAccount_NotEnoughValue',
+            $: 'DepositAccount_WalletUnavailable',
             ...args,
             queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): DepositAccount_NotEnoughValue {
-        loadAndCheckPrefix32(s, 0x83462e93, 'DepositAccount_NotEnoughValue');
+    fromSlice(s: c.Slice): DepositAccount_WalletUnavailable {
+        loadAndCheckPrefix32(s, 0x9293d68e, 'DepositAccount_WalletUnavailable');
         return {
-            $: 'DepositAccount_NotEnoughValue',
+            $: 'DepositAccount_WalletUnavailable',
             queryId: s.loadUintBig(64),
-            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+            context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
-    store(self: DepositAccount_NotEnoughValue, b: c.Builder): void {
-        b.storeUint(0x83462e93, 32);
+    store(self: DepositAccount_WalletUnavailable, b: c.Builder): void {
+        b.storeUint(0x9293d68e, 32);
         b.storeUint(self.queryId, 64);
-        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+        storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
         );
     },
-    toCell(self: DepositAccount_NotEnoughValue): c.Cell {
-        return makeCellFrom<DepositAccount_NotEnoughValue>(self, DepositAccount_NotEnoughValue.store);
+    toCell(self: DepositAccount_WalletUnavailable): c.Cell {
+        return makeCellFrom<DepositAccount_WalletUnavailable>(self, DepositAccount_WalletUnavailable.store);
     }
 }
 
@@ -554,8 +639,7 @@ export const DepositAccount_Withdraw = {
 /**
  > struct (0xa51b6cba) DepositAccount_WithdrawFailed {
  >     queryId: uint64
- >     owner: address
- >     proxy: address
+ >     account: Cell<DepositAccount_Identity>
  >     walletAddress: address
  >     ask: Cell<AskToTransfer>
  > }
@@ -563,8 +647,7 @@ export const DepositAccount_Withdraw = {
 export interface DepositAccount_WithdrawFailed {
     readonly $: 'DepositAccount_WithdrawFailed'
     queryId: uint64
-    owner: c.Address
-    proxy: c.Address
+    account: DepositAccount_Identity
     walletAddress: c.Address
     ask: AskToTransfer
 }
@@ -574,8 +657,7 @@ export const DepositAccount_WithdrawFailed = {
 
     create(args: {
         queryId?: uint64
-        owner: c.Address
-        proxy: c.Address
+        account: DepositAccount_Identity
         walletAddress: c.Address
         ask: AskToTransfer
     }): DepositAccount_WithdrawFailed {
@@ -590,8 +672,7 @@ export const DepositAccount_WithdrawFailed = {
         return {
             $: 'DepositAccount_WithdrawFailed',
             queryId: s.loadUintBig(64),
-            owner: s.loadAddress(),
-            proxy: s.loadAddress(),
+            account: loadCellRef<DepositAccount_Identity>(s, DepositAccount_Identity.fromSlice),
             walletAddress: s.loadAddress(),
             ask: loadCellRef<AskToTransfer>(s, AskToTransfer.fromSlice),
         }
@@ -599,13 +680,55 @@ export const DepositAccount_WithdrawFailed = {
     store(self: DepositAccount_WithdrawFailed, b: c.Builder): void {
         b.storeUint(0xa51b6cba, 32);
         b.storeUint(self.queryId, 64);
-        b.storeAddress(self.owner);
-        b.storeAddress(self.proxy);
+        storeCellRef<DepositAccount_Identity>(self.account, b, DepositAccount_Identity.store);
         b.storeAddress(self.walletAddress);
         storeCellRef<AskToTransfer>(self.ask, b, AskToTransfer.store);
     },
     toCell(self: DepositAccount_WithdrawFailed): c.Cell {
         return makeCellFrom<DepositAccount_WithdrawFailed>(self, DepositAccount_WithdrawFailed.store);
+    }
+}
+
+/**
+ > struct DepositAccount_Identity {
+ >     owner: address
+ >     proxy: address
+ >     token: address
+ > }
+ */
+export interface DepositAccount_Identity {
+    readonly $: 'DepositAccount_Identity'
+    owner: c.Address
+    proxy: c.Address
+    token: c.Address
+}
+
+export const DepositAccount_Identity = {
+    create(args: {
+        owner: c.Address
+        proxy: c.Address
+        token: c.Address
+    }): DepositAccount_Identity {
+        return {
+            $: 'DepositAccount_Identity',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): DepositAccount_Identity {
+        return {
+            $: 'DepositAccount_Identity',
+            owner: s.loadAddress(),
+            proxy: s.loadAddress(),
+            token: s.loadAddress(),
+        }
+    },
+    store(self: DepositAccount_Identity, b: c.Builder): void {
+        b.storeAddress(self.owner);
+        b.storeAddress(self.proxy);
+        b.storeAddress(self.token);
+    },
+    toCell(self: DepositAccount_Identity): c.Cell {
+        return makeCellFrom<DepositAccount_Identity>(self, DepositAccount_Identity.store);
     }
 }
 
@@ -749,6 +872,108 @@ export const TransferNotificationForRecipient = {
     }
 }
 
+/**
+ > struct (0x2c76b973) RequestWalletAddress {
+ >     queryId: uint64
+ >     ownerAddress: address
+ >     includeOwnerAddress: bool
+ > }
+ */
+export interface RequestWalletAddress {
+    readonly $: 'RequestWalletAddress'
+    queryId: uint64
+    ownerAddress: c.Address
+    includeOwnerAddress: boolean
+}
+
+export const RequestWalletAddress = {
+    PREFIX: 0x2c76b973,
+
+    create(args: {
+        queryId?: uint64
+        ownerAddress: c.Address
+        includeOwnerAddress: boolean
+    }): RequestWalletAddress {
+        return {
+            $: 'RequestWalletAddress',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): RequestWalletAddress {
+        loadAndCheckPrefix32(s, 0x2c76b973, 'RequestWalletAddress');
+        return {
+            $: 'RequestWalletAddress',
+            queryId: s.loadUintBig(64),
+            ownerAddress: s.loadAddress(),
+            includeOwnerAddress: s.loadBoolean(),
+        }
+    },
+    store(self: RequestWalletAddress, b: c.Builder): void {
+        b.storeUint(0x2c76b973, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.ownerAddress);
+        b.storeBit(self.includeOwnerAddress);
+    },
+    toCell(self: RequestWalletAddress): c.Cell {
+        return makeCellFrom<RequestWalletAddress>(self, RequestWalletAddress.store);
+    }
+}
+
+/**
+ > struct (0xd1735400) ResponseWalletAddress {
+ >     queryId: uint64
+ >     jettonWalletAddress: address?
+ >     ownerAddress: Cell<address>?
+ > }
+ */
+export interface ResponseWalletAddress {
+    readonly $: 'ResponseWalletAddress'
+    queryId: uint64
+    jettonWalletAddress: c.Address | null
+    ownerAddress: c.Address | null
+}
+
+export const ResponseWalletAddress = {
+    PREFIX: 0xd1735400,
+
+    create(args: {
+        queryId?: uint64
+        jettonWalletAddress: c.Address | null
+        ownerAddress: c.Address | null
+    }): ResponseWalletAddress {
+        return {
+            $: 'ResponseWalletAddress',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): ResponseWalletAddress {
+        loadAndCheckPrefix32(s, 0xd1735400, 'ResponseWalletAddress');
+        return {
+            $: 'ResponseWalletAddress',
+            queryId: s.loadUintBig(64),
+            jettonWalletAddress: s.loadMaybeAddress(),
+            ownerAddress: s.loadBoolean() ? loadCellRef<c.Address>(s,
+                (s) => s.loadAddress()
+            ) : null,
+        }
+    },
+    store(self: ResponseWalletAddress, b: c.Builder): void {
+        b.storeUint(0xd1735400, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.jettonWalletAddress);
+        storeTolkNullable<c.Address>(self.ownerAddress, b,
+            (v,b) => { storeCellRef<c.Address>(v, b,
+                (v,b) => b.storeAddress(v)
+            ); }
+        );
+    },
+    toCell(self: ResponseWalletAddress): c.Cell {
+        return makeCellFrom<ResponseWalletAddress>(self, ResponseWalletAddress.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class DepositAccount
 //
@@ -788,12 +1013,16 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class DepositAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECGwEAA3gAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASAREgIBIAYHAgEgDQ4CASAICQIBIAsMAfU+JGOMHBtbW1tJO1E0PpI+kj0BNH4kiNRg1GDCBB8EGtVIkwN8AWayPpS+lL0AMntVOBfA+BwbW1tbSTtRND6SPpI9ATR+JL4l/iS+Jf4mPiTKfg6+JT4lVYRyM7JCxERCwoREAoQnxC+EK0QnFYSVWDwAWxhA8j6UhKAKANs7aLt+wfXLCNEhRAsmWxx0z/0BVjwAo5TOAfXLCDJtoiUjio4B9csI5sWhOQxjhgvUX9Rf1F/UX9Rf1F/UX9RfwdVBfAE2zHgXwdw2zHhbHHTP/pI10wsUUxRTFFMUUxRTFFMUUxRTFUw8APif4AAi+lL0AMntVJEw4IQPAccA8vQA0wkwwCVKG6zwwCRcOKZVHy6LFUzLNqA4DCCAM0UUzzHBfL0+CdvEIILk4cAuY4ZyM+FCBP6UoIQg0Yuk88Ljss/9ADJgED7AOCCCvrwgHD7AsjPhQgT+lKCENoEYwzPC47LP/QAyYMG+wCAA2Q1NTYBwwCVI26zwwCRcOKUBAPagOBsMzQ0IoIAzRUDgQEL9ApvoTES8vQi0NcsIHxT9Szyv9M/MfoAMfpIMfpQMIIAzRYhbrOVA8cFwwCTMTJw4hLy9MjPhYj6Us+EEHP6AnHPC2XMyYBQ+wCACASAPEADBQ5OjoFwwCVJm6zwwCRcOKXEDhHVQbawOA2ODjIz5A+KfqWKM8LP1AH+gIT+lJSIPpUFPQAWPoCEs7JyM+SlG2y6hTLPxX6UhP6UhL6UszJyM+FCBL6UnHPC27MyYBA+wCACTDk5OQTDAJUkbrPDAJFw4pZHZVUD2rHgNDc3OAXI+lJQBPoCFPQAUAX6AhTLP8sfEszJyM+FCBL6UoIQtP5cDM8LjszJgED7AH+AATzXLCf////08r/XTNDXLCB8U/Usn9M/+gD6SPpQ9AT6APAGf+BfC3CACASATFAIBSBkaAgEgFRYCAUgXGABttivxoVNjS3NZcxtDC0txc6N7cXMbG0uBcwsbG3urc6FyIyuDe5tLogsbG3urc6QRamBcYlxhEAAbtcUQQBmilAQQgfd+UJAAC7GhYECDYAAbs0I7UTQ+kgx+kgx9AWAAEbXRPaiaH0kGEAAXtAN9qJofSQY/SQYQ');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'DepositAccount_Error.OnlyOwner': 52500,
         'DepositAccount_Error.OnlyBeneficiary': 52501,
         'DepositAccount_Error.OnlySendExcessesToSender': 52502,
+        'DepositAccount_Error.InitPending': 52503,
+        'DepositAccount_Error.OnlyToken': 52504,
+        'DepositAccount_Error.NoPendingInit': 52505,
+        'DepositAccount_Error.NotEnoughValue': 52506,
     }
 
     readonly address: c.Address
@@ -811,7 +1040,10 @@ export class DepositAccount implements c.Contract {
     static fromStorage(emptyStorage: {
         owner: c.Address
         proxy: c.Address
+        token: c.Address
         beneficiaries: Set<c.Address>
+        wallet?: c.Address | null /* = null */
+        pendingInit?: DepositAccount_PendingInit | null /* = null */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? DepositAccount.CodeCell,
@@ -823,7 +1055,8 @@ export class DepositAccount implements c.Contract {
 
     static createCellOfDepositAccountInit(body: {
         queryId?: uint64
-        forwardPayload: c.Cell | null
+        context: c.Cell | null
+        learnWallet?: boolean /* = false */
     }) {
         return DepositAccount_Init.toCell(DepositAccount_Init.create(body));
     }
@@ -845,6 +1078,14 @@ export class DepositAccount implements c.Contract {
         return TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body));
     }
 
+    static createCellOfResponseWalletAddress(body: {
+        queryId?: uint64
+        jettonWalletAddress: c.Address | null
+        ownerAddress: c.Address | null
+    }) {
+        return ResponseWalletAddress.toCell(ResponseWalletAddress.create(body));
+    }
+
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -863,7 +1104,8 @@ export class DepositAccount implements c.Contract {
 
     async sendDepositAccountInit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        forwardPayload: c.Cell | null
+        context: c.Cell | null
+        learnWallet?: boolean /* = false */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -893,6 +1135,18 @@ export class DepositAccount implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendResponseWalletAddress(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        jettonWalletAddress: c.Address | null
+        ownerAddress: c.Address | null
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: ResponseWalletAddress.toCell(ResponseWalletAddress.create(body)),
             ...extraOptions
         });
     }
@@ -928,6 +1182,18 @@ export class DepositAccount implements c.Contract {
     async getProxy(provider: ContractProvider): Promise<c.Address> {
         const r = StackReader.fromGetMethod(1, await provider.get('getProxy', []));
         return r.readSlice().loadAddress();
+    }
+
+    async getToken(provider: ContractProvider): Promise<c.Address> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getToken', []));
+        return r.readSlice().loadAddress();
+    }
+
+    async getWallet(provider: ContractProvider): Promise<c.Address | null> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getWallet', []));
+        return r.readNullable<c.Address>(
+            (r) => r.readSlice().loadAddress()
+        );
     }
 
     async getBeneficiaries(provider: ContractProvider): Promise<Set<c.Address>> {

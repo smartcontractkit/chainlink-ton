@@ -1,4 +1,4 @@
-import { Cell, toNano, beginCell } from '@ton/core'
+import { Address, Cell, toNano, beginCell } from '@ton/core'
 import { Blockchain } from '@ton/sandbox'
 import { findTransaction } from '@ton/test-utils'
 
@@ -18,6 +18,8 @@ import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
 import * as tr from '../../../wrappers/gen/ccip/TestReceiver'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rt from '../../../wrappers/gen/ccip/Router'
+import * as deposit from '../../../wrappers/gen/ccip/DepositAccount'
+import { JettonWallet } from '../../../wrappers/gen/ccip/cct/JettonWallet'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
 import * as trg from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
@@ -799,6 +801,7 @@ describe('OffRamp - Execute', () => {
           message,
           execId: execId,
           effectiveGasLimit: setup.DEFAULT_GAS_LIMIT,
+          tokenAmounts: null,
         },
       )
 
@@ -1914,23 +1917,91 @@ describe('OffRamp - Execute', () => {
         success: true,
       })
 
-      // 4. TokenPool -> ReceiveExecutor (ReleaseOrMintFinished)
+      // 4. The Router deploys the receiver's deposit account, which learns its jetton wallet from the token.
+      const receiverAccount = setup.receiverDepositAccount()
       expect(result.transactions).toHaveTransaction({
-        from: setup.tokenPool.address,
-        to: executorAddress,
-        op: tp.TokenPool_ReleaseOrMintFinished.PREFIX,
+        from: setup.router.address,
+        to: receiverAccount,
+        deploy: true,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: receiverAccount,
+        to: setup.router.address,
+        op: deposit.DepositAccount_Reply.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: receiverAccount,
+        to: setup.token,
+        op: deposit.RequestWalletAddress.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.token,
+        to: receiverAccount,
+        op: deposit.ResponseWalletAddress.PREFIX,
         success: true,
       })
 
-      // 5. ReceiveExecutor -> OffRamp (NotifySuccess) -> MerkleRoot (MarkState)
+      // 5. The released tokens reach the account, which forwards the notification to the executor.
+      expect(result.transactions).toHaveTransaction({
+        from: receiverAccount,
+        to: executorAddress,
+        op: deposit.DepositAccount_ForwardNotification.PREFIX,
+        success: true,
+      })
+
+      // 6. ReceiveExecutor -> OffRamp (NotifySuccess carrying the delivery) -> MerkleRoot (MarkState)
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
         to: setup.offRamp.address,
         op: of.OffRamp_NotifySuccess.PREFIX,
         success: true,
+        body(body) {
+          if (!body) return false
+          const delivered = of.OffRamp_NotifySuccess.fromSlice(body.beginParse()).delivered
+          return (
+            delivered != null &&
+            delivered.tokenPool.equals(setup.tokenPool.address) &&
+            delivered.transfer.amount === setup.DEFAULT_TOKEN_AMOUNT
+          )
+        },
       })
 
-      // 6. ExecutionStateChanged: InProgress -> Success
+      // 7. The delivery is relayed OffRamp -> Router -> TokenPool, which emits ReleasedOrMinted
+      //    and confirms back to the executor.
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.router.address,
+        op: rt.Router_TokenTransferDelivered.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMintDelivered.PREFIX,
+        success: true,
+        body(body) {
+          if (body?.beginParse().preloadUint(32) !== tp.TokenPool_ReleaseOrMintDelivered.PREFIX)
+            return false
+          return tp.TokenPool_ReleaseOrMintDelivered.fromSlice(body.beginParse()).replyTo.equals(
+            executorAddress,
+          )
+        },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.tokenPool.address,
+        to: executorAddress,
+        op: tp.TokenPool_ReleaseOrMintFinalized.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        from: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMintFinished.PREFIX,
+      })
+
+      // 8. ExecutionStateChanged: InProgress -> Success
       assertLog(
         result.transactions,
         setup.offRamp.address,
@@ -1954,11 +2025,8 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      // Verify the receiver actually received the tokens.
+      // The tokens are held by the receiver's deposit account for the token.
       expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
-      // TODO: when escrow account is integrated
-      // 1. verify that the tokens are in the escrow account and not in the receiver's account directly.
-      // 2. verify the receiver can withdraw the tokens from the escrow account.
     })
 
     it('rejects a Router_TokenPoolReleaseOrMintFailed from a non-router sender', async () => {
@@ -2057,13 +2125,59 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      // Verify the receiver actually received the tokens.
+      // The tokens are held by the stranger's deposit account for the token.
       expect(await setup.getTokenBalance({ receiver: stranger.address })).toEqual(
         setup.DEFAULT_TOKEN_AMOUNT,
       )
-      // TODO: when escrow account is integrated
-      // 1. verify that the tokens are in the escrow account and not in the receiver's account directly.
-      // 2. verify the receiver can withdraw the tokens from the escrow account.
+    })
+
+    it('lets only the receiver withdraw the delivered tokens from its deposit account', async () => {
+      const stranger = await blockchain.treasury('withdrawingReceiver')
+      const attacker = await blockchain.treasury('attacker')
+      const message = setup.createTestMessageWithToken({ receiverAddress: stranger.address })
+      await setup.setupAndCommitMessage(message)
+      await setup.executeReport(setup.createExecuteReport([message]))
+
+      const accountAddress = setup.receiverDepositAccount(stranger.address)
+      const account = blockchain.openContract(deposit.DepositAccount.fromAddress(accountAddress))
+      const withdrawTo = (requester: Address) => ({
+        walletAddress: setup.walletAddress({ address: accountAddress }),
+        ask: deposit.AskToTransfer.create({
+          jettonAmount: setup.DEFAULT_TOKEN_AMOUNT,
+          transferRecipient: requester,
+          sendExcessesTo: requester,
+          customPayload: null,
+          forwardTonAmount: 0n,
+          forwardPayload: beginCell().storeMaybeRef(null).asSlice(),
+        }),
+      })
+
+      const denied = await account.sendDepositAccountWithdraw(
+        attacker.getSender(),
+        toNano('0.5'),
+        withdrawTo(attacker.address),
+      )
+      expect(denied.transactions).toHaveTransaction({
+        from: attacker.address,
+        to: accountAddress,
+        success: false,
+      })
+      expect(await setup.getTokenBalance({ receiver: stranger.address })).toEqual(
+        setup.DEFAULT_TOKEN_AMOUNT,
+      )
+
+      await account.sendDepositAccountWithdraw(
+        stranger.getSender(),
+        toNano('0.5'),
+        withdrawTo(stranger.address),
+      )
+      expect(await setup.getTokenBalance({ receiver: stranger.address })).toEqual(0n)
+      const strangerWallet = blockchain.openContract(
+        JettonWallet.fromAddress(setup.walletAddress({ address: stranger.address })),
+      )
+      expect((await strangerWallet.getWalletData()).jettonBalance).toEqual(
+        setup.DEFAULT_TOKEN_AMOUNT,
+      )
     })
 
     // TODO extraData with different decimals and some out of range and invalid data
@@ -2216,8 +2330,9 @@ describe('OffRamp - Execute', () => {
       // Manual execute should retry the releaseOrMint and succeed.
       const manualResult = await setup.manualExecuteReport(report, undefined, true)
       expect(manualResult.transactions).toHaveTransaction({
-        from: setup.tokenPool.address,
-        op: tp.TokenPool_ReleaseOrMintFinished.PREFIX,
+        from: setup.router.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMintDelivered.PREFIX,
         success: true,
       })
       assertLog(
@@ -2232,11 +2347,64 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      // Verify the receiver actually received the tokens after retry.
+      // The tokens are held by the receiver's deposit account after the retry.
       expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
-      // TODO: when escrow account is integrated
-      // 1. verify that the tokens are in the escrow account and not in the receiver's account directly.
-      // 2. verify the receiver can withdraw the tokens from the escrow account.
+    })
+
+    it('manual execute forwards the offchainTokenData supplied on retry', async () => {
+      await setup.updateRateLimit(0n, 0n)
+
+      const message = setup.createTestMessageWithToken()
+      await setup.setupAndCommitMessage(message)
+
+      const firstResult = await setup.executeReport(setup.createExecuteReport([message]))
+      assertLog(
+        firstResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+
+      await setup.updateRateLimit(
+        setup.DEFAULT_TOKEN_AMOUNT * 10n,
+        setup.DEFAULT_TOKEN_AMOUNT * 10n,
+      )
+
+      const offchainTokenData = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const retryReport = setup.createExecuteReport([message], setup.SOURCE_CHAIN_SELECTOR, [
+        [offchainTokenData],
+      ])
+      const manualResult = await setup.manualExecuteReport(retryReport, undefined, true)
+      assertLog(
+        manualResult.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+
+      const releaseOrMintTx = findTransaction(manualResult.transactions, {
+        from: setup.router.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: true,
+      })
+      if (!releaseOrMintTx) throw new Error('TokenPool_ReleaseOrMint transaction not found')
+
+      const releaseOrMint = tp.TokenPool_ReleaseOrMint.fromSlice(
+        releaseOrMintTx.inMessage!.body!.beginParse(),
+      )
+      expect(releaseOrMint.request.offchainTokenData).not.toBeNull()
+      expect(releaseOrMint.request.offchainTokenData!.equals(offchainTokenData)).toBe(true)
     })
 
     it('executes a PTT (token transfer + data) end to end', async () => {
@@ -2303,11 +2471,30 @@ describe('OffRamp - Execute', () => {
         success: true,
       })
 
-      // 4. TokenPool -> ReceiveExecutor (ReleaseOrMintFinished)
+      // 4. The account forwards the notification to the executor; the delivery is reported
+      //    independently of execution, since the receiver may never confirm.
+      expect(result.transactions).toHaveTransaction({
+        from: setup.receiverDepositAccount(),
+        to: executorAddress,
+        op: deposit.DepositAccount_ForwardNotification.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: setup.offRamp.address,
+        op: of.OffRamp_TokenTransferDelivered.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMintDelivered.PREFIX,
+        success: true,
+      })
       expect(result.transactions).toHaveTransaction({
         from: setup.tokenPool.address,
         to: executorAddress,
-        op: tp.TokenPool_ReleaseOrMintFinished.PREFIX,
+        op: tp.TokenPool_ReleaseOrMintFinalized.PREFIX,
         success: true,
       })
 
@@ -2323,14 +2510,26 @@ describe('OffRamp - Execute', () => {
         from: setup.router.address,
         to: setup.receiver.address,
         success: true,
+        body: (body) => {
+          const { message: received } = tr.Receiver_CCIPReceiveV2.fromSlice(body!.beginParse())
+          return (
+            received.tokenAmounts?.length === 1 &&
+            received.tokenAmounts[0].amount === setup.DEFAULT_TOKEN_AMOUNT &&
+            received.tokenAmounts[0].token.equals(setup.token)
+          )
+        },
       })
 
-      // 6. Receiver confirms back -> OffRamp (NotifySuccess) -> MerkleRoot
+      // 6. Receiver confirms back -> OffRamp (NotifySuccess, without a second delivery) -> MerkleRoot
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
         to: setup.offRamp.address,
         op: of.OffRamp_NotifySuccess.PREFIX,
         success: true,
+        body(body) {
+          if (!body) return false
+          return of.OffRamp_NotifySuccess.fromSlice(body.beginParse()).delivered == null
+        },
       })
 
       // 7. ExecutionStateChanged: InProgress -> Success
@@ -2357,11 +2556,8 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      // Verify the receiver actually received the tokens.
+      // The tokens are held by the receiver's deposit account for the token.
       expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
-      // TODO: when escrow account is integrated
-      // 1. verify that the tokens are in the escrow account and not in the receiver's account directly.
-      // 2. verify the receiver can withdraw the tokens from the escrow account.
     })
 
     it('fails a PTT when the token is not enabled in the TokenRegistry', async () => {
@@ -2483,8 +2679,9 @@ describe('OffRamp - Execute', () => {
       // (since there is data) and deliver it to the receiver.
       const manualResult = await setup.manualExecuteReport(report, undefined, true)
       expect(manualResult.transactions).toHaveTransaction({
-        from: setup.tokenPool.address,
-        op: tp.TokenPool_ReleaseOrMintFinished.PREFIX,
+        from: setup.router.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMintDelivered.PREFIX,
         success: true,
       })
       expect(manualResult.transactions).toHaveTransaction({
@@ -2504,11 +2701,8 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      // Verify the receiver actually received the tokens after retry.
+      // The tokens are held by the receiver's deposit account after the retry.
       expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
-      // TODO: when escrow account is integrated
-      // 1. verify that the tokens are in the escrow account and not in the receiver's account directly.
-      // 2. verify the receiver can withdraw the tokens from the escrow account.
     })
 
     // --- gasOverride validation ---
@@ -2745,8 +2939,9 @@ describe('OffRamp - Execute', () => {
         true,
       )
       expect(successResult.transactions).toHaveTransaction({
-        from: setup.tokenPool.address,
-        op: tp.TokenPool_ReleaseOrMintFinished.PREFIX,
+        from: setup.router.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMintDelivered.PREFIX,
         success: true,
       })
       assertLog(
