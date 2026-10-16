@@ -22,6 +22,7 @@ import "../../../../gen/Deployable.code"
 import "../../../../gen/DepositAccount.code"
 
 import "../lib/token_pool/entrypoint"
+import "../lib/token_pool/recovery"
 import "../../../lib/budget/min_value"
 import "../../budget/min_value"
 import "../lib/token_pool/types"
@@ -91,31 +92,6 @@ fun onInternalMessage(in: InMessage) {
             assert(in.body.isEmpty()) throw 0xFFFF;
         }
     }
-}
-
-/// @notice Sends the CCT `AskToBurn` operational message to the pool's own jetton wallet
-/// to burn the locked tokens. The burn continuation context is attached as `forwardPayload`,
-/// which the CCT wallet relays via the minter back to the pool on `CCT_ReturnExcessesBack`.
-fun sendBurnMessage(
-    st: Storage,
-    queryId: uint64,
-    context: BurnMintTokenPool_BurnContext,
-) {
-    val operation = lazy context.forwardPayload.load();
-    val prepared = lazy operation.prepared.load();
-    val burnMsg = createMessage({
-        bounce: BounceMode.RichBounce,
-        value: BurnMintTokenPool_BURN_VALUE,
-        dest: context.wallet,
-        body: CCT_AskToBurn {
-            queryId: queryId,
-            jettonAmount: prepared.destTokenAmount,
-            sendExcessesTo: contract.getAddress(),
-            customPayload: context.toCell(),
-            forwardPayload: context.toCell(),
-        },
-    });
-    burnMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// @notice Handles bounced burn/mint messages: refunds rate limit and sends failure reply.
@@ -236,28 +212,39 @@ fun onDepositAccountInitFailed(
 
 /// @notice Handles TransferNotificationForRecipient on the burn path.
 /// The pool's own jetton wallet has already credited custody; burn directly via CCT
-/// `AskToBurn` carrying the continuation context, then finalize on `CCT_ReturnExcessesBack`.
+/// `AskToBurn` carrying the continuation context as `forwardPayload`, then finalize
+/// on `CCT_ReturnExcessesBack` back to sender (pool).
 fun onLockOrBurnTransferContinue(
     st: Storage,
     sender: address,
-    msgValue: coins,
+    _msgValue: coins, // admission budget already checked
     _msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
-    // minval:check-admission gate=A/static BurnMintTokenPool.TransferNotificationForRecipient
-    // burn path; the notification must fund the burn and a custody return on bounce
-    //   Authenticated custody receipt that commits a burn. Checks the burn obligation
-    //   (`BURN_VALUE`) before the fixed burn send; on shortfall the shared handler returns
-    //   custody and refunds capacity (local recovery, no rejection).
-    assertMinValue(msgValue, BurnMintTokenPool_BURN_VALUE, TokenPool_Error.InsufficientMessageValue);
-
     val requestMsg = lazy fwdPayload.requestMsg.load();
     val context = BurnMintTokenPool_BurnContext {
-        wallet: sender,
+        wallet: sender, // own wallet
         forwardPayload: fwdPayload.toCell(),
     };
 
-    sendBurnMessage(st, requestMsg.queryId, context);
+    val operation = lazy context.forwardPayload.load();
+    val prepared = lazy operation.prepared.load();
+
+    // Admission is checked at the flow entrypoint (`onLockOrBurn`) so this operation is funded by
+    // construction. Forward the full available value; the wallet returns any excess.
+    val burnMsg = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: 0,
+        dest: context.wallet,
+        body: CCT_AskToBurn {
+            queryId: requestMsg.queryId,
+            jettonAmount: prepared.destTokenAmount,
+            sendExcessesTo: contract.getAddress(),
+            customPayload: null, // not supported atm
+            forwardPayload: context.toCell(),
+        },
+    });
+    burnMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
     return st;
 }
@@ -328,7 +315,8 @@ fun onCCTReturnExcessesBack(
     msg: CCT_ReturnExcessesBack,
 ) {
     // minval:non-reject gate=none CCT_ReturnExcessesBack
-    // burn committed; authenticate and complete, no reversal exists; context-free excess is passive
+    // burn committed; authenticate and complete, no reversal exists;
+
     // Context-less signals are pure excess returns (mint/transfer paths) — nothing to finalize.
     if (msg.forwardPayload == null) {
         return;
@@ -442,47 +430,51 @@ fun onDepositAccountReply(
     );
     assert(sender == expectedOaa.calculateAddress(), BurnMintTokenPool_Error.InvalidOffRampAccountReply);
 
+    // Quote with upper-bound coin amounts before reducing them. This covers the actual mint
+    // payload, unlike the incoming account reply's originalForwardFee.
+    var transfer = InternalTransferStep {
+        queryId: msg.queryId,
+        jettonAmount: prepared.localAmount,
+        transferInitiator: null,
+        sendExcessesTo: poolAddr,
+        forwardTonAmount: msgValue,
+        forwardPayload: beginCell().storeMaybeRef(contextCell).endCell().beginParse(),
+    };
+    var mintOpts = CreateMessageOptions<MintNewJettons> {
+        bounce: BounceMode.RichBounce,
+        value: msgValue,
+        dest: jettonClient.masterAddress,
+        body: MintNewJettons {
+            queryId: msg.queryId,
+            mintRecipient: sender,
+            tonAmount: msgValue,
+            internalTransferMsg: transfer.toCell(),
+        },
+    };
+    val fwdFee = createMessage(mintOpts).estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
+
     try {
-        // minval:check-admission gate=A/static BurnMintTokenPool.DepositAccount_Reply
-        // account ready; the reply must fund the mint
-        //   Checks the safety floor and the mint obligation (`MINT_VALUE`) before the fixed mint
-        //   send; on shortfall the attempt aborts, capacity is restored and no mint is issued
-        //   (local recovery, no rejection).
+        // minval:check-fail gate=S BurnMintTokenPool.DepositAccount_Reply
+        // continuation of the admitted releaseOrMint; shortfall aborts and refunds the inbound capacity
         val minValue = st.poolData.load().budget.safety.resolve(ccipMinValue());
         assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
-        assertMinValue(msgValue, BurnMintTokenPool_MINT_VALUE, TokenPool_Error.InsufficientMessageValue);
+
+        val available = msgValue - tokenPoolEntrypointCost() - fwdFee;
+        val tonAmount = available - cctMintOpBudget(fwdFee);
+        transfer.forwardTonAmount = jettonTransferForwardValue(tonAmount, fwdFee, CCT_TRANSFER_BUFFER_PCT);
+        // A depleted continuation must unwind locally rather than serialize negative coins or
+        // mint without the notification that completes the operation.
+        assert(transfer.forwardTonAmount > 0, TokenPool_Error.InsufficientMessageValue);
+        mintOpts.value = available;
+        mintOpts.body.tonAmount = tonAmount;
+        mintOpts.body.internalTransferMsg = transfer.toCell();
+        createMessage(mintOpts).send(SEND_MODE_PAY_FEES_SEPARATELY);
     } catch (errorCode) {
         var pool = loadPool(st);
         pool.recoverReleaseOrMintFailure(operation, errorCode as uint16, msgValue);
         st.poolData = pool.data.toCell();
         return;
     }
-
-    // OAA is confirmed deployed. Send MintNewJettons to the jetton minter.
-    // The minter calculates the wallet address from the recipient internally.
-    // mintRecipient = OAA address (owner), not the OAA's jetton wallet.
-    val mint = createMessage({
-        bounce: BounceMode.RichBounce,
-        value: BurnMintTokenPool_MINT_VALUE,
-        dest: jettonClient.masterAddress,
-        body: MintNewJettons {
-            queryId: msg.queryId,
-            mintRecipient: sender, // OAA address — minter derives wallet from this
-            tonAmount: BurnMintTokenPool_MINT_VALUE,
-            internalTransferMsg: InternalTransferStep {
-                queryId: msg.queryId,
-                jettonAmount: prepared.localAmount,
-                transferInitiator: null,
-                sendExcessesTo: poolAddr, // pool keeps any excesses
-                forwardTonAmount: grams("0.01"), // required for TransferNotificationForRecipient
-                forwardPayload: beginCell()
-                    .storeMaybeRef(contextCell)
-                    .endCell()
-                    .beginParse(),
-            }.toCell(),
-        },
-    });
-    mint.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// @notice Extracts the recipient address from a mint context cell.

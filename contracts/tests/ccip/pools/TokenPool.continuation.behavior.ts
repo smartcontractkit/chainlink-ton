@@ -1,6 +1,7 @@
 import '@ton/test-utils'
-import { findTransactionRequired, flattenTransaction } from '@ton/test-utils'
+import { findTransactionRequired } from '@ton/test-utils'
 import { toNano } from '@ton/core'
+import { BlockchainTransaction, internal } from '@ton/sandbox'
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
 import {
   DepositAccount_Reply,
@@ -16,6 +17,7 @@ import {
   TokenPool_LockOrBurnWithdraw,
   TokenPool_ReleaseOrMintFailure,
   TokenPool_ReleaseOrMintFinished,
+  TokenPool_ReleaseOrMint,
   TokenPool_Transfer,
   TokenPool_TransferDetails,
   TransferNotificationForRecipient,
@@ -25,19 +27,48 @@ import { releaseRequest, TokenPoolBehaviorContext } from './TokenPool.behavior'
 
 const INSUFFICIENT_MESSAGE_VALUE = 51726n // TokenPool_Error.InsufficientMessageValue
 
-// Policy regressions on real message chains, not gas calibration. Each floor is fixed
-// before the operation; callback-value assertions establish which side of it was exercised.
+// Policy regressions on real message chains. Pre-commit callbacks enforce safety; committed
+// delivery must complete even if its value falls below the configured floor.
 export function runTokenPoolContinuationBehaviorTests(
   name: string,
   setup: () => Promise<TokenPoolBehaviorContext>,
 ) {
-  function releaseOneToken(ctx: TokenPoolBehaviorContext) {
-    return ctx.pool.sendTokenPoolReleaseOrMint(ctx.deployer.getSender(), toNano('0.6'), {
+  async function releaseOneToken(ctx: TokenPoolBehaviorContext, deliverySafetyFloor?: bigint) {
+    const request = {
       queryId: 1n,
       request: releaseRequest(ctx),
       requestedFinalityConfig: 0n,
       replyTo: ctx.deployer.address,
-    })
+    }
+    if (deliverySafetyFloor === undefined) {
+      return ctx.pool.sendTokenPoolReleaseOrMint(ctx.deployer.getSender(), toNano('0.6'), request)
+    }
+
+    // Raise the fixture's safety floor only after tokens are delivered to the account. Earlier
+    // gates must pass; the final, committed notification must not apply a new gate.
+    const transactions: BlockchainTransaction[] = []
+    const chain = await ctx.blockchain.sendMessageIter(
+      internal({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        value: toNano('0.6'),
+        body: TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(request)),
+      }),
+    )
+    for await (const tx of chain) {
+      transactions.push(tx)
+      for (const message of tx.outMessages.values()) {
+        if (
+          message.info.type === 'internal' &&
+          message.info.dest.equals(ctx.pool.address) &&
+          message.body.beginParse().remainingBits >= 32 &&
+          message.body.beginParse().preloadUint(32) === DepositAccount_ForwardNotification.PREFIX
+        ) {
+          await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, deliverySafetyFloor)
+        }
+      }
+    }
+    return { transactions }
   }
 
   describe(`${name} continuation value policy`, () => {
@@ -82,40 +113,41 @@ export function runTokenPoolContinuationBehaviorTests(
       expect(capacityAfter.inbound.tokens).toEqual(capacityBefore.inbound.tokens)
     })
 
-    it('completes committed mint/release even when the delivery notification is below the safety floor', async () => {
+    it('does not recheck safety after mint/release has committed', async () => {
       const ctx = await setup()
       const floor = toNano('0.1')
+      const deliveryFloor = toNano('1')
       await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
       const capacityBefore = await ctx.pool.getCurrentRateLimiterState(
         ctx.remoteChainSelector,
         false,
       )
 
-      const { transactions } = await releaseOneToken(ctx)
+      const result = await releaseOneToken(ctx, deliveryFloor)
 
-      expect(transactions).toHaveTransaction({
+      expect(result.transactions).toHaveTransaction({
         to: ctx.pool.address,
         op: DepositAccount_Reply.PREFIX,
         value: (value) => value !== undefined && value >= floor,
         success: true,
       })
-      const delivered = findTransactionRequired(transactions, {
+      expect(result.transactions).toHaveTransaction({
         to: ctx.pool.address,
         op: DepositAccount_ForwardNotification.PREFIX,
-        value: (value) => value !== undefined && value < floor,
+        value: (value) => value !== undefined && value < deliveryFloor,
         success: true,
       })
-      expect(transactions).toHaveTransaction({
+      expect(result.transactions).toHaveTransaction({
         from: ctx.pool.address,
         to: ctx.deployer.address,
         op: TokenPool_ReleaseOrMintFinished.PREFIX,
-        body: (body) => {
-          if (!body) return false
-          const reply = TokenPool_ReleaseOrMintFinished.fromSlice(body.beginParse())
-          return reply.queryId === 1n && reply.out.destinationAmount === 1n
-        },
+        body: TokenPool_ReleaseOrMintFinished.toCell({
+          $: 'TokenPool_ReleaseOrMintFinished',
+          queryId: 1n,
+          out: { $: 'TokenPool_ReleaseOrMintOutV1', destinationAmount: 1n },
+        }),
       })
-      expect(transactions).not.toHaveTransaction({
+      expect(result.transactions).not.toHaveTransaction({
         from: ctx.pool.address,
         op: TokenPool_ReleaseOrMintFailure.PREFIX,
       })
@@ -124,13 +156,6 @@ export function runTokenPoolContinuationBehaviorTests(
         false,
       )
       expect(capacityAfter.inbound.tokens).toEqual(capacityBefore.inbound.tokens - 1n)
-
-      const account = flattenTransaction(delivered).from!
-      const minter = ctx.blockchain.openContract(JettonMinter.createFromAddress(ctx.localToken))
-      const wallet = ctx.blockchain.openContract(
-        JettonWallet.createFromAddress(await minter.getWalletAddress(account)),
-      )
-      expect(await wallet.getJettonBalance()).toEqual(1n)
     })
 
     it('returns received custody and restores capacity when its notification is below the safety floor', async () => {

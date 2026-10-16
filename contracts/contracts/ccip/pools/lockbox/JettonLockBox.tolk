@@ -228,15 +228,19 @@ fun onDepositWithTransferNotification(
             body: failure,
         });
 
-        // Best-effort return carries the failure notification
+        // Best-effort return to the account named in the deposit (falls back to the depositor),
+        // sent plain so the recipient isn't re-notified; the failure is reported separately below.
+        val returnTo = deposit != null && deposit!.returnAddress != null
+            ? deposit!.returnAddress!
+            : msg.transferInitiator!;
         val transfer = AskToTransfer {
             queryId: msg.queryId,
             jettonAmount: msg.jettonAmount,
-            transferRecipient: msg.transferInitiator!,
-            sendExcessesTo: msg.transferInitiator,
+            transferRecipient: returnTo,
+            sendExcessesTo: returnTo,
             customPayload: null,
-            forwardTonAmount: jettonLockBoxReturnForwardValue(),
-            forwardPayload: failure.toCell().toForwardPayload(),
+            forwardTonAmount: 0,
+            forwardPayload: beginCell().storeMaybeRef(null).endCell().beginParse(),
         };
         failure.returnAttempted = sendTokenPoolRecoveryReturn(msgValue, sender, transfer, failureMsg);
 
@@ -270,6 +274,9 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     assert(!isZeroAddress(msg.recipientWallet), JettonLockBox_Error.RecipientCannotBeZeroAddress);
     assert(st.walletAddress != null, JettonLockBox_Error.UnsupportedToken);
 
+    // The log and transfer are separate actions. Protect the pre-message balance, then carry
+    // only the unreserved remainder after paying for the log and this transaction.
+    reserveBalanceBeforeInMessage(msgValue);
     emit<JettonLockBox_Withdraw>(TOPIC_WITHDRAWAL, msg);
 
     // Determine where to send ReturnExcessesBack (from extra cell or default to self).
@@ -309,7 +316,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
             forwardPayload: wrap.asForwardPayload(),
         },
     });
-    transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Handles bounced jetton transfers — notifies the original caller that the withdrawal failed.

@@ -196,8 +196,8 @@ describe('JettonLockBox', () => {
           destination: lockbox.address,
           responseDestination: operator.address,
           customPayload: null,
-          // Below the default sandbox admin floor; enough to execute the notification handler.
-          forwardTonAmount: toNano('0.003'),
+          // Below the safety floor but enough to execute the notification handler.
+          forwardTonAmount: toNano('0.005'),
           forwardPayload: payload,
         },
       })
@@ -243,7 +243,7 @@ describe('JettonLockBox', () => {
             destination: lockbox.address,
             responseDestination: operator.address,
             customPayload: null,
-            forwardTonAmount: toNano('0.05'),
+            forwardTonAmount: toNano('0.005'),
             forwardPayload: Cell.EMPTY,
           },
         })

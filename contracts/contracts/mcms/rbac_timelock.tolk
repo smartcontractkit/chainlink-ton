@@ -749,6 +749,7 @@ fun Timelock<T>.init(
     // @dev: anyone can call init, but only once. The deployer should send init message with stateInit (deployment).
     // Check that the contract is not already initialized
     assert(!self.isInitialized()) throw Timelock_Error.ContractAlreadyInitialized;
+
     // minval:check-admission gate=A/static Timelock_Init
     // must cover the init cost and rent reserve; rejects on shortfall
     assertMinValue(value, Timelock_Costs.init(), Timelock_Error.InsufficientFee);
@@ -885,10 +886,12 @@ fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint32): void {
 /// - the caller must have the 'canceller' or 'admin' role.
 ///
 fun Timelock<T>.cancel(mutate self, sender: address, _value: coins, queryId: uint64, id: uint256): void {
-// minval:best-effort gate=none Timelock_Cancel
-// GAP: role-gated, no value gate; add a safety check (check-bounce)
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     self.onlyRoleOrAdminRole(CANCELLER_ROLE, sender);
+
+    // minval:best-effort gate=none Timelock_Cancel
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     assert(self.isOperationPending(id)) throw Timelock_Error.OperationCanNotBeCancelled;
 
     // Remove the timestamp for the operation
@@ -1035,9 +1038,11 @@ fun Timelock<T>.updateDelay(
     queryId: uint64,
     newDelay: uint32
 ): void {
-// minval:best-effort gate=none Timelock_UpdateDelay
-// GAP: admin-only, no value gate; add a safety check (check-bounce)
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+
+    // minval:best-effort gate=none Timelock_UpdateDelay
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -1066,9 +1071,11 @@ fun Timelock<T>.updateOpFinalizationTimeout(
     queryId: uint64,
     newOpFinalizationTimeout: uint32
 ): void {
-// minval:best-effort gate=none Timelock_UpdateOpFinalizationTimeout
-// GAP: admin-only, no value gate; add a safety check (check-bounce)
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+
+    // minval:best-effort gate=none Timelock_UpdateOpFinalizationTimeout
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -1110,9 +1117,11 @@ fun Timelock<T>.blockFunctionSelector(
     queryId: uint64,
     selector: uint32
 ): bool {
-// minval:best-effort gate=none Timelock_BlockFunctionSelector
-// GAP: admin-only, no value gate; add a safety check (check-bounce)
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+
+    // minval:best-effort gate=none Timelock_BlockFunctionSelector
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -1147,9 +1156,11 @@ fun Timelock<T>.unblockFunctionSelector(
     queryId: uint64,
     selector: uint32,
 ): bool {
-// minval:best-effort gate=none Timelock_UnblockFunctionSelector
-// GAP: admin-only, no value gate; add a safety check (check-bounce)
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+
+    // minval:best-effort gate=none Timelock_UnblockFunctionSelector
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -1240,9 +1251,11 @@ fun Timelock<T>.updateExecutorRoleCheck(
     queryId: uint64,
     enabled: bool,
 ): void {
-// minval:best-effort gate=none Timelock_UpdateExecutorRoleCheck
-// GAP: admin-only, no value gate; add a safety check (check-bounce)
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+
+    // minval:best-effort gate=none Timelock_UpdateExecutorRoleCheck
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -1271,6 +1284,7 @@ fun Timelock<T>.submitErrorReport(
     errorCode: uint32
 ) {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+
     // minval:check-admission gate=A/static Timelock_SubmitErrorReport
     // must cover the error-report cost; rejects on shortfall
     assertMinValue(value, Timelock_Costs.submitErrorReport(), Timelock_Error.InsufficientFee);

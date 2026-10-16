@@ -42,7 +42,10 @@ import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvan
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as bouncer from '../../../wrappers/test/mock/Bouncer'
-import { DepositAccount } from '../../../wrappers/gen/ccip/DepositAccount'
+import {
+  DepositAccount,
+  DepositAccount_ForwardNotification,
+} from '../../../wrappers/gen/ccip/DepositAccount'
 import { runTokenPoolBehaviorTests } from './TokenPool.behavior'
 import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
@@ -522,7 +525,7 @@ describe('BurnMintTokenPool', () => {
   })
 
   it.each([
-    { inbound: '0.1', returned: false },
+    { inbound: '0.005', returned: false },
     { inbound: '0.3', returned: true },
   ])(
     'does not refund capacity for an unauthorized deposit with $inbound TON',
@@ -949,9 +952,9 @@ describe('BurnMintTokenPool', () => {
   })
 
   it.each([
-    { poolBalance: '0.08', bounceValue: '0.05', returnExpected: false },
-    { poolBalance: '0.12', bounceValue: '0.05', returnExpected: false },
-    { poolBalance: '0.25', bounceValue: '0.05', returnExpected: false },
+    { poolBalance: '0.08', bounceValue: '0.005', returnExpected: false },
+    { poolBalance: '0.12', bounceValue: '0.005', returnExpected: false },
+    { poolBalance: '0.25', bounceValue: '0.005', returnExpected: false },
     { poolBalance: '0.12', bounceValue: '0.2', returnExpected: true },
   ])(
     'recovers a burn bounce with $poolBalance TON balance and $bounceValue TON inbound',
@@ -1073,112 +1076,89 @@ describe('BurnMintTokenPool', () => {
     },
   )
 
-  it('mints tokens on releaseOrMint path and finalizes through the executor notification', async () => {
-    const result = await burnMintPool.sendTokenPoolReleaseOrMint(
-      deployer.getSender(),
-      toNano('0.6'),
-      {
-        queryId: 22n,
-        request: TokenPool_ReleaseOrMintInV1.create({
-          transfer: TokenPool_Transfer.create({
-            id: 22n,
-            details: TokenPool_TransferDetails.create({
-              originalSender: sourcePoolAddress,
-              remoteChainSelector,
-              receiver: recipient.address,
-              amount: toNano('2'),
-              localToken: cctMinter.address,
-            }),
+  function mintToRecipient(funding: string, queryId: bigint, offchainTokenData: Cell | null) {
+    return burnMintPool.sendTokenPoolReleaseOrMint(deployer.getSender(), toNano(funding), {
+      queryId,
+      request: TokenPool_ReleaseOrMintInV1.create({
+        transfer: TokenPool_Transfer.create({
+          id: queryId,
+          details: TokenPool_TransferDetails.create({
+            originalSender: sourcePoolAddress,
+            remoteChainSelector,
+            receiver: recipient.address,
+            amount: toNano('2'),
+            localToken: cctMinter.address,
           }),
-          sourcePoolAddress,
-          sourcePoolData: null,
-          offchainTokenData: null,
         }),
-        requestedFinalityConfig: 0n,
-        replyTo: deployer.address,
-      },
-    )
-
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: burnMintPool.address,
-      success: true,
+        sourcePoolAddress,
+        sourcePoolData: null,
+        offchainTokenData,
+      }),
+      requestedFinalityConfig: 0n,
+      replyTo: deployer.address,
     })
+  }
 
-    expect(result.transactions).toHaveTransaction({
-      from: burnMintPool.address,
-      to: cctMinter.address,
-      success: true,
-    })
+  it.each([
+    { payload: 'normal', offchainTokenData: null },
+    {
+      payload: 'large',
+      offchainTokenData: beginCell()
+        .storeBuffer(Buffer.alloc(120, 0xab))
+        .storeRef(beginCell().storeBuffer(Buffer.alloc(120, 0xcd)).endCell())
+        .endCell(),
+    },
+  ])(
+    'mints and forwards unused funding to the continuation ($payload payload)',
+    async ({ offchainTokenData }) => {
+      // Leave only the minter's storage reserve: minting must be funded by the message.
+      const minterAccount = await blockchain.getContract(cctMinter.address)
+      minterAccount.balance = toNano('0.01')
 
-    expect(result.transactions).toHaveTransaction({
-      from: burnMintPool.address,
-      to: deployer.address,
-      success: true,
-      op: TokenPool_ReleaseOrMintFinished.PREFIX,
-      body(body) {
-        if (!body) return false
-        const response = TokenPool_ReleaseOrMintFinished.fromSlice(body.beginParse())
-        return response.queryId === 22n && response.out.destinationAmount === toNano('2')
-      },
-    })
-  })
+      // First mint creates the recipient wallet; the second reuses it with more funding.
+      for (const [index, funding] of ['0.3', '0.6'].entries()) {
+        const queryId = 22n + BigInt(index)
+        const minterBalance = minterAccount.balance
+        const poolBalance = (await blockchain.getContract(burnMintPool.address)).balance
+        const supplyBefore = (await cctMinterRuntime.getJettonData()).totalSupply
+        const result = await mintToRecipient(funding, queryId, offchainTokenData)
 
-  it('always replies after minting on releaseOrMint', async () => {
-    const result = await burnMintPool.sendTokenPoolReleaseOrMint(
-      deployer.getSender(),
-      toNano('0.6'),
-      {
-        queryId: 305n,
-        request: TokenPool_ReleaseOrMintInV1.create({
-          transfer: TokenPool_Transfer.create({
-            id: 305n,
-            details: TokenPool_TransferDetails.create({
-              originalSender: sourcePoolAddress,
-              remoteChainSelector,
-              receiver: recipient.address,
-              amount: toNano('1'),
-              localToken: cctMinter.address,
-            }),
+        expect(result.transactions).toHaveTransaction({
+          from: burnMintPool.address,
+          to: cctMinter.address,
+          op: cct.MintNewJettons.PREFIX,
+          success: true,
+        })
+        // At most 0.1 TON is consumed/retained by deployment, minting and transfer costs.
+        // The rest must follow the continuation, even when the caller adds more funding.
+        expect(result.transactions).toHaveTransaction({
+          to: burnMintPool.address,
+          op: DepositAccount_ForwardNotification.PREFIX,
+          value: (value) => value !== undefined && value > toNano(funding) - toNano('0.1'),
+          success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: burnMintPool.address,
+          to: deployer.address,
+          op: TokenPool_ReleaseOrMintFinished.PREFIX,
+          body: TokenPool_ReleaseOrMintFinished.toCell({
+            $: 'TokenPool_ReleaseOrMintFinished',
+            queryId,
+            out: { $: 'TokenPool_ReleaseOrMintOutV1', destinationAmount: toNano('2') },
           }),
-          sourcePoolAddress,
-          sourcePoolData: null,
-          offchainTokenData: null,
-        }),
-        requestedFinalityConfig: 0n,
-        replyTo: deployer.address,
-      },
-    )
-
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: burnMintPool.address,
-      success: true,
-    })
-    expect(result.transactions).toHaveTransaction({
-      from: burnMintPool.address,
-      to: cctMinter.address,
-      success: true,
-    })
-
-    const releaseResponses = result.transactions.filter((tx: any) => {
-      const body = tx.inMessage?.body
-      if (!body) {
-        return false
+          success: true,
+        })
+        expect((await cctMinterRuntime.getJettonData()).totalSupply).toEqual(
+          supplyBefore + toNano('2'),
+        )
+        expect(minterAccount.balance).toBeGreaterThanOrEqual(minterBalance)
+        expect(minterAccount.balance - minterBalance).toBeLessThan(toNano('0.02'))
+        expect((await blockchain.getContract(burnMintPool.address)).balance).toBeGreaterThanOrEqual(
+          poolBalance,
+        )
       }
-
-      const slice = body.beginParse()
-      if (slice.remainingBits < 32) {
-        return false
-      }
-
-      return (
-        tx.inMessage?.info?.src?.equals?.(burnMintPool.address) &&
-        slice.preloadUint(32) === TokenPool_ReleaseOrMintFinished.PREFIX
-      )
-    })
-    expect(releaseResponses).toHaveLength(1)
-  })
+    },
+  )
 
   it('rejects forged CCT burn completions from an untrusted sender', async () => {
     const forged = await unauthorized.send({
