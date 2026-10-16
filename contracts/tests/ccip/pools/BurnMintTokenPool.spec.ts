@@ -43,6 +43,7 @@ import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvan
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as bouncer from '../../../wrappers/test/mock/Bouncer'
+import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 import {
   deliveryTo,
   parseDepositAccountNotify,
@@ -51,6 +52,8 @@ import {
 import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
 import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
+import { deriveOnRampAccountAddress } from '../../../wrappers/ccip/OnRampAccount'
+import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 
 // Builds a forged `CCT_ReturnExcessesBack` carrying a burn continuation payload. It is sent
 // from an unauthorized sender, so the pool must reject it (sender not the CCT minter).
@@ -76,6 +79,7 @@ describe('BurnMintTokenPool', () => {
   let burnMintPool: SandboxContract<BurnMintTokenPool>
   let pool: SandboxContract<TokenPool>
   let cctWalletCode: Cell
+  let deployableCode: Cell
 
   let userWallet: (address: Address) => Promise<SandboxContract<JettonWallet>>
 
@@ -102,6 +106,7 @@ describe('BurnMintTokenPool', () => {
     cctWalletCode = await contractCode.ccip.local('ccip.cct.JettonWallet')
     const cctMinterCode = await contractCode.ccip.local('ccip.cct.JettonMinter')
     const burnMintPoolCode = await contractCode.ccip.local('ccip.pool.BurnMintTokenPool')
+    deployableCode = await contractCode.ccip.local('Deployable')
 
     cctMinter = blockchain.openContract(
       cct.JettonMinter.fromStorage(
@@ -128,7 +133,7 @@ describe('BurnMintTokenPool', () => {
                 router: deployer.address,
                 rateLimitAdmin: null,
                 feeAdmin: null,
-                allowedDepositNamespaces: new Set(),
+                allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
               }),
               jettonClient: JettonClient.create({
                 masterAddress: cctMinter.address,
@@ -136,6 +141,7 @@ describe('BurnMintTokenPool', () => {
               }),
               allowedFinalityConfig: 0n,
               advancedPoolHooks: null,
+              deployableCode,
             }),
             localPolicy: TokenPool_LocalPolicy.create({
               cursePolicy: createEmptyCursePolicy(deployer.address),
@@ -359,7 +365,6 @@ describe('BurnMintTokenPool', () => {
     // Performs a successful fee-accruing lock of `amount` jettons. The pool burns only the
     // post-fee amount, leaving `feeAmount` in the pool's own wallet.
     const doLock = async (amount: bigint, queryId: bigint) => {
-      const onRampWallet = await userWallet(deployer.address)
       const feeAmount = (amount * feeBps) / 10000n
       const lockOrBurn = TokenPool_LockOrBurn.create({
         queryId,
@@ -391,7 +396,29 @@ describe('BurnMintTokenPool', () => {
           }),
         }),
       })
-      await onRampWallet.sendTransfer(deployer.getSender(), {
+      const accountAddress = deriveOnRampAccountAddress({
+        router: deployer.address,
+        user: deployer.address,
+        token: cctMinter.address,
+        deployableCode,
+      })
+      const deployerWallet = await userWallet(deployer.address)
+      await deployerWallet.sendTransfer(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: Number(queryId),
+          jettonAmount: amount,
+          destination: accountAddress,
+          responseDestination: deployer.address,
+          customPayload: null,
+          forwardTonAmount: 0n,
+          forwardPayload: null,
+        },
+      })
+      const accountWallet = await userWallet(accountAddress)
+      // The jetton wallet only accepts AskToTransfer from its owner (the OnRampAccount), so
+      // impersonate the account — exactly what the real Router-driven withdraw does.
+      const result = await accountWallet.sendTransfer(blockchain.sender(accountAddress), {
         value: toNano('2'),
         message: {
           queryId: Number(queryId),
@@ -400,8 +427,18 @@ describe('BurnMintTokenPool', () => {
           responseDestination: deployer.address,
           customPayload: null,
           forwardTonAmount: toNano('0.5'),
-          forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(transferPayload),
+          forwardPayload: da.Jetton_ForwardPayloadWrap.toCell(
+            da.Jetton_ForwardPayloadWrap.create({
+              initiator: deployer.address, // the Router: the pool requires it as the initiator
+              context: null,
+              forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(transferPayload),
+            }),
+          ),
         },
+      })
+      expect(result.transactions).toHaveTransaction({
+        to: burnMintPool.address,
+        success: true,
       })
       return { feeAmount }
     }
@@ -618,7 +655,6 @@ describe('BurnMintTokenPool', () => {
 
   describe('lockOrBurn transfer input validation', () => {
     it('returns tokens and notifies the requester when payload amount does not match transferred amount', async () => {
-      const onRampWallet = await userWallet(deployer.address)
       const poolWallet = await userWallet(burnMintPool.address)
       const requestMsg = TokenPool_LockOrBurn.create({
         queryId: 304n,
@@ -650,7 +686,27 @@ describe('BurnMintTokenPool', () => {
           }),
         }),
       })
-      const result = await onRampWallet.sendTransfer(deployer.getSender(), {
+      const accountAddress = deriveOnRampAccountAddress({
+        router: deployer.address,
+        user: deployer.address,
+        token: cctMinter.address,
+        deployableCode,
+      })
+      const deployerWallet = await userWallet(deployer.address)
+      await deployerWallet.sendTransfer(deployer.getSender(), {
+        value: toNano('2'),
+        message: {
+          queryId: 304,
+          jettonAmount: toNano('2'),
+          destination: accountAddress,
+          responseDestination: deployer.address,
+          customPayload: null,
+          forwardTonAmount: 0n,
+          forwardPayload: null,
+        },
+      })
+      const accountWallet = await userWallet(accountAddress)
+      const result = await accountWallet.sendTransfer(blockchain.sender(accountAddress), {
         value: toNano('2'),
         message: {
           queryId: 304,
@@ -659,7 +715,13 @@ describe('BurnMintTokenPool', () => {
           responseDestination: deployer.address,
           customPayload: null,
           forwardTonAmount: toNano('0.2'),
-          forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
+          forwardPayload: da.Jetton_ForwardPayloadWrap.toCell(
+            da.Jetton_ForwardPayloadWrap.create({
+              initiator: deployer.address, // the Router: the pool requires it as the initiator
+              context: null,
+              forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
+            }),
+          ),
         },
       })
 
@@ -691,7 +753,7 @@ describe('BurnMintTokenPool', () => {
           )
         },
       })
-      expect(await onRampWallet.getJettonBalance()).toEqual(toNano('10'))
+      expect(await (await userWallet(accountAddress)).getJettonBalance()).toEqual(toNano('2'))
       expect(await poolWallet.getJettonBalance()).toEqual(0n)
     })
 
@@ -827,15 +889,36 @@ describe('BurnMintTokenPool', () => {
       expectedForwardPayload.prepared.destTokenAmount,
     )
 
-    // === Step 2: Send jettons from deployer wallet to pool with the pool's forward payload ===
+    // === Step 2: Deposit through the impersonated OnRampAccount wallet with the pool's
+    // forward payload ===
     const forwardPayloadCell = TokenPool_LockOrBurnForwardPayload.toCell(
       withdrawBody.forwardPayload,
     )
 
+    const accountAddress = deriveOnRampAccountAddress({
+      router: deployer.address,
+      user: deployer.address,
+      token: cctMinter.address,
+      deployableCode,
+    })
+    await deployerWallet.sendTransfer(deployer.getSender(), {
+      value: toNano('2'),
+      message: {
+        queryId: Number(queryId),
+        jettonAmount,
+        destination: accountAddress,
+        responseDestination: deployer.address,
+        customPayload: null,
+        forwardTonAmount: 0n,
+        forwardPayload: null,
+      },
+    })
+    const accountWallet = await userWallet(accountAddress)
+
     // Jetton wallet sends TransferNotificationForRecipient to the pool.
     // Pool sends CCT_AskToBurn (with continuation context) to its own wallet; the CCT wallet
     // relays it via the minter back to the pool on CCT_ReturnExcessesBack, which finalizes.
-    const result2 = await deployerWallet.sendTransfer(deployer.getSender(), {
+    const result2 = await accountWallet.sendTransfer(blockchain.sender(accountAddress), {
       value: toNano('0.5'),
       message: {
         queryId: Number(queryId),
@@ -844,7 +927,13 @@ describe('BurnMintTokenPool', () => {
         responseDestination: null,
         customPayload: null,
         forwardTonAmount: toNano('0.3'),
-        forwardPayload: forwardPayloadCell,
+        forwardPayload: da.Jetton_ForwardPayloadWrap.toCell(
+          da.Jetton_ForwardPayloadWrap.create({
+            initiator: deployer.address, // the Router: the pool requires it as the initiator
+            context: null,
+            forwardPayload: forwardPayloadCell,
+          }),
+        ),
       },
     })
 

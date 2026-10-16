@@ -116,7 +116,7 @@ fun onInternalMessage(in: InMessage) {
         Router_WithdrawToTokenPool => {
             var st = lazy Storage.load();
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
-            onWithdrawToTokenPool(mutate st, msg);
+            onWithdrawToTokenPool(mutate st, msg, in.senderAddress);
         }
         // Sender must be OnRamp
         Router_WithdrawToTokenPoolFailed => {
@@ -342,7 +342,7 @@ fun onBouncedMessage(in: InMessageBounced) {
             }
             // The on-ramp account rejected the withdraw (e.g. it doesn't know its wallet yet).
             DepositAccount_Withdraw => {
-                failWithdrawToTokenPool(richMsg.ask.load(), rich.exitCode);
+                failWithdrawToTokenPool(richMsg, rich.exitCode);
             }
         }
         return;
@@ -399,7 +399,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
 /// Asks the sender's on-ramp account to transfer the jettons to the pool. A rejected or bounced
 /// transfer fails the CCIPSend through `failWithdrawToTokenPool`, which finds the executor in the
 /// transfer's forward payload, so that payload must name the executor requesting the withdraw.
-fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
+fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool, onramp: address) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
     val fwdp = lazy withdrawRequest.forwardPayload.load();
     val request = lazy fwdp.requestMsg.load();
@@ -417,16 +417,15 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
         dest: withdrawRequest.depositAccount,
         body: DepositAccount_Withdraw {
             queryId: msg.queryID,
-            ask: AskToTransfer {
-                queryId: msg.queryID,
+            ask: DepositAccount_WithdrawAskToTransfer {
                 jettonAmount: withdrawRequest.amount,
                 transferRecipient: withdrawRequest.tokenPool,
-                // TBD the Depossit account only allows sendExcessesTo to point to sender (Router). This will result in the Router slowly accumulating excess funds over time.
-                sendExcessesTo: contract.getAddress(),
+                // @notice we want the OnRamp to keep any excess funds, so we set sendExcessesTo to the sender (OnRamp).
+                sendExcessesTo: onramp,
                 customPayload: null,
                 forwardTonAmount: grams("0.5"),
-                forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
-            }.toCell(),
+                forwardPayload: withdrawRequest.forwardPayload,
+            },
         },
     });
     withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -507,22 +506,22 @@ fun onOnRampAccountReady(context: Router_OnRampAccountContext, msg: DepositAccou
 ///      Off-ramp accounts never report here: only their receiver can withdraw from them.
 fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: address) {
     assert(sender == onRampAccountAddress(msg.user, msg.token), Router_Error.SenderIsNotOnRampAccount);
-    val ask = lazy msg.ask.load();
+    val request = lazy msg.request.load();
     emit(TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC, TokenPoolWithdrawBounced {
         wallet: msg.walletAddress,
-        tokenPool: ask.transferRecipient,
+        tokenPool: request.ask.transferRecipient,
         queryId: msg.queryId,
         exitCode: 0,
     });
-    failWithdrawToTokenPool(ask, Router_Error.OnRampAccountWithdrawFailed as int32);
+    failWithdrawToTokenPool(request, Router_Error.OnRampAccountWithdrawFailed as int32);
 }
 
 /// Fails the CCIPSend whose withdraw from the sender's on-ramp account did not go through. `ask`
 /// was built by `onWithdrawToTokenPool`, which checked that its forward payload names the executor.
-fun failWithdrawToTokenPool(ask: AskToTransfer, exitCode: int32) {
-    val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromSlice(loadForwardPayloadAsSlice(ask.forwardPayload)!);
-    val request = lazy fwdp.requestMsg.load();
-    sendLockOrBurnRelayFailure(request.replyTo!, ask.queryId, ask.transferRecipient!, exitCode);
+fun failWithdrawToTokenPool(request: DepositAccount_Withdraw, exitCode: int32) {
+    val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromCell(request.ask.forwardPayload!);
+    val lockOrBurn = lazy fwdp.requestMsg.load();
+    sendLockOrBurnRelayFailure(lockOrBurn.replyTo!, lockOrBurn.queryId, request.ask.transferRecipient, exitCode);
 }
 
 /// Returns accidentally transferred jettons to the transfer initiator. The Router's own jetton

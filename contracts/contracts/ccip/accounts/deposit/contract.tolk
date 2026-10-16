@@ -23,6 +23,7 @@ contract DepositAccount {
         | DepositAccount_InMessage
     outgoingMessages:
         | DepositAccount_OutMessage
+    forceAbiExport: Jetton_ForwardPayloadWrap
 }
 
 const CONTRACT_VERSION = "0.1.0".literalSlice();
@@ -45,7 +46,7 @@ fun onInternalMessage(in: InMessage) {
             onInit(in.senderAddress, in.valueCoins, msg);
         }
         DepositAccount_Withdraw => {
-            onWithdraw(in.senderAddress, msg);
+            onWithdraw(in.senderAddress, msg, in.body.toCell());
         }
         TransferNotificationForRecipient => {
             onTransferNotification(in.senderAddress, msg, in.body);
@@ -155,36 +156,48 @@ fun replyToPendingInit(mutate data: DepositAccount_Data, walletLearned: bool) {
     }
 }
 
-fun onWithdraw(sender: address, msg: DepositAccount_Withdraw) {
+fun onWithdraw(sender: address, msg: DepositAccount_Withdraw, msgCell: cell) {
     val data = lazy DepositAccount_Data.load();
     assert(data.beneficiaries.exists(sender), DepositAccount_Error.OnlyBeneficiary);
     assert(data.wallet != null, DepositAccount_Error.WalletUnknown);
-    val ask = lazy msg.ask.load();
-    assert(ask.sendExcessesTo != null && ask.sendExcessesTo == sender, DepositAccount_Error.OnlySendExcessesToSender);
 
     val transfer = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
         dest: data.wallet.load(),
-        body: msg.ask,
+        body: AskToTransfer {
+            queryId: msg.queryId,
+            jettonAmount: msg.ask.jettonAmount,
+            transferRecipient: msg.ask.transferRecipient,
+            sendExcessesTo: msg.ask.sendExcessesTo,
+            customPayload: msg.ask.customPayload,
+            forwardTonAmount: msg.ask.forwardTonAmount,
+            forwardPayload: Jetton_ForwardPayloadWrap {
+                initiator: sender,
+                forwardPayload: msg.ask.forwardPayload,
+                // @notice we use msgCell as an optimization to avoid reconstructing the cell from the message body
+                context: msgCell,
+            }.toCell().toForwardPayload(),
+        },
     });
     transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
-/// Reports the bounced withdraw to its requester. `onWithdraw` only accepts an `AskToTransfer`
-/// whose `sendExcessesTo` is the requesting beneficiary.
+/// Reports the bounced withdraw to its requester.
 fun onWithdrawBounced(wallet: address, ask: AskToTransfer) {
     val data = lazy DepositAccount_Data.load();
+    val wrap = Jetton_ForwardPayloadWrap.from(ask.forwardPayload).unwrap(DepositAccount_Error.InvalidForwardPayload);
+    assert(wrap.context != null && wrap.forwardPayload != null, DepositAccount_Error.InvalidForwardPayload);
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
-        dest: ask.sendExcessesTo!,
+        dest: wrap.initiator,
         body: DepositAccount_WithdrawFailed {
             queryId: ask.queryId,
             user: data.user,
             token: data.token,
             walletAddress: wallet,
-            ask: ask.toCell(),
+            request: wrap.context as Cell<DepositAccount_Withdraw>,
         },
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

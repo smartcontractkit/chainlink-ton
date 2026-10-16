@@ -21,6 +21,7 @@ import "messages"
 import "events"
 import "recovery"
 import "../rate_limiter"
+import "../../../../lib/jetton/forward_payload_wrap"
 
 /// @notice Base abstract class with common functions for all token pools.
 /// A token pool serves as isolated place for holding tokens and token specific logic
@@ -1489,15 +1490,16 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     assert(self.data.jettonClient().isWallet(sender), TokenPool_Error.Unauthorized);
 
     try {
-        // Authentication - we accept a deposit from either (1) the Router, or (2) a known Deployable namespace
-        // with Router as owner (a known deployable addr key, per-user deposit account), where  multiple namespaces
-        // can represent different types of OnRampAccount contracts. The TP needs to know (1) the Deployable
-        // code (stable), (2) the Router address (stable), and (3) a set of namespaces (account types) it trusts.
+        // Authentication - we only accept deposits from Router-owned deposit accounts (e.g.
+        // OnRampAccounts) in namespaces the pool owner allowlisted. The TP needs to know (1) the
+        // Deployable code (stable), (2) the Router address (stable), and (3) a set of namespaces
+        // (account types) it trusts. The wrap's `initiator` must be the Router, so a beneficiary
+        // withdrawing directly from its account cannot smuggle an arbitrary forward payload.
 
-        val forwardPayload = loadForwardPayloadAsSlice(msg.forwardPayload);
-        val fwdp = TokenPool_LockOrBurnForwardPayload.fromSlice(forwardPayload!);
+        val wrapper = Jetton_ForwardPayloadWrap.from(msg.forwardPayload)!;
+        val fwdp = TokenPool_LockOrBurnForwardPayload.fromCell(wrapper.forwardPayload!);
 
-        self.processLockOrBurnTransfer(sender, msg, fwdp, msgValue);
+        self.processLockOrBurnTransfer(sender, msg, fwdp, msgValue, wrapper.initiator);
     } catch {
         // Malformed or unauthenticated payloads cannot authorize a capacity refund or reply.
         // Custody can still be returned if the notification funds recovery.
@@ -1506,22 +1508,23 @@ fun TokenPool<T>.onLockOrBurnTransfer(
 }
 
 /// Process a decoded Jetton transfer notification after its sender has been authenticated.
-/// @dev Deposit-source auth happens here, on the decoded forward payload: we accept custody that
-///      was initiated by (1) the configured Router's own wallet, or (2) a Deployables-derived
-///      per-user deposit account (e.g. OnRampAccount) whose namespace is allowed in dynamic config.
+/// @dev Deposit-source auth happens here, on the decoded forward payload: we accept custody only
+///      from a Deployables-derived per-user deposit account (e.g. OnRampAccount) whose namespace
+///      is allowed in dynamic config, when the withdrawal was initiated by the Router itself.
 fun TokenPool<T>.processLockOrBurnTransfer(
     mutate self,
     sender: address,
     msg: TransferNotificationForRecipient,
     fwdp: TokenPool_LockOrBurnForwardPayload,
     msgValue: coins,
+    withdrawalInitiator: address,
 ): void {
     val requestMsg = lazy fwdp.requestMsg.load();
     val request = lazy requestMsg.request.load();
     val details = lazy request.transfer.details.load();
 
     assert(msg.transferInitiator != null, TokenPool_Error.MissingTransferInitiator);
-    self.assertAuthorizedDepositInitiator(msg.transferInitiator!, details.originalSender);
+    self.assertAuthorizedDepositInitiator(msg.transferInitiator, withdrawalInitiator, details.originalSender);
 
     try {
         assert(details.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
@@ -1545,37 +1548,42 @@ fun TokenPool<T>.processLockOrBurnTransfer(
 
 /// Verifies that a deposit was initiated by a trusted source before the pool accepts custody.
 ///
-/// @param initiator The wallet owner that initiated the inbound Jetton transfer (`transferInitiator`).
+/// @param transferInitiator The wallet owner that initiated the inbound Jetton transfer.
+/// @param withdrawalInitiator The address that requested the DepositAccount to make the transfer.
 /// @param originalSender The original CCIP sender on the source chain, used to derive its
 ///        Router-owned account.
 ///
-/// @dev Accepts (1) the configured Router (standard LockOrBurn path), or (2) a Router deposit
-///      account in an allowed namespace for (originalSender, the pool's jetton master), so an
-///      account holding a different jetton never authenticates here.
+/// @dev Accepts an OnRampAccount deposit account in an allowed namespace for (originalSender,
+///        the pool's jetton master), so an account holding a different jetton never authenticates here.
 /// 
-///      Deposit-account acceptance is opt-in: the owner must configure its code and allowed namespaces.
-///      All other initiators are rejected, even when deposit accounts are disabled.
+///      The `withdrawalInitiator == Router` check is what makes the forward payload trustworthy:
+///      a deposit-account beneficiary could otherwise withdraw (to this pool) with an arbitrary
+///      payload and spoof a transfer the Router never admitted. Account-auth is opt-in: it is
+///      only enforced once the pool owner configures it (code, allowed namespaces).
 fun TokenPool<T>.assertAuthorizedDepositInitiator(
     self,
-    initiator: address,
+    transferInitiator: address,
+    withdrawalInitiator: address,
     originalSender: address,
 ): void {
     val adminConfig = lazy self.data.adminConfig.load();
     val dynamicConfig = lazy adminConfig.dynamicConfig.load();
     val router = dynamicConfig.router;
 
-    // The Router itself is always a trusted source (standard Router -> pool withdraw path).
-    if (initiator == router) {
-        return;
-    }
-
     // Look through all allowed namespace/account types for one that derives to `initiator`.
     var entry = dynamicConfig.allowedDepositNamespaces.findFirst();
     while (entry.isFound) {
         val namespace: Namespace = entry.getKey();
-        val account = self.deriveDepositAccount(router, namespace, originalSender)
-            .calculateAddress();
-        if (initiator == account) {
+        val account = self.deriveDepositAccount(
+            dynamicConfig.router,
+            namespace,
+            originalSender,
+        ).calculateAddress();
+        if (transferInitiator == account) {
+            // Once we have verified that the transfer initiator matches a derived deposit account,
+            // we must ensure that the withdrawal initiator is the Router itself so we can trust the
+            // forward payload
+            assert (withdrawalInitiator == dynamicConfig.router) throw TokenPool_Error.Unauthorized;
             return;
         }
 
