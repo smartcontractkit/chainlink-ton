@@ -57,7 +57,7 @@ fun onInternalMessage(in: InMessage) {
             acceptAdminRole(msg, in.senderAddress);
         }
         TokenAdminRegistry_SetPool => {
-            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_POOL_PROBE_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
             setPool(msg, in.senderAddress);
         }
         TokenAdminRegistry_GetTokenInfo => {
@@ -99,6 +99,14 @@ fun onInternalMessage(in: InMessage) {
             val st = TokenAdminRegistry_Storage.load();
             requireEntrySender(st, msg.token, in.senderAddress);
             emitPoolSet(msg);
+        }
+        TokenAdminRegistry_VerifyToken => {
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_WALLET_QUERY_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
+            forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_VerifyToken {});
+        }
+        TokenAdminRegistry_RefreshTransferInitiator => {
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_POOL_PROBE_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
+            forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_RefreshTransferInitiator {});
         }
         else => {
             var st = lazy TokenAdminRegistry_Storage.load();
@@ -211,6 +219,7 @@ fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
             token: msg.token,
             minterAddress: tokenInfo.minterAddress,
             tokenPool: tokenInfo.tokenPool,
+            transferInitiator: tokenInfo.transferInitiator == null ? null : tokenInfo.transferInitiator!.toCell(),
             version: tokenInfo.version,
         },
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -233,6 +242,9 @@ fun emitPoolSet(event: TokenAdminRegistry_PoolSet) {
 /// This is intentionally create-only. Callers resolve the outcome by deriving
 /// the entry address and reading its config after finality; retrying this
 /// message against an existing entry is expected to fail in Deployable.
+///
+/// The entry then queries the token with TEP-89 and stays disabled until the token
+/// answers with a wallet. See TokenAdminRegistry_VerifyToken to query again.
 fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_RegisterToken) {
     // TODO: add self-service registration once TON has a canonical,
     // independently verifiable proof that the sender controls the token minter.
@@ -243,14 +255,14 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
         // Covers Deployable initialization and the event self-message below.
         // The former Router flow only initialized the shard; this path also
         // emits the initial administrator-proposal event atomically.
-        value: grams("0.05"),
+        value: grams("0.07") + TokenAdminRegistryEntry_WALLET_QUERY_VALUE + TokenAdminRegistryEntry_POOL_PROBE_VALUE,
         dest: entryAddress(msg.tokenAddress),
         body: Deployable_InitializeAndSend {
             stateInit: {
                 code: entryCode(),
                 data: TokenRegistry_Storage {
                     tokenAddress: msg.tokenAddress,
-                    tokenInfo: msg.tokenInfo.load(),
+                    tokenInfo: msg.tokenInfo,
                     adminConfig: TokenRegistry_AdminConfig {
                         tokenAdminRegistry: contract.getAddress(),
                         administrator: null,
@@ -261,7 +273,7 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
             // The entry emits the initial proposal event after its state is
             // installed. This is not a second root-to-entry operation.
             selfMessage: {
-                value: grams("0.015"),
+                value: grams("0.035") + TokenAdminRegistryEntry_WALLET_QUERY_VALUE + TokenAdminRegistryEntry_POOL_PROBE_VALUE,
                 body: TokenAdminRegistryEntry_RegistrationInitialized {
                     queryId: msg.queryId,
                 }.toCell(),

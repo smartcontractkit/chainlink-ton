@@ -1110,6 +1110,7 @@ describe('SendExecutor - Unit tests', () => {
         token: WRAPPED_NATIVE,
         minterAddress: minterBouncer.address,
         tokenPool: deployer.address, // non-null so the executor proceeds
+        transferInitiator: null,
         version: 0n,
       },
     )
@@ -1158,6 +1159,7 @@ describe('SendExecutor - Unit tests', () => {
         token: WRAPPED_NATIVE,
         minterAddress: deployer.address,
         tokenPool: null, // token not enabled
+        transferInitiator: null,
         version: 0n,
       },
     )

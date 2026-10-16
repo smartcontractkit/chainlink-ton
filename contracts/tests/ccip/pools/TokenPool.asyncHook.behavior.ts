@@ -20,7 +20,7 @@ import {
   TokenPool_LockOrBurnFailure,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
-import { TokenPoolBehaviorContext, releaseRequest } from './TokenPool.behavior'
+import { TokenPoolBehaviorContext, deliveryTo, releaseRequest } from './TokenPool.behavior'
 // Async Hook Behavior Tests (TON-TP/6)
 // ———————————————————————————————————————————————————————————————————————————————
 
@@ -216,6 +216,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.offRamp.address),
         },
       )
 
@@ -249,6 +250,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.offRamp.address),
         },
       )
 
@@ -353,6 +355,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
         },
       )
 
@@ -429,6 +432,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request: requestEven,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.offRamp.address),
         },
       )
 
@@ -448,6 +452,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request: requestOdd,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.offRamp.address),
         },
       )
 
