@@ -7,7 +7,7 @@ sidebar_position: 2
 
 # wGRAM - Gas Reporter And Fee Constants
 
-The fee guards in `fees-management.tolk` must stay aligned with the measured live paths covered by [tests/gas-report/wgram/wgram.spec.ts](../../../../contracts/tests/gas-report/wgram/wgram.spec.ts).
+The fee guards in `fees-management.tolk` must stay aligned with the measured live paths covered by [tests/gas-report/token/wgram.spec.ts](../../../../contracts/tests/gas-report/token/wgram.spec.ts).
 
 From [contracts/package.json](../../../../contracts/package.json), run the dedicated reporter from the `contracts` workspace:
 

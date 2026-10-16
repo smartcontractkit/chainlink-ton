@@ -2,6 +2,8 @@
 tolk 1.4.2
 
 import "../lib/utils";
+import "../lib/budget/gas";
+import "../lib/budget/min_value";
 import "../lib/secp256k1";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/crypto/merkle_proof.tolk";
@@ -735,9 +737,9 @@ fun MCMS<T>.setRoot(
     signatures: SnakedCell<Signature>,
 ) {
     // Verify value covers the fee
-    if (value < MCMS_Costs.setRoot()) {
-        throw MCMS_Error.InsufficientFee;
-    }
+    // minval:check-admission gate=A/static MCMS_SetRoot
+    // must cover the set-root cost; rejects on shortfall
+    assertMinValue(value, MCMS_Costs.setRoot(), MCMS_Error.InsufficientFee);
 
     if (validUntil < blockchain.now()) {
         throw MCMS_Error.ValidUntilHasAlreadyPassed;
@@ -965,9 +967,9 @@ fun MCMS<T>.execute(
     proof: SnakedCell<uint256>,
 ) {
     // Verify value covers the fee
-    if (value < MCMS_Costs.execute()) {
-        throw MCMS_Error.InsufficientFee;
-    }
+    // minval:check-admission gate=A/dynamic MCMS_Execute
+    // covers the execute cost and the op.value floor; fans out to the target
+    assertMinValue(value, MCMS_Costs.execute(), MCMS_Error.InsufficientFee);
 
     // Unpack the root info from the contract data
     val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
@@ -1002,9 +1004,7 @@ fun MCMS<T>.execute(
 
     // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
     // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-    if (op.value < calculateGasFeeDefault()) {
-        throw MCMS_Error.InsufficientValue;
-    }
+    assertMinValue(op.value, calculateGasFeeDefault(), MCMS_Error.InsufficientValue);
 
     // verify that the op exists in the merkle tree
     // @dev we use the standard sha256 hash function to hash the leaf.
@@ -1092,9 +1092,9 @@ fun MCMS<T>.setConfig(
     self.data.ownable.requireOwner(sender);
 
     // Verify value covers the fee
-    if (value < MCMS_Costs.setConfig()) {
-        throw MCMS_Error.InsufficientFee;
-    }
+    // minval:check-admission gate=A/static MCMS_SetConfig
+    // must cover the set-config cost; rejects on shortfall
+    assertMinValue(value, MCMS_Costs.setConfig(), MCMS_Error.InsufficientFee);
 
     // Validate input lengths
     var signerAddrsIterator = signerAddresses.iter();
@@ -1282,6 +1282,9 @@ fun MCMS<T>.updateOpFinalizationTimeout(
     queryId: uint64,
     newOpFinalizationTimeout: uint32
 ): void {
+    // minval:best-effort gate=none MCMS_UpdateOpFinalizationTimeout
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     self.data.ownable.requireOwner(sender);
 
     // Unpack the root info from the contract data
@@ -1329,10 +1332,9 @@ fun MCMS<T>.submitErrorReport(
         throw MCMS_Error.UnauthorizedOracle;
     }
 
-    // Verify value covers the fee
-    if (value < MCMS_Costs.submitErrorReport()) {
-        throw MCMS_Error.InsufficientFee;
-    }
+    // minval:check-admission gate=A/static MCMS_SubmitErrorReport
+    // must cover the error-report cost; rejects on shortfall
+    assertMinValue(value, MCMS_Costs.submitErrorReport(), MCMS_Error.InsufficientFee);
 
     // Check if right environment via chainId
     if (op.chainId != globalId() as int256) {
@@ -1405,6 +1407,9 @@ fun MCMS<T>.transferOracleRole(
     queryId: uint64,
     newOracle: address
 ) {
+    // minval:best-effort gate=none MCMS_TransferOracleRole
+    // the caller's dispatch owns funding; TODO: check-bounce
+    
     self.data.ownable.requireOwner(sender);
 
     val oldOracle = self.data.oracle;
@@ -1429,6 +1434,9 @@ fun MCMS<T>.cleanExpiredRoots(
     queryId: uint64,
     roots: SnakedCell<RootDescriptor>,
 ) {
+    // minval:best-effort gate=none MCMS_CleanExpiredRoots
+    // TODO: no value gate; loops over roots; add a safety check
+
     self.data.ownable.requireOwner(sender);
 
     var rootsIter = roots.iter();
@@ -1553,12 +1561,18 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
             self.cleanExpiredRoots(msgSender, msgValue, msg.queryId, msg.roots);
         }
         // noop handlers (expected replies for ownable ops when owning self)
+        // minval:non-reject gate=none MCMS_OracleRoleTransferred
+        // noop reply to our own oracle-role transfer; nothing to finalize
         MCMS_OracleRoleTransferred => {
             // noop
         }
+        // minval:non-reject gate=none MCMS_ConfigSet
+        // noop reply to our own config set; nothing to finalize
         MCMS_ConfigSet => {
             // noop
         },
+        // minval:non-reject gate=none MCMS_ExpiredRootsCleaned
+        // noop reply to our own roots cleanup; nothing to finalize
         MCMS_ExpiredRootsCleaned => {
             // noop
         }

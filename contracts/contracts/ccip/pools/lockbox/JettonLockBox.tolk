@@ -8,6 +8,9 @@ import "../../../lib/access/access_control"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/forward_payload_wrap"
+import "../../../lib/budget/min_value"
+
+import "../../budget/min_value"
 
 import "../lib/token_pool/recovery"
 
@@ -52,10 +55,10 @@ fun onInternalMessage(in: InMessage) {
             onDepositWithTransferNotification(mutate st, in.senderAddress, in.valueCoins, msg);
         }
         JettonLockBox_Withdraw => {
-            onWithdraw(mutate st, in.senderAddress, msg);
+            onWithdraw(mutate st, in.senderAddress, in.valueCoins, msg);
         }
         JettonLockBox_Init => {
-            onInit(mutate st, in.senderAddress, msg);
+            onInit(mutate st, in.senderAddress, in.valueCoins, msg);
         }
         else => {
             var rbac = hookTrait__AccessControl(st);
@@ -81,8 +84,13 @@ fun onInternalMessage(in: InMessage) {
 
 /// One-time initialization: sets jetton addresses and grants admin role.
 /// @dev The deployer binds itself as the authorized initializer at construction (stateInit).
-fun onInit(mutate st: Storage, sender: address, msg: JettonLockBox_Init) {
+fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLockBox_Init) {
     assert(!st.isInitialized(), JettonLockBox_Error.ContractAlreadyInitialized);
+
+    // minval:check-bounce gate=S JettonLockBox_Init
+    // one-time init; reject shortfall before binding initializer or changing configuration
+    val minValue = ccipMinValue();
+    assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
 
     // Prevent front-running: only the deployer bound at construction may initialize. When no
     // initializer was bound we adopt the caller so the lockbox can never be left uninitializable.
@@ -173,12 +181,18 @@ fun onDepositWithTransferNotification(
     } catch {}
 
     try {
+        // Custody already arrived: validation and value failures use the existing custody-return path.
         assert(deposit != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
         val rbac = hookTrait__AccessControl(st);
         rbac.requireRole(OPERATOR_ROLE, msg.transferInitiator!);
 
         assert(deposit!.token == st.minterAddress, JettonLockBox_Error.UnsupportedToken);
         assert(deposit!.amount == msg.jettonAmount, JettonLockBox_Error.MissingOrMalformedForwardPayload);
+
+        // minval:check-fail gate=S JettonLockBox.TransferNotificationForRecipient
+        // authenticated deposit; shortfall uses the correlated custody-return path
+        val minValue = ccipMinValue();
+        assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
 
         emit<JettonLockBox_Deposit>(TOPIC_DEPOSIT, deposit!);
 
@@ -214,15 +228,19 @@ fun onDepositWithTransferNotification(
             body: failure,
         });
 
-        // Best-effort return carries the failure notification
+        // Best-effort return to the account named in the deposit (falls back to the depositor),
+        // sent plain so the recipient isn't re-notified; the failure is reported separately below.
+        val returnTo = deposit != null && deposit!.returnAddress != null
+            ? deposit!.returnAddress!
+            : msg.transferInitiator!;
         val transfer = AskToTransfer {
             queryId: msg.queryId,
             jettonAmount: msg.jettonAmount,
-            transferRecipient: msg.transferInitiator!,
-            sendExcessesTo: msg.transferInitiator,
+            transferRecipient: returnTo,
+            sendExcessesTo: returnTo,
             customPayload: null,
-            forwardTonAmount: jettonLockBoxReturnForwardValue(),
-            forwardPayload: failure.toCell().toForwardPayload(),
+            forwardTonAmount: 0,
+            forwardPayload: beginCell().storeMaybeRef(null).endCell().beginParse(),
         };
         failure.returnAttempted = sendTokenPoolRecoveryReturn(msgValue, sender, transfer, failureMsg);
 
@@ -241,8 +259,13 @@ fun onDepositWithTransferNotification(
 /// @dev Bounces to `onBouncedMessage` if the transfer fails, which notifies the caller with `WithdrawFailed`.
 /// @dev The caller's address and the original withdraw request are tagged onto the transfer's
 /// `forwardPayload` via `Jetton_ForwardPayloadWrap`, so the bounce handler can notify the caller with context.
-fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockBox_Withdraw) {
+fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLockBox_Withdraw) {
     assert(st.isInitialized(), JettonLockBox_Error.ContractNotInitialized);
+
+    // minval:check-bounce gate=S JettonLockBox_Withdraw
+    // reject before withdrawing custody; operator handles the request bounce
+    val minValue = ccipMinValue();
+    assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
 
     val rbac = hookTrait__AccessControl(st);
     rbac.requireRole(OPERATOR_ROLE, sender);
@@ -251,6 +274,9 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockBox_Withdraw)
     assert(!isZeroAddress(msg.recipientWallet), JettonLockBox_Error.RecipientCannotBeZeroAddress);
     assert(st.walletAddress != null, JettonLockBox_Error.UnsupportedToken);
 
+    // The log and transfer are separate actions. Protect the pre-message balance, then carry
+    // only the unreserved remainder after paying for the log and this transaction.
+    reserveBalanceBeforeInMessage(msgValue);
     emit<JettonLockBox_Withdraw>(TOPIC_WITHDRAWAL, msg);
 
     // Determine where to send ReturnExcessesBack (from extra cell or default to self).
@@ -290,7 +316,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockBox_Withdraw)
             forwardPayload: wrap.asForwardPayload(),
         },
     });
-    transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Handles bounced jetton transfers — notifies the original caller that the withdrawal failed.

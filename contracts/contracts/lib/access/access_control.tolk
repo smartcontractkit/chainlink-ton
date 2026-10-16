@@ -2,6 +2,7 @@
 tolk 1.4.2
 
 import "../utils.tolk";
+import "../budget/gas.tolk";
 
 const AccessControl_FACILITY_NAME = "link.chain.ton.lib.access.AccessControl";
 const AccessControl_FACILITY_ID = AccessControl_FACILITY_NAME.crc32() % 640 + 10;  // 474
@@ -424,6 +425,9 @@ fun AccessControl<T>.grantRole(
     account: address,
     returnExcess: bool = false
 ): bool {
+    // minval:best-effort gate=none AccessControl_GrantRole
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     self.requireRole(self.getRoleAdmin(role), sender);
     return self._grantRole(queryId, sender, role, account, returnExcess);
 }
@@ -442,6 +446,9 @@ fun AccessControl<T>.revokeRole(
     account: address,
     returnExcess: bool = false
 ): bool {
+    // minval:best-effort gate=none AccessControl_RevokeRole
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     self.requireRole(self.getRoleAdmin(role), sender);
     return self._revokeRole(queryId, sender, role, account, returnExcess);
 }
@@ -467,6 +474,9 @@ fun AccessControl<T>.renounceRole(
     callerConfirmation: address,
     returnExcess: bool = false
 ): bool {
+    // minval:best-effort gate=none AccessControl_RenounceRole
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     if (callerConfirmation != sender) {
         throw AccessControl_Error.BadConfirmation;
     }

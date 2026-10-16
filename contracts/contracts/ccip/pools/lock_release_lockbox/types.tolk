@@ -2,7 +2,6 @@
 
 import "../../../lib/jetton/jetton_client"
 import "../lib/token_pool/messages"
-import "../../accounts/deposit/types"
 
 /// Facility ID used for error code derivation; (crc32(<facility>) % 640) + 10
 const LockReleaseLockboxTokenPool_FACILITY_NAME = "link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool";

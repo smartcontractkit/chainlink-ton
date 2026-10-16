@@ -1239,6 +1239,7 @@ export const TokenPool_AdminConfig = {
  >     tokenDecimals: uint8
  >     remoteChainConfigs: map<uint64, TokenPool_RemoteChainConfig>
  >     tokenTransferFeeConfigs: map<uint64, TokenPool_TokenTransferFeeConfig>
+ >     budget: TokenPool_Budget
  > }
  */
 export interface TokenPool_Data {
@@ -1248,6 +1249,7 @@ export interface TokenPool_Data {
     tokenDecimals: uint8
     remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
     tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
+    budget: TokenPool_Budget /* = TokenPool_Budget { MinValueConfig { null as null as coins? } as MinValueConfig, MinValueConfig { null as null as coins? } as MinValueConfig } */
 }
 
 export const TokenPool_Data = {
@@ -1257,9 +1259,11 @@ export const TokenPool_Data = {
         tokenDecimals: uint8
         remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
+        budget?: TokenPool_Budget /* = TokenPool_Budget { MinValueConfig { null as null as coins? } as MinValueConfig, MinValueConfig { null as null as coins? } as MinValueConfig } */
     }): TokenPool_Data {
         return {
             $: 'TokenPool_Data',
+            budget: { $: 'TokenPool_Budget', safety: { $: 'MinValueConfig', value: null }, admission: { $: 'MinValueConfig', value: null } },
             ...args
         }
     },
@@ -1271,6 +1275,7 @@ export const TokenPool_Data = {
             tokenDecimals: s.loadUintBig(8),
             remoteChainConfigs: dictToMap(c.Dictionary.load<uint64, TokenPool_RemoteChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_RemoteChainConfig>(TokenPool_RemoteChainConfig.fromSlice, TokenPool_RemoteChainConfig.store), s)),
             tokenTransferFeeConfigs: dictToMap(c.Dictionary.load<uint64, TokenPool_TokenTransferFeeConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store), s)),
+            budget: TokenPool_Budget.fromSlice(s),
         }
     },
     store(self: TokenPool_Data, b: c.Builder): void {
@@ -1279,9 +1284,50 @@ export const TokenPool_Data = {
         b.storeUint(self.tokenDecimals, 8);
         b.storeDict<uint64, TokenPool_RemoteChainConfig>(mapToDict(self.remoteChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_RemoteChainConfig>(TokenPool_RemoteChainConfig.fromSlice, TokenPool_RemoteChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_RemoteChainConfig>(TokenPool_RemoteChainConfig.fromSlice, TokenPool_RemoteChainConfig.store));
         b.storeDict<uint64, TokenPool_TokenTransferFeeConfig>(mapToDict(self.tokenTransferFeeConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store));
+        TokenPool_Budget.store(self.budget, b);
     },
     toCell(self: TokenPool_Data): c.Cell {
         return makeCellFrom<TokenPool_Data>(self, TokenPool_Data.store);
+    }
+}
+
+/**
+ > struct TokenPool_Budget {
+ >     safety: MinValueConfig
+ >     admission: MinValueConfig
+ > }
+ */
+export interface TokenPool_Budget {
+    readonly $: 'TokenPool_Budget'
+    safety: MinValueConfig /* = MinValueConfig { null as null as coins? } */
+    admission: MinValueConfig /* = MinValueConfig { null as null as coins? } */
+}
+
+export const TokenPool_Budget = {
+    create(args: {
+        safety?: MinValueConfig /* = MinValueConfig { null as null as coins? } */
+        admission?: MinValueConfig /* = MinValueConfig { null as null as coins? } */
+    }): TokenPool_Budget {
+        return {
+            $: 'TokenPool_Budget',
+            safety: { $: 'MinValueConfig', value: null },
+            admission: { $: 'MinValueConfig', value: null },
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_Budget {
+        return {
+            $: 'TokenPool_Budget',
+            safety: MinValueConfig.fromSlice(s),
+            admission: MinValueConfig.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_Budget, b: c.Builder): void {
+        MinValueConfig.store(self.safety, b);
+        MinValueConfig.store(self.admission, b);
+    },
+    toCell(self: TokenPool_Budget): c.Cell {
+        return makeCellFrom<TokenPool_Budget>(self, TokenPool_Budget.store);
     }
 }
 
@@ -4035,6 +4081,42 @@ export const RateLimiter_TokenBucket = {
 }
 
 /**
+ > struct MinValueConfig {
+ >     value: coins?
+ > }
+ */
+export interface MinValueConfig {
+    readonly $: 'MinValueConfig'
+    value: coins | null /* = null */
+}
+
+export const MinValueConfig = {
+    create(args: {
+        value?: coins | null /* = null */
+    }): MinValueConfig {
+        return {
+            $: 'MinValueConfig',
+            value: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): MinValueConfig {
+        return {
+            $: 'MinValueConfig',
+            value: s.loadBoolean() ? s.loadCoins() : null,
+        }
+    },
+    store(self: MinValueConfig, b: c.Builder): void {
+        storeTolkNullable<coins>(self.value, b,
+            (v,b) => b.storeCoins(v)
+        );
+    },
+    toCell(self: MinValueConfig): c.Cell {
+        return makeCellFrom<MinValueConfig>(self, MinValueConfig.store);
+    }
+}
+
+/**
  > type ForwardPayloadRemainder = RemainingBitsAndRefs
  */
 export type ForwardPayloadRemainder = RemainingBitsAndRefs
@@ -4672,6 +4754,7 @@ export class TokenPool implements c.Contract {
         tokenDecimals: uint8
         remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
+        budget?: TokenPool_Budget /* = TokenPool_Budget { MinValueConfig { null as null as coins? } as MinValueConfig, MinValueConfig { null as null as coins? } as MinValueConfig } */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? TokenPool.CodeCell,

@@ -10,6 +10,8 @@ import {
   TokenPool_LockOrBurnPrepared,
   TokenPool_LockOrBurnTransfer,
   TokenPool_LockOrBurnWithdraw,
+  TokenPool_PreflightCheckFinished,
+  TokenPool_PostflightCheckFinished,
   TokenPool_ReleaseOrMint,
   TokenPool_ReleaseOrMintFailure,
   TokenPool_ReleaseOrMintFinished,
@@ -23,6 +25,8 @@ import {
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { TokenPoolBehaviorContext, releaseRequest } from './TokenPool.behavior'
+import { setTokenPoolSafetyFloor } from '../../utils/minValue'
+import { DepositAccount_Init } from '../../../wrappers/gen/ccip/DepositAccount'
 // Async Hook Behavior Tests (TON-TP/6)
 // ———————————————————————————————————————————————————————————————————————————————
 
@@ -35,6 +39,102 @@ export function runTokenPoolAsyncHookBehaviorTests(
   setup: () => Promise<TokenPoolAsyncHookBehaviorContext>,
 ) {
   describe(`${name} async hook behavior`, () => {
+    describe('callback value shortfall', () => {
+      const floor = toNano('0.299')
+      const insufficientMessageValue = 51726n // TokenPool_Error.InsufficientMessageValue
+
+      it('aborts LockOrBurn locally when a successful preflight reply is below the safety floor', async () => {
+        const ctx = await setup()
+        const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+        await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
+
+        const { transactions } = await ctx.pool.sendTokenPoolLockOrBurn(
+          ctx.deployer.getSender(),
+          toNano('0.3'),
+          {
+            queryId: 2n, // The mock hook approves even query IDs.
+            request: lockOrBurnIn(ctx),
+            requestedFinalityConfig: 0n,
+            tokenArgs: null,
+            replyTo: ctx.deployer.address,
+          },
+        )
+
+        expect(transactions).toHaveTransaction({
+          from: ctx.hooks.address,
+          to: ctx.pool.address,
+          op: TokenPool_PreflightCheckFinished.PREFIX,
+          value: (value) => value !== undefined && value < floor,
+          success: true,
+        })
+        expect(transactions).toHaveTransaction({
+          from: ctx.pool.address,
+          to: ctx.deployer.address,
+          body: TokenPool_LockOrBurnFailure.toCell({
+            $: 'TokenPool_LockOrBurnFailure',
+            queryId: 2n,
+            errorCode: insufficientMessageValue,
+          }),
+        })
+        expect(transactions).not.toHaveTransaction({
+          to: ctx.hooks.address,
+          inMessageBounced: true,
+        })
+        expect(transactions).not.toHaveTransaction({
+          from: ctx.pool.address,
+          op: TokenPool_LockOrBurnWithdraw.PREFIX,
+        })
+        const after = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+        expect(after.outbound.tokens).toEqual(before.outbound.tokens)
+        expect(after.inbound.tokens).toEqual(before.inbound.tokens)
+      })
+
+      it('aborts ReleaseOrMint locally when a successful postflight reply is below the safety floor', async () => {
+        const ctx = await setup()
+        const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+        await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
+
+        const { transactions } = await ctx.pool.sendTokenPoolReleaseOrMint(
+          ctx.deployer.getSender(),
+          toNano('0.3'),
+          {
+            queryId: 2n,
+            request: releaseRequest(ctx),
+            requestedFinalityConfig: 0n,
+            replyTo: ctx.deployer.address,
+          },
+        )
+
+        expect(transactions).toHaveTransaction({
+          from: ctx.hooks.address,
+          to: ctx.pool.address,
+          op: TokenPool_PostflightCheckFinished.PREFIX,
+          value: (value) => value !== undefined && value < floor,
+          success: true,
+        })
+        expect(transactions).toHaveTransaction({
+          from: ctx.pool.address,
+          to: ctx.deployer.address,
+          body: TokenPool_ReleaseOrMintFailure.toCell({
+            $: 'TokenPool_ReleaseOrMintFailure',
+            queryId: 2n,
+            errorCode: insufficientMessageValue,
+          }),
+        })
+        expect(transactions).not.toHaveTransaction({
+          to: ctx.hooks.address,
+          inMessageBounced: true,
+        })
+        expect(transactions).not.toHaveTransaction({
+          from: ctx.pool.address,
+          op: DepositAccount_Init.PREFIX,
+        })
+        const after = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+        expect(after.inbound.tokens).toEqual(before.inbound.tokens)
+        expect(after.outbound.tokens).toEqual(before.outbound.tokens)
+      })
+    })
+
     // Deploys a MockAdvancedPoolHooks instance with `id = 255`, which throws on
     // PreflightCheck/PostflightCheck so the requests bounce back to the pool.
     async function deployBounceHooks(

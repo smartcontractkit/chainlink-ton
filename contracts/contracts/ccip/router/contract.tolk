@@ -2,6 +2,7 @@
 import "@stdlib/lisp-lists"
 
 import "../../lib/utils"
+import "../../lib/budget/min_value"
 import "../../lib/funding/withdrawable"
 import "../../lib/access/ownable_2step"
 import "../../lib/access/access_control"
@@ -222,8 +223,9 @@ fun onInternalMessage(in: InMessage) {
 
             // TODO minValue is probably higher for a tokenTransfer as it needs more hops.
             // We should revisit our entire min gas assertion model anyway
-            val minValue = Router_Costs.CCIPSend();
-            assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
+            // minval:check-admission gate=A/static Router.TransferNotificationForRecipient
+            // token-transfer entry; admits the outbound flow
+            assertMinValue(in.valueCoins, Router_Costs.CCIPSend(), Router_Error.InsufficientFee);
 
             // TODO: this doesn't compile
             // assert (msg.forwardPayload != null) throw Router_Error.JettonTransferNotificationWithoutForwardPayload;
