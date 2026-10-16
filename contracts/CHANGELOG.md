@@ -1,5 +1,11 @@
 # @chainlink/contracts-ton
 
+## 1.6.3
+
+### Patch Changes
+
+- [#841](https://github.com/smartcontractkit/chainlink-ton/pull/841) [`7ba0c36`](https://github.com/smartcontractkit/chainlink-ton/commit/7ba0c36617e08764508fbd1142577e687f063dd1) Thanks [@duck-types](https://github.com/duck-types)! - Breaking change: `Receiver_CCIPReceive` (opcode `0xb3126df1`) was removed in favour of `Receiver_CCIPReceiveV2` (opcode `0x5b4bc7a6`)
+
 ## 1.6.2
 
 ### Patch Changes
