@@ -300,13 +300,13 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
       const amount = toNano('10')
       const { feeAmount } = await ctx.doLock(amount, 120n)
 
-      // Distinctive caller payloads: a customPayload cell and a binary (0xff-prefixed) forwardPayload.
+      // Distinctive caller payloads: a customPayload cell and a ref forwardPayload.
       const callerCustomPayload = beginCell().storeUint(0xdeadbeef, 32).endCell()
-      const callerForwardPayload = beginCell()
+      const callerForwardPayloadCell = beginCell()
         .storeUint(0xff, 8)
         .storeUint(0x0042, 16)
         .endCell()
-        .beginParse()
+      const callerForwardPayload = beginCell().storeMaybeRef(callerForwardPayloadCell).asSlice()
 
       const result = await ctx.pool.sendJettonWithdrawableWithdraw(
         ctx.deployer.getSender(), // owner
@@ -350,7 +350,7 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
       expect(ask.customPayload!.equals(callerCustomPayload)).toBe(true)
 
       // (2) forwardPayload is a ref-wrapped Jetton_ForwardPayloadWrap carrying the withdrawal
-      //     context, with the caller's original forwardPayload preserved as its remainder.
+      //     context, with the caller's original forwardPayload preserved.
       const fp = ask.forwardPayload
       expect(fp.loadBit()).toBe(true) // Either ^Cell variant
       const wrap = fp.loadRef().beginParse()
@@ -361,10 +361,7 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
       const contextCell = wrap.loadRef()
       expect(contextCell.equals(beginCell().storeUint(0x0196a077, 32).endCell())).toBe(true) // JettonWithdrawable_WITHDRAW_OPCODE
 
-      // The wrap remainder must be byte-identical to the caller's original forwardPayload.
-      const remainderCell = beginCell().storeSlice(wrap).endCell()
-      const expectedRemainder = beginCell().storeSlice(callerForwardPayload).endCell()
-      expect(remainderCell.equals(expectedRemainder)).toBe(true)
+      expect(wrap.loadMaybeRef()?.equals(callerForwardPayloadCell)).toBe(true)
 
       // End-to-end still works: the fee reached the recipient.
       expect(await (await ctx.userWallet(ctx.recipient.address)).getJettonBalance()).toBe(feeAmount)

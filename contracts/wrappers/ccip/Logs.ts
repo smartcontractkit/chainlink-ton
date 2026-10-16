@@ -22,6 +22,7 @@ export const LogTypes = {
   DeployableInitializeBounced: 'DeployableInitializeBounced',
   RouteMessageBounced: 'RouteMessageBounced',
   MessageToOffRampBounced: 'MessageToOffRampBounced',
+  TokenPoolWithdrawBounced: 'TokenPoolWithdrawBounced',
 } as const
 
 export type CombinedLogType = (typeof LogTypes)[keyof typeof LogTypes]
@@ -47,6 +48,7 @@ export const LOG_TOPIC: Record<CombinedLogType, number> = {
   DeployableInitializeBounced: crc32('DeployableInitializeBounced'),
   RouteMessageBounced: crc32('RouteMessageBounced'),
   MessageToOffRampBounced: crc32('MessageToOffRampBounced'),
+  TokenPoolWithdrawBounced: crc32('TokenPoolWithdrawBounced'),
 }
 
 export type ReceiverCCIPMessageReceived = {

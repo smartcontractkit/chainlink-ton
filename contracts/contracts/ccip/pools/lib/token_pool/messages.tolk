@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "../../../../lib/jetton/messages"
-import "../../../../lib/funding/jetton_withdrawable"
 import "../../../../lib/utils"
 import "../../../../lib/access/access_control"
+import "../../../../lib/jetton/messages"
+import "../../../../lib/funding/jetton_withdrawable"
 
 import "../../../common/types"
 import "../../../rmn_remote/lib"
@@ -127,11 +127,42 @@ struct TokenPool_LockOrBurnForwardPayload {
 /// @Releases or mints tokens on the destination chain.
 /// @param releaseOrMintIn Encoded data fields for the processing of tokens on the destination chain.
 /// @param requestedFinalityConfig Requested finality encoding (see `FinalityCodec`).
+/// @param delivery Where the Router wants the released/minted tokens sent.
 struct (0x351f77e3) TokenPool_ReleaseOrMint {
     queryId: uint64;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
     requestedFinalityConfig: uint32;
+
+    // Continuation info
+    // TODO: post-PR925 merge, propagate non-optional replyTo throughout the system.
     replyTo: address;
+    delivery: Cell<TokenPool_ReleaseOrMintDelivery>? = null;
+}
+
+/// Jetton transfer the pool performs to deliver released/minted tokens.
+/// @dev The pool sends `forwardPayload` wrapped in a `Jetton_ForwardPayloadWrap` carrying its own
+///      context, which it reads back if the transfer fails.
+struct TokenPool_ReleaseOrMintDelivery {
+    /// Owner of the destination jetton wallet.
+    recipient: address;
+    forwardTonAmount: coins;
+    forwardPayload: cell?;
+}
+
+/// Sent by the Router once the ReceiveExecutor confirmed the released/minted tokens reached the
+/// receiver's deposit account. The pool answers `replyTo` (the ReceiveExecutor) with
+/// `TokenPool_ReleaseOrMintFinalized`.
+struct (0x81d45b24) TokenPool_ReleaseOrMintDelivered {
+    queryId: uint64;
+    replyTo: address;
+    transfer: Cell<TokenPool_DeliveredTransfer>;
+}
+
+struct TokenPool_DeliveredTransfer {
+    remoteChainSelector: uint64;
+    localToken: address;
+    receiver: address;
+    amount: coins;
 }
 
 /// Sent by advanced hooks contract (via bounce or direct reply) to notify preflight check success.
@@ -272,7 +303,9 @@ type TokenPool_InMessage =
     | TransferNotificationForRecipient // fwdPayload = TokenPool_LockOrBurnForwardPayload
     | TokenPool_PreflightCheckFinished
     | TokenPool_PreflightCheckFailed
+    | TokenPool_LockOrBurnWithdrawFailed
     | TokenPool_ReleaseOrMint
+    | TokenPool_ReleaseOrMintDelivered
     | TokenPool_PostflightCheckFinished
     | TokenPool_PostflightCheckFailed
     | TokenPool_GetCCVs
@@ -299,18 +332,11 @@ struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
     forwardPayload: TokenPool_LockOrBurnForwardPayload;
 }
 
-/// Messages the base TokenPool library itself emits with a bounceable mode. The shared base
-/// `TokenPool<T>.onBouncedMessage` decodes this set so concrete pools don't each re-implement the
-/// recovery; a bounced body outside this set falls through to the pool's own bounce matcher.
-///
-/// The advanced-hooks requests are included because the pool emits them with `RichBounce`: if the
-/// hooks contract is undeployed or rejects at entry, the bounce must be unwound here (refund the
-/// rate limit consumed at admission + send the *Failure reply) rather than dropped.
-type TokenPool_BouncedMessage =
-    | TokenPool_LockOrBurnWithdraw
-    | TokenPool_GetCCVs
-    | TokenPool_PreflightCheck
-    | TokenPool_PostflightCheck;
+struct (0x9643c08d) TokenPool_LockOrBurnWithdrawFailed {
+    queryId: uint64;
+    forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
+    errorCode: uint16;
+}
 
 struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
     queryId: uint64;
@@ -329,6 +355,11 @@ struct (0x3476ea72) TokenPool_LockOrBurnFailure {
 struct (0xe0e882f5) TokenPool_ReleaseOrMintFinished {
     queryId: uint64;
     out: Cell<TokenPool_ReleaseOrMintOutV1>;
+}
+
+/// Sent to the ReceiveExecutor once the pool processed `TokenPool_ReleaseOrMintDelivered`.
+struct (0xedd4948a) TokenPool_ReleaseOrMintFinalized {
+    queryId: uint64;
 }
 
 struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
@@ -388,6 +419,7 @@ type TokenPool_OutMessage =
     | TokenPool_LockOrBurnFinished
     | TokenPool_LockOrBurnFailure
     | TokenPool_ReleaseOrMintFinished
+    | TokenPool_ReleaseOrMintFinalized
     | TokenPool_ReleaseOrMintFailure
     | TokenPool_CCVs
     | TokenPool_CCVsAndFees
@@ -404,3 +436,38 @@ type TokenPool_OutMessage =
     | TokenPool_AdvancedPoolHooksSet
     | TokenPool_ChainUpdatesApplied
     | TokenPool_FeeConfigApplied;
+
+/// Messages the base TokenPool library itself emits with a bounceable mode. The shared base
+/// `TokenPool<T>.onBouncedMessage` decodes this set so concrete pools don't each re-implement the
+/// recovery; a bounced body outside this set falls through to the pool's own bounce matcher.
+///
+/// The advanced-hooks requests are included because the pool emits them with `RichBounce`: if the
+/// hooks contract is undeployed or rejects at entry, the bounce must be unwound here (refund the
+/// rate limit consumed at admission + send the *Failure reply) rather than dropped.
+type TokenPool_BouncedMessage =
+    | TokenPool_LockOrBurnWithdraw
+    | TokenPool_GetCCVs
+    | TokenPool_PreflightCheck
+    | TokenPool_PostflightCheck;
+
+// TODO: why is this needed?
+/// Asks a pool which address initiates the jetton transfers delivering its releases/mints. Sent
+/// by the token admin registry when a pool is set or refreshed.
+struct (0x500b10e4) TokenPool_GetTransferInitiator {
+    queryId: uint64;
+}
+
+/// Answer to `TokenPool_GetTransferInitiator`. A null initiator means the pool delivers by minting.
+struct (0x904443b3) TokenPool_TransferInitiator {
+    queryId: uint64;
+    transferInitiator: address?;
+}
+
+fun TokenPool_replyTransferInitiator(dest: address, queryId: uint64, transferInitiator: address?) {
+    createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest,
+        body: TokenPool_TransferInitiator { queryId, transferInitiator },
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}

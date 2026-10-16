@@ -188,7 +188,10 @@ export class FeeQuoterSetup {
   /**
    * Setup the FeeQuoter contract with minimal configuration (following setupTestFeeQuoter pattern)
    */
-  async setupFeeQuoterContract(): Promise<void> {
+  async setupFeeQuoterContract(
+    extraPrices: Map<Address, feeQuoter.TimestampedPrice> = new Map(),
+    excludeTokenPrices: Address[] = [],
+  ): Promise<void> {
     const data = feeQuoter.Storage.create({
       id: generateRandomContractId(),
       ownable: feeQuoter.Ownable2Step.create({
@@ -210,6 +213,9 @@ export class FeeQuoterSetup {
       FeeQuoterSetup.CUSTOM_TOKEN,
       FeeQuoterSetup.CUSTOM_TOKEN_2,
     ]) {
+      if (excludeTokenPrices.some((a) => a.equals(token.token))) {
+        continue
+      }
       data.usdPerToken.set(
         token.token,
         feeQuoter.TimestampedPrice.create({
@@ -217,6 +223,12 @@ export class FeeQuoterSetup {
           timestamp: currentTime,
         }),
       )
+    }
+
+    // Extra pre-seeded price entries (e.g. timestamp-0 entries that updatePrices cannot
+    // produce onchain, since it always stamps blockchain.now).
+    for (const [token, price] of extraPrices) {
+      data.usdPerToken.set(token, price)
     }
 
     const feeQuoterContract = this.blockchain.openContract(
@@ -246,7 +258,7 @@ export class FeeQuoterSetup {
   /**
    * Deploy and initialize the FeeQuoter contract (following setupTestFeeQuoter pattern)
    */
-  async deployFeeQuoterContract(): Promise<void> {
+  async deployFeeQuoterContract(excludeTokenPrices: Address[] = []): Promise<void> {
     const deployResult = await this.bind.feeQuoter.sendDeploy(
       this.acc.deployer.getSender(),
       toNano('1'),
@@ -322,7 +334,9 @@ export class FeeQuoterSetup {
       success: true,
     })
 
-    const pricedTokens = FeeQuoterSetup.SOURCE_FEE_TOKENS.concat(FeeQuoterSetup.DEST_FEE_TOKENS)
+    const pricedTokens = FeeQuoterSetup.SOURCE_FEE_TOKENS.concat(
+      FeeQuoterSetup.DEST_FEE_TOKENS,
+    ).filter(({ token }) => !excludeTokenPrices.some((a) => a.equals(token)))
 
     const priceUpdates = feeQuoter.PriceUpdates.create({
       tokenPriceUpdates: pricedTokens.map(({ token, price }) =>
@@ -426,10 +440,15 @@ export class FeeQuoterSetup {
   /**
    * Complete setup for all contracts - convenience method
    */
-  async setupAll(testId: string, blockchain: Blockchain): Promise<void> {
+  async setupAll(
+    testId: string,
+    blockchain: Blockchain,
+    extraPrices?: Map<Address, feeQuoter.TimestampedPrice>,
+    excludeTokenPrices?: Address[],
+  ): Promise<void> {
     await this.initializeBlockchain(blockchain)
-    await this.setupFeeQuoterContract()
-    await this.deployFeeQuoterContract()
+    await this.setupFeeQuoterContract(extraPrices, excludeTokenPrices)
+    await this.deployFeeQuoterContract(excludeTokenPrices)
     await this.setupCounterContract()
     await this.deployCounterContract()
   }
@@ -504,11 +523,11 @@ export class FeeQuoterSetup {
   /**
    * Requests validateMessage
    */
-  async getValidatedFee(msg: rt.Router_CCIPSend): Promise<sx.FeeQuoter_MessageValidated_Any> {
-    const res = await this.bind.feeQuoter.sendFeeQuoterGetValidatedFeeAny(
+  async getValidatedFee(msg: rt.Router_CCIPSend): Promise<sx.FeeQuoter_MessageValidated> {
+    const res = await this.bind.feeQuoter.sendFeeQuoterGetValidatedFee(
       this.acc.externalCaller.getSender(),
       toNano('1'),
-      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg, context: beginCell().asSlice() }),
+      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg }),
     )
 
     // request
@@ -539,7 +558,7 @@ export class FeeQuoterSetup {
     const errorCode = body.preloadUint(32)
     if (errorCode !== sx.FeeQuoter_MessageValidated.PREFIX) {
       if (errorCode === sx.FeeQuoter_MessageValidationFailed.PREFIX) {
-        const failure = sx.FeeQuoter_MessageValidationFailed_Any.fromSlice(resp.body.beginParse())
+        const failure = sx.FeeQuoter_MessageValidationFailed.fromSlice(resp.body.beginParse())
         throw new Error(
           `Message validation failed with error ${printErrorName(Number(failure.error))}`,
         )
@@ -547,7 +566,7 @@ export class FeeQuoterSetup {
         throw new Error(`Unexpected response opcode: ${errorCode}`)
       }
     }
-    const messageValidated = sx.FeeQuoter_MessageValidated_Any.fromSlice(resp.body.beginParse())
+    const messageValidated = sx.FeeQuoter_MessageValidated.fromSlice(resp.body.beginParse())
     return messageValidated
   }
 
@@ -558,10 +577,9 @@ export class FeeQuoterSetup {
     const body =
       message instanceof Cell
         ? message
-        : feeQuoter.FeeQuoter_GetValidatedFee_Any.toCell(
+        : feeQuoter.FeeQuoter_GetValidatedFee.toCell(
             feeQuoter.FeeQuoter_GetValidatedFee.create({
               msg: message,
-              context: beginCell().asSlice(),
             }),
           )
     const result = await this.bind.feeQuoter.send(
@@ -603,9 +621,9 @@ export class FeeQuoterSetup {
         op: sx.FeeQuoter_MessageValidationFailed.PREFIX,
         success: true,
         body(x) {
-          return verifyBodyMessage<manualfq.FeeQuoter_MessageValidationFailed_Any>(
+          return verifyBodyMessage<manualfq.FeeQuoter_MessageValidationFailed>(
             x,
-            manualfq.FeeQuoter_MessageValidationFailed_Any,
+            manualfq.FeeQuoter_MessageValidationFailed,
             [
               (msg) => {
                 if (msg.error === BigInt(expectedError)) {
@@ -633,8 +651,13 @@ export class FeeQuoterFeeSetup extends FeeQuoterSetup {
     super(blockchain)
   }
 
-  async setupAll(testId: string, blockchain: Blockchain): Promise<void> {
-    await super.setupAll(testId, blockchain)
+  async setupAll(
+    testId: string,
+    blockchain: Blockchain,
+    extraPrices?: Map<Address, feeQuoter.TimestampedPrice>,
+    excludeTokenPrices?: Address[],
+  ): Promise<void> {
+    await super.setupAll(testId, blockchain, extraPrices, excludeTokenPrices)
     // In TON, we'll focus on native TON fees rather than complex token pricing
   }
 }
@@ -650,9 +673,9 @@ function printErrorName(error: number): string {
       return 'InvalidExtraArgsData'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.UnsupportedNumberOfTokens']:
       return 'UnsupportedNumberOfTokens'
-    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidEVMReceiverAddress']:
+    case feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.InvalidEVMAddress']:
       return 'InvalidEVMReceiverAddress'
-    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.Invalid32ByteReceiverAddress']:
+    case feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.Invalid32ByteAddress']:
       return 'Invalid32ByteReceiverAddress'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidSuiReceiverAddress']:
       return 'InvalidSuiReceiverAddress'
@@ -690,8 +713,6 @@ function printErrorName(error: number): string {
       return 'DataAvailabilityCostOverflow'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.FeeCalculationOverflow']:
       return 'FeeCalculationOverflow'
-    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenPriceTooLow']:
-      return 'TokenPriceTooLow'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.FeeOverflow']:
       return 'FeeOverflow'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.MessageFeeTooHigh']:

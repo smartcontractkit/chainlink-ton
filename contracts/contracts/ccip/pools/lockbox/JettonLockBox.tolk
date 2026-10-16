@@ -263,16 +263,17 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockBox_Withdraw)
     // Get forwardTonAmount from extra (defaults to 0 for backward compatibility).
     val forwardTonAmount = msg.extra != null ? msg.extra!.load().forwardTonAmount : 0 as coins;
 
-    // Use forwardPayload from extra if provided (e.g., pool release context).
-    val forwardPayload = msg.extra != null && msg.extra!.load().forwardPayload != null
-        ? msg.extra!.load().forwardPayload
-        : null;
+    // The caller (pool) tags its payload with a `Jetton_ForwardPayloadWrap` carrying its own
+    // failure context. Unwrap one layer so the delivered payload is the caller's original
+    // `forwardPayload`, then re-tag it with our context (the full withdraw) for the bounce path.
+    // The caller's payload stays reachable via the echoed withdraw's `extra.forwardPayload`.
+    val callerPayload = msg.extra != null ? msg.extra!.load().forwardPayload : null;
+    val delivered = Jetton_ForwardPayloadWrap.unwrapForwardPayload(callerPayload);
 
-    // Tag the transfer with the caller + withdraw request via the standard forwardPayload wrap.
     val wrap = Jetton_ForwardPayloadWrap {
         initiator: sender,
         context: msg.toCell(),
-        forwardPayload: beginCell().storeMaybeRef(forwardPayload).endCell().beginParse(),
+        forwardPayload: delivered,
     };
 
     // Send AskToTransfer to our jetton wallet (rich bounce on failure).

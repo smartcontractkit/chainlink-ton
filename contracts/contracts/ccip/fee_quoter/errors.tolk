@@ -7,8 +7,6 @@ enum FeeQuoter_Error {
     ExtraArgOutOfOrderExecutionMustBeTrue
     InvalidExtraArgsData
     UnsupportedNumberOfTokens
-    InvalidEVMReceiverAddress
-    Invalid32ByteReceiverAddress
     InvalidSuiReceiverAddress
     InvalidSVMReceiverAddress
     InvalidTokenReceiver
@@ -29,7 +27,6 @@ enum FeeQuoter_Error {
     // Deprecated: retained to preserve the numeric values of subsequent public errors.
     DataAvailabilityCostOverflow
     FeeCalculationOverflow
-    TokenPriceTooLow
     FeeOverflow
     MessageFeeTooHigh
     TokenTransferConfigMustBeEnabled

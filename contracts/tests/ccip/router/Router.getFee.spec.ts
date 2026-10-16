@@ -12,145 +12,77 @@ import { ChainSelectors } from '../../utils/Selectors'
 
 const EVM_CC_ADDRESS: rt.CrossChainAddress = EVM_ADDRESS
 
-describe('Router', () => {
-  let blockchain: Blockchain
-  let deployer: SandboxContract<TreasuryContract>
-  let sender: SandboxContract<TreasuryContract>
-  let router: SandboxContract<rt.Router>
-  let feeQuoter: SandboxContract<TreasuryContract>
-  let onRamp: SandboxContract<TreasuryContract>
+interface TestContextCase {
+  description: string
+  expectedToFailForV1: boolean
+  context: null | Cell
+}
 
-  beforeAll(async () => {
-    blockchain = await Blockchain.create()
-    blockchain.verbosity = {
-      print: true,
-      blockchainLogs: false,
-      vmLogs: 'none',
-      debugLogs: true,
-    }
-    if (process.env['COVERAGE'] === 'true') {
-      blockchain.enableCoverage()
-      blockchain.verbosity.print = false
-      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
-    }
-    feeQuoter = await blockchain.treasury('feeQuoter')
-    onRamp = await blockchain.treasury('onRamp')
-  })
+const cases: TestContextCase[] = [
+  { description: 'null', expectedToFailForV1: false, context: null },
+  { description: 'empty cell', expectedToFailForV1: false, context: beginCell().endCell() },
+  {
+    description: 'single uint',
+    expectedToFailForV1: false,
+    context: beginCell().storeUint(123, 32).endCell(),
+  },
+  {
+    description: 'nested cell',
+    expectedToFailForV1: false,
+    context: beginCell()
+      .storeUint(456, 32)
+      .storeRef(beginCell().storeUint(789, 32).endCell())
+      .endCell(),
+  },
+  {
+    description: 'full cell',
+    expectedToFailForV1: true,
+    context: beginCell()
+      .storeUint(123, 256)
+      .storeUint(456, 256)
+      .storeUint(789, 256)
+      .storeUint(123, 255 - 32 /*opcode size*/)
+      .endCell(),
+  },
+]
 
-  beforeEach(async () => {
-    const res = await setup(blockchain, { feeQuoter, onRamp })
-    ;({ deployer, sender } = res)
-    router = blockchain.openContract(rt.Router.fromAddress(res.router.address))
-  })
+const contextsEqual = (actual: Cell | null, expected: Cell | null): boolean =>
+  actual === null ? expected === null : expected !== null && actual.equals(expected)
 
-  const msg = rt.Router_CCIPSend.create({
-    queryID: 1n,
-    destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-    receiver: EVM_CC_ADDRESS,
-    data: Cell.EMPTY,
-    tokenAmounts: [],
-    feeToken: WRAPPED_NATIVE,
-    extraArgs: rt.GenericExtraArgsV2.create({
-      gasLimit: 100n,
-      allowOutOfOrderExecution: true,
-    }),
-  })
+describe.each(cases)(
+  'Router > GetValidatedFee',
+  ({ description, context, expectedToFailForV1 }) => {
+    let blockchain: Blockchain
+    let deployer: SandboxContract<TreasuryContract>
+    let sender: SandboxContract<TreasuryContract>
+    let router: SandboxContract<rt.Router>
+    let feeQuoter: SandboxContract<TreasuryContract>
+    let onRamp: SandboxContract<TreasuryContract>
 
-  it('should forward getValidatedFee to OnRamp', async () => {
-    const result = await router.sendRouterGetValidatedFeeAny(sender.getSender(), toNano('0.5'), {
-      $: 'Router_GetValidatedFee',
-      ccipSend: msg,
-      context: beginCell().asSlice(),
+    beforeAll(async () => {
+      blockchain = await Blockchain.create()
+      blockchain.verbosity = {
+        print: true,
+        blockchainLogs: false,
+        vmLogs: 'none',
+        debugLogs: true,
+      }
+      if (process.env['COVERAGE'] === 'true') {
+        blockchain.enableCoverage()
+        blockchain.verbosity.print = false
+        blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+      }
+      feeQuoter = await blockchain.treasury('feeQuoter')
+      onRamp = await blockchain.treasury('onRamp')
     })
 
-    expect(result.transactions).toHaveTransaction({
-      from: sender.address,
-      to: router.address,
-      success: true,
+    beforeEach(async () => {
+      const res = await setup(blockchain, { feeQuoter, onRamp })
+      ;({ deployer, sender } = res)
+      router = blockchain.openContract(rt.Router.fromAddress(res.router.address))
     })
 
-    expect(result.transactions).toHaveTransaction({
-      from: router.address,
-      to: onRamp.address,
-      success: true,
-      op: or.OnRamp_GetValidatedFee.PREFIX,
-      body(x) {
-        if (!x) return false
-        const decoded = or.OnRamp_GetValidatedFee_Any.fromSlice(x.beginParse())
-        return (
-          decoded.ccipSend.queryID === 1n &&
-          decoded.ccipSend.data.equals(Cell.EMPTY) &&
-          decoded.ccipSend.destChainSelector ===
-            ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
-          decoded.ccipSend.receiver.toString() === EVM_ADDRESS.toString() &&
-          decoded.ccipSend.tokenAmounts.length === 0 &&
-          decoded.ccipSend.feeToken!.equals(WRAPPED_NATIVE)
-        )
-      },
-    })
-  })
-
-  it('should reject getValidatedFee for disabled dest chain (missing OnRamp)', async () => {
-    const badMsg: rt.Router_CCIPSend = {
-      $: 'Router_CCIPSend',
-      queryID: 1n,
-      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 + 1n,
-      receiver: EVM_ADDRESS,
-      data: Cell.EMPTY,
-      tokenAmounts: [],
-      feeToken: WRAPPED_NATIVE,
-      extraArgs: rt.GenericExtraArgsV2.create({
-        gasLimit: 100n,
-        allowOutOfOrderExecution: true,
-      }),
-    }
-    const result = await router.sendRouterGetValidatedFeeAny(sender.getSender(), toNano('0.5'), {
-      $: 'Router_GetValidatedFee',
-      ccipSend: badMsg,
-      context: beginCell().asSlice(),
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: sender.address,
-      to: router.address,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: router.address,
-      to: sender.address,
-      op: rt.Router_MessageValidationFailed.PREFIX,
-      body(x) {
-        if (!x) return false
-        const decoded = rt.Router_MessageValidationFailed_Any.fromSlice(x.beginParse())
-        return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
-      },
-    })
-  })
-
-  it('should reject getValidatedFee for disabled dest chain (zero address)', async () => {
-    // Disable the onRamp for the chain
-    {
-      const result = await router.sendRouterApplyRampUpdates(deployer.getSender(), toNano('1'), {
-        queryId: 1n,
-        onRampUpdates: {
-          $: 'OnRamps',
-          destChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
-          onRamp: null,
-        },
-        offRampAdds: null,
-        offRampRemoves: null,
-      })
-
-      expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: router.address,
-        success: true,
-      })
-    }
-
-    const badMsg: rt.Router_CCIPSend = {
-      $: 'Router_CCIPSend',
+    const msg = rt.Router_CCIPSend.create({
       queryID: 1n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_CC_ADDRESS,
@@ -161,168 +93,440 @@ describe('Router', () => {
         gasLimit: 100n,
         allowOutOfOrderExecution: true,
       }),
-    }
-    const result = await router.sendRouterGetValidatedFeeAny(sender.getSender(), toNano('0.5'), {
-      $: 'Router_GetValidatedFee',
-      ccipSend: badMsg,
-      context: beginCell().asSlice(),
     })
 
-    expect(result.transactions).toHaveTransaction({
-      from: sender.address,
-      to: router.address,
-      success: true,
+    describe(`context: ${description}`, () => {
+      describe('new version', () => {
+        it('should forward getValidatedFee to OnRamp', async () => {
+          const result = await router.sendRouterGetValidatedFee(sender.getSender(), toNano('0.5'), {
+            ccipSend: msg,
+            context,
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: sender.address,
+            to: router.address,
+            success: true,
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: router.address,
+            to: onRamp.address,
+            success: true,
+            op: or.OnRamp_GetValidatedFee.PREFIX,
+            body(x) {
+              if (!x) return false
+              const decoded = or.OnRamp_GetValidatedFee.fromSlice(x.beginParse())
+              const decodedContext = rt.Router_GetValidatedFeeContext.fromSlice(
+                decoded.context!.beginParse(),
+              )
+              return (
+                decodedContext.routerContext.equals(sender.address) &&
+                decodedContext.oldContextVersion === false &&
+                contextsEqual(decodedContext.userContext, context) &&
+                decoded.ccipSend.queryID === 1n &&
+                decoded.ccipSend.data.equals(Cell.EMPTY) &&
+                decoded.ccipSend.destChainSelector ===
+                  ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
+                decoded.ccipSend.receiver.asCell().equals(EVM_ADDRESS.asCell()) &&
+                decoded.ccipSend.tokenAmounts.length === 0 &&
+                decoded.ccipSend.feeToken!.equals(WRAPPED_NATIVE)
+              )
+            },
+          })
+        })
+
+        it('should reject getValidatedFee for disabled dest chain (missing OnRamp)', async () => {
+          const badMsg: rt.Router_CCIPSend = {
+            $: 'Router_CCIPSend',
+            queryID: 1n,
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 + 1n,
+            receiver: EVM_ADDRESS,
+            data: Cell.EMPTY,
+            tokenAmounts: [],
+            feeToken: WRAPPED_NATIVE,
+            extraArgs: rt.GenericExtraArgsV2.create({
+              gasLimit: 100n,
+              allowOutOfOrderExecution: true,
+            }),
+          }
+          const result = await router.sendRouterGetValidatedFee(sender.getSender(), toNano('0.5'), {
+            ccipSend: badMsg,
+            context,
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: sender.address,
+            to: router.address,
+            success: true,
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: router.address,
+            to: sender.address,
+            op: rt.Router_MessageValidationFailed.PREFIX,
+            body(x) {
+              if (!x) return false
+              const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
+              return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
+            },
+          })
+        })
+
+        it('should reject getValidatedFee for disabled dest chain (zero address)', async () => {
+          // Disable the onRamp for the chain
+          {
+            const result = await router.sendRouterApplyRampUpdates(
+              deployer.getSender(),
+              toNano('1'),
+              {
+                queryId: 1n,
+                onRampUpdates: {
+                  $: 'OnRamps',
+                  destChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
+                  onRamp: null,
+                },
+                offRampAdds: null,
+                offRampRemoves: null,
+              },
+            )
+
+            expect(result.transactions).toHaveTransaction({
+              from: deployer.address,
+              to: router.address,
+              success: true,
+            })
+          }
+
+          const badMsg: rt.Router_CCIPSend = {
+            $: 'Router_CCIPSend',
+            queryID: 1n,
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+            receiver: EVM_CC_ADDRESS,
+            data: Cell.EMPTY,
+            tokenAmounts: [],
+            feeToken: WRAPPED_NATIVE,
+            extraArgs: rt.GenericExtraArgsV2.create({
+              gasLimit: 100n,
+              allowOutOfOrderExecution: true,
+            }),
+          }
+          const result = await router.sendRouterGetValidatedFee(sender.getSender(), toNano('0.5'), {
+            ccipSend: badMsg,
+            context,
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: sender.address,
+            to: router.address,
+            success: true,
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: router.address,
+            to: sender.address,
+            op: rt.Router_MessageValidationFailed.PREFIX,
+            body(x) {
+              if (!x) return false
+              const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
+              return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
+            },
+          })
+        })
+
+        it('should forward messageValidated from OnRamp', async () => {
+          const result = await router.sendOnRampMessageValidated(onRamp.getSender(), toNano('1'), {
+            fee: toNano('0.5'),
+            msg,
+            context: rt.Router_GetValidatedFeeContext.toCell(
+              rt.Router_GetValidatedFeeContext.create({
+                routerContext: sender.address,
+                oldContextVersion: false,
+                userContext: context,
+              }),
+            ),
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: onRamp.address,
+            to: router.address,
+            success: true,
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: router.address,
+            to: sender.address,
+            op: rt.Router_MessageValidated.PREFIX,
+            body(x) {
+              if (!x) return false
+              const decoded = rt.Router_MessageValidated.fromSlice(x.beginParse())
+              return (
+                contextsEqual(decoded.context, context) &&
+                decoded.fee === toNano('0.5') &&
+                decoded.msg.queryID === 1n &&
+                decoded.msg.data.equals(Cell.EMPTY) &&
+                decoded.msg.destChainSelector ===
+                  ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
+                decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
+                decoded.msg.tokenAmounts.length === 0 &&
+                decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
+              )
+            },
+          })
+        })
+
+        it('should throw on messageValidated from non OnRamp', async () => {
+          const result = await router.sendOnRampMessageValidated(sender.getSender(), toNano('1'), {
+            fee: toNano('0.5'),
+            msg,
+            context: rt.Router_GetValidatedFeeContext.toCell(
+              rt.Router_GetValidatedFeeContext.create({
+                routerContext: sender.address,
+                oldContextVersion: false,
+                userContext: context,
+              }),
+            ),
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: sender.address,
+            to: router.address,
+            success: false,
+            exitCode: rt.Router.Errors['Router_Error.NotOnRamp'],
+          })
+        })
+
+        it('should forward messageValidationFailed from OnRamp', async () => {
+          const result = await router.sendOnRampMessageValidationFailed(
+            onRamp.getSender(),
+            toNano('1'),
+            {
+              error: 12345n,
+              msg,
+              context: rt.Router_GetValidatedFeeContext.toCell(
+                rt.Router_GetValidatedFeeContext.create({
+                  routerContext: sender.address,
+                  oldContextVersion: false,
+                  userContext: context,
+                }),
+              ),
+            },
+          )
+
+          expect(result.transactions).toHaveTransaction({
+            from: onRamp.address,
+            to: router.address,
+            success: true,
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: router.address,
+            to: sender.address,
+            op: rt.Router_MessageValidationFailed.PREFIX,
+            body(x) {
+              if (!x) return false
+              const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
+              return (
+                contextsEqual(decoded.context, context) &&
+                decoded.error === 12345n &&
+                decoded.msg.queryID === 1n &&
+                decoded.msg.data.equals(Cell.EMPTY) &&
+                decoded.msg.destChainSelector ===
+                  ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
+                decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
+                decoded.msg.tokenAmounts.length === 0 &&
+                decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
+              )
+            },
+          })
+        })
+
+        it('should throw on messageValidationFailed from non OnRamp', async () => {
+          const result = await router.sendOnRampMessageValidationFailed(
+            sender.getSender(),
+            toNano('1'),
+            {
+              error: 12345n,
+              msg,
+              context: rt.Router_GetValidatedFeeContext.toCell(
+                rt.Router_GetValidatedFeeContext.create({
+                  routerContext: sender.address,
+                  oldContextVersion: false,
+                  userContext: context,
+                }),
+              ),
+            },
+          )
+
+          expect(result.transactions).toHaveTransaction({
+            from: sender.address,
+            to: router.address,
+            success: false,
+            exitCode: rt.Router.Errors['Router_Error.NotOnRamp'],
+          })
+        })
+      })
+
+      describe('backwards compatibility with V1', () => {
+        it('should forward getValidatedFee to OnRamp', async () => {
+          const result = await router.sendRouterGetValidatedFeeV1(
+            sender.getSender(),
+            toNano('0.5'),
+            {
+              ccipSend: msg,
+              context: (context ?? Cell.EMPTY).asSlice(),
+            },
+          )
+
+          expect(result.transactions).toHaveTransaction({
+            from: sender.address,
+            to: router.address,
+            success: true,
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: router.address,
+            to: onRamp.address,
+            success: true,
+            op: or.OnRamp_GetValidatedFee.PREFIX,
+            body(x) {
+              if (!x) return false
+              const decoded = or.OnRamp_GetValidatedFee.fromSlice(x.beginParse())
+              const decodedContext = rt.Router_GetValidatedFeeContext.fromSlice(
+                decoded.context!.beginParse(),
+              )
+              return (
+                decodedContext.routerContext.equals(sender.address) &&
+                decodedContext.oldContextVersion === true &&
+                contextsEqual(decodedContext.userContext, context ?? Cell.EMPTY) &&
+                decoded.ccipSend.queryID === 1n &&
+                decoded.ccipSend.data.equals(Cell.EMPTY) &&
+                decoded.ccipSend.destChainSelector ===
+                  ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
+                decoded.ccipSend.receiver.asCell().equals(EVM_ADDRESS.asCell()) &&
+                decoded.ccipSend.tokenAmounts.length === 0 &&
+                decoded.ccipSend.feeToken!.equals(WRAPPED_NATIVE)
+              )
+            },
+          })
+        })
+
+        it('should forward messageValidated from OnRamp', async () => {
+          const result = await router.sendOnRampMessageValidated(onRamp.getSender(), toNano('1'), {
+            fee: toNano('0.5'),
+            msg,
+            context: rt.Router_GetValidatedFeeContext.toCell(
+              rt.Router_GetValidatedFeeContext.create({
+                routerContext: sender.address,
+                oldContextVersion: true,
+                userContext: context,
+              }),
+            ),
+          })
+
+          if (expectedToFailForV1) {
+            expect(result.transactions).toHaveTransaction({
+              from: onRamp.address,
+              to: router.address,
+              success: false,
+              exitCode: 8,
+            })
+            return
+          }
+
+          expect(result.transactions).toHaveTransaction({
+            from: onRamp.address,
+            to: router.address,
+            success: true,
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: router.address,
+            to: sender.address,
+            op: rt.Router_MessageValidated_V1.PREFIX,
+            body(x) {
+              if (!x) return false
+              const decoded = rt.Router_MessageValidated_V1.fromSlice(x.beginParse())
+              return (
+                decoded.context.asCell().equals(context ?? Cell.EMPTY) &&
+                decoded.fee === toNano('0.5') &&
+                decoded.msg.queryID === 1n &&
+                decoded.msg.data.equals(Cell.EMPTY) &&
+                decoded.msg.destChainSelector ===
+                  ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
+                decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
+                decoded.msg.tokenAmounts.length === 0 &&
+                decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
+              )
+            },
+          })
+        })
+
+        it('should forward messageValidationFailed from OnRamp', async () => {
+          const result = await router.sendOnRampMessageValidationFailed(
+            onRamp.getSender(),
+            toNano('1'),
+            {
+              error: 12345n,
+              msg,
+              context: rt.Router_GetValidatedFeeContext.toCell(
+                rt.Router_GetValidatedFeeContext.create({
+                  routerContext: sender.address,
+                  oldContextVersion: true,
+                  userContext: context,
+                }),
+              ),
+            },
+          )
+
+          if (expectedToFailForV1) {
+            expect(result.transactions).toHaveTransaction({
+              from: onRamp.address,
+              to: router.address,
+              success: false,
+              exitCode: 8,
+            })
+            return
+          }
+
+          expect(result.transactions).toHaveTransaction({
+            from: onRamp.address,
+            to: router.address,
+            success: true,
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: router.address,
+            to: sender.address,
+            op: rt.Router_MessageValidationFailed_V1.PREFIX,
+            body(x) {
+              if (!x) return false
+              const decoded = rt.Router_MessageValidationFailed_V1.fromSlice(x.beginParse())
+              return (
+                decoded.context.asCell().equals(context ?? Cell.EMPTY) &&
+                decoded.error === 12345n &&
+                decoded.msg.queryID === 1n &&
+                decoded.msg.data.equals(Cell.EMPTY) &&
+                decoded.msg.destChainSelector ===
+                  ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
+                decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
+                decoded.msg.tokenAmounts.length === 0 &&
+                decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
+              )
+            },
+          })
+        })
+      })
     })
 
-    expect(result.transactions).toHaveTransaction({
-      from: router.address,
-      to: sender.address,
-      op: rt.Router_MessageValidationFailed.PREFIX,
-      body(x) {
-        if (!x) return false
-        const decoded = rt.Router_MessageValidationFailed_Any.fromSlice(x.beginParse())
-        return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
-      },
-    })
-  })
-
-  it('should forward messageValidated from OnRamp', async () => {
-    const result = await router.sendOnRampMessageValidatedGetValidatedFeeContext(
-      onRamp.getSender(),
-      toNano('1'),
-      {
-        $: 'OnRamp_MessageValidated',
-        fee: toNano('0.5'),
-        msg,
-        context: rt.Router_GetValidatedFeeContext.create({
-          routerContext: sender.address,
-          userContext: beginCell().asSlice(),
-        }),
-      },
-    )
-
-    expect(result.transactions).toHaveTransaction({
-      from: onRamp.address,
-      to: router.address,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: router.address,
-      to: sender.address,
-      op: rt.Router_MessageValidated.PREFIX,
-      body(x) {
-        if (!x) return false
-        const decoded = rt.Router_MessageValidated_Any.fromSlice(x.beginParse())
-        return (
-          decoded.fee === toNano('0.5') &&
-          decoded.msg.queryID === 1n &&
-          decoded.msg.data.equals(Cell.EMPTY) &&
-          decoded.msg.destChainSelector ===
-            ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
-          decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
-          decoded.msg.tokenAmounts.length === 0 &&
-          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
+    afterAll(async () => {
+      if (process.env['COVERAGE'] === 'true') {
+        await coverage.generateCoverageArtifacts(
+          blockchain,
+          'router_getFee',
+          await contractsCoverageConfig(),
         )
-      },
+      }
     })
-  })
-
-  it('should throw on messageValidated from non OnRamp', async () => {
-    const result = await router.sendOnRampMessageValidatedGetValidatedFeeContext(
-      sender.getSender(),
-      toNano('1'),
-      {
-        $: 'OnRamp_MessageValidated',
-        fee: toNano('0.5'),
-        msg,
-        context: rt.Router_GetValidatedFeeContext.create({
-          routerContext: sender.address,
-          userContext: beginCell().asSlice(),
-        }),
-      },
-    )
-
-    expect(result.transactions).toHaveTransaction({
-      from: sender.address,
-      to: router.address,
-      success: false,
-      exitCode: rt.Router.Errors['Router_Error.NotOnRamp'],
-    })
-  })
-
-  it('should forward messageValidationFailed from OnRamp', async () => {
-    const result = await router.sendOnRampMessageValidationFailedGetValidatedFeeContext(
-      onRamp.getSender(),
-      toNano('1'),
-      {
-        $: 'OnRamp_MessageValidationFailed',
-        error: 12345n,
-        msg,
-        context: rt.Router_GetValidatedFeeContext.create({
-          routerContext: sender.address,
-          userContext: beginCell().asSlice(),
-        }),
-      },
-    )
-
-    expect(result.transactions).toHaveTransaction({
-      from: onRamp.address,
-      to: router.address,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: router.address,
-      to: sender.address,
-      op: rt.Router_MessageValidationFailed.PREFIX,
-      body(x) {
-        if (!x) return false
-        const decoded = rt.Router_MessageValidationFailed_Any.fromSlice(x.beginParse())
-        return (
-          decoded.error === 12345n &&
-          decoded.msg.queryID === 1n &&
-          decoded.msg.data.equals(Cell.EMPTY) &&
-          decoded.msg.destChainSelector ===
-            ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
-          decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
-          decoded.msg.tokenAmounts.length === 0 &&
-          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
-        )
-      },
-    })
-  })
-
-  it('should throw on messageValidationFailed from non OnRamp', async () => {
-    const result = await router.sendOnRampMessageValidationFailedGetValidatedFeeContext(
-      sender.getSender(),
-      toNano('1'),
-      {
-        $: 'OnRamp_MessageValidationFailed',
-        error: 12345n,
-        msg,
-        context: rt.Router_GetValidatedFeeContext.create({
-          routerContext: sender.address,
-          userContext: beginCell().asSlice(),
-        }),
-      },
-    )
-
-    expect(result.transactions).toHaveTransaction({
-      from: sender.address,
-      to: router.address,
-      success: false,
-      exitCode: rt.Router.Errors['Router_Error.NotOnRamp'],
-    })
-  })
-
-  afterAll(async () => {
-    if (process.env['COVERAGE'] === 'true') {
-      await coverage.generateCoverageArtifacts(
-        blockchain,
-        'router_getFee',
-        await contractsCoverageConfig(),
-      )
-    }
-  })
-})
+  },
+)

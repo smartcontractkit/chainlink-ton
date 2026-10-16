@@ -10,8 +10,9 @@ import "types"
 
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
-    | FeeQuoter_MessageValidated_Any
-    | FeeQuoter_MessageValidationFailed_Any
+    | FeeQuoter_MessageValidated
+    | FeeQuoter_MessageValidationFailed
+    | OnRamp_ExecutorFeeReserved
     | TokenAdminRegistry_TokenInfo
     | TokenAdminRegistry_GetTokenInfoFailed
     | ResponseWalletAddress
@@ -19,9 +20,6 @@ type CCIPSendExecutor_InMessage =
     | TokenPool_LockOrBurnFinished
     | TokenPool_LockOrBurnFailure
     | Router_TokenPoolLockOrBurnFailed;
-
-type FeeQuoter_MessageValidated_Any = FeeQuoter_MessageValidated<RemainingBitsAndRefs>
-type FeeQuoter_MessageValidationFailed_Any = FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
 
 // crc32('CCIPSendExecutor_Execute')
 struct (0xaf3c62b3) CCIPSendExecutor_Execute {
@@ -54,6 +52,8 @@ fun SendExecutor_Costs.Execute(): int {
 fun SendExecutor_Costs.MessageValidated(): int {
     return
         + grams("0.002") // computeFee
+        + grams("0.019") // ExecutorReserveFee fwdFee
+        + OnRamp_Costs.ExecutorReserveFee()
         + grams("0.019") // ExecutorFinishedSuccessfully fwdFee
         + OnRamp_Costs.ExecutorFinishedSuccessfully();
 }
@@ -67,5 +67,8 @@ fun SendExecutor_Costs.MessageValidationFailed(): int {
 }
 
 type CCIPSendExecutor_BouncedMessage =
-    | FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>
+    | FeeQuoter_GetValidatedFee
+    | OnRamp_ExecutorReserveFee
+    | TokenAdminRegistry_GetTokenInfo
+    | RequestWalletAddress
     ;

@@ -12,9 +12,10 @@ enum Router_Error {
     MissingTokenAmounts
     NoMultiTokenTransfers
     InsufficientFee
-    TokenTransferNotThroughNotification
-    JettonTransferNotificationWithoutForwardPayload
     TokenAmountMismatch
     ForwardPayloadIsNotCCIPSend
     SourceChainSelectorMismatch
+    SenderIsNotDepositAccount
+    SenderIsNotOnRampAccount
+    DepositAccountWalletUnavailable
 }

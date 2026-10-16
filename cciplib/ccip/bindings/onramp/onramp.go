@@ -96,11 +96,12 @@ type SuiExtraArgsV1 struct {
 
 // Storage represents the storage structure for the CCIP onramp contract.
 type Storage struct {
-	ID               uint32               `tlb:"## 32"`
-	Ownable          ownable2step.Storage `tlb:"."`
-	StaticConfig     StaticConfig         `tlb:"^"`
-	Config           DynamicConfig        `tlb:"^"`
-	DestChainConfigs *cell.Dictionary     `tlb:"dict 64"`
+	ID                     uint32               `tlb:"## 32"`
+	Ownable                ownable2step.Storage `tlb:"."`
+	StaticConfig           StaticConfig         `tlb:"^"`
+	Config                 DynamicConfig        `tlb:"^"`
+	DestChainConfigs       *cell.Dictionary     `tlb:"dict 64"`
+	PendingFeeReservations tlb.Coins            `tlb:"."`
 }
 
 // Methods
@@ -145,11 +146,12 @@ type Metadata struct {
 }
 
 type ExecutorFinishedSuccessfully struct {
-	_        tlb.Magic     `tlb:"#CFA6B336" json:"-"` //nolint:revive // Ignore opcode tag
-	MsgId    *big.Int      `tlb:"## 224"`             // Message ID
-	Fee      feequoter.Fee `tlb:"."`                  // Fee amount
-	Msg      *cell.Cell    `tlb:"^"`                  // Original CCIPSend message
-	Metadata Metadata      `tlb:"."`                  // Metadata
+	_                   tlb.Magic     `tlb:"#CFA6B336" json:"-"` //nolint:revive // Ignore opcode tag
+	MsgId               *big.Int      `tlb:"## 224"`             // Message ID
+	Fee                 feequoter.Fee `tlb:"."`                  // Fee amount
+	Msg                 *cell.Cell    `tlb:"^"`                  // Original CCIPSend message
+	Metadata            Metadata      `tlb:"."`                  // Metadata
+	ChainFamilySelector uint32        `tlb:"## 32"`              // Destination chain family echoed from the FeeQuoter
 	// Pool-supplied token transfer details the OnRamp folds into the emitted
 	// CCIPMessageSent event. Nil when the message carries no token transfer.
 	TokenTransfer *ExecutorTokenTransfer `tlb:"maybe ^"`

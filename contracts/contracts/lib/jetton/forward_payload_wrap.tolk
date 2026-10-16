@@ -12,8 +12,8 @@ struct (0x2d61600c) Jetton_ForwardPayloadWrap {
     initiator: address
     /// Opaque processor context (e.g. `JettonWithdrawable_WithdrawContext`), `null` if none.
     context: cell?
-    /// The caller's original `forwardPayload`, preserved as the remainder.
-    forwardPayload: ForwardPayloadRemainder
+    /// The caller's original `forwardPayload`.
+    forwardPayload: cell?
 }
 
 @inline
@@ -34,4 +34,21 @@ fun Jetton_ForwardPayloadWrap.from(forwardPayload: ForwardPayloadRemainder): Jet
         Jetton_ForwardPayloadWrap => { return wrap; }
         else => { return null; }
     }
+}
+
+/// Returns the caller's original `forwardPayload` when `payload` is a `Jetton_ForwardPayloadWrap`,
+/// otherwise `payload` unchanged. Lets a processor re-tag an inbound payload with its own context
+/// without nesting wraps, so the payload stays a single unwrap away for the final recipient.
+@inline
+fun Jetton_ForwardPayloadWrap.unwrapForwardPayload(payload: cell?): cell? {
+    if (payload == null) {
+        return null;
+    }
+
+    val s = payload!.beginParse();
+    if (s.remainingBitsCount() < 32 || s.preloadUint(32) != 0x2d61600c) {
+        return payload;
+    }
+
+    return Jetton_ForwardPayloadWrap.fromCell(payload!).forwardPayload;
 }

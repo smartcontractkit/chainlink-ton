@@ -9,19 +9,11 @@ import "../../../lib/access/access_control"
 import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
-import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/funding/jetton_withdrawable"
 
 import "../../common/types"
-import "../../accounts/deposit/messages"
-import "../../accounts/deposit/types"
 import "../../rmn_remote/lib"
-
-import "../../../lib/deployable/types"
-
-import "../../../../gen/Deployable.code"
-import "../../../../gen/DepositAccount.code"
 
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/recovery"
@@ -30,8 +22,8 @@ import "../lib/token_pool/messages"
 import "../lib/token_pool/errors"
 import "../lockbox/messages"
 
-import "messages"
 import "types"
+import "messages"
 import "storage"
 
 
@@ -83,152 +75,18 @@ fun onInternalMessage(in: InMessage): void {
             onWithdrawFailed(mutate st, in.senderAddress, msg, in.valueCoins);
             st.store();
         }
-        DepositAccount_Reply => {
-            onDepositAccountReply(mutate st, in.senderAddress, msg);
-            st.store();
-        }
-        DepositAccount_NotEnoughValue => {
-            onDepositAccountInitFailed(mutate st, in.senderAddress, msg);
-            st.store();
-        }
-        DepositAccount_ForwardNotification => {
-            onDepositAccountForwardNotification(mutate st, in.senderAddress, msg);
-            st.store();
-        }
         ReturnExcessesBack => {
             // Excess TON from jetton transfer — just keep the coins.
+        }
+        // Releases are transferred out of the lockbox's wallet.
+        TokenPool_GetTransferInitiator => {
+            assert(st.lockbox != createAddressNone(), LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
+            TokenPool_replyTransferInitiator(in.senderAddress, msg.queryId, st.lockbox);
         }
         else => {
             assert(in.body.isEmpty()) throw 0xFFFF;
         }
     }
-}
-
-/// Deploys a DepositAccount (off-ramp role) for release operations.
-///
-/// The account is deployed via the Deployable pattern with a two-message sequence: the pool sends
-/// `Deployable_Initialize` to the account's deterministic shell address, which upgrades into the
-/// account by installing the account's code/data, then sends `DepositAccount_Init` (carrying the
-/// release context as forward payload, so the account's `DepositAccount_Reply` back to the pool
-/// can be correlated to the release). The two messages are enqueued and processed in order.
-/// owner = pool (deploys the account and receives the Reply), proxy = pool,
-/// beneficiary = recipient (can withdraw released jettons).
-///
-/// @dev Idempotent: if the account is already deployed, the `Deployable_Initialize` bounces off
-///      the upgraded account (opcode mismatch — ignored by the pool's bounce handler), while the
-///      `DepositAccount_Init` still succeeds and re-confirms the account, so a retried release to
-///      the same recipient safely re-confirms the account.
-fun deployOffRampAccountWithRelease(
-    st: Storage,
-    recipient: address,
-    queryId: uint64,
-    context: LockReleaseLockboxTokenPool_ReleaseContext,
-) {
-    val poolAddr = contract.getAddress();
-    var beneficiaries: map<address, ()> = [];
-    beneficiaries.set(recipient, ());
-
-    val oaa = calcAddressOfDepositAccount(
-        deployableCode(),
-        poolAddr, // owner = pool (deploys the account)
-        recipient,
-    );
-
-    val ESTIMATE_FWD_FEE = grams("0.02"); // TODO
-
-    // 1. Install the account's code/data at the shell address. On a retry to an already-deployed
-    // account this bounces with the default opcode-mismatch exit code (63) — ignored by the pool.
-    val deploy = createMessage({
-        bounce: BounceMode.RichBounce,
-        value: DepositAccount_MIN_GRAM_TO_RESERVE + ESTIMATE_FWD_FEE,
-        dest: oaa,
-        body: Deployable_Initialize {
-            stateInit: ContractState {
-                code: depositAccountCode(),
-                data: DepositAccount_Data {
-                    owner: poolAddr,
-                    proxy: poolAddr,
-                    beneficiaries,
-                }.toCell(),
-            },
-        },
-    });
-    // TODO require the incomming value to be more than DepositAccount_MIN_GRAM_TO_RESERVE + ESTIMATE_FWD_FEE + DepositAccount_MIN_GRAM_TO_INIT
-    deploy.send(SEND_MODE_REGULAR + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-
-    // The remaining value should be at least DepositAccount_MIN_GRAM_TO_INIT
-    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
-
-    // 2. Init the freshly installed account (processed right after the deploy). The account
-    // replies `DepositAccount_Reply` to the pool (its owner), which continues the release.
-    val init = createMessage({
-        bounce: BounceMode.RichBounce,
-        value: 0,
-        dest: oaa.calculateAddress(),
-        body: DepositAccount_Init {
-            queryId,
-            forwardPayload: context.toCell(),
-        },
-    });
-    // SAFETY: reserveGramsOnBalance is called before sending the init message, ensuring the account has enough balance to cover the reserved grams.
-    init.send(SEND_MODE_CARRY_ALL_BALANCE + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-}
-
-/// Handles DepositAccount_Reply after account deployment for release.
-/// Extracts context from Reply forwardPayload, then sends JettonLockBox_Withdraw to the lockbox.
-/// The lockbox withdraws to the account's jetton wallet, which forwards the notification via account to pool.
-fun onDepositAccountReply(
-    mutate st: Storage,
-    sender: address,
-    msg: DepositAccount_Reply,
-) {
-    // Extract release context from Reply forwardPayload.
-    assert(msg.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountReply);
-    val contextCell = msg.forwardPayload!;
-    val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
-    val operation = lazy context.forwardPayload.load();
-    val prepared = lazy operation.prepared.load();
-    val requestIn = lazy operation.requestMsg.load().request.load();
-    val details = lazy requestIn.transfer.details.load();
-
-    // Validate sender: derive expected account address and verify. Owner = proxy = pool,
-    // beneficiary = the final recipient.
-    val poolAddr = contract.getAddress();
-    val expectedOaa = calcAddressOfDepositAccount(
-        deployableCode(),
-        poolAddr, // owner = pool
-        details.receiver,
-    );
-    assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountReply);
-
-    // Compute account's jetton wallet address (where lockbox should withdraw to).
-    val jc = st.poolData.load().jettonClient();
-
-    // Build extra with sendExcessesTo so ReturnExcessesBack routes to pool.
-    // Also pass release context as forwardPayload so it survives the lockbox → jetton wallet hop.
-    val withdrawExtra = JettonLockBox_WithdrawExtra {
-        sendExcessesTo: poolAddr,
-        forwardTonAmount: grams("0.01"), // required for TransferNotificationForRecipient
-        forwardPayload: contextCell,
-    };
-
-    // Send JettonLockBox_Withdraw to the lockbox.
-    // The lockbox sends AskToTransfer from its jetton wallet to account's jetton wallet.
-    // Account's wallet sends TransferNotification to account, which forwards to pool.
-    val withdraw = createMessage({
-        bounce: BounceMode.RichBounce,
-        value: 0,
-        dest: st.lockbox,
-        body: JettonLockBox_Withdraw {
-            queryId: msg.queryId,
-            token: jc.masterAddress,
-            remoteChainSelector: details.remoteChainSelector,
-            amount: prepared.localAmount,
-            recipientWallet: sender, // account address
-            extra: withdrawExtra.toCell(),
-        },
-    });
-    withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// Handles bounced lock (deposit) messages: returns jettons and sends failure reply.
@@ -261,77 +119,7 @@ fun onBouncedMessage(in: InMessageBounced) {
             onLockTransferBounced(mutate st, in.senderAddress, msg, in.valueCoins);
             st.store();
         }
-        // The init message bounced: either the deployment failed (the account was never
-        // initialized) or the account rejected the init. Refund the rate limit and reply with a
-        // failure so the sender can retry instead of the release silently stalling.
-        DepositAccount_Init => {
-            onDepositAccountInitBounced(mutate st, in.senderAddress, msg, in.valueCoins);
-            st.store();
-        }
-        // The lockbox rejected the withdraw request at entry, so no JettonLockBox_WithdrawFailed
-        // follows. Unwind the admitted release from the context we embedded in `extra.forwardPayload`.
-        JettonLockBox_Withdraw => {
-            assert(in.senderAddress == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
-            recoverReleaseFromLockboxWithdraw(mutate st, msg, in.valueCoins);
-            st.store();
-        }
     }
-}
-
-/// @notice Handles a bounced `DepositAccount_Init` (the second message of the DepositAccount
-/// deployment sequence): refunds the inbound rate limit and sends a release failure reply. The
-/// init carries the release context in its `forwardPayload`.
-/// @dev A bounced `Deployable_Initialize` (the first message of the sequence) is intentionally
-///      NOT handled: on a retry to an already-deployed account it bounces with the default
-///      opcode-mismatch exit code (63) and must be ignored, and on a failed fresh deployment the
-///      queued init bounces right after it and cancels the release here — handling both would
-///      double-refund the rate limit.
-fun onDepositAccountInitBounced(
-    mutate st: Storage,
-    sender: address,
-    msg: DepositAccount_Init,
-    msgValue: coins,
-) {
-    assert(msg.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed);
-    val context = LockReleaseLockboxTokenPool_ReleaseContext.fromCell(msg.forwardPayload);
-    val operation = lazy context.forwardPayload.load();
-
-    var pool = loadPool(st);
-    pool.recoverReleaseOrMintFailure(operation, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed as uint16, msgValue);
-    st.poolData = pool.data.toCell();
-}
-
-/// @notice Handles `DepositAccount_NotEnoughValue`: the account failed to initialize because the
-/// init message carried less than `MIN_GRAM_TO_INIT` (the account replies instead of bouncing,
-/// so the failure does not surface as a `DepositAccount_Init` bounce).
-/// Same recovery as a bounced init: refund the rate limit and send a release failure reply
-/// so the sender can retry with enough value. The deployment is idempotent.
-fun onDepositAccountInitFailed(
-    mutate st: Storage,
-    sender: address,
-    msg: DepositAccount_NotEnoughValue,
-) {
-    assert(msg.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed);
-    val contextCell = msg.forwardPayload;
-    val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
-    val operation = lazy context.forwardPayload.load();
-    val requestIn = lazy operation.requestMsg.load().request.load();
-    val details = lazy requestIn.transfer.details.load();
-
-    // Validate sender: derive the expected account address and verify. Owner = proxy = pool,
-    // beneficiary = the final recipient.
-    val poolAddr = contract.getAddress();
-    val expectedOaa = calcAddressOfDepositAccount(
-        deployableCode(),
-        poolAddr, // owner = pool
-        details.receiver,
-    );
-    assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed);
-
-    var pool = loadPool(st);
-    pool.refundReleaseOrMintRateLimit(operation);
-    st.poolData = pool.data.toCell();
-    pool.sendReleaseOrMintFailure(operation, LockReleaseLockBoxTokenPool_Error.OffRampAccountDeployFailed as uint16);
 }
 
 /* === Lock (deposit) flow === */
@@ -515,14 +303,12 @@ fun onLockTransferBounced(
 /* === Release (withdraw) flow === */
 /*
  * Flow:
- * 1. Router sends TokenPool_ReleaseOrMint
+ * 1. Router deploys the receiver's deposit account and sends TokenPool_ReleaseOrMint
  * 2. TokenPool library validates, calls onReleaseOrMintContinue
- * 3. We deploy OffRampAccount (OAA) for the recipient
- * 4. On OAA Reply, we send JettonLockBox_Withdraw to the lockbox
- * 5. Lockbox sends AskToTransfer from its jetton wallet to OAA's jetton wallet
- * 6. OAA's jetton wallet sends TransferNotificationForRecipient to OAA
- * 7. OAA forwards to pool, we validate transferInitiator = lockbox wallet, then finalize
- * 8. On error, the lockbox sends JettonLockBox_WithdrawFailed directly to the pool
+ * 3. We send JettonLockBox_Withdraw to the lockbox, targeting the receiver's deposit account
+ * 4. Lockbox sends AskToTransfer from its jetton wallet to the account's jetton wallet
+ * 5. The account forwards the notification to the ReceiveExecutor, which finalizes the transfer
+ * 6. On error, the lockbox sends JettonLockBox_WithdrawFailed directly to the pool
  */
 
 fun onReleaseOrMintContinue(
@@ -532,7 +318,9 @@ fun onReleaseOrMintContinue(
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
-    var st = ctx!;
+    assert(msg.delivery != null, TokenPool_Error.UnsupportedOperation);
+    val st = ctx!;
+    val delivery = msg.delivery!.load();
     assert(st.lockbox != createAddressNone(), LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
 
     val request = lazy msg.request.load();
@@ -547,9 +335,33 @@ fun onReleaseOrMintContinue(
         forwardPayload: forwardPayload.toCell(),
     };
 
-    // Deploy OffRampAccount with context embedded.
-    // OAA owner = recipient (can withdraw released jettons).
-    deployOffRampAccountWithRelease(st, details.receiver, msg.queryId, context);
+    // The release context rides along in the wrap only for the lockbox failure path.
+    val wrap = Jetton_ForwardPayloadWrap {
+        initiator: sender,
+        context: context.toCell(),
+        forwardPayload: delivery.forwardPayload,
+    };
+    val withdrawExtra = JettonLockBox_WithdrawExtra {
+        sendExcessesTo: contract.getAddress(),
+        forwardTonAmount: delivery.forwardTonAmount,
+        forwardPayload: wrap.toCell(),
+    };
+
+    val jc = st.poolData.load().jettonClient();
+    val withdraw = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: 0,
+        dest: st.lockbox,
+        body: JettonLockBox_Withdraw {
+            queryId: msg.queryId,
+            token: jc.masterAddress,
+            remoteChainSelector: details.remoteChainSelector,
+            amount: prepared.localAmount,
+            recipientWallet: delivery.recipient,
+            extra: withdrawExtra.toCell(),
+        },
+    });
+    withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
     return st;
 }
@@ -568,7 +380,9 @@ fun onWithdrawFailed(
     recoverReleaseFromLockboxWithdraw(mutate st, withdraw, msgValue);
 }
 
-/// Unwinds an admitted release whose lockbox withdraw did not complete
+/// Unwinds an admitted release whose lockbox withdraw did not complete. The lockbox echoes the
+/// original withdraw, whose `extra.forwardPayload` still carries the pool's
+/// `Jetton_ForwardPayloadWrap` (the `ReleaseContext` lives in the wrap's `context`).
 fun recoverReleaseFromLockboxWithdraw(
     mutate st: Storage,
     withdraw: JettonLockBox_Withdraw,
@@ -577,72 +391,13 @@ fun recoverReleaseFromLockboxWithdraw(
     assert(withdraw.extra != null, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
     val extra = withdraw.extra!.load();
     assert(extra.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
-    val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(extra.forwardPayload!);
+    val wrap = lazy Jetton_ForwardPayloadWrap.fromCell(extra.forwardPayload!);
+    assert(wrap.context != null, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
+    val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(wrap.context!);
     var pool = loadPool(st);
-    pool.recoverReleaseOrMintFailure(context.forwardPayload.load(), LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed as uint16, msgValue);
+    pool.recoverReleaseOrMintFailure(context.forwardPayload.load(),
+        LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed as uint16, msgValue);
     st.poolData = pool.data.toCell();
-}
-
-/// Handles ForwardNotification from DepositAccount after release (withdraw) completion.
-/// The forwarded message body contains TransferNotificationForRecipient.
-/// Validates account sender, checks transferInitiator = lockbox's jetton wallet, then finalizes.
-fun onDepositAccountForwardNotification(
-    mutate st: Storage,
-    sender: address,
-    msg: DepositAccount_ForwardNotification,
-) {
-    val forwarded = msg.message.load();
-
-    // Parse the forwarded body as TransferNotificationForRecipient.
-    val transferNotif = lazy TransferNotificationForRecipient.fromSlice(forwarded.body.beginParse());
-
-    // Unwrap release context from the transfer notification's forward payload (`Jetton_ForwardPayloadWrap`).
-    val wrap = parseLockBoxWithdrawWrap(transferNotif.forwardPayload);
-    assert(wrap != null && wrap!.initiator == contract.getAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
-    val contextCell = loadForwardPayloadAsCell(wrap!.forwardPayload);
-    assert(contextCell != null, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
-
-    val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
-    val operation = lazy context.forwardPayload.load();
-
-    // Validate sender: the forwarded notification must come from the account and its original
-    // jetton wallet (the account's own derived CCT wallet for this pool's token).
-    val releaseRecipient = getReleaseRecipientFromContext(contextCell);
-    val jettonClient = st.poolData.load().jettonClient();
-    val poolAddr = contract.getAddress();
-    val expectedOaa = calcAddressOfDepositAccount(
-        deployableCode(),
-        poolAddr, // owner = pool
-        releaseRecipient,
-    );
-    assert(sender == expectedOaa.calculateAddress(), LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
-
-    // The original message's sender must be the account's own CCT jetton wallet for this token,
-    // proving a real release reached the account (not a spoofed arbitrary sender).
-    val expectedWallet = calcAddressOfJettonWallet(
-        expectedOaa.calculateAddress(),
-        jettonClient.masterAddress,
-        jettonClient.jettonWalletCode,
-    );
-    assert(forwarded.senderAddress == expectedWallet, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
-
-    // Verify transferInitiator is the lockbox's addr (auth the transfer source).
-    assert(transferNotif.transferInitiator != null, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
-    assert(transferNotif.transferInitiator! == st.lockbox, LockReleaseLockBoxTokenPool_Error.InvalidOffRampAccountNotification);
-
-    var pool = loadPool(st);
-    pool.sendReleaseOrMintFinished(operation);
-    st.poolData = pool.data.toCell();
-}
-
-/// Extracts the recipient address from a release context cell.
-fun getReleaseRecipientFromContext(contextCell: cell): address {
-    val context = LockReleaseLockboxTokenPool_ReleaseContext.fromCell(contextCell);
-    val operation = lazy context.forwardPayload.load();
-    val requestMsg = lazy operation.requestMsg.load();
-    val request = lazy requestMsg.request.load();
-    val details = lazy request.transfer.details.load();
-    return details.receiver;
 }
 
 /* === Pool loader === */
@@ -665,14 +420,6 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             onWithdrawFeeTokens: null,
         },
     };
-}
-
-fun deployableCode(): cell {
-    return deployableCompiledCode();
-}
-
-fun depositAccountCode(): cell {
-    return depositAccountCompiledCode();
 }
 
 /* === Getters === */

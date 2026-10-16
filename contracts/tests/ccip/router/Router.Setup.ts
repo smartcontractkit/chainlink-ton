@@ -261,7 +261,7 @@ async function deployFeeQuoterInstance(
               destDataAvailabilityMultiplierBps: 0n,
               chainFamilySelector: ChainFamilySelectors.evm,
               defaultTokenFeeUsdCents: 0n,
-              defaultTokenDestGasOverhead: 0n,
+              defaultTokenDestGasOverhead: 90000n,
               defaultTxGasLimit: 1n,
               gasMultiplierWeiPerEth: 0n,
               gasPriceStalenessThreshold: 0n,

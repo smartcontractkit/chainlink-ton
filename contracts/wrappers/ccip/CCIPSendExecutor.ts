@@ -4,7 +4,7 @@ import { errorCode, facilityId } from '../utils'
 import * as fq from './FeeQuoter'
 import { toNano } from '@ton/core'
 
-export const CONTRACT_VERSION = '1.6.1'
+export const CONTRACT_VERSION = '1.7.0'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.CCIPSendExecutor'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))

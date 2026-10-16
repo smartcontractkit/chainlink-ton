@@ -114,11 +114,6 @@ const CONTRACTS: ContractSource[] = [
     compiledFile: 'ccip.account.DepositAccount.compiled.json',
     tolkSource: 'contracts/ccip/accounts/deposit/contract.tolk',
   },
-  {
-    contractType: 'link.chain.ton.ccip.account.OnRampAccount',
-    compiledFile: 'ccip.account.OnRampAccount.compiled.json',
-    tolkSource: 'contracts/ccip/accounts/on_ramp_account/contract.tolk',
-  },
   // TP contracts (version mirrors the <Name>_CONTRACT_VERSION const in each contract's types.tolk)
   {
     contractType: 'link.chain.ton.ccip.pool.JettonLockBox',

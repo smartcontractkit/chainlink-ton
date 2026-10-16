@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 
-import { toNano, beginCell, Cell } from '@ton/core'
+import { Address, toNano, beginCell, Cell } from '@ton/core'
 
 import { FeeQuoterSetup, FeeQuoterFeeSetup, Token } from './FeeQuoterSetup'
 import * as feeQuoterManual from '../../../wrappers/ccip/FeeQuoter'
@@ -13,6 +13,7 @@ import { Blockchain } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 import { ChainSelectors } from '../../utils/Selectors'
 import { FromBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+import { findTransactionRequired } from '@ton/test-utils'
 
 describe('FeeQuoter GetValidatedFee', () => {
   let setup: FeeQuoterFeeSetup
@@ -152,10 +153,10 @@ describe('FeeQuoter GetValidatedFee', () => {
       }),
     })
 
-    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFeeAny(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFee(
       setup.acc.externalCaller.getSender(),
       toNano('1'),
-      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message, context: beginCell().asSlice() }),
+      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message }),
     )
 
     // Should return failure - destination chain not configured
@@ -169,9 +170,9 @@ describe('FeeQuoter GetValidatedFee', () => {
       op: feeQuoter.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
-        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_Any>(
+        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed>(
           x,
-          sx.FeeQuoter_MessageValidationFailed_Any,
+          sx.FeeQuoter_MessageValidationFailed,
           [
             (msg) => {
               return (
@@ -199,10 +200,10 @@ describe('FeeQuoter GetValidatedFee', () => {
       }),
     })
 
-    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFeeAny(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFee(
       setup.acc.externalCaller.getSender(),
       toNano('1'),
-      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message, context: beginCell().asSlice() }),
+      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message }),
     )
 
     // Should return failure - destination chain not configured
@@ -216,9 +217,9 @@ describe('FeeQuoter GetValidatedFee', () => {
       op: feeQuoter.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
-        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_Any>(
+        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed>(
           x,
-          sx.FeeQuoter_MessageValidationFailed_Any,
+          sx.FeeQuoter_MessageValidationFailed,
           [
             (msg) => {
               return (
@@ -265,10 +266,10 @@ describe('FeeQuoter GetValidatedFee', () => {
       }),
     })
 
-    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFeeAny(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFee(
       setup.acc.externalCaller.getSender(),
       toNano('1'),
-      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message, context: beginCell().asSlice() }),
+      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message }),
     )
 
     // should return failure - destination chain not configured
@@ -282,9 +283,9 @@ describe('FeeQuoter GetValidatedFee', () => {
       op: feeQuoter.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
-        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_Any>(
+        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed>(
           x,
-          sx.FeeQuoter_MessageValidationFailed_Any,
+          sx.FeeQuoter_MessageValidationFailed,
           [
             (msg) => {
               return (
@@ -312,10 +313,10 @@ describe('FeeQuoter GetValidatedFee', () => {
       }),
     })
 
-    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFeeAny(
+    const result = await setup.bind.feeQuoter.sendFeeQuoterGetValidatedFee(
       setup.acc.externalCaller.getSender(),
       toNano('1'),
-      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message, context: beginCell().asSlice() }),
+      feeQuoter.FeeQuoter_GetValidatedFee.create({ msg: message }),
     )
 
     // should return failure - destination chain not configured
@@ -329,9 +330,9 @@ describe('FeeQuoter GetValidatedFee', () => {
       op: feeQuoter.FeeQuoter_MessageValidationFailed.PREFIX,
       success: true,
       body(x) {
-        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed_Any>(
+        return verifyBodyMessage<sx.FeeQuoter_MessageValidationFailed>(
           x,
-          sx.FeeQuoter_MessageValidationFailed_Any,
+          sx.FeeQuoter_MessageValidationFailed,
           [
             (msg) => {
               return (
@@ -616,10 +617,12 @@ describe('FeeQuoter GetValidatedFee', () => {
       expect(bitCount).toBeLessThanOrEqual(257) // Ensure fits within uint257
     })
 
-    it('should handle token price too low error', async () => {
+    it('should revert with TokenNotSupported for a zero fee token price', async () => {
+      // Mirrors EVM getValidatedFee, which validates the fee token via getValidatedTokenPrice:
+      // a zero (or never-timestamped) price reverts TokenNotSupported, not TokenPriceTooLow.
       await testOverflowScenario(
-        'token price too low',
-        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenPriceTooLow'],
+        'zero fee token price',
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenNotSupported'],
         {
           feeTokenPrice: 0n, // Zero token price should trigger error
         },
@@ -687,6 +690,227 @@ describe('FeeQuoter GetValidatedFee', () => {
           maxDataBytes: 10001n,
           linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e36), // Inflate link price to prevent MessageFeeTooHigh error
         },
+      )
+    })
+  })
+
+  // Token price validation: getValidatedTokenPrice reverts with TokenNotSupported when the token
+  // has no price entry, was never timestamped, or carries a zero value.
+  describe('Token Price Validation', () => {
+    function uniqueToken(name: string): Address {
+      return Address.parse(`0:${Buffer.from(name).toString('hex').padStart(64, '0')}`)
+    }
+
+    // Registers an enabled transfer-fee override with deciBps > 0 so the bps branch (and hence
+    // getValidatedTokenPrice) is exercised when the token is transferred.
+    async function addTokenTransferFeeConfig(token: Address) {
+      const result = await setup.bind.feeQuoter.sendFeeQuoterUpdateTokenTransferFeeConfigs(
+        setup.acc.owner.getSender(),
+        toNano('1'),
+        {
+          updates: new Map([
+            [
+              BigInt(ChainSelectors.testnet.evm),
+              feeQuoter.UpdateTokenTransferFeeConfig.create({
+                add: new Map([
+                  [
+                    token,
+                    feeQuoter.TokenTransferFeeConfig.create({
+                      isEnabled: true,
+                      minFeeUsdCents: 1_00n,
+                      maxFeeUsdCents: 1000_00n,
+                      deciBps: 2_5n,
+                      destGasOverhead: 100_000n,
+                      destBytesOverhead: 32n,
+                    }),
+                  ],
+                ]),
+                remove: [],
+              }),
+            ],
+          ]),
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        to: setup.bind.feeQuoter.address,
+        success: true,
+      })
+    }
+
+    // Pushes a token price update; the price timestamp is blockchain.now at send time.
+    async function pushTokenPrice(token: Address, usdPerToken: bigint) {
+      const result = await setup.bind.feeQuoter.sendFeeQuoterUpdatePrices(
+        setup.acc.owner.getSender(),
+        toNano('1'),
+        {
+          updates: feeQuoter.PriceUpdates.create({
+            tokenPriceUpdates: [
+              feeQuoter.TokenPriceUpdate.create({ sourceToken: token, usdPerToken }),
+            ],
+            gasPriceUpdates: [],
+          }),
+          sendExcessesTo: setup.acc.owner.address,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        to: setup.bind.feeQuoter.address,
+        success: true,
+      })
+    }
+
+    it('validatedTokenPrice returns the stored price for a priced token', async () => {
+      const price = await setup.bind.feeQuoter.getValidatedTokenPrice(
+        FeeQuoterSetup.SOURCE_FEE_TOKEN.token,
+      )
+      expect(price).toBe(FeeQuoterSetup.SOURCE_FEE_TOKEN.price)
+    })
+
+    it('validatedTokenPrice reverts for a token with no price entry', async () => {
+      await expect(
+        setup.bind.feeQuoter.getValidatedTokenPrice(uniqueToken('NO_ENTRY')),
+      ).rejects.toThrow()
+    })
+
+    it('validatedTokenPrice reverts for a zero price', async () => {
+      const token = uniqueToken('ZERO_PRICE')
+      await pushTokenPrice(token, 0n) // timestamped, but zero value
+
+      await expect(setup.bind.feeQuoter.getValidatedTokenPrice(token)).rejects.toThrow()
+    })
+
+    it('validatedTokenPrice reverts for a price that was never timestamped', async () => {
+      // updatePrices always stamps blockchain.now, so a timestamp-0 entry can only exist by
+      // pre-seeding it into storage (fresh contract, no transactions yet).
+      const token = uniqueToken('NEVER_TIMESTAMPED')
+      setup = new FeeQuoterFeeSetup(blockchain)
+      setup.code = await FeeQuoterSetup.compileContracts()
+      await setup.setupAll(
+        'getValidatedFee',
+        blockchain,
+        new Map([
+          [
+            token,
+            feeQuoter.TimestampedPrice.create({
+              value: FeeQuoterSetup.CUSTOM_TOKEN.price,
+              timestamp: 0n,
+            }),
+          ],
+        ]),
+      )
+
+      await expect(setup.bind.feeQuoter.getValidatedTokenPrice(token)).rejects.toThrow()
+    })
+
+    it('reverts with TokenNotSupported when a transferred token has a zero price', async () => {
+      const token = uniqueToken('ZERO_PRICE_FEE')
+      await addTokenTransferFeeConfig(token)
+      await pushTokenPrice(token, 0n)
+
+      const message = setup.generateSingleTokenMessage({ token, amount: toNano('1') })
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenNotSupported'],
+      )
+    })
+
+    it('reverts with TokenNotSupported when a transferred token price was never timestamped', async () => {
+      // updatePrices always stamps blockchain.now, so a timestamp-0 entry can only exist by
+      // pre-seeding it into storage (fresh contract, no transactions yet).
+      const token = uniqueToken('NEVER_TIMESTAMPED_FEE')
+      setup = new FeeQuoterFeeSetup(blockchain)
+      setup.code = await FeeQuoterSetup.compileContracts()
+      await setup.setupAll(
+        'getValidatedFee',
+        blockchain,
+        new Map([
+          [
+            token,
+            feeQuoter.TimestampedPrice.create({
+              value: FeeQuoterSetup.CUSTOM_TOKEN.price,
+              timestamp: 0n,
+            }),
+          ],
+        ]),
+      )
+      await addTokenTransferFeeConfig(token)
+
+      const message = setup.generateSingleTokenMessage({ token, amount: toNano('1') })
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenNotSupported'],
+      )
+    })
+
+    it('reverts with TokenNotSupported when a transferred token has no price entry', async () => {
+      const token = uniqueToken('NO_PRICE_ENTRY_FEE')
+      await addTokenTransferFeeConfig(token) // deciBps > 0, but no usdPerToken entry
+
+      const message = setup.generateSingleTokenMessage({ token, amount: toNano('1') })
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenNotSupported'],
+      )
+    })
+
+    // LINK-conversion path: when paying with a non-LINK fee token, calculateFeeValueJuels
+    // converts the fee to juels via getValidatedTokenPrice(st.linkToken), so an invalid LINK
+    // price must revert even though the fee token itself is priced. Each case re-deploys with
+    // LINK excluded from both the storage seed and the deploy-time updatePrices push (which
+    // would otherwise overwrite the invalid entry), then re-seeds it in the broken shape.
+    async function setupWithInvalidLinkPrice(linkPrice: feeQuoter.TimestampedPrice) {
+      const linkToken = FeeQuoterSetup.SOURCE_LINK.token
+      setup = new FeeQuoterFeeSetup(blockchain)
+      setup.code = await FeeQuoterSetup.compileContracts()
+      await setup.setupAll('getValidatedFee', blockchain, new Map([[linkToken, linkPrice]]), [
+        linkToken,
+      ])
+      return linkToken
+    }
+
+    async function expectLinkConversionReverts(linkPrice: feeQuoter.TimestampedPrice) {
+      const linkToken = await setupWithInvalidLinkPrice(linkPrice)
+
+      // Sanity: the invalid LINK entry survived setup.
+      await expect(setup.bind.feeQuoter.getValidatedTokenPrice(linkToken)).rejects.toThrow()
+
+      // Pay in NATIVE_TON (a valid non-LINK fee token) to force the LINK conversion.
+      const message = setup.generateEmptyMessage({ feeToken: FeeQuoterSetup.NATIVE_TON.token })
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenNotSupported'],
+      )
+    }
+
+    it('reverts with TokenNotSupported when LINK has no price entry and the fee is paid in another token', async () => {
+      const linkToken = await setupWithInvalidLinkPrice(
+        // No entry seeded at all: deploy-time push is excluded for LINK.
+        feeQuoter.TimestampedPrice.create({ value: 0n, timestamp: 0n }),
+      )
+      // Overwrite the seed with nothing: delete the entry so LINK has no price at all.
+      await expect(setup.bind.feeQuoter.getValidatedTokenPrice(linkToken)).rejects.toThrow()
+
+      // Pay in NATIVE_TON (a valid non-LINK fee token) to force the LINK conversion.
+      const message = setup.generateEmptyMessage({ feeToken: FeeQuoterSetup.NATIVE_TON.token })
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TokenNotSupported'],
+      )
+    })
+
+    it('reverts with TokenNotSupported when LINK price is zero and the fee is paid in another token', async () => {
+      await expectLinkConversionReverts(
+        feeQuoter.TimestampedPrice.create({ value: 0n, timestamp: 1n }),
+      )
+    })
+
+    it('reverts with TokenNotSupported when LINK price was never timestamped and the fee is paid in another token', async () => {
+      // A nonzero value with timestamp 0 is exactly what the previous raw-lookup + zero-value
+      // guard accepted; this test pins the regression.
+      await expectLinkConversionReverts(
+        feeQuoter.TimestampedPrice.create({
+          value: FeeQuoterSetup.SOURCE_LINK.price,
+          timestamp: 0n,
+        }),
       )
     })
   })
@@ -824,7 +1048,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
 
     it('reverts with empty extra args', async () => {
-      const message = feeQuoterManual.FeeQuoter_GetValidatedFee_Any.toCell({
+      const message = feeQuoterManual.FeeQuoter_GetValidatedFee.toCell({
         msg: {
           queryID: 0n,
           destChainSelector: ChainSelectors.testnet.solana,
@@ -918,7 +1142,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
 
     it('reverts with empty extra args', async () => {
-      const message = feeQuoterManual.FeeQuoter_GetValidatedFee_Any.toCell({
+      const message = feeQuoterManual.FeeQuoter_GetValidatedFee.toCell({
         msg: {
           queryID: 0n,
           destChainSelector: ChainSelectors.testnet.solana,
@@ -1114,7 +1338,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         })
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidEVMReceiverAddress'],
+          feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.InvalidEVMAddress'],
         )
       })
 
@@ -1138,7 +1362,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidEVMReceiverAddress'],
+          feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.InvalidEVMAddress'],
         )
       })
 
@@ -1229,7 +1453,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.Invalid32ByteReceiverAddress'],
+          feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.Invalid32ByteAddress'],
         )
       })
     })
@@ -1273,7 +1497,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.Invalid32ByteReceiverAddress'],
+          feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.Invalid32ByteAddress'],
         )
       })
     })
@@ -1344,7 +1568,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.Invalid32ByteReceiverAddress'],
+          feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.Invalid32ByteAddress'],
         )
       })
 
@@ -1367,7 +1591,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
         await setup.assertGetFeeValidationError(
           message,
-          feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.Invalid32ByteReceiverAddress'],
+          feeQuoter.FeeQuoter.Errors['DestFamilyAddressValidation_Error.Invalid32ByteAddress'],
         )
       })
 
