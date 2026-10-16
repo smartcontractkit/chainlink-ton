@@ -18,4 +18,7 @@ enum Router_Error {
     SenderIsNotDepositAccount
     SenderIsNotOnRampAccount
     DepositAccountWalletUnavailable
+    /// The withdraw's forward payload doesn't name the executor that requested it.
+    WithdrawExecutorMismatch
+    OnRampAccountWithdrawFailed
 }

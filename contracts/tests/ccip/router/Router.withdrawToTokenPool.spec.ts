@@ -1,4 +1,4 @@
-import '@ton/test-utils'
+import { findTransaction } from '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 
@@ -27,6 +27,7 @@ describe('Router.withdrawToTokenPool', () => {
   let depositAccountCode: Cell
   let deployableCode: Cell
   let token: Address
+  let executor: SandboxContract<TreasuryContract>
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -50,6 +51,7 @@ describe('Router.withdrawToTokenPool', () => {
 
   beforeEach(async () => {
     ;({ deployer, sender, router } = await setup(blockchain, { feeQuoter, onRamp }))
+    executor = await blockchain.treasury('executor')
   })
 
   const destChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
@@ -64,10 +66,40 @@ describe('Router.withdrawToTokenPool', () => {
       deployableCode,
     )
 
+  // Requests the on-ramp account and, on its first init, answers the account's TEP-89 wallet
+  // query on behalf of the token.
+  const requestOnRampAccount = async (
+    via: SandboxContract<TreasuryContract>,
+    jetton: Address = token,
+    value: bigint = toNano('1'),
+  ) => {
+    const request = await router.sendRouterGetOnRampAccount(via.getSender(), value, {
+      token: jetton,
+    })
+    const account = accountAddressFor(via.address, jetton)
+    if (
+      !findTransaction(request.transactions, {
+        from: account,
+        to: jetton,
+        op: deposit.RequestWalletAddress.PREFIX,
+      })
+    ) {
+      return request
+    }
+    const answer = await blockchain
+      .openContract(deposit.DepositAccount.fromAddress(account))
+      .sendResponseWalletAddress(blockchain.sender(jetton), toNano('0.05'), {
+        queryId: 0n,
+        jettonWalletAddress: new Address(0, beginCell().storeAddress(account).endCell().hash()),
+        ownerAddress: null,
+      })
+    return { ...answer, transactions: [...request.transactions, ...answer.transactions] }
+  }
+
   // Deploys the sender's deposit account through the Router's permissionless
   // Router_GetOnRampAccount entrypoint, so the account exists with the Router as owner.
   const deployDepositAccount = async (user: SandboxContract<TreasuryContract>) => {
-    const res = await router.sendRouterGetOnRampAccount(user.getSender(), toNano('1'), { token })
+    const res = await requestOnRampAccount(user)
     expect(res.transactions).toHaveTransaction({
       from: router.address,
       to: user.address,
@@ -78,22 +110,25 @@ describe('Router.withdrawToTokenPool', () => {
   }
 
   const buildWithdrawRequest = (opts: {
-    accountWalletAddress: Address
     depositAccount: Address
     amount: bigint
     tokenPool: Address
+    replyTo?: Address | null
   }): rt.Router_WithdrawRequest =>
     rt.Router_WithdrawRequest.create({
-      accountWalletAddress: opts.accountWalletAddress,
       depositAccount: opts.depositAccount,
       amount: opts.amount,
       tokenPool: opts.tokenPool,
-      forwardPayload: buildLockOrBurnForwardPayload(),
+      forwardPayload: buildLockOrBurnForwardPayload(
+        opts.replyTo === undefined ? executor.address : opts.replyTo,
+      ),
     })
 
-  // A minimal but well-formed LockOrBurn forward payload: the Router only forwards it verbatim
-  // into the AskToTransfer's forward payload (it never inspects the contents).
-  const buildLockOrBurnForwardPayload = (): rt.TokenPool_LockOrBurnForwardPayload =>
+  // A minimal but well-formed LockOrBurn forward payload. The Router forwards it verbatim into the
+  // AskToTransfer's forward payload and only reads `requestMsg.replyTo`, the executor to fail.
+  const buildLockOrBurnForwardPayload = (
+    replyTo: Address | null = executor.address,
+  ): rt.TokenPool_LockOrBurnForwardPayload =>
     rt.TokenPool_LockOrBurnForwardPayload.create({
       originalSender: sender.address,
       requestMsg: rt.TokenPool_LockOrBurn.create({
@@ -113,7 +148,7 @@ describe('Router.withdrawToTokenPool', () => {
         }),
         requestedFinalityConfig: 0n,
         tokenArgs: null,
-        replyTo: null,
+        replyTo,
       }),
       prepared: rt.TokenPool_LockOrBurnPrepared.create({
         feeAmount: 0n,
@@ -125,13 +160,45 @@ describe('Router.withdrawToTokenPool', () => {
       }),
     })
 
+  // The AskToTransfer the Router builds in `onWithdrawToTokenPool`, as reported back in a
+  // DepositAccount_WithdrawFailed.
+  const buildAsk = (tokenPool: Address) =>
+    deposit.AskToTransfer.create({
+      jettonAmount: toNano('5'),
+      transferRecipient: tokenPool,
+      sendExcessesTo: router.address,
+      customPayload: null,
+      forwardTonAmount: 0n,
+      forwardPayload: beginCell()
+        .storeMaybeRef(
+          rt.TokenPool_LockOrBurnForwardPayload.toCell(buildLockOrBurnForwardPayload()),
+        )
+        .asSlice(),
+    })
+
+  const expectCCIPSendFailed = (
+    result: Awaited<ReturnType<typeof router.sendRouterWithdrawToTokenPool>>,
+    tokenPool: Address,
+    error: string,
+  ) =>
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: executor.address,
+      op: rt.Router_TokenPoolLockOrBurnFailed.PREFIX,
+      body(body) {
+        if (!body) return false
+        const failed = rt.Router_TokenPoolLockOrBurnFailed.fromSlice(body.beginParse())
+        return (
+          failed.tokenPool.equals(tokenPool) && failed.exitCode === BigInt(rt.Router.Errors[error])
+        )
+      },
+    })
+
   it('forwards the withdraw to the deposit account as DepositAccount_Withdraw', async () => {
     const tokenPool = await blockchain.treasury('tokenPool')
     const accountAddress = await deployDepositAccount(sender)
-    const walletAddress = await blockchain.treasury('accountWallet')
 
     const withdrawRequest = buildWithdrawRequest({
-      accountWalletAddress: walletAddress.address,
       depositAccount: accountAddress,
       amount: toNano('5'),
       tokenPool: tokenPool.address,
@@ -139,6 +206,7 @@ describe('Router.withdrawToTokenPool', () => {
 
     const result = await router.sendRouterWithdrawToTokenPool(onRamp.getSender(), withdrawValue, {
       destChainSelector,
+      executor: executor.address,
       withdrawRequest,
     })
 
@@ -158,9 +226,7 @@ describe('Router.withdrawToTokenPool', () => {
       success: true,
       body(body) {
         if (!body) return false
-        const withdraw = deposit.DepositAccount_Withdraw.fromSlice(body.beginParse())
-        if (!withdraw.walletAddress.equals(walletAddress.address)) return false
-        const ask = withdraw.ask
+        const ask = deposit.DepositAccount_Withdraw.fromSlice(body.beginParse()).ask
         return (
           ask.jettonAmount === withdrawRequest.amount &&
           ask.transferRecipient.equals(tokenPool.address) &&
@@ -174,13 +240,12 @@ describe('Router.withdrawToTokenPool', () => {
   it('rejects the withdraw when the dest chain has no OnRamp registered', async () => {
     const tokenPool = await blockchain.treasury('tokenPool')
     const accountAddress = await deployDepositAccount(sender)
-    const walletAddress = await blockchain.treasury('accountWallet')
 
     const result = await router.sendRouterWithdrawToTokenPool(onRamp.getSender(), withdrawValue, {
       queryID: 7n,
       destChainSelector: destChainSelector + 1n, // never registered
+      executor: executor.address,
       withdrawRequest: buildWithdrawRequest({
-        accountWalletAddress: walletAddress.address,
         depositAccount: accountAddress,
         amount: toNano('5'),
         tokenPool: tokenPool.address,
@@ -203,28 +268,18 @@ describe('Router.withdrawToTokenPool', () => {
     const tokenPool = await blockchain.treasury('tokenPool')
     const accountAddress = await deployDepositAccount(sender)
     const walletAddress = await blockchain.treasury('accountWallet')
-    const ask = deposit.AskToTransfer.create({
-      jettonAmount: toNano('5'),
-      transferRecipient: tokenPool.address,
-      sendExcessesTo: router.address,
-      customPayload: null,
-      forwardTonAmount: 0n,
-      forwardPayload: Cell.EMPTY.beginParse(),
-    })
+    const ask = buildAsk(tokenPool.address)
 
     // The deposit account reports the bounced withdraw (as it does when its AskToTransfer
     // bounces back from the jetton wallet).
     const result = await router.sendDepositAccountWithdrawFailed(
       // The message must come from the sender's derived deposit account: the Router re-derives
-      // the expected account address from the reported (proxy, token) identity.
+      // the expected account address from the reported (user, token) pair.
       blockchain.sender(accountAddress),
       toNano('0.5'),
       {
-        account: deposit.DepositAccount_Identity.create({
-          owner: router.address,
-          proxy: sender.address,
-          token,
-        }),
+        user: sender.address,
+        token,
         walletAddress: walletAddress.address,
         ask,
       },
@@ -242,22 +297,87 @@ describe('Router.withdrawToTokenPool', () => {
       tokenPool: tokenPool.address,
       exitCode: 0n,
     })
+    expectCCIPSendFailed(result, tokenPool.address, 'Router_Error.OnRampAccountWithdrawFailed')
+  })
 
-    // TODO: test the message sent to the sendExecutor
+  it('fails the CCIPSend when the account transfer to the pool bounces', async () => {
+    const tokenPool = await blockchain.treasury('tokenPool')
+    const accountAddress = await deployDepositAccount(sender)
+
+    // The account's learned wallet (answered by the test on the token's behalf) has no contract, so
+    // the account's AskToTransfer bounces and the account reports it back to the Router.
+    const result = await router.sendRouterWithdrawToTokenPool(onRamp.getSender(), withdrawValue, {
+      destChainSelector,
+      executor: executor.address,
+      withdrawRequest: buildWithdrawRequest({
+        depositAccount: accountAddress,
+        amount: toNano('5'),
+        tokenPool: tokenPool.address,
+      }),
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: accountAddress,
+      to: router.address,
+      op: deposit.DepositAccount_WithdrawFailed.PREFIX,
+      success: true,
+    })
+    expectCCIPSendFailed(result, tokenPool.address, 'Router_Error.OnRampAccountWithdrawFailed')
+  })
+
+  it('fails the CCIPSend when the account rejects the withdraw', async () => {
+    const tokenPool = await blockchain.treasury('tokenPool')
+    // The sender never requested an on-ramp account, so the withdraw bounces off its address.
+    const accountAddress = accountAddressFor(sender.address)
+
+    const result = await router.sendRouterWithdrawToTokenPool(onRamp.getSender(), withdrawValue, {
+      destChainSelector,
+      executor: executor.address,
+      withdrawRequest: buildWithdrawRequest({
+        depositAccount: accountAddress,
+        amount: toNano('5'),
+        tokenPool: tokenPool.address,
+      }),
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: executor.address,
+      op: rt.Router_TokenPoolLockOrBurnFailed.PREFIX,
+      body(body) {
+        if (!body) return false
+        return rt.Router_TokenPoolLockOrBurnFailed.fromSlice(body.beginParse()).tokenPool.equals(
+          tokenPool.address,
+        )
+      },
+    })
+  })
+
+  it('fails the CCIPSend without withdrawing when the payload names another executor', async () => {
+    const tokenPool = await blockchain.treasury('tokenPool')
+    const accountAddress = await deployDepositAccount(sender)
+    const otherExecutor = await blockchain.treasury('otherExecutor')
+
+    const result = await router.sendRouterWithdrawToTokenPool(onRamp.getSender(), withdrawValue, {
+      destChainSelector,
+      executor: executor.address,
+      withdrawRequest: buildWithdrawRequest({
+        depositAccount: accountAddress,
+        amount: toNano('5'),
+        tokenPool: tokenPool.address,
+        replyTo: otherExecutor.address,
+      }),
+    })
+    expect(result.transactions).not.toHaveTransaction({
+      to: accountAddress,
+      op: deposit.DepositAccount_Withdraw.PREFIX,
+    })
+    expectCCIPSendFailed(result, tokenPool.address, 'Router_Error.WithdrawExecutorMismatch')
   })
 
   it('rejects a DepositAccount_WithdrawFailed from an address that is not the claimed deposit account', async () => {
     const attacker = await blockchain.treasury('attacker')
     const tokenPool = await blockchain.treasury('tokenPool')
     const walletAddress = await blockchain.treasury('accountWallet')
-    const ask = deposit.AskToTransfer.create({
-      jettonAmount: toNano('5'),
-      transferRecipient: tokenPool.address,
-      sendExcessesTo: router.address,
-      customPayload: null,
-      forwardTonAmount: 0n,
-      forwardPayload: Cell.EMPTY.beginParse(),
-    })
+    const ask = buildAsk(tokenPool.address)
 
     // The attacker claims the withdraw failed for the sender's deposit account, but the message
     // does not come from the account address the Router derives from the reported identity.
@@ -265,11 +385,8 @@ describe('Router.withdrawToTokenPool', () => {
       attacker.getSender(),
       toNano('0.5'),
       {
-        account: deposit.DepositAccount_Identity.create({
-          owner: router.address,
-          proxy: sender.address,
-          token,
-        }),
+        user: sender.address,
+        token,
         walletAddress: walletAddress.address,
         ask,
       },
@@ -294,20 +411,10 @@ describe('Router.withdrawToTokenPool', () => {
       blockchain.sender(accountAddress),
       toNano('0.5'),
       {
-        account: deposit.DepositAccount_Identity.create({
-          owner: router.address,
-          proxy: sender.address,
-          token: otherToken,
-        }),
+        user: sender.address,
+        token: otherToken,
         walletAddress: walletAddress.address,
-        ask: deposit.AskToTransfer.create({
-          jettonAmount: toNano('5'),
-          transferRecipient: tokenPool.address,
-          sendExcessesTo: router.address,
-          customPayload: null,
-          forwardTonAmount: 0n,
-          forwardPayload: Cell.EMPTY.beginParse(),
-        }),
+        ask: buildAsk(tokenPool.address),
       },
     )
 
