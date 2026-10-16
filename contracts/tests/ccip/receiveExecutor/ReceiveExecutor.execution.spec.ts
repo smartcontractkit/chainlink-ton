@@ -648,6 +648,43 @@ describe('ReceiveExecutor - Execution', () => {
         expect(result.transactions).not.toHaveTransaction({
           op: of.OffRamp_TokenTransferDelivered.PREFIX,
         })
+        // gasLimit == 0: the message is finalized without being executed.
+        expect(result.transactions).not.toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          op: of.OffRamp_DispatchValidated.PREFIX,
+        })
+      })
+
+      it('should execute the message when gasLimit > 0 even without data', async () => {
+        // Deploy an executor for a message with no data but a non-zero gasLimit.
+        messageWithTT = createTestMessageWithToken({
+          receiver: deployer.address,
+          gasLimit: toNano('0.03'),
+        })
+        const receiveExecutorGas = await setupTestReceiveExecutor(
+          blockchain,
+          deployer,
+          receiveExecutorCode,
+          messageWithTT,
+        )
+        defaultInitExecute = {
+          sequenceNumber: messageWithTT.header.sequenceNumber,
+          sourceChainSelector: messageWithTT.header.sourceChainSelector,
+          messageId: messageWithTT.header.messageId,
+          effectiveGasLimit: messageWithTT.gasLimit,
+        }
+
+        await transitionToReleaseOrMint(receiveExecutorGas)
+        const result = await forwardNotification(
+          receiveExecutorGas,
+          messageWithTT.tokenAmounts![0].amount,
+        )
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutorGas.address,
+          to: deployer.address,
+          success: true,
+          op: of.OffRamp_DispatchValidated.PREFIX,
+        })
       })
 
       it('should report the received amount as delivered, whatever the transferred amount was', async () => {
@@ -1037,6 +1074,7 @@ describe('ReceiveExecutor - Execution', () => {
         messageWithTT = createTestMessageWithToken({
           receiver: deployer.address,
           data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
+          gasLimit: toNano('0.03'),
         })
         receiveExecutorPtt = await setupTestReceiveExecutor(
           blockchain,
@@ -1099,6 +1137,46 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
+      it('should attempt execution when gasLimit is 0 but data is present', async () => {
+        // Deploy an executor for a message with data but a zero gasLimit: the
+        // dispatch is still attempted (only empty data AND zero gas skips it).
+        // The OffRamp then rejects it for gas below minGasLimit — that blocking
+        // is covered by the OffRamp e2e suite.
+        messageWithTT = createTestMessageWithToken({
+          receiver: deployer.address,
+          data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
+          gasLimit: 0n,
+        })
+        receiveExecutorPtt = await setupTestReceiveExecutor(
+          blockchain,
+          deployer,
+          receiveExecutorCode,
+          messageWithTT,
+        )
+        defaultInitExecute = {
+          sequenceNumber: messageWithTT.header.sequenceNumber,
+          sourceChainSelector: messageWithTT.header.sourceChainSelector,
+          messageId: messageWithTT.header.messageId,
+          effectiveGasLimit: messageWithTT.gasLimit,
+        }
+
+        await transitionToReleaseOrMint(receiveExecutorPtt)
+        const result = await forwardNotification(
+          receiveExecutorPtt,
+          messageWithTT.tokenAmounts![0].amount,
+        )
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutorPtt.address,
+          to: deployer.address,
+          success: true,
+          op: of.OffRamp_DispatchValidated.PREFIX,
+        })
+        expect(result.transactions).not.toHaveTransaction({
+          from: receiveExecutorPtt.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
+      })
+
       it('should dispatch the delivered amount instead of the source amount', async () => {
         const sourceAmount = 10n ** 18n
         const destinationAmount = 10n ** 9n
@@ -1108,6 +1186,7 @@ describe('ReceiveExecutor - Execution', () => {
           data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
           amount: sourceAmount,
           token,
+          gasLimit: toNano('0.03'),
         })
         receiveExecutorPtt = await setupTestReceiveExecutor(
           blockchain,
