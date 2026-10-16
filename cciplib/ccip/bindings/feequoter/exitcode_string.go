@@ -31,14 +31,13 @@ func _() {
 	_ = x[ErrorPremiumFeeOverflow-34420]
 	_ = x[ErrorDataAvailabilityCostOverflow-34421]
 	_ = x[ErrorFeeCalculationOverflow-34422]
-	_ = x[ErrorTokenPriceTooLow-34423]
-	_ = x[ErrorFeeOverflow-34424]
-	_ = x[ErrorMessageFeeTooHigh-34425]
+	_ = x[ErrorFeeOverflow-34423]
+	_ = x[ErrorMessageFeeTooHigh-34424]
 }
 
-const _ExitCode_name = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidSuiReceiverAddressErrorInvalidSVMReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorMsgDataTooLargeErrorStaleGasPriceErrorDestChainNotEnabledErrorFeeTokenNotSupportedErrorInvalidMsgDataErrorTokenNotSupportedErrorUnknownDestChainSelectorErrorInsufficientFeeErrorTokenTransfersNotSupportedErrorUnauthorizedPriceUpdaterErrorExecutionCostOverflowErrorPremiumFeeOverflowErrorDataAvailabilityCostOverflowErrorFeeCalculationOverflowErrorTokenPriceTooLowErrorFeeOverflowErrorMessageFeeTooHigh"
+const _ExitCode_name = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidSuiReceiverAddressErrorInvalidSVMReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorMsgDataTooLargeErrorStaleGasPriceErrorDestChainNotEnabledErrorFeeTokenNotSupportedErrorInvalidMsgDataErrorTokenNotSupportedErrorUnknownDestChainSelectorErrorInsufficientFeeErrorTokenTransfersNotSupportedErrorUnauthorizedPriceUpdaterErrorExecutionCostOverflowErrorPremiumFeeOverflowErrorDataAvailabilityCostOverflowErrorFeeCalculationOverflowErrorFeeOverflowErrorMessageFeeTooHigh"
 
-var _ExitCode_index = [...]uint16{0, 35, 55, 92, 117, 147, 177, 207, 232, 273, 293, 311, 335, 360, 379, 401, 430, 450, 481, 510, 536, 559, 592, 619, 640, 656, 678}
+var _ExitCode_index = [...]uint16{0, 35, 55, 92, 117, 147, 177, 207, 232, 273, 293, 311, 335, 360, 379, 401, 430, 450, 481, 510, 536, 559, 592, 619, 635, 657}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 34400
