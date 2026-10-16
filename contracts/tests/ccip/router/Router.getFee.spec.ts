@@ -1,7 +1,7 @@
 import { toNano, Cell, beginCell, Builder, Slice } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import { WRAPPED_NATIVE } from '../../../src/utils'
+import { NATIVE_GRAM } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
@@ -88,7 +88,7 @@ describe.each(cases)(
       receiver: EVM_CC_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
-      feeToken: WRAPPED_NATIVE,
+      feeToken: NATIVE_GRAM,
       extraArgs: rt.GenericExtraArgsV2.create({
         gasLimit: 100n,
         allowOutOfOrderExecution: true,
@@ -130,7 +130,7 @@ describe.each(cases)(
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.ccipSend.receiver.asCell().equals(EVM_ADDRESS.asCell()) &&
                 decoded.ccipSend.tokenAmounts.length === 0 &&
-                decoded.ccipSend.feeToken!.equals(WRAPPED_NATIVE)
+                decoded.ccipSend.feeToken!.equals(NATIVE_GRAM)
               )
             },
           })
@@ -144,7 +144,7 @@ describe.each(cases)(
             receiver: EVM_ADDRESS,
             data: Cell.EMPTY,
             tokenAmounts: [],
-            feeToken: WRAPPED_NATIVE,
+            feeToken: NATIVE_GRAM,
             extraArgs: rt.GenericExtraArgsV2.create({
               gasLimit: 100n,
               allowOutOfOrderExecution: true,
@@ -205,7 +205,7 @@ describe.each(cases)(
             receiver: EVM_CC_ADDRESS,
             data: Cell.EMPTY,
             tokenAmounts: [],
-            feeToken: WRAPPED_NATIVE,
+            feeToken: NATIVE_GRAM,
             extraArgs: rt.GenericExtraArgsV2.create({
               gasLimit: 100n,
               allowOutOfOrderExecution: true,
@@ -269,7 +269,7 @@ describe.each(cases)(
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
                 decoded.msg.tokenAmounts.length === 0 &&
-                decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
+                decoded.msg.feeToken!.equals(NATIVE_GRAM)
               )
             },
           })
@@ -335,7 +335,7 @@ describe.each(cases)(
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
                 decoded.msg.tokenAmounts.length === 0 &&
-                decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
+                decoded.msg.feeToken!.equals(NATIVE_GRAM)
               )
             },
           })
@@ -405,7 +405,7 @@ describe.each(cases)(
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.ccipSend.receiver.asCell().equals(EVM_ADDRESS.asCell()) &&
                 decoded.ccipSend.tokenAmounts.length === 0 &&
-                decoded.ccipSend.feeToken!.equals(WRAPPED_NATIVE)
+                decoded.ccipSend.feeToken!.equals(NATIVE_GRAM)
               )
             },
           })
@@ -456,7 +456,7 @@ describe.each(cases)(
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
                 decoded.msg.tokenAmounts.length === 0 &&
-                decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
+                decoded.msg.feeToken!.equals(NATIVE_GRAM)
               )
             },
           })
@@ -511,7 +511,7 @@ describe.each(cases)(
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
                 decoded.msg.tokenAmounts.length === 0 &&
-                decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
+                decoded.msg.feeToken!.equals(NATIVE_GRAM)
               )
             },
           })

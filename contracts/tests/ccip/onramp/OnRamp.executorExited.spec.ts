@@ -1,7 +1,7 @@
 import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
+import { generateRandomContractId, NATIVE_GRAM } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
@@ -33,8 +33,8 @@ describe('OnRamp - executor exit', () => {
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
-    tokenAmounts: [or.TokenAmount.create({ amount: 1n, token: WRAPPED_NATIVE })],
-    feeToken: WRAPPED_NATIVE,
+    tokenAmounts: [or.TokenAmount.create({ amount: 1n, token: NATIVE_GRAM })],
+    feeToken: NATIVE_GRAM,
     extraArgs: or.GenericExtraArgsV2.create({
       gasLimit: 100n,
       allowOutOfOrderExecution: true,

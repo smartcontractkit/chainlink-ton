@@ -9,7 +9,7 @@ import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
-import { WRAPPED_NATIVE } from '../../../src/utils'
+import { NATIVE_GRAM } from '../../../src/utils'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
@@ -30,7 +30,7 @@ describe('OnRamp - Send', () => {
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
-    feeToken: WRAPPED_NATIVE,
+    feeToken: NATIVE_GRAM,
     extraArgs: or.GenericExtraArgsV2.create({
       gasLimit: 100n,
       allowOutOfOrderExecution: true,

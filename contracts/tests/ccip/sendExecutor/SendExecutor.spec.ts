@@ -7,7 +7,7 @@ import * as coverage from '../../coverage/coverage'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { errorCode, facilityId } from '../../../wrappers/utils'
 import EVM_ADDRESS from '../../utils/evmAddress'
-import { WRAPPED_NATIVE } from '../../../src/utils'
+import { NATIVE_GRAM } from '../../../src/utils'
 
 import { setup as ccipSendExecutor, sendDeployOnBlockchain, setup } from './SendExecutor.Setup'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
@@ -97,7 +97,7 @@ describe('SendExecutor - Unit tests', () => {
         receiver: EVM_ADDRESS,
         data: Cell.EMPTY,
         tokenAmounts: [],
-        feeToken: WRAPPED_NATIVE,
+        feeToken: NATIVE_GRAM,
         extraArgs: or.GenericExtraArgsV2.create({
           gasLimit: null,
           allowOutOfOrderExecution: true,
@@ -112,7 +112,7 @@ describe('SendExecutor - Unit tests', () => {
     tokenOnrampSend = or.OnRamp_Send.create({
       msg: {
         ...onrampSend.msg,
-        tokenAmounts: [or.TokenAmount.create({ amount: AmountOfTokens, token: WRAPPED_NATIVE })],
+        tokenAmounts: [or.TokenAmount.create({ amount: AmountOfTokens, token: NATIVE_GRAM })],
       },
       metadata: or.Metadata.create({
         sender: sender.address,
@@ -1101,7 +1101,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       {
         queryId: 0n,
-        token: WRAPPED_NATIVE,
+        token: NATIVE_GRAM,
         minterAddress: deployer.address,
         tokenPool: deployer.address, // non-null so the executor proceeds
         transferInitiator: null,
@@ -1141,7 +1141,7 @@ describe('SendExecutor - Unit tests', () => {
       toNano('0.3'),
       {
         queryId: 0n,
-        token: WRAPPED_NATIVE,
+        token: NATIVE_GRAM,
         minterAddress: deployer.address,
         tokenPool: null, // token not enabled
         transferInitiator: null,

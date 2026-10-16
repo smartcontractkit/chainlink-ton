@@ -4,7 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { assertLog } from '../../Logs'
 import * as coverage from '../../coverage/coverage'
-import { WRAPPED_NATIVE } from '../../../src/utils'
+import { NATIVE_GRAM } from '../../../src/utils'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import { ccipSendCost, RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
@@ -50,7 +50,7 @@ describe('Router.cursing', () => {
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
-      feeToken: WRAPPED_NATIVE,
+      feeToken: NATIVE_GRAM,
       extraArgs: rt.GenericExtraArgsV2.create({ gasLimit: 100n, allowOutOfOrderExecution: true }),
     }
 

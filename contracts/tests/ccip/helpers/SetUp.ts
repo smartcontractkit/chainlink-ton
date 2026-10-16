@@ -3,7 +3,7 @@ import { Cell, toNano } from '@ton/core'
 
 import { ChainSelectors } from '../../utils/Selectors'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { generateRandomContractId, LINK_TOKEN, WRAPPED_NATIVE } from '../../../src/utils'
+import { generateRandomContractId, LINK_TOKEN, NATIVE_GRAM } from '../../../src/utils'
 import {
   FeeQuoter,
   FeeQuoterDestChainConfig,
@@ -30,7 +30,7 @@ export const setupTestFeeQuoter = async (
     tokenPriceStalenessThreshold: 1000n,
     usdPerToken: new Map([
       [
-        WRAPPED_NATIVE,
+        NATIVE_GRAM,
         TimestampedPrice.create({ value: 123n, timestamp: BigInt(Math.floor(Date.now() / 1000)) }),
       ],
       [
@@ -83,7 +83,7 @@ export const setupTestFeeQuoter = async (
   expect(result.transactions).toHaveTransaction({ to: feeQuoter.address, success: true })
 
   result = await feeQuoter.sendFeeQuoterUpdateFeeTokens(deployer.getSender(), toNano('1'), {
-    add: new Map([[WRAPPED_NATIVE, FeeToken.create({ premiumMultiplierWeiPerEth: 1n })]]),
+    add: new Map([[NATIVE_GRAM, FeeToken.create({ premiumMultiplierWeiPerEth: 1n })]]),
     remove: [],
   })
   expect(result.transactions).toHaveTransaction({ to: feeQuoter.address, success: true })

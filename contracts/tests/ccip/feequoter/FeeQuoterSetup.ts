@@ -3,7 +3,7 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano, beginCell, Address } from '@ton/core'
 
-import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
+import { generateRandomContractId, NATIVE_GRAM } from '../../../src/utils'
 
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as feeQuoter from '../../../wrappers/gen/ccip/FeeQuoter'
@@ -82,7 +82,7 @@ export class FeeQuoterSetup {
 
   // Native TON
   static readonly NATIVE_TON: Token = {
-    token: WRAPPED_NATIVE,
+    token: NATIVE_GRAM,
     price: decimals.TESTING_VALUES.tokenPrice.ton,
   }
   // Generate random address from "sLINK"

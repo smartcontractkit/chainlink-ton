@@ -14,7 +14,7 @@ import * as rt from '../../../../wrappers/gen/ccip/Router'
 import { createCursePolicy } from '../../../../wrappers/ccip/Router'
 import * as fq from '../../../../wrappers/gen/ccip/FeeQuoter'
 import '@ton/test-utils'
-import { WRAPPED_NATIVE } from '../../../../src/utils'
+import { NATIVE_GRAM } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
 import { createMaxPayload, createExtraArgs } from './config'
 import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
@@ -101,7 +101,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
       ownable: rt.Ownable2Step.create({
         owner: deployer.address,
       }),
-      wrappedNative: WRAPPED_NATIVE,
+      wrappedNative: NATIVE_GRAM,
       offRamps: new Map(),
       onRamps: new Map(),
       rmnRemote: rt.RMNRemote.create({
@@ -174,7 +174,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
       receiver: EVM_ADDRESS,
       data: createMaxPayload(),
       tokenAmounts: [],
-      feeToken: WRAPPED_NATIVE,
+      feeToken: NATIVE_GRAM,
       extraArgs: createExtraArgs(),
     }
 
