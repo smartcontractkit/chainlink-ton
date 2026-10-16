@@ -561,11 +561,12 @@ fun onWithdrawFailed(
     // minval:recovery gate=none JettonLockBox_WithdrawFailed
     // release unwind when lockbox withdraw fails
 
+    val poolData = st.poolData.load();
     val withdraw = msg.context!.load();
-    assert(withdraw.queryId == msg.queryId 
+    val isValid = withdraw.queryId == msg.queryId
         && withdraw.token == msg.token
-        && msg.token == lazy st.poolData.load().token(),
-        LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
+        && msg.token == poolData.token();
+    assert(isValid, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
     recoverReleaseFromLockboxWithdraw(mutate st, withdraw, msgValue);
 }
 
