@@ -27,7 +27,6 @@ enum FeeQuoter_Error {
     // Deprecated: retained to preserve the numeric values of subsequent public errors.
     DataAvailabilityCostOverflow
     FeeCalculationOverflow
-    TokenPriceTooLow
     FeeOverflow
     MessageFeeTooHigh
     TokenTransferConfigMustBeEnabled
