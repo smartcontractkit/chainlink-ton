@@ -14,3 +14,14 @@ struct OffRamps {
     sourceChainSelectors: SnakedCell<uint64>;
     offRamp: address;
 }
+
+/// Deployables ID of a Router-owned deposit account, in the OnRampAccount or DepositAccount
+/// namespace.
+///
+/// @dev The token is part of the ID so an account can only ever hold one jetton: were it
+///      token-agnostic, a malicious minter could hand out the jetton wallet of a *different*
+///      jetton owned by the same account.
+struct Router_DepositAccountID {
+    user: address;
+    token: address;
+}

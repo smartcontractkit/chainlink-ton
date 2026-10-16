@@ -56,7 +56,7 @@ describe('Router.relayReleaseOrMint', () => {
     otherToken = otherTokenMaster.address
   })
 
-  // Router.receiverDepositAccount: Deployable namespace DepositAccount, owner = Router,
+  // Router.offRampAccount: Deployable namespace DepositAccount, owner = Router,
   // id = (receiver, token).
   const receiverAccountFor = (user: Address = receiver.address, jetton: Address = token) =>
     NameSpace.deriveAddress(
@@ -139,14 +139,14 @@ describe('Router.relayReleaseOrMint', () => {
     })
 
   describe('receiver deposit account deployment', () => {
-    it('exposes the derived account address via the depositAccountAddress getter', async () => {
-      const getterAddress = await router.getDepositAccountAddress(receiver.address, token)
+    it('exposes the derived account address via the offRampAccountAddress getter', async () => {
+      const getterAddress = await router.getOffRampAccountAddress(receiver.address, token)
       expect(getterAddress.equals(receiverAccountFor())).toBe(true)
     })
 
     it('gives the same receiver a different deposit account per token', async () => {
-      const forToken = await router.getDepositAccountAddress(receiver.address, token)
-      const forOtherToken = await router.getDepositAccountAddress(receiver.address, otherToken)
+      const forToken = await router.getOffRampAccountAddress(receiver.address, token)
+      const forOtherToken = await router.getOffRampAccountAddress(receiver.address, otherToken)
       expect(forToken.equals(forOtherToken)).toBe(false)
     })
 
@@ -183,25 +183,25 @@ describe('Router.relayReleaseOrMint', () => {
       expect(result.transactions).toHaveTransaction({
         from: account,
         to: router.address,
-        op: deposit.DepositAccount_Reply.PREFIX,
+        op: deposit.DepositAccount_Initialized.PREFIX,
         success: true,
         body(body) {
           if (!body) return false
-          const reply = deposit.DepositAccount_Reply.fromSlice(body.beginParse())
+          const reply = deposit.DepositAccount_Initialized.fromSlice(body.beginParse())
           return reply.context?.equals(rt.Router_RelayReleaseOrMint.toCell(relayMsg)) === true
         },
       })
       expectRelayedToPool(result, 1n, account)
     })
 
-    it('initializes the account with the Router as owner, the receiver as proxy and sole beneficiary', async () => {
+    it('initializes the account with the Router as owner, the receiver as user and sole beneficiary', async () => {
       await relayToFreshAccount(relayOf(2n))
 
       const account = blockchain.openContract(
         deposit.DepositAccount.fromAddress(receiverAccountFor()),
       )
       expect((await account.getOwner()).equals(router.address)).toBe(true)
-      expect((await account.getProxy()).equals(receiver.address)).toBe(true)
+      expect((await account.getUser()).equals(receiver.address)).toBe(true)
       expect((await account.getToken()).equals(token)).toBe(true)
       const beneficiaries = [...(await account.getBeneficiaries()).keys()]
       expect(beneficiaries).toHaveLength(1)
@@ -253,10 +253,14 @@ describe('Router.relayReleaseOrMint', () => {
   })
 
   describe('resuming the relay', () => {
-    it('rejects a spoofed DepositAccount_Reply carrying a relay', async () => {
-      const result = await router.sendDepositAccountReply(attacker.getSender(), toNano('0.5'), {
-        context: rt.Router_RelayReleaseOrMint.toCell(relayOf(10n)),
-      })
+    it('rejects a spoofed DepositAccount_Initialized carrying a relay', async () => {
+      const result = await router.sendDepositAccountInitialized(
+        attacker.getSender(),
+        toNano('0.5'),
+        {
+          context: rt.Router_RelayReleaseOrMint.toCell(relayOf(10n)),
+        },
+      )
       expect(result.transactions).toHaveTransaction({
         from: attacker.address,
         to: router.address,
@@ -273,7 +277,7 @@ describe('Router.relayReleaseOrMint', () => {
       await relayToFreshAccount(relayOf(11n))
 
       // The genuine (receiver, token) account replies with a relay for (receiver, otherToken).
-      const result = await router.sendDepositAccountReply(
+      const result = await router.sendDepositAccountInitialized(
         blockchain.sender(receiverAccountFor()),
         toNano('0.5'),
         { context: rt.Router_RelayReleaseOrMint.toCell(relayOf(12n, otherToken)) },

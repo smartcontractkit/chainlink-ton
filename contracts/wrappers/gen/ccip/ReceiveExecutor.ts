@@ -9,6 +9,8 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 //   predefined types and functions
 //
 
+type RemainingBitsAndRefs = c.Slice
+
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
@@ -53,22 +55,18 @@ function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     return loadFn_T(s_ref);
 }
 
-function dictToMap<K extends c.DictionaryKeyTypes, V>(d: c.Dictionary<K, V>): Map<K, V> {
-    const map = new Map<K, V>();
-    for (const [k, v] of d) {
-        map.set(k, v);
-    }
-    return map;
+function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
+    b.storeSlice(v);
 }
 
-function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<V>): c.Dictionary<K, V> {
-    const d = c.Dictionary.empty<K, V>(keySerializer, valueSerializer);
-    for (const [k, v] of m) {
-        d.set(k, v);
+function loadTolkRemaining(s: c.Slice): RemainingBitsAndRefs {
+    let rest = s.clone();
+    s.loadBits(s.remainingBits);
+    while (s.remainingRefs) {
+        s.loadRef();
     }
-    return d;
+    return rest;
 }
-
 
 function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallback<T>): void {
     if (v === null) {
@@ -76,19 +74,6 @@ function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallbac
     } else {
         b.storeUint(1, 1);
         storeFn_T(v, b);
-    }
-}
-
-function createDictionaryValue<V>(loadFn_V: LoadCallback<V>, storeFn_V: StoreCallback<V>): c.DictionaryValue<V> {
-    return {
-        serialize(self: V, b: c.Builder) {
-            storeFn_V(self, b);
-        },
-        parse(s: c.Slice): V {
-            const value = loadFn_V(s);
-            s.endParse();
-            return value;
-        }
     }
 }
 
@@ -182,34 +167,6 @@ type uint32 = bigint
 type uint64 = bigint
 type uint192 = bigint
 type uint256 = bigint
-
-type varuint32 = bigint
-
-/**
- > type ExtraCurrenciesMap = map<int32, varuint32>
- */
-export type ExtraCurrenciesMap = Map<int32, varuint32>
-
-export const ExtraCurrenciesMap = {
-    fromSlice(s: c.Slice): ExtraCurrenciesMap {
-        return dictToMap(c.Dictionary.load<int32, varuint32>(c.Dictionary.Keys.BigInt(32), createDictionaryValue<varuint32>(
-                    (s) => s.loadVarUintBig(5),
-                    (v,b) => b.storeVarUint(v, 5)
-                ), s));
-    },
-    store(self: ExtraCurrenciesMap, b: c.Builder): void {
-        b.storeDict<int32, varuint32>(mapToDict(self, c.Dictionary.Keys.BigInt(32), createDictionaryValue<varuint32>(
-                        (s) => s.loadVarUintBig(5),
-                        (v,b) => b.storeVarUint(v, 5)
-                    )), c.Dictionary.Keys.BigInt(32), createDictionaryValue<varuint32>(
-            (s) => s.loadVarUintBig(5),
-            (v,b) => b.storeVarUint(v, 5)
-        ));
-    },
-    toCell(self: ExtraCurrenciesMap): c.Cell {
-        return makeCellFrom<ExtraCurrenciesMap>(self, ExtraCurrenciesMap.store);
-    }
-}
 
 /**
  > enum Utils_Error { 2 variants }
@@ -1168,19 +1125,19 @@ export const TokenPool_ReleaseOrMintInV1 = {
 
 /**
  > struct (0xb4fe5c0c) DepositAccount_ForwardNotification {
- >     message: Cell<DepositAccount_InMessageForward>
+ >     notification: Cell<TransferNotificationForRecipient>
  > }
  */
 export interface DepositAccount_ForwardNotification {
     readonly $: 'DepositAccount_ForwardNotification'
-    message: DepositAccount_InMessageForward
+    notification: TransferNotificationForRecipient
 }
 
 export const DepositAccount_ForwardNotification = {
     PREFIX: 0xb4fe5c0c,
 
     create(args: {
-        message: DepositAccount_InMessageForward
+        notification: TransferNotificationForRecipient
     }): DepositAccount_ForwardNotification {
         return {
             $: 'DepositAccount_ForwardNotification',
@@ -1191,12 +1148,12 @@ export const DepositAccount_ForwardNotification = {
         loadAndCheckPrefix32(s, 0xb4fe5c0c, 'DepositAccount_ForwardNotification');
         return {
             $: 'DepositAccount_ForwardNotification',
-            message: loadCellRef<DepositAccount_InMessageForward>(s, DepositAccount_InMessageForward.fromSlice),
+            notification: loadCellRef<TransferNotificationForRecipient>(s, TransferNotificationForRecipient.fromSlice),
         }
     },
     store(self: DepositAccount_ForwardNotification, b: c.Builder): void {
         b.storeUint(0xb4fe5c0c, 32);
-        storeCellRef<DepositAccount_InMessageForward>(self.message, b, DepositAccount_InMessageForward.store);
+        storeCellRef<TransferNotificationForRecipient>(self.notification, b, TransferNotificationForRecipient.store);
     },
     toCell(self: DepositAccount_ForwardNotification): c.Cell {
         return makeCellFrom<DepositAccount_ForwardNotification>(self, DepositAccount_ForwardNotification.store);
@@ -1204,65 +1161,72 @@ export const DepositAccount_ForwardNotification = {
 }
 
 /**
- > struct DepositAccount_InMessageForward {
- >     senderAddress: address
- >     valueCoins: coins
- >     valueExtra: ExtraCurrenciesMap
- >     originalForwardFee: coins
- >     createdLt: uint64
- >     createdAt: uint32
- >     body: cell
- > }
+ > type ForwardPayloadRemainder = RemainingBitsAndRefs
  */
-export interface DepositAccount_InMessageForward {
-    readonly $: 'DepositAccount_InMessageForward'
-    senderAddress: c.Address
-    valueCoins: coins
-    valueExtra: ExtraCurrenciesMap
-    originalForwardFee: coins
-    createdLt: uint64
-    createdAt: uint32
-    body: c.Cell
+export type ForwardPayloadRemainder = RemainingBitsAndRefs
+
+export const ForwardPayloadRemainder = {
+    fromSlice(s: c.Slice): ForwardPayloadRemainder {
+        return loadTolkRemaining(s);
+    },
+    store(self: ForwardPayloadRemainder, b: c.Builder): void {
+        storeTolkRemaining(self, b);
+    },
+    toCell(self: ForwardPayloadRemainder): c.Cell {
+        return makeCellFrom<ForwardPayloadRemainder>(self, ForwardPayloadRemainder.store);
+    }
 }
 
-export const DepositAccount_InMessageForward = {
+/**
+ > struct (0x7362d09c) TransferNotificationForRecipient {
+ >     queryId: uint64
+ >     jettonAmount: coins
+ >     transferInitiator: address?
+ >     forwardPayload: ForwardPayloadRemainder
+ > }
+ */
+export interface TransferNotificationForRecipient {
+    readonly $: 'TransferNotificationForRecipient'
+    queryId: uint64
+    jettonAmount: coins
+    transferInitiator: c.Address | null
+    forwardPayload: ForwardPayloadRemainder
+}
+
+export const TransferNotificationForRecipient = {
+    PREFIX: 0x7362d09c,
+
     create(args: {
-        senderAddress: c.Address
-        valueCoins: coins
-        valueExtra: ExtraCurrenciesMap
-        originalForwardFee: coins
-        createdLt: uint64
-        createdAt: uint32
-        body: c.Cell
-    }): DepositAccount_InMessageForward {
+        queryId?: uint64
+        jettonAmount: coins
+        transferInitiator: c.Address | null
+        forwardPayload: ForwardPayloadRemainder
+    }): TransferNotificationForRecipient {
         return {
-            $: 'DepositAccount_InMessageForward',
-            ...args
+            $: 'TransferNotificationForRecipient',
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): DepositAccount_InMessageForward {
+    fromSlice(s: c.Slice): TransferNotificationForRecipient {
+        loadAndCheckPrefix32(s, 0x7362d09c, 'TransferNotificationForRecipient');
         return {
-            $: 'DepositAccount_InMessageForward',
-            senderAddress: s.loadAddress(),
-            valueCoins: s.loadCoins(),
-            valueExtra: ExtraCurrenciesMap.fromSlice(s),
-            originalForwardFee: s.loadCoins(),
-            createdLt: s.loadUintBig(64),
-            createdAt: s.loadUintBig(32),
-            body: s.loadRef(),
+            $: 'TransferNotificationForRecipient',
+            queryId: s.loadUintBig(64),
+            jettonAmount: s.loadCoins(),
+            transferInitiator: s.loadMaybeAddress(),
+            forwardPayload: ForwardPayloadRemainder.fromSlice(s),
         }
     },
-    store(self: DepositAccount_InMessageForward, b: c.Builder): void {
-        b.storeAddress(self.senderAddress);
-        b.storeCoins(self.valueCoins);
-        ExtraCurrenciesMap.store(self.valueExtra, b);
-        b.storeCoins(self.originalForwardFee);
-        b.storeUint(self.createdLt, 64);
-        b.storeUint(self.createdAt, 32);
-        b.storeRef(self.body);
+    store(self: TransferNotificationForRecipient, b: c.Builder): void {
+        b.storeUint(0x7362d09c, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeCoins(self.jettonAmount);
+        b.storeAddress(self.transferInitiator);
+        ForwardPayloadRemainder.store(self.forwardPayload, b);
     },
-    toCell(self: DepositAccount_InMessageForward): c.Cell {
-        return makeCellFrom<DepositAccount_InMessageForward>(self, DepositAccount_InMessageForward.store);
+    toCell(self: TransferNotificationForRecipient): c.Cell {
+        return makeCellFrom<TransferNotificationForRecipient>(self, TransferNotificationForRecipient.store);
     }
 }
 
@@ -2255,7 +2219,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class ReceiveExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,
@@ -2341,7 +2305,7 @@ export class ReceiveExecutor implements c.Contract {
     }
 
     static createCellOfDepositAccountForwardNotification(body: {
-        message: DepositAccount_InMessageForward
+        notification: TransferNotificationForRecipient
     }) {
         return DepositAccount_ForwardNotification.toCell(DepositAccount_ForwardNotification.create(body));
     }
@@ -2440,7 +2404,7 @@ export class ReceiveExecutor implements c.Contract {
     }
 
     async sendDepositAccountForwardNotification(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        message: DepositAccount_InMessageForward
+        notification: TransferNotificationForRecipient
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

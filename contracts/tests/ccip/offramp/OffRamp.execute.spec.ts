@@ -1928,7 +1928,7 @@ describe('OffRamp - Execute', () => {
       expect(result.transactions).toHaveTransaction({
         from: receiverAccount,
         to: setup.router.address,
-        op: deposit.DepositAccount_Reply.PREFIX,
+        op: deposit.DepositAccount_Initialized.PREFIX,
         success: true,
       })
       expect(result.transactions).toHaveTransaction({

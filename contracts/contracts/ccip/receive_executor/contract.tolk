@@ -326,8 +326,7 @@ fun onDepositAccountNotification(sender: address, msg: DepositAccount_ForwardNot
     if (sender != ttInfo.receiverAccount) {
         return;
     }
-    val forwarded = lazy msg.message.load();
-    val notification = lazy TransferNotificationForRecipient.fromCell(forwarded.body);
+    val notification = lazy msg.notification.load();
     val expected = ttInfo.state.transferInitiator;
     val matches = expected == null
         ? notification.transferInitiator == null
