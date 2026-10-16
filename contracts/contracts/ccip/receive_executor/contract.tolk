@@ -355,7 +355,7 @@ fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: Receive
         }.toCell(),
     };
 
-    if (ccipMessage.data.beginParse().isEmpty()) {
+    if (ccipMessage.data.beginParse().isEmpty() && ccipMessage.gasLimit == 0) {
         return endExecutionSuccessfully(mutate st, ccipMessage.header, delivered.toCell());
     }
 

@@ -1952,25 +1952,23 @@ describe('OffRamp - Execute', () => {
         success: true,
       })
 
-      // 6. ReceiveExecutor -> OffRamp (NotifySuccess carrying the delivery) -> MerkleRoot (MarkState)
+      // 6. The delivery is reported independently of execution: ReceiveExecutor
+      //    -> OffRamp (TokenTransferDelivered) -> Router -> TokenPool, which emits
+      //    ReleasedOrMinted and confirms back to the executor.
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
         to: setup.offRamp.address,
-        op: of.OffRamp_NotifySuccess.PREFIX,
+        op: of.OffRamp_TokenTransferDelivered.PREFIX,
         success: true,
         body(body) {
           if (!body) return false
-          const delivered = of.OffRamp_NotifySuccess.fromSlice(body.beginParse()).delivered
+          const delivered = of.OffRamp_TokenTransferDelivered.fromSlice(body.beginParse()).delivered
           return (
-            delivered != null &&
             delivered.tokenPool.equals(setup.tokenPool.address) &&
             delivered.transfer.amount === setup.DEFAULT_TOKEN_AMOUNT
           )
         },
       })
-
-      // 7. The delivery is relayed OffRamp -> Router -> TokenPool, which emits ReleasedOrMinted
-      //    and confirms back to the executor.
       expect(result.transactions).toHaveTransaction({
         from: setup.offRamp.address,
         to: setup.router.address,
@@ -1996,9 +1994,29 @@ describe('OffRamp - Execute', () => {
         op: tp.TokenPool_ReleaseOrMintFinalized.PREFIX,
         success: true,
       })
-      expect(result.transactions).not.toHaveTransaction({
-        from: setup.tokenPool.address,
-        op: tp.TokenPool_ReleaseOrMintFinished.PREFIX,
+
+      // 7. The message has a non-zero gasLimit, so it is dispatched to the
+      //    receiver even though it has no data: ReceiveExecutor -> OffRamp
+      //    (DispatchValidated) -> Router -> Receiver.
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: setup.offRamp.address,
+        op: of.OffRamp_DispatchValidated.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.receiver.address,
+        success: true,
+      })
+
+      // 8. Receiver confirms back -> ReceiveExecutor (NotifySuccess) -> OffRamp
+      //    -> MerkleRoot (MarkState).
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: setup.offRamp.address,
+        op: of.OffRamp_NotifySuccess.PREFIX,
+        success: true,
       })
 
       // 8. ExecutionStateChanged: InProgress -> Success
@@ -2027,6 +2045,146 @@ describe('OffRamp - Execute', () => {
 
       // The tokens are held by the receiver's deposit account for the token.
       expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+    })
+
+    it('finalizes a pure token transfer with gasLimit 0 without dispatching to the receiver', async () => {
+      const message = setup.createTestMessageWithToken()
+      message.gasLimit = 0n
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+      const result = await setup.executeReport(report)
+
+      const executorAddress = setup.receiveExecutorAddress(message)
+
+      // The released tokens reach the receiver's deposit account, which
+      // forwards the notification to the executor.
+      expect(result.transactions).toHaveTransaction({
+        from: setup.receiverDepositAccount(),
+        to: executorAddress,
+        op: deposit.DepositAccount_ForwardNotification.PREFIX,
+        success: true,
+      })
+
+      // Empty data AND gasLimit == 0: the message is finalized right after the
+      // delivery, carrying it in NotifySuccess. No DispatchValidated and no
+      // CCIPReceive to the receiver.
+      expect(result.transactions).not.toHaveTransaction({
+        from: executorAddress,
+        op: of.OffRamp_DispatchValidated.PREFIX,
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        to: setup.receiver.address,
+        op: tr.Receiver_CCIPReceiveV2.PREFIX,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: setup.offRamp.address,
+        op: of.OffRamp_NotifySuccess.PREFIX,
+        success: true,
+        body(body) {
+          if (!body) return false
+          const delivered = of.OffRamp_NotifySuccess.fromSlice(body.beginParse()).delivered
+          return (
+            delivered != null &&
+            delivered.tokenPool.equals(setup.tokenPool.address) &&
+            delivered.transfer.amount === setup.DEFAULT_TOKEN_AMOUNT
+          )
+        },
+      })
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.InProgress,
+        },
+      )
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+
+      // Verify the receiver actually received the tokens.
+      expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+    })
+
+    it('fails a PTT with gasLimit 0 because the OffRamp rejects the low-gas dispatch', async () => {
+      const data = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const message = setup.createTestMessageWithToken({ data })
+      message.gasLimit = 0n
+
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+      const result = await setup.executeReport(report)
+
+      const executorAddress = setup.receiveExecutorAddress(message)
+
+      // The released tokens reach the receiver's deposit account, which
+      // forwards the notification to the executor. Since data is present, the
+      // executor reports the delivery and still attempts the dispatch.
+      expect(result.transactions).toHaveTransaction({
+        from: setup.receiverDepositAccount(),
+        to: executorAddress,
+        op: deposit.DepositAccount_ForwardNotification.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: setup.offRamp.address,
+        op: of.OffRamp_TokenTransferDelivered.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: setup.offRamp.address,
+        op: of.OffRamp_DispatchValidated.PREFIX,
+        success: true,
+      })
+
+      // With effectiveGasLimit 0 the OffRamp rejects the dispatch (below
+      // minGasLimit) and notifies the executor of the failure.
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: executorAddress,
+        op: rx.ReceiveExecutor_CCIPReceiveFailed.PREFIX,
+        success: true,
+      })
+
+      // The executor notifies failure and the message ends in Failure.
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: setup.offRamp.address,
+        op: of.OffRamp_NotifyFailure.PREFIX,
+        success: true,
+      })
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+
+      // The receiver never gets the message.
+      expect(result.transactions).not.toHaveTransaction({
+        to: setup.receiver.address,
+        op: tr.Receiver_CCIPReceiveV2.PREFIX,
+      })
     })
 
     it('rejects a Router_TokenPoolReleaseOrMintFailed from a non-router sender', async () => {
@@ -2095,7 +2253,7 @@ describe('OffRamp - Execute', () => {
       expect(releaseOrMint.request.offchainTokenData!.equals(offchainTokenData)).toBe(true)
     })
 
-    it('executes a token transfer to a non-contract receiver', async () => {
+    it('executes a token transfer with gas limit > 0 to a non-contract receiver', async () => {
       const stranger = await blockchain.treasury('stranger')
       const message = setup.createTestMessageWithToken({ receiverAddress: stranger.address })
 
@@ -2103,7 +2261,8 @@ describe('OffRamp - Execute', () => {
       const report = setup.createExecuteReport([message])
       const result = await setup.executeReport(report)
 
-      // Token transfer should still complete and notify success.
+      // Token transfer should complete. Since the message has a non-zero gas
+      // limit, it is dispatched to the receiver even though it has no data.
       // The Router is the pool's only inbound entrypoint, so the pool hop
       // originates from the Router relay.
       expect(result.transactions).toHaveTransaction({
@@ -2112,7 +2271,14 @@ describe('OffRamp - Execute', () => {
         op: tp.TokenPool_ReleaseOrMint.PREFIX,
         success: true,
       })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: stranger.address,
+        op: tr.Receiver_CCIPReceiveV2.PREFIX,
+        success: true,
+      })
 
+      // CCIPReceiveConfirm comes back and the message stays InProgress.
       assertLog(
         result.transactions,
         setup.offRamp.address,
@@ -2121,7 +2287,7 @@ describe('OffRamp - Execute', () => {
           sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
           sequenceNumber: 1n,
           messageId: 1n,
-          state: of.ExecutionState.Success,
+          state: of.ExecutionState.InProgress,
         },
       )
 
