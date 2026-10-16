@@ -49,6 +49,7 @@ export function createTestMessageWithToken(
     extraData?: Cell
     destGasAmount?: bigint
     data?: Cell
+    gasLimit?: bigint
   } = {},
 ): of.Any2TVMRampMessage {
   return of.Any2TVMRampMessage.create({
@@ -64,7 +65,7 @@ export function createTestMessageWithToken(
     receiver:
       opts.receiver ??
       Address.parse('0:0000000000000000000000000000000000000000000000000000000000000000'),
-    gasLimit: 0n,
+    gasLimit: opts.gasLimit ?? 0n,
     tokenAmounts: [
       of.Any2TVMTokenTransfer.create({
         sourcePoolAddress:

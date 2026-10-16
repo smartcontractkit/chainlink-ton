@@ -43,7 +43,7 @@ type Router_InMsg =
     | Router_RMNOwnableMessage
     | Router_TokenTransferDelivered
     | Router_GetOnRampAccount
-    | DepositAccount_Reply
+    | DepositAccount_Initialized
     | DepositAccount_WalletUnavailable
     | DepositAccount_WithdrawFailed
     | TransferNotificationForRecipient;
@@ -57,7 +57,8 @@ type Router_RichBouncedMessage =
     | TokenPool_LockOrBurn
     | TokenPool_ReleaseOrMint
     | Deployable_Initialize
-    | DepositAccount_Init;
+    | DepositAccount_Init
+    | DepositAccount_Withdraw;
 
 // update multiple chain selectors in batch to the same onramp/offramp address
 struct (0x7db6745d) Router_ApplyRampUpdates {
@@ -89,14 +90,13 @@ struct (0xfc69c50b) Router_RouteMessage {
 struct (0x19f0098f) Router_WithdrawToTokenPool {
     queryID: uint64;
     destChainSelector: uint64;
+    /// The CCIPSendExecutor requesting the withdraw, authenticated by the OnRamp.
+    executor: address;
     withdrawRequest: Cell<Router_WithdrawRequest>;
 }
 
 struct Router_WithdrawRequest {
-    /// Jetton wallet of the sender's deposit account, derived by the SendExecutor
-    /// (RequestWalletAddress with `ownerAddress` = the deposit account).
-    accountWalletAddress: address;
-    /// The sender's per-user deposit account the withdraw is forwarded to.
+    /// The sender's on-ramp account for the token, the withdraw is forwarded to.
     depositAccount: address;
     amount: coins;
     tokenPool: address;
@@ -104,9 +104,11 @@ struct Router_WithdrawRequest {
 }
 
 /// Permissionless: deploys (or re-confirms) the sender's onramp account for `token`.
-/// The account is a Deployable-namespaced OnRampAccount owned by the Router, keyed by the
-/// (sender, token) pair. The Router answers with Router_UseOnRampAccount once the account
-/// confirms initialization (DepositAccount_Reply).
+/// The account is a deposit account owned by the Router in the OnRampAccount namespace, keyed by
+/// the (sender, token) pair. The Router answers with Router_UseOnRampAccount once the account
+/// learned its jetton wallet and confirmed initialization (DepositAccount_Initialized), or with
+/// Router_OnRampAccountFailed otherwise (e.g. the token can't report the wallet, or another request
+/// for the same new account is still waiting for it).
 struct (0x0e24d5ba) Router_GetOnRampAccount {
     queryId: uint64;
     /// Jetton master the account will escrow. One account per (sender, token).
@@ -119,6 +121,12 @@ struct (0xf28658e0) Router_UseOnRampAccount {
     queryId: uint64;
     account: address;
     token: address;
+}
+
+/// Sent to a user whose Router_GetOnRampAccount failed. `error` is the failure's exit code.
+struct (0x2c734db9) Router_OnRampAccountFailed {
+    queryId: uint64;
+    error: uint256;
 }
 
 /// Sent by the OnRamp when it rejects a `Router_WithdrawToTokenPool` request before the
@@ -240,8 +248,8 @@ struct (0x9e339227) Router_OnRampAccountContext {
     token: address;
 }
 
-/// The two contexts the Router carries in a `DepositAccount_Init.forwardPayload` and gets back in
-/// the account's `DepositAccount_Reply`: the inbound release/mint relay to resume, or the
+/// The two contexts the Router carries in a `DepositAccount_Init.context` and gets back in
+/// the account's `DepositAccount_Initialized`: the inbound release/mint relay to resume, or the
 /// user-initiated on-ramp account deployment to confirm.
 type Router_DepositAccountInitContext =
     | Router_RelayReleaseOrMint
@@ -378,11 +386,12 @@ fun Router_Costs.receiveConfirm(): int {
     return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
 }
 
-// Minimum value for calling Router_DeployDepositAccount: covers the Router's own compute,
+// Minimum value for calling Router_GetOnRampAccount: covers the Router's own compute,
 // the Deployable_Initialize + DepositAccount_Init messages, the account's init compute and
-// storage, and the DepositAccount_Reply -> Router_UseDepositAccount round-trip.
-fun Router_Costs.GetDepositAccount(): int {
-    return DepositAccount_MIN_GRAM_TO_RESERVE + DepositAccount_MIN_GRAM_TO_INIT + grams("0.01"); // TODO re-estimate fee of messages processed by the Router
+// storage, the account's TEP-89 wallet query, and the DepositAccount_Initialized ->
+// Router_UseOnRampAccount round-trip.
+fun Router_Costs.GetOnRampAccount(): int {
+    return DepositAccount_MIN_GRAM_TO_RESERVE + DepositAccount_MIN_GRAM_TO_INIT + DepositAccount_WALLET_QUERY_VALUE + grams("0.01"); // TODO re-estimate fee of messages processed by the Router
 }
 
 const ROUTER_RECEIVE_CONFIRM_FEE = grams("0.002");

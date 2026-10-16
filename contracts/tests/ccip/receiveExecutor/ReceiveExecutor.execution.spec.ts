@@ -298,7 +298,6 @@ describe('ReceiveExecutor - Execution', () => {
     let tokenPool: SandboxContract<TreasuryContract>
     // The receiver's Router-owned deposit account and its jetton wallet for the transferred token.
     let receiverAccount: SandboxContract<TreasuryContract>
-    let accountWallet: SandboxContract<TreasuryContract>
 
     let messageWithTT: of.Any2TVMRampMessage
 
@@ -306,7 +305,6 @@ describe('ReceiveExecutor - Execution', () => {
       tokenAdminRegistry = await blockchain.treasury('tokenAdminRegistry')
       tokenPool = await blockchain.treasury('tokenPool')
       receiverAccount = await blockchain.treasury('receiverAccount')
-      accountWallet = await blockchain.treasury('accountWallet')
     })
 
     const tokenTransferOf = (
@@ -376,13 +374,12 @@ describe('ReceiveExecutor - Execution', () => {
       return returnTokenInfoWithPool(executor, tokenPool.address, transferInitiator)
     }
 
-    /** A jetton notification forwarded by a deposit account (`via`) as it arrived from `walletSender`. */
+    /** A jetton notification forwarded by a deposit account (`via`). */
     const forwardNotification = (
       executor: SandboxContract<rx.ReceiveExecutor>,
       amount: bigint,
       opts: {
         via?: SandboxContract<TreasuryContract>
-        walletSender?: Address
         initiator?: Address | null
       } = {},
     ) =>
@@ -390,22 +387,11 @@ describe('ReceiveExecutor - Execution', () => {
         (opts.via ?? receiverAccount).getSender(),
         toNano('0.05'),
         {
-          message: rx.DepositAccount_InMessageForward.create({
-            senderAddress: opts.walletSender ?? accountWallet.address,
-            valueCoins: toNano('0.01'),
-            valueExtra: new Map(),
-            originalForwardFee: 0n,
-            createdLt: 0n,
-            createdAt: 0n,
-            body: TransferNotificationForRecipient.toCell(
-              TransferNotificationForRecipient.create({
-                queryId: 0n,
-                jettonAmount: amount,
-                transferInitiator:
-                  opts.initiator === undefined ? tokenPool.address : opts.initiator,
-                forwardPayload: beginCell().storeMaybeRef(null).asSlice(),
-              }),
-            ),
+          notification: TransferNotificationForRecipient.create({
+            queryId: 0n,
+            jettonAmount: amount,
+            transferInitiator: opts.initiator === undefined ? tokenPool.address : opts.initiator,
+            forwardPayload: beginCell().storeMaybeRef(null).asSlice(),
           }),
         },
       )
@@ -661,6 +647,43 @@ describe('ReceiveExecutor - Execution', () => {
         // Token-only messages report the delivery through NotifySuccess only.
         expect(result.transactions).not.toHaveTransaction({
           op: of.OffRamp_TokenTransferDelivered.PREFIX,
+        })
+        // gasLimit == 0: the message is finalized without being executed.
+        expect(result.transactions).not.toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          op: of.OffRamp_DispatchValidated.PREFIX,
+        })
+      })
+
+      it('should execute the message when gasLimit > 0 even without data', async () => {
+        // Deploy an executor for a message with no data but a non-zero gasLimit.
+        messageWithTT = createTestMessageWithToken({
+          receiver: deployer.address,
+          gasLimit: toNano('0.03'),
+        })
+        const receiveExecutorGas = await setupTestReceiveExecutor(
+          blockchain,
+          deployer,
+          receiveExecutorCode,
+          messageWithTT,
+        )
+        defaultInitExecute = {
+          sequenceNumber: messageWithTT.header.sequenceNumber,
+          sourceChainSelector: messageWithTT.header.sourceChainSelector,
+          messageId: messageWithTT.header.messageId,
+          effectiveGasLimit: messageWithTT.gasLimit,
+        }
+
+        await transitionToReleaseOrMint(receiveExecutorGas)
+        const result = await forwardNotification(
+          receiveExecutorGas,
+          messageWithTT.tokenAmounts![0].amount,
+        )
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutorGas.address,
+          to: deployer.address,
+          success: true,
+          op: of.OffRamp_DispatchValidated.PREFIX,
         })
       })
 
@@ -1051,6 +1074,7 @@ describe('ReceiveExecutor - Execution', () => {
         messageWithTT = createTestMessageWithToken({
           receiver: deployer.address,
           data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
+          gasLimit: toNano('0.03'),
         })
         receiveExecutorPtt = await setupTestReceiveExecutor(
           blockchain,
@@ -1113,6 +1137,46 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
+      it('should attempt execution when gasLimit is 0 but data is present', async () => {
+        // Deploy an executor for a message with data but a zero gasLimit: the
+        // dispatch is still attempted (only empty data AND zero gas skips it).
+        // The OffRamp then rejects it for gas below minGasLimit — that blocking
+        // is covered by the OffRamp e2e suite.
+        messageWithTT = createTestMessageWithToken({
+          receiver: deployer.address,
+          data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
+          gasLimit: 0n,
+        })
+        receiveExecutorPtt = await setupTestReceiveExecutor(
+          blockchain,
+          deployer,
+          receiveExecutorCode,
+          messageWithTT,
+        )
+        defaultInitExecute = {
+          sequenceNumber: messageWithTT.header.sequenceNumber,
+          sourceChainSelector: messageWithTT.header.sourceChainSelector,
+          messageId: messageWithTT.header.messageId,
+          effectiveGasLimit: messageWithTT.gasLimit,
+        }
+
+        await transitionToReleaseOrMint(receiveExecutorPtt)
+        const result = await forwardNotification(
+          receiveExecutorPtt,
+          messageWithTT.tokenAmounts![0].amount,
+        )
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutorPtt.address,
+          to: deployer.address,
+          success: true,
+          op: of.OffRamp_DispatchValidated.PREFIX,
+        })
+        expect(result.transactions).not.toHaveTransaction({
+          from: receiveExecutorPtt.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
+      })
+
       it('should dispatch the delivered amount instead of the source amount', async () => {
         const sourceAmount = 10n ** 18n
         const destinationAmount = 10n ** 9n
@@ -1122,6 +1186,7 @@ describe('ReceiveExecutor - Execution', () => {
           data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
           amount: sourceAmount,
           token,
+          gasLimit: toNano('0.03'),
         })
         receiveExecutorPtt = await setupTestReceiveExecutor(
           blockchain,

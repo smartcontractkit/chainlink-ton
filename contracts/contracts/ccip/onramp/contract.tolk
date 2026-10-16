@@ -87,7 +87,7 @@ fun onInternalMessage(in: InMessage) {
         OnRamp_ExecutorRequestsWithdraw =>  {
             var st = lazy OnRamp_Storage.load();
             assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
-            onExecutorRequestsWithdraw(st, msg);
+            onExecutorRequestsWithdraw(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorReserveFee => {
@@ -361,7 +361,7 @@ fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequest
     routerLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsWithdraw) {
+fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsWithdraw, sender: address) {
     val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector as int);
 
     // chainFamilySelector comes from the FeeQuoter via the executor; the remote token
@@ -392,6 +392,7 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
         body: Router_WithdrawToTokenPool {
             queryID: msg.queryID,
             destChainSelector: msg.destChainSelector,
+            executor: sender,
             withdrawRequest: msg.withdrawRequest,
         }
     });

@@ -326,8 +326,7 @@ fun onDepositAccountNotification(sender: address, msg: DepositAccount_ForwardNot
     if (sender != ttInfo.receiverAccount) {
         return;
     }
-    val forwarded = lazy msg.message.load();
-    val notification = lazy TransferNotificationForRecipient.fromCell(forwarded.body);
+    val notification = lazy msg.notification.load();
     val expected = ttInfo.state.transferInitiator;
     val matches = expected == null
         ? notification.transferInitiator == null
@@ -356,7 +355,7 @@ fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: Receive
         }.toCell(),
     };
 
-    if (ccipMessage.data.beginParse().isEmpty()) {
+    if (ccipMessage.data.beginParse().isEmpty() && ccipMessage.gasLimit == 0) {
         return endExecutionSuccessfully(mutate st, ccipMessage.header, delivered.toCell());
     }
 
