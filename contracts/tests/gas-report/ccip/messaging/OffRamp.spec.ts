@@ -117,7 +117,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
         offRamps: new Map(),
         rmnRemote: rt.RMNRemote.create({
           policy: createCursePolicy(deployer.address),
-          forwardUpdates: new Set(),
+          forwardUpdates: new Map(),
         }),
       })
       router = blockchain.openContract(

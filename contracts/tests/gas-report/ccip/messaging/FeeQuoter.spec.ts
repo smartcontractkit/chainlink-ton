@@ -110,7 +110,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
       onRamps: new Map(),
       rmnRemote: rt.RMNRemote.create({
         policy: createCursePolicy(deployer.address),
-        forwardUpdates: new Set(),
+        forwardUpdates: new Map(),
       }),
     })
     router = blockchain.openContract(

@@ -24,6 +24,7 @@ type OffRampStorage struct {
 	Config                    StorageConfig                `json:"config"`
 	OCR3Base                  OCR3Base                     `json:"ocr3Base"`
 	CursedSubjects            []*big.Int                   `json:"cursedSubjects"`
+	CursedSubjectsVersion     uint64                       `json:"cursedSubjectsVersion"`
 	SourceChainConfigs        map[uint64]SourceChainConfig `json:"SourceChainConfigs"`
 	LatestPriceSequenceNumber uint64                       `json:"LatestPriceSequenceNumber"`
 }
@@ -178,6 +179,14 @@ func (b *OffRampStorageBuilder) WithCursedSubject(cursedSubject *big.Int) *OffRa
 	return b
 }
 
+func (b *OffRampStorageBuilder) WithCursedSubjectsVersion(v uint64) *OffRampStorageBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.storage.CursedSubjectsVersion = v
+	return b
+}
+
 func (b *OffRampStorageBuilder) WithChainSelector(selector uint64) *OffRampStorageBuilder {
 	if b.err != nil {
 		return b
@@ -232,7 +241,8 @@ func (s *OffRampStorage) FromBinding(raw *offramp.Storage) error {
 		WithPermissionlessExecutionThresholdSeconds(raw.Config.DynamicConfig.PermissionlessExecutionThresholdSeconds).
 		WithMinGasLimit(raw.Config.DynamicConfig.MinGasLimit).
 		WithMinTTGasLimit(raw.Config.DynamicConfig.MinTTGasLimit).
-		WithLatestPriceSequenceNumber(raw.LatestPriceSequenceNumber)
+		WithLatestPriceSequenceNumber(raw.LatestPriceSequenceNumber).
+		WithCursedSubjectsVersion(raw.CursedSubjectsVersion)
 
 	b = b.WithRMNRouter(raw.Config.StaticConfig.RMNRouter).
 		WithTokenAdminRegistry(raw.Config.StaticConfig.TokenAdminRegistry)
@@ -504,8 +514,9 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 			Commit:  commitOCR3Config,
 			Execute: executeOCR3Config,
 		},
-		CursedSubjects:     cursedSubjects,
-		SourceChainConfigs: sourceChainConfigs,
+		CursedSubjects:        cursedSubjects,
+		CursedSubjectsVersion: s.CursedSubjectsVersion,
+		SourceChainConfigs:    sourceChainConfigs,
 	}
 
 	return &st, nil

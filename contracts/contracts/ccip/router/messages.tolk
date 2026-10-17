@@ -36,6 +36,8 @@ type Router_InMsg =
     | Router_RMNRemoteUncurse
     | Router_RMNAccessControlMessage
     | Router_RMNRemoteVerifyNotCursed
+    | Router_RMNRemoteSyncOffRamps
+    | Router_RMNRemoteCursedSubjectsAck
     | Router_MessageSent
     | Router_MessageRejected
     | Router_LockOrBurn
@@ -164,6 +166,17 @@ struct (0x0b95aa4e) Router_RMNRemoteVerifyNotCursed {
 struct (0x22ba83b3) Router_RMNRemoteVerifyNotCursedResponse {
     queryId: uint64
     result: bool
+}
+
+/// Re-sends the current curse state to every OffRamp that has not acknowledged
+/// it. The attached value must cover `Router_Costs.syncCursedSubjects()` per ramp.
+struct (0x0fdd7b0f) Router_RMNRemoteSyncOffRamps {
+    queryId: uint64
+}
+
+/// Sent by an OffRamp with the curse state version it is enforcing.
+struct (0x293d5b24) Router_RMNRemoteCursedSubjectsAck {
+    version: uint64
 }
 
 struct (0x6513f8e1) Router_MessageSent {
@@ -392,6 +405,12 @@ fun Router_Costs.receiveConfirm(): int {
 // Router_UseOnRampAccount round-trip.
 fun Router_Costs.GetOnRampAccount(): int {
     return DepositAccount_MIN_GRAM_TO_RESERVE + DepositAccount_MIN_GRAM_TO_INIT + DepositAccount_WALLET_QUERY_VALUE + grams("0.01"); // TODO re-estimate fee of messages processed by the Router
+}
+
+// Value attached to each OffRamp_SyncCursedSubjects, covering the OffRamp's
+// compute and the acknowledgment back to the Router.
+fun Router_Costs.syncCursedSubjects(): int {
+    return grams("0.05");
 }
 
 const ROUTER_RECEIVE_CONFIRM_FEE = grams("0.002");

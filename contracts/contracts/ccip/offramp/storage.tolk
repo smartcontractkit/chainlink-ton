@@ -12,6 +12,8 @@ struct Storage {
     config: Cell<OffRamp_StorageConfig>;
     ocr3Base: Cell<OCR3Base>
     cursedSubjects: CursedSubjects;
+    // Router curse state version that cursedSubjects reflects.
+    cursedSubjectsVersion: uint64 = 0;
 
     sourceChainConfigs: map<uint64, SourceChainConfig> = [];
 

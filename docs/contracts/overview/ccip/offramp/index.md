@@ -29,13 +29,14 @@ graph LR
 		MR -->|ExecuteValidated| OFR
 		RE -->|DispatchValidated,<br/>NotifySuccess,<br/>NotifyFailure| OFR
 		R -->|CCIPReceiveConfirm,<br/>CCIPReceiveBounced| OFR
-		RMN -->|UpdateCursedSubjects| OFR
+		RMN -->|SyncCursedSubjects| OFR
 		OWNER -->|UpdateSourceChainConfigs,<br/>SetDynamicConfig,<br/>UpdateDeployables,<br/>SetOCR3Config,<br/>Upgrade,<br/>Withdraw| OFR
 
 		OFR -->|UpdatePrices| FQ
 		OFR -->|Initialize MerkleRoot,<br/>Validate,<br/>MarkState| MR
 		OFR -->|Initialize ReceiveExecutor,<br/>InitExecute,<br/>Confirm,<br/>Bounced| RE
 		OFR -->|RouteMessage| ROUTER
+		OFR -->|RMNRemoteCursedSubjectsAck| RMN
 ```
 
 ## Topics
