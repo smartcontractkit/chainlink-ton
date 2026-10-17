@@ -5,24 +5,24 @@ import "@stdlib/lisp-lists"
 
 import "../../../lib/utils"
 import "../../../lib/access/ownable_2step"
+import "../../../lib/access/access_control"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
+import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/funding/jetton_withdrawable"
 
 import "../../common/types"
-import "../../../lib/jetton/forward_payload_wrap"
 import "../../cct/messages"
 import "../../rmn_remote/lib"
 
-import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
 import "../lib/token_pool/errors"
+import "../lib/token_pool/entrypoint"
 
-import "messages"
 import "types"
+import "messages"
 import "storage"
-import "../../../lib/access/access_control"
 
 /// @notice Burn-Mint Token Pool implementation for CCIP.
 /// Burns jettons on the source chain and mints them on the destination chain.
@@ -35,6 +35,9 @@ contract BurnMintTokenPool {
     incomingMessages:
         | TokenPool_InMessage
         | BurnMintTokenPool_InMessage
+    outgoingMessages:
+        | TokenPool_OutMessage
+        | BurnMintTokenPool_OutMessage
 
     forceAbiExport: (
         BurnMintTokenPool_BurnContext,
@@ -104,15 +107,24 @@ fun sendBurnMessage(
 /// @notice Handles bounced burn/mint messages: refunds rate limit and sends failure reply.
 fun onBouncedMessage(in: InMessageBounced) {
     var st = Storage.load();
+
+    // Base library first recovers the messages it emits (GetCCVs query, LockOrBurnWithdraw).
+    var basePool = loadPool(st);
+    if (basePool.onBouncedMessage(in.senderAddress, in.bouncedBody, in.valueCoins)) {
+        st.poolData = basePool.data.toCell();
+        st.store();
+        return;
+    }
+
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val msg = lazy BurnMintTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
         // Bounced ask here is a failed fee withdrawal.
         AskToTransfer => {
             val data = st.poolData.load();
-            val jc = data.jettonClient();
-            assert(in.senderAddress == jc.walletAddress()) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
-            JettonWithdrawable.onWithdrawBounced(jc.walletAddress(), msg);
+            val wallet  = data.jettonClient().walletAddress();
+            assert(in.senderAddress == wallet) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
+            JettonWithdrawable.onWithdrawBounced(wallet, msg);
             st.store();
         }
         CCT_AskToBurn => {
@@ -121,13 +133,10 @@ fun onBouncedMessage(in: InMessageBounced) {
             assert(in.senderAddress == context.wallet) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
 
             val operation = lazy context.forwardPayload.load();
-            // The burn never happened, so custody is still in the pool's own wallet. Return the
-            // jettons to the original sender (best-effort) so they aren't permanently locked here,
-            // then refund the rate limit and notify the requester of the failure.
             var pool = loadPool(st);
-            pool.returnTransferLocked(operation);
-            pool.refundLockOrBurnRateLimit(operation);
-            pool.sendLockOrBurnFailure(operation, BurnMintTokenPool_Error.UnexpectedBurnBounce as uint16);
+            val exitCode = BurnMintTokenPool_Error.UnexpectedBurnBounce as int32;
+            val custodyReturn = createTokenPoolCustodyReturn(operation);
+            pool.recoverLockOrBurnFailure(operation, exitCode, in.valueCoins, custodyReturn);
 
             st.poolData = pool.data.toCell();
             st.store();
@@ -141,15 +150,10 @@ fun onBouncedMessage(in: InMessageBounced) {
 
             val operation = lazy context.forwardPayload.load();
             var pool = loadPool(st);
-            pool.refundReleaseOrMintRateLimit(operation);
-            st.poolData = pool.data.toCell();
-            pool.sendReleaseOrMintFailure(operation, BurnMintTokenPool_Error.UnexpectedMintBounce as uint16);
-            st.store();
-        }
-        // The hooks contract rejected our CCV query. Finalize by notifying the original requester.
-        TokenPool_GetCCVs => {
-            var pool = loadPool(st);
-            pool.onGetCCVsBounced(msg, rich.exitCode);
+            val exitCode = BurnMintTokenPool_Error.UnexpectedMintBounce as int32;
+            // No custody to return on release/mint failure
+            pool.recoverReleaseOrMintFailure(operation, exitCode, in.valueCoins);
+
             st.poolData = pool.data.toCell();
             st.store();
         }
@@ -164,6 +168,7 @@ fun onLockOrBurnTransferContinue(
     sender: address,
     _msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
+    _msgValue: coins,
 ): Storage {
     val requestMsg = lazy fwdPayload.requestMsg.load();
     val context = BurnMintTokenPool_BurnContext {
@@ -183,7 +188,7 @@ fun onReleaseOrMintContinue(
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
-    assert(msg.delivery != null && msg.replyTo != null, TokenPool_Error.UnsupportedOperation);
+    assert(msg.delivery != null, TokenPool_Error.UnsupportedOperation);
     val st = ctx!;
     val delivery = msg.delivery!.load();
     val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {

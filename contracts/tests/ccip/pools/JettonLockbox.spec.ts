@@ -1,5 +1,5 @@
 import '@ton/test-utils'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, SandboxContract, TreasuryContract, internal } from '@ton/sandbox'
 import { Address, beginCell, toNano, Dictionary, Cell } from '@ton/core'
 import { crc32 } from 'zlib'
 import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
@@ -10,8 +10,11 @@ import {
   JettonLockBox_Init,
   JettonLockBox_Deposit,
   JettonLockBox_Withdraw,
+  JettonLockBox_WithdrawExtra,
   JettonLockBox_WithdrawFailed,
   JettonLockBox_Deposited,
+  JettonLockBox_DepositFailed,
+  AccessControl_RoleData,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool'
@@ -48,6 +51,7 @@ describe('JettonLockBox', () => {
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
+    blockchain.now = Math.floor(Date.now() / 1000)
     deployer = await blockchain.treasury('deployer')
     operator = await blockchain.treasury('operator')
     unauthorized = await blockchain.treasury('unauthorized')
@@ -172,6 +176,50 @@ describe('JettonLockBox', () => {
   })
 
   describe('deposit', () => {
+    it('notifies rejected deposits without subsidizing repeated underfunded returns', async () => {
+      const balanceBefore = (await blockchain.getContract(lockbox.address)).balance
+      const jettonsBefore = await operatorWallet.getJettonBalance()
+      for (const queryId of [221, 222, 223]) {
+        const result = await operatorWallet.sendTransfer(operator.getSender(), {
+          value: toNano('0.2'),
+          message: {
+            queryId,
+            jettonAmount: 1n,
+            destination: lockbox.address,
+            responseDestination: operator.address,
+            customPayload: null,
+            forwardTonAmount: toNano('0.05'),
+            forwardPayload: Cell.EMPTY,
+          },
+        })
+        expect(result.transactions).not.toHaveTransaction({
+          from: lockbox.address,
+          to: lockboxWallet.address,
+          op: AskToTransfer.PREFIX,
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: lockbox.address,
+          to: operator.address,
+          op: JettonLockBox_DepositFailed.PREFIX,
+          body(body) {
+            if (!body) return false
+            const failure = JettonLockBox_DepositFailed.fromSlice(body.beginParse())
+            return (
+              failure.amount === 1n &&
+              failure.depositor.equals(operator.address) &&
+              !failure.returnAttempted &&
+              failure.context === null
+            )
+          },
+        })
+        expect((await blockchain.getContract(lockbox.address)).balance).toBeGreaterThanOrEqual(
+          balanceBefore,
+        )
+      }
+      expect(await operatorWallet.getJettonBalance()).toEqual(jettonsBefore - 3n)
+      expect(await lockboxWallet.getJettonBalance()).toEqual(3n)
+    })
+
     it('should accept deposit via jetton transfer → TransferNotificationForRecipient', async () => {
       const amount = toNano('10')
       const queryId = 200n
@@ -232,6 +280,7 @@ describe('JettonLockBox', () => {
 
     it('should reject deposit with zero amount', async () => {
       const queryId = 210n
+      const callerContext = beginCell().storeUint(0x12345678, 32).endCell()
 
       // Build deposit payload with zero amount
       const depositPayload = JettonLockBox_Deposit.toCell(
@@ -240,7 +289,7 @@ describe('JettonLockBox', () => {
           token: jettonMinter.address,
           remoteChainSelector,
           amount: 0n,
-          context: null,
+          context: callerContext,
         }),
       )
 
@@ -266,6 +315,21 @@ describe('JettonLockBox', () => {
         to: lockbox.address,
         // TODO: ?
         success: true, // The message itself succeeds (no bounce), but deposit is silently skipped
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: lockbox.address,
+        to: operator.address,
+        op: JettonLockBox_DepositFailed.PREFIX,
+        body(body) {
+          if (!body) return false
+          const failure = JettonLockBox_DepositFailed.fromSlice(body.beginParse())
+          return (
+            failure.amount === toNano('1') &&
+            failure.context !== null &&
+            JettonLockBox_Deposit.toCell(failure.context).equals(depositPayload) &&
+            failure.context.context!.equals(callerContext)
+          )
+        },
       })
     })
 
@@ -296,16 +360,17 @@ describe('JettonLockBox', () => {
       const operatorBalanceBefore = await operatorWallet.getJettonBalance()
 
       // Sending an empty forward payload makes `loadForwardPayloadAsSlice` return null, so the
-      // deposit is unidentifiable and hits the D1 `returnFundsBestEffort` path.
+      // deposit is unidentifiable and hits the D1 `returnFundsBestEffort` path. The return always
+      // carries the failure notification, so it needs enough value to fund the wallet transfer.
       const result = await operatorWallet.sendTransfer(operator.getSender(), {
-        value: toNano('0.2'),
+        value: toNano('0.6'),
         message: {
           queryId: Number(queryId),
           jettonAmount: amount,
           destination: lockbox.address,
           responseDestination: operator.address,
           customPayload: null,
-          forwardTonAmount: toNano('0.05'),
+          forwardTonAmount: toNano('0.4'),
           // Empty forward payload → `loadForwardPayloadAsSlice` returns null.
           forwardPayload: Cell.EMPTY,
         },
@@ -337,6 +402,46 @@ describe('JettonLockBox', () => {
       // And the operator's custody is restored.
       const operatorBalanceAfter = await operatorWallet.getJettonBalance()
       expect(operatorBalanceAfter).toEqual(operatorBalanceBefore)
+    })
+
+    it('a null-initiator transfer errors as unauthorized', async () => {
+      // A bare mint (or any transfer without an initiator) into the lockbox wallet delivers a
+      // TransferNotificationForRecipient with transferInitiator == null. It cannot be attributed to a
+      // pool flow, nor returned (no initiator to return to), so we expect an error.
+      const depositPayload = JettonLockBox_Deposit.toCell(
+        JettonLockBox_Deposit.create({
+          queryId: 212n,
+          token: jettonMinter.address,
+          remoteChainSelector,
+          amount: toNano('3'),
+          context: null,
+        }),
+      )
+
+      const result = await blockchain.sendMessage(
+        internal({
+          from: lockboxWallet.address,
+          to: lockbox.address,
+          value: toNano('0.3'),
+          body: TransferNotificationForRecipient.toCell(
+            TransferNotificationForRecipient.create({
+              queryId: 212n,
+              jettonAmount: toNano('3'),
+              transferInitiator: null,
+              // Even a well-formed deposit payload must be ignored: a null initiator can't be credited.
+              forwardPayload: beginCell().storeMaybeRef(depositPayload).asSlice(),
+            }),
+          ),
+        }),
+      )
+
+      // The notification is accepted gracefully — no crash, no bounce.
+      expect(result.transactions).toHaveTransaction({
+        from: lockboxWallet.address,
+        to: lockbox.address,
+        success: false,
+        exitCode: JettonLockBox.Errors['AccessControl_Error.UnauthorizedAccount'],
+      })
     })
 
     it('should reject deposit from non-operator transfer initiator', async () => {
@@ -372,14 +477,14 @@ describe('JettonLockBox', () => {
       )
 
       const result = await unauthorizedWallet.sendTransfer(unauthorized.getSender(), {
-        value: toNano('0.2'),
+        value: toNano('0.6'),
         message: {
           queryId: Number(queryId),
           jettonAmount: amount,
           destination: lockbox.address,
           responseDestination: unauthorized.address,
           customPayload: null,
-          forwardTonAmount: toNano('0.05'),
+          forwardTonAmount: toNano('0.4'),
           forwardPayload: depositPayload,
         },
       })
@@ -411,6 +516,16 @@ describe('JettonLockBox', () => {
       // initiator. The sender's wallet balance is restored (nothing parked in the lockbox).
       const afterBalance = await unauthorizedWallet.getJettonBalance()
       expect(afterBalance).toEqual(toNano('100'))
+      expect(result.transactions).toHaveTransaction({
+        from: lockbox.address,
+        to: unauthorized.address,
+        op: JettonLockBox_DepositFailed.PREFIX,
+        body(body) {
+          if (!body) return false
+          const failure = JettonLockBox_DepositFailed.fromSlice(body.beginParse())
+          return failure.queryId === queryId && failure.returnAttempted
+        },
+      })
     })
   })
 
@@ -512,12 +627,9 @@ describe('JettonLockBox', () => {
       })
     })
 
-    it('should process withdraw to zero-hash address (not null)', async () => {
-      // NOTE: createAddressNone() in Tolk checks for null address (tag=00 in serialization).
-      // Address.parse('0:000...000') is a VALID address with all-zero hash (tag=10), not null.
-      // The contract's assert(msg.recipientWallet != createAddressNone()) only rejects null,
-      // not zero-hash addresses. This test documents this behavior.
-      // To truly reject zero addresses, the contract needs a separate check for zero hash.
+    it('should reject withdraw to the zero-hash address', async () => {
+      // `isZeroAddress` compares against the basechain zero address (workchain 0, all-zero hash),
+      // so a zero-hash recipient is rejected rather than burning the jettons.
       const zeroHashAddress = Address.parse(
         '0:0000000000000000000000000000000000000000000000000000000000000000',
       )
@@ -531,15 +643,15 @@ describe('JettonLockBox', () => {
         extra: null,
       })
 
-      // Lockbox accepts the message (zero hash ≠ null address)
       expect(result.transactions).toHaveTransaction({
         from: operator.address,
         to: lockbox.address,
-        success: true,
+        success: false,
+        exitCode: JettonLockBox.Errors['JettonLockBox_Error.RecipientCannotBeZeroAddress'],
       })
 
-      // Lockbox sends AskToTransfer with the zero-hash recipient
-      expect(result.transactions).toHaveTransaction({
+      // No transfer is relayed to the wallet.
+      expect(result.transactions).not.toHaveTransaction({
         from: lockbox.address,
         to: lockboxWallet.address,
         op: AskToTransfer.PREFIX,
@@ -568,6 +680,60 @@ describe('JettonLockBox', () => {
       // Verify storage unchanged (wallet still points to original)
       const wallet = await lockbox.getWallet()
       expect(wallet).toEqualAddress(lockboxWallet.address)
+    })
+
+    it('should reject init from an address other than the bound initializer (224853f4)', async () => {
+      // Bind `deployer` as the initializer at construction, as a real deployment would.
+      const boundLockbox = blockchain.openContract(
+        JettonLockBox.fromStorage(
+          {
+            minterAddress: jettonMinter.address,
+            walletAddress: null,
+            id: 3n,
+            initializer: deployer.address,
+            rbac: emptyAccessControlData(),
+          },
+          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+        ),
+      )
+      const boundWalletAddress = await jettonMinter.getWalletAddress(boundLockbox.address)
+
+      await boundLockbox.sendDeploy(deployer.getSender(), toNano('3'))
+
+      // An attacker front-runs the intended deployer's init: rejected, ownership not granted.
+      const attackerResult = await boundLockbox.sendJettonLockBoxInit(
+        operator.getSender(),
+        toNano('0.2'),
+        {
+          queryId: 600n,
+          minterAddress: jettonMinter.address,
+          walletAddress: boundWalletAddress,
+          admin: operator.address,
+        },
+      )
+      expect(attackerResult.transactions).toHaveTransaction({
+        from: operator.address,
+        to: boundLockbox.address,
+        success: false,
+        exitCode: JettonLockBox.Errors['JettonLockBox_Error.UnauthorizedInitializer'],
+      })
+
+      // The bound initializer can still initialize normally afterwards.
+      const ownerResult = await boundLockbox.sendJettonLockBoxInit(
+        deployer.getSender(),
+        toNano('0.2'),
+        {
+          queryId: 601n,
+          minterAddress: jettonMinter.address,
+          walletAddress: boundWalletAddress,
+          admin: deployer.address,
+        },
+      )
+      expect(ownerResult.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: boundLockbox.address,
+        success: true,
+      })
     })
 
     it('should reject operations on uninitialized contract', async () => {
@@ -645,6 +811,72 @@ describe('JettonLockBox', () => {
       // Verify operator got DEFAULT_ADMIN_ROLE (since admin was null)
       const hasRole = await autoAdminLockbox.getHasRole(DEFAULT_ADMIN_ROLE, operator.address)
       expect(hasRole).toBe(true)
+    })
+
+    it('should reject init when the value is below the reserve + init minimum', async () => {
+      const poorLockbox = blockchain.openContract(
+        JettonLockBox.fromStorage(
+          {
+            minterAddress: jettonMinter.address,
+            walletAddress: null,
+            id: 4n,
+            rbac: emptyAccessControlData(),
+          },
+          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+        ),
+      )
+      const poorWalletAddress = await jettonMinter.getWalletAddress(poorLockbox.address)
+
+      // Deploy with a small balance and init with a value below MIN_GRAM_TO_RESERVE + MIN_GRAM_TO_INIT
+      // (0.05 + 0.05 = 0.1 TON), so the combined original balance is under the minimum.
+      await poorLockbox.sendDeploy(deployer.getSender(), toNano('0.05'))
+      const result = await poorLockbox.sendJettonLockBoxInit(deployer.getSender(), toNano('0.04'), {
+        queryId: 700n,
+        minterAddress: jettonMinter.address,
+        walletAddress: poorWalletAddress,
+        admin: deployer.address,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: poorLockbox.address,
+        success: false,
+        exitCode: JettonLockBox.Errors['JettonLockBox_Error.NotEnoughValue'],
+      })
+    })
+
+    it('should reserve the rent and return the excess value to the deployer', async () => {
+      const refundLockbox = blockchain.openContract(
+        JettonLockBox.fromStorage(
+          {
+            minterAddress: jettonMinter.address,
+            walletAddress: null,
+            id: 5n,
+            rbac: emptyAccessControlData(),
+          },
+          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+        ),
+      )
+      const refundWalletAddress = await jettonMinter.getWalletAddress(refundLockbox.address)
+
+      await refundLockbox.sendDeploy(deployer.getSender(), toNano('3'))
+      const result = await refundLockbox.sendJettonLockBoxInit(deployer.getSender(), toNano('1'), {
+        queryId: 701n,
+        minterAddress: jettonMinter.address,
+        walletAddress: refundWalletAddress,
+        admin: deployer.address,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: refundLockbox.address,
+        success: true,
+      })
+
+      // The lockbox keeps only the rent reserve (0.05 TON); the excess is returned to the deployer.
+      const balance = (await blockchain.getContract(refundLockbox.address)).balance
+      expect(balance).toBeGreaterThanOrEqual(toNano('0.05'))
+      expect(balance).toBeLessThan(toNano('0.1'))
     })
   })
 
@@ -725,9 +957,218 @@ describe('JettonLockBox', () => {
   })
 
   describe('bounce handler', () => {
-    it('should send error message to initiator on bounced AskToTransfer', async () => {
-      // TODO: simulate AskToTransfer bounce and verify JettonLockBox_WithdrawFailed sent
-      // This requires mocking a bouncing jetton wallet or using sandbox capabilities
+    // Builds the `forwardPayload` the lockbox tags onto a withdraw `AskToTransfer`: a ref-wrapped
+    // `Jetton_ForwardPayloadWrap` carrying the caller + withdraw context, with the caller's original
+    // payload preserved as the remainder.
+    function buildWithdrawForwardPayload(
+      initiator: Address,
+      withdraw: JettonLockBox_Withdraw,
+      remainder: Cell | null,
+    ) {
+      const context = JettonLockBox_Withdraw.toCell(withdraw)
+      const wrap = beginCell()
+        .storeUint(0x2d61600c, 32) // Jetton_ForwardPayloadWrap opcode
+        .storeAddress(initiator)
+        .storeBit(true)
+        .storeRef(context)
+        .storeBit(remainder !== null)
+      if (remainder !== null) wrap.storeRef(remainder)
+      return beginCell().storeBit(true).storeRef(wrap.endCell()).endCell().beginParse()
+    }
+
+    function buildRichBounce(originalBody: Cell): Cell {
+      const originalInfo = beginCell()
+        .storeCoins(toNano('0.05'))
+        .storeDict(null)
+        .storeUint(0, 64)
+        .storeUint(0, 32)
+        .endCell()
+      return beginCell()
+        .storeUint(0xfffffffe, 32)
+        .storeRef(originalBody)
+        .storeRef(originalInfo)
+        .storeUint(1, 8) // bouncedByPhase
+        .storeInt(47, 32) // exitCode
+        .storeBit(false) // no compute phase
+        .endCell()
+    }
+
+    it('tags the withdraw AskToTransfer with a Jetton_ForwardPayloadWrap and leaves customPayload untouched', async () => {
+      // Fund the lockbox wallet so the withdraw can be relayed.
+      const depositAmount = toNano('100')
+      await operatorWallet.sendTransfer(operator.getSender(), {
+        value: toNano('0.3'),
+        message: {
+          queryId: 1100,
+          jettonAmount: depositAmount,
+          destination: lockbox.address,
+          responseDestination: operator.address,
+          customPayload: null,
+          forwardTonAmount: toNano('0.05'),
+          forwardPayload: JettonLockBox_Deposit.toCell(
+            JettonLockBox_Deposit.create({
+              queryId: 1100n,
+              token: jettonMinter.address,
+              remoteChainSelector,
+              amount: depositAmount,
+              context: null,
+            }),
+          ),
+        },
+      })
+
+      const releaseContext = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const result = await lockbox.sendJettonLockBoxWithdraw(operator.getSender(), toNano('0.2'), {
+        queryId: 310n,
+        token: jettonMinter.address,
+        remoteChainSelector,
+        amount: toNano('5'),
+        recipientWallet: recipient.address,
+        extra: JettonLockBox_WithdrawExtra.create({
+          sendExcessesTo: operator.address,
+          forwardTonAmount: 0n,
+          forwardPayload: releaseContext,
+        }),
+      })
+
+      const relayed = result.transactions.find(
+        (tx) =>
+          tx.inMessage?.info.type === 'internal' &&
+          tx.inMessage.info.src.equals(lockbox.address) &&
+          tx.inMessage.info.dest.equals(lockboxWallet.address) &&
+          tx.inMessage.body.beginParse().preloadUint(32) === AskToTransfer.PREFIX,
+      )
+      expect(relayed).toBeDefined()
+      const ask = AskToTransfer.fromSlice(relayed!.inMessage!.body.beginParse())
+
+      // customPayload is reserved for custom wallet usage and must be left untouched.
+      expect(ask.customPayload).toBeNull()
+
+      // forwardPayload is a ref-wrapped Jetton_ForwardPayloadWrap.
+      const fp = ask.forwardPayload
+      expect(fp.loadBit()).toBe(true)
+      const wrap = fp.loadRef().beginParse()
+      expect(wrap.loadUint(32)).toBe(0x2d61600c)
+      expect(wrap.loadAddress().equals(operator.address)).toBe(true)
+      expect(wrap.loadBit()).toBe(true) // context present
+      const context = JettonLockBox_Withdraw.fromSlice(wrap.loadRef().beginParse())
+      expect(context.queryId).toBe(310n)
+      expect(context.amount).toBe(toNano('5'))
+      expect(context.recipientWallet.equals(recipient.address)).toBe(true)
+      expect(context.extra!.forwardPayload!.equals(releaseContext)).toBe(true)
+
+      // The caller's original forwardPayload is preserved as the wrap remainder.
+      expect(wrap.loadBit()).toBe(true)
+      expect(wrap.loadRef().equals(releaseContext)).toBe(true)
     })
+
+    it.each([false, true])('returns the full bounced withdraw with extra=%s', async (withExtra) => {
+      const releaseContext = withExtra ? beginCell().storeUint(0xcafebabe, 32).endCell() : null
+      const withdraw = JettonLockBox_Withdraw.create({
+        queryId: 311n,
+        token: jettonMinter.address,
+        remoteChainSelector,
+        amount: toNano('5'),
+        recipientWallet: recipient.address,
+        extra: withExtra
+          ? JettonLockBox_WithdrawExtra.create({
+              sendExcessesTo: operator.address,
+              forwardTonAmount: 0n,
+              forwardPayload: releaseContext,
+            })
+          : null,
+      })
+      const ask = AskToTransfer.create({
+        queryId: 311n,
+        jettonAmount: toNano('5'),
+        transferRecipient: recipient.address,
+        sendExcessesTo: operator.address,
+        customPayload: null,
+        forwardTonAmount: 0n,
+        forwardPayload: buildWithdrawForwardPayload(operator.address, withdraw, releaseContext),
+      })
+
+      const result = await blockchain.sendMessage(
+        internal({
+          from: lockboxWallet.address,
+          to: lockbox.address,
+          value: toNano('0.2'),
+          bounced: true,
+          body: buildRichBounce(AskToTransfer.toCell(ask)),
+        }),
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: lockbox.address,
+        to: operator.address,
+        op: JettonLockBox_WithdrawFailed.PREFIX,
+        body(body) {
+          if (!body) return false
+          const failure = JettonLockBox_WithdrawFailed.fromSlice(body.beginParse())
+          return (
+            failure.queryId === 311n &&
+            failure.token.equals(jettonMinter.address) &&
+            failure.context !== null &&
+            JettonLockBox_Withdraw.toCell(failure.context).equals(
+              JettonLockBox_Withdraw.toCell(withdraw),
+            )
+          )
+        },
+      })
+    })
+
+    it.each(['missing wrap', 'missing context', 'non-withdraw context'])(
+      'rejects a bounced AskToTransfer with %s',
+      async (payloadKind) => {
+        const invalidContext =
+          payloadKind === 'non-withdraw context'
+            ? beginCell().storeUint(JettonLockBox_Deposit.PREFIX, 32).endCell()
+            : null
+        const forwardPayload = beginCell()
+          .storeMaybeRef(
+            payloadKind === 'missing wrap'
+              ? null
+              : beginCell()
+                  .storeUint(0x2d61600c, 32)
+                  .storeAddress(operator.address)
+                  .storeMaybeRef(invalidContext)
+                  .storeMaybeRef(null)
+                  .endCell(),
+          )
+          .endCell()
+          .beginParse()
+        const ask = AskToTransfer.create({
+          queryId: 312n,
+          jettonAmount: toNano('5'),
+          transferRecipient: recipient.address,
+          sendExcessesTo: operator.address,
+          customPayload: null,
+          forwardTonAmount: 0n,
+          forwardPayload,
+        })
+
+        const result = await blockchain.sendMessage(
+          internal({
+            from: lockboxWallet.address,
+            to: lockbox.address,
+            value: toNano('0.2'),
+            bounced: true,
+            body: buildRichBounce(AskToTransfer.toCell(ask)),
+          }),
+        )
+
+        expect(result.transactions).toHaveTransaction({
+          from: lockboxWallet.address,
+          to: lockbox.address,
+          success: false,
+          exitCode: JettonLockBox.Errors['JettonLockBox_Error.MissingOrMalformedForwardPayload'],
+        })
+        expect(result.transactions).not.toHaveTransaction({
+          from: lockbox.address,
+          to: operator.address,
+          op: JettonLockBox_WithdrawFailed.PREFIX,
+        })
+      },
+    )
   })
 })

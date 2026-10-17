@@ -389,7 +389,7 @@ type RMNAccessControlMessage[T rbac.InMessage | any] struct {
 	Content *codec.MessageEnvelope[T] `tlb:"^"`
 }
 
-// LockOrBurn locks tokens into the pool or burns the tokens.
+// LockOrBurn locks tokens into the pool or burns the tokens. ReplyTo must be non-nil.
 type LockOrBurn struct {
 	_                       tlb.Magic        `tlb:"#fa7da444" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID                 uint64           `tlb:"## 64"`
@@ -399,7 +399,7 @@ type LockOrBurn struct {
 	ReplyTo                 *address.Address `tlb:"addr"`
 }
 
-// ReleaseOrMint releases or mints tokens on the destination chain.
+// ReleaseOrMint releases or mints tokens on the destination chain. ReplyTo must be non-nil.
 type ReleaseOrMint struct {
 	_                       tlb.Magic              `tlb:"#351f77e3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID                 uint64                 `tlb:"## 64"`
@@ -601,10 +601,11 @@ type LockOrBurnFinished struct {
 }
 
 // LockOrBurnFailure notifies that a lock/burn operation failed.
+// `ErrorCode` is the raw TVM exit code: signed int32 (real failures can carry negative codes).
 type LockOrBurnFailure struct {
 	_         tlb.Magic `tlb:"#3476ea72" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID   uint64    `tlb:"## 64"`
-	ErrorCode uint16    `tlb:"## 16"`
+	ErrorCode int32     `tlb:"## 32"`
 }
 
 // ReleaseOrMintFinished notifies that a release/mint operation finished.
@@ -615,10 +616,11 @@ type ReleaseOrMintFinished struct {
 }
 
 // ReleaseOrMintFailure notifies that a release/mint operation failed.
+// `ErrorCode` is the raw TVM exit code: signed int32 (real failures can carry negative codes).
 type ReleaseOrMintFailure struct {
 	_         tlb.Magic `tlb:"#ef0cb36e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID   uint64    `tlb:"## 64"`
-	ErrorCode uint16    `tlb:"## 16"`
+	ErrorCode int32     `tlb:"## 32"`
 }
 
 // RemotePoolAddedNotification confirms a remote pool was added.

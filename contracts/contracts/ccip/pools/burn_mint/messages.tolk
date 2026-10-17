@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../../lib/jetton/messages"
-import "../lib/token_pool/messages"
 import "../../cct/messages"
+import "../lib/token_pool/messages"
 
 struct (0x39898e4d) BurnMintTokenPool_ClaimMinterAdmin {
     queryId: uint64;
@@ -21,5 +21,4 @@ type BurnMintTokenPool_OutMessage =
 type BurnMintTokenPool_BouncedMessage =
     | AskToTransfer
     | CCT_AskToBurn
-    | MintNewJettons
-    | TokenPool_GetCCVs;
+    | MintNewJettons;
