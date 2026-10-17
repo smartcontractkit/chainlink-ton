@@ -14,7 +14,7 @@ import (
 )
 
 func TestInsufficientMessageValueExitCode(t *testing.T) {
-	decoded, err := ErrorInsufficientMessageValue.NewFrom(51726)
+	decoded, err := ErrorInsufficientMessageValue.NewFrom(51725)
 	require.NoError(t, err)
 	require.Equal(t, ErrorInsufficientMessageValue, decoded)
 	require.Equal(t, "ErrorInsufficientMessageValue", decoded.String())
@@ -39,7 +39,7 @@ func TestLockboxDepositFailed_WireFormat(t *testing.T) {
 			require.NoError(t, err)
 			expected := cell.BeginCell().MustStoreUInt(0x5e28ebd8, 32).MustStoreUInt(301, 64).
 				MustStoreAddr(token).MustStoreAddr(token).MustStoreCoins(9000000000).
-				MustStoreMaybeRef(contextCell).MustStoreUInt(47400, 16).MustStoreBoolBit(attempted).EndCell()
+				MustStoreMaybeRef(contextCell).MustStoreUInt(47400, 32).MustStoreBoolBit(attempted).EndCell()
 			require.Equal(t, expected.Hash(), encoded.Hash())
 			var decoded lockbox.DepositFailed
 			require.NoError(t, tlb.LoadFromCell(&decoded, encoded.MustBeginParse()))

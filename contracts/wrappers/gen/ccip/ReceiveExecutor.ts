@@ -933,13 +933,13 @@ export const TokenPool_ReleaseOrMintFinalized = {
 /**
  > struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
  >     queryId: uint64
- >     errorCode: uint16
+ >     errorCode: int32
  > }
  */
 export interface TokenPool_ReleaseOrMintFailure {
     readonly $: 'TokenPool_ReleaseOrMintFailure'
     queryId: uint64
-    errorCode: uint16
+    errorCode: int32
 }
 
 export const TokenPool_ReleaseOrMintFailure = {
@@ -947,7 +947,7 @@ export const TokenPool_ReleaseOrMintFailure = {
 
     create(args: {
         queryId?: uint64
-        errorCode: uint16
+        errorCode: int32
     }): TokenPool_ReleaseOrMintFailure {
         return {
             $: 'TokenPool_ReleaseOrMintFailure',
@@ -960,13 +960,13 @@ export const TokenPool_ReleaseOrMintFailure = {
         return {
             $: 'TokenPool_ReleaseOrMintFailure',
             queryId: s.loadUintBig(64),
-            errorCode: s.loadUintBig(16),
+            errorCode: s.loadIntBig(32),
         }
     },
     store(self: TokenPool_ReleaseOrMintFailure, b: c.Builder): void {
         b.storeUint(0xef0cb36e, 32);
         b.storeUint(self.queryId, 64);
-        b.storeUint(self.errorCode, 16);
+        b.storeInt(self.errorCode, 32);
     },
     toCell(self: TokenPool_ReleaseOrMintFailure): c.Cell {
         return makeCellFrom<TokenPool_ReleaseOrMintFailure>(self, TokenPool_ReleaseOrMintFailure.store);
@@ -2312,7 +2312,7 @@ export class ReceiveExecutor implements c.Contract {
 
     static createCellOfTokenPoolReleaseOrMintFailure(body: {
         queryId?: uint64
-        errorCode: uint16
+        errorCode: int32
     }) {
         return TokenPool_ReleaseOrMintFailure.toCell(TokenPool_ReleaseOrMintFailure.create(body));
     }
@@ -2415,7 +2415,7 @@ export class ReceiveExecutor implements c.Contract {
 
     async sendTokenPoolReleaseOrMintFailure(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        errorCode: uint16
+        errorCode: int32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

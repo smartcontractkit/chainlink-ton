@@ -36,6 +36,9 @@ contract LockReleaseLockboxTokenPool {
     incomingMessages:
         | TokenPool_InMessage
         | LockReleaseLockboxTokenPool_InMessage
+    outgoingMessages:
+        | TokenPool_OutMessage
+        | LockReleaseLockboxTokenPool_OutMessage
 
     forceAbiExport: (
         LockReleaseLockboxTokenPool_LockContext,
@@ -117,6 +120,13 @@ fun onBouncedMessage(in: InMessageBounced) {
             }
 
             onLockTransferBounced(mutate st, in.senderAddress, msg, in.valueCoins);
+            st.store();
+        }
+        // The lockbox rejected the withdraw request at entry, so no JettonLockBox_WithdrawFailed
+        // follows. Unwind the admitted release from the context we embedded in `extra.forwardPayload`.
+        JettonLockBox_Withdraw => {
+            assert(in.senderAddress == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
+            recoverReleaseFromLockboxWithdraw(mutate st, msg, in.valueCoins);
             st.store();
         }
     }
@@ -295,7 +305,7 @@ fun onLockTransferBounced(
     val operation = lazy context.forwardPayload.load();
 
     var pool = loadPool(st);
-    pool.recoverLockOrBurnFailure(operation, LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce as uint16,
+    pool.recoverLockOrBurnFailure(operation, LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce as int32,
         msgValue, createTokenPoolCustodyReturn(operation));
     st.poolData = pool.data.toCell();
 }
@@ -396,7 +406,7 @@ fun recoverReleaseFromLockboxWithdraw(
     val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(wrap.context!);
     var pool = loadPool(st);
     pool.recoverReleaseOrMintFailure(context.forwardPayload.load(),
-        LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed as uint16, msgValue);
+        LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed as int32, msgValue);
     st.poolData = pool.data.toCell();
 }
 

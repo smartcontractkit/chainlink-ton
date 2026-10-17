@@ -136,7 +136,7 @@ struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
     queryID: uint64;
     destChainSelector: uint64;
     withdrawRequest: Cell<Router_WithdrawRequest>;
-    error: uint16;
+    error: int32;                                   // Raw TVM exit code (signed).
 }
 
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {

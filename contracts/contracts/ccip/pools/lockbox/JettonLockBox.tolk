@@ -204,7 +204,7 @@ fun onDepositWithTransferNotification(
             depositor: msg.transferInitiator!,
             amount: msg.jettonAmount,
             context: deposit != null ? deposit!.toCell() : null,
-            errorCode: errorCode as uint16,
+            errorCode,
             returnAttempted: true,
         };
         val failureMsg = createMessage({

@@ -732,8 +732,12 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         TokenPool_Uncurse => {
             self.uncurse(msgSender, msg.subjects);
         }
-        TokenPool_RMNAccessControlMessage => { self.onCursePolicyAccessControlMessage(msgSender, msg.content.beginParse()); }
-        TokenPool_RMNOwnableMessage => { self.onCursePolicyOwnableMessage(msgSender, msg.content); }
+        TokenPool_RMNAccessControlMessage => {
+            self.onCursePolicyAccessControlMessage(msgSender, msg.content.beginParse());
+        }
+        TokenPool_RMNOwnableMessage => {
+            self.onCursePolicyOwnableMessage(msgSender, msg.content);
+        }
         JettonWithdrawable_Withdraw => {
             self.onWithdrawFeeTokensDispatch(msgSender, msgValue, msg);
         }
@@ -754,45 +758,33 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
     return true; // default
 }
 
-/// Shared bounce handler for the messages the base TokenPool library itself emits (see
-/// `TokenPool_BouncedMessage`). Concrete pools call this first from their own `onBouncedMessage`.
-/// @dev A bounced body whose outside `TokenPool_BouncedMessage` falls through, returns `false`
+/// Shared bounce handler for the messages the base TokenPool library (see `TokenPool_BouncedMessage`)
 fun TokenPool<T>.onBouncedMessage(mutate self, bouncedSender: address, bouncedBody: slice, msgValue: coins): bool {
     val rich = lazy RichBounceBody.fromSlice(bouncedBody);
     val msg = lazy TokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
         TokenPool_LockOrBurnWithdraw => {
-            // The the withdraw request was rejected; reimburse any consumed rate limit and notify the original requester.
-            self.recoverLockOrBurnFailure(msg.forwardPayload, TokenPool_Error.LockOrBurnWithdrawBounced as uint16, msgValue);
+            // Fail by notifying the target (replyTo); reimburse any consumed rate limit
+            self.recoverLockOrBurnFailure(msg.forwardPayload, rich.exitCode, msgValue);
             return true;
         }
         TokenPool_GetCCVs => {
-            // The hooks contract rejected our CCV query; finalize by notifying the original requester.
-            // `rich.exitCode` carries the hooks rejection reason into the failure reply.
+            // Fail by notifying the target (replyTo)
             self.onGetCCVsBounced(msg, rich.exitCode);
             return true;
         }
         TokenPool_PreflightCheck => {
-            // The hooks contract bounced our async preflight request (e.g. it is undeployed or threw
-            // at entry), so no PreflightCheckFinished/Failed callback will arrive. Treat the bounce as
-            // a failed check: refund the outbound capacity consumed at admission and notify the
-            // requester, instead of leaving the transfer (and its rate limit) stuck.
-            // Our send sites always embed the forward payload (RichBounce, value 0); a null payload
-            // is only reachable via a forged/corrupt bounce, so assert rather than silently
-            // swallowing it (which would misreport the bounce as handled).
+            // Fail by notifying the target (replyTo); reimburse any consumed rate limit
             assert(msg.replyPayload != null, TokenPool_Error.MissingForwardPayload);
             val fwdp = (msg.replyPayload! as Cell<TokenPool_LockOrBurnForwardPayload>).load();
-            self.recoverLockOrBurnFailure(fwdp, TokenPool_Error.PreflightCheckBounced as uint16, msgValue);
+            self.recoverLockOrBurnFailure(fwdp, rich.exitCode, msgValue);
             return true;
         }
         TokenPool_PostflightCheck => {
-            // Same as preflight, for the inbound release/mint leg: refund the inbound capacity and
-            // reply with a failure.
-            // Same forged-bounce rationale as the preflight arm above: assert instead of
-            // silently swallowing a null payload.
+            // Fail by notifying the target (replyTo); reimburse any consumed rate limit
             assert(msg.replyPayload != null, TokenPool_Error.MissingForwardPayload);
             val fwdp = (msg.replyPayload! as Cell<TokenPool_ReleaseOrMintForwardPayload>).load();
-            self.recoverReleaseOrMintFailure(fwdp, TokenPool_Error.PostflightCheckBounced as uint16, msgValue);
+            self.recoverReleaseOrMintFailure(fwdp, rich.exitCode, msgValue);
             return true;
         }
         else => {
@@ -805,25 +797,22 @@ fun TokenPool<T>.onBouncedMessage(mutate self, bouncedSender: address, bouncedBo
 // │              Async preflight/postflight callbacks              │
 // ================================================================
 
-/// Resumes the LockOrBurn flow after the advanced hooks confirmed the preflight check.
-/// @dev Rate limit was already consumed before the hook check; no need to consume again.
+/// Resumes the LockOrBurn flow after the advanced hooks confirmed the preflight check
 fun TokenPool<T>.onPreflightCheckFinished(
     mutate self,
     sender: address,
     msg: TokenPool_PreflightCheckFinished,
 ): void {
     self.onlyAdvancedPoolHooks(sender);
+
     val fwdp = msg.forwardPayload.load();
-    val originalSender = fwdp.originalSender;
     val requestMsg = lazy fwdp.requestMsg.load();
     val prepared = lazy fwdp.prepared.load();
 
     // Continue with the withdraw (Jetton transfer into the pool).
-    self.onLockOrBurnWithdraw(originalSender, requestMsg, prepared);
+    self.onLockOrBurnWithdraw(fwdp.originalSender, requestMsg, prepared);
 }
 
-/// Handles preflight check failure from advanced hooks: refund rate limit + propagate error.
-/// @dev Rate limit was consumed before the hook check; refund it here on hook rejection.
 fun TokenPool<T>.onPreflightCheckFailed(
     mutate self,
     sender: address,
@@ -832,7 +821,7 @@ fun TokenPool<T>.onPreflightCheckFailed(
 ): void {
     self.onlyAdvancedPoolHooks(sender);
     val fwdp = msg.forwardPayload.load();
-    self.recoverLockOrBurnFailure(fwdp, TokenPool_Error.UnsupportedOperation as uint16, msgValue);
+    self.recoverLockOrBurnFailure(fwdp, TokenPool_Error.PreflightCheckFailed as int32, msgValue);
 }
 
 /// Handles a withdrawal rejection from the OnRamp (relayed by the Router): the lock/burn
@@ -855,25 +844,22 @@ fun TokenPool<T>.onLockOrBurnWithdrawFailed(
     self.recoverLockOrBurnFailure(fwdp, msg.errorCode, msgValue);
 }
 
-/// Resumes the ReleaseOrMint flow after the advanced hooks confirmed the postflight check.
-/// @dev Rate limit was already consumed before the hook check; no need to consume again.
+/// Resumes the ReleaseOrMint flow after the advanced hooks confirmed the postflight check
 fun TokenPool<T>.onPostflightCheckFinished(
     mutate self,
     sender: address,
     msg: TokenPool_PostflightCheckFinished,
 ): void {
     self.onlyAdvancedPoolHooks(sender);
+
     val fwdp = msg.forwardPayload.load();
-    val originalSender = fwdp.originalSender;
     val requestMsg = lazy fwdp.requestMsg.load();
     val prepared = lazy fwdp.prepared.load();
 
-    // Continue with mint/release + finalize.
-    self.onReleaseOrMintContinue(originalSender, requestMsg, prepared);
+    // Continue with release/mint + finalize.
+    self.onReleaseOrMintContinue(fwdp.originalSender, requestMsg, prepared);
 }
 
-/// Handles postflight check failure from advanced hooks: refund rate limit + propagate error.
-/// @dev Rate limit was consumed before the hook check; refund it here on hook rejection.
 fun TokenPool<T>.onPostflightCheckFailed(
     mutate self,
     sender: address,
@@ -882,7 +868,7 @@ fun TokenPool<T>.onPostflightCheckFailed(
 ): void {
     self.onlyAdvancedPoolHooks(sender);
     val fwdp = msg.forwardPayload.load();
-    self.recoverReleaseOrMintFailure(fwdp, TokenPool_Error.UnsupportedOperation as uint16, msgValue);
+    self.recoverReleaseOrMintFailure(fwdp, TokenPool_Error.PostflightCheckFailed as int32, msgValue);
 }
 
 // ================================================================
@@ -928,12 +914,12 @@ fun TokenPool<T>.sendReleaseOrMintFinished(
 /// Sends `ReleaseOrMintFailure` reply to the executor (replyTo address) when an inbound
 /// operation fails after admission.
 /// @param forwardPayload The full forward payload carrying the original request message.
-/// @param errorCode The pool-specific error code to attach to the failure message.
+/// @param errorCode Raw TVM exit code to attach to the failure message (signed).
 /// @dev The caller must reserve the pre-message balance before refund logs or this reply.
 fun TokenPool<T>.sendReleaseOrMintFailure(
     self,
     forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
-    errorCode: uint16,
+    errorCode: int32,
 ): void {
     val requestMsg = lazy forwardPayload.requestMsg.load();
     val failure = createMessage({
@@ -990,11 +976,13 @@ fun TokenPool<T>.refundReleaseOrMintRateLimit(
 fun TokenPool<T>.recoverLockOrBurnFailure(
     mutate self,
     forwardPayload: TokenPool_LockOrBurnForwardPayload,
-    errorCode: uint16,
+    errorCode: int32,
     msgValue: coins,
     custodyReturn: AskToTransfer? = null,
 ): void {
     reserveBalanceBeforeInMessage(msgValue);
+    self.refundLockOrBurnRateLimit(forwardPayload);
+
     val requestMsg = lazy forwardPayload.requestMsg.load();
     val failure = createMessage({
         bounce: BounceMode.NoBounce,
@@ -1005,10 +993,12 @@ fun TokenPool<T>.recoverLockOrBurnFailure(
             errorCode,
         },
     });
-    self.refundLockOrBurnRateLimit(forwardPayload);
+
     if (custodyReturn != null) {
-        sendTokenPoolRecoveryReturn(msgValue, self.data.jettonClient().walletAddress(), custodyReturn!, failure);
+        val wallet = self.data.jettonClient().walletAddress();
+        sendTokenPoolRecoveryReturn(msgValue, wallet, custodyReturn!, failure);
     }
+
     failure.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
 }
 
@@ -1018,7 +1008,7 @@ fun TokenPool<T>.recoverLockOrBurnFailure(
 fun TokenPool<T>.recoverReleaseOrMintFailure(
     mutate self,
     forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
-    errorCode: uint16,
+    errorCode: int32,
     msgValue: coins,
 ): void {
     reserveBalanceBeforeInMessage(msgValue);
@@ -1338,25 +1328,19 @@ fun TokenPool<T>.sendCCVsReply(
 ): void {
     var body: cell;
     if (context.fees == null) {
-        body = TokenPool_CCVs {
-            queryId: queryId,
-            requiredCCVs: requiredCCVs,
-            fwdPayload: context.fwdPayload,
-        }.toCell();
+        val fwdPayload = context.fwdPayload;
+        body = TokenPool_CCVs { queryId, requiredCCVs, fwdPayload, }.toCell();
     } else {
-        body = TokenPool_CCVsAndFees {
-            queryId: queryId,
-            requiredCCVs: requiredCCVs,
-            fees: context.fees! as Cell<TokenPool_FeeContext>,
-            fwdPayload: context.fwdPayload,
-        }.toCell();
+        val fees = context.fees! as Cell<TokenPool_FeeContext>;
+        val fwdPayload = context.fwdPayload;
+        body = TokenPool_CCVsAndFees { queryId, requiredCCVs, fees, fwdPayload}.toCell();
     }
 
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: replyTo,
-        body: body,
+        body,
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -1374,11 +1358,7 @@ fun TokenPool<T>.sendCCVsFailed(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: replyTo,
-        body: TokenPool_GetCCVsFailed {
-            queryId: queryId,
-            errorCode: errorCode,
-            fwdPayload: fwdPayload,
-        },
+        body: TokenPool_GetCCVsFailed { queryId, errorCode, fwdPayload },
     });
     failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -1602,7 +1582,7 @@ fun TokenPool<T>.processLockOrBurnTransfer(
                 forwardPayload: beginCell().storeMaybeRef(null).endCell().beginParse(),
             }
             : null;
-        self.recoverLockOrBurnFailure(fwdp, errorCode as uint16, msgValue, custodyReturn);
+        self.recoverLockOrBurnFailure(fwdp, errorCode, msgValue, custodyReturn);
     }
 }
 
@@ -1701,6 +1681,7 @@ fun createTokenPoolCustodyReturn(forwardPayload: TokenPool_LockOrBurnForwardPayl
 /// Returns custody only when the notification funds a complete wallet transfer.
 fun TokenPool<T>.returnTransfer(sender: address, msg: TransferNotificationForRecipient, inboundValue: coins): void {
     reserveBalanceBeforeInMessage(inboundValue);
+
     if (msg.transferInitiator == null || msg.jettonAmount == 0) {
         return;
     }

@@ -910,8 +910,8 @@ describe('BurnMintTokenPool', () => {
       inMessageBounced: true,
       success: true,
     })
-    // The flow finalizes with a LockOrBurnFailure
-    // (errorCode = TokenPool_Error.LockOrBurnWithdrawBounced = FACILITY_ID(517) * 100 + 23 = 51723).
+    // The flow finalizes with a LockOrBurnFailure carrying the raw bounce exit code
+    // (the Bouncer throws 0xFFFF = 65535).
     expect(result.transactions).toHaveTransaction({
       from: burnMintPool.address,
       to: executorBouncer.address,
@@ -919,7 +919,7 @@ describe('BurnMintTokenPool', () => {
       body(body) {
         if (!body) return false
         const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
-        return failure.queryId === queryId && failure.errorCode === 51723n
+        return failure.queryId === queryId && failure.errorCode === 65535n
       },
     })
 

@@ -39,8 +39,7 @@ const (
 	ErrorAmountMismatch
 	ErrorInvalidRequestedFinality
 	ErrorRateLimitExceeded
-	ErrorLockOrBurnWithdrawBounced
-	ErrorPreflightCheckBounced
-	ErrorPostflightCheckBounced
+	ErrorPreflightCheckFailed
+	ErrorPostflightCheckFailed
 	ErrorInsufficientMessageValue
 )

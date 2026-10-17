@@ -59,13 +59,13 @@ type Deposited struct {
 
 // DepositFailed reports logical rejection; ReturnAttempted does not confirm custody delivery.
 type DepositFailed struct {
-	_               tlb.Magic        `tlb:"#5e28ebd8" json:"-"` //nolint:revive
+	_               tlb.Magic        `tlb:"#5e28ebd8" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID         uint64           `tlb:"## 64"`
 	Token           *address.Address `tlb:"addr"`
 	Depositor       *address.Address `tlb:"addr"`
 	Amount          tlb.Coins        `tlb:"."`
 	Context         *Deposit         `tlb:"maybe ^"`
-	ErrorCode       uint16           `tlb:"## 16"`
+	ErrorCode       int32            `tlb:"## 32"` // Raw TVM exit code (signed).
 	ReturnAttempted bool             `tlb:"bool"`
 }
 

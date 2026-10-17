@@ -67,7 +67,7 @@ struct (0x5e28ebd8) JettonLockBox_DepositFailed {
     amount: coins;
     /// Original deposit request; null only when the forward payload could not be decoded.
     context: Cell<JettonLockBox_Deposit>?;
-    errorCode: uint16;
+    errorCode: int32;                               // Raw TVM exit code (signed).
     returnAttempted: bool;
 }
 

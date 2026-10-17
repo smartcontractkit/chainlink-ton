@@ -2987,14 +2987,14 @@ export const TokenPool_LockOrBurnWithdraw = {
  > struct (0x9643c08d) TokenPool_LockOrBurnWithdrawFailed {
  >     queryId: uint64
  >     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>
- >     errorCode: uint16
+ >     errorCode: int32
  > }
  */
 export interface TokenPool_LockOrBurnWithdrawFailed {
     readonly $: 'TokenPool_LockOrBurnWithdrawFailed'
     queryId: uint64
     forwardPayload: TokenPool_LockOrBurnForwardPayload
-    errorCode: uint16
+    errorCode: int32
 }
 
 export const TokenPool_LockOrBurnWithdrawFailed = {
@@ -3003,7 +3003,7 @@ export const TokenPool_LockOrBurnWithdrawFailed = {
     create(args: {
         queryId?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
-        errorCode: uint16
+        errorCode: int32
     }): TokenPool_LockOrBurnWithdrawFailed {
         return {
             $: 'TokenPool_LockOrBurnWithdrawFailed',
@@ -3017,14 +3017,14 @@ export const TokenPool_LockOrBurnWithdrawFailed = {
             $: 'TokenPool_LockOrBurnWithdrawFailed',
             queryId: s.loadUintBig(64),
             forwardPayload: loadCellRef<TokenPool_LockOrBurnForwardPayload>(s, TokenPool_LockOrBurnForwardPayload.fromSlice),
-            errorCode: s.loadUintBig(16),
+            errorCode: s.loadIntBig(32),
         }
     },
     store(self: TokenPool_LockOrBurnWithdrawFailed, b: c.Builder): void {
         b.storeUint(0x9643c08d, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<TokenPool_LockOrBurnForwardPayload>(self.forwardPayload, b, TokenPool_LockOrBurnForwardPayload.store);
-        b.storeUint(self.errorCode, 16);
+        b.storeInt(self.errorCode, 32);
     },
     toCell(self: TokenPool_LockOrBurnWithdrawFailed): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnWithdrawFailed>(self, TokenPool_LockOrBurnWithdrawFailed.store);
@@ -3082,13 +3082,13 @@ export const TokenPool_LockOrBurnFinished = {
 /**
  > struct (0x3476ea72) TokenPool_LockOrBurnFailure {
  >     queryId: uint64
- >     errorCode: uint16
+ >     errorCode: int32
  > }
  */
 export interface TokenPool_LockOrBurnFailure {
     readonly $: 'TokenPool_LockOrBurnFailure'
     queryId: uint64
-    errorCode: uint16
+    errorCode: int32
 }
 
 export const TokenPool_LockOrBurnFailure = {
@@ -3096,7 +3096,7 @@ export const TokenPool_LockOrBurnFailure = {
 
     create(args: {
         queryId?: uint64
-        errorCode: uint16
+        errorCode: int32
     }): TokenPool_LockOrBurnFailure {
         return {
             $: 'TokenPool_LockOrBurnFailure',
@@ -3109,13 +3109,13 @@ export const TokenPool_LockOrBurnFailure = {
         return {
             $: 'TokenPool_LockOrBurnFailure',
             queryId: s.loadUintBig(64),
-            errorCode: s.loadUintBig(16),
+            errorCode: s.loadIntBig(32),
         }
     },
     store(self: TokenPool_LockOrBurnFailure, b: c.Builder): void {
         b.storeUint(0x3476ea72, 32);
         b.storeUint(self.queryId, 64);
-        b.storeUint(self.errorCode, 16);
+        b.storeInt(self.errorCode, 32);
     },
     toCell(self: TokenPool_LockOrBurnFailure): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnFailure>(self, TokenPool_LockOrBurnFailure.store);
@@ -3206,13 +3206,13 @@ export const TokenPool_ReleaseOrMintFinalized = {
 /**
  > struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
  >     queryId: uint64
- >     errorCode: uint16
+ >     errorCode: int32
  > }
  */
 export interface TokenPool_ReleaseOrMintFailure {
     readonly $: 'TokenPool_ReleaseOrMintFailure'
     queryId: uint64
-    errorCode: uint16
+    errorCode: int32
 }
 
 export const TokenPool_ReleaseOrMintFailure = {
@@ -3220,7 +3220,7 @@ export const TokenPool_ReleaseOrMintFailure = {
 
     create(args: {
         queryId?: uint64
-        errorCode: uint16
+        errorCode: int32
     }): TokenPool_ReleaseOrMintFailure {
         return {
             $: 'TokenPool_ReleaseOrMintFailure',
@@ -3233,13 +3233,13 @@ export const TokenPool_ReleaseOrMintFailure = {
         return {
             $: 'TokenPool_ReleaseOrMintFailure',
             queryId: s.loadUintBig(64),
-            errorCode: s.loadUintBig(16),
+            errorCode: s.loadIntBig(32),
         }
     },
     store(self: TokenPool_ReleaseOrMintFailure, b: c.Builder): void {
         b.storeUint(0xef0cb36e, 32);
         b.storeUint(self.queryId, 64);
-        b.storeUint(self.errorCode, 16);
+        b.storeInt(self.errorCode, 32);
     },
     toCell(self: TokenPool_ReleaseOrMintFailure): c.Cell {
         return makeCellFrom<TokenPool_ReleaseOrMintFailure>(self, TokenPool_ReleaseOrMintFailure.store);
@@ -4952,7 +4952,7 @@ export class TokenPool implements c.Contract {
     static createCellOfTokenPoolLockOrBurnWithdrawFailed(body: {
         queryId?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
-        errorCode: uint16
+        errorCode: int32
     }) {
         return TokenPool_LockOrBurnWithdrawFailed.toCell(TokenPool_LockOrBurnWithdrawFailed.create(body));
     }
@@ -5201,7 +5201,7 @@ export class TokenPool implements c.Contract {
     async sendTokenPoolLockOrBurnWithdrawFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
-        errorCode: uint16
+        errorCode: int32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

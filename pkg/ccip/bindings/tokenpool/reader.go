@@ -353,7 +353,7 @@ var GetCurrentRateLimiterState = tvm.Getter[GetCurrentRateLimiterStateArgs, Rate
 			return RateLimiterPair{}, fmt.Errorf("error getting Cell(0) - outbound bucket: %w", err)
 		}
 		var outbound RateLimiterTokenBucket
-		if err := tlb.LoadFromCell(&outbound, outboundCell.MustBeginParse()); err != nil {
+		if err = tlb.LoadFromCell(&outbound, outboundCell.MustBeginParse()); err != nil {
 			return RateLimiterPair{}, fmt.Errorf("error decoding outbound RateLimiterTokenBucket: %w", err)
 		}
 
@@ -362,7 +362,7 @@ var GetCurrentRateLimiterState = tvm.Getter[GetCurrentRateLimiterStateArgs, Rate
 			return RateLimiterPair{}, fmt.Errorf("error getting Cell(1) - inbound bucket: %w", err)
 		}
 		var inbound RateLimiterTokenBucket
-		if err := tlb.LoadFromCell(&inbound, inboundCell.MustBeginParse()); err != nil {
+		if err = tlb.LoadFromCell(&inbound, inboundCell.MustBeginParse()); err != nil {
 			return RateLimiterPair{}, fmt.Errorf("error decoding inbound RateLimiterTokenBucket: %w", err)
 		}
 

@@ -16,4 +16,5 @@ type LockReleaseLockboxTokenPool_OutMessage =
     | AskToTransfer;
 
 type LockReleaseLockboxTokenPool_BouncedMessage =
-    | AskToTransfer;
+    | AskToTransfer
+    | JettonLockBox_Withdraw;

@@ -335,7 +335,7 @@ struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
 struct (0x9643c08d) TokenPool_LockOrBurnWithdrawFailed {
     queryId: uint64;
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
-    errorCode: uint16;
+    errorCode: int32;                               // Raw TVM exit code (signed); see TokenPool_GetCCVsFailed.
 }
 
 struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
@@ -349,7 +349,7 @@ struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
 
 struct (0x3476ea72) TokenPool_LockOrBurnFailure {
     queryId: uint64;
-    errorCode: uint16;
+    errorCode: int32;                               // Raw TVM exit code (signed); see TokenPool_GetCCVsFailed.
 }
 
 struct (0xe0e882f5) TokenPool_ReleaseOrMintFinished {
@@ -364,7 +364,7 @@ struct (0xedd4948a) TokenPool_ReleaseOrMintFinalized {
 
 struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
     queryId: uint64;
-    errorCode: uint16;
+    errorCode: int32;                               // Raw TVM exit code (signed); see TokenPool_GetCCVsFailed.
 }
 
 /// Replied on `TokenPool_AddRemotePool` to confirm tx and return excess to sender.

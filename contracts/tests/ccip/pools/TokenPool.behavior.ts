@@ -24,16 +24,16 @@ import {
   TokenPool_TransferDetails,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { CURSE_ROLE } from '../../../wrappers/ccip/Router'
-import {
-  BurnMintTokenPool,
-  TokenPool_GetTransferInitiator,
-  TokenPool_TransferInitiator,
-} from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
+import { BurnMintTokenPool } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { getExternals, testLog } from '../../Logs'
 import {
   Ownable2Step_AcceptOwnership,
   Ownable2Step_TransferOwnership,
 } from '../../../wrappers/gen/ccip/Router'
+import {
+  TokenPool_GetTransferInitiator,
+  TokenPool_TransferInitiator,
+} from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 
 export type TokenPoolBehaviorContext = {
   pool: SandboxContract<TokenPool>

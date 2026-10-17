@@ -862,6 +862,75 @@ describe('LockReleaseLockboxTokenPool', () => {
         op: TokenPool_ReleaseOrMintFailure.PREFIX,
       })
     })
+
+    it('unwinds the release when the lockbox rejects the withdraw at entry (bounce)', async () => {
+      // Fund the lockbox while the pool still holds OPERATOR_ROLE, then revoke it so the lockbox
+      // rejects the withdraw at entry. No JettonLockBox_WithdrawFailed follows in that case: the
+      // withdraw bounces back to the pool, which must still refund the inbound rate limit and
+      // reply with a ReleaseOrMintFailure.
+      await fundLockboxViaLock(toNano('50'), 620n)
+      const accessControl = blockchain.openContract(
+        AccessControlClient.createFromAddress(jettonLockBox.address),
+      )
+      await accessControl.sendRevokeRole(deployer.getSender(), toNano('0.1'), {
+        queryId: 0n,
+        role: BigInt(require('zlib').crc32('OPERATOR_ROLE')),
+        account: lockReleaseLockboxPool.address,
+      })
+
+      const queryId = 620n
+      const rateLimitBefore = await pool.getCurrentRateLimiterState(remoteChainSelector, false)
+      const result = await lockReleaseLockboxPool.sendTokenPoolReleaseOrMint(
+        deployer.getSender(),
+        toNano('1'),
+        {
+          queryId,
+          request: TokenPool_ReleaseOrMintInV1.create({
+            transfer: TokenPool_Transfer.create({
+              id: queryId,
+              details: TokenPool_TransferDetails.create({
+                originalSender: sourcePoolAddress,
+                remoteChainSelector,
+                receiver: recipient.address,
+                amount: toNano('5'),
+                localToken: jettonMinter.address,
+              }),
+            }),
+            sourcePoolAddress: sourcePoolAddress,
+            sourcePoolData: null,
+            offchainTokenData: null,
+          }),
+          requestedFinalityConfig: 0n,
+          replyTo: offRamp.address,
+          delivery: deliveryTo(recipient.address, offRamp.address),
+        },
+      )
+
+      // The lockbox rejected the withdraw and the request bounced back to the pool.
+      expect(result.transactions).toHaveTransaction({
+        from: lockReleaseLockboxPool.address,
+        to: jettonLockBox.address,
+        op: JettonLockBox_Withdraw.PREFIX,
+        success: false,
+      })
+      expect(result.transactions).toHaveTransaction({
+        to: lockReleaseLockboxPool.address,
+        inMessageBounced: true,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: lockReleaseLockboxPool.address,
+        to: offRamp.address,
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
+        body(body) {
+          if (!body) return false
+          return TokenPool_ReleaseOrMintFailure.fromSlice(body.beginParse()).queryId === queryId
+        },
+      })
+      expect(
+        (await pool.getCurrentRateLimiterState(remoteChainSelector, false)).inbound.tokens,
+      ).toEqual(rateLimitBefore.inbound.tokens)
+    })
   })
 
   describe('full lock flow (end-to-end through lockbox)', () => {
@@ -1269,7 +1338,7 @@ describe('LockReleaseLockboxTokenPool', () => {
             body(body) {
               if (!body) return false
               const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
-              return failure.queryId === 300n && failure.errorCode === 51726n
+              return failure.queryId === 300n && failure.errorCode === 51725n
             },
           })
           expect(await poolWallet.getJettonBalance()).toEqual(toNano('8'))
