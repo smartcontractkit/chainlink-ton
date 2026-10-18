@@ -38,9 +38,8 @@ enum JettonLockBox_Error {
 struct Storage {
     id: uint64;
 
-    /// Address allowed to initialize this lockbox. Set at deployment (stateInit)
-    /// so an arbitrary caller cannot front-run `onInit` and claim ownership of an
-    /// uninitialized lockbox. When left null (e.g. tests), the first caller binds it.
+    /// Address allowed to initialize this lockbox, bound at deployment (stateInit).
+    /// @dev Required: `onInit` rejects an unbound lockbox, so a deploy that omits it fails closed.
     initializer: address? = null;
 
     /// Minter address of the token this lockbox holds.

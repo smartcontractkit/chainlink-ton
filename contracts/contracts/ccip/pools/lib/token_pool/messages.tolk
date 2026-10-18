@@ -437,20 +437,12 @@ type TokenPool_OutMessage =
     | TokenPool_ChainUpdatesApplied
     | TokenPool_FeeConfigApplied;
 
-/// Messages the base TokenPool library itself emits with a bounceable mode. The shared base
-/// `TokenPool<T>.onBouncedMessage` decodes this set so concrete pools don't each re-implement the
-/// recovery; a bounced body outside this set falls through to the pool's own bounce matcher.
-///
-/// The advanced-hooks requests are included because the pool emits them with `RichBounce`: if the
-/// hooks contract is undeployed or rejects at entry, the bounce must be unwound here (refund the
-/// rate limit consumed at admission + send the *Failure reply) rather than dropped.
 type TokenPool_BouncedMessage =
     | TokenPool_LockOrBurnWithdraw
     | TokenPool_GetCCVs
     | TokenPool_PreflightCheck
     | TokenPool_PostflightCheck;
 
-// TODO: why is this needed?
 /// Asks a pool which address initiates the jetton transfers delivering its releases/mints. Sent
 /// by the token admin registry when a pool is set or refreshed.
 struct (0x500b10e4) TokenPool_GetTransferInitiator {
@@ -461,13 +453,4 @@ struct (0x500b10e4) TokenPool_GetTransferInitiator {
 struct (0x904443b3) TokenPool_TransferInitiator {
     queryId: uint64;
     transferInitiator: address?;
-}
-
-fun TokenPool_replyTransferInitiator(dest: address, queryId: uint64, transferInitiator: address?) {
-    createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest,
-        body: TokenPool_TransferInitiator { queryId, transferInitiator },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }

@@ -84,12 +84,8 @@ fun onInternalMessage(in: InMessage) {
 fun onInit(mutate st: Storage, sender: address, msg: JettonLockBox_Init) {
     assert(!st.isInitialized(), JettonLockBox_Error.ContractAlreadyInitialized);
 
-    // Prevent front-running: only the deployer bound at construction may initialize. When no
-    // initializer was bound we adopt the caller so the lockbox can never be left uninitializable.
-    if (st.initializer == null) {
-        st.initializer = sender;
-    }
-    assert(sender == st.initializer!, JettonLockBox_Error.UnauthorizedInitializer);
+    // Only the initializer bound at construction (stateInit) may initialize.
+    assert(st.initializer != null && sender == st.initializer!, JettonLockBox_Error.UnauthorizedInitializer);
 
     // Validate addresses are not zero
     assert(!isZeroAddress(msg.minterAddress), JettonLockBox_Error.UnsupportedToken);

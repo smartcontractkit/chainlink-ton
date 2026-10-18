@@ -1561,16 +1561,13 @@ fun TokenPool<T>.processLockOrBurnTransfer(
     val details = lazy request.transfer.details.load();
 
     assert(msg.transferInitiator != null, TokenPool_Error.MissingTransferInitiator);
-
-    // Authenticate it before accepting custody.
-    // `msg.transferInitiator` is the account whose wallet initiated the deposit: the Router in the
-    // standard path, or the derived deposit account in the per-user path.
     self.assertAuthorizedDepositInitiator(msg.transferInitiator!, details.originalSender);
 
     try {
         assert(details.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
         self.onLockOrBurnTransferContinue(sender, msg, fwdp, msgValue);
     } catch (errorCode) {
+        // TODO: clean up this error handing
         val custodyReturn = msg.jettonAmount > 0
             ? AskToTransfer {
                 queryId: msg.queryId,
@@ -1605,9 +1602,10 @@ fun TokenPool<T>.assertAuthorizedDepositInitiator(
 ): void {
     val adminConfig = lazy self.data.adminConfig.load();
     val dynamicConfig = lazy adminConfig.dynamicConfig.load();
+    val router = dynamicConfig.router;
 
     // The Router itself is always a trusted source (standard Router -> pool withdraw path).
-    if (initiator == dynamicConfig.router) {
+    if (initiator == router) {
         return;
     }
 
@@ -1615,22 +1613,19 @@ fun TokenPool<T>.assertAuthorizedDepositInitiator(
     var entry = dynamicConfig.allowedDepositNamespaces.findFirst();
     while (entry.isFound) {
         val namespace: Namespace = entry.getKey();
-        val account = self.deriveDepositAccount(
-            dynamicConfig.router,
-            namespace,
-            originalSender,
-        ).calculateAddress();
+        val account = self.deriveDepositAccount(router, namespace, originalSender)
+            .calculateAddress();
         if (initiator == account) {
             return;
         }
+
         entry = dynamicConfig.allowedDepositNamespaces.iterateNext(entry);
     }
 
     throw TokenPool_Error.Unauthorized;
 }
 
-/// Derives the address of `router`'s deposit account in `namespace` for `user` and the pool's own
-/// jetton.
+/// Derives the address of `router`'s deposit account in a `namespace`
 @inline
 fun TokenPool<T>.deriveDepositAccount(
     self,
@@ -1642,11 +1637,8 @@ fun TokenPool<T>.deriveDepositAccount(
     val code = adminConfig.deployableCode;
     assert(code != null, TokenPool_Error.Unauthorized);
 
-    return NamespacedDeployableAddress<Router_DepositAccountID>(code!, {
-        namespace,
-        owner: router,
-        id: Router_DepositAccountID { user, token: adminConfig.jettonClient.masterAddress },
-    });
+    val id = Router_DepositAccountID { user, token: adminConfig.jettonClient.masterAddress };
+    return NamespacedDeployableAddress<Router_DepositAccountID>(code!, { namespace, owner: router, id });
 }
 
 fun TokenPool<T>.onLockOrBurnTransferContinue(

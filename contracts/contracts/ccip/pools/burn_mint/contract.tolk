@@ -69,9 +69,18 @@ fun onInternalMessage(in: InMessage) {
             onCCTReturnExcessesBack(mutate st, in.senderAddress, msg);
             st.store();
         }
-        // Mints carry no transfer initiator; the CCT wallet only accepts that from the minter.
         TokenPool_GetTransferInitiator => {
-            TokenPool_replyTransferInitiator(in.senderAddress, msg.queryId, null);
+            val reply = createMessage({
+                bounce: BounceMode.NoBounce,
+                value: 0,
+                dest: in.senderAddress,
+                body: TokenPool_TransferInitiator {
+                    queryId: msg.queryId,
+                    // Mints carry no transfer initiator; the CCT wallet only accepts that from the minter
+                    transferInitiator: null
+                },
+            });
+            reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         else => {
             assert(in.body.isEmpty()) throw 0xFFFF;

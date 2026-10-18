@@ -471,6 +471,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			// which we already know.
 			lockBoxData := lockbox.Storage{
 				ID:            jettonLockBoxID,
+				Initializer:   owner,
 				MinterAddress: tokenAddr,
 				WalletAddress: nil,
 				RBAC:          emptyRBACData(),

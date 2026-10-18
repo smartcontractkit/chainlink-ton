@@ -124,7 +124,7 @@ func (e ExitCode) New() tvm.ExitCode {
 type Storage struct {
 	ID uint64 `tlb:"## 64"`
 	// Initializer is the address bound at deployment that is allowed to initialize the
-	// lockbox. Nil when unbound (legacy/tests), in which case the first caller binds itself.
+	// lockbox. Required: an unbound (nil) lockbox cannot be initialized.
 	Initializer   *address.Address `tlb:"addr"`
 	MinterAddress *address.Address `tlb:"addr"`
 	WalletAddress *address.Address `tlb:"addr"`

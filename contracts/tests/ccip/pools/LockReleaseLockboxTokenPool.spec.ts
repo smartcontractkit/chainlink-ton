@@ -128,6 +128,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           id: 1n,
           minterAddress: jettonMinter.address,
           walletAddress: null,
+          initializer: deployer.address,
           rbac: emptyAccessControlData(),
         },
         { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },

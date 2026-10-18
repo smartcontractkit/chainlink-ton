@@ -81,10 +81,20 @@ fun onInternalMessage(in: InMessage): void {
         ReturnExcessesBack => {
             // Excess TON from jetton transfer — just keep the coins.
         }
-        // Releases are transferred out of the lockbox's wallet.
         TokenPool_GetTransferInitiator => {
+            // TODO: wrong zero addr check, and this should be done on init
             assert(st.lockbox != createAddressNone(), LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
-            TokenPool_replyTransferInitiator(in.senderAddress, msg.queryId, st.lockbox);
+            val reply = createMessage({
+                bounce: BounceMode.NoBounce,
+                value: 0,
+                dest: in.senderAddress,
+                body: TokenPool_TransferInitiator {
+                    queryId: msg.queryId,
+                    // Releases are transferred out of the lockbox's wallet.
+                    transferInitiator: st.lockbox
+                },
+            });
+            reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         else => {
             assert(in.body.isEmpty()) throw 0xFFFF;

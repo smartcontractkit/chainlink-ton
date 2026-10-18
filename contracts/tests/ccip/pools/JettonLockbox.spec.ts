@@ -100,6 +100,7 @@ describe('JettonLockBox', () => {
           id: 0n,
           minterAddress: jettonMinter.address,
           walletAddress: null,
+          initializer: deployer.address,
           rbac: emptyAccessControlData(),
         },
         { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
@@ -736,6 +737,40 @@ describe('JettonLockBox', () => {
       })
     })
 
+    it('should reject init when no initializer was bound at construction (fail closed)', async () => {
+      // A deploy that omits `initializer` must not be claimable by a front-runner.
+      const unboundLockbox = blockchain.openContract(
+        JettonLockBox.fromStorage(
+          {
+            minterAddress: jettonMinter.address,
+            walletAddress: null,
+            id: 6n,
+            rbac: emptyAccessControlData(),
+          },
+          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+        ),
+      )
+      const unboundWalletAddress = await jettonMinter.getWalletAddress(unboundLockbox.address)
+
+      await unboundLockbox.sendDeploy(deployer.getSender(), toNano('3'))
+      const result = await unboundLockbox.sendJettonLockBoxInit(
+        deployer.getSender(),
+        toNano('0.2'),
+        {
+          queryId: 602n,
+          minterAddress: jettonMinter.address,
+          walletAddress: unboundWalletAddress,
+          admin: deployer.address,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: unboundLockbox.address,
+        success: false,
+        exitCode: JettonLockBox.Errors['JettonLockBox_Error.UnauthorizedInitializer'],
+      })
+    })
+
     it('should reject operations on uninitialized contract', async () => {
       // Deploy a fresh lockbox but DON'T init it
       const freshLockbox = blockchain.openContract(
@@ -744,6 +779,7 @@ describe('JettonLockBox', () => {
             minterAddress: jettonMinter.address,
             walletAddress: null,
             id: 1n,
+            initializer: deployer.address,
             rbac: emptyAccessControlData(),
           },
           { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
@@ -781,6 +817,7 @@ describe('JettonLockBox', () => {
             minterAddress: jettonMinter.address,
             walletAddress: null,
             id: 2n,
+            initializer: operator.address,
             rbac: emptyAccessControlData(),
           },
           { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
@@ -820,6 +857,7 @@ describe('JettonLockBox', () => {
             minterAddress: jettonMinter.address,
             walletAddress: null,
             id: 4n,
+            initializer: deployer.address,
             rbac: emptyAccessControlData(),
           },
           { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
@@ -852,6 +890,7 @@ describe('JettonLockBox', () => {
             minterAddress: jettonMinter.address,
             walletAddress: null,
             id: 5n,
+            initializer: deployer.address,
             rbac: emptyAccessControlData(),
           },
           { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
