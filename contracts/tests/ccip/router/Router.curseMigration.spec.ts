@@ -55,24 +55,6 @@ describe('Router.cursing - migration from 1.6.x', () => {
       })
       expect(await router.getCursedSubjects()).toEqual([SUBJECT])
 
-      const offRamp = await blockchain.treasury('offRamp')
-      const rampUpdate = await router.sendRouterApplyRampUpdates(
-        contractOwner.getSender(),
-        toNano('1'),
-        {
-          queryId: 0n,
-          offRampAdds: rt.OffRamps.create({
-            sourceChainSelectors: [SUBJECT],
-            offRamp: offRamp.address,
-          }),
-        },
-      )
-      expect(rampUpdate.transactions).toHaveTransaction({
-        from: contractOwner.address,
-        to: router.address,
-        success: true,
-      })
-
       // Upgrades are gated by the contract owner, not the RMN owner.
       const upgrade = await router.sendUpgradeableUpgrade(
         contractOwner.getSender(),
@@ -89,14 +71,6 @@ describe('Router.cursing - migration from 1.6.x', () => {
       expect(upgradedVersion.loadStringTail()).toEqual(ROUTER_CONTRACT_VERSION)
 
       expect(await router.getCursedSubjects()).toEqual([SUBJECT])
-      // Delivery of pre-upgrade curse updates is unknown, so existing OffRamps
-      // start unacknowledged until re-synced.
-      expect(await router.getRmnCursedSubjectsVersion()).toBe(1n)
-      const acked = await router.getRmnOffRampCursedSubjectsVersions()
-      expect([...acked.entries()].map(([a, v]) => [a.toString(), v])).toEqual([
-        [offRamp.address.toString(), 0n],
-      ])
-      expect(await router.getRmnAllOffRampsSynced()).toBe(false)
       expect((await router.getRmnOwner()).equals(rmnOwner.address)).toBe(true)
       expect((await router.getOwner()).equals(contractOwner.address)).toBe(true)
 

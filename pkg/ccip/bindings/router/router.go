@@ -71,9 +71,7 @@ type Storage struct {
 }
 
 type RMNRemote struct {
-	Policy                CursePolicy `tlb:"."`
-	CursedSubjectsVersion uint64      `tlb:"## 64"`
-	// OffRamp address -> acknowledged CursedSubjectsVersion (uint64).
+	Policy         CursePolicy      `tlb:"."`
 	ForwardUpdates *cell.Dictionary `tlb:"dict 267"`
 }
 
@@ -193,18 +191,10 @@ type RMNRemoteUncurse struct {
 	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
 
-// RMNRemoteSyncOffRamps re-sends the current curse state to every OffRamp that
-// has not acknowledged it. Permissionless; the attached value must cover 0.05 TON
-// per unacknowledged OffRamp.
+// RMNRemoteSyncOffRamps re-sends the current cursed subjects to every registered OffRamp.
 type RMNRemoteSyncOffRamps struct {
 	_       tlb.Magic `tlb:"#0fdd7b0f" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID uint64    `tlb:"## 64"`
-}
-
-// RMNRemoteCursedSubjectsAck is sent by an OffRamp with the curse state version it enforces.
-type RMNRemoteCursedSubjectsAck struct {
-	_       tlb.Magic `tlb:"#293d5b24" json:"-"` //nolint:revive // Ignore opcode tag
-	Version uint64    `tlb:"## 64"`
 }
 
 type RMNOwnableMessage[T ownable2step.InMessage | any] struct {
@@ -232,7 +222,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	RMNRemoteCurse{},
 	RMNRemoteUncurse{},
 	RMNRemoteSyncOffRamps{},
-	RMNRemoteCursedSubjectsAck{},
 	// Notice: T as any to register once for all generic instances of RMNOwnableMessage
 	RMNOwnableMessage[any]{Content: nil},
 	// Notice: T as any to register once for all generic instances of RMNAccessControlMessage

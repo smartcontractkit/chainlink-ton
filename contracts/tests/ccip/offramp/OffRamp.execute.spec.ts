@@ -341,11 +341,10 @@ describe('OffRamp - Execute', () => {
       await setup.commitReport([root])
 
       // Curse source chain
-      let result = await setup.offRamp.sendOffRampSyncCursedSubjects(
+      let result = await setup.offRamp.sendOffRampUpdateCursedSubjects(
         setup.deployer.getSender(),
         toNano('0.5'),
         {
-          version: 1n,
           cursedSubjects: s.buildCursedSubjects(
             new Set([ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001]),
           ),
@@ -364,11 +363,10 @@ describe('OffRamp - Execute', () => {
       )
 
       // Uncurse source chain
-      result = await setup.offRamp.sendOffRampSyncCursedSubjects(
+      result = await setup.offRamp.sendOffRampUpdateCursedSubjects(
         setup.deployer.getSender(),
         toNano('0.5'),
         {
-          version: 2n,
           cursedSubjects: of.CursedSubjects.create({ data: new Set([]) }),
         },
       )
@@ -392,11 +390,10 @@ describe('OffRamp - Execute', () => {
       await setup.commitReport([root])
 
       // Curse source chain
-      let result = await setup.offRamp.sendOffRampSyncCursedSubjects(
+      let result = await setup.offRamp.sendOffRampUpdateCursedSubjects(
         setup.deployer.getSender(),
         toNano('0.5'),
         {
-          version: 3n,
           cursedSubjects: of.CursedSubjects.create({
             data: new Set([RMNREMOTE_GLOBAL_CURSE_SUBJECT]),
           }),
@@ -415,11 +412,10 @@ describe('OffRamp - Execute', () => {
       )
 
       // Uncurse source chain
-      result = await setup.offRamp.sendOffRampSyncCursedSubjects(
+      result = await setup.offRamp.sendOffRampUpdateCursedSubjects(
         setup.deployer.getSender(),
         toNano('0.5'),
         {
-          version: 4n,
           cursedSubjects: of.CursedSubjects.create({ data: new Set([]) }),
         },
       )

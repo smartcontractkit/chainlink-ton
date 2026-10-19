@@ -299,7 +299,7 @@ export class OffRampTestSetup {
         offRamps: new Map(),
         rmnRemote: rt.RMNRemote.create({
           policy: createCursePolicy(this.deployer.address),
-          forwardUpdates: new Map(),
+          forwardUpdates: new Set(),
         }),
       })
 

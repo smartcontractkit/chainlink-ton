@@ -10,7 +10,8 @@ import { deployOffRampContract } from '../offramp/OffRamp.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
 
 const SUBJECT = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
-const SYNC_COST = toNano('0.05')
+const BASE_FEE = toNano('0.02')
+const PER_OFF_RAMP_FEE = toNano('0.05')
 
 describe('Router.curseSync', () => {
   let blockchain: Blockchain
@@ -32,7 +33,7 @@ describe('Router.curseSync', () => {
           offRamps: new Map(),
           rmnRemote: rt.RMNRemote.create({
             policy: createCursePolicy(deployer.address),
-            forwardUpdates: new Map(),
+            forwardUpdates: new Set(),
           }),
         }),
         { overrideContractCode: await contractCode.ccip.local('Router') },
@@ -58,109 +59,110 @@ describe('Router.curseSync', () => {
       to: router.address,
       success: true,
     })
-    return result
   }
 
-  async function curse(value = toNano('1')) {
-    const result = await router.sendRouterRMNRemoteCurse(deployer.getSender(), value, {
+  function curse(value: bigint) {
+    return router.sendRouterRMNRemoteCurse(deployer.getSender(), value, {
       queryId: 0n,
       subjects: [SUBJECT],
     })
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: router.address,
-      success: true,
-    })
-    return result
   }
 
-  async function ackedVersions(): Promise<[string, bigint][]> {
-    const versions = await router.getRmnOffRampCursedSubjectsVersions()
-    return [...versions.entries()].map(([addr, v]) => [addr.toString(), v])
-  }
-
-  async function expectOffRampSynced(version: bigint, cursed: boolean) {
-    expect(await router.getRmnCursedSubjectsVersion()).toBe(version)
-    expect(await ackedVersions()).toEqual([[offRamp.address.toString(), version]])
-    expect(await router.getRmnAllOffRampsSynced()).toBe(true)
-    expect(await offRamp.getCursedSubjectsVersion()).toBe(version)
-    expect(await offRamp.getVerifyNotCursed(SUBJECT)).toBe(!cursed)
-  }
-
-  it('propagates curse and uncurse to OffRamps and records their acknowledgment', async () => {
-    await registerOffRamp()
-    expect(await router.getRmnAllOffRampsSynced()).toBe(true)
-
-    const cursed = await curse()
-    expect(cursed.transactions).toHaveTransaction({
-      from: router.address,
-      to: offRamp.address,
-      op: of.OffRamp_SyncCursedSubjects.PREFIX,
-      success: true,
-    })
-    expect(cursed.transactions).toHaveTransaction({
-      from: offRamp.address,
-      to: router.address,
-      op: rt.Router_RMNRemoteCursedSubjectsAck.PREFIX,
-      success: true,
-    })
-    await expectOffRampSynced(1n, true)
-
-    await router.sendRouterRMNRemoteUncurse(deployer.getSender(), toNano('1'), {
-      queryId: 0n,
-      subjects: [SUBJECT],
-    })
-    await expectOffRampSynced(2n, false)
-  })
-
-  it('syncs the existing curse to an OffRamp registered after the curse', async () => {
-    await curse()
-    expect(await offRamp.getVerifyNotCursed(SUBJECT)).toBe(true)
-
-    const result = await registerOffRamp()
+  function expectPropagated(result: Awaited<ReturnType<typeof curse>>) {
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: offRamp.address,
-      op: of.OffRamp_SyncCursedSubjects.PREFIX,
+      op: of.OffRamp_UpdateCursedSubjects.PREFIX,
       success: true,
     })
-    await expectOffRampSynced(1n, true)
+  }
+
+  it('requires a fee covering propagation to every OffRamp', async () => {
+    expect(await router.getRmnUpdateCursedSubjectsFee()).toBe(BASE_FEE)
+    await registerOffRamp()
+    expect(await router.getRmnUpdateCursedSubjectsFee()).toBe(BASE_FEE + PER_OFF_RAMP_FEE)
   })
 
-  it('reports an undelivered curse as unsynced and recovers via SyncOffRamps', async () => {
+  it('rejects an underfunded curse without storing it, and succeeds when retried', async () => {
     await registerOffRamp()
+    const fee = await router.getRmnUpdateCursedSubjectsFee()
 
-    // Leave the Router unable to fund the forwarded update.
-    const routerContract = await blockchain.getContract(router.address)
-    routerContract.balance = 0n
-    const cursed = await curse(toNano('0.02'))
-    expect(cursed.transactions).not.toHaveTransaction({
-      from: router.address,
-      to: offRamp.address,
-    })
-
-    // The curse is stored locally, but the OffRamp is not enforcing it.
-    expect(await router.getVerifyNotCursed(SUBJECT)).toBe(false)
-    expect(await offRamp.getVerifyNotCursed(SUBJECT)).toBe(true)
-    expect(await router.getRmnCursedSubjectsVersion()).toBe(1n)
-    expect(await ackedVersions()).toEqual([[offRamp.address.toString(), 0n]])
-    expect(await router.getRmnAllOffRampsSynced()).toBe(false)
-
-    const underfunded = await router.sendRouterRMNRemoteSyncOffRamps(
-      deployer.getSender(),
-      SYNC_COST - 1n,
-      { queryId: 0n },
-    )
+    const underfunded = await curse(fee - 1n)
     expect(underfunded.transactions).toHaveTransaction({
       from: deployer.address,
       to: router.address,
       success: false,
       exitCode: rt.Router.Errors['Router_Error.InsufficientFee'],
     })
+    expect(await router.getVerifyNotCursed(SUBJECT)).toBe(true)
+    expect(await offRamp.getVerifyNotCursed(SUBJECT)).toBe(true)
 
-    // Anyone can push the Router's state to unsynced OffRamps.
+    const retried = await curse(fee)
+    expect(retried.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: router.address,
+      success: true,
+    })
+    expectPropagated(retried)
+    expect(await router.getVerifyNotCursed(SUBJECT)).toBe(false)
+    expect(await offRamp.getVerifyNotCursed(SUBJECT)).toBe(false)
+  })
+
+  it('propagates a funded curse even when the Router has no balance of its own', async () => {
+    await registerOffRamp()
+    const routerContract = await blockchain.getContract(router.address)
+    routerContract.balance = 0n
+
+    const result = await curse(await router.getRmnUpdateCursedSubjectsFee())
+    expectPropagated(result)
+    expect(await offRamp.getVerifyNotCursed(SUBJECT)).toBe(false)
+  })
+
+  it('requires the fee for uncurse and propagates it', async () => {
+    await registerOffRamp()
+    const fee = await router.getRmnUpdateCursedSubjectsFee()
+    await curse(fee)
+
+    const underfunded = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), fee - 1n, {
+      queryId: 0n,
+      subjects: [SUBJECT],
+    })
+    expect(underfunded.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.InsufficientFee'],
+    })
+    expect(await offRamp.getVerifyNotCursed(SUBJECT)).toBe(false)
+
+    const result = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), fee, {
+      queryId: 0n,
+      subjects: [SUBJECT],
+    })
+    expectPropagated(result)
+    expect(await router.getVerifyNotCursed(SUBJECT)).toBe(true)
+    expect(await offRamp.getVerifyNotCursed(SUBJECT)).toBe(true)
+  })
+
+  it('syncs an existing curse to an OffRamp registered after it', async () => {
+    await curse(await router.getRmnUpdateCursedSubjectsFee())
+    await registerOffRamp()
+    expect(await offRamp.getVerifyNotCursed(SUBJECT)).toBe(true)
+
+    const fee = await router.getRmnUpdateCursedSubjectsFee()
     const anyone = await blockchain.treasury('anyone')
-    const synced = await router.sendRouterRMNRemoteSyncOffRamps(anyone.getSender(), SYNC_COST, {
+
+    const underfunded = await router.sendRouterRMNRemoteSyncOffRamps(anyone.getSender(), fee - 1n, {
+      queryId: 0n,
+    })
+    expect(underfunded.transactions).toHaveTransaction({
+      from: anyone.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.InsufficientFee'],
+    })
+
+    const synced = await router.sendRouterRMNRemoteSyncOffRamps(anyone.getSender(), fee, {
       queryId: 0n,
     })
     expect(synced.transactions).toHaveTransaction({
@@ -168,62 +170,7 @@ describe('Router.curseSync', () => {
       to: router.address,
       success: true,
     })
-    await expectOffRampSynced(1n, true)
-
-    const noop = await router.sendRouterRMNRemoteSyncOffRamps(anyone.getSender(), toNano('0.01'), {
-      queryId: 0n,
-    })
-    expect(noop.transactions).toHaveTransaction({
-      from: anyone.address,
-      to: router.address,
-      success: true,
-    })
-    expect(noop.transactions).not.toHaveTransaction({
-      from: router.address,
-      to: offRamp.address,
-    })
-  })
-
-  it('rejects acknowledgments from unregistered senders', async () => {
-    await registerOffRamp()
-    const stranger = await blockchain.treasury('stranger')
-    const result = await router.sendRouterRMNRemoteCursedSubjectsAck(
-      stranger.getSender(),
-      toNano('0.05'),
-      { version: 1n },
-    )
-    expect(result.transactions).toHaveTransaction({
-      from: stranger.address,
-      to: router.address,
-      success: false,
-      exitCode: rt.Router.Errors['Router_Error.SenderIsNotOffRamp'],
-    })
-  })
-
-  it('OffRamp ignores stale curse state and acknowledges the version it enforces', async () => {
-    const rmnRouter = await blockchain.treasury('rmnRouter')
-    const ramp = await deployOffRampContract(blockchain, deployer, undefined, {
-      rmnRouter: rmnRouter.address,
-    })
-
-    await ramp.sendOffRampSyncCursedSubjects(rmnRouter.getSender(), SYNC_COST, {
-      version: 2n,
-      cursedSubjects: of.CursedSubjects.create({ data: new Set([SUBJECT]) }),
-    })
-    const stale = await ramp.sendOffRampSyncCursedSubjects(rmnRouter.getSender(), SYNC_COST, {
-      version: 1n,
-      cursedSubjects: of.CursedSubjects.create({ data: new Set() }),
-    })
-
-    expect(await ramp.getCursedSubjectsVersion()).toBe(2n)
-    expect(await ramp.getVerifyNotCursed(SUBJECT)).toBe(false)
-    expect(stale.transactions).toHaveTransaction({
-      from: ramp.address,
-      to: rmnRouter.address,
-      op: rt.Router_RMNRemoteCursedSubjectsAck.PREFIX,
-      body: (b) =>
-        b !== undefined &&
-        rt.Router_RMNRemoteCursedSubjectsAck.fromSlice(b.beginParse()).version === 2n,
-    })
+    expectPropagated(synced)
+    expect(await offRamp.getVerifyNotCursed(SUBJECT)).toBe(false)
   })
 })

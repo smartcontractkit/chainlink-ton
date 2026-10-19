@@ -135,6 +135,7 @@ fun onInternalMessage(in: InMessage) {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
             requireRMNCurseAdmin(rmn, in.senderAddress);
+            rmn.requireUpdateCursedSubjectsFee(in.valueCoins);
             onRMNRemoteCurse(st, rmn, msg);
         }
         // Sender must hold the RMN uncurse role.
@@ -142,18 +143,15 @@ fun onInternalMessage(in: InMessage) {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
             requireRMNUncurseAdmin(rmn, in.senderAddress);
+            rmn.requireUpdateCursedSubjectsFee(in.valueCoins);
             onRMNRemoteUncurse(st, rmn, msg);
         }
-        // Permissionless: only re-sends the Router's own curse state, funded by the caller.
+        // Permissionless: only re-sends the Router's own state, funded by the caller.
         Router_RMNRemoteSyncOffRamps => {
             val st = lazy Storage.load();
-            val sent = st.rmnRemote.load().syncOffRamps();
-            assert(in.valueCoins >= sent * Router_Costs.syncCursedSubjects(), Router_Error.InsufficientFee);
-        }
-        // Sender must be a registered OffRamp (checked in onRMNRemoteCursedSubjectsAck)
-        Router_RMNRemoteCursedSubjectsAck => {
-            var st = lazy Storage.load();
-            onRMNRemoteCursedSubjectsAck(mutate st, msg, in.senderAddress);
+            val rmn = st.rmnRemote.load();
+            rmn.requireUpdateCursedSubjectsFee(in.valueCoins);
+            rmn.forwardCursedSubjects();
         }
         Router_RMNRemoteVerifyNotCursed => {
             val result = verifyNotCursed(msg.subject);
@@ -647,25 +645,17 @@ fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: O
         });
     }
 
-    // Newly registered OffRamps start unacknowledged and receive the current curse state.
+    // update RMN forwarding cache
     var rmn = st.rmnRemote.load();
-    rmn.forwardUpdates = rebuildForwardUpdates(st.offRamps, rmn.forwardUpdates);
-    st.rmnRemote = rmn.toCell();
-    rmn.syncOffRamps();
-}
-
-// Returns the set of registered OffRamps, keeping the acknowledged curse state
-// version of those that were already tracked.
-fun rebuildForwardUpdates(offRamps: map<uint64, address>, previous: map<address, uint64>): map<address, uint64> {
-    var forwardUpdates = createEmptyMap<address, uint64>();
-    var entry = offRamps.findFirst();
+    var forwardUpdates = createEmptyMap<address, ()>();
+    var entry = st.offRamps.findFirst(); 
     while (entry.isFound) {
         val ramp = entry.loadValue();
-        val acked = previous.get(ramp);
-        forwardUpdates.set(ramp, acked.isFound ? acked.loadValue() : 0);
-        entry = offRamps.iterateNext(entry);
+        forwardUpdates.addIfNotExists(ramp, ());
+        entry = st.offRamps.iterateNext(entry);
     }
-    return forwardUpdates;
+    rmn.forwardUpdates = forwardUpdates;
+    st.rmnRemote = rmn.toCell();
 }
 
 // Sends a CCIP receive confirmation to the OffRamp contract corresponding to
@@ -915,11 +905,10 @@ and propagating updates to cached OffRamp contracts.
 */
 fun onRMNRemoteCurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteCurse) {
     rmn.policy.curseAll(msg.subjects);
-    rmn.cursedSubjectsVersion += 1;
     st.rmnRemote = rmn.toCell();
     st.store();
 
-    rmn.syncOffRamps();
+    rmn.forwardCursedSubjects();
 }
 
 fun requireRMNCurseAdmin(rmn: RMNRemote, sender: address) {
@@ -936,55 +925,40 @@ and propagating updates to cached OffRamp contracts.
 */
 fun onRMNRemoteUncurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteUncurse) {
     rmn.policy.uncurseAll(msg.subjects);
-    rmn.cursedSubjectsVersion += 1;
     st.rmnRemote = rmn.toCell();
     st.store();
 
-    rmn.syncOffRamps();
+    rmn.forwardCursedSubjects();
 }
 
-/*
-Sends the current curse state to every unacknowledged OffRamp and returns the
-number of updates sent. Errors are ignored so a curse is always stored locally;
-undelivered updates stay unacknowledged and are retried via Router_RMNRemoteSyncOffRamps.
-*/
-fun RMNRemote.syncOffRamps(self): int {
-    var sent = 0;
+fun RMNRemote.updateCursedSubjectsFee(self): coins {
+    var offRampCount = 0;
     var entry = self.forwardUpdates.findFirst();
     while (entry.isFound) {
-        if (entry.loadValue() < self.cursedSubjectsVersion) {
-            val sendMsg = createMessage({
-                bounce: false,
-                value: Router_Costs.syncCursedSubjects(),
-                dest: entry.getKey(),
-                body: OffRamp_SyncCursedSubjects {
-                    version: self.cursedSubjectsVersion,
-                    cursedSubjects: self.policy.cursedSubjects,
-                },
-            });
-            sendMsg.send(SEND_MODE_IGNORE_ERRORS);
-            sent += 1;
-        }
+        offRampCount += 1;
         entry = self.forwardUpdates.iterateNext(entry);
     }
-    return sent;
+    return Router_Costs.updateCursedSubjects(offRampCount);
 }
 
-fun onRMNRemoteCursedSubjectsAck(mutate st: Storage, msg: Router_RMNRemoteCursedSubjectsAck, sender: address) {
-    var rmn = st.rmnRemote.load();
-    val acked = rmn.forwardUpdates.get(sender);
-    assert(acked.isFound, Router_Error.SenderIsNotOffRamp);
-    if (msg.version <= acked.loadValue() || msg.version > rmn.cursedSubjectsVersion) {
-        return;
-    }
-    rmn.forwardUpdates.set(sender, msg.version);
-    st.rmnRemote = rmn.toCell();
-    st.store();
+fun RMNRemote.requireUpdateCursedSubjectsFee(self, value: coins) {
+    assert(value >= self.updateCursedSubjectsFee()) throw Router_Error.InsufficientFee;
+}
 
-    emit(OFF_RAMP_CURSED_SUBJECTS_SYNCED_TOPIC, OffRampCursedSubjectsSynced {
-        offRamp: sender,
-        version: msg.version,
-    });
+// Errors are not ignored: if any update cannot be sent, the whole transaction
+// (including the curse change) is rolled back and must be retried with more value.
+fun RMNRemote.forwardCursedSubjects(self) {
+    var entry = self.forwardUpdates.findFirst();
+    while (entry.isFound) {
+        val sendMsg = createMessage({
+            bounce: false,
+            value: Router_Costs.forwardCursedSubjects(),
+            dest: entry.getKey(),
+            body: OffRamp_UpdateCursedSubjects { cursedSubjects: self.policy.cursedSubjects },
+        });
+        sendMsg.send(SEND_MODE_REGULAR);
+        entry = self.forwardUpdates.iterateNext(entry);
+    }
 }
 
 // Sends an ack to the CCIP sender once it finishes successfully.
@@ -1310,8 +1284,6 @@ fun migrate(storage: cell, version: slice): cell {
     // uncurse and role management as the implicit bearer of all three roles.
     var policy = CursePolicy.empty(oldRMN.admin);
     policy.cursedSubjects = oldRMN.cursedSubjects;
-    // Version 1 with every OffRamp unacknowledged: delivery of earlier updates
-    // is unknown, so OffRamps must be re-synced with Router_RMNRemoteSyncOffRamps.
     return Storage {
         id: old.id,
         ownable: old.ownable,
@@ -1320,8 +1292,7 @@ fun migrate(storage: cell, version: slice): cell {
         offRamps: old.offRamps,
         rmnRemote: RMNRemote {
             policy,
-            cursedSubjectsVersion: 1,
-            forwardUpdates: rebuildForwardUpdates(old.offRamps, createEmptyMap<address, uint64>()),
+            forwardUpdates: oldRMN.forwardUpdates,
         }.toCell(),
     }.toCell();
 }
@@ -1358,27 +1329,9 @@ get fun cursedSubjects(): lisp_list<uint128> {
     return keysLispList(rmn.policy.cursedSubjects.data)!;
 }
 
-get fun rmn_cursedSubjectsVersion(): uint64 {
-    return Storage.load().rmnRemote.load().cursedSubjectsVersion;
-}
-
-/// Curse state version acknowledged by each registered OffRamp. An OffRamp
-/// enforces the Router's curse state only once it has acknowledged
-/// `rmn_cursedSubjectsVersion()`.
-get fun rmn_offRampCursedSubjectsVersions(): map<address, uint64> {
-    return Storage.load().rmnRemote.load().forwardUpdates;
-}
-
-get fun rmn_allOffRampsSynced(): bool {
-    val rmn = Storage.load().rmnRemote.load();
-    var entry = rmn.forwardUpdates.findFirst();
-    while (entry.isFound) {
-        if (entry.loadValue() < rmn.cursedSubjectsVersion) {
-            return false;
-        }
-        entry = rmn.forwardUpdates.iterateNext(entry);
-    }
-    return true;
+/// Minimum value to attach to curse, uncurse and sync messages.
+get fun rmn_updateCursedSubjectsFee(): coins {
+    return Storage.load().rmnRemote.load().updateCursedSubjectsFee();
 }
 
 /// Gets the current owner of the contract.

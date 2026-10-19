@@ -96,10 +96,10 @@ fun onInternalMessage(in:InMessage) {
             onUpdateSourceChainConfigs(msg)
         }
         // Sender must be the rmnRouter
-        OffRamp_SyncCursedSubjects => {
+        OffRamp_UpdateCursedSubjects => {
             var st = lazy Storage.load();
             assert(in.senderAddress == st.config.load().staticConfig.rmnRouter, OffRamp_Error.Unauthorized);
-            onSyncCursedSubjects(msg, in.senderAddress)
+            onUpdateCursedSubjects(msg)
         },
         // Sender must be router
         OffRamp_CCIPReceiveConfirm => {
@@ -294,7 +294,6 @@ fun migrate(storage: cell, version: slice): cell {
         }.toCell(),
         ocr3Base: old.ocr3Base,
         cursedSubjects: old.cursedSubjects,
-        cursedSubjectsVersion: 0,
         sourceChainConfigs: old.sourceChainConfigs,
         latestPriceSequenceNumber: old.latestPriceSequenceNumber,
     }.toCell();
@@ -913,26 +912,14 @@ fun onUpdateSourceChainConfigs(msg: OffRamp_UpdateSourceChainConfigs) {
 }
 
 /*
-Replaces the cached cursed subjects with the Router's state if it is newer than
-the cached one, then acknowledges the version now enforced. Only the Router
-contract is authorized to perform this action.
+Updates the list of cursed subjects in storage. Only the Router contract is
+authorized to perform this action.
 */
-fun onSyncCursedSubjects(msg: OffRamp_SyncCursedSubjects, router: address) {
+fun onUpdateCursedSubjects(msg: OffRamp_UpdateCursedSubjects) {
     var st = Storage.load();
 
-    if (msg.version > st.cursedSubjectsVersion) {
-        st.cursedSubjects = msg.cursedSubjects;
-        st.cursedSubjectsVersion = msg.version;
-        st.store();
-    }
-
-    val ack = createMessage({
-        bounce: false,
-        value: 0,
-        dest: router,
-        body: Router_RMNRemoteCursedSubjectsAck { version: st.cursedSubjectsVersion },
-    });
-    ack.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    st.cursedSubjects = msg.cursedSubjects;
+    st.store();
 }
 
 // Executes a validated OffRamp message after MerkleRoot verification.
@@ -1225,11 +1212,6 @@ get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
 get fun verifyNotCursed(subject: uint128): bool {
     val st = lazy Storage.load();
     return !st.cursedSubjects.isCursed(subject);
-}
-
-get fun cursedSubjectsVersion(): uint64 {
-    val st = lazy Storage.load();
-    return st.cursedSubjectsVersion;
 }
 
 get fun cursedSubjects(): lisp_list<uint128> {

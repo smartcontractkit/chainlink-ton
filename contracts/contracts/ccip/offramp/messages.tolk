@@ -31,7 +31,7 @@ type OffRamp_InMessage =
     | Router_TokenPoolReleaseOrMintFailed
     | OffRamp_NotifyFailure
     | OffRamp_NotifySuccess
-    | OffRamp_SyncCursedSubjects
+    | OffRamp_UpdateCursedSubjects
     | OffRamp_TokenTransferDelivered
     | OffRamp_SetDynamicConfig
     | OCR3Base_SetOCR3Config
@@ -135,8 +135,7 @@ struct (0x177ebd03) OffRamp_NotifyFailure {
     root: address;
 }
 
-struct (0x4ea3e7fa) OffRamp_SyncCursedSubjects {
-    version: uint64
+struct (0x4ca1bcb3) OffRamp_UpdateCursedSubjects {
     cursedSubjects: CursedSubjects
 }
 

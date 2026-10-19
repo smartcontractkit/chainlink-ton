@@ -85,27 +85,15 @@ var GetVerifyNotCursed = tvm.Getter[*big.Int, bool]{
 	}),
 }
 
-// GetRMNCursedSubjectsVersion gets the Router's current curse state version.
-var GetRMNCursedSubjectsVersion = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint64]{
-	Name: "rmn_cursedSubjectsVersion",
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint64, error) {
+// GetRMNUpdateCursedSubjectsFee gets the minimum value (nanoTON) that curse,
+// uncurse and sync messages must carry to propagate to every OffRamp.
+var GetRMNUpdateCursedSubjectsFee = tvm.NewNoArgsGetter(tvm.NoArgsOpts[*big.Int]{
+	Name: "rmn_updateCursedSubjectsFee",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*big.Int, error) {
 		v, err := r.Int(0)
 		if err != nil {
-			return 0, fmt.Errorf("failed to parse rmn_cursedSubjectsVersion result: %w", err)
+			return nil, fmt.Errorf("failed to parse rmn_updateCursedSubjectsFee result: %w", err)
 		}
-		return v.Uint64(), nil
-	}),
-})
-
-// GetRMNAllOffRampsSynced reports whether every registered OffRamp has
-// acknowledged, and therefore enforces, the Router's current curse state.
-var GetRMNAllOffRampsSynced = tvm.NewNoArgsGetter(tvm.NoArgsOpts[bool]{
-	Name: "rmn_allOffRampsSynced",
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
-		v, err := r.Int(0)
-		if err != nil {
-			return false, fmt.Errorf("failed to parse rmn_allOffRampsSynced result: %w", err)
-		}
-		return v.Cmp(big.NewInt(0)) != 0, nil
+		return v, nil
 	}),
 })

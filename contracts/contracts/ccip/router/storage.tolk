@@ -7,10 +7,7 @@ struct RMNRemote {
     // Authoritative curse policy for the lane. TokenPools embed the same struct
     // but their copies are independent; nothing is mirrored between them.
     policy: CursePolicy;
-    // Bumped on every curse/uncurse. OffRamps acknowledge the version they applied.
-    cursedSubjectsVersion: uint64 = 0;
-    // OffRamp -> last acknowledged cursedSubjectsVersion.
-    forwardUpdates: map<address, uint64> = [];
+    forwardUpdates: map<address, ()> = [];
 }
 
 struct Storage {

@@ -158,7 +158,7 @@ async function deployRouterInstance(
     offRamps: new Map(),
     rmnRemote: rt.RMNRemote.create({
       policy: rmn?.cursePolicy ?? createCursePolicy(rmnOwner),
-      forwardUpdates: new Map(),
+      forwardUpdates: new Set(),
     }),
   })
   const router = blockchain.openContract(
@@ -541,7 +541,7 @@ export async function deployRouterContract(
     offRamps: new Map(),
     rmnRemote: rt.RMNRemote.create({
       policy: createCursePolicy(owner.address),
-      forwardUpdates: new Map(),
+      forwardUpdates: new Set(),
     }),
   })
 
