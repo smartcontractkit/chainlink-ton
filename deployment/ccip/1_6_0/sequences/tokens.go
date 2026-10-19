@@ -688,7 +688,7 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 					{
 						Bounce:  true,
 						DstAddr: registryAddr,
-						Amount:  tlb.MustFromTON("0.15"),
+						Amount:  tlb.MustFromTON("0.2"),
 						Body:    body,
 					},
 				},
