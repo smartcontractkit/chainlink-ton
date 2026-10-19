@@ -1130,7 +1130,26 @@ describe('LockReleaseLockboxTokenPool', () => {
             }),
           }),
         )
-        const result = await onRampWallet.sendTransfer(deployer.getSender(), {
+        const accountAddress = deriveOnRampAccountAddress({
+          router: deployer.address,
+          user: deployer.address,
+          token: jettonMinter.address,
+          deployableCode,
+        })
+        await onRampWallet.sendTransfer(deployer.getSender(), {
+          value: toNano('2'),
+          message: {
+            queryId: Number(queryId),
+            jettonAmount: toNano('10'),
+            destination: accountAddress,
+            responseDestination: deployer.address,
+            customPayload: null,
+            forwardTonAmount: 0n,
+            forwardPayload: null,
+          },
+        })
+        const accountWallet = await userWallet(accountAddress)
+        const result = await accountWallet.sendTransfer(blockchain.sender(accountAddress), {
           value: toNano('2'),
           message: {
             queryId: Number(queryId),
@@ -1139,7 +1158,13 @@ describe('LockReleaseLockboxTokenPool', () => {
             responseDestination: deployer.address,
             customPayload: null,
             forwardTonAmount: toNano(inbound),
-            forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(operation),
+            forwardPayload: da.Jetton_ForwardPayloadWrap.toCell(
+              da.Jetton_ForwardPayloadWrap.create({
+                initiator: deployer.address, // the Router: the pool requires it as the initiator
+                context: null,
+                forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(operation),
+              }),
+            ),
           },
         })
         expect(result.transactions).toHaveTransaction({
@@ -1357,7 +1382,26 @@ describe('LockReleaseLockboxTokenPool', () => {
           }),
         })
 
-        const result = await onRampWallet.sendTransfer(deployer.getSender(), {
+        const accountAddress = deriveOnRampAccountAddress({
+          router: deployer.address,
+          user: deployer.address,
+          token: jettonMinter.address,
+          deployableCode,
+        })
+        await onRampWallet.sendTransfer(deployer.getSender(), {
+          value: toNano('3'),
+          message: {
+            queryId: 300,
+            jettonAmount: toNano('8'),
+            destination: accountAddress,
+            responseDestination: deployer.address,
+            customPayload: null,
+            forwardTonAmount: 0n,
+            forwardPayload: null,
+          },
+        })
+        const accountWallet = await userWallet(accountAddress)
+        const result = await accountWallet.sendTransfer(blockchain.sender(accountAddress), {
           value: toNano('3'),
           message: {
             queryId: 300,
@@ -1366,7 +1410,13 @@ describe('LockReleaseLockboxTokenPool', () => {
             responseDestination: deployer.address,
             customPayload: null,
             forwardTonAmount: toNano(inbound),
-            forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
+            forwardPayload: da.Jetton_ForwardPayloadWrap.toCell(
+              da.Jetton_ForwardPayloadWrap.create({
+                initiator: deployer.address, // the Router: the pool requires it as the initiator
+                context: null,
+                forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
+              }),
+            ),
           },
         })
 
