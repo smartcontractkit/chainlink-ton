@@ -122,10 +122,8 @@ func (e ExitCode) New() tvm.ExitCode {
 
 // Storage represents the JettonLockBox contract storage.
 type Storage struct {
-	ID uint64 `tlb:"## 64"`
-	// Initializer is the address bound at deployment that is allowed to initialize the
-	// lockbox. Required: an unbound (nil) lockbox cannot be initialized.
-	Initializer   *address.Address `tlb:"addr"`
+	ID            uint64           `tlb:"## 64"`
+	Initializer   *address.Address `tlb:"addr required"`
 	MinterAddress *address.Address `tlb:"addr"`
 	WalletAddress *address.Address `tlb:"addr"`
 	RBAC          rbac.Data        `tlb:"."`

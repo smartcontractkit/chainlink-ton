@@ -85,7 +85,7 @@ fun onInit(mutate st: Storage, sender: address, msg: JettonLockBox_Init) {
     assert(!st.isInitialized(), JettonLockBox_Error.ContractAlreadyInitialized);
 
     // Only the initializer bound at construction (stateInit) may initialize.
-    assert(st.initializer != null && sender == st.initializer!, JettonLockBox_Error.UnauthorizedInitializer);
+    assert(sender == st.initializer, JettonLockBox_Error.UnauthorizedInitializer);
 
     // Validate addresses are not zero
     assert(!isZeroAddress(msg.minterAddress), JettonLockBox_Error.UnsupportedToken);

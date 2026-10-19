@@ -338,7 +338,7 @@ export const TransferNotificationForRecipient = {
 /**
  > struct Storage {
  >     id: uint64
- >     initializer: address?
+ >     initializer: address
  >     minterAddress: address
  >     walletAddress: address?
  >     rbac: AccessControl_Data
@@ -347,7 +347,7 @@ export const TransferNotificationForRecipient = {
 export interface Storage {
     readonly $: 'Storage'
     id: uint64
-    initializer: c.Address | null /* = null */
+    initializer: c.Address
     minterAddress: c.Address
     walletAddress: c.Address | null
     rbac: AccessControl_Data
@@ -356,14 +356,13 @@ export interface Storage {
 export const Storage = {
     create(args: {
         id: uint64
-        initializer?: c.Address | null /* = null */
+        initializer: c.Address
         minterAddress: c.Address
         walletAddress: c.Address | null
         rbac: AccessControl_Data
     }): Storage {
         return {
             $: 'Storage',
-            initializer: null,
             ...args
         }
     },
@@ -371,7 +370,7 @@ export const Storage = {
         return {
             $: 'Storage',
             id: s.loadUintBig(64),
-            initializer: s.loadMaybeAddress(),
+            initializer: s.loadAddress(),
             minterAddress: s.loadAddress(),
             walletAddress: s.loadMaybeAddress(),
             rbac: AccessControl_Data.fromSlice(s),
@@ -913,7 +912,7 @@ export class JettonLockBox implements c.Contract {
 
     static fromStorage(emptyStorage: {
         id: uint64
-        initializer?: c.Address | null /* = null */
+        initializer: c.Address
         minterAddress: c.Address
         walletAddress: c.Address | null
         rbac: AccessControl_Data

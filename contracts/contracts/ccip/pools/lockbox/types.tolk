@@ -39,8 +39,7 @@ struct Storage {
     id: uint64;
 
     /// Address allowed to initialize this lockbox, bound at deployment (stateInit).
-    /// @dev Required: `onInit` rejects an unbound lockbox, so a deploy that omits it fails closed.
-    initializer: address? = null;
+    initializer: address;
 
     /// Minter address of the token this lockbox holds.
     minterAddress: address;

@@ -737,14 +737,15 @@ describe('JettonLockBox', () => {
       })
     })
 
-    it('should reject init when no initializer was bound at construction (fail closed)', async () => {
-      // A deploy that omits `initializer` must not be claimable by a front-runner.
+    it('should reject init when the bound initializer is the zero address (fail closed)', async () => {
+      // The zero address can never send a message, so a lockbox bound to it is unclaimable.
       const unboundLockbox = blockchain.openContract(
         JettonLockBox.fromStorage(
           {
             minterAddress: jettonMinter.address,
             walletAddress: null,
             id: 6n,
+            initializer: new Address(0, Buffer.alloc(32)),
             rbac: emptyAccessControlData(),
           },
           { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
