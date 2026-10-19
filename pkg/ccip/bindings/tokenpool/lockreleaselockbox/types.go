@@ -47,7 +47,7 @@ type ReturnExcessesBack struct {
 // Storage represents the LockReleaseLockboxTokenPool contract storage.
 type Storage struct {
 	PoolData tokenpool.Storage `tlb:"^"`
-	Lockbox  *address.Address  `tlb:"addr"` // JettonLockBox address
+	Lockbox  *address.Address  `tlb:"addr required"` // JettonLockBox address
 }
 
 // --- Exit Codes ---

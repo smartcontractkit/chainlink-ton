@@ -32,6 +32,8 @@ export function emptyAccessControlData(): AccessControl_Data {
 export async function buildJettonLockBox(opts: {
   blockchain: Blockchain
   minterAddress: Address
+  /** Address allowed to initialize the lockbox (bound at construction). */
+  initializer: Address
   id?: bigint
 }): Promise<SandboxContract<JettonLockBox>> {
   const code = await contractCode.ccip.local('ccip.pool.JettonLockBox')
@@ -41,6 +43,7 @@ export async function buildJettonLockBox(opts: {
         id: opts.id ?? 0n,
         minterAddress: opts.minterAddress,
         walletAddress: null,
+        initializer: opts.initializer,
         rbac: emptyAccessControlData(),
       },
       { overrideContractCode: code },

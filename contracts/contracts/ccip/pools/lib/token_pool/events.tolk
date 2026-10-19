@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../../common/types"
+import "../rate_limiter"
 
 import "types"
 
@@ -49,8 +50,8 @@ struct TokenPool_ReleasedOrMintedDetails {
 struct TokenPool_ChainAdded {
     remoteChainSelector: uint64;
     remoteTokenAddress: Cell<CrossChainAddress>;
-    // outboundRateLimiterConfig: RateLimiter.Config;
-    // inboundRateLimiterConfig: RateLimiter.Config;
+    outboundRateLimiterConfig: Cell<RateLimiter_Config>;
+    inboundRateLimiterConfig: Cell<RateLimiter_Config>;
 }
 
 struct TokenPool_ChainRemoved {
@@ -155,8 +156,12 @@ struct TokenPool_RateLimitConfigured {
 //   event AdvancedPoolHooksUpdated(IAdvancedPoolHooks oldHook, IAdvancedPoolHooks newHook);
 
 type TokenPool_Events = 
+    | TokenPool_LockedOrBurned
+    | TokenPool_ReleasedOrMinted
     | TokenPool_ChainAdded
     | TokenPool_ChainRemoved
+    | TokenPool_RemotePoolAdded
+    | TokenPool_RemotePoolRemoved
     | TokenPool_RateLimitConfigured
     | TokenPool_TokenTransferFeeConfigUpdated
     | TokenPool_TokenTransferFeeConfigDeleted
@@ -165,4 +170,6 @@ type TokenPool_Events =
     | TokenPool_FastFinalityOutboundRateLimitConsumed
     | TokenPool_FastFinalityInboundRateLimitConsumed
     | TokenPool_OutboundRateLimitRefunded
-    | TokenPool_InboundRateLimitRefunded;
+    | TokenPool_InboundRateLimitRefunded
+    | TokenPool_FastFinalityOutboundRateLimitRefunded
+    | TokenPool_FastFinalityInboundRateLimitRefunded;

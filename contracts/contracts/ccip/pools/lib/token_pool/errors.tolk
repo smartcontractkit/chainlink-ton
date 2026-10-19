@@ -31,4 +31,7 @@ enum TokenPool_Error {
     AmountMismatch // 51720
     InvalidRequestedFinality // 51721
     RateLimitExceeded // 51722
+    PreflightCheckFailed // 51723
+    PostflightCheckFailed // 51724
+    InsufficientMessageValue // 51725
 }

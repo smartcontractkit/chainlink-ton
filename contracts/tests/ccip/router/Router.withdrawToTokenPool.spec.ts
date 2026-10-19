@@ -113,7 +113,7 @@ describe('Router.withdrawToTokenPool', () => {
     depositAccount: Address
     amount: bigint
     tokenPool: Address
-    replyTo?: Address | null
+    replyTo?: Address
   }): rt.Router_WithdrawRequest =>
     rt.Router_WithdrawRequest.create({
       depositAccount: opts.depositAccount,
@@ -127,7 +127,7 @@ describe('Router.withdrawToTokenPool', () => {
   // A minimal but well-formed LockOrBurn forward payload. The Router forwards it verbatim into the
   // AskToTransfer's forward payload and only reads `requestMsg.replyTo`, the executor to fail.
   const buildLockOrBurnForwardPayload = (
-    replyTo: Address | null = executor.address,
+    replyTo: Address = executor.address,
   ): rt.TokenPool_LockOrBurnForwardPayload =>
     rt.TokenPool_LockOrBurnForwardPayload.create({
       originalSender: sender.address,

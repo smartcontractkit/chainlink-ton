@@ -2,6 +2,10 @@
 /// JettonLockBox message types for deposit, withdrawal, and initialization.
 
 import "../../../lib/jetton/messages"
+import "../../../lib/jetton/forward_payload_wrap"
+import "../../../lib/utils"
+
+import "../lib/token_pool/recovery"
 
 /// Embedded in a jetton transfer's forwardPayload to identify the deposit context.
 /// The lockbox extracts this from `TransferNotificationForRecipient.forwardPayload` on deposit.
@@ -21,8 +25,6 @@ struct (0x9e9ec361) JettonLockBox_Deposit {
 struct JettonLockBox_WithdrawExtra {
     /// Where the jetton wallet should send `ReturnExcessesBack` after the transfer.
     sendExcessesTo: address?;
-    /// @dev Unused — reserved for future failure context propagation.
-    failureContext: cell?;
     /// Additional TON forwarded to the recipient wallet after the transfer.
     forwardTonAmount: coins;
     /// Pool context forwarded to the recipient wallet (e.g., release context for notification back to the pool).
@@ -38,8 +40,8 @@ struct (0xd065c306) JettonLockBox_Withdraw {
     remoteChainSelector: uint64;
     /// Amount of jetons to send to the recipient.
     amount: coins;
-    /// Target jetton wallet address.
-    recipientWallet: address;
+    /// Recipient owner address (the owner of the destination jetton wallet).
+    recipient: address;
     /// Optional extra fields (sendExcessesTo routing, forwardTonAmount, forwardPayload).
     extra: Cell<JettonLockBox_WithdrawExtra>?;
 }
@@ -52,9 +54,26 @@ type JettonLockBox_BouncedMessage =
 struct (0x6d077f2e) JettonLockBox_Deposited {
     queryId: uint64;
     token: address;
-    remoteChainSelector: uint64;
+    depositor: address;
     amount: coins;
     context: cell?;
+}
+
+/// Logical rejection; returnAttempted means a return was queued, not that custody arrived.
+/// Also carried by the returned jettons to authenticate completed restitution to the pool.
+struct (0x5e28ebd8) JettonLockBox_DepositFailed {
+    queryId: uint64;
+    token: address;
+    depositor: address;
+    amount: coins;
+    /// Original deposit request; null only when the forward payload could not be decoded.
+    context: Cell<JettonLockBox_Deposit>?;
+    errorCode: int32;                               // Raw TVM exit code (signed).
+    returnAttempted: bool;
+}
+
+fun jettonLockBoxReturnForwardValue(): coins {
+    return TokenPool_RETURN_TRANSFER_VALUE + calculateGasFeeFor(FEE_SIZE_LARGE);
 }
 
 /// One-time init message — sets jetton addresses and grants admin role.
@@ -82,9 +101,8 @@ struct (0xe9f4e311) JettonLockBox_Initialized {
 struct (0x60bae556) JettonLockBox_WithdrawFailed {
     queryId: uint64;
     token: address;
-    amount: coins;
-    recipientWallet: address;
-    context: cell?;
+    /// Original withdrawal request, including extra.forwardPayload for caller recovery.
+    context: Cell<JettonLockBox_Withdraw>?;
 }
 
 /// All recognized incoming message types.
@@ -96,5 +114,6 @@ type JettonLockBox_InMessage =
 /// All outgoing message types.
 type JettonLockBox_OutMessage =
     | JettonLockBox_Deposited
+    | JettonLockBox_DepositFailed
     | JettonLockBox_Initialized
     | JettonLockBox_WithdrawFailed;

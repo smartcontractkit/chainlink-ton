@@ -53,7 +53,7 @@ const (
 // AllowedDepositNamespaces is a unit-value set (map<uint32,()> on-chain): a key
 // is present if the corresponding deployable namespace is allowed as a deposit source.
 type DynamicConfig struct {
-	Router                   *address.Address             `tlb:"addr"`
+	Router                   *address.Address             `tlb:"addr required"`
 	RateLimitAdmin           *address.Address             `tlb:"addr"`
 	FeeAdmin                 *address.Address             `tlb:"addr"`
 	AllowedDepositNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
@@ -90,8 +90,8 @@ type CursedSubjects struct {
 // RateLimitConfig represents a rate limiter configuration.
 type RateLimitConfig struct {
 	IsEnabled bool     `tlb:"bool"`
-	Capacity  *big.Int `tlb:"## 120"`
-	Rate      *big.Int `tlb:"## 120"`
+	Capacity  *big.Int `tlb:"## 128"`
+	Rate      *big.Int `tlb:"## 128"`
 }
 
 // RateLimitConfigPair holds outbound and inbound rate limit configurations.
@@ -101,16 +101,12 @@ type RateLimitConfigPair struct {
 }
 
 // RateLimiterTokenBucket represents the token bucket rate limiter state.
-//
-// Widths must match RateLimiter_TokenBucket in
-// contracts/contracts/ccip/pools/lib/rate_limiter.tolk: the bucket amounts are
-// uint120 (not uint128) so that a bucket packs into a single cell.
 type RateLimiterTokenBucket struct {
-	Tokens      *big.Int `tlb:"## 120"`
-	LastUpdated uint64   `tlb:"## 64"`
+	Tokens      *big.Int `tlb:"## 128"`
+	LastUpdated uint32   `tlb:"## 32"`
 	IsEnabled   bool     `tlb:"bool"`
-	Capacity    *big.Int `tlb:"## 120"`
-	Rate        *big.Int `tlb:"## 120"`
+	Capacity    *big.Int `tlb:"## 128"`
+	Rate        *big.Int `tlb:"## 128"`
 }
 
 // RateLimiterPair holds outbound and inbound rate limiter token buckets.
@@ -177,17 +173,17 @@ type TokenTransferFeeConfigArgs struct {
 type LockOrBurnTransferDetails struct {
 	Receiver            *cell.Cell       `tlb:"^"`
 	RemoteChainSelector uint64           `tlb:"## 64"`
-	OriginalSender      *address.Address `tlb:"addr"`
+	OriginalSender      *address.Address `tlb:"addr required"`
 	Amount              tlb.Coins        `tlb:"."`
-	LocalToken          *address.Address `tlb:"addr"`
+	LocalToken          *address.Address `tlb:"addr required"`
 }
 
 type ReleaseOrMintTransferDetails struct {
-	Receiver            *address.Address `tlb:"addr"`
+	Receiver            *address.Address `tlb:"addr required"`
 	RemoteChainSelector uint64           `tlb:"## 64"`
 	OriginalSender      *cell.Cell       `tlb:"^"`
 	Amount              *big.Int         `tlb:"## 256"`
-	LocalToken          *address.Address `tlb:"addr"`
+	LocalToken          *address.Address `tlb:"addr required"`
 }
 
 // LockOrBurnTransfer represents a lock/burn transfer.
@@ -242,14 +238,14 @@ type ReleaseOrMintPrepared struct {
 
 // LockOrBurnForwardPayload holds the forward payload for lock/burn operations.
 type LockOrBurnForwardPayload struct {
-	OriginalSender *address.Address   `tlb:"addr"`
+	OriginalSender *address.Address   `tlb:"addr required"`
 	RequestMsg     LockOrBurn         `tlb:"^"`
 	Prepared       LockOrBurnPrepared `tlb:"^"`
 }
 
 // ReleaseOrMintForwardPayload holds the forward payload for release/mint operations.
 type ReleaseOrMintForwardPayload struct {
-	OriginalSender *address.Address      `tlb:"addr"`
+	OriginalSender *address.Address      `tlb:"addr required"`
 	RequestMsg     ReleaseOrMint         `tlb:"^"`
 	Prepared       ReleaseOrMintPrepared `tlb:"^"`
 }
@@ -257,7 +253,7 @@ type ReleaseOrMintForwardPayload struct {
 // JettonClient holds the pool's Jetton identity (master + wallet code). Single
 // source of truth used to derive and authenticate the pool's own wallet.
 type JettonClient struct {
-	MasterAddress    *address.Address `tlb:"addr"`
+	MasterAddress    *address.Address `tlb:"addr required"`
 	JettonWalletCode *cell.Cell       `tlb:"^"`
 }
 
@@ -312,7 +308,7 @@ type RemoveRemotePool struct {
 type SetDynamicConfig struct {
 	_              tlb.Magic        `tlb:"#d7712810" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID        uint64           `tlb:"## 64"`
-	Router         *address.Address `tlb:"addr"`
+	Router         *address.Address `tlb:"addr required"`
 	RateLimitAdmin *address.Address `tlb:"addr"`
 	FeeAdmin       *address.Address `tlb:"addr"`
 }
@@ -389,23 +385,23 @@ type RMNAccessControlMessage[T rbac.InMessage | any] struct {
 	Content *codec.MessageEnvelope[T] `tlb:"^"`
 }
 
-// LockOrBurn locks tokens into the pool or burns the tokens.
+// LockOrBurn locks tokens into the pool or burns the tokens. ReplyTo must be non-nil.
 type LockOrBurn struct {
 	_                       tlb.Magic        `tlb:"#fa7da444" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID                 uint64           `tlb:"## 64"`
 	Request                 LockOrBurnInV1   `tlb:"^"`
 	RequestedFinalityConfig uint32           `tlb:"## 32"`
 	TokenArgs               *cell.Cell       `tlb:"maybe ^"`
-	ReplyTo                 *address.Address `tlb:"addr"`
+	ReplyTo                 *address.Address `tlb:"addr required"`
 }
 
-// ReleaseOrMint releases or mints tokens on the destination chain.
+// ReleaseOrMint releases or mints tokens on the destination chain. ReplyTo must be non-nil.
 type ReleaseOrMint struct {
 	_                       tlb.Magic              `tlb:"#351f77e3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID                 uint64                 `tlb:"## 64"`
 	Request                 ReleaseOrMintInV1      `tlb:"^"`
 	RequestedFinalityConfig uint32                 `tlb:"## 32"`
-	ReplyTo                 *address.Address       `tlb:"addr"`
+	ReplyTo                 *address.Address       `tlb:"addr required"`
 	Delivery                *ReleaseOrMintDelivery `tlb:"maybe ^"`
 }
 
@@ -424,7 +420,7 @@ type TransferInitiator struct {
 
 // ReleaseOrMintDelivery is the jetton transfer the pool performs to deliver released/minted tokens.
 type ReleaseOrMintDelivery struct {
-	Recipient        *address.Address `tlb:"addr"`
+	Recipient        *address.Address `tlb:"addr required"`
 	ForwardTonAmount tlb.Coins        `tlb:"."`
 	ForwardPayload   *cell.Cell       `tlb:"maybe ^"`
 }
@@ -465,7 +461,7 @@ type PreflightCheck struct {
 	RequestedFinalityConfig uint32           `tlb:"## 32"`
 	TokenArgs               *cell.Cell       `tlb:"maybe ^"`
 	AmountPostFee           tlb.Coins        `tlb:"."`
-	ReplyTo                 *address.Address `tlb:"addr"`
+	ReplyTo                 *address.Address `tlb:"addr required"`
 	ReplyPayload            *cell.Cell       `tlb:"maybe ^"`
 }
 
@@ -476,7 +472,7 @@ type PostflightCheck struct {
 	Request                 ReleaseOrMintInV1 `tlb:"^"`
 	LocalAmount             tlb.Coins         `tlb:"."`
 	RequestedFinalityConfig uint32            `tlb:"## 32"`
-	ReplyTo                 *address.Address  `tlb:"addr"`
+	ReplyTo                 *address.Address  `tlb:"addr required"`
 	ReplyPayload            *cell.Cell        `tlb:"maybe ^"`
 }
 
@@ -490,13 +486,13 @@ type PostflightCheck struct {
 type GetCCVs struct {
 	_                       tlb.Magic        `tlb:"#c5476d2b" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID                 uint64           `tlb:"## 64"`
-	LocalToken              *address.Address `tlb:"addr"`
+	LocalToken              *address.Address `tlb:"addr required"`
 	RemoteChainSelector     uint64           `tlb:"## 64"`
 	Amount                  tlb.Coins        `tlb:"."`
 	RequestedFinalityConfig uint32           `tlb:"## 32"`
 	Direction               uint8            `tlb:"## 8"` // TokenPool_MessageDirection (0 outbound, 1 inbound)
 	ExtraData               *cell.Cell       `tlb:"maybe ^"`
-	ReplyTo                 *address.Address `tlb:"addr"` // hooks reply destination on the pool→hooks hop
+	ReplyTo                 *address.Address `tlb:"addr required"` // hooks reply destination on the pool→hooks hop
 	ForwardPayload          *cell.Cell       `tlb:"maybe ^"`
 }
 
@@ -509,7 +505,7 @@ type GetCCVs struct {
 type GetCCVsAndFees struct {
 	_                       tlb.Magic        `tlb:"#d22944d5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID                 uint64           `tlb:"## 64"`
-	LocalToken              *address.Address `tlb:"addr"`
+	LocalToken              *address.Address `tlb:"addr required"`
 	RemoteChainSelector     uint64           `tlb:"## 64"`
 	Amount                  tlb.Coins        `tlb:"."`
 	RequestedFinalityConfig uint32           `tlb:"## 32"`
@@ -531,7 +527,7 @@ type FeeContext struct {
 // final reply on the callback. `Fees` is set only for the `GetCCVsAndFees` flow and selects the
 // reply variant (`CCVs` vs `CCVsAndFees`).
 type GetCCVsContext struct {
-	ReplyTo        *address.Address `tlb:"addr"` // original requester
+	ReplyTo        *address.Address `tlb:"addr required"` // original requester
 	ForwardPayload *cell.Cell       `tlb:"maybe ^"`
 	Fees           *cell.Cell       `tlb:"maybe ^"` // Cell<FeeContext>; null for CCVs-only
 }
@@ -601,24 +597,26 @@ type LockOrBurnFinished struct {
 }
 
 // LockOrBurnFailure notifies that a lock/burn operation failed.
+// `ErrorCode` is the raw TVM exit code: signed int32 (real failures can carry negative codes).
 type LockOrBurnFailure struct {
 	_         tlb.Magic `tlb:"#3476ea72" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID   uint64    `tlb:"## 64"`
-	ErrorCode uint16    `tlb:"## 16"`
+	ErrorCode int32     `tlb:"## 32"`
 }
 
-// ReleaseOrMintFinished notifies that a release/mint operation finished.
-type ReleaseOrMintFinished struct {
-	_       tlb.Magic          `tlb:"#e0e882f5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+// ReleaseOrMintFinalized confirms the release/mint delivery to the executor.
+type ReleaseOrMintFinalized struct {
+	_       tlb.Magic          `tlb:"#edd4948a" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64             `tlb:"## 64"`
 	Out     ReleaseOrMintOutV1 `tlb:"^"`
 }
 
 // ReleaseOrMintFailure notifies that a release/mint operation failed.
+// `ErrorCode` is the raw TVM exit code: signed int32 (real failures can carry negative codes).
 type ReleaseOrMintFailure struct {
 	_         tlb.Magic `tlb:"#ef0cb36e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID   uint64    `tlb:"## 64"`
-	ErrorCode uint16    `tlb:"## 16"`
+	ErrorCode int32     `tlb:"## 32"`
 }
 
 // RemotePoolAddedNotification confirms a remote pool was added.
@@ -648,7 +646,7 @@ type FinalityConfigSet struct {
 type DynamicConfigSet struct {
 	_              tlb.Magic        `tlb:"#b735e30c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID        uint64           `tlb:"## 64"`
-	Router         *address.Address `tlb:"addr"`
+	Router         *address.Address `tlb:"addr required"`
 	RateLimitAdmin *address.Address `tlb:"addr"`
 	FeeAdmin       *address.Address `tlb:"addr"`
 }
@@ -696,8 +694,8 @@ type AllowedDepositNamespacesSet struct {
 
 // LockedOrBurnedDetails holds details of a locked/burned event.
 type LockedOrBurnedDetails struct {
-	Token  *address.Address `tlb:"addr"`
-	Sender *address.Address `tlb:"addr"`
+	Token  *address.Address `tlb:"addr required"`
+	Sender *address.Address `tlb:"addr required"`
 	Amount tlb.Coins        `tlb:"."`
 }
 
@@ -709,8 +707,8 @@ type LockedOrBurned struct {
 
 // ReleasedOrMintedDetails holds details of a released/minted event.
 type ReleasedOrMintedDetails struct {
-	Token     *address.Address `tlb:"addr"`
-	Sender    *address.Address `tlb:"addr"`
+	Token     *address.Address `tlb:"addr required"`
+	Sender    *address.Address `tlb:"addr required"`
 	Amount    tlb.Coins        `tlb:"."`
 	Recipient *address.Address `tlb:"^ addr"` // Cell<address> in Tolk: an address inside a ref
 }
@@ -752,28 +750,28 @@ type RateLimitConfigured struct {
 // OutboundRateLimitConsumed is emitted when outbound rate-limit capacity is consumed.
 type OutboundRateLimitConsumed struct {
 	RemoteChainSelector uint64           `tlb:"## 64"`
-	Token               *address.Address `tlb:"addr"`
+	Token               *address.Address `tlb:"addr required"`
 	Amount              tlb.Coins        `tlb:"."`
 }
 
 // InboundRateLimitConsumed is emitted when inbound rate-limit capacity is consumed.
 type InboundRateLimitConsumed struct {
 	RemoteChainSelector uint64           `tlb:"## 64"`
-	Token               *address.Address `tlb:"addr"`
+	Token               *address.Address `tlb:"addr required"`
 	Amount              tlb.Coins        `tlb:"."`
 }
 
 // FastFinalityOutboundRateLimitConsumed is emitted when fast-finality outbound rate-limit capacity is consumed.
 type FastFinalityOutboundRateLimitConsumed struct {
 	RemoteChainSelector uint64           `tlb:"## 64"`
-	Token               *address.Address `tlb:"addr"`
+	Token               *address.Address `tlb:"addr required"`
 	Amount              tlb.Coins        `tlb:"."`
 }
 
 // FastFinalityInboundRateLimitConsumed is emitted when fast-finality inbound rate-limit capacity is consumed.
 type FastFinalityInboundRateLimitConsumed struct {
 	RemoteChainSelector uint64           `tlb:"## 64"`
-	Token               *address.Address `tlb:"addr"`
+	Token               *address.Address `tlb:"addr required"`
 	Amount              tlb.Coins        `tlb:"."`
 }
 
@@ -781,7 +779,7 @@ type FastFinalityInboundRateLimitConsumed struct {
 // TON-specific: no EVM equivalent (EVM reverts synchronously).
 type OutboundRateLimitRefunded struct {
 	RemoteChainSelector uint64           `tlb:"## 64"`
-	Token               *address.Address `tlb:"addr"`
+	Token               *address.Address `tlb:"addr required"`
 	Amount              tlb.Coins        `tlb:"."`
 }
 
@@ -789,7 +787,7 @@ type OutboundRateLimitRefunded struct {
 // TON-specific: no EVM equivalent (EVM reverts synchronously).
 type InboundRateLimitRefunded struct {
 	RemoteChainSelector uint64           `tlb:"## 64"`
-	Token               *address.Address `tlb:"addr"`
+	Token               *address.Address `tlb:"addr required"`
 	Amount              tlb.Coins        `tlb:"."`
 }
 
@@ -798,7 +796,7 @@ type InboundRateLimitRefunded struct {
 // TON-specific: no EVM equivalent (EVM reverts synchronously).
 type FastFinalityOutboundRateLimitRefunded struct {
 	RemoteChainSelector uint64           `tlb:"## 64"`
-	Token               *address.Address `tlb:"addr"`
+	Token               *address.Address `tlb:"addr required"`
 	Amount              tlb.Coins        `tlb:"."`
 }
 
@@ -807,7 +805,7 @@ type FastFinalityOutboundRateLimitRefunded struct {
 // TON-specific: no EVM equivalent (EVM reverts synchronously).
 type FastFinalityInboundRateLimitRefunded struct {
 	RemoteChainSelector uint64           `tlb:"## 64"`
-	Token               *address.Address `tlb:"addr"`
+	Token               *address.Address `tlb:"addr required"`
 	Amount              tlb.Coins        `tlb:"."`
 }
 
@@ -853,7 +851,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	LockOrBurnWithdraw{},
 	LockOrBurnFinished{},
 	LockOrBurnFailure{},
-	ReleaseOrMintFinished{},
+	ReleaseOrMintFinalized{},
 	ReleaseOrMintFailure{},
 	CCVs{},
 	CCVsAndFees{},
