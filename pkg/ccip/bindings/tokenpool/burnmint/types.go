@@ -25,7 +25,7 @@ const (
 // jetton wallet address (the burn source) and the full forward payload for finalization.
 type BurnContext struct {
 	_              tlb.Magic                          `tlb:"#ba302a47" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	Wallet         *address.Address                   `tlb:"addr"`
+	Wallet         *address.Address                   `tlb:"addr required"`
 	ForwardPayload tokenpool.LockOrBurnForwardPayload `tlb:"^"`
 }
 

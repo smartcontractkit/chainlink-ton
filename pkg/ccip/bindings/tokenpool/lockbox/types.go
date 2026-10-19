@@ -23,10 +23,10 @@ const OperatorRole = 2725715204 // crc32("OPERATOR_ROLE")
 type Deposit struct {
 	_                   tlb.Magic        `tlb:"#9e9ec361" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID             uint64           `tlb:"## 64"`
-	Token               *address.Address `tlb:"addr"`    // The address of the token to deposit.
-	RemoteChainSelector uint64           `tlb:"## 64"`   // Destination chain selector for cross-chain routing.
-	Amount              tlb.Coins        `tlb:"."`       // The amount of tokens to deposit.
-	Context             *cell.Cell       `tlb:"maybe ^"` // Optional context carried through the deposit flow.
+	Token               *address.Address `tlb:"addr required"` // The address of the token to deposit.
+	RemoteChainSelector uint64           `tlb:"## 64"`         // Destination chain selector for cross-chain routing.
+	Amount              tlb.Coins        `tlb:"."`             // The amount of tokens to deposit.
+	Context             *cell.Cell       `tlb:"maybe ^"`       // Optional context carried through the deposit flow.
 }
 
 // WithdrawExtra holds optional extra fields for Withdraw.
@@ -40,10 +40,10 @@ type WithdrawExtra struct {
 type Withdraw struct {
 	_                   tlb.Magic        `tlb:"#d065c306" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID             uint64           `tlb:"## 64"`
-	Token               *address.Address `tlb:"addr"`  // The address of the token to withdraw.
-	RemoteChainSelector uint64           `tlb:"## 64"` // Destination chain selector for cross-chain routing.
-	Amount              tlb.Coins        `tlb:"."`     // The amount of tokens to withdraw. If set to max uint256, withdraws the entire balance.
-	RecipientWallet     *address.Address `tlb:"addr"`  // The jetton wallet address of the recipient.
+	Token               *address.Address `tlb:"addr required"` // The address of the token to withdraw.
+	RemoteChainSelector uint64           `tlb:"## 64"`         // Destination chain selector for cross-chain routing.
+	Amount              tlb.Coins        `tlb:"."`             // The amount of tokens to withdraw. If set to max uint256, withdraws the entire balance.
+	RecipientWallet     *address.Address `tlb:"addr required"` // The jetton wallet address of the recipient.
 	Extra               *WithdrawExtra   `tlb:"maybe ^"`
 }
 
@@ -51,18 +51,18 @@ type Withdraw struct {
 type Deposited struct {
 	_         tlb.Magic        `tlb:"#6d077f2e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID   uint64           `tlb:"## 64"`
-	Token     *address.Address `tlb:"addr"`    // The token address.
-	Depositor *address.Address `tlb:"addr"`    // The address of the account that initiated the deposit.
-	Amount    tlb.Coins        `tlb:"."`       // The amount of tokens deposited.
-	Context   *cell.Cell       `tlb:"maybe ^"` // Optional context carried through the deposit flow.
+	Token     *address.Address `tlb:"addr required"` // The token address.
+	Depositor *address.Address `tlb:"addr required"` // The address of the account that initiated the deposit.
+	Amount    tlb.Coins        `tlb:"."`             // The amount of tokens deposited.
+	Context   *cell.Cell       `tlb:"maybe ^"`       // Optional context carried through the deposit flow.
 }
 
 // DepositFailed reports logical rejection; ReturnAttempted does not confirm custody delivery.
 type DepositFailed struct {
 	_               tlb.Magic        `tlb:"#5e28ebd8" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID         uint64           `tlb:"## 64"`
-	Token           *address.Address `tlb:"addr"`
-	Depositor       *address.Address `tlb:"addr"`
+	Token           *address.Address `tlb:"addr required"`
+	Depositor       *address.Address `tlb:"addr required"`
 	Amount          tlb.Coins        `tlb:"."`
 	Context         *Deposit         `tlb:"maybe ^"`
 	ErrorCode       int32            `tlb:"## 32"` // Raw TVM exit code (signed).
@@ -74,26 +74,26 @@ type DepositFailed struct {
 type Init struct {
 	_             tlb.Magic        `tlb:"#ffa6eeb9" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID       uint64           `tlb:"## 64"`
-	MinterAddress *address.Address `tlb:"addr"` // The jetton minter address.
-	WalletAddress *address.Address `tlb:"addr"` // The jetton wallet address of the lockbox.
-	Admin         *address.Address `tlb:"addr"` // Optional admin address (falls back to sender).
+	MinterAddress *address.Address `tlb:"addr required"` // The jetton minter address.
+	WalletAddress *address.Address `tlb:"addr required"` // The jetton wallet address of the lockbox.
+	Admin         *address.Address `tlb:"addr"`          // Optional admin address (falls back to sender).
 }
 
 // Initialized is sent as a reply after successful initialization.
 type Initialized struct {
 	_             tlb.Magic        `tlb:"#e9f4e311" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID       uint64           `tlb:"## 64"`
-	MinterAddress *address.Address `tlb:"addr"` // The jetton minter address.
-	WalletAddress *address.Address `tlb:"addr"` // The jetton wallet address.
-	Admin         *address.Address `tlb:"addr"` // The admin address.
+	MinterAddress *address.Address `tlb:"addr required"` // The jetton minter address.
+	WalletAddress *address.Address `tlb:"addr required"` // The jetton wallet address.
+	Admin         *address.Address `tlb:"addr required"` // The admin address.
 }
 
 // WithdrawFailed is sent when a withdrawal bounce is detected.
 type WithdrawFailed struct {
 	_       tlb.Magic        `tlb:"#60bae556" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64           `tlb:"## 64"`
-	Token   *address.Address `tlb:"addr"`    // The token address.
-	Context *Withdraw        `tlb:"maybe ^"` // Original withdrawal request, including Extra.ForwardPayload.
+	Token   *address.Address `tlb:"addr required"` // The token address.
+	Context *Withdraw        `tlb:"maybe ^"`       // Original withdrawal request, including Extra.ForwardPayload.
 }
 
 // ExitCode represents a JettonLockBox-specific error code.
@@ -124,7 +124,7 @@ func (e ExitCode) New() tvm.ExitCode {
 type Storage struct {
 	ID            uint64           `tlb:"## 64"`
 	Initializer   *address.Address `tlb:"addr required"`
-	MinterAddress *address.Address `tlb:"addr"`
+	MinterAddress *address.Address `tlb:"addr required"`
 	WalletAddress *address.Address `tlb:"addr"`
 	RBAC          rbac.Data        `tlb:"."`
 }

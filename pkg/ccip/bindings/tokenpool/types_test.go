@@ -98,7 +98,10 @@ func TestDynamicConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
 		42: {},
 	})
 
+	router := address.NewAddress(0, 0, make([]byte, 32))
+
 	cfg := DynamicConfig{
+		Router:                   router,
 		AllowedDepositNamespaces: namespaces,
 	}
 
@@ -119,7 +122,7 @@ func TestDynamicConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
 		RateLimitAdmin           *address.Address `tlb:"addr"`
 		FeeAdmin                 *address.Address `tlb:"addr"`
 		AllowedDepositNamespaces *cell.Dictionary `tlb:"dict 32"`
-	}{AllowedDepositNamespaces: rawDict}
+	}{Router: router, AllowedDepositNamespaces: rawDict}
 	rawCell, err := tlb.ToCell(rawStruct)
 	require.NoError(t, err)
 
@@ -208,7 +211,7 @@ func TestDynamicConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
 		13: {},
 	})
 
-	cfg := DynamicConfig{AllowedDepositNamespaces: namespaces}
+	cfg := DynamicConfig{Router: address.NewAddress(0, 0, make([]byte, 32)), AllowedDepositNamespaces: namespaces}
 
 	c, err := tlb.ToCell(cfg)
 	require.NoError(t, err)
@@ -222,7 +225,7 @@ func TestDynamicConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
 	require.True(t, ok)
 
 	// Empty set round-trips as an empty map.
-	empty := DynamicConfig{AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}]()}
+	empty := DynamicConfig{Router: address.NewAddress(0, 0, make([]byte, 32)), AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}]()}
 	emptyCell, err := tlb.ToCell(empty)
 	require.NoError(t, err)
 
