@@ -104,7 +104,6 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				Owner:        chain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
-			WrappedNative: tvm.TonTokenAddr,
 			RMNRemote: router.RMNRemote{
 				Policy: router.CursePolicy{
 					Admin: ownable2step.Storage{

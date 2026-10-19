@@ -201,7 +201,9 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("convert wrapped native address: %w", err)
 		}
 		config.Router = ccipocr3.RouterConfig{
-			// Similar to Aptos, TON has no wrapped native, so we treat zero address as the native fee token
+			// TON has no wrapped native: the contracts reserve NATIVE_GRAM
+			// (0:00...01) as the feeToken address representing the native
+			// currency, so we report that same reserved address here.
 			WrappedNativeAddress: wrappedNativeBytes,
 		}
 
