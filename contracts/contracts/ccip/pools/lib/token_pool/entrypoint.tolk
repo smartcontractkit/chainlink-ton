@@ -1905,6 +1905,11 @@ fun TokenPool<T>.onlyAdvancedPoolHooks(self, sender: address) {
     assert(hooks != null && sender == hooks!, TokenPool_Error.Unauthorized);
 }
 
+/// Checks the pool-local RMN policy at admission.
+///
+/// The pool's independent curse policy is the TON analogue of EVM's per-pool `i_rmnProxy`
+/// (owner-configurable). It is evaluated only when the Router admits the operation; async
+/// continuations deliberately do not re-check.
 fun TokenPool<T>.ensureNotCursed(self, remoteChainSelector: uint64) {
     assert(self.verifyNotCursed(remoteChainSelector as uint128), TokenPool_Error.CursedByRMN);
 

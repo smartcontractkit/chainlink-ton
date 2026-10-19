@@ -4,6 +4,7 @@
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/utils"
+
 import "../lib/token_pool/recovery"
 
 /// Embedded in a jetton transfer's forwardPayload to identify the deposit context.
@@ -93,22 +94,6 @@ struct (0xe9f4e311) JettonLockBox_Initialized {
     minterAddress: address;
     walletAddress: address;
     admin: address;
-}
-
-/// Parses the `Jetton_ForwardPayloadWrap` from a (possibly bounced) withdraw `AskToTransfer`,
-/// or `null` if the ask isn't a lockbox withdrawal.
-@inline
-fun parseLockBoxWithdrawWrap(forwardPayload: ForwardPayloadRemainder): Jetton_ForwardPayloadWrap? {
-    val wrap = Jetton_ForwardPayloadWrap.from(forwardPayload);
-    if (wrap == null || wrap!.context == null) {
-        return null;
-    }
-
-    val ctx = lazy JettonLockBox_Withdraw.fromCell(wrap!.context!);
-    match (ctx) {
-        JettonLockBox_Withdraw => { return wrap; }
-        else => { return null; }
-    }
 }
 
 /// Sent to the withdraw caller when a bounced jetton transfer indicates failure.

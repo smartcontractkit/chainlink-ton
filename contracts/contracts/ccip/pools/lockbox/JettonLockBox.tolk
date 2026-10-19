@@ -321,6 +321,22 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
+/// Parses the `Jetton_ForwardPayloadWrap` from a (possibly bounced) withdraw `AskToTransfer`,
+/// or `null` if the ask isn't a lockbox withdrawal.
+@inline
+fun parseLockBoxWithdrawWrap(forwardPayload: ForwardPayloadRemainder): Jetton_ForwardPayloadWrap? {
+    val wrap = Jetton_ForwardPayloadWrap.from(forwardPayload);
+    if (wrap == null || wrap!.context == null) {
+        return null;
+    }
+
+    val ctx = lazy JettonLockBox_Withdraw.fromCell(wrap!.context!);
+    match (ctx) {
+        JettonLockBox_Withdraw => { return wrap; }
+        else => { return null; }
+    }
+}
+
 // --- AccessControl hook ---
 
 fun hookTrait__AccessControl(st: Storage): AccessControl<null?> {
