@@ -236,11 +236,11 @@ type IsRemotePoolArgs struct {
 var GetRemoteToken = tvm.Getter[uint64, common.CrossChainAddress]{
 	Name: "getRemoteToken",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (common.CrossChainAddress, error) {
-		cs, err := r.Slice(0)
+		c, err := r.Cell(0)
 		if err != nil {
-			return nil, fmt.Errorf("error getting Slice(0) - remoteToken: %w", err)
+			return nil, fmt.Errorf("error getting Cell(0) - remoteToken: %w", err)
 		}
-		addr, err := common.LoadCrossChainAddressWithoutPrefix(cs)
+		addr, err := loadCrossChainAddressFromCell(c)
 		if err != nil {
 			return nil, fmt.Errorf("error loading CrossChainAddress: %w", err)
 		}
@@ -379,15 +379,6 @@ type GetCurrentRateLimiterStateArgs struct {
 	FastFinality        bool
 }
 
-// --- Helper: load CrossChainAddress from a cell (as returned by getRemoteToken) ---
-// NOTE: The on-chain getter returns a Cell<CrossChainAddress> where the cross-chain
-// address is stored as a slice with a length prefix followed by the address bytes.
-// We handle both cases: cell directly beginparseable and cell references.
-
-// --- Helper: parse lisp_list of CrossChainAddress (used by getRemotePools) ---
-// The on-chain lisp_list is encoded as a nested tuple structure where each element
-// is a CrossChainAddress (loaded as a cell/slice).
-
 // --- Convenience getters ---
 
 // GetCursedSubjects gets all cursed subjects.
@@ -460,14 +451,16 @@ type GetRemoteChainConfigResult struct {
 
 // --- Internal helpers ---
 
-// loadCrossChainAddressFromCell loads a CrossChainAddress from a cell.
 func loadCrossChainAddressFromCell(c *cell.Cell) (common.CrossChainAddress, error) {
 	if c == nil {
 		return nil, errors.New("nil cell")
 	}
 
-	cs := c.MustBeginParse()
-	return common.LoadCrossChainAddressWithoutPrefix(cs)
+	var addr common.CrossChainAddress
+	if err := tlb.LoadFromCell(&addr, c.MustBeginParse()); err != nil {
+		return nil, fmt.Errorf("error loading CrossChainAddress from cell: %w", err)
+	}
+	return addr, nil
 }
 
 // --- GetFee getters (matching EVM spec) ---
