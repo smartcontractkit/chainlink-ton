@@ -118,7 +118,7 @@ func (a *TONAdapter) BuildMessage(components testadapters.MessageComponents) (an
 	var feeToken *address.Address
 	// default to native TON token when fee token is empty
 	if len(components.FeeToken) == 0 {
-		feeToken = tvm.TonTokenAddr
+		feeToken = tvm.NativeGRAMAddr
 	} else {
 		var err error
 		feeToken, err = address.ParseAddr(components.FeeToken)
@@ -313,7 +313,7 @@ func (a *TONAdapter) SetReceiverRejectAll(ctx context.Context, t *testing.T, rej
 }
 
 func (a *TONAdapter) NativeFeeToken() string {
-	return tvm.TonTokenAddr.String()
+	return tvm.NativeGRAMAddr.String()
 }
 
 func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...testadapters.ExtraArgOpt) ([]byte, error) {

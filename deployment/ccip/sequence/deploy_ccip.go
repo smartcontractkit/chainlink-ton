@@ -161,7 +161,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 
 	tonNativeTokenAddress := stateCCIP.TONNativeAddress
 	if tonNativeTokenAddress.IsAddrNone() {
-		tonNativeTokenAddress = *tvm.TonTokenAddr
+		tonNativeTokenAddress = *tvm.NativeGRAMAddr
 		addresses = append(addresses, datastore.AddressRef{
 			Address:       tonNativeTokenAddress.String(),
 			ChainSelector: in.ChainSelector,

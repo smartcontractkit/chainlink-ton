@@ -196,6 +196,7 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		}
 
 		// Router
+		// TODO repin cciplib and use renamed tvm.NativeGRAMAddr
 		wrappedNativeBytes, err := addrToBytes(tvm.TonTokenAddr)
 		if err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("convert wrapped native address: %w", err)

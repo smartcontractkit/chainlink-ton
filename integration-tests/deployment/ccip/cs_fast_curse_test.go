@@ -17,13 +17,14 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
+	mcmstypes "github.com/smartcontractkit/mcms/types"
+	"github.com/xssnick/tonutils-go/tlb"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldftesthelpers "github.com/smartcontractkit/chainlink-deployments-framework/engine/cld/mcms/proposalutils/testhelpers"
 	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	mcmstypes "github.com/smartcontractkit/mcms/types"
-	"github.com/xssnick/tonutils-go/tlb"
 
 	_ "github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment/v1_6_0/sequences"
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
@@ -117,7 +118,7 @@ func TestFastCurseTON(t *testing.T) {
 		// See TonLaneAdapter.GetDefaultGasPrice().
 		GasPrice: big.NewInt(2.12e9),
 		TokenPrices: map[string]*big.Int{
-			tvm.TonTokenAddr.String(): big.NewInt(99),
+			tvm.NativeGRAMAddr.String(): big.NewInt(99),
 		},
 		RMNVerificationEnabled: false,
 		AllowListEnabled:       false,
