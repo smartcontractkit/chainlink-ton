@@ -6,8 +6,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/xssnick/tonutils-go/address"
-
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/testadapters"
@@ -30,9 +28,6 @@ const (
 	CalldataGasPerByteHigh      = 40
 	CalldataGasPerByteThreshold = 3000
 )
-
-// Deprecated: Use tvm.NativeGRAMAddr instead.
-var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 
 var (
 	// TODO Remove in favor of the canonical model
