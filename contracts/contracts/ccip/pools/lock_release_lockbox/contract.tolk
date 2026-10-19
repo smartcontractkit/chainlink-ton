@@ -377,7 +377,7 @@ fun onReleaseOrMintContinue(
             token: jc.masterAddress,
             remoteChainSelector: details.remoteChainSelector,
             amount: prepared.localAmount,
-            recipientWallet: delivery.recipient,
+            recipient: delivery.recipient,
             extra: withdrawExtra.toCell(),
         },
     });

@@ -812,7 +812,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       })
       expect(withdrawTx).toBeDefined()
       const withdraw = JettonLockBox_Withdraw.fromSlice(withdrawTx!.inMessage!.body.beginParse())
-      expect(withdraw.recipientWallet.equals(recipient.address)).toBe(true)
+      expect(withdraw.recipient.equals(recipient.address)).toBe(true)
       return withdraw
     }
 

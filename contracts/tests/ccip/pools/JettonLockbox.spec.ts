@@ -541,7 +541,7 @@ describe('JettonLockBox', () => {
           token: jettonMinter.address,
           remoteChainSelector,
           amount: toNano('5'),
-          recipientWallet: recipient.address,
+          recipient: recipient.address,
           extra: null,
         },
       )
@@ -586,7 +586,7 @@ describe('JettonLockBox', () => {
         token: jettonMinter.address,
         remoteChainSelector,
         amount: toNano('5'),
-        recipientWallet: recipient.address,
+        recipient: recipient.address,
         extra: null,
       })
 
@@ -616,7 +616,7 @@ describe('JettonLockBox', () => {
         token: jettonMinter.address,
         remoteChainSelector,
         amount: 0n,
-        recipientWallet: recipient.address,
+        recipient: recipient.address,
         extra: null,
       })
 
@@ -640,7 +640,7 @@ describe('JettonLockBox', () => {
         token: jettonMinter.address,
         remoteChainSelector,
         amount: toNano('5'),
-        recipientWallet: zeroHashAddress,
+        recipient: zeroHashAddress,
         extra: null,
       })
 
@@ -799,7 +799,7 @@ describe('JettonLockBox', () => {
           token: jettonMinter.address,
           remoteChainSelector,
           amount: toNano('5'),
-          recipientWallet: recipient.address,
+          recipient: recipient.address,
           extra: null,
         },
       )
@@ -1063,7 +1063,7 @@ describe('JettonLockBox', () => {
         token: jettonMinter.address,
         remoteChainSelector,
         amount: toNano('5'),
-        recipientWallet: recipient.address,
+        recipient: recipient.address,
         extra: JettonLockBox_WithdrawExtra.create({
           sendExcessesTo: operator.address,
           forwardTonAmount: 0n,
@@ -1094,7 +1094,7 @@ describe('JettonLockBox', () => {
       const context = JettonLockBox_Withdraw.fromSlice(wrap.loadRef().beginParse())
       expect(context.queryId).toBe(310n)
       expect(context.amount).toBe(toNano('5'))
-      expect(context.recipientWallet.equals(recipient.address)).toBe(true)
+      expect(context.recipient.equals(recipient.address)).toBe(true)
       expect(context.extra!.forwardPayload!.equals(releaseContext)).toBe(true)
 
       // The caller's original forwardPayload is preserved as the wrap remainder.
@@ -1109,7 +1109,7 @@ describe('JettonLockBox', () => {
         token: jettonMinter.address,
         remoteChainSelector,
         amount: toNano('5'),
-        recipientWallet: recipient.address,
+        recipient: recipient.address,
         extra: withExtra
           ? JettonLockBox_WithdrawExtra.create({
               sendExcessesTo: operator.address,

@@ -244,7 +244,8 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockBox_Withdraw)
     rbac.requireRole(OPERATOR_ROLE, sender);
 
     assert(msg.amount > 0, JettonLockBox_Error.TokenAmountCannotBeZero);
-    assert(!isZeroAddress(msg.recipientWallet), JettonLockBox_Error.RecipientCannotBeZeroAddress);
+    assert(msg.token == st.minterAddress, JettonLockBox_Error.UnsupportedToken);
+    assert(!isZeroAddress(msg.recipient), JettonLockBox_Error.RecipientCannotBeZeroAddress);
     assert(st.walletAddress != null, JettonLockBox_Error.UnsupportedToken);
 
     emit<JettonLockBox_Withdraw>(TOPIC_WITHDRAWAL, msg);
@@ -280,7 +281,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msg: JettonLockBox_Withdraw)
         body: AskToTransfer {
             queryId: msg.queryId,
             jettonAmount: msg.amount,
-            transferRecipient: msg.recipientWallet,
+            transferRecipient: msg.recipient,
             sendExcessesTo,
             customPayload: null,
             forwardTonAmount,

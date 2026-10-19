@@ -60,7 +60,7 @@ func TestLockboxWithdrawFailed_WireFormat(test *testing.T) {
 	for _, withExtra := range []bool{false, true} {
 		context := &lockbox.Withdraw{
 			QueryID: 301, Token: token, RemoteChainSelector: 123,
-			Amount: tlb.MustFromTON("9"), RecipientWallet: token,
+			Amount: tlb.MustFromTON("9"), Recipient: token,
 		}
 		if withExtra {
 			context.Extra = &lockbox.WithdrawExtra{SendExcessesTo: token, ForwardPayload: payload}

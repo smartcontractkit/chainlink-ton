@@ -43,7 +43,7 @@ type Withdraw struct {
 	Token               *address.Address `tlb:"addr required"` // The address of the token to withdraw.
 	RemoteChainSelector uint64           `tlb:"## 64"`         // Destination chain selector for cross-chain routing.
 	Amount              tlb.Coins        `tlb:"."`             // The amount of tokens to withdraw. If set to max uint256, withdraws the entire balance.
-	RecipientWallet     *address.Address `tlb:"addr required"` // The jetton wallet address of the recipient.
+	Recipient           *address.Address `tlb:"addr required"` // Recipient owner address (the owner of the destination jetton wallet).
 	Extra               *WithdrawExtra   `tlb:"maybe ^"`
 }
 

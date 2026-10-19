@@ -39,8 +39,8 @@ struct (0xd065c306) JettonLockBox_Withdraw {
     remoteChainSelector: uint64;
     /// Amount of jetons to send to the recipient.
     amount: coins;
-    /// Target jetton wallet address.
-    recipientWallet: address;
+    /// Recipient owner address (the owner of the destination jetton wallet).
+    recipient: address;
     /// Optional extra fields (sendExcessesTo routing, forwardTonAmount, forwardPayload).
     extra: Cell<JettonLockBox_WithdrawExtra>?;
 }

@@ -4669,7 +4669,7 @@ export const JettonLockBox_WithdrawExtra = {
  >     token: address
  >     remoteChainSelector: uint64
  >     amount: coins
- >     recipientWallet: address
+ >     recipient: address
  >     extra: Cell<JettonLockBox_WithdrawExtra>?
  > }
  */
@@ -4679,7 +4679,7 @@ export interface JettonLockBox_Withdraw {
     token: c.Address
     remoteChainSelector: uint64
     amount: coins
-    recipientWallet: c.Address
+    recipient: c.Address
     extra: JettonLockBox_WithdrawExtra | null
 }
 
@@ -4691,7 +4691,7 @@ export const JettonLockBox_Withdraw = {
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
-        recipientWallet: c.Address
+        recipient: c.Address
         extra: JettonLockBox_WithdrawExtra | null
     }): JettonLockBox_Withdraw {
         return {
@@ -4708,7 +4708,7 @@ export const JettonLockBox_Withdraw = {
             token: s.loadAddress(),
             remoteChainSelector: s.loadUintBig(64),
             amount: s.loadCoins(),
-            recipientWallet: s.loadAddress(),
+            recipient: s.loadAddress(),
             extra: s.loadBoolean() ? loadCellRef<JettonLockBox_WithdrawExtra>(s, JettonLockBox_WithdrawExtra.fromSlice) : null,
         }
     },
@@ -4718,7 +4718,7 @@ export const JettonLockBox_Withdraw = {
         b.storeAddress(self.token);
         b.storeUint(self.remoteChainSelector, 64);
         b.storeCoins(self.amount);
-        b.storeAddress(self.recipientWallet);
+        b.storeAddress(self.recipient);
         storeTolkNullable<JettonLockBox_WithdrawExtra>(self.extra, b,
             (v,b) => storeCellRef<JettonLockBox_WithdrawExtra>(v, b, JettonLockBox_WithdrawExtra.store)
         );

@@ -106,7 +106,7 @@ fun sendBurnMessage(
             queryId,
             jettonAmount: prepared.destTokenAmount,
             sendExcessesTo: contract.getAddress(),
-            customPayload: null,
+            customPayload: null, // Not supported atm
             forwardPayload: context.toCell(),
         },
     });
@@ -137,8 +137,8 @@ fun onBouncedMessage(in: InMessageBounced) {
             st.store();
         }
         CCT_AskToBurn => {
-            assert(msg.customPayload != null) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
-            val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.customPayload!);
+            assert(msg.forwardPayload != null) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
+            val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload!);
             assert(in.senderAddress == context.wallet) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
 
             val operation = lazy context.forwardPayload.load();
