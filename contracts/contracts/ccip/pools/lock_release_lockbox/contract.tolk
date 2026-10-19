@@ -20,6 +20,7 @@ import "../lib/token_pool/recovery"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
 import "../lib/token_pool/errors"
+import "../lib/token_pool/events"
 import "../lockbox/messages"
 
 import "types"
@@ -39,6 +40,8 @@ contract LockReleaseLockboxTokenPool {
     outgoingMessages:
         | TokenPool_OutMessage
         | LockReleaseLockboxTokenPool_OutMessage
+
+    emittedEvents: TokenPool_Events
 
     forceAbiExport: (
         LockReleaseLockboxTokenPool_LockContext,
@@ -298,7 +301,8 @@ fun tryHandleRejectedDepositReturn(st: Storage, sender: address, msgValue: coins
     val operation = validateRejectedDeposit(st, failure);
 
     reserveBalanceBeforeInMessage(msgValue);
-    sendTokenPoolRecoveryReturn(msgValue, sender, createTokenPoolCustodyReturn(operation));
+    val custodyReturn = TokenPool<void>.createCustodyReturn(operation);
+    sendTokenPoolRecoveryReturn(msgValue, sender, custodyReturn);
 
     return true;
 }
@@ -315,8 +319,9 @@ fun onLockTransferBounced(
     val operation = lazy context.forwardPayload.load();
 
     var pool = loadPool(st);
-    pool.recoverLockOrBurnFailure(operation, LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce as int32,
-        msgValue, createTokenPoolCustodyReturn(operation));
+    val custodyReturn = TokenPool<void>.createCustodyReturn(operation);
+    val exitCode = LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce as int32;
+    pool.recoverLockOrBurnFailure(operation, exitCode, msgValue, custodyReturn);
     st.poolData = pool.data.toCell();
 }
 
@@ -478,6 +483,11 @@ get fun verifyNotCursed(subject: uint128): bool {
 
 get fun owner(): address {
     return Storage.load().poolData.load().adminConfig.load().ownable.load().owner;
+}
+
+/// Gets the pending owner of the pool, if any (Ownable2Step).
+get fun pendingOwner(): address? {
+    return Storage.load().poolData.load().adminConfig.load().ownable.load().get_pendingOwner();
 }
 
 /// Curse administrator for the pool-local policy, distinct from `owner()`.

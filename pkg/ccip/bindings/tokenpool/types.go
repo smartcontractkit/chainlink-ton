@@ -90,8 +90,8 @@ type CursedSubjects struct {
 // RateLimitConfig represents a rate limiter configuration.
 type RateLimitConfig struct {
 	IsEnabled bool     `tlb:"bool"`
-	Capacity  *big.Int `tlb:"## 120"`
-	Rate      *big.Int `tlb:"## 120"`
+	Capacity  *big.Int `tlb:"## 128"`
+	Rate      *big.Int `tlb:"## 128"`
 }
 
 // RateLimitConfigPair holds outbound and inbound rate limit configurations.
@@ -101,16 +101,12 @@ type RateLimitConfigPair struct {
 }
 
 // RateLimiterTokenBucket represents the token bucket rate limiter state.
-//
-// Widths must match RateLimiter_TokenBucket in
-// contracts/contracts/ccip/pools/lib/rate_limiter.tolk: the bucket amounts are
-// uint120 (not uint128) so that a bucket packs into a single cell.
 type RateLimiterTokenBucket struct {
-	Tokens      *big.Int `tlb:"## 120"`
-	LastUpdated uint64   `tlb:"## 64"`
+	Tokens      *big.Int `tlb:"## 128"`
+	LastUpdated uint32   `tlb:"## 32"`
 	IsEnabled   bool     `tlb:"bool"`
-	Capacity    *big.Int `tlb:"## 120"`
-	Rate        *big.Int `tlb:"## 120"`
+	Capacity    *big.Int `tlb:"## 128"`
+	Rate        *big.Int `tlb:"## 128"`
 }
 
 // RateLimiterPair holds outbound and inbound rate limiter token buckets.
@@ -608,9 +604,9 @@ type LockOrBurnFailure struct {
 	ErrorCode int32     `tlb:"## 32"`
 }
 
-// ReleaseOrMintFinished notifies that a release/mint operation finished.
-type ReleaseOrMintFinished struct {
-	_       tlb.Magic          `tlb:"#e0e882f5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+// ReleaseOrMintFinalized confirms the release/mint delivery to the executor.
+type ReleaseOrMintFinalized struct {
+	_       tlb.Magic          `tlb:"#edd4948a" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64             `tlb:"## 64"`
 	Out     ReleaseOrMintOutV1 `tlb:"^"`
 }
@@ -855,7 +851,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	LockOrBurnWithdraw{},
 	LockOrBurnFinished{},
 	LockOrBurnFailure{},
-	ReleaseOrMintFinished{},
+	ReleaseOrMintFinalized{},
 	ReleaseOrMintFailure{},
 	CCVs{},
 	CCVsAndFees{},

@@ -136,13 +136,11 @@ struct TokenPool_Hooks<T> {
     ///      hooks are mutually exclusive (inline wins).
     postflightCheck: ((T?, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintForwardPayload) -> bool)?;
 
-    /// Continuation after custody is confirmed and the base finalization path runs.
+    /// Continuation after custody is confirmed.
     /// @param sender   The msg.sender of the original request.
     /// @param msg      The full inbound request.
     /// @param prepared The validated release/mint data.
     /// @return The (possibly mutated) context, or `null`.
-    /// @dev Base behavior (`onReleaseOrMintFinalize`): emits `ReleasedOrMinted` + sends the
-    ///      `ReleaseOrMintFinished` reply to the caller.
     onReleaseOrMintContinue: ((T?, address, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?)?;
 
     // ----------------------------------------------------------------------
@@ -187,8 +185,6 @@ struct TokenPool_Hooks<T> {
     /// @param msg       The decoded inbound transfer notification.
     /// @param fwdPayload The original request + prepared data.
     /// @return The (possibly mutated) context.
-    /// @dev Base behavior (`onLockOrBurnTransferFinalize`): emits `LockedOrBurned` + sends the
-    ///      `LockOrBurnFinished` reply.
     onLockOrBurnTransferContinue: ((T, address, TransferNotificationForRecipient, TokenPool_LockOrBurnForwardPayload, coins) -> T)?;
 
     // ----------------------------------------------------------------------
@@ -874,42 +870,6 @@ fun TokenPool<T>.onPostflightCheckFailed(
 // ================================================================
 // │      Common notification & rate-limit refund helpers           │
 // ================================================================
-
-/// Emits `ReleasedOrMinted` event and sends `ReleaseOrMintFinished` reply to the executor
-/// when an inbound operation completes successfully.
-/// @param forwardPayload The full forward payload carrying the original request and prepared data.
-/// @dev Event and reply message are always emitted. Instance method
-/// so concrete pools can override (e.g. customize event or reply body).
-fun TokenPool<T>.sendReleaseOrMintFinished(
-    self,
-    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
-): void {
-    val requestMsg = lazy forwardPayload.requestMsg.load();
-    val request = lazy requestMsg.request.load();
-    val details = lazy request.transfer.details.load();
-    val prepared = lazy forwardPayload.prepared.load();
-
-    emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
-        remoteChainSelector: details.remoteChainSelector,
-        details: TokenPool_ReleasedOrMintedDetails {
-            token: details.localToken,
-            sender: contract.getAddress(),
-            amount: prepared.out.destinationAmount,
-            recipient: details.receiver.toCell(),
-        }.toCell(),
-    });
-
-    val notify = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: requestMsg.replyTo,
-        body: TokenPool_ReleaseOrMintFinished {
-            queryId: requestMsg.queryId,
-            out: prepared.out.toCell(),
-        },
-    });
-    notify.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-}
 
 /// Sends `ReleaseOrMintFailure` reply to the executor (replyTo address) when an inbound
 /// operation fails after admission.
@@ -1653,10 +1613,11 @@ fun TokenPool<T>.onLockOrBurnTransferContinue(
         return;
     }
 
-    return self.onLockOrBurnTransferFinalize(fwdPayload);
+    // Every concrete pool must implement this post-custody continuation
+    throw TokenPool_Error.UnsupportedOperation;
 }
 
-fun createTokenPoolCustodyReturn(forwardPayload: TokenPool_LockOrBurnForwardPayload): AskToTransfer {
+fun TokenPool<T>.createCustodyReturn(forwardPayload: TokenPool_LockOrBurnForwardPayload): AskToTransfer {
     val requestMsg = lazy forwardPayload.requestMsg.load();
     val details = lazy requestMsg.request.load().transfer.details.load();
     return AskToTransfer {
@@ -1819,39 +1780,8 @@ fun TokenPool<T>.onReleaseOrMintContinue(
         return;
     }
 
-    self.onReleaseOrMintFinalize(sender, msg, prepared);
-}
-
-/// Finalizes the ReleaseOrMint flow: emits event and sends success notification.
-fun TokenPool<T>.onReleaseOrMintFinalize(
-    self,
-    sender: address,
-    msg: TokenPool_ReleaseOrMint,
-    prepared: TokenPool_ReleaseOrMintPrepared,
-): void {
-    val request = lazy msg.request.load();
-    val details = lazy request.transfer.details.load();
-    emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
-        remoteChainSelector: details.remoteChainSelector,
-        details: TokenPool_ReleasedOrMintedDetails {
-            token: details.localToken,
-            sender: sender,
-            amount: prepared.localAmount,
-            recipient: details.receiver.toCell(),
-        }.toCell(),
-    });
-
-    // Notify the caller (executor) that the release or mint succeeded.
-    val finished = createMessage({
-        bounce: true,
-        value: 0,
-        dest: msg.replyTo,
-        body: TokenPool_ReleaseOrMintFinished {
-            queryId: msg.queryId,
-            out: prepared.out.toCell(),
-        },
-    });
-    finished.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    // Every concrete pool must implement this post-hooks continuation
+    throw TokenPool_Error.UnsupportedOperation;
 }
 
 /// Emits `ReleasedOrMinted` once the Router reports that the ReceiveExecutor observed the
@@ -1879,7 +1809,10 @@ fun TokenPool<T>.onReleaseOrMintDelivered(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: msg.replyTo,
-        body: TokenPool_ReleaseOrMintFinalized { queryId: msg.queryId },
+        body: TokenPool_ReleaseOrMintFinalized {
+            queryId: msg.queryId,
+            out: TokenPool_ReleaseOrMintOutV1 { destinationAmount: transfer.amount }.toCell(),
+        },
     });
     finalized.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -2090,7 +2023,7 @@ fun TokenPool<T>.consumeOutboundRateLimit(mutate self, remoteChainSelector: uint
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var rateLimiters = config.rateLimiters.load();
     var bucket = rateLimiters.outbound.load();
-    bucket.consume(amount, self.data.token());
+    bucket.consume(amount as uint256, self.data.token());
     rateLimiters.outbound = bucket.toCell();
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
@@ -2109,7 +2042,7 @@ fun TokenPool<T>.consumeInboundRateLimit(mutate self, remoteChainSelector: uint6
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var rateLimiters = config.rateLimiters.load();
     var bucket = rateLimiters.inbound.load();
-    bucket.consume(amount, self.data.token());
+    bucket.consume(amount as uint256, self.data.token());
     rateLimiters.inbound = bucket.toCell();
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
@@ -2129,7 +2062,7 @@ fun TokenPool<T>.releaseOutboundRateLimit(mutate self, remoteChainSelector: uint
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var rateLimiters = config.rateLimiters.load();
     var bucket = rateLimiters.outbound.load();
-    bucket.refund(amount, self.data.token());
+    bucket.refund(amount as uint256);
     rateLimiters.outbound = bucket.toCell();
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
@@ -2149,7 +2082,7 @@ fun TokenPool<T>.releaseInboundRateLimit(mutate self, remoteChainSelector: uint6
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var rateLimiters = config.rateLimiters.load();
     var bucket = rateLimiters.inbound.load();
-    bucket.refund(amount, self.data.token());
+    bucket.refund(amount as uint256);
     rateLimiters.inbound = bucket.toCell();
     config.rateLimiters = rateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
@@ -2170,11 +2103,11 @@ fun TokenPool<T>.releaseFastFinalityOutboundRateLimit(mutate self, remoteChainSe
     if (!fastBucket.isEnabled) {
         var rateLimiters = config.rateLimiters.load();
         var bucket = rateLimiters.outbound.load();
-        bucket.refund(amount, self.data.token());
+        bucket.refund(amount as uint256);
         rateLimiters.outbound = bucket.toCell();
         config.rateLimiters = rateLimiters.toCell();
     } else {
-        fastBucket.refund(amount, self.data.token());
+        fastBucket.refund(amount as uint256);
         fastRateLimiters.outbound = fastBucket.toCell();
         config.fastFinalityRateLimiters = fastRateLimiters.toCell();
     }
@@ -2196,11 +2129,11 @@ fun TokenPool<T>.releaseFastFinalityInboundRateLimit(mutate self, remoteChainSel
     if (!fastBucket.isEnabled) {
         var rateLimiters = config.rateLimiters.load();
         var bucket = rateLimiters.inbound.load();
-        bucket.refund(amount, self.data.token());
+        bucket.refund(amount as uint256);
         rateLimiters.inbound = bucket.toCell();
         config.rateLimiters = rateLimiters.toCell();
     } else {
-        fastBucket.refund(amount, self.data.token());
+        fastBucket.refund(amount as uint256);
         fastRateLimiters.inbound = fastBucket.toCell();
         config.fastFinalityRateLimiters = fastRateLimiters.toCell();
     }
@@ -2223,12 +2156,13 @@ fun TokenPool<T>.consumeFastFinalityOutboundRateLimit(mutate self, remoteChainSe
     var fastBucket = fastRateLimiters.outbound.load();
     if (!fastBucket.isEnabled) {
         self.consumeOutboundRateLimit(remoteChainSelector, amount);
-    } else {
-        fastBucket.consume(amount, self.data.token());
-        fastRateLimiters.outbound = fastBucket.toCell();
-        config.fastFinalityRateLimiters = fastRateLimiters.toCell();
-        self.data.remoteChainConfigs.set(remoteChainSelector, config);
+        return;
     }
+
+    fastBucket.consume(amount as uint256, self.data.token());
+    fastRateLimiters.outbound = fastBucket.toCell();
+    config.fastFinalityRateLimiters = fastRateLimiters.toCell();
+    self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
     emit(TOPIC_TOKEN_POOL_FAST_FINALITY_OUTBOUND_RATE_LIMIT_CONSUMED, TokenPool_FastFinalityOutboundRateLimitConsumed {
         remoteChainSelector,
@@ -2248,12 +2182,14 @@ fun TokenPool<T>.consumeFastFinalityInboundRateLimit(mutate self, remoteChainSel
     var fastBucket = fastRateLimiters.inbound.load();
     if (!fastBucket.isEnabled) {
         self.consumeInboundRateLimit(remoteChainSelector, amount);
-    } else {
-        fastBucket.consume(amount, self.data.token());
-        fastRateLimiters.inbound = fastBucket.toCell();
-        config.fastFinalityRateLimiters = fastRateLimiters.toCell();
-        self.data.remoteChainConfigs.set(remoteChainSelector, config);
+
+        return;
     }
+
+    fastBucket.consume(amount as uint256, self.data.token());
+    fastRateLimiters.inbound = fastBucket.toCell();
+    config.fastFinalityRateLimiters = fastRateLimiters.toCell();
+    self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
     emit(TOPIC_TOKEN_POOL_FAST_FINALITY_INBOUND_RATE_LIMIT_CONSUMED, TokenPool_FastFinalityInboundRateLimitConsumed {
         remoteChainSelector,

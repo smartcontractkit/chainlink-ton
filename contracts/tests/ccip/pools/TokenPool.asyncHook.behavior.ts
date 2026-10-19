@@ -12,7 +12,6 @@ import {
   TokenPool_LockOrBurnWithdraw,
   TokenPool_ReleaseOrMint,
   TokenPool_ReleaseOrMintFailure,
-  TokenPool_ReleaseOrMintFinished,
   TokenPool_ReleaseOrMintForwardPayload,
   TokenPool_ReleaseOrMintInV1,
   TokenPool_ReleaseOrMintOutV1,

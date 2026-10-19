@@ -895,11 +895,13 @@ export const TokenPool_DeliveredTransfer = {
 /**
  > struct (0xedd4948a) TokenPool_ReleaseOrMintFinalized {
  >     queryId: uint64
+ >     out: Cell<TokenPool_ReleaseOrMintOutV1>
  > }
  */
 export interface TokenPool_ReleaseOrMintFinalized {
     readonly $: 'TokenPool_ReleaseOrMintFinalized'
     queryId: uint64
+    out: TokenPool_ReleaseOrMintOutV1
 }
 
 export const TokenPool_ReleaseOrMintFinalized = {
@@ -907,6 +909,7 @@ export const TokenPool_ReleaseOrMintFinalized = {
 
     create(args: {
         queryId?: uint64
+        out: TokenPool_ReleaseOrMintOutV1
     }): TokenPool_ReleaseOrMintFinalized {
         return {
             $: 'TokenPool_ReleaseOrMintFinalized',
@@ -919,11 +922,13 @@ export const TokenPool_ReleaseOrMintFinalized = {
         return {
             $: 'TokenPool_ReleaseOrMintFinalized',
             queryId: s.loadUintBig(64),
+            out: loadCellRef<TokenPool_ReleaseOrMintOutV1>(s, TokenPool_ReleaseOrMintOutV1.fromSlice),
         }
     },
     store(self: TokenPool_ReleaseOrMintFinalized, b: c.Builder): void {
         b.storeUint(0xedd4948a, 32);
         b.storeUint(self.queryId, 64);
+        storeCellRef<TokenPool_ReleaseOrMintOutV1>(self.out, b, TokenPool_ReleaseOrMintOutV1.store);
     },
     toCell(self: TokenPool_ReleaseOrMintFinalized): c.Cell {
         return makeCellFrom<TokenPool_ReleaseOrMintFinalized>(self, TokenPool_ReleaseOrMintFinalized.store);
@@ -1120,6 +1125,39 @@ export const TokenPool_ReleaseOrMintInV1 = {
     },
     toCell(self: TokenPool_ReleaseOrMintInV1): c.Cell {
         return makeCellFrom<TokenPool_ReleaseOrMintInV1>(self, TokenPool_ReleaseOrMintInV1.store);
+    }
+}
+
+/**
+ > struct TokenPool_ReleaseOrMintOutV1 {
+ >     destinationAmount: coins
+ > }
+ */
+export interface TokenPool_ReleaseOrMintOutV1 {
+    readonly $: 'TokenPool_ReleaseOrMintOutV1'
+    destinationAmount: coins
+}
+
+export const TokenPool_ReleaseOrMintOutV1 = {
+    create(args: {
+        destinationAmount: coins
+    }): TokenPool_ReleaseOrMintOutV1 {
+        return {
+            $: 'TokenPool_ReleaseOrMintOutV1',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ReleaseOrMintOutV1 {
+        return {
+            $: 'TokenPool_ReleaseOrMintOutV1',
+            destinationAmount: s.loadCoins(),
+        }
+    },
+    store(self: TokenPool_ReleaseOrMintOutV1, b: c.Builder): void {
+        b.storeCoins(self.destinationAmount);
+    },
+    toCell(self: TokenPool_ReleaseOrMintOutV1): c.Cell {
+        return makeCellFrom<TokenPool_ReleaseOrMintOutV1>(self, TokenPool_ReleaseOrMintOutV1.store);
     }
 }
 
@@ -2319,6 +2357,7 @@ export class ReceiveExecutor implements c.Contract {
 
     static createCellOfTokenPoolReleaseOrMintFinalized(body: {
         queryId?: uint64
+        out: TokenPool_ReleaseOrMintOutV1
     }) {
         return TokenPool_ReleaseOrMintFinalized.toCell(TokenPool_ReleaseOrMintFinalized.create(body));
     }
@@ -2426,6 +2465,7 @@ export class ReceiveExecutor implements c.Contract {
 
     async sendTokenPoolReleaseOrMintFinalized(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
+        out: TokenPool_ReleaseOrMintOutV1
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

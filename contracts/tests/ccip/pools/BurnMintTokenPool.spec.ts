@@ -24,7 +24,7 @@ import {
   TokenPool_LockOrBurnOutV1,
   TokenPool_LockOrBurnWithdraw,
   TokenPool_ReleaseOrMintInV1,
-  TokenPool_ReleaseOrMintFinished,
+  TokenPool_ReleaseOrMintFinalized,
   TokenPool_LocalPolicy,
   TokenPool_DynamicConfig,
   TokenPool_Transfer,
@@ -1113,10 +1113,10 @@ describe('BurnMintTokenPool', () => {
       },
     })
 
-    // Completion is reported by the ReceiveExecutor, not by the pool.
+    // Finalization follows the Router's ReleaseOrMintDelivered; not at admission.
     expect(result.transactions).not.toHaveTransaction({
       from: burnMintPool.address,
-      op: TokenPool_ReleaseOrMintFinished.PREFIX,
+      op: TokenPool_ReleaseOrMintFinalized.PREFIX,
     })
   })
 

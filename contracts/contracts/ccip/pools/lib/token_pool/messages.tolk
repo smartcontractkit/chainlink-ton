@@ -352,14 +352,10 @@ struct (0x3476ea72) TokenPool_LockOrBurnFailure {
     errorCode: int32;                               // Raw TVM exit code (signed); see TokenPool_GetCCVsFailed.
 }
 
-struct (0xe0e882f5) TokenPool_ReleaseOrMintFinished {
-    queryId: uint64;
-    out: Cell<TokenPool_ReleaseOrMintOutV1>;
-}
-
 /// Sent to the ReceiveExecutor once the pool processed `TokenPool_ReleaseOrMintDelivered`.
 struct (0xedd4948a) TokenPool_ReleaseOrMintFinalized {
     queryId: uint64;
+    out: Cell<TokenPool_ReleaseOrMintOutV1>;
 }
 
 struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
@@ -418,7 +414,6 @@ type TokenPool_OutMessage =
     | TokenPool_LockOrBurnWithdraw
     | TokenPool_LockOrBurnFinished
     | TokenPool_LockOrBurnFailure
-    | TokenPool_ReleaseOrMintFinished
     | TokenPool_ReleaseOrMintFinalized
     | TokenPool_ReleaseOrMintFailure
     | TokenPool_CCVs

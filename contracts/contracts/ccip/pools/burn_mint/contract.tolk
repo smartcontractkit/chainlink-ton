@@ -19,6 +19,7 @@ import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
 import "../lib/token_pool/errors"
 import "../lib/token_pool/entrypoint"
+import "../lib/token_pool/events"
 
 import "types"
 import "messages"
@@ -38,6 +39,8 @@ contract BurnMintTokenPool {
     outgoingMessages:
         | TokenPool_OutMessage
         | BurnMintTokenPool_OutMessage
+
+    emittedEvents: TokenPool_Events
 
     forceAbiExport: (
         BurnMintTokenPool_BurnContext,
@@ -144,7 +147,7 @@ fun onBouncedMessage(in: InMessageBounced) {
             val operation = lazy context.forwardPayload.load();
             var pool = loadPool(st);
             val exitCode = BurnMintTokenPool_Error.UnexpectedBurnBounce as int32;
-            val custodyReturn = createTokenPoolCustodyReturn(operation);
+            val custodyReturn = TokenPool<void>.createCustodyReturn(operation);
             pool.recoverLockOrBurnFailure(operation, exitCode, in.valueCoins, custodyReturn);
 
             st.poolData = pool.data.toCell();
@@ -337,6 +340,11 @@ get fun verifyNotCursed(subject: uint128): bool {
 
 get fun owner(): address {
     return Storage.load().poolData.load().adminConfig.load().ownable.load().owner;
+}
+
+/// Gets the pending owner of the pool, if any (Ownable2Step).
+get fun pendingOwner(): address? {
+    return Storage.load().poolData.load().adminConfig.load().ownable.load().get_pendingOwner();
 }
 
 /// Curse administrator for the pool-local policy, distinct from `owner()`.

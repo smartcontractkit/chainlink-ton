@@ -13,7 +13,7 @@ import {
   TokenPool_DynamicConfig,
   TokenPool_LocalPolicy,
   TokenPool_ReleaseOrMintFailure,
-  TokenPool_ReleaseOrMintFinished,
+  TokenPool_ReleaseOrMintFinalized,
   TransferNotificationForRecipient,
   TokenPool_LockOrBurn,
   TokenPool_LockOrBurnWithdraw,
@@ -1461,10 +1461,10 @@ describe('LockReleaseLockboxTokenPool', () => {
         },
       })
 
-      // Completion is reported by the ReceiveExecutor, not by the pool.
+      // Finalization follows the Router's ReleaseOrMintDelivered; not at admission.
       expect(result.transactions).not.toHaveTransaction({
         from: lockReleaseLockboxPool.address,
-        op: TokenPool_ReleaseOrMintFinished.PREFIX,
+        op: TokenPool_ReleaseOrMintFinalized.PREFIX,
       })
     })
 
@@ -1531,7 +1531,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       })
       expect(result.transactions).not.toHaveTransaction({
         from: lockReleaseLockboxPool.address,
-        op: TokenPool_ReleaseOrMintFinished.PREFIX,
+        op: TokenPool_ReleaseOrMintFinalized.PREFIX, // no success finalization on failure
       })
       expect(
         (await pool.getCurrentRateLimiterState(remoteChainSelector, false)).inbound.tokens,

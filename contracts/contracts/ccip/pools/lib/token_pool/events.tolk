@@ -156,8 +156,12 @@ struct TokenPool_RateLimitConfigured {
 //   event AdvancedPoolHooksUpdated(IAdvancedPoolHooks oldHook, IAdvancedPoolHooks newHook);
 
 type TokenPool_Events = 
+    | TokenPool_LockedOrBurned
+    | TokenPool_ReleasedOrMinted
     | TokenPool_ChainAdded
     | TokenPool_ChainRemoved
+    | TokenPool_RemotePoolAdded
+    | TokenPool_RemotePoolRemoved
     | TokenPool_RateLimitConfigured
     | TokenPool_TokenTransferFeeConfigUpdated
     | TokenPool_TokenTransferFeeConfigDeleted
@@ -166,4 +170,6 @@ type TokenPool_Events =
     | TokenPool_FastFinalityOutboundRateLimitConsumed
     | TokenPool_FastFinalityInboundRateLimitConsumed
     | TokenPool_OutboundRateLimitRefunded
-    | TokenPool_InboundRateLimitRefunded;
+    | TokenPool_InboundRateLimitRefunded
+    | TokenPool_FastFinalityOutboundRateLimitRefunded
+    | TokenPool_FastFinalityInboundRateLimitRefunded;
