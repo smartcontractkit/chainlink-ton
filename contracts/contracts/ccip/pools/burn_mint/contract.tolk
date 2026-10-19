@@ -103,10 +103,10 @@ fun sendBurnMessage(
         value: BurnMintTokenPool_BURN_VALUE,
         dest: context.wallet,
         body: CCT_AskToBurn {
-            queryId: queryId,
+            queryId,
             jettonAmount: prepared.destTokenAmount,
             sendExcessesTo: contract.getAddress(),
-            customPayload: context.toCell(),
+            customPayload: null,
             forwardPayload: context.toCell(),
         },
     });
@@ -165,6 +165,9 @@ fun onBouncedMessage(in: InMessageBounced) {
 
             st.poolData = pool.data.toCell();
             st.store();
+        }
+        ClaimMinterAdmin => {
+            // accept bounced TON on failed claim of minter admin
         }
     }
 }
