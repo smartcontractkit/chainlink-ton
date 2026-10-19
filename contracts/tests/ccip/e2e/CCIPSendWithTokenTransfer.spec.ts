@@ -185,7 +185,6 @@ describe('CCIPSend with token transfer (e2e)', () => {
                 jettonWalletCode: walletCode,
               }),
               advancedPoolHooks: null,
-              deployableCode,
             }),
             localPolicy: tp.TokenPool_LocalPolicy.create({
               cursePolicy: createEmptyCursePolicy(deployer.address),

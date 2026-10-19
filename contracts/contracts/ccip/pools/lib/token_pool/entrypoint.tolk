@@ -57,13 +57,6 @@ struct TokenPool_AdminConfig {
     allowedFinalityConfig: uint32 = TOKEN_POOL_DEFAULT_FINALITY;
     /// Optional advanced pool hooks contract for additional features like allowlists and CCV management.
     advancedPoolHooks: address? = null;
-    /// Compiled code of the Deployable contract used to derive source-chain deposit accounts
-    /// (e.g. OnRampAccount). Stored here (owner-only, immutable by design) so the pool can
-    /// authenticate a deposit source purely by recomputing the account's deterministic address
-    /// and its jetton wallet.
-    /// @dev Upgrading this after flows are in-flight can break auth for older accounts; it is
-    ///      intentionally part of admin (not dynamic) config.
-    deployableCode: cell? = null;
 }
 
 struct TokenPool_Data {
@@ -412,36 +405,6 @@ fun TokenPool<T>.setAdvancedPoolHooks(
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// Sets the compiled Deployable code used to derive source-chain deposit accounts
-/// (e.g. OnRampAccount). Combined with `dynamicConfig.allowedDepositNamespaces` + the Router
-/// address, this lets the pool recompute and authenticate a deposit-account address.
-/// @param deployableCode The compiled Deployable code, or `null` to disable account-derived deposits.
-/// @dev Owner-only. Part of admin (not dynamic) config: upgrading after flows are in-flight can
-///      break auth for previously-derived accounts (see `TokenPool_AdminConfig.deployableCode`).
-fun TokenPool<T>.setDeployableCode(
-    mutate self,
-    sender: address,
-    queryId: uint64,
-    deployableCode: cell?,
-) {
-    var adminConfig = self.data.adminConfig.load();
-    adminConfig.ownable.load().requireOwner(sender);
-
-    adminConfig.deployableCode = deployableCode;
-    self.data.adminConfig = adminConfig.toCell();
-
-    val reply = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: sender,
-        body: TokenPool_DeployableCodeSet {
-            queryId,
-            deployableCode,
-        },
-    });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-}
-
 /// Sets the Deployables namespaces the pool accepts as source-chain deposit accounts.
 /// @param allowedDepositNamespaces The full set of allowed namespaces (replaces any previous set).
 /// @dev Owner-only. Part of dynamic config so it can be updated without pool redeployment.
@@ -710,9 +673,6 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         }
         TokenPool_SetAdvancedPoolHooks => {
             self.setAdvancedPoolHooks(msgSender, msg.queryId, msg.advancedPoolHooks);
-        }
-        TokenPool_SetDeployableCode => {
-            self.setDeployableCode(msgSender, msg.queryId, msg.deployableCode);
         }
         TokenPool_SetAllowedDepositNamespaces => {
             self.setAllowedDepositNamespaces(msgSender, msg.queryId, msg.allowedDepositNamespaces);
@@ -1613,6 +1573,13 @@ fun TokenPool<T>.assertAuthorizedDepositInitiator(
     throw TokenPool_Error.Unauthorized;
 }
 
+
+import "../../../../../gen/Deployable.code"
+
+fun deployableCode(): cell {
+    return deployableCompiledCode();
+}
+
 /// Derives the address of `router`'s deposit account in a `namespace`
 @inline
 fun TokenPool<T>.deriveDepositAccount(
@@ -1622,11 +1589,9 @@ fun TokenPool<T>.deriveDepositAccount(
     user: address,
 ): AutoDeployAddress {
     val adminConfig = lazy self.data.adminConfig.load();
-    val code = adminConfig.deployableCode;
-    assert(code != null, TokenPool_Error.Unauthorized);
 
     val id = Router_DepositAccountID { user, token: adminConfig.jettonClient.masterAddress };
-    return NamespacedDeployableAddress<Router_DepositAccountID>(code!, { namespace, owner: router, id });
+    return NamespacedDeployableAddress<Router_DepositAccountID>(deployableCode(), { namespace, owner: router, id });
 }
 
 fun TokenPool<T>.onLockOrBurnTransferContinue(

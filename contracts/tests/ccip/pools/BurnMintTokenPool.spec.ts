@@ -141,7 +141,6 @@ describe('BurnMintTokenPool', () => {
               }),
               allowedFinalityConfig: 0n,
               advancedPoolHooks: null,
-              deployableCode,
             }),
             localPolicy: TokenPool_LocalPolicy.create({
               cursePolicy: createEmptyCursePolicy(deployer.address),

@@ -264,7 +264,6 @@ type AdminConfig struct {
 	JettonClient          JettonClient         `tlb:"."`
 	AllowedFinalityConfig uint32               `tlb:"## 32"`
 	AdvancedPoolHooks     *address.Address     `tlb:"addr"`
-	DeployableCode        *cell.Cell           `tlb:"maybe ^"`
 }
 
 // Storage represents the TokenPool_Data storage layout shared by every TokenPool
@@ -325,13 +324,6 @@ type SetAdvancedPoolHooks struct {
 	_                 tlb.Magic        `tlb:"#3f5c9f57" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID           uint64           `tlb:"## 64"`
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
-}
-
-// SetDeployableCode sets the Compiled Deployable code used to derive source-chain deposit accounts.
-type SetDeployableCode struct {
-	_              tlb.Magic  `tlb:"#3868e309" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64     `tlb:"## 64"`
-	DeployableCode *cell.Cell `tlb:"maybe ^"`
 }
 
 // SetAllowedDepositNamespaces sets the Deployables namespaces the pool accepts as deposit sources.
@@ -681,13 +673,6 @@ type AdvancedPoolHooksSet struct {
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
 }
 
-// DeployableCodeSet confirms the deployable code was set.
-type DeployableCodeSet struct {
-	_              tlb.Magic  `tlb:"#89d602e5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64     `tlb:"## 64"`
-	DeployableCode *cell.Cell `tlb:"maybe ^"`
-}
-
 // AllowedDepositNamespacesSet confirms the allowed deposit namespaces were set.
 type AllowedDepositNamespacesSet struct {
 	_       tlb.Magic `tlb:"#c1ffe3a6" json:"-"` //nolint:revive // (opcode) should stay uninitialized
@@ -832,7 +817,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	SetDynamicConfig{},
 	SetAllowedFinalityConfig{},
 	SetAdvancedPoolHooks{},
-	SetDeployableCode{},
 	SetAllowedDepositNamespaces{},
 	SetRateLimitConfig{},
 	ApplyTokenTransferFeeConfigUpdates{},
@@ -869,7 +853,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	rbac.RoleRevoked{},
 	rbac.RoleAdminChanged{},
 	AdvancedPoolHooksSet{},
-	DeployableCodeSet{},
 	AllowedDepositNamespacesSet{},
 	ChainUpdatesApplied{},
 	FeeConfigApplied{},
