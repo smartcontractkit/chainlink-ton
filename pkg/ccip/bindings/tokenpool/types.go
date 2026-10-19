@@ -49,14 +49,10 @@ const (
 // --- Data types (no opcodes) ---
 
 // DynamicConfig holds the router and admin addresses for the pool.
-//
-// AllowedDepositNamespaces is a unit-value set (map<uint32,()> on-chain): a key
-// is present if the corresponding deployable namespace is allowed as a deposit source.
 type DynamicConfig struct {
-	Router                   *address.Address             `tlb:"addr required"`
-	RateLimitAdmin           *address.Address             `tlb:"addr"`
-	FeeAdmin                 *address.Address             `tlb:"addr"`
-	AllowedDepositNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
+	Router         *address.Address `tlb:"addr required"`
+	RateLimitAdmin *address.Address `tlb:"addr"`
+	FeeAdmin       *address.Address `tlb:"addr"`
 }
 
 // LocalPolicy holds the pool's independently managed RMN policy. It is
@@ -259,11 +255,12 @@ type JettonClient struct {
 
 // AdminConfig holds the admin configuration for the pool.
 type AdminConfig struct {
-	Ownable               ownable2step.Storage `tlb:"^"`
-	DynamicConfig         DynamicConfig        `tlb:"^"`
-	JettonClient          JettonClient         `tlb:"."`
-	AllowedFinalityConfig uint32               `tlb:"## 32"`
-	AdvancedPoolHooks     *address.Address     `tlb:"addr"`
+	Ownable                  ownable2step.Storage         `tlb:"^"`
+	DynamicConfig            DynamicConfig                `tlb:"^"`
+	AllowedDepositNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
+	JettonClient             JettonClient                 `tlb:"."`
+	AllowedFinalityConfig    uint32                       `tlb:"## 32"`
+	AdvancedPoolHooks        *address.Address             `tlb:"addr"`
 }
 
 // Storage represents the TokenPool_Data storage layout shared by every TokenPool
@@ -324,13 +321,6 @@ type SetAdvancedPoolHooks struct {
 	_                 tlb.Magic        `tlb:"#3f5c9f57" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID           uint64           `tlb:"## 64"`
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
-}
-
-// SetAllowedDepositNamespaces sets the Deployables namespaces the pool accepts as deposit sources.
-type SetAllowedDepositNamespaces struct {
-	_                        tlb.Magic                    `tlb:"#84384142" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID                  uint64                       `tlb:"## 64"`
-	AllowedDepositNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
 }
 
 // SetRateLimitConfig sets the rate limit configurations.
@@ -673,12 +663,6 @@ type AdvancedPoolHooksSet struct {
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
 }
 
-// AllowedDepositNamespacesSet confirms the allowed deposit namespaces were set.
-type AllowedDepositNamespacesSet struct {
-	_       tlb.Magic `tlb:"#c1ffe3a6" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID uint64    `tlb:"## 64"`
-}
-
 // --- Events ---
 
 // LockedOrBurnedDetails holds details of a locked/burned event.
@@ -817,7 +801,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	SetDynamicConfig{},
 	SetAllowedFinalityConfig{},
 	SetAdvancedPoolHooks{},
-	SetAllowedDepositNamespaces{},
 	SetRateLimitConfig{},
 	ApplyTokenTransferFeeConfigUpdates{},
 	Curse{},
@@ -853,7 +836,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	rbac.RoleRevoked{},
 	rbac.RoleAdminChanged{},
 	AdvancedPoolHooksSet{},
-	AllowedDepositNamespacesSet{},
 	ChainUpdatesApplied{},
 	FeeConfigApplied{},
 	// AdvancedPoolHooks outgoing (sent from TokenPool to hooks contract)

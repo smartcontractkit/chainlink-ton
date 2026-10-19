@@ -171,8 +171,8 @@ describe('LockReleaseLockboxTokenPool', () => {
                 router: deployer.address,
                 rateLimitAdmin: null,
                 feeAdmin: null,
-                allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
               }),
+              allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
               jettonClient: JettonClient.create({
                 masterAddress: jettonMinter.address,
                 jettonWalletCode,

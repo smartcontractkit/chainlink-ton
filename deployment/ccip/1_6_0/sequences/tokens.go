@@ -424,11 +424,11 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 						PendingOwner: nil,
 					},
 					DynamicConfig: tokenpool.DynamicConfig{
-						Router:                   &routerAddr,
-						RateLimitAdmin:           rateLimitAdmin,
-						FeeAdmin:                 feeAdmin,
-						AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}](),
+						Router:         &routerAddr,
+						RateLimitAdmin: rateLimitAdmin,
+						FeeAdmin:       feeAdmin,
 					},
+					AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}](),
 					JettonClient: tokenpool.JettonClient{
 						MasterAddress:    tokenAddr,
 						JettonWalletCode: compiledWallet.Code,

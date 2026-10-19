@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/lisp-lists"
-import "@stdlib/gas-payments"
 
 import "../../../../lib/math"
 import "../../../../lib/utils"
 import "../../../../lib/jetton/messages"
 import "../../../../lib/jetton/jetton_client"
-import "../../../../lib/jetton/jetton-utils"
+import "../../../../lib/jetton/forward_payload_wrap"
 import "../../../../lib/access/ownable_2step"
-import "../../../../lib/access/access_control"
 import "../../../../lib/deployable/namespace"
 import "../../../../lib/funding/jetton_withdrawable"
 import "../../../common/types"
@@ -21,7 +19,6 @@ import "messages"
 import "events"
 import "recovery"
 import "../rate_limiter"
-import "../../../../lib/jetton/forward_payload_wrap"
 
 /// @notice Base abstract class with common functions for all token pools.
 /// A token pool serves as isolated place for holding tokens and token specific logic
@@ -49,6 +46,16 @@ struct TokenPool<T> {
 struct TokenPool_AdminConfig {
     ownable: Cell<Ownable2Step>;
     dynamicConfig: Cell<TokenPool_DynamicConfig>;
+
+    /// Allowed Deployables namespaces for source-chain deposit accounts. When a
+    /// `TransferNotificationForRecipient` is not authorised directly by the Router's own jetton
+    /// wallet, the pool authenticates it as coming from a Deployables-derived per-user account
+    /// (e.g. an OnRampAccount) whose namespace is present here.
+    /// @dev This field is part of dynamic config so it can be updated without redeploying the
+    ///      pool. Only namespaces whose deployable code is registered (see `TokenPool_AdminConfig`)
+    ///      are meaningful.
+    allowedDepositNamespaces: map<uint32, ()> = [];
+    
     /// The pool's Jetton identity (master + wallet code). Single source of truth used to
     /// derive and authenticate the pool's own wallet.
     jettonClient: JettonClient;
@@ -335,9 +342,6 @@ fun TokenPool<T>.setDynamicConfig(
     // feeAdmin: `null` means owner-only; the zero address is never a valid fee admin.
     assert(feeAdmin == null || !isZeroAddress(feeAdmin!), TokenPool_Error.ZeroAddressInvalid);
 
-    // TODO: should we drop the setAllowedDepositNamespaces and move to setDynamicConfig?
-    // Preserve allowedDepositNamespaces: it lives in dynamicConfig but is managed via its own
-    // setter (setAllowedDepositNamespaces).
     var dynamicConfig = adminConfig.dynamicConfig.load();
     dynamicConfig.router = router;
     dynamicConfig.rateLimitAdmin = rateLimitAdmin;
@@ -401,32 +405,6 @@ fun TokenPool<T>.setAdvancedPoolHooks(
             queryId,
             advancedPoolHooks,
         },
-    });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-}
-
-/// Sets the Deployables namespaces the pool accepts as source-chain deposit accounts.
-/// @param allowedDepositNamespaces The full set of allowed namespaces (replaces any previous set).
-/// @dev Owner-only. Part of dynamic config so it can be updated without pool redeployment.
-fun TokenPool<T>.setAllowedDepositNamespaces(
-    mutate self,
-    sender: address,
-    queryId: uint64,
-    allowedDepositNamespaces: map<uint32, ()>,
-) {
-    var adminConfig = self.data.adminConfig.load();
-    adminConfig.ownable.load().requireOwner(sender);
-
-    var dynamicConfig = adminConfig.dynamicConfig.load();
-    dynamicConfig.allowedDepositNamespaces = allowedDepositNamespaces;
-    adminConfig.dynamicConfig = dynamicConfig.toCell();
-    self.data.adminConfig = adminConfig.toCell();
-
-    val reply = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: sender,
-        body: TokenPool_AllowedDepositNamespacesSet { queryId },
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -673,9 +651,6 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         }
         TokenPool_SetAdvancedPoolHooks => {
             self.setAdvancedPoolHooks(msgSender, msg.queryId, msg.advancedPoolHooks);
-        }
-        TokenPool_SetAllowedDepositNamespaces => {
-            self.setAllowedDepositNamespaces(msgSender, msg.queryId, msg.allowedDepositNamespaces);
         }
         TokenPool_SetRateLimitConfig => {
             self.setRateLimitConfig(msgSender, msg.queryId, msg.updates);
@@ -1414,14 +1389,13 @@ fun TokenPool<T>.updateDepositNamespaces(
     sender: address,
     onRampNamespaces: map<uint32, ()>,
 ): void {
-    var adminConfig = self.data.adminConfig.load();
-    var dynamicConfig = adminConfig.dynamicConfig.load();
+    var adminConfig = lazy self.data.adminConfig.load();
+    val dynamicConfig = lazy adminConfig.dynamicConfig.load();
     if (sender != dynamicConfig.router) {
         return;
     }
 
-    dynamicConfig.allowedDepositNamespaces = onRampNamespaces;
-    adminConfig.dynamicConfig = dynamicConfig.toCell();
+    adminConfig.allowedDepositNamespaces = onRampNamespaces;
     self.data.adminConfig = adminConfig.toCell();
 }
 
@@ -1551,11 +1525,11 @@ fun TokenPool<T>.assertAuthorizedDepositInitiator(
     val router = dynamicConfig.router;
 
     // Look through all allowed namespace/account types for one that derives to `initiator`.
-    var entry = dynamicConfig.allowedDepositNamespaces.findFirst();
+    var entry = adminConfig.allowedDepositNamespaces.findFirst();
     while (entry.isFound) {
         val namespace: Namespace = entry.getKey();
         val account = self.deriveDepositAccount(
-            dynamicConfig.router,
+            router,
             namespace,
             originalSender,
         ).calculateAddress();
@@ -1563,11 +1537,11 @@ fun TokenPool<T>.assertAuthorizedDepositInitiator(
             // Once we have verified that the transfer initiator matches a derived deposit account,
             // we must ensure that the withdrawal initiator is the Router itself so we can trust the
             // forward payload
-            assert (withdrawalInitiator == dynamicConfig.router) throw TokenPool_Error.Unauthorized;
+            assert (withdrawalInitiator == router) throw TokenPool_Error.Unauthorized;
             return;
         }
 
-        entry = dynamicConfig.allowedDepositNamespaces.iterateNext(entry);
+        entry = adminConfig.allowedDepositNamespaces.iterateNext(entry);
     }
 
     throw TokenPool_Error.Unauthorized;

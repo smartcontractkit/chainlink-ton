@@ -14,7 +14,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/parser"
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
@@ -154,21 +153,6 @@ var GetDynamicConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[DynamicConfig]{
 				return cfg, fmt.Errorf("error loading feeAdmin address: %w", err)
 			}
 			cfg.FeeAdmin = addr
-		}
-
-		// Decode the allowedDepositNamespaces dictionary (map<uint32,()> - a unit
-		// value set; presence of a key means the namespace is allowed).
-		dictCell, err := r.Cell(3) //nolint:mnd // index 3 for the 4th return value (allowedDepositNamespaces)
-		if err != nil {
-			return cfg, fmt.Errorf("error getting Cell(3) - allowedDepositNamespaces: %w", err)
-		}
-		var dict *cell.Dictionary
-		if dictCell != nil {
-			dict = dictCell.AsDict(32) // uint32 keys
-		}
-		cfg.AllowedDepositNamespaces, err = tlbe.NewDictFromDictionary[uint32, struct{}](dict)
-		if err != nil {
-			return cfg, fmt.Errorf("error converting dict to tlbe.Dict - allowedDepositNamespaces: %w", err)
 		}
 
 		return cfg, nil
