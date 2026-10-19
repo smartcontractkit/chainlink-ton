@@ -101,7 +101,7 @@ describe('LockReleaseLockboxTokenPool', () => {
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
-    blockchain.now = Math.floor(Date.now() / 1000)
+    blockchain.now = 1
     deployer = await blockchain.treasury('deployer')
     offRamp = await blockchain.treasury('offramp')
     recipient = await blockchain.treasury('recipient')
@@ -313,6 +313,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       requestedFinalityConfig: 0n,
       tokenArgs: null,
       replyTo: deployer.address,
+      onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
     })
     const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
       originalSender: deployer.address,
@@ -502,6 +503,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
       const transferPayload = TokenPool_LockOrBurnForwardPayload.create({
         originalSender: deployer.address,
@@ -637,6 +639,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
 
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
@@ -694,6 +697,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
 
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
@@ -1084,6 +1088,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: deployer.address,
+          onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
         })
         const admitted = await pool.sendTokenPoolLockOrBurn(
           deployer.getSender(),
@@ -1219,6 +1224,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: deployer.address,
+          onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
         })
         const context = LockReleaseLockboxTokenPool_LockContext.toCell(
           LockReleaseLockboxTokenPool_LockContext.create({
@@ -1335,6 +1341,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: deployer.address,
+          onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
         })
 
         const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({

@@ -1426,6 +1426,8 @@ fun TokenPool<T>.onLockOrBurn(
     sender: address,
     msg: TokenPool_LockOrBurn,
 ): void {
+    self.updateDepositNamespaces(sender, msg.onRampNamespaces);
+
     if (self.hooks != null && self.hooks.onLockOrBurn != null) {
         self.context = self.hooks.onLockOrBurn(self.context!, sender, msg);
 
@@ -1443,6 +1445,24 @@ fun TokenPool<T>.onLockOrBurn(
     }
 
     self.onLockOrBurnWithdraw(transferInitiator, msg, prepared);
+}
+
+/// Replaces the pool's allowed deposit namespaces with the set relayed by the Router on a
+/// `TokenPool_LockOrBurn`. Only the configured Router may relay it.
+fun TokenPool<T>.updateDepositNamespaces(
+    mutate self,
+    sender: address,
+    onRampNamespaces: map<uint32, ()>,
+): void {
+    var adminConfig = self.data.adminConfig.load();
+    var dynamicConfig = adminConfig.dynamicConfig.load();
+    if (sender != dynamicConfig.router) {
+        return;
+    }
+
+    dynamicConfig.allowedDepositNamespaces = onRampNamespaces;
+    adminConfig.dynamicConfig = dynamicConfig.toCell();
+    self.data.adminConfig = adminConfig.toCell();
 }
 
 /// Handles the withdrawal step after a lock or burn operation has been prepared/checked.

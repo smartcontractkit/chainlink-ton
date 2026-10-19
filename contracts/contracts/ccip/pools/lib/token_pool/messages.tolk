@@ -110,12 +110,15 @@ struct (0x2e7a1790) TokenPool_RMNAccessControlMessage {
 /// @param lockOrBurnIn Encoded data fields for the processing of tokens on the source chain.
 /// @param requestedFinalityConfig Requested finality encoding (see `FinalityCodec`).
 /// @param tokenArgs Additional token arguments.
+/// @param onRampNamespaces The Router's accepted deposit-account namespaces, relayed on every
+///        request so the pool can refresh its deposit-auth cache.
 struct (0xfa7da444) TokenPool_LockOrBurn {
     queryId: uint64;
     request: Cell<TokenPool_LockOrBurnInV1>; // TODO: consider renaming
     requestedFinalityConfig: uint32;
     tokenArgs: cell?;
     replyTo: address;
+    onRampNamespaces: map<uint32, ()> = [];
 }
 
 struct TokenPool_LockOrBurnForwardPayload {

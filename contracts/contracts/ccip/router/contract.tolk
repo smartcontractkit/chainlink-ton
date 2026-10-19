@@ -1016,6 +1016,8 @@ We don't want to move funds then return if any of those fail, but ideally we do 
 withdraw path should go through the executor - so the TP needs to withdraw -> executor, which can verify the token amounts and will withdraw -> on-ramp, which can verify the executor. Finally the on-ramp withdraws from the Router - the TP accepts only transfers from the Router JettonWallet.
 */
 fun onLockOrBurn(msg: Router_LockOrBurn) {
+    var onRampNamespaces: map<uint32, ()> = [];
+    onRampNamespaces.set(DeployableNamespace_OnRampAccount, ());
     val tokenPoolLockOrBurn = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
@@ -1026,6 +1028,8 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
             requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
             tokenArgs: null, // TBD?
             replyTo: msg.executorAddress,
+            // Keep the pool's deposit-auth namespace cache in sync
+            onRampNamespaces,
         }
     });
     tokenPoolLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

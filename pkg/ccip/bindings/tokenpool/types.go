@@ -386,13 +386,17 @@ type RMNAccessControlMessage[T rbac.InMessage | any] struct {
 }
 
 // LockOrBurn locks tokens into the pool or burns the tokens. ReplyTo must be non-nil.
+//
+// OnRampNamespaces carries the Router's accepted deposit-account namespaces, relayed on
+// every request so the pool can refresh its deposit-auth cache (see DynamicConfig).
 type LockOrBurn struct {
-	_                       tlb.Magic        `tlb:"#fa7da444" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID                 uint64           `tlb:"## 64"`
-	Request                 LockOrBurnInV1   `tlb:"^"`
-	RequestedFinalityConfig uint32           `tlb:"## 32"`
-	TokenArgs               *cell.Cell       `tlb:"maybe ^"`
-	ReplyTo                 *address.Address `tlb:"addr required"`
+	_                       tlb.Magic                    `tlb:"#fa7da444" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID                 uint64                       `tlb:"## 64"`
+	Request                 LockOrBurnInV1               `tlb:"^"`
+	RequestedFinalityConfig uint32                       `tlb:"## 32"`
+	TokenArgs               *cell.Cell                   `tlb:"maybe ^"`
+	ReplyTo                 *address.Address             `tlb:"addr required"`
+	OnRampNamespaces        *tlbe.Dict[uint32, struct{}] `tlb:"."`
 }
 
 // ReleaseOrMint releases or mints tokens on the destination chain. ReplyTo must be non-nil.

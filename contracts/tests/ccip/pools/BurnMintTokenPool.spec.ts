@@ -383,6 +383,7 @@ describe('BurnMintTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
       const transferPayload = TokenPool_LockOrBurnForwardPayload.create({
         originalSender: deployer.address,
@@ -532,6 +533,7 @@ describe('BurnMintTokenPool', () => {
             requestedFinalityConfig: 0n,
             tokenArgs: null,
             replyTo: unauthorized.address,
+            onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
           }),
         ),
       },
@@ -569,6 +571,7 @@ describe('BurnMintTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: unauthorized.address,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
       const admitted = await pool.sendTokenPoolLockOrBurn(deployer.getSender(), toNano('1'), {
         ...request,
@@ -673,6 +676,7 @@ describe('BurnMintTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
         originalSender: deployer.address,
@@ -836,6 +840,7 @@ describe('BurnMintTokenPool', () => {
       requestedFinalityConfig: 0n,
       tokenArgs: null,
       replyTo: deployer.address,
+      onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
     })
 
     const result1 = await burnMintPool.sendTokenPoolLockOrBurn(
@@ -979,6 +984,7 @@ describe('BurnMintTokenPool', () => {
       requestedFinalityConfig: 0n,
       tokenArgs: null,
       replyTo: executorBouncer.address,
+      onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
     })
 
     const result = await burnMintPool.sendTokenPoolLockOrBurn(
@@ -1058,6 +1064,7 @@ describe('BurnMintTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
       const admitted = await pool.sendTokenPoolLockOrBurn(
         deployer.getSender(),

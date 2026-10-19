@@ -9,6 +9,7 @@ import { contractCode } from '../../../wrappers/codeLoader'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as deposit from '../../../wrappers/gen/ccip/DepositAccount'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
+import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { setup, contractsCoverageConfig } from './Router.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
@@ -149,6 +150,7 @@ describe('Router.withdrawToTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       }),
       prepared: rt.TokenPool_LockOrBurnPrepared.create({
         feeAmount: 0n,

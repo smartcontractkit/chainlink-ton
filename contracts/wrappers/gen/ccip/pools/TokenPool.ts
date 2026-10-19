@@ -2007,6 +2007,7 @@ export const TokenPool_RMNAccessControlMessage = {
  >     requestedFinalityConfig: uint32
  >     tokenArgs: cell?
  >     replyTo: address
+ >     onRampNamespaces: map<uint32, ()>
  > }
  */
 export interface TokenPool_LockOrBurn {
@@ -2016,6 +2017,7 @@ export interface TokenPool_LockOrBurn {
     requestedFinalityConfig: uint32
     tokenArgs: c.Cell | null
     replyTo: c.Address
+    onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
 }
 
 export const TokenPool_LockOrBurn = {
@@ -2027,6 +2029,7 @@ export const TokenPool_LockOrBurn = {
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
         replyTo: c.Address
+        onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
     }): TokenPool_LockOrBurn {
         return {
             $: 'TokenPool_LockOrBurn',
@@ -2043,6 +2046,10 @@ export const TokenPool_LockOrBurn = {
             requestedFinalityConfig: s.loadUintBig(32),
             tokenArgs: s.loadBoolean() ? s.loadRef() : null,
             replyTo: s.loadAddress(),
+            onRampNamespaces: dictToSet(c.Dictionary.load<uint32, []>(c.Dictionary.Keys.BigUint(32), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
         }
     },
     store(self: TokenPool_LockOrBurn, b: c.Builder): void {
@@ -2054,6 +2061,13 @@ export const TokenPool_LockOrBurn = {
             (v,b) => b.storeRef(v)
         );
         b.storeAddress(self.replyTo);
+        b.storeDict<uint32, []>(setToDict(self.onRampNamespaces, c.Dictionary.Keys.BigUint(32), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.BigUint(32), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
     },
     toCell(self: TokenPool_LockOrBurn): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurn>(self, TokenPool_LockOrBurn.store);
@@ -5216,6 +5230,7 @@ export class TokenPool implements c.Contract {
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
         replyTo: c.Address
+        onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
     }) {
         return TokenPool_LockOrBurn.toCell(TokenPool_LockOrBurn.create(body));
     }
@@ -5449,6 +5464,7 @@ export class TokenPool implements c.Contract {
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
         replyTo: c.Address
+        onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
