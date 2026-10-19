@@ -71,3 +71,45 @@ func TestGetCurrentRateLimiterState_DecodesTwoCells(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, RateLimiterPair{Outbound: outbound, Inbound: inbound}, got)
 }
+
+// Verifies the decoder reads the wide nullable TokenPool_TokenTransferFeeConfig?:
+// seven scalar fields (slots 0-6) plus a presence discriminator at slot 7.
+func TestGetTokenTransferFeeConfig_WideNullable(t *testing.T) {
+	t.Run("present", func(t *testing.T) {
+		result := ton.NewExecutionResult([]any{
+			big.NewInt(21000), // destGasOverhead
+			big.NewInt(100),   // destBytesOverhead
+			big.NewInt(50),    // finalityFeeUSDCents
+			big.NewInt(60),    // fastFinalityFeeUSDCents
+			big.NewInt(10),    // finalityTransferFeeBps
+			big.NewInt(20),    // fastFinalityTransferFeeBps
+			big.NewInt(-1),    // isEnabled
+			big.NewInt(-1),    // presence discriminator
+		})
+
+		got, err := GetTokenTransferFeeConfig.Decoder.Decode(result)
+		require.NoError(t, err)
+		require.True(t, got.IsFound)
+		require.Equal(t, TokenTransferFeeConfig{
+			DestGasOverhead:            21000,
+			DestBytesOverhead:          100,
+			FinalityFeeUSDCents:        tlb.FromNanoTON(big.NewInt(50)),
+			FastFinalityFeeUSDCents:    tlb.FromNanoTON(big.NewInt(60)),
+			FinalityTransferFeeBps:     10,
+			FastFinalityTransferFeeBps: 20,
+			IsEnabled:                  true,
+		}, got.Config)
+	})
+
+	t.Run("absent", func(t *testing.T) {
+		result := ton.NewExecutionResult([]any{
+			big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0),
+			big.NewInt(0), big.NewInt(0), big.NewInt(0),
+			big.NewInt(0), // presence discriminator: absent
+		})
+
+		got, err := GetTokenTransferFeeConfig.Decoder.Decode(result)
+		require.NoError(t, err)
+		require.False(t, got.IsFound)
+	})
+}
