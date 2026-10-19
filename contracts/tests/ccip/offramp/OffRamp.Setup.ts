@@ -17,7 +17,6 @@ import {
   asSnakedCell,
   generateEd25519KeyPair,
   generateRandomContractId,
-  NATIVE_GRAM,
 } from '../../../src/utils'
 import { contractCode } from '../../../wrappers/codeLoader'
 
@@ -293,7 +292,6 @@ export class OffRampTestSetup {
         ownable: rt.Ownable2Step.create({
           owner: this.deployer.address,
         }),
-        wrappedNative: NATIVE_GRAM,
         onRamps: new Map(),
         offRamps: new Map(),
         rmnRemote: rt.RMNRemote.create({

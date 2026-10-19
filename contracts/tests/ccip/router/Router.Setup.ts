@@ -153,7 +153,6 @@ async function deployRouterInstance(
       owner: deployer.address,
       pendingOwner: null,
     }),
-    wrappedNative: NATIVE_GRAM,
     onRamps: new Map(),
     offRamps: new Map(),
     rmnRemote: rt.RMNRemote.create({
@@ -536,7 +535,6 @@ export async function deployRouterContract(
     ownable: rt.Ownable2Step.create({
       owner: owner.address,
     }),
-    wrappedNative: NATIVE_GRAM,
     onRamps: new Map(),
     offRamps: new Map(),
     rmnRemote: rt.RMNRemote.create({

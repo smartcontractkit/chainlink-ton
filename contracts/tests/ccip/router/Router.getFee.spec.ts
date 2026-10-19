@@ -9,6 +9,7 @@ import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import { setup, contractsCoverageConfig } from './Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
+import { FeeQuoterSetup } from '../feequoter/FeeQuoterSetup'
 
 const EVM_CC_ADDRESS: rt.CrossChainAddress = EVM_ADDRESS
 
@@ -133,6 +134,53 @@ describe.each(cases)(
                 decoded.ccipSend.feeToken!.equals(NATIVE_GRAM)
               )
             },
+          })
+        })
+
+        it('should reject getValidatedFee paying fees with a non-native token', async () => {
+          const jettonMsg: rt.Router_CCIPSend = {
+            $: 'Router_CCIPSend',
+            queryID: 1n,
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+            receiver: EVM_ADDRESS,
+            data: Cell.EMPTY,
+            tokenAmounts: [],
+            feeToken: FeeQuoterSetup.CUSTOM_TOKEN.token,
+            extraArgs: rt.GenericExtraArgsV2.create({
+              gasLimit: 100n,
+              allowOutOfOrderExecution: true,
+            }),
+          }
+          const result = await router.sendRouterGetValidatedFee(sender.getSender(), toNano('0.5'), {
+            ccipSend: jettonMsg,
+            context,
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: sender.address,
+            to: router.address,
+            success: true,
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: router.address,
+            to: sender.address,
+            op: rt.Router_MessageValidationFailed.PREFIX,
+            body(x) {
+              if (!x) return false
+              const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
+              return (
+                decoded.error ===
+                BigInt(rt.Router.Errors['Router_Error.FeePaymentsWithJettonsNotSupported'])
+              )
+            },
+          })
+
+          // The message must be rejected before reaching the OnRamp.
+          expect(result.transactions).not.toHaveTransaction({
+            from: router.address,
+            to: onRamp.address,
+            op: or.OnRamp_GetValidatedFee.PREFIX,
           })
         })
 

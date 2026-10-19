@@ -112,7 +112,6 @@ describe('CCIP OffRamp Gas Estimation', () => {
         ownable: rt.Ownable2Step.create({
           owner: deployer.address,
         }),
-        wrappedNative: NATIVE_GRAM,
         onRamps: new Map(),
         offRamps: new Map(),
         rmnRemote: rt.RMNRemote.create({

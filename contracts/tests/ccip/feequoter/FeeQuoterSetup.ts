@@ -101,15 +101,11 @@ export class FeeQuoterSetup {
   static readonly DEST_TOKENS: Token[] = [FeeQuoterSetup.DEST_LINK, FeeQuoterSetup.NATIVE_TON]
 
   //
-  static readonly SOURCE_FEE_TOKENS: Token[] = [
-    ...FeeQuoterSetup.SOURCE_TOKENS,
-    // TODO: add wrapped native when it is implemented
-  ]
+  // Note: the FeeQuoter only accepts NATIVE_GRAM (already in SOURCE_TOKENS) as a
+  // fee token; LINK is priced for the USD→juels conversion but cannot pay fees.
+  static readonly SOURCE_FEE_TOKENS: Token[] = [...FeeQuoterSetup.SOURCE_TOKENS]
 
-  static readonly DEST_FEE_TOKENS: Token[] = [
-    ...FeeQuoterSetup.DEST_TOKENS,
-    // TODO: add wrapped native when it is implemented
-  ]
+  static readonly DEST_FEE_TOKENS: Token[] = [...FeeQuoterSetup.DEST_TOKENS]
 
   static readonly CUSTOM_TOKEN: Token = {
     token: Address.parse(`0:${Buffer.from('CUSTOM').toString('hex').padStart(64, '0')}`),
