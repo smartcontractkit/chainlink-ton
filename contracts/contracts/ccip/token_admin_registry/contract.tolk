@@ -58,7 +58,7 @@ fun onInternalMessage(in: InMessage) {
             acceptAdminRole(msg, in.senderAddress);
         }
         TokenAdminRegistry_SetPool => {
-            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_POOL_PROBE_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
             setPool(msg, in.senderAddress);
         }
         TokenAdminRegistry_GetTokenInfo => {
@@ -105,6 +105,10 @@ fun onInternalMessage(in: InMessage) {
         TokenAdminRegistry_VerifyToken => {
             assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_WALLET_QUERY_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
             forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_VerifyToken {});
+        }
+        TokenAdminRegistry_RefreshTransferInitiator => {
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_POOL_PROBE_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
+            forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_RefreshTransferInitiator {});
         }
         else => {
             var st = lazy TokenAdminRegistry_Storage.load();
@@ -217,18 +221,10 @@ fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
             token: msg.token,
             minterAddress: tokenInfo.minterAddress,
             tokenPool: tokenInfo.tokenPool,
-            transferInitiator: resolveTransferInitiator(tokenInfo),
+            transferInitiator: tokenInfo.transferInitiator == null ? null : tokenInfo.transferInitiator!.toCell(),
             version: tokenInfo.version,
         },
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-}
-
-/// The pool itself initiates its deliveries unless the administrator registered another address.
-fun resolveTransferInitiator(tokenInfo: TokenRegistry_TokenInfo): Cell<address>? {
-    if (tokenInfo.tokenPool == null) {
-        return null;
-    }
-    return (tokenInfo.transferInitiator != null ? tokenInfo.transferInitiator! : tokenInfo.tokenPool!).toCell();
 }
 
 fun emitAdministratorTransferRequested(event: TokenAdminRegistry_AdministratorTransferRequested) {
@@ -314,7 +310,6 @@ fun setPool(msg: TokenAdminRegistry_SetPool, actor: address) {
     forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_SetPool {
         actor,
         tokenPool: msg.tokenPool,
-        transferInitiator: msg.transferInitiator,
     });
 }
 

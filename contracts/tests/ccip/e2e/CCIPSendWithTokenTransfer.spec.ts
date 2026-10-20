@@ -5,7 +5,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { assertLog } from '../../Logs'
-import { WRAPPED_NATIVE } from '../../../src/utils'
+import { WRAPPED_NATIVE, generateRandomTonAddress } from '../../../src/utils'
 import { createEmptyCursePolicy } from '../../../wrappers/ccip/Router'
 
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
@@ -159,6 +159,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     jettonLockBox = await buildJettonLockBox({
       blockchain,
       minterAddress: minter.address,
+      initializer: deployer.address,
       id: 1n,
     })
     tokenPool = blockchain.openContract(
@@ -255,7 +256,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     })
   })
 
-  async function registerToken() {
+  async function registerToken(minterAddress: Address = minter.address) {
     const registrationResult = await tokenAdminRegistry.sendTokenAdminRegistryRegisterToken(
       deployer.getSender(),
       toNano('0.2'),
@@ -263,7 +264,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
         tokenAddress: minter.address,
         tokenInfo: tar.TokenRegistry_TokenInfo.create({
           tokenPool: tokenPool.address,
-          minterAddress: minter.address,
+          minterAddress,
           version: 1n,
         }),
         administrator: deployer.address,
@@ -492,6 +493,19 @@ describe('CCIPSend with token transfer (e2e)', () => {
       op: fq.FeeQuoter_MessageValidated.PREFIX,
       success: true,
     })
+    // executor locks the validated fee on the OnRamp before any token work
+    expect(result.transactions).toHaveTransaction({
+      from: executorAddress,
+      to: onRamp.address,
+      op: or.OnRamp_ExecutorReserveFee.PREFIX,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: onRamp.address,
+      to: executorAddress,
+      op: or.OnRamp_ExecutorFeeReserved.PREFIX,
+      success: true,
+    })
     // executor -> TokenAdminRegistry -> entry -> TokenAdminRegistry -> executor
     expect(result.transactions).toHaveTransaction({
       from: executorAddress,
@@ -571,7 +585,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
               extraData: beginCell().storeUint(0, 256).endCell(),
               // The FeeQuoter's per-token destGasOverhead override, encoded as a bare 32-bit
               // integer — distinct from the lane default, proving the executor forwards the
-              // FeeQuoter's destGasOverheads value rather than a hardcoded default.
+              // FeeQuoter's destGasOverhead value rather than a hardcoded default.
               destExecData: beginCell().storeUint(destGasOverheadOverride, 32).endCell(),
             },
           ],
@@ -628,6 +642,31 @@ describe('CCIPSend with token transfer (e2e)', () => {
         return (
           or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse()).error ===
           BigInt(exe.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenNotEnabled'])
+        )
+      },
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.Router_CCIPSendNACK.PREFIX,
+      success: true,
+    })
+  })
+
+  it('fails the CCIP send when the registered minter is not the token', async () => {
+    await registerToken(await generateRandomTonAddress())
+    const { result, executorAddress } = await sendTokenTransfer()
+
+    expect(result.transactions).toHaveTransaction({
+      from: executorAddress,
+      to: onRamp.address,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+      success: true,
+      body(x) {
+        if (!x) return false
+        return (
+          or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse()).error ===
+          BigInt(exe.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenMinterMismatch'])
         )
       },
     })

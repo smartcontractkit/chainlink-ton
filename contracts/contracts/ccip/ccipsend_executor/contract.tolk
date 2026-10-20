@@ -60,6 +60,12 @@ fun onInternalMessage(in: InMessage) {
             assert(this.addresses.load().feeQuoter == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             this.onMessageValidationFailed(msg);
         }
+        // Sender must be the OnRamp after it has reserved the validated fee.
+        OnRamp_ExecutorFeeReserved => {
+            var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.load();
+            assert(this.addresses.load().onramp == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+            this.onFeeReserved(msg);
+        }
         // Sender must be the TokenAdminRegistry
         TokenAdminRegistry_TokenInfo => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
@@ -72,13 +78,7 @@ fun onInternalMessage(in: InMessage) {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
             assert(this.addresses.load().tokenRegistry!.load() == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
             assert(msg.token == this.state.load().token, CCIPSendExecutor_Error.Unauthorized);
-            this.exitWithError(CCIPSendExecutor_Error.TokenNotEnabled as uint256);
-        }
-        // Sender must be minter
-        ResponseWalletAddress => {
-            var this = CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.load();
-            assert(this.state.load().minterAddress == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
-            this.onResponseWalletAddress(msg);
+            this.exitWithError(CCIPSendExecutor_Error.TokenNotEnabled as uint256, this.state.load().chargedFee.feeTokenAmount);
         }
         // Sender must be the TokenPool
         TokenPool_LockOrBurnWithdraw => {
@@ -98,11 +98,11 @@ fun onInternalMessage(in: InMessage) {
             if (st.state is Cell<CCIPSendExecutor_State_TokenPool_LockOrBurn>) {
                 var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
                 assert(this.state.load().tokenPool == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
-                this.exitWithError(msg.errorCode as uint256);
+                this.exitWithError(msg.errorCode as uint256, this.state.load().chargedFee.feeTokenAmount);
             } else {
                 var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.load();
                 assert(this.state.load().tokenPool == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
-                this.exitWithError(msg.errorCode as uint256);
+                this.exitWithError(msg.errorCode as uint256, this.state.load().chargedFee.feeTokenAmount);
             }
         }
         // Router policy rejection, a pre-admission pool bounce, or a bounced
@@ -115,14 +115,14 @@ fun onInternalMessage(in: InMessage) {
                 val addresses = lazy this.addresses.load();
                 assert(addresses.router == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
                 assert(state.tokenPool == msg.tokenPool, CCIPSendExecutor_Error.Unauthorized);
-                this.exitWithError(CCIPSendExecutor_Error.TokenPoolBounce as uint256);
+                this.exitWithError(CCIPSendExecutor_Error.TokenPoolBounce as uint256, state.chargedFee.feeTokenAmount);
             } else {
                 var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.load();
                 val state = lazy this.state.load();
                 val addresses = lazy this.addresses.load();
                 assert(addresses.router == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
                 assert(state.tokenPool == msg.tokenPool, CCIPSendExecutor_Error.Unauthorized);
-                this.exitWithError(CCIPSendExecutor_Error.TokenPoolBounce as uint256);
+                this.exitWithError(CCIPSendExecutor_Error.TokenPoolBounce as uint256, state.chargedFee.feeTokenAmount);
             }
         }
         else => {
@@ -136,9 +136,18 @@ fun onBouncedMessage(in: InMessageBounced) {
     match (msg) {
         FeeQuoter_GetValidatedFee => {
             val this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
-            this.exitWithError(CCIPSendExecutor_Error.FeeQuoterBounce);
+            this.exitWithError(CCIPSendExecutor_Error.FeeQuoterBounce, NO_FEE_CHARGED);
         }
-        //TODO: We should handle bounced messages from the TokenRegistry, as that means the token is not enabled on the lane
+        OnRamp_ExecutorReserveFee => {
+            val this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.load();
+            this.exitWithError(CCIPSendExecutor_Error.OnRampFeeReservationBounce, NO_FEE_CHARGED);
+        }
+        // The token registry failed to answer the token-info query. The fee is
+        // already reserved on the OnRamp, so finalize with an error and refund it.
+        TokenAdminRegistry_GetTokenInfo => {
+            val this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
+            this.exitWithError(CCIPSendExecutor_Error.TokenRegistryBounce, this.state.load().chargedFee.feeTokenAmount);
+        }
     }
 }
 
@@ -182,44 +191,85 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
     getValidatedFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// Derives the address of the sender's deposit account for `token`: a Deployable-namespaced
-/// OnRampAccount owned by the Router and keyed by the (original sender, token) pair. Must mirror
-/// `Router.onRampAccountAddress` — the Router verifies the withdraw sender against this address.
-fun depositAccountAddress(sender: address, token: address, router: address): address {
-    return onRampAccountAutodeployAddressForRouter(sender, token, router, deployableCompiledCode()).calculateAddress();
+/// The original sender's on-ramp account for `token`, holding the jettons to transfer.
+fun senderOnRampAccount(sender: address, token: address, router: address): address {
+    return Router.onRampAccount(router, sender, token, deployableCompiledCode()).calculateAddress();
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated) {
-    val message = self.onrampSend.msg.load();
-    val tokenAmounts = message.tokenAmounts;
     if (msg.fee.feeTokenAmount + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
-        self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds);
+        self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds, NO_FEE_CHARGED);
         return;
     }
-    // If token amounts is empty finalize the message
+
+    // The FeeQuoter only reports destOverheads for token-transfer messages; a tokenless
+    // message legitimately carries null there, so the single-overhead requirement below
+    // applies to the token path only. It must hold BEFORE the fee is locked: a malformed
+    // validated fee is a validation failure, not a post-reservation refund.
+    var destOverhead: FeeQuoter_DestOverhead? = null;
+    if (!self.onrampSend.msg.load().tokenAmounts.empty()) {
+        if (msg.destOverheads == null) {
+            return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee, NO_FEE_CHARGED);
+        }
+        destOverhead = msg.destOverheads.asSingle();
+        if (destOverhead == null) {
+            return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee, NO_FEE_CHARGED);
+        }
+    }
+
+    val reserveFee = createMessage({
+        bounce: true,
+        value: msg.fee.feeTokenAmount + OnRamp_Costs.ExecutorReserveFee(),
+        dest: self.addresses.load().onramp,
+        body: OnRamp_ExecutorReserveFee {
+            executorID: self.id,
+            fee: msg.fee.feeTokenAmount,
+        },
+    });
+    reserveFee.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    val newState = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation> {
+        id: self.id,
+        onrampSend: self.onrampSend,
+        addresses: self.addresses,
+        state: CCIPSendExecutor_State_OnGoingFeeReservation {
+            fee: msg.fee,
+            destOverhead,
+            chainFamilySelector: msg.chainFamilySelector,
+        }.toCell(),
+    };
+    newState.store();
+}
+
+fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onFeeReserved(mutate self, msg: OnRamp_ExecutorFeeReserved) {
+    assert(msg.executorID == self.id) throw CCIPSendExecutor_Error.Unauthorized;
+    val state = self.state.load();
+    val chargedFee = state.fee;
+    val message = Router_CCIPSend.fromCell(self.onrampSend.msg);
+    val tokenAmounts = message.tokenAmounts;
+    // If token amounts is empty finalize the message.
     if (tokenAmounts.empty()) {
         setGasLimitToMaximum();
         // No token transfer, so there are no pool-supplied details to report.
-        self.exitSuccessfully(msg.fee, null);
+        self.exitSuccessfully(chargedFee, null);
         return;
     }
-    if (msg.destGasOverheads == null) {
-        return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee);
-    }
-    val destGasOverhead = msg.destGasOverheads.asSingle();
-    if (destGasOverhead == null) {
-        return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee);
+
+    if (state.destOverhead == null) {
+        self.exitWithError(CCIPSendExecutor_Error.MissingDestOverhead, chargedFee.feeTokenAmount);
+        return;
     }
 
     // Else if there are token transfers continue querying the TokenAdminRegistry
     val tokenAmount = tokenAmounts.asSingle();
     if (tokenAmount == null) {
-        self.exitWithError(CCIPSendExecutor_Error.UnsupportedNumberOfTokens as uint256);
+        self.exitWithError(CCIPSendExecutor_Error.UnsupportedNumberOfTokens as uint256, chargedFee.feeTokenAmount);
         return;
     }
+    // Token transfers always carry exactly one destGasOverhead (validated before the fee
+    // was reserved), so it must be present here.
     val tokenRegistry = self.addresses.load().tokenRegistry!;
 
-   val queryMsg = createMessage({
+    val queryMsg = createMessage({
         bounce: true,
         value: TokenAdminRegistry_GetTokenInfo.cost(),
         dest: tokenRegistry.load(),
@@ -234,9 +284,10 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         onrampSend: self.onrampSend,
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenRegistryAccess {
-            fee: msg.fee,
+            chargedFee,
             token: tokenAmount.token,
-            destGasOverhead,
+            destOverhead: state.destOverhead,
+            chainFamilySelector: state.chainFamilySelector,
         }.toCell(),
     };
     newState.store();
@@ -244,39 +295,14 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoReceived(mutate self, msg: TokenAdminRegistry_TokenInfo) {
     val state = self.state.load();
-    assert(msg.tokenPool != null) throw CCIPSendExecutor_Error.TokenNotEnabled;
+    if (msg.tokenPool == null) {
+        self.exitWithError(CCIPSendExecutor_Error.TokenNotEnabled, state.chargedFee.feeTokenAmount);
+        return;
+    }
+    if (msg.minterAddress != state.token) {
+        return self.exitWithError(CCIPSendExecutor_Error.TokenMinterMismatch as uint256, state.chargedFee.feeTokenAmount);
+    }
 
-    // The jettons are held by the sender's deposit account for this token, so the withdraw leg
-    // must pull from that account's jetton wallet (not the Router's). The account is derived from
-    // the token, so a minter answering with some other jetton's wallet resolves to an empty one.
-    val accountWalletAddressRequest = createMessage({
-        bounce: true,
-        value: grams("0.5"), // TODO extract to constant and calculate real values
-        dest: msg.minterAddress,
-        body: RequestWalletAddress {
-            queryId: 0,
-            ownerAddress: depositAccountAddress(self.onrampSend.metadata.sender, state.token, self.addresses.load().router),
-            includeOwnerAddress: false,
-        },
-    });
-    accountWalletAddressRequest.send(SEND_MODE_PAY_FEES_SEPARATELY);
-    val newState = CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation> {
-        id: self.id,
-        onrampSend: self.onrampSend,
-        addresses: self.addresses,
-        state: CCIPSendExecutor_State_WalletAddressValidation {
-            fee: state.fee,
-            destGasOverhead: state.destGasOverhead,
-            minterAddress: msg.minterAddress,
-            tokenPool: msg.tokenPool,
-        }.toCell(),
-    };
-    newState.store();
-}
-
-fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseWalletAddress(mutate self, msg: ResponseWalletAddress) {
-    //TODO instead of throw maybe this should exit with error?
-    val state = self.state.load();
     val ccipSend = lazy self.onrampSend.msg.load();
     val tokenAmount = ccipSend.tokenAmounts.iter().next();
     val addresses = lazy self.addresses.load();
@@ -287,7 +313,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
         body: OnRamp_ExecutorRequestsLockOrBurn {
             queryID: ccipSend.queryID,
             tokenAmount: tokenAmount.toCell(),
-            tokenPool: state.tokenPool,
+            tokenPool: msg.tokenPool!,
             destChainSelector: ccipSend.destChainSelector,
             executorID: self.id,
             receiver: ccipSend.receiver.toCell(),
@@ -300,10 +326,10 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
         onrampSend: self.onrampSend,
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenPool_LockOrBurn {
-            fee: state.fee,
-            destGasOverhead: state.destGasOverhead,
-            tokenPool: state.tokenPool,
-            senderDepositAccountWallet: msg.jettonWalletAddress!, // TODO what to do if null
+            chargedFee: state.chargedFee,
+            destOverhead: state.destOverhead,
+            chainFamilySelector: state.chainFamilySelector,
+            tokenPool: msg.tokenPool!,
         }.toCell(),
     };
     newState.store();
@@ -311,15 +337,20 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WalletAddressValidation>.onResponseW
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockOrBurn(mutate self, msg: TokenPool_LockOrBurnWithdraw) {
     val state = self.state.load();
+    // Snapshot pool return data before custody moves so the pool cannot alter it in its
+    // TokenPool_LockOrBurnFinished reply; the OnRamp validates destTokenAddress pre-custody.
+    val prepared = lazy msg.forwardPayload.prepared.load();
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw> {
         id: self.id,
         onrampSend: self.onrampSend,
         addresses: self.addresses,
         state: CCIPSendExecutor_State_TokenPool_Withdraw {
-            fee: state.fee,
-            destGasOverhead: state.destGasOverhead,
+            chargedFee: state.chargedFee,
+            destOverhead: state.destOverhead,
+            chainFamilySelector: state.chainFamilySelector,
             tokenPool: state.tokenPool,
-            senderDepositAccountWallet: state.senderDepositAccountWallet,
+            destTokenAmount: prepared.destTokenAmount,
+            lockOrBurnOut: prepared.out.toCell(),
         }.toCell(),
     };
     newState.store();
@@ -336,9 +367,10 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
             queryID: self.onrampSend.msg.load().queryID,
             executorID: self.id,
             destChainSelector: self.onrampSend.msg.load().destChainSelector,
+            chainFamilySelector: state.chainFamilySelector,
+            destBytesOverhead: state.destOverhead.destBytesOverhead,
             withdrawRequest: Router_WithdrawRequest {
-                accountWalletAddress: state.senderDepositAccountWallet,
-                depositAccount: depositAccountAddress(self.onrampSend.metadata.sender, tokenAmount.token, self.addresses.load().router),
+                depositAccount: senderOnRampAccount(self.onrampSend.metadata.sender, tokenAmount.token, self.addresses.load().router),
                 amount: tokenAmount.amount,
                 tokenPool: state.tokenPool,
                 forwardPayload: msg.forwardPayload.toCell(),
@@ -350,19 +382,16 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdraw(mutate self, msg: TokenPool_LockOrBurnFinished) {
     setGasLimitToMaximum();
-    // Forward what the pool returned so the OnRamp can emit it. sourcePoolAddress comes
-    // from our own state (the pool we routed the lockOrBurn to) rather than from the
-    // pool's reply, so it stays trusted.
+    // Emit from our pre-custody snapshot, not the pool's reply, so a misbehaving pool
+    // cannot alter lockOrBurnOut/destTokenAmount after the tokens were locked/burned.
     val state = self.state.load();
-    val out = msg.out.load();
     val tokenTransfer = OnRamp_ExecutorTokenTransfer {
         sourcePoolAddress: state.tokenPool,
-        amount: msg.destTokenAmount as uint256,
-        destTokenAddress: out.destTokenAddress,
-        extraData: out.destPoolData,
-        destExecData: encodeDestExecData(state.destGasOverhead),
+        amount: state.destTokenAmount as uint256,
+        lockOrBurnOut: state.lockOrBurnOut,
+        destExecData: encodeDestExecData(state.destOverhead.destGasOverhead),
     }.toCell();
-    self.exitSuccessfully(state.fee, tokenTransfer);
+    self.exitSuccessfully(state.chargedFee, tokenTransfer);
 }
 
 fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnRamp_ExecutorTokenTransfer>?) {
@@ -387,14 +416,17 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnR
             tokenTransfer,
         }
     });
+    // SAFETY: This is an ephemeral contract. It is an *acceptor* finite-state automaton which has reached its final state. It can be safely destroyed after sending the message.
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidationFailed(mutate self, msg: FeeQuoter_MessageValidationFailed) {
-    self.exitWithError(msg.error as uint256);
+    self.exitWithError(msg.error as uint256, NO_FEE_CHARGED);
 }
 
-fun CCIPSendExecutor<T>.exitWithError(self, error: uint256) {
+const NO_FEE_CHARGED: coins = 0
+
+fun CCIPSendExecutor<T>.exitWithError(self, error: uint256, chargedFee: coins?) {
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_Finalized> {
         id: self.id,
         onrampSend: self.onrampSend,
@@ -404,17 +436,21 @@ fun CCIPSendExecutor<T>.exitWithError(self, error: uint256) {
     };
     newState.store();
     
+    val msg = lazy self.onrampSend.msg.load();
     val sendMsg = createMessage({
         bounce: true,
         value: 0,
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedWithError {
+            queryID: msg.queryID,
             executorID: self.id,
+            destChainSelector: msg.destChainSelector,
+            sender: self.onrampSend.metadata.sender,
             error,
-            msg: self.onrampSend.msg,
-            metadata: self.onrampSend.metadata,
+            refund: chargedFee.toOptCell(),
         }
     });
+    // SAFETY: This is an ephemeral contract. It is an *acceptor* finite-state automaton which has reached its final state. It can be safely destroyed after sending the message.
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 

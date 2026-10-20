@@ -24,10 +24,10 @@ const (
 // Data represents the DepositAccount_Data contract storage.
 type Data struct {
 	Owner         *address.Address                         `tlb:"addr"`
-	Proxy         *address.Address                         `tlb:"addr"`
+	User          *address.Address                         `tlb:"addr"`
 	Token         *address.Address                         `tlb:"addr"`
 	Beneficiaries *tlbe.Dict[common.AddressWrap, struct{}] `tlb:"."`
-	// Wallet is the account's jetton wallet, learned from Token when an init sets LearnWallet.
+	// Wallet is the account's jetton wallet, learned from Token on the first init.
 	Wallet *address.Address `tlb:"maybe ^ addr"`
 	// PendingInit is the init waiting for the wallet query; others arriving meanwhile are refused.
 	PendingInit *PendingInit `tlb:"maybe ^"`
@@ -35,76 +35,54 @@ type Data struct {
 
 // PendingInit is an init waiting for the account's jetton wallet to be learned.
 type PendingInit struct {
-	QueryID        uint64     `tlb:"## 64"`
-	ForwardPayload *cell.Cell `tlb:"maybe ^"`
-	Value          tlb.Coins  `tlb:"."`
-}
-
-// Identity is what an account reports about itself so a recipient can re-derive its address.
-type Identity struct {
-	Owner *address.Address `tlb:"addr"`
-	Proxy *address.Address `tlb:"addr"`
-	Token *address.Address `tlb:"addr"`
+	QueryID uint64     `tlb:"## 64"`
+	Context *cell.Cell `tlb:"maybe ^"`
 }
 
 // --- Messages (incoming) ---
 
 // Init activates the account. Only the owner may send it.
 type Init struct {
-	_              tlb.Magic  `tlb:"#6890a205" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64     `tlb:"## 64"`
-	ForwardPayload *cell.Cell `tlb:"maybe ^"`
-	// LearnWallet makes the account reply only once it knows its jetton wallet (TEP-89 query to Token).
-	LearnWallet bool `tlb:"bool"`
+	_       tlb.Magic  `tlb:"#6890a205" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64     `tlb:"## 64"`
+	Context *cell.Cell `tlb:"maybe ^"`
 }
 
-// Withdraw lets a beneficiary transfer jettons from this account's wallet.
+// Withdraw lets a beneficiary transfer jettons out of the account's learned jetton wallet.
 type Withdraw struct {
-	_             tlb.Magic        `tlb:"#1936d112" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID       uint64           `tlb:"## 64"`
-	WalletAddress *address.Address `tlb:"addr"`
-	Ask           *cell.Cell       `tlb:"^"` // Cell<AskToTransfer>
+	_       tlb.Magic  `tlb:"#1936d112" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64     `tlb:"## 64"`
+	Ask     *cell.Cell `tlb:"^"` // Cell<AskToTransfer>
 }
 
 // --- Messages (outgoing) ---
 
-// Reply is sent to the initiator on successful initialization.
-type Reply struct {
-	_              tlb.Magic  `tlb:"#da04630c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64     `tlb:"## 64"`
-	ForwardPayload *cell.Cell `tlb:"maybe ^"`
+// Initialized is sent to the owner on successful initialization.
+type Initialized struct {
+	_       tlb.Magic  `tlb:"#784d98e9" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64     `tlb:"## 64"`
+	Context *cell.Cell `tlb:"maybe ^"`
 }
 
-// WalletUnavailable replies to an init with LearnWallet when the token could not report the wallet,
-// or when another init is already waiting for it.
+// WalletUnavailable replies to an init when the token could not report the account's wallet.
 type WalletUnavailable struct {
-	_              tlb.Magic  `tlb:"#9293d68e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64     `tlb:"## 64"`
-	ForwardPayload *cell.Cell `tlb:"maybe ^"`
+	_       tlb.Magic  `tlb:"#9293d68e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64     `tlb:"## 64"`
+	Context *cell.Cell `tlb:"maybe ^"`
 }
 
-// InMessageForward holds the metadata of an original incoming message forwarded
-type InMessageForward struct {
-	SenderAddress      *address.Address `tlb:"addr"`
-	ValueCoins         tlb.Coins        `tlb:"."`
-	ValueExtra         *cell.Dictionary `tlb:"dict 256"` // ExtraCurrenciesMap (map<uint256, Coins>)
-	OriginalForwardFee tlb.Coins        `tlb:"."`
-	CreatedLT          uint64           `tlb:"## 64"`
-	CreatedAt          uint32           `tlb:"## 32"`
-	Body               *cell.Cell       `tlb:"^"`
-}
-
-// ForwardNotification is sent to the proxy when a message is forwarded.
+// ForwardNotification forwards a jetton transfer notification received by the account.
 type ForwardNotification struct {
-	_       tlb.Magic  `tlb:"#b4fe5c0c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	Message *cell.Cell `tlb:"^"`                  // Cell<InMessageForward>
+	_            tlb.Magic  `tlb:"#b4fe5c0c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	Notification *cell.Cell `tlb:"^"`                  // Cell<TransferNotificationForRecipient>
 }
 
 // WithdrawFailed notifies the withdraw requester that the AskToTransfer bounced.
 type WithdrawFailed struct {
 	_             tlb.Magic        `tlb:"#a51b6cba" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID       uint64           `tlb:"## 64"`
-	Account       *cell.Cell       `tlb:"^"` // Cell<Identity>
+	User          *address.Address `tlb:"addr"`
+	Token         *address.Address `tlb:"addr"`
 	WalletAddress *address.Address `tlb:"addr"`
 	Ask           *cell.Cell       `tlb:"^"` // Cell<AskToTransfer>
 }
@@ -115,7 +93,7 @@ type AskToTransfer = wallet.AskToTransfer
 var TLBs = tvm.MustNewTLBMap([]any{
 	Init{},
 	Withdraw{},
-	Reply{},
+	Initialized{},
 	WalletUnavailable{},
 	ForwardNotification{},
 	WithdrawFailed{},

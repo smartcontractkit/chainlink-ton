@@ -209,7 +209,6 @@ describe('TokenAdminRegistry flow fees', () => {
     await measure('RegisterToken', {
       initiator: fx.owner.address,
       value: Costs.registerToken,
-      budget: Costs.registerToken - Costs.entryStorageReserve,
       run: (via, value) =>
         fx.registry.sendTokenAdminRegistryRegisterToken(via, value, {
           queryId: 0n,

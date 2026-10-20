@@ -254,114 +254,12 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
 
 
 /**
- > struct (0x2c76b973) RequestWalletAddress {
- >     queryId: uint64
- >     ownerAddress: address
- >     includeOwnerAddress: bool
- > }
- */
-export interface RequestWalletAddress {
-    readonly $: 'RequestWalletAddress'
-    queryId: uint64
-    ownerAddress: c.Address
-    includeOwnerAddress: boolean
-}
-
-export const RequestWalletAddress = {
-    PREFIX: 0x2c76b973,
-
-    create(args: {
-        queryId?: uint64
-        ownerAddress: c.Address
-        includeOwnerAddress: boolean
-    }): RequestWalletAddress {
-        return {
-            $: 'RequestWalletAddress',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): RequestWalletAddress {
-        loadAndCheckPrefix32(s, 0x2c76b973, 'RequestWalletAddress');
-        return {
-            $: 'RequestWalletAddress',
-            queryId: s.loadUintBig(64),
-            ownerAddress: s.loadAddress(),
-            includeOwnerAddress: s.loadBoolean(),
-        }
-    },
-    store(self: RequestWalletAddress, b: c.Builder): void {
-        b.storeUint(0x2c76b973, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeAddress(self.ownerAddress);
-        b.storeBit(self.includeOwnerAddress);
-    },
-    toCell(self: RequestWalletAddress): c.Cell {
-        return makeCellFrom<RequestWalletAddress>(self, RequestWalletAddress.store);
-    }
-}
-
-/**
- > struct (0xd1735400) ResponseWalletAddress {
- >     queryId: uint64
- >     jettonWalletAddress: address?
- >     ownerAddress: Cell<address>?
- > }
- */
-export interface ResponseWalletAddress {
-    readonly $: 'ResponseWalletAddress'
-    queryId: uint64
-    jettonWalletAddress: c.Address | null
-    ownerAddress: c.Address | null
-}
-
-export const ResponseWalletAddress = {
-    PREFIX: 0xd1735400,
-
-    create(args: {
-        queryId?: uint64
-        jettonWalletAddress: c.Address | null
-        ownerAddress: c.Address | null
-    }): ResponseWalletAddress {
-        return {
-            $: 'ResponseWalletAddress',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): ResponseWalletAddress {
-        loadAndCheckPrefix32(s, 0xd1735400, 'ResponseWalletAddress');
-        return {
-            $: 'ResponseWalletAddress',
-            queryId: s.loadUintBig(64),
-            jettonWalletAddress: s.loadMaybeAddress(),
-            ownerAddress: s.loadBoolean() ? loadCellRef<c.Address>(s,
-                (s) => s.loadAddress()
-            ) : null,
-        }
-    },
-    store(self: ResponseWalletAddress, b: c.Builder): void {
-        b.storeUint(0xd1735400, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeAddress(self.jettonWalletAddress);
-        storeTolkNullable<c.Address>(self.ownerAddress, b,
-            (v,b) => { storeCellRef<c.Address>(v, b,
-                (v,b) => b.storeAddress(v)
-            ); }
-        );
-    },
-    toCell(self: ResponseWalletAddress): c.Cell {
-        return makeCellFrom<ResponseWalletAddress>(self, ResponseWalletAddress.store);
-    }
-}
-
-/**
  > struct (0xfa7da444) TokenPool_LockOrBurn {
  >     queryId: uint64
  >     request: Cell<TokenPool_LockOrBurnInV1>
  >     requestedFinalityConfig: uint32
  >     tokenArgs: cell?
- >     replyTo: address?
+ >     replyTo: address
  > }
  */
 export interface TokenPool_LockOrBurn {
@@ -370,7 +268,7 @@ export interface TokenPool_LockOrBurn {
     request: TokenPool_LockOrBurnInV1
     requestedFinalityConfig: uint32
     tokenArgs: c.Cell | null
-    replyTo: c.Address | null
+    replyTo: c.Address
 }
 
 export const TokenPool_LockOrBurn = {
@@ -381,7 +279,7 @@ export const TokenPool_LockOrBurn = {
         request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
-        replyTo: c.Address | null
+        replyTo: c.Address
     }): TokenPool_LockOrBurn {
         return {
             $: 'TokenPool_LockOrBurn',
@@ -397,7 +295,7 @@ export const TokenPool_LockOrBurn = {
             request: loadCellRef<TokenPool_LockOrBurnInV1>(s, TokenPool_LockOrBurnInV1.fromSlice),
             requestedFinalityConfig: s.loadUintBig(32),
             tokenArgs: s.loadBoolean() ? s.loadRef() : null,
-            replyTo: s.loadMaybeAddress(),
+            replyTo: s.loadAddress(),
         }
     },
     store(self: TokenPool_LockOrBurn, b: c.Builder): void {
@@ -552,13 +450,13 @@ export const TokenPool_LockOrBurnFinished = {
 /**
  > struct (0x3476ea72) TokenPool_LockOrBurnFailure {
  >     queryId: uint64
- >     errorCode: uint16
+ >     errorCode: int32
  > }
  */
 export interface TokenPool_LockOrBurnFailure {
     readonly $: 'TokenPool_LockOrBurnFailure'
     queryId: uint64
-    errorCode: uint16
+    errorCode: int32
 }
 
 export const TokenPool_LockOrBurnFailure = {
@@ -566,7 +464,7 @@ export const TokenPool_LockOrBurnFailure = {
 
     create(args: {
         queryId?: uint64
-        errorCode: uint16
+        errorCode: int32
     }): TokenPool_LockOrBurnFailure {
         return {
             $: 'TokenPool_LockOrBurnFailure',
@@ -579,13 +477,13 @@ export const TokenPool_LockOrBurnFailure = {
         return {
             $: 'TokenPool_LockOrBurnFailure',
             queryId: s.loadUintBig(64),
-            errorCode: s.loadUintBig(16),
+            errorCode: s.loadIntBig(32),
         }
     },
     store(self: TokenPool_LockOrBurnFailure, b: c.Builder): void {
         b.storeUint(0x3476ea72, 32);
         b.storeUint(self.queryId, 64);
-        b.storeUint(self.errorCode, 16);
+        b.storeInt(self.errorCode, 32);
     },
     toCell(self: TokenPool_LockOrBurnFailure): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnFailure>(self, TokenPool_LockOrBurnFailure.store);
@@ -1007,7 +905,8 @@ export const FeeQuoter_GetValidatedFee = {
 /**
  > struct (0xfbf78e40) FeeQuoter_MessageValidated {
  >     fee: Fee
- >     destGasOverheads: lisp_list<uint32>?
+ >     destOverheads: lisp_list<FeeQuoter_DestOverhead>?
+ >     chainFamilySelector: uint32
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
  > }
@@ -1015,7 +914,8 @@ export const FeeQuoter_GetValidatedFee = {
 export interface FeeQuoter_MessageValidated {
     readonly $: 'FeeQuoter_MessageValidated'
     fee: Fee
-    destGasOverheads: lisp_list<uint32> | null
+    destOverheads: lisp_list<FeeQuoter_DestOverhead> | null
+    chainFamilySelector: uint32
     msg: Router_CCIPSend
     context: c.Cell | null /* = null */
 }
@@ -1025,7 +925,8 @@ export const FeeQuoter_MessageValidated = {
 
     create(args: {
         fee: Fee
-        destGasOverheads: lisp_list<uint32> | null
+        destOverheads: lisp_list<FeeQuoter_DestOverhead> | null
+        chainFamilySelector: uint32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }): FeeQuoter_MessageValidated {
@@ -1040,9 +941,8 @@ export const FeeQuoter_MessageValidated = {
         return {
             $: 'FeeQuoter_MessageValidated',
             fee: Fee.fromSlice(s),
-            destGasOverheads: s.loadBoolean() ? loadLispListOf<uint32>(s,
-                (s) => s.loadUintBig(32)
-            ) : null,
+            destOverheads: s.loadBoolean() ? loadLispListOf<FeeQuoter_DestOverhead>(s, FeeQuoter_DestOverhead.fromSlice) : null,
+            chainFamilySelector: s.loadUintBig(32),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
@@ -1050,11 +950,10 @@ export const FeeQuoter_MessageValidated = {
     store(self: FeeQuoter_MessageValidated, b: c.Builder): void {
         b.storeUint(0xfbf78e40, 32);
         Fee.store(self.fee, b);
-        storeTolkNullable<lisp_list<uint32>>(self.destGasOverheads, b,
-            (v,b) => { storeLispListOf<uint32>(v, b,
-                (v,b) => b.storeUint(v, 32)
-            ); }
+        storeTolkNullable<lisp_list<FeeQuoter_DestOverhead>>(self.destOverheads, b,
+            (v,b) => storeLispListOf<FeeQuoter_DestOverhead>(v, b, FeeQuoter_DestOverhead.store)
         );
+        b.storeUint(self.chainFamilySelector, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -1112,6 +1011,44 @@ export const FeeQuoter_MessageValidationFailed = {
     },
     toCell(self: FeeQuoter_MessageValidationFailed): c.Cell {
         return makeCellFrom<FeeQuoter_MessageValidationFailed>(self, FeeQuoter_MessageValidationFailed.store);
+    }
+}
+
+/**
+ > struct FeeQuoter_DestOverhead {
+ >     destGasOverhead: uint32
+ >     destBytesOverhead: uint32
+ > }
+ */
+export interface FeeQuoter_DestOverhead {
+    readonly $: 'FeeQuoter_DestOverhead'
+    destGasOverhead: uint32
+    destBytesOverhead: uint32
+}
+
+export const FeeQuoter_DestOverhead = {
+    create(args: {
+        destGasOverhead: uint32
+        destBytesOverhead: uint32
+    }): FeeQuoter_DestOverhead {
+        return {
+            $: 'FeeQuoter_DestOverhead',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): FeeQuoter_DestOverhead {
+        return {
+            $: 'FeeQuoter_DestOverhead',
+            destGasOverhead: s.loadUintBig(32),
+            destBytesOverhead: s.loadUintBig(32),
+        }
+    },
+    store(self: FeeQuoter_DestOverhead, b: c.Builder): void {
+        b.storeUint(self.destGasOverhead, 32);
+        b.storeUint(self.destBytesOverhead, 32);
+    },
+    toCell(self: FeeQuoter_DestOverhead): c.Cell {
+        return makeCellFrom<FeeQuoter_DestOverhead>(self, FeeQuoter_DestOverhead.store);
     }
 }
 
@@ -1268,6 +1205,8 @@ export const OnRamp_ExecutorRequestsLockOrBurn = {
  >     queryID: uint64
  >     executorID: CCIPSendExecutor_ID
  >     destChainSelector: uint64
+ >     chainFamilySelector: uint32
+ >     destBytesOverhead: uint32
  >     withdrawRequest: Cell<Router_WithdrawRequest>
  > }
  */
@@ -1276,6 +1215,8 @@ export interface OnRamp_ExecutorRequestsWithdraw {
     queryID: uint64
     executorID: CCIPSendExecutor_ID
     destChainSelector: uint64
+    chainFamilySelector: uint32
+    destBytesOverhead: uint32
     withdrawRequest: Router_WithdrawRequest
 }
 
@@ -1286,6 +1227,8 @@ export const OnRamp_ExecutorRequestsWithdraw = {
         queryID?: uint64
         executorID: CCIPSendExecutor_ID
         destChainSelector: uint64
+        chainFamilySelector: uint32
+        destBytesOverhead: uint32
         withdrawRequest: Router_WithdrawRequest
     }): OnRamp_ExecutorRequestsWithdraw {
         return {
@@ -1301,6 +1244,8 @@ export const OnRamp_ExecutorRequestsWithdraw = {
             queryID: s.loadUintBig(64),
             executorID: CCIPSendExecutor_ID.fromSlice(s),
             destChainSelector: s.loadUintBig(64),
+            chainFamilySelector: s.loadUintBig(32),
+            destBytesOverhead: s.loadUintBig(32),
             withdrawRequest: loadCellRef<Router_WithdrawRequest>(s, Router_WithdrawRequest.fromSlice),
         }
     },
@@ -1309,10 +1254,91 @@ export const OnRamp_ExecutorRequestsWithdraw = {
         b.storeUint(self.queryID, 64);
         CCIPSendExecutor_ID.store(self.executorID, b);
         b.storeUint(self.destChainSelector, 64);
+        b.storeUint(self.chainFamilySelector, 32);
+        b.storeUint(self.destBytesOverhead, 32);
         storeCellRef<Router_WithdrawRequest>(self.withdrawRequest, b, Router_WithdrawRequest.store);
     },
     toCell(self: OnRamp_ExecutorRequestsWithdraw): c.Cell {
         return makeCellFrom<OnRamp_ExecutorRequestsWithdraw>(self, OnRamp_ExecutorRequestsWithdraw.store);
+    }
+}
+
+/**
+ > struct (0xb6bbebdb) OnRamp_ExecutorReserveFee {
+ >     executorID: CCIPSendExecutor_ID
+ >     fee: coins
+ > }
+ */
+export interface OnRamp_ExecutorReserveFee {
+    readonly $: 'OnRamp_ExecutorReserveFee'
+    executorID: CCIPSendExecutor_ID
+    fee: coins
+}
+
+export const OnRamp_ExecutorReserveFee = {
+    PREFIX: 0xb6bbebdb,
+
+    create(args: {
+        executorID: CCIPSendExecutor_ID
+        fee: coins
+    }): OnRamp_ExecutorReserveFee {
+        return {
+            $: 'OnRamp_ExecutorReserveFee',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): OnRamp_ExecutorReserveFee {
+        loadAndCheckPrefix32(s, 0xb6bbebdb, 'OnRamp_ExecutorReserveFee');
+        return {
+            $: 'OnRamp_ExecutorReserveFee',
+            executorID: CCIPSendExecutor_ID.fromSlice(s),
+            fee: s.loadCoins(),
+        }
+    },
+    store(self: OnRamp_ExecutorReserveFee, b: c.Builder): void {
+        b.storeUint(0xb6bbebdb, 32);
+        CCIPSendExecutor_ID.store(self.executorID, b);
+        b.storeCoins(self.fee);
+    },
+    toCell(self: OnRamp_ExecutorReserveFee): c.Cell {
+        return makeCellFrom<OnRamp_ExecutorReserveFee>(self, OnRamp_ExecutorReserveFee.store);
+    }
+}
+
+/**
+ > struct (0x540a6d81) OnRamp_ExecutorFeeReserved {
+ >     executorID: CCIPSendExecutor_ID
+ > }
+ */
+export interface OnRamp_ExecutorFeeReserved {
+    readonly $: 'OnRamp_ExecutorFeeReserved'
+    executorID: CCIPSendExecutor_ID
+}
+
+export const OnRamp_ExecutorFeeReserved = {
+    PREFIX: 0x540a6d81,
+
+    create(args: {
+        executorID: CCIPSendExecutor_ID
+    }): OnRamp_ExecutorFeeReserved {
+        return {
+            $: 'OnRamp_ExecutorFeeReserved',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): OnRamp_ExecutorFeeReserved {
+        loadAndCheckPrefix32(s, 0x540a6d81, 'OnRamp_ExecutorFeeReserved');
+        return {
+            $: 'OnRamp_ExecutorFeeReserved',
+            executorID: CCIPSendExecutor_ID.fromSlice(s),
+        }
+    },
+    store(self: OnRamp_ExecutorFeeReserved, b: c.Builder): void {
+        b.storeUint(0x540a6d81, 32);
+        CCIPSendExecutor_ID.store(self.executorID, b);
+    },
+    toCell(self: OnRamp_ExecutorFeeReserved): c.Cell {
+        return makeCellFrom<OnRamp_ExecutorFeeReserved>(self, OnRamp_ExecutorFeeReserved.store);
     }
 }
 
@@ -1377,50 +1403,67 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
 
 /**
  > struct (0xc4068e21) OnRamp_ExecutorFinishedWithError {
+ >     queryID: uint64
  >     executorID: CCIPSendExecutor_ID
+ >     destChainSelector: uint64
+ >     sender: address
  >     error: uint256
- >     msg: Cell<Router_CCIPSend>
- >     metadata: Metadata
+ >     refund: Cell<coins>?
  > }
  */
 export interface OnRamp_ExecutorFinishedWithError {
     readonly $: 'OnRamp_ExecutorFinishedWithError'
+    queryID: uint64
     executorID: CCIPSendExecutor_ID
+    destChainSelector: uint64
+    sender: c.Address
     error: uint256
-    msg: Router_CCIPSend
-    metadata: Metadata
+    refund: coins | null
 }
 
 export const OnRamp_ExecutorFinishedWithError = {
     PREFIX: 0xc4068e21,
 
     create(args: {
+        queryID?: uint64
         executorID: CCIPSendExecutor_ID
+        destChainSelector: uint64
+        sender: c.Address
         error: uint256
-        msg: Router_CCIPSend
-        metadata: Metadata
+        refund: coins | null
     }): OnRamp_ExecutorFinishedWithError {
         return {
             $: 'OnRamp_ExecutorFinishedWithError',
-            ...args
+            ...args,
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): OnRamp_ExecutorFinishedWithError {
         loadAndCheckPrefix32(s, 0xc4068e21, 'OnRamp_ExecutorFinishedWithError');
         return {
             $: 'OnRamp_ExecutorFinishedWithError',
+            queryID: s.loadUintBig(64),
             executorID: CCIPSendExecutor_ID.fromSlice(s),
+            destChainSelector: s.loadUintBig(64),
+            sender: s.loadAddress(),
             error: s.loadUintBig(256),
-            msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
-            metadata: Metadata.fromSlice(s),
+            refund: s.loadBoolean() ? loadCellRef<coins>(s,
+                (s) => s.loadCoins()
+            ) : null,
         }
     },
     store(self: OnRamp_ExecutorFinishedWithError, b: c.Builder): void {
         b.storeUint(0xc4068e21, 32);
+        b.storeUint(self.queryID, 64);
         CCIPSendExecutor_ID.store(self.executorID, b);
+        b.storeUint(self.destChainSelector, 64);
+        b.storeAddress(self.sender);
         b.storeUint(self.error, 256);
-        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
-        Metadata.store(self.metadata, b);
+        storeTolkNullable<coins>(self.refund, b,
+            (v,b) => { storeCellRef<coins>(v, b,
+                (v,b) => b.storeCoins(v)
+            ); }
+        );
     },
     toCell(self: OnRamp_ExecutorFinishedWithError): c.Cell {
         return makeCellFrom<OnRamp_ExecutorFinishedWithError>(self, OnRamp_ExecutorFinishedWithError.store);
@@ -1469,8 +1512,7 @@ export const Metadata = {
  > struct OnRamp_ExecutorTokenTransfer {
  >     sourcePoolAddress: address
  >     amount: uint256
- >     destTokenAddress: Cell<CrossChainAddress>
- >     extraData: cell
+ >     lockOrBurnOut: Cell<TokenPool_LockOrBurnOutV1>
  >     destExecData: cell
  > }
  */
@@ -1478,8 +1520,7 @@ export interface OnRamp_ExecutorTokenTransfer {
     readonly $: 'OnRamp_ExecutorTokenTransfer'
     sourcePoolAddress: c.Address
     amount: uint256
-    destTokenAddress: CrossChainAddress
-    extraData: c.Cell
+    lockOrBurnOut: TokenPool_LockOrBurnOutV1
     destExecData: c.Cell
 }
 
@@ -1487,8 +1528,7 @@ export const OnRamp_ExecutorTokenTransfer = {
     create(args: {
         sourcePoolAddress: c.Address
         amount: uint256
-        destTokenAddress: CrossChainAddress
-        extraData: c.Cell
+        lockOrBurnOut: TokenPool_LockOrBurnOutV1
         destExecData: c.Cell
     }): OnRamp_ExecutorTokenTransfer {
         return {
@@ -1501,16 +1541,14 @@ export const OnRamp_ExecutorTokenTransfer = {
             $: 'OnRamp_ExecutorTokenTransfer',
             sourcePoolAddress: s.loadAddress(),
             amount: s.loadUintBig(256),
-            destTokenAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
-            extraData: s.loadRef(),
+            lockOrBurnOut: loadCellRef<TokenPool_LockOrBurnOutV1>(s, TokenPool_LockOrBurnOutV1.fromSlice),
             destExecData: s.loadRef(),
         }
     },
     store(self: OnRamp_ExecutorTokenTransfer, b: c.Builder): void {
         b.storeAddress(self.sourcePoolAddress);
         b.storeUint(self.amount, 256);
-        storeCellRef<CrossChainAddress>(self.destTokenAddress, b, CrossChainAddress.store);
-        b.storeRef(self.extraData);
+        storeCellRef<TokenPool_LockOrBurnOutV1>(self.lockOrBurnOut, b, TokenPool_LockOrBurnOutV1.store);
         b.storeRef(self.destExecData);
     },
     toCell(self: OnRamp_ExecutorTokenTransfer): c.Cell {
@@ -1588,7 +1626,6 @@ export const Router_CCIPSend = {
 
 /**
  > struct Router_WithdrawRequest {
- >     accountWalletAddress: address
  >     depositAccount: address
  >     amount: coins
  >     tokenPool: address
@@ -1597,7 +1634,6 @@ export const Router_CCIPSend = {
  */
 export interface Router_WithdrawRequest {
     readonly $: 'Router_WithdrawRequest'
-    accountWalletAddress: c.Address
     depositAccount: c.Address
     amount: coins
     tokenPool: c.Address
@@ -1606,7 +1642,6 @@ export interface Router_WithdrawRequest {
 
 export const Router_WithdrawRequest = {
     create(args: {
-        accountWalletAddress: c.Address
         depositAccount: c.Address
         amount: coins
         tokenPool: c.Address
@@ -1620,7 +1655,6 @@ export const Router_WithdrawRequest = {
     fromSlice(s: c.Slice): Router_WithdrawRequest {
         return {
             $: 'Router_WithdrawRequest',
-            accountWalletAddress: s.loadAddress(),
             depositAccount: s.loadAddress(),
             amount: s.loadCoins(),
             tokenPool: s.loadAddress(),
@@ -1628,7 +1662,6 @@ export const Router_WithdrawRequest = {
         }
     },
     store(self: Router_WithdrawRequest, b: c.Builder): void {
-        b.storeAddress(self.accountWalletAddress);
         b.storeAddress(self.depositAccount);
         b.storeCoins(self.amount);
         b.storeAddress(self.tokenPool);
@@ -2086,13 +2119,13 @@ export const CCIPSendExecutor_Addresses = {
 }
 
 /**
- > type CCIPSendExecutor_State = Cell<CCIPSendExecutor_State_Initialized> | Cell<CCIPSendExecutor_State_OnGoingFeeValidation> | Cell<CCIPSendExecutor_State_TokenRegistryAccess> | Cell<CCIPSendExecutor_State_WalletAddressValidation> | Cell<CCIPSendExecutor_State_TokenPool_LockOrBurn> | Cell<CCIPSendExecutor_State_TokenPool_Withdraw> | Cell<CCIPSendExecutor_State_Finalized>
+ > type CCIPSendExecutor_State = Cell<CCIPSendExecutor_State_Initialized> | Cell<CCIPSendExecutor_State_OnGoingFeeValidation> | Cell<CCIPSendExecutor_State_OnGoingFeeReservation> | Cell<CCIPSendExecutor_State_TokenRegistryAccess> | Cell<CCIPSendExecutor_State_TokenPool_LockOrBurn> | Cell<CCIPSendExecutor_State_TokenPool_Withdraw> | Cell<CCIPSendExecutor_State_Finalized>
  */
 export type CCIPSendExecutor_State =
     | { $: 'Cell<CCIPSendExecutor_State_Initialized>', value: CCIPSendExecutor_State_Initialized }
     | { $: 'Cell<CCIPSendExecutor_State_OnGoingFeeValidation>', value: CCIPSendExecutor_State_OnGoingFeeValidation }
+    | { $: 'Cell<CCIPSendExecutor_State_OnGoingFeeReservation>', value: CCIPSendExecutor_State_OnGoingFeeReservation }
     | { $: 'Cell<CCIPSendExecutor_State_TokenRegistryAccess>', value: CCIPSendExecutor_State_TokenRegistryAccess }
-    | { $: 'Cell<CCIPSendExecutor_State_WalletAddressValidation>', value: CCIPSendExecutor_State_WalletAddressValidation }
     | { $: 'Cell<CCIPSendExecutor_State_TokenPool_LockOrBurn>', value: CCIPSendExecutor_State_TokenPool_LockOrBurn }
     | { $: 'Cell<CCIPSendExecutor_State_TokenPool_Withdraw>', value: CCIPSendExecutor_State_TokenPool_Withdraw }
     | { $: 'Cell<CCIPSendExecutor_State_Finalized>', value: CCIPSendExecutor_State_Finalized }
@@ -2101,8 +2134,8 @@ export const CCIPSendExecutor_State = {
     fromSlice(s: c.Slice): CCIPSendExecutor_State {
         return lookupPrefixAndEat(s, 0b000, 3) ? { $: 'Cell<CCIPSendExecutor_State_Initialized>', value: loadCellRef<CCIPSendExecutor_State_Initialized>(s, CCIPSendExecutor_State_Initialized.fromSlice) } :
             lookupPrefixAndEat(s, 0b001, 3) ? { $: 'Cell<CCIPSendExecutor_State_OnGoingFeeValidation>', value: loadCellRef<CCIPSendExecutor_State_OnGoingFeeValidation>(s, CCIPSendExecutor_State_OnGoingFeeValidation.fromSlice) } :
-            lookupPrefixAndEat(s, 0b010, 3) ? { $: 'Cell<CCIPSendExecutor_State_TokenRegistryAccess>', value: loadCellRef<CCIPSendExecutor_State_TokenRegistryAccess>(s, CCIPSendExecutor_State_TokenRegistryAccess.fromSlice) } :
-            lookupPrefixAndEat(s, 0b011, 3) ? { $: 'Cell<CCIPSendExecutor_State_WalletAddressValidation>', value: loadCellRef<CCIPSendExecutor_State_WalletAddressValidation>(s, CCIPSendExecutor_State_WalletAddressValidation.fromSlice) } :
+            lookupPrefixAndEat(s, 0b010, 3) ? { $: 'Cell<CCIPSendExecutor_State_OnGoingFeeReservation>', value: loadCellRef<CCIPSendExecutor_State_OnGoingFeeReservation>(s, CCIPSendExecutor_State_OnGoingFeeReservation.fromSlice) } :
+            lookupPrefixAndEat(s, 0b011, 3) ? { $: 'Cell<CCIPSendExecutor_State_TokenRegistryAccess>', value: loadCellRef<CCIPSendExecutor_State_TokenRegistryAccess>(s, CCIPSendExecutor_State_TokenRegistryAccess.fromSlice) } :
             lookupPrefixAndEat(s, 0b100, 3) ? { $: 'Cell<CCIPSendExecutor_State_TokenPool_LockOrBurn>', value: loadCellRef<CCIPSendExecutor_State_TokenPool_LockOrBurn>(s, CCIPSendExecutor_State_TokenPool_LockOrBurn.fromSlice) } :
             lookupPrefixAndEat(s, 0b101, 3) ? { $: 'Cell<CCIPSendExecutor_State_TokenPool_Withdraw>', value: loadCellRef<CCIPSendExecutor_State_TokenPool_Withdraw>(s, CCIPSendExecutor_State_TokenPool_Withdraw.fromSlice) } :
             lookupPrefixAndEat(s, 0b110, 3) ? { $: 'Cell<CCIPSendExecutor_State_Finalized>', value: loadCellRef<CCIPSendExecutor_State_Finalized>(s, CCIPSendExecutor_State_Finalized.fromSlice) } :
@@ -2118,13 +2151,13 @@ export const CCIPSendExecutor_State = {
                 b.storeUint(0b001, 3);
                 storeCellRef<CCIPSendExecutor_State_OnGoingFeeValidation>(self.value, b, CCIPSendExecutor_State_OnGoingFeeValidation.store);
                 break;
-            case 'Cell<CCIPSendExecutor_State_TokenRegistryAccess>':
+            case 'Cell<CCIPSendExecutor_State_OnGoingFeeReservation>':
                 b.storeUint(0b010, 3);
-                storeCellRef<CCIPSendExecutor_State_TokenRegistryAccess>(self.value, b, CCIPSendExecutor_State_TokenRegistryAccess.store);
+                storeCellRef<CCIPSendExecutor_State_OnGoingFeeReservation>(self.value, b, CCIPSendExecutor_State_OnGoingFeeReservation.store);
                 break;
-            case 'Cell<CCIPSendExecutor_State_WalletAddressValidation>':
+            case 'Cell<CCIPSendExecutor_State_TokenRegistryAccess>':
                 b.storeUint(0b011, 3);
-                storeCellRef<CCIPSendExecutor_State_WalletAddressValidation>(self.value, b, CCIPSendExecutor_State_WalletAddressValidation.store);
+                storeCellRef<CCIPSendExecutor_State_TokenRegistryAccess>(self.value, b, CCIPSendExecutor_State_TokenRegistryAccess.store);
                 break;
             case 'Cell<CCIPSendExecutor_State_TokenPool_LockOrBurn>':
                 b.storeUint(0b100, 3);
@@ -2198,24 +2231,70 @@ export const CCIPSendExecutor_State_OnGoingFeeValidation = {
 }
 
 /**
- > struct CCIPSendExecutor_State_TokenRegistryAccess {
+ > struct CCIPSendExecutor_State_OnGoingFeeReservation {
  >     fee: Fee
+ >     destOverhead: FeeQuoter_DestOverhead?
+ >     chainFamilySelector: uint32
+ > }
+ */
+export interface CCIPSendExecutor_State_OnGoingFeeReservation {
+    readonly $: 'CCIPSendExecutor_State_OnGoingFeeReservation'
+    fee: Fee
+    destOverhead: FeeQuoter_DestOverhead | null
+    chainFamilySelector: uint32
+}
+
+export const CCIPSendExecutor_State_OnGoingFeeReservation = {
+    create(args: {
+        fee: Fee
+        destOverhead: FeeQuoter_DestOverhead | null
+        chainFamilySelector: uint32
+    }): CCIPSendExecutor_State_OnGoingFeeReservation {
+        return {
+            $: 'CCIPSendExecutor_State_OnGoingFeeReservation',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): CCIPSendExecutor_State_OnGoingFeeReservation {
+        return {
+            $: 'CCIPSendExecutor_State_OnGoingFeeReservation',
+            fee: Fee.fromSlice(s),
+            destOverhead: s.loadBoolean() ? FeeQuoter_DestOverhead.fromSlice(s) : null,
+            chainFamilySelector: s.loadUintBig(32),
+        }
+    },
+    store(self: CCIPSendExecutor_State_OnGoingFeeReservation, b: c.Builder): void {
+        Fee.store(self.fee, b);
+        storeTolkNullable<FeeQuoter_DestOverhead>(self.destOverhead, b, FeeQuoter_DestOverhead.store);
+        b.storeUint(self.chainFamilySelector, 32);
+    },
+    toCell(self: CCIPSendExecutor_State_OnGoingFeeReservation): c.Cell {
+        return makeCellFrom<CCIPSendExecutor_State_OnGoingFeeReservation>(self, CCIPSendExecutor_State_OnGoingFeeReservation.store);
+    }
+}
+
+/**
+ > struct CCIPSendExecutor_State_TokenRegistryAccess {
+ >     chargedFee: Fee
  >     token: address
- >     destGasOverhead: uint32
+ >     destOverhead: FeeQuoter_DestOverhead
+ >     chainFamilySelector: uint32
  > }
  */
 export interface CCIPSendExecutor_State_TokenRegistryAccess {
     readonly $: 'CCIPSendExecutor_State_TokenRegistryAccess'
-    fee: Fee
+    chargedFee: Fee
     token: c.Address
-    destGasOverhead: uint32
+    destOverhead: FeeQuoter_DestOverhead
+    chainFamilySelector: uint32
 }
 
 export const CCIPSendExecutor_State_TokenRegistryAccess = {
     create(args: {
-        fee: Fee
+        chargedFee: Fee
         token: c.Address
-        destGasOverhead: uint32
+        destOverhead: FeeQuoter_DestOverhead
+        chainFamilySelector: uint32
     }): CCIPSendExecutor_State_TokenRegistryAccess {
         return {
             $: 'CCIPSendExecutor_State_TokenRegistryAccess',
@@ -2225,15 +2304,17 @@ export const CCIPSendExecutor_State_TokenRegistryAccess = {
     fromSlice(s: c.Slice): CCIPSendExecutor_State_TokenRegistryAccess {
         return {
             $: 'CCIPSendExecutor_State_TokenRegistryAccess',
-            fee: Fee.fromSlice(s),
+            chargedFee: Fee.fromSlice(s),
             token: s.loadAddress(),
-            destGasOverhead: s.loadUintBig(32),
+            destOverhead: FeeQuoter_DestOverhead.fromSlice(s),
+            chainFamilySelector: s.loadUintBig(32),
         }
     },
     store(self: CCIPSendExecutor_State_TokenRegistryAccess, b: c.Builder): void {
-        Fee.store(self.fee, b);
+        Fee.store(self.chargedFee, b);
         b.storeAddress(self.token);
-        b.storeUint(self.destGasOverhead, 32);
+        FeeQuoter_DestOverhead.store(self.destOverhead, b);
+        b.storeUint(self.chainFamilySelector, 32);
     },
     toCell(self: CCIPSendExecutor_State_TokenRegistryAccess): c.Cell {
         return makeCellFrom<CCIPSendExecutor_State_TokenRegistryAccess>(self, CCIPSendExecutor_State_TokenRegistryAccess.store);
@@ -2241,75 +2322,27 @@ export const CCIPSendExecutor_State_TokenRegistryAccess = {
 }
 
 /**
- > struct CCIPSendExecutor_State_WalletAddressValidation {
- >     fee: Fee
- >     destGasOverhead: uint32
- >     minterAddress: address
- >     tokenPool: address
- > }
- */
-export interface CCIPSendExecutor_State_WalletAddressValidation {
-    readonly $: 'CCIPSendExecutor_State_WalletAddressValidation'
-    fee: Fee
-    destGasOverhead: uint32
-    minterAddress: c.Address
-    tokenPool: c.Address
-}
-
-export const CCIPSendExecutor_State_WalletAddressValidation = {
-    create(args: {
-        fee: Fee
-        destGasOverhead: uint32
-        minterAddress: c.Address
-        tokenPool: c.Address
-    }): CCIPSendExecutor_State_WalletAddressValidation {
-        return {
-            $: 'CCIPSendExecutor_State_WalletAddressValidation',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): CCIPSendExecutor_State_WalletAddressValidation {
-        return {
-            $: 'CCIPSendExecutor_State_WalletAddressValidation',
-            fee: Fee.fromSlice(s),
-            destGasOverhead: s.loadUintBig(32),
-            minterAddress: s.loadAddress(),
-            tokenPool: s.loadAddress(),
-        }
-    },
-    store(self: CCIPSendExecutor_State_WalletAddressValidation, b: c.Builder): void {
-        Fee.store(self.fee, b);
-        b.storeUint(self.destGasOverhead, 32);
-        b.storeAddress(self.minterAddress);
-        b.storeAddress(self.tokenPool);
-    },
-    toCell(self: CCIPSendExecutor_State_WalletAddressValidation): c.Cell {
-        return makeCellFrom<CCIPSendExecutor_State_WalletAddressValidation>(self, CCIPSendExecutor_State_WalletAddressValidation.store);
-    }
-}
-
-/**
  > struct CCIPSendExecutor_State_TokenPool_LockOrBurn {
- >     fee: Fee
- >     destGasOverhead: uint32
+ >     chargedFee: Fee
+ >     destOverhead: FeeQuoter_DestOverhead
+ >     chainFamilySelector: uint32
  >     tokenPool: address
- >     senderDepositAccountWallet: address
  > }
  */
 export interface CCIPSendExecutor_State_TokenPool_LockOrBurn {
     readonly $: 'CCIPSendExecutor_State_TokenPool_LockOrBurn'
-    fee: Fee
-    destGasOverhead: uint32
+    chargedFee: Fee
+    destOverhead: FeeQuoter_DestOverhead
+    chainFamilySelector: uint32
     tokenPool: c.Address
-    senderDepositAccountWallet: c.Address
 }
 
 export const CCIPSendExecutor_State_TokenPool_LockOrBurn = {
     create(args: {
-        fee: Fee
-        destGasOverhead: uint32
+        chargedFee: Fee
+        destOverhead: FeeQuoter_DestOverhead
+        chainFamilySelector: uint32
         tokenPool: c.Address
-        senderDepositAccountWallet: c.Address
     }): CCIPSendExecutor_State_TokenPool_LockOrBurn {
         return {
             $: 'CCIPSendExecutor_State_TokenPool_LockOrBurn',
@@ -2319,17 +2352,17 @@ export const CCIPSendExecutor_State_TokenPool_LockOrBurn = {
     fromSlice(s: c.Slice): CCIPSendExecutor_State_TokenPool_LockOrBurn {
         return {
             $: 'CCIPSendExecutor_State_TokenPool_LockOrBurn',
-            fee: Fee.fromSlice(s),
-            destGasOverhead: s.loadUintBig(32),
+            chargedFee: Fee.fromSlice(s),
+            destOverhead: FeeQuoter_DestOverhead.fromSlice(s),
+            chainFamilySelector: s.loadUintBig(32),
             tokenPool: s.loadAddress(),
-            senderDepositAccountWallet: s.loadAddress(),
         }
     },
     store(self: CCIPSendExecutor_State_TokenPool_LockOrBurn, b: c.Builder): void {
-        Fee.store(self.fee, b);
-        b.storeUint(self.destGasOverhead, 32);
+        Fee.store(self.chargedFee, b);
+        FeeQuoter_DestOverhead.store(self.destOverhead, b);
+        b.storeUint(self.chainFamilySelector, 32);
         b.storeAddress(self.tokenPool);
-        b.storeAddress(self.senderDepositAccountWallet);
     },
     toCell(self: CCIPSendExecutor_State_TokenPool_LockOrBurn): c.Cell {
         return makeCellFrom<CCIPSendExecutor_State_TokenPool_LockOrBurn>(self, CCIPSendExecutor_State_TokenPool_LockOrBurn.store);
@@ -2338,26 +2371,32 @@ export const CCIPSendExecutor_State_TokenPool_LockOrBurn = {
 
 /**
  > struct CCIPSendExecutor_State_TokenPool_Withdraw {
- >     fee: Fee
- >     destGasOverhead: uint32
+ >     chargedFee: Fee
+ >     destOverhead: FeeQuoter_DestOverhead
+ >     chainFamilySelector: uint32
  >     tokenPool: address
- >     senderDepositAccountWallet: address
+ >     destTokenAmount: coins
+ >     lockOrBurnOut: Cell<TokenPool_LockOrBurnOutV1>
  > }
  */
 export interface CCIPSendExecutor_State_TokenPool_Withdraw {
     readonly $: 'CCIPSendExecutor_State_TokenPool_Withdraw'
-    fee: Fee
-    destGasOverhead: uint32
+    chargedFee: Fee
+    destOverhead: FeeQuoter_DestOverhead
+    chainFamilySelector: uint32
     tokenPool: c.Address
-    senderDepositAccountWallet: c.Address
+    destTokenAmount: coins
+    lockOrBurnOut: TokenPool_LockOrBurnOutV1
 }
 
 export const CCIPSendExecutor_State_TokenPool_Withdraw = {
     create(args: {
-        fee: Fee
-        destGasOverhead: uint32
+        chargedFee: Fee
+        destOverhead: FeeQuoter_DestOverhead
+        chainFamilySelector: uint32
         tokenPool: c.Address
-        senderDepositAccountWallet: c.Address
+        destTokenAmount: coins
+        lockOrBurnOut: TokenPool_LockOrBurnOutV1
     }): CCIPSendExecutor_State_TokenPool_Withdraw {
         return {
             $: 'CCIPSendExecutor_State_TokenPool_Withdraw',
@@ -2367,17 +2406,21 @@ export const CCIPSendExecutor_State_TokenPool_Withdraw = {
     fromSlice(s: c.Slice): CCIPSendExecutor_State_TokenPool_Withdraw {
         return {
             $: 'CCIPSendExecutor_State_TokenPool_Withdraw',
-            fee: Fee.fromSlice(s),
-            destGasOverhead: s.loadUintBig(32),
+            chargedFee: Fee.fromSlice(s),
+            destOverhead: FeeQuoter_DestOverhead.fromSlice(s),
+            chainFamilySelector: s.loadUintBig(32),
             tokenPool: s.loadAddress(),
-            senderDepositAccountWallet: s.loadAddress(),
+            destTokenAmount: s.loadCoins(),
+            lockOrBurnOut: loadCellRef<TokenPool_LockOrBurnOutV1>(s, TokenPool_LockOrBurnOutV1.fromSlice),
         }
     },
     store(self: CCIPSendExecutor_State_TokenPool_Withdraw, b: c.Builder): void {
-        Fee.store(self.fee, b);
-        b.storeUint(self.destGasOverhead, 32);
+        Fee.store(self.chargedFee, b);
+        FeeQuoter_DestOverhead.store(self.destOverhead, b);
+        b.storeUint(self.chainFamilySelector, 32);
         b.storeAddress(self.tokenPool);
-        b.storeAddress(self.senderDepositAccountWallet);
+        b.storeCoins(self.destTokenAmount);
+        storeCellRef<TokenPool_LockOrBurnOutV1>(self.lockOrBurnOut, b, TokenPool_LockOrBurnOutV1.store);
     },
     toCell(self: CCIPSendExecutor_State_TokenPool_Withdraw): c.Cell {
         return makeCellFrom<CCIPSendExecutor_State_TokenPool_Withdraw>(self, CCIPSendExecutor_State_TokenPool_Withdraw.store);
@@ -2496,7 +2539,7 @@ export const CCIPSendExecutor_Execute = {
 }
 
 /**
- > enum CCIPSendExecutor_Error { 9 variants }
+ > enum CCIPSendExecutor_Error { 13 variants }
  */
 export type CCIPSendExecutor_Error = bigint
 
@@ -2506,10 +2549,14 @@ export const CCIPSendExecutor_Error = {
     InsufficientFunds: 17802n,
     InsufficientFee: 17803n,
     FeeQuoterBounce: 17804n,
-    TokenNotEnabled: 17805n,
-    TokenPoolBounce: 17806n,
-    UnsupportedNumberOfTokens: 17807n,
-    InvalidValidatedFee: 17808n,
+    OnRampFeeReservationBounce: 17805n,
+    TokenNotEnabled: 17806n,
+    TokenPoolBounce: 17807n,
+    UnsupportedNumberOfTokens: 17808n,
+    InvalidValidatedFee: 17809n,
+    TokenRegistryBounce: 17810n,
+    MissingDestOverhead: 17811n,
+    TokenMinterMismatch: 17812n,
 
     fromSlice(s: c.Slice): CCIPSendExecutor_Error {
         return s.loadUintBig(15);
@@ -2561,7 +2608,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class CCIPSendExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,
@@ -2571,10 +2618,14 @@ export class CCIPSendExecutor implements c.Contract {
         'CCIPSendExecutor_Error.InsufficientFunds': 17802,
         'CCIPSendExecutor_Error.InsufficientFee': 17803,
         'CCIPSendExecutor_Error.FeeQuoterBounce': 17804,
-        'CCIPSendExecutor_Error.TokenNotEnabled': 17805,
-        'CCIPSendExecutor_Error.TokenPoolBounce': 17806,
-        'CCIPSendExecutor_Error.UnsupportedNumberOfTokens': 17807,
-        'CCIPSendExecutor_Error.InvalidValidatedFee': 17808,
+        'CCIPSendExecutor_Error.OnRampFeeReservationBounce': 17805,
+        'CCIPSendExecutor_Error.TokenNotEnabled': 17806,
+        'CCIPSendExecutor_Error.TokenPoolBounce': 17807,
+        'CCIPSendExecutor_Error.UnsupportedNumberOfTokens': 17808,
+        'CCIPSendExecutor_Error.InvalidValidatedFee': 17809,
+        'CCIPSendExecutor_Error.TokenRegistryBounce': 17810,
+        'CCIPSendExecutor_Error.MissingDestOverhead': 17811,
+        'CCIPSendExecutor_Error.TokenMinterMismatch': 17812,
     }
 
     readonly address: c.Address
@@ -2621,7 +2672,8 @@ export class CCIPSendExecutor implements c.Contract {
 
     static createCellOfFeeQuoterMessageValidated(body: {
         fee: Fee
-        destGasOverheads: lisp_list<uint32> | null
+        destOverheads: lisp_list<FeeQuoter_DestOverhead> | null
+        chainFamilySelector: uint32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }) {
@@ -2634,6 +2686,12 @@ export class CCIPSendExecutor implements c.Contract {
         context?: c.Cell | null /* = null */
     }) {
         return FeeQuoter_MessageValidationFailed.toCell(FeeQuoter_MessageValidationFailed.create(body));
+    }
+
+    static createCellOfOnRampExecutorFeeReserved(body: {
+        executorID: CCIPSendExecutor_ID
+    }) {
+        return OnRamp_ExecutorFeeReserved.toCell(OnRamp_ExecutorFeeReserved.create(body));
     }
 
     static createCellOfTokenAdminRegistryTokenInfo(body: {
@@ -2654,14 +2712,6 @@ export class CCIPSendExecutor implements c.Contract {
         return TokenAdminRegistry_GetTokenInfoFailed.toCell(TokenAdminRegistry_GetTokenInfoFailed.create(body));
     }
 
-    static createCellOfResponseWalletAddress(body: {
-        queryId?: uint64
-        jettonWalletAddress: c.Address | null
-        ownerAddress: c.Address | null
-    }) {
-        return ResponseWalletAddress.toCell(ResponseWalletAddress.create(body));
-    }
-
     static createCellOfTokenPoolLockOrBurnWithdraw(body: {
         queryId?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
@@ -2679,7 +2729,7 @@ export class CCIPSendExecutor implements c.Contract {
 
     static createCellOfTokenPoolLockOrBurnFailure(body: {
         queryId?: uint64
-        errorCode: uint16
+        errorCode: int32
     }) {
         return TokenPool_LockOrBurnFailure.toCell(TokenPool_LockOrBurnFailure.create(body));
     }
@@ -2721,7 +2771,8 @@ export class CCIPSendExecutor implements c.Contract {
 
     async sendFeeQuoterMessageValidated(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         fee: Fee
-        destGasOverheads: lisp_list<uint32> | null
+        destOverheads: lisp_list<FeeQuoter_DestOverhead> | null
+        chainFamilySelector: uint32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
@@ -2740,6 +2791,16 @@ export class CCIPSendExecutor implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: FeeQuoter_MessageValidationFailed.toCell(FeeQuoter_MessageValidationFailed.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOnRampExecutorFeeReserved(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        executorID: CCIPSendExecutor_ID
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: OnRamp_ExecutorFeeReserved.toCell(OnRamp_ExecutorFeeReserved.create(body)),
             ...extraOptions
         });
     }
@@ -2770,18 +2831,6 @@ export class CCIPSendExecutor implements c.Contract {
         });
     }
 
-    async sendResponseWalletAddress(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
-        jettonWalletAddress: c.Address | null
-        ownerAddress: c.Address | null
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: ResponseWalletAddress.toCell(ResponseWalletAddress.create(body)),
-            ...extraOptions
-        });
-    }
-
     async sendTokenPoolLockOrBurnWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
@@ -2807,7 +2856,7 @@ export class CCIPSendExecutor implements c.Contract {
 
     async sendTokenPoolLockOrBurnFailure(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        errorCode: uint16
+        errorCode: int32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

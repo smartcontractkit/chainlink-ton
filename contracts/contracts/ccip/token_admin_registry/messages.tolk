@@ -16,7 +16,8 @@ type TokenAdminRegistry_InMessage =
     | TokenAdminRegistry_AdministratorTransferRequested
     | TokenAdminRegistry_AdministratorTransferred
     | TokenAdminRegistry_PoolSet
-    | TokenAdminRegistry_VerifyToken;
+    | TokenAdminRegistry_VerifyToken
+    | TokenAdminRegistry_RefreshTransferInitiator;
 
 /// Root messages to an entry that may come back as rich bounces.
 type TokenAdminRegistry_BouncedEntryMessage =
@@ -31,7 +32,6 @@ struct (0xbe8621a2) TokenAdminRegistry_RegisterToken {
     administrator: address;
 }
 
-/// Root execution (~0.0004 TON measured) and the entry deployment.
 fun TokenAdminRegistry_RegisterToken.cost(): coins {
     return grams("0.003") + TokenAdminRegistryEntry_deployCost();
 }
@@ -68,15 +68,20 @@ struct (0xbe28e166) TokenAdminRegistry_AcceptAdminRole {
 struct (0x37bcaede) TokenAdminRegistry_SetPool {
     queryId: uint64;
     tokenAddress: address;
-    /// A null pool delists the token from CCIP.
+    /// A null pool delists the token from CCIP. A new pool is only set once it answers the
+    /// `TokenPool_GetTransferInitiator` probe.
     tokenPool: address?;
-    /// `transferInitiator` of the jetton transfers delivering a release/mint (e.g. the pool's
-    /// lockbox). Null means the pool itself.
-    transferInitiator: address? = null;
+}
+
+/// Permissionless: has the derived entry re-probe its pool's transfer initiator.
+// crc32('TokenAdminRegistry_RefreshTransferInitiator')
+struct (0x2fb10afd) TokenAdminRegistry_RefreshTransferInitiator {
+    queryId: uint64;
+    tokenAddress: address;
 }
 
 /// Permissionless: has the derived entry re-send its TEP-89 query, enabling the token if its
-/// master answers with a wallet. A no-op for an enabled token.
+/// master answers with a wallet. A no-op for a verified token.
 // crc32('TokenAdminRegistry_VerifyToken')
 struct (0x182affc2) TokenAdminRegistry_VerifyToken {
     queryId: uint64;
@@ -92,9 +97,7 @@ struct (0xec5f855e) TokenAdminRegistry_GetTokenInfo {
     token: address;
 }
 
-/// Value a requester attaches: root -> entry -> root -> requester (~0.0015
-/// TON measured). The unspent value is returned with the reply. See
-/// TokenAdminRegistry_forwardCost for stale entries.
+/// The unspent value is returned with the reply.
 fun TokenAdminRegistry_GetTokenInfo.cost(): coins {
     return grams("0.008");
 }
@@ -106,8 +109,8 @@ struct (0x0a9bf5d1) TokenAdminRegistry_TokenInfo {
     minterAddress: address;
     /// A null pool means the token is delisted from CCIP.
     tokenPool: address?;
-    /// `transferInitiator` of the jetton transfers delivering a release/mint. Null only when the
-    /// token is delisted.
+    /// `transferInitiator` of the jetton transfers delivering a release/mint, as reported by the
+    /// pool. Null when the pool delivers by minting.
     transferInitiator: Cell<address>?;
     /// Pool interface version.
     version: uint32;
@@ -137,14 +140,9 @@ struct (0x4d52f09d) TokenAdminRegistry_UpgradeEntry {
     tokenAddress: address;
 }
 
-/// Minimum value for administration requests the root forwards to an entry:
-/// root and entry execution (~0.001 TON measured) and the event relay.
-/// Unspent value stays on the entry.
-///
-/// No entry predates the root's entry code yet, so this and the GetTokenInfo
-/// cost exclude the stale-entry round trip (entry -> root, then Upgrade and
-/// Resume). When a new entry version and its `migrate` are implemented, add
-/// TokenAdminRegistryEntry_upgradeCost() and the measured round-trip fees here.
+/// Root and entry execution and the event relay; probes and wallet queries are
+/// added at the entrypoint. Unspent value stays on the entry. Excludes the
+/// stale-entry upgrade round trip: add it when a new entry version ships.
 fun TokenAdminRegistry_forwardCost(): coins {
     return grams("0.006") + TokenAdminRegistryEntry_relayEventCost();
 }

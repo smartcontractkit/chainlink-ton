@@ -394,7 +394,7 @@ export const Receiver_CCIPReceiveV2 = {
  >     sourceChainSelector: uint64
  >     sender: CrossChainAddress
  >     data: cell
- >     tokenAmounts: cell?
+ >     tokenAmounts: SnakedCell<TokenAmount>?
  > }
  */
 export interface Any2TVMMessage {
@@ -403,7 +403,7 @@ export interface Any2TVMMessage {
     sourceChainSelector: uint64
     sender: CrossChainAddress
     data: c.Cell
-    tokenAmounts: c.Cell | null
+    tokenAmounts: SnakedCell<TokenAmount> | null
 }
 
 export const Any2TVMMessage = {
@@ -412,7 +412,7 @@ export const Any2TVMMessage = {
         sourceChainSelector: uint64
         sender: CrossChainAddress
         data: c.Cell
-        tokenAmounts: c.Cell | null
+        tokenAmounts: SnakedCell<TokenAmount> | null
     }): Any2TVMMessage {
         return {
             $: 'Any2TVMMessage',
@@ -426,7 +426,7 @@ export const Any2TVMMessage = {
             sourceChainSelector: s.loadUintBig(64),
             sender: CrossChainAddress.fromSlice(s),
             data: s.loadRef(),
-            tokenAmounts: s.loadBoolean() ? s.loadRef() : null,
+            tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, TokenAmount.fromSlice) : null,
         }
     },
     store(self: Any2TVMMessage, b: c.Builder): void {
@@ -434,14 +434,62 @@ export const Any2TVMMessage = {
         b.storeUint(self.sourceChainSelector, 64);
         CrossChainAddress.store(self.sender, b);
         b.storeRef(self.data);
-        storeTolkNullable<c.Cell>(self.tokenAmounts, b,
-            (v,b) => b.storeRef(v)
-        );
+        storeTolkNullable<SnakedCell<TokenAmount>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, TokenAmount.store));
     },
     toCell(self: Any2TVMMessage): c.Cell {
         return makeCellFrom<Any2TVMMessage>(self, Any2TVMMessage.store);
     }
 }
+
+/**
+ > type SnakedCell<T> = cell
+ */
+export type SnakedCell<T> = T[]
+
+function buildSnakedCellOf<T>(v: SnakedCell<T>, storeFn_T: StoreCallback<T>): c.Cell {
+    if (v.length === 0) {
+        return c.Cell.EMPTY;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    return current;
+}
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    b.storeRef(buildSnakedCellOf(v, storeFn_T));
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
 
 /**
  > struct Ownable2Step {
@@ -624,6 +672,44 @@ export const CrossChainAddress = {
 }
 
 /**
+ > struct TokenAmount {
+ >     amount: coins
+ >     token: address
+ > }
+ */
+export interface TokenAmount {
+    readonly $: 'TokenAmount'
+    amount: coins
+    token: c.Address
+}
+
+export const TokenAmount = {
+    create(args: {
+        amount: coins
+        token: c.Address
+    }): TokenAmount {
+        return {
+            $: 'TokenAmount',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenAmount {
+        return {
+            $: 'TokenAmount',
+            amount: s.loadCoins(),
+            token: s.loadAddress(),
+        }
+    },
+    store(self: TokenAmount, b: c.Builder): void {
+        b.storeCoins(self.amount);
+        b.storeAddress(self.token);
+    },
+    toCell(self: TokenAmount): c.Cell {
+        return makeCellFrom<TokenAmount>(self, TokenAmount.store);
+    }
+}
+
+/**
  > type ReceiveExecutorId = uint192
  */
 export type ReceiveExecutorId = uint192
@@ -679,7 +765,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TestReceiver implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAApIAART/APSkE/S88sgLAQIBYgIDAgLGBAUCASAMDQO70/Ej5IBBrlhFtLx6acYFrlhJ9eSJ+RxWY/SQYfEl2omhrD/0kfSh9JBjBAGFEKKnjgor5egFkZ30pfSoJfSlnZPaqcGuWEz4ehR5xgWuWECqgR7ZxgRhCB4DjgHl6QYHCAIDo9IKCwH8Me1E0IEVGfiXggnJw4C+8vTTHzH6SDH6UDH6SNcLByDCAvJFgRUY+JJQA8cFEvL0AdO/0z/XTCOOFV8DIMABlYFKnPLw4MACk3DrpODyBeAzAtDT/9M/0wchwUHyhQGqAtcY1PQE0QTIy/8Tyz8h10kgqTgC8kWrAiDBQfKFCQBwMdcLByDCAvJF+JLtRNDWH/pI+lD6SNcLByDCAjHyRYIAwohRU8cFFfL0AsjO+lL6VPpSywfJ7VQAujHtRNDTHzH6SDD4koIAwogCxwXy9NM/MddMk/ED6ACT8QPpACDaASP7BCPQ7R7tU+1EQBPaIe1UIfkAAdoBAsjMy//OycjPjxgABIIQoztJjs8L93HPC2HMyXD7AAB+zwsHzsz0AMnIz48YAASCEMWkCrPPC/dxzwthzMlw+wBwdPsC+JLIz4WI+lKCEB5Vu/bPC44Syz/Lv8mDBvsAAB8gU28AYtTEuNi4wjHBfL0gAA8i1MS42LjGIAIBIA4PACO/tRdqJoaY+Y/SQY/SgY/SQYQCASAQEQALuGhYEAv4AgEgEhMAGbXFEClTlAQQgfd+UJACASAUFQBbsFfjQhbGluay5jaGFpbi50b24uY2NpcC50ZXN0LlJlY2VpdmVygi1MS42LjGIAARrhD2omhrhY/AADOvRXaiaGmPmP0kGP0oGP0kGOuFg5BhAXkiwA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAApYAART/APSkE/S88sgLAQIBYgIDAgLGBAUCASAMDQO70/Ej5IBBrlhFtLx6acYFrlhJ9eSJ+RxWY/SQYfEl2omhrD/0kfSh9JBjBAGFEKKnjgor5egFkZ30pfSoJfSlnZPaqcGuWEz4ehR5xgWuWECqgR7ZxgRhCB4DjgHl6QYHCAIDo9IKCwH+Me1E0IEVGfiXggnJw4C+8vTTHzH6SDH6UDH6SNcLByDCAvJFgRUY+JJQA8cFEvL0AdO/0z/XTCOOFV8DIMABlYFKnPLw4MACk3DrpODyBeAzAtDT/9M/0wchwUHyhQGqAtcY1PQE0XAFyMv/FMs/ItdJIKk4AvJFqwIgwUHyhQkAcDHXCwcgwgLyRfiS7UTQ1h/6SPpQ+kjXCwcgwgIx8kWCAMKIUVPHBRXy9ALIzvpS+lT6UssHye1UAL4x7UTQ0x8x+kgw+JKCAMKIAscF8vTTPzHXTJPxA+gAk/ED6QAg2gEj+wQj0O0e7VPtREAT2iHtVCH5AAHaAXADyMwSy//OycjPjxgABIIQoztJjs8L93HPC2HMyQH7AACAzwsHEs7M9ADJyM+PGAAEghDFpAqzzwv3cc8LYczJAfsAcHT7AviSyM+FiPpSghAeVbv2zwuOEss/y7/Jgwb7AAAfIFNvAGLUxLjYuMIxwXy9IAAPItTEuNi4xiACASAODwAjv7UXaiaGmPmP0kGP0oGP0kGEAgEgEBEAC7hoWBAL+AIBIBITABm1xRApU5QEEIH3flCQAgEgFBUAW7BX40IWxpbmsuY2hhaW4udG9uLmNjaXAudGVzdC5SZWNlaXZlcoItTEuNi4xiAAEa4Q9qJoa4WPwAAzr0V2omhpj5j9JBj9KBj9JBjrhYOQYQF5IsA=');
 
     static Errors = {
         'Common_Error.CrossChainAddressOutOfRange': 5,

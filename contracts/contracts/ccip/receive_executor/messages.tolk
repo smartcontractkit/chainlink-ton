@@ -90,10 +90,8 @@ fun ReceiveExecutor_Costs.confirmedOrBounced(): int {
     return baseFee + OffRamp_Costs.notify();
 }
 
-/// The registry query, handling its reply, and the message that follows it:
-/// ReleaseOrMint, or NotifyFailure when the token is not enabled, and the
-/// TokenTransferDelivered notification. The destGasAmount for ReleaseOrMint
-/// is budgeted separately.
+/// Registry query and reply, then ReleaseOrMint and the delivery notice, or
+/// NotifyFailure. destGasAmount is budgeted separately.
 fun ReceiveExecutor_Costs.tokenTransfer(): int {
     return TokenAdminRegistry_GetTokenInfo.cost()
         + RECEIVE_EXECUTOR_COSTS_TOKEN_INFO_FEE

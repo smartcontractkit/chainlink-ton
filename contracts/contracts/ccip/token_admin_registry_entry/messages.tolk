@@ -1,13 +1,19 @@
 import "types"
 import "../../lib/versioning/upgradeable"
 import "../../lib/jetton/messages"
+import "../pools/lib/token_pool/messages"
 
 type TokenAdminRegistryEntry_InMessage =
     | TokenAdminRegistryEntry_RegistrationInitialized
     | TokenAdminRegistryEntry_MessageFromRoot
     | Upgradeable_Upgrade
     | TokenAdminRegistryEntry_Resume
-    | ResponseWalletAddress;
+    | ResponseWalletAddress
+    | TokenPool_TransferInitiator;
+
+type TokenAdminRegistryEntry_BouncedMessage =
+    | TokenPool_GetTransferInitiator
+    | RequestWalletAddress;
 
 /// Messages the root sends wrapped in TokenAdminRegistryEntry_MessageFromRoot.
 type TokenAdminRegistryEntry_RootMessage =
@@ -16,7 +22,8 @@ type TokenAdminRegistryEntry_RootMessage =
     | TokenAdminRegistryEntry_TransferAdminRole
     | TokenAdminRegistryEntry_AcceptAdminRole
     | TokenAdminRegistryEntry_SetPool
-    | TokenAdminRegistryEntry_VerifyToken;
+    | TokenAdminRegistryEntry_VerifyToken
+    | TokenAdminRegistryEntry_RefreshTransferInitiator;
 
 /// Envelope for every message the root sends to an entry. Its layout must
 /// never change: the entry checks `minEntryVersion` before loading `content`,
@@ -53,23 +60,25 @@ struct (0x31580269) TokenAdminRegistryEntry_RegistrationInitialized {
     queryId: uint64;
 }
 
-/// Entry execution (~0.0003 TON measured), the event relay and the TEP-89 wallet query.
+/// Entry execution, the TEP-89 wallet query, the pool probe and the event relay.
 fun TokenAdminRegistryEntry_RegistrationInitialized.cost(): coins {
-    return grams("0.002") + TokenAdminRegistryEntry_relayEventCost() + TokenAdminRegistryEntry_WALLET_QUERY_VALUE;
+    return grams("0.025") // TODO re-measure
+        + TokenAdminRegistryEntry_WALLET_QUERY_VALUE
+        + TokenAdminRegistryEntry_POOL_PROBE_VALUE
+        + TokenAdminRegistryEntry_relayEventCost();
 }
 
-/// Value an entry attaches to an event it sends to the root to be emitted:
-/// its forward fee and the root's execution and emit (~0.0006 TON measured).
+/// Value an entry attaches to an event it sends to the root to be emitted.
 /// Unspent value stays on the root.
 fun TokenAdminRegistryEntry_relayEventCost(): coins {
-    return grams("0.004");
+    return grams("0.01"); // TODO re-measure
 }
 
-/// Value the root deploys an entry with: the deploy forward fee and Deployable
-/// initialization (~0.0016 TON measured), the RegistrationInitialized
-/// self-message, and a 0.04 TON storage fee reserve that stays on the entry.
+/// Value the root deploys an entry with: Deployable initialization, the
+/// RegistrationInitialized self-message and the entry's storage fee reserve.
 fun TokenAdminRegistryEntry_deployCost(): coins {
-    return grams("0.04") + grams("0.008") + TokenAdminRegistryEntry_RegistrationInitialized.cost();
+    return grams("0.035") // TODO re-measure
+        + TokenAdminRegistryEntry_RegistrationInitialized.cost();
 }
 
 struct (0x6dcbe573) TokenAdminRegistryEntry_ProposeAdministrator {
@@ -93,16 +102,14 @@ struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
     actor: address;
     /// A null pool delists the token from CCIP.
     tokenPool: address?
-    transferInitiator: address?
 }
 
 struct (0xa14b0288) TokenAdminRegistryEntry_VerifyToken {}
 
-/// Value the root attaches to an Upgradeable_Upgrade sent to an entry. Today
-/// the entry already runs the root's entry code and skips the reinstall
-/// (~0.0014 TON measured, mostly the code forward fee). Re-measure with a real
-/// code install, `migrate` and Upgradeable_UpgradedEvent when shipping a new
-/// entry version.
+struct (0x91f8fb81) TokenAdminRegistryEntry_RefreshTransferInitiator {}
+
+/// Value the root attaches to an Upgradeable_Upgrade sent to an entry.
+/// Re-measure with a real code install and `migrate` when a new version ships.
 fun TokenAdminRegistryEntry_upgradeCost(): coins {
     return grams("0.01");
 }

@@ -6,6 +6,7 @@ import "types"
 import "storage"
 
 import "../common/types";
+import "../common/errors"
 import "../common/cross_chain_address_validation"
 import "../pools/lib/token_pool/types"
 import "../../lib/access/ownable_2step";
@@ -26,7 +27,7 @@ contract FeeQuoter {
 
     storage: Storage
     incomingMessages: FeeQuoter_InMessage | Ownable2Step_Messages
-    thrownErrors: FeeQuoter_Error | Ownable2Step_Error | Upgradeable_Error | Withdrawable_Error | Utils_Error
+    thrownErrors: FeeQuoter_Error | Ownable2Step_Error | Upgradeable_Error | Withdrawable_Error | Utils_Error | DestFamilyAddressValidation_Error
 }
 
 const CONTRACT_VERSION = "1.7.0".literalSlice();
@@ -248,12 +249,12 @@ get fun validatedFeeCell(msg: Cell<Router_CCIPSend>): coins {
 }
 
 get fun validatedFee(msg: Router_CCIPSend): coins {
-    val (fee, _) = calculateValidatedFee(msg);
+    val (fee, _, _) = calculateValidatedFee(msg);
     return fee.feeTokenAmount;
 }
 
-// @returns (fee, destGasOverheads)
-fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<uint32>?) {
+// @returns (fee, destOverheads, chainFamilySelector)
+fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<FeeQuoter_DestOverhead>?, uint32) {
     var st = lazy Storage.load();
 
     val destChainConfigResult = st.destChainConfigs.get(msg.destChainSelector);
@@ -264,7 +265,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<uint32>?) {
     assert(msg.feeToken != null, FeeQuoter_Error.FeeTokenNotSupported);
     val feeToken = msg.feeToken!;
     val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported);
-    val feeTokenPrice = st.usdPerToken.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported);
+    val feeTokenPrice = st.getValidatedTokenPrice(feeToken);
 
     val it = (msg.data as SnakedCell<uint8>).iter();
     val (msgDataLen, errorCode) = it.countBytesSafe();
@@ -296,21 +297,24 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<uint32>?) {
     var premiumFeeUsdWei = 0;
     var tokenTransferGas = 0;
 
-    var destGasOverheads: lisp_list<uint32>? = null;
+    var destOverheads: lisp_list<FeeQuoter_DestOverhead>? = null;
     var tokenAmountsIter = msg.tokenAmounts.iter();
     if (!tokenAmountsIter.empty()) {
-        var backwardsDestGasOverheads: lisp_list<uint32> = [];
+        var backwardsDestOverheads: lisp_list<FeeQuoter_DestOverhead> = [];
         while (!tokenAmountsIter.empty()) {
             val tokenAmount = tokenAmountsIter.next();
 
-            val (tokenPremiumFeeUsdWei, destGasOverhead, _) = _tokenTransferFee(st, destChainConfig, tokenAmount);
-            val tokenGas= destGasOverhead as int;
+            val (tokenPremiumFeeUsdWei, destGasOverhead, destBytesOverhead) = _tokenTransferFee(st, destChainConfig, tokenAmount);
+            val tokenGas = destGasOverhead as int;
 
             premiumFeeUsdWei = mustAdd(premiumFeeUsdWei, tokenPremiumFeeUsdWei, FeeQuoter_Error.PremiumFeeOverflow);
             tokenTransferGas = mustAdd(tokenTransferGas, tokenGas, FeeQuoter_Error.ExecutionCostOverflow);
-            backwardsDestGasOverheads.prependHead(tokenGas);
+            backwardsDestOverheads.prependHead(FeeQuoter_DestOverhead {
+                destGasOverhead: destGasOverhead,
+                destBytesOverhead: destBytesOverhead,
+            });
         }
-        destGasOverheads = backwardsDestGasOverheads.calculateReversed();
+        destOverheads = backwardsDestOverheads.calculateReversed();
     } else {
         premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
     }
@@ -328,9 +332,8 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<uint32>?) {
     val premiumFee = mustProd(premiumFeeUsdWei, premiumMultiplier, FeeQuoter_Error.PremiumFeeOverflow);
     val feeTokenValue = mustAdd(premiumFee, executionCost, FeeQuoter_Error.FeeCalculationOverflow);
 
-    // Check for division by zero (zero token prices)
-    assert(feeTokenPrice.value > 0, FeeQuoter_Error.TokenPriceTooLow);
-    val feeTokenAmount = (feeTokenValue / feeTokenPrice.value);
+    // feeTokenPrice is guaranteed non-zero by getValidatedTokenPrice.
+    val feeTokenAmount = (feeTokenValue / feeTokenPrice);
 
     // Equivalent to processMessageArgs in Solidity FeeQuoter
     val feeValueJuels = calculateFeeValueJuels(st, feeToken, feeTokenValue, feeTokenAmount);
@@ -340,18 +343,18 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<uint32>?) {
             feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow),
             feeValueJuels: feeValueJuels as uint96, // safe because already checked against maxFeeJuelsPerMsg
         },
-        destGasOverheads
+        destOverheads,
+        destChainConfig.config.chainFamilySelector,
     );
 }
 
 fun calculateFeeValueJuels(st: Storage, feeToken: address, feeTokenValue: coins, feeTokenAmount: coins): coins {
     var feeValueJuels = feeTokenAmount;
     if (feeToken != st.linkToken) {
-        val linkTokenPrice = st.usdPerToken.mustGet(st.linkToken, FeeQuoter_Error.TokenNotSupported);
-        // Check for division by zero (zero token prices)
-        assert(linkTokenPrice.value > 0, FeeQuoter_Error.TokenPriceTooLow);
+        // getValidatedTokenPrice asserts that the LINK price was set at least once and is non-zero.
+        val linkTokenPrice = st.getValidatedTokenPrice(st.linkToken);
         // convert from USD to juels
-        feeValueJuels = feeTokenValue / linkTokenPrice.value;
+        feeValueJuels = feeTokenValue / linkTokenPrice;
     }
 
     assert (feeValueJuels <= st.maxFeeJuelsPerMsg) throw FeeQuoter_Error.MessageFeeTooHigh;
@@ -359,14 +362,13 @@ fun calculateFeeValueJuels(st: Storage, feeToken: address, feeTokenValue: coins,
 }
 
 // Computes the token-transfer premium fee (USD, 1e18-scaled), dest gas overhead and dest bytes
-// overhead for a single token. Mirrors the EVM/Solana FeeQuoter token-transfer fee model:
+// overhead for a single token. Mirrors the EVM FeeQuoter token-transfer fee model:
 // - if a per-(destChain, token) TokenTransferFeeConfig override exists and is enabled, the premium
 //   is `deciBps` of the transferred value (in USD), clamped to [minFeeUsdCents, maxFeeUsdCents];
 // - otherwise, falls back to the dest chain's flat defaultTokenFeeUsdCents/defaultTokenDestGasOverhead,
 //   with CCIP_LOCK_OR_BURN_V1_RET_BYTES as the default bytes overhead.
-// NOTE: as in Solana's fee-quoter, a missing/zero price for the transferred token does not revert;
-// the bps-based component is simply treated as 0 and the result still goes through the min/max clamp.
-// This lets a transfer fee override be configured ahead of the token's price feed being populated.
+// NOTE: as in the EVM FeeQuoter, a transferred token must have a valid (set-at-least-once,
+// non-zero) price: getValidatedTokenPrice reverts with TokenNotSupported otherwise.
 fun getEnabledTokenTransferFeeConfig(destChainConfig: DestChainConfig, token: address): TokenTransferFeeConfig? {
     val configEntry = destChainConfig.tokenTransferFeeConfigs.get(token);
     if (configEntry.isFound) {
@@ -406,14 +408,9 @@ fun _tokenTransferFee(st: Storage, destChainConfig: DestChainConfig, tokenAmount
 
     var premiumFeeUsdWei = 0;
     if (config.deciBps > 0) {
-        val priceEntry = st.usdPerToken.get(tokenAmount.token);
-        if (priceEntry.isFound) {
-            val tokenPrice = priceEntry.loadValue();
-            if (tokenPrice.value > 0) {
-                val tokenValueUsdWei = mustProd(tokenAmount.amount, tokenPrice.value, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E18;
-                premiumFeeUsdWei = mustProd(tokenValueUsdWei, config.deciBps, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E5;
-            }
-        }
+        val tokenPrice = st.getValidatedTokenPrice(tokenAmount.token);
+        val tokenValueUsdWei = mustProd(tokenAmount.amount, tokenPrice, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E18;
+        premiumFeeUsdWei = mustProd(tokenValueUsdWei, config.deciBps, FeeQuoter_Error.PremiumFeeOverflow) / VAL_1E5;
     }
 
     val minFeeUsdWei = mustProd(config.minFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
@@ -421,6 +418,25 @@ fun _tokenTransferFee(st: Storage, destChainConfig: DestChainConfig, tokenAmount
     premiumFeeUsdWei = min(max(premiumFeeUsdWei, minFeeUsdWei), maxFeeUsdWei);
 
     return (premiumFeeUsdWei, config.destGasOverhead, config.destBytesOverhead);
+}
+
+/// @notice Gets the token price for a given token and throws `FeeQuoter_Error.TokenNotSupported` if the token is not registered, or if it was registered but received no price updates.
+/// @param token The address of the token to get the price for.
+/// @return tokenPriceValue The token price.
+fun Storage.getValidatedTokenPrice(self, token: address): uint224 {
+    val priceEntry = self.usdPerToken.get(token);
+    assert (priceEntry.isFound)  throw FeeQuoter_Error.TokenNotSupported;
+    val tokenPrice = priceEntry.loadValue();
+    // Token price must be set at least once (non-zero timestamp) and be non-zero.
+    assert(tokenPrice.timestamp != 0 && tokenPrice.value != 0, FeeQuoter_Error.TokenNotSupported);
+    // st.tokenPriceStalenessThreshold is only used in getters
+    // tokenPrice timestamp is no longer checked for staleness onchain
+    return tokenPrice.value;
+}
+
+get fun validatedTokenPrice(token: address): uint224 {
+    val st = lazy Storage.load();
+    return st.getValidatedTokenPrice(token);
 }
 
 fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256, tokenCount: int, tokenTransferBytesOverhead: int): (int, uint256) {
@@ -432,13 +448,13 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, 
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_TVM) {
         val gasLimit = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
-        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
+        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit == 0);
         return (gasLimit, 0);
     }
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
         val suiExtraArgs = parseSuiExtraArgs(extraArgs, config.maxPerMsgGasLimit);
         val gasLimit = suiExtraArgs.gasLimit;
-        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
+        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit == 0);
         assert (tokenCount == 0 || suiExtraArgs.tokenReceiver != 0) throw FeeQuoter_Error.InvalidTokenReceiver;
 
         // objectIds are 32 bytes long
@@ -475,7 +491,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, 
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
         val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.maxPerMsgGasLimit);
         val gasLimit = svmExtraArgs.computeUnits;
-        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
+        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit == 0);
 
         // accounts are 32 bytes long
         val accounts = svmExtraArgs.accounts.iter();
@@ -562,27 +578,11 @@ fun parseSuiExtraArgs(extraArgs: Cell<ExtraArgs>, maxPerMsgGasLimit: uint32): Su
     return extra;
 }
 
-fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainAddress, gasLimit: int) {
-    if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM) {
-        return receiver.validateEVMAddress(FeeQuoter_Error.InvalidEVMReceiverAddress);
-    } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
-        // SVM addresses don't have a precompile space at the first X addresses, instead we validate that if the gasLimit
-        // is non-zero, the address must not be 0x0.
-        return receiver.validate32ByteAddress(gasLimit > 0 ? 1 : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress);
-    } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS) {
-        return receiver.validate32ByteAddress(APTOS_PRECOMPILE_SPACE, FeeQuoter_Error.Invalid32ByteReceiverAddress);
-    } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
-        return receiver.validate32ByteAddress(gasLimit > 0 ? SUI_PRECOMPILE_SPACE : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress);
-    } else {
-        throw FeeQuoter_Error.UnsupportedChainFamilySelector;
-    }
-}
-
 fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
     val msg = payload.msg.load();
     var response: OutMessage;
     try {
-        val (fee, destGasOverheads) = calculateValidatedFee(msg);
+        val (fee, destOverheads, chainFamilySelector) = calculateValidatedFee(msg);
 
         response = createMessage({
             bounce: true,
@@ -590,7 +590,8 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
             dest: sender,
             body: FeeQuoter_MessageValidated {
                 fee,
-                destGasOverheads,
+                destOverheads,
+                chainFamilySelector,
                 msg: payload.msg,
                 context: payload.context,
             }

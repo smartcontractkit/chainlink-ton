@@ -37,6 +37,7 @@ import * as lrp from '../../../wrappers/gen/ccip/pools/LockReleaseLockboxTokenPo
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
 import * as trg from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
+import { Costs } from '../../../wrappers/ccip/TokenAdminRegistry'
 import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 import * as cct from '../../../wrappers/gen/ccip/cct/JettonMinter'
 import { JettonWallet } from '../../../wrappers/gen/ccip/cct/JettonWallet'
@@ -787,6 +788,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
     this.jettonLockBox = await buildJettonLockBox({
       blockchain: this.blockchain,
       minterAddress: this.token,
+      initializer: this.deployer.address,
       id: generateRandomContractId(),
     })
     this.tokenPool = await this.setupTokenPool()
@@ -922,7 +924,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   ): Promise<SandboxContract<trg.TokenAdminRegistryEntry>> {
     await this.registry.sendTokenAdminRegistryRegisterToken(
       this.deployer.getSender(),
-      toNano('0.1'),
+      Costs.registerToken,
       {
         tokenAddress: token,
         tokenInfo: tar.TokenRegistry_TokenInfo.create({

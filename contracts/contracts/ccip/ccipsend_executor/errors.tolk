@@ -7,8 +7,13 @@ enum CCIPSendExecutor_Error {
     InsufficientFunds
     InsufficientFee
     FeeQuoterBounce
+    OnRampFeeReservationBounce
     TokenNotEnabled
     TokenPoolBounce
     UnsupportedNumberOfTokens
     InvalidValidatedFee
+    TokenRegistryBounce
+    MissingDestOverhead
+    /// The token's registered minter is not the token itself, which on-ramp accounts are keyed by.
+    TokenMinterMismatch
 }

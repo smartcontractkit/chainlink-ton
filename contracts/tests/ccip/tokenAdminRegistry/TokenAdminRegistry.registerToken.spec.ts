@@ -17,6 +17,7 @@ import {
   OPERATION_VALUE,
   RegistryErrors,
   accountState,
+  answerPoolProbe,
   answerWalletQuery,
   coverageConfig,
   createBlockchain,
@@ -225,6 +226,15 @@ describe('TokenAdminRegistry - Register Token', () => {
       expect(await entryFor(fx).getEnabled()).toBe(true)
     })
 
+    it('is only enabled once both the token and the registered pool answered', async () => {
+      await registerToken(fx, { answerWalletQuery: false, answerPoolProbe: false })
+      await answerWalletQuery(fx)
+      expect(await entryFor(fx).getEnabled()).toBe(false)
+
+      await answerPoolProbe(fx)
+      expect(await entryFor(fx).getEnabled()).toBe(true)
+    })
+
     it('reports a disabled token without a pool', async () => {
       await registerToken(fx, { answerWalletQuery: false })
       const result = await fx.registry.sendTokenAdminRegistryGetTokenInfo(
@@ -292,7 +302,7 @@ describe('TokenAdminRegistry - Register Token', () => {
 
     it('rejects VerifyToken without enough value for the query', async () => {
       await registerToken(fx, { answerWalletQuery: false })
-      const result = await verifyToken(fx.token, Costs.verifyToken - 1n)
+      const result = await verifyToken(fx.token, toNano('0.03'))
       expect(result.transactions).toHaveTransaction({
         from: fx.other.address,
         to: fx.registry.address,

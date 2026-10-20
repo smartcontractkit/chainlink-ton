@@ -31,6 +31,7 @@ fun ReceiveExecutor_TokenTransferInfo?.init(mutate self, transfer: Cell<Any2TVMT
     if (self != null) {
         // The new transfer has the updated destGasAmount, so we need to update the transfer in the state
         self.transfer = transfer;
+        self.offchainTokenData = offchainTokenData;
         return self
     }
 
@@ -41,7 +42,10 @@ type ReceiveExecutor_TokenTransferState =
     | ReceiveExecutor_TokenTransferState_Success
     | ReceiveExecutor_TokenTransferState_Pending;
 
-struct ReceiveExecutor_TokenTransferState_Success {}
+struct ReceiveExecutor_TokenTransferState_Success {
+    // Amount released or minted by the pool, in local token decimals.
+    destinationAmount: coins;
+}
 
 type ReceiveExecutor_TokenTransferState_Pending = 
     | ReceiveExecutor_TokenTransferState_Untouched
@@ -54,14 +58,14 @@ struct ReceiveExecutor_TokenTransferState_Untouched {}
 struct ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery {}
 struct ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {}
 /// Waiting for the released/minted tokens to reach `receiverAccount` in a single jetton transfer
-/// started by `transferInitiator`.
+/// started by `transferInitiator` (null for a mint).
 struct ReceiveExecutor_TokenTransferState_ReleaseOrMint {
     tokenPool: address;
-    transferInitiator: Cell<address>;
+    transferInitiator: Cell<address>?;
 }
 struct ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed {
     tokenPool: address;
-    transferInitiator: Cell<address>;
+    transferInitiator: Cell<address>?;
 }
 
 enum ReceiveExecutor_MessageExecutionState {

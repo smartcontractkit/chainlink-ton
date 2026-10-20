@@ -37,6 +37,7 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
 
   beforeAll(async () => {
     blockchain = await createBlockchain()
+    blockchain.now = 1
     entryCode = await contractCode.ccip.local('TokenAdminRegistryEntry')
     targetCode = await contractCode.ccip.local('TokenAdminRegistryEntryUpgradeTarget')
   })
@@ -281,7 +282,6 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
       tare.TokenAdminRegistryEntry_SetPool.create({
         actor: fx.other.address,
         tokenPool: fx.replacementPool,
-        transferInitiator: null,
       }),
     )
 

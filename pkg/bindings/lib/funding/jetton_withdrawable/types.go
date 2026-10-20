@@ -61,7 +61,7 @@ type ForwardPayloadWrap struct {
 	_              tlb.Magic        `tlb:"#2d61600c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	Initiator      *address.Address `tlb:"addr"`
 	Context        *cell.Cell       `tlb:"maybe ^"`
-	ForwardPayload *cell.Cell       `tlb:"either. ^"`
+	ForwardPayload *cell.Cell       `tlb:"maybe ^"`
 }
 
 // WithdrawContext is correlated with each relayed fee-withdrawal AskToTransfer so a

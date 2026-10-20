@@ -25,21 +25,24 @@ export const EventTopics = {
 
 /** Mirrors the TokenAdminRegistry cost functions in Tolk. */
 export const Costs = (() => {
-  const relayEvent = toNano('0.004')
-  const walletQuery = toNano('0.01')
-  const registrationInitialized = toNano('0.002') + relayEvent + walletQuery
-  const entryStorageReserve = toNano('0.04')
-  const deploy = entryStorageReserve + toNano('0.008') + registrationInitialized
+  const relayEvent = toNano('0.01')
+  const walletQuery = toNano('0.02')
+  const poolProbe = toNano('0.05')
+  const registrationInitialized = toNano('0.025') + walletQuery + poolProbe + relayEvent
+  const deploy = toNano('0.035') + registrationInitialized
+  const forward = toNano('0.006') + relayEvent
   return {
     relayEvent,
     walletQuery,
+    poolProbe,
     registrationInitialized,
-    entryStorageReserve,
     deploy,
     registerToken: toNano('0.003') + deploy,
     getTokenInfo: toNano('0.008'),
-    forward: toNano('0.006') + relayEvent,
-    verifyToken: toNano('0.006') + relayEvent + walletQuery,
+    forward,
+    setPool: forward + poolProbe,
+    refreshTransferInitiator: forward + poolProbe,
+    verifyToken: forward + walletQuery,
     upgrade: toNano('0.01'),
   }
 })()

@@ -70,9 +70,16 @@ type SetPool struct {
 	_            tlb.Magic        `tlb:"#37bcaede" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	QueryID      uint64           `tlb:"## 64"`
 	TokenAddress *address.Address `tlb:"addr"`
-	TokenPool    *address.Address `tlb:"addr"`
-	// TransferInitiator of the jetton transfers delivering a release/mint; nil means the pool itself.
-	TransferInitiator *address.Address `tlb:"addr"`
+	// TokenPool is only set once it answers the entry's transfer initiator probe.
+	TokenPool *address.Address `tlb:"addr"`
+}
+
+// crc32('TokenAdminRegistry_RefreshTransferInitiator')
+// Permissionless: the entry re-probes its pool's transfer initiator.
+type RefreshTransferInitiator struct {
+	_            tlb.Magic        `tlb:"#2fb10afd" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID      uint64           `tlb:"## 64"`
+	TokenAddress *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistry_GetTokenInfo')
@@ -90,8 +97,7 @@ type TokenInfo struct {
 	Token         *address.Address `tlb:"addr"`
 	MinterAddress *address.Address `tlb:"addr"`
 	TokenPool     *address.Address `tlb:"addr"`
-	// TransferInitiator resolved by the registry (the pool unless another one is registered); nil
-	// only when the token is delisted.
+	// TransferInitiator reported by the pool; nil when the pool delivers by minting.
 	TransferInitiator *address.Address `tlb:"maybe ^ addr"`
 	Version           uint32           `tlb:"## 32"`
 }

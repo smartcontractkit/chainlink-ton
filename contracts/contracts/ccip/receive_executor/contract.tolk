@@ -159,9 +159,8 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
             return match (ttInfo.state) {
                 ReceiveExecutor_TokenTransferState_Untouched => queryTokenAdminRegistry(mutate st, ttInfo),
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed => queryTokenAdminRegistry(mutate st, ttInfo),
-                ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed => {
-                    releaseOrMint(mutate st, ttInfo, ttInfo.state.tokenPool, ttInfo.state.transferInitiator);
-                }
+                // Re-query so a pool re-pointed in the TokenAdminRegistry since the failed attempt is used.
+                ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed => queryTokenAdminRegistry(mutate st, ttInfo),
                 ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
                 ReceiveExecutor_TokenTransferState_ReleaseOrMint => throw ReceiveExecutor_Error.ExecutionAlreadyInProgress,
             }
@@ -195,7 +194,7 @@ fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenA
     if (msg.tokenPool == null) {
         return onTokenNotEnabled(mutate st, ttInfo);
     }
-    releaseOrMint(mutate st, ttInfo, msg.tokenPool!, msg.transferInitiator!);
+    releaseOrMint(mutate st, ttInfo, msg.tokenPool!, msg.transferInitiator);
 }
 
 fun onTokenNotEnabled(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo) {
@@ -205,7 +204,7 @@ fun onTokenNotEnabled(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecuto
     endExecutionWithFailure(mutate st, rampMsg.header, ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry);
 }
 
-fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address, transferInitiator: Cell<address>) {
+fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address, transferInitiator: Cell<address>?) {
     ttInfo.state = ReceiveExecutor_TokenTransferState_ReleaseOrMint { tokenPool, transferInitiator };
     st.state.tokenTransfer = ttInfo.toCell();
     val transfer = lazy ttInfo.transfer.load();
@@ -255,9 +254,25 @@ fun execute(mutate st: ReceiveExecutor_Storage) {
                 message: st.message,
                 execId: st.execId,
                 effectiveGasLimit: st.state.effectiveGasLimit,
+                tokenAmounts: receiverTokenAmounts(st),
             }
         }
     ).send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+fun receiverTokenAmounts(st: ReceiveExecutor_Storage): SnakedCell<TokenAmount>? {
+    if (st.state.tokenTransfer == null) {
+        return null;
+    }
+    val ttInfo = st.state.tokenTransfer.load();
+    if (ttInfo.state !is ReceiveExecutor_TokenTransferState_Success) {
+        return null;
+    }
+    val transfer = ttInfo.transfer.load();
+    return TokenAmount {
+        amount: ttInfo.state.destinationAmount,
+        token: transfer.token,
+    }.toCell() as SnakedCell<TokenAmount>;
 }
 
 // Finalizes message execution by returning all balance to the OffRamp and freezing the contract
@@ -297,7 +312,8 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
 }
 
 // Matches the delivery forwarded by the receiver's deposit account: a single transfer started by
-// the initiator registered for the token. The account only routes notifications from its own
+// the initiator the pool reported to the registry. A null initiator (mint) is only accepted by the
+// jetton wallet from its minter. The account only routes notifications from its own
 // jetton wallet here, and the received amount is what is reported as delivered.
 //
 // Checks run within the gas paid by the forwarded notification; the executor's balance is only
@@ -311,9 +327,12 @@ fun onDepositAccountNotification(sender: address, msg: DepositAccount_ForwardNot
     if (sender != ttInfo.receiverAccount) {
         return;
     }
-    val forwarded = lazy msg.message.load();
-    val notification = lazy TransferNotificationForRecipient.fromCell(forwarded.body);
-    if (notification.transferInitiator == null || notification.transferInitiator! != ttInfo.state.transferInitiator.load()) {
+    val notification = lazy msg.notification.load();
+    val expected = ttInfo.state.transferInitiator;
+    val matches = expected == null
+        ? notification.transferInitiator == null
+        : notification.transferInitiator != null && notification.transferInitiator! == expected!.load();
+    if (!matches) {
         return;
     }
 
@@ -323,7 +342,7 @@ fun onDepositAccountNotification(sender: address, msg: DepositAccount_ForwardNot
 }
 
 fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address, amount: coins) {
-    ttInfo.state = ReceiveExecutor_TokenTransferState_Success {};
+    ttInfo.state = ReceiveExecutor_TokenTransferState_Success { destinationAmount: amount };
     st.state.tokenTransfer = ttInfo.toCell();
     val ccipMessage = lazy st.message.load();
     val transfer = lazy ttInfo.transfer.load();
@@ -337,7 +356,7 @@ fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: Receive
         }.toCell(),
     };
 
-    if (ccipMessage.data.beginParse().isEmpty()) {
+    if (ccipMessage.data.beginParse().isEmpty() && ccipMessage.gasLimit == 0) {
         return endExecutionSuccessfully(mutate st, ccipMessage.header, delivered.toCell());
     }
 

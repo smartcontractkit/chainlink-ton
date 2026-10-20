@@ -7,6 +7,7 @@ import * as path from 'path'
 import { contractCode } from '../../../../wrappers/codeLoader'
 import * as namespace from '../../../../wrappers/ccip/NameSpace'
 import * as tar from '../../../../wrappers/gen/ccip/TokenAdminRegistry'
+import { Costs } from '../../../../wrappers/ccip/TokenAdminRegistry'
 import * as tare from '../../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 
 // Token-info query cost for the CCIP read path, counting every transaction
@@ -66,7 +67,7 @@ describe('TokenAdminRegistry token info query gas', () => {
       ),
     )
     await registry.sendDeploy(owner.getSender(), toNano('0.1'))
-    await registry.sendTokenAdminRegistryRegisterToken(owner.getSender(), toNano('0.1'), {
+    await registry.sendTokenAdminRegistryRegisterToken(owner.getSender(), Costs.registerToken, {
       tokenAddress: token,
       tokenInfo: tar.TokenRegistry_TokenInfo.create({
         tokenPool: pool,

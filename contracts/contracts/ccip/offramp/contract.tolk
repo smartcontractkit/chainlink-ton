@@ -21,6 +21,7 @@ import "../receive_executor/messages"
 import "../receive_executor/storage"
 import "../rmn_remote/lib"
 import "../router/messages"
+import "../router/utils"
 import "../accounts/deposit/types"
 
 import "messages"
@@ -509,7 +510,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
                 sourceChainSelector: message.header.sourceChainSelector,
                 sender: CrossChainAddress.fromCell(message.sender),
                 data: message.data,
-                tokenAmounts: message.tokenAmounts,
+                tokenAmounts: msg.tokenAmounts,
             }.toCell(),
             execId: msg.execId,
             receiver: message.receiver,
@@ -1036,11 +1037,11 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
 
     // Released/minted tokens are delivered to the receiver's Router-owned deposit account for
     // this token, so a pool can only ever credit the account of the token it is registered for.
-    val receiverAccount = calcAddressOfDepositAccount(
-        deployerCode(),
+    val receiverAccount = Router.offRampAccount(
         getRouterFromSelector(st, sourceChainSelector),
         receiver,
         tokenTransfer.token,
+        deployerCode(),
     ).calculateAddress();
 
     return ReceiveExecutor_TokenTransfer {

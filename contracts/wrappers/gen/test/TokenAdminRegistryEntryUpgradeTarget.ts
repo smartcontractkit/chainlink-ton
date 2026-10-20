@@ -182,7 +182,7 @@ export const UpgradeTarget_Storage = {
 }
 
 /**
- > type TokenAdminRegistryEntry_RootMessage = TokenAdminRegistryEntry_GetTokenInfo | TokenAdminRegistryEntry_ProposeAdministrator | TokenAdminRegistryEntry_TransferAdminRole | TokenAdminRegistryEntry_AcceptAdminRole | TokenAdminRegistryEntry_SetPool | TokenAdminRegistryEntry_VerifyToken
+ > type TokenAdminRegistryEntry_RootMessage = TokenAdminRegistryEntry_GetTokenInfo | TokenAdminRegistryEntry_ProposeAdministrator | TokenAdminRegistryEntry_TransferAdminRole | TokenAdminRegistryEntry_AcceptAdminRole | TokenAdminRegistryEntry_SetPool | TokenAdminRegistryEntry_VerifyToken | TokenAdminRegistryEntry_RefreshTransferInitiator
  */
 export type TokenAdminRegistryEntry_RootMessage =
     | TokenAdminRegistryEntry_GetTokenInfo
@@ -191,6 +191,7 @@ export type TokenAdminRegistryEntry_RootMessage =
     | TokenAdminRegistryEntry_AcceptAdminRole
     | TokenAdminRegistryEntry_SetPool
     | TokenAdminRegistryEntry_VerifyToken
+    | TokenAdminRegistryEntry_RefreshTransferInitiator
 
 export const TokenAdminRegistryEntry_RootMessage = {
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_RootMessage {
@@ -200,6 +201,7 @@ export const TokenAdminRegistryEntry_RootMessage = {
             lookupPrefix(s, 0x39c6e872, 32) ? TokenAdminRegistryEntry_AcceptAdminRole.fromSlice(s) :
             lookupPrefix(s, 0xa64e05c9, 32) ? TokenAdminRegistryEntry_SetPool.fromSlice(s) :
             lookupPrefix(s, 0xa14b0288, 32) ? TokenAdminRegistryEntry_VerifyToken.fromSlice(s) :
+            lookupPrefix(s, 0x91f8fb81, 32) ? TokenAdminRegistryEntry_RefreshTransferInitiator.fromSlice(s) :
             throwNonePrefixMatch('TokenAdminRegistryEntry_RootMessage');
     },
     store(self: TokenAdminRegistryEntry_RootMessage, b: c.Builder): void {
@@ -221,6 +223,9 @@ export const TokenAdminRegistryEntry_RootMessage = {
                 break;
             case 'TokenAdminRegistryEntry_VerifyToken':
                 TokenAdminRegistryEntry_VerifyToken.store(self, b);
+                break;
+            case 'TokenAdminRegistryEntry_RefreshTransferInitiator':
+                TokenAdminRegistryEntry_RefreshTransferInitiator.store(self, b);
                 break;
         }
     },
@@ -439,14 +444,12 @@ export const TokenAdminRegistryEntry_AcceptAdminRole = {
  > struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
  >     actor: address
  >     tokenPool: address?
- >     transferInitiator: address?
  > }
  */
 export interface TokenAdminRegistryEntry_SetPool {
     readonly $: 'TokenAdminRegistryEntry_SetPool'
     actor: c.Address
     tokenPool: c.Address | null
-    transferInitiator: c.Address | null
 }
 
 export const TokenAdminRegistryEntry_SetPool = {
@@ -455,7 +458,6 @@ export const TokenAdminRegistryEntry_SetPool = {
     create(args: {
         actor: c.Address
         tokenPool: c.Address | null
-        transferInitiator: c.Address | null
     }): TokenAdminRegistryEntry_SetPool {
         return {
             $: 'TokenAdminRegistryEntry_SetPool',
@@ -468,14 +470,12 @@ export const TokenAdminRegistryEntry_SetPool = {
             $: 'TokenAdminRegistryEntry_SetPool',
             actor: s.loadAddress(),
             tokenPool: s.loadMaybeAddress(),
-            transferInitiator: s.loadMaybeAddress(),
         }
     },
     store(self: TokenAdminRegistryEntry_SetPool, b: c.Builder): void {
         b.storeUint(0xa64e05c9, 32);
         b.storeAddress(self.actor);
         b.storeAddress(self.tokenPool);
-        b.storeAddress(self.transferInitiator);
     },
     toCell(self: TokenAdminRegistryEntry_SetPool): c.Cell {
         return makeCellFrom<TokenAdminRegistryEntry_SetPool>(self, TokenAdminRegistryEntry_SetPool.store);
@@ -509,6 +509,36 @@ export const TokenAdminRegistryEntry_VerifyToken = {
     },
     toCell(self: TokenAdminRegistryEntry_VerifyToken): c.Cell {
         return makeCellFrom<TokenAdminRegistryEntry_VerifyToken>(self, TokenAdminRegistryEntry_VerifyToken.store);
+    }
+}
+
+/**
+ > struct (0x91f8fb81) TokenAdminRegistryEntry_RefreshTransferInitiator {
+ > }
+ */
+export interface TokenAdminRegistryEntry_RefreshTransferInitiator {
+    readonly $: 'TokenAdminRegistryEntry_RefreshTransferInitiator'
+}
+
+export const TokenAdminRegistryEntry_RefreshTransferInitiator = {
+    PREFIX: 0x91f8fb81,
+
+    create(): TokenAdminRegistryEntry_RefreshTransferInitiator {
+        return {
+            $: 'TokenAdminRegistryEntry_RefreshTransferInitiator',
+        }
+    },
+    fromSlice(s: c.Slice): TokenAdminRegistryEntry_RefreshTransferInitiator {
+        loadAndCheckPrefix32(s, 0x91f8fb81, 'TokenAdminRegistryEntry_RefreshTransferInitiator');
+        return {
+            $: 'TokenAdminRegistryEntry_RefreshTransferInitiator',
+        }
+    },
+    store(self: TokenAdminRegistryEntry_RefreshTransferInitiator, b: c.Builder): void {
+        b.storeUint(0x91f8fb81, 32);
+    },
+    toCell(self: TokenAdminRegistryEntry_RefreshTransferInitiator): c.Cell {
+        return makeCellFrom<TokenAdminRegistryEntry_RefreshTransferInitiator>(self, TokenAdminRegistryEntry_RefreshTransferInitiator.store);
     }
 }
 
@@ -588,7 +618,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenAdminRegistryEntryUpgradeTarget implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBCgEAwAABFP8A9KQT9LzyyAsBAgFiAgMCAsYEBQIBIAgJAIHT8SPkgdqJoanoCGOiQaH0kGOoY6mkAGOjCB/xJAWh9JH0oGP0oGOiJY4L5egDrlhEfWOmSeV/rpgDkZnoAZPaqQIDo9IGBwAtIFNvAGLUxLjYuMIxwXy9G0ByMz0AMmAADyLUyLjAuMIgABW+U/9qJoanoCGOjABRv6HHaiaGoY+gJokDdKmDa2trhHCehrlhFWOdVmeV/pn+mH6mjAgEJxQ=');
+    static CodeCell = c.Cell.fromBase64('te6ccgEBCgEAwwABFP8A9KQT9LzyyAsBAgFiAgMCAsYEBQIBIAgJAIfT8SPkgdqJoanoCGOiQaH0kGOoY6mkAGP0oGOjCB/xJAWh9JH0oGP0oGOiJY4L5egDrlhEfWOmSeV/rpgDkZnoAZPaqQIDo9IGBwAtIFNvAGLUxLjYuMIxwXy9G0ByMz0AMmAADyLUyLjAuMIgABW+U/9qJoanoCGOjABRv6HHaiaGoY+gJokDdKmDa2trhHCehrlhFWOdVmeV/pn+mH6mjAgERxQ=');
 
     static Errors = {
         'Upgradeable_Error.VersionMismatch': 19900,

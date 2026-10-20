@@ -6,8 +6,7 @@ import "../lib/token_pool/types"
 
 import "types"
 
-/// @notice Pool storage: common pool data. The off-ramp DepositAccount is deployed via the
-/// Deployable pattern (its code is pinned in the pool's compiled code, not stored per-instance).
+/// @notice Pool storage: common pool data.
 struct Storage {
     poolData: Cell<TokenPool_Data>;
 }
@@ -36,7 +35,7 @@ fun Storage.init(config: BurnMintTokenPool_InitConfig): Storage {
                 }.toCell(),
                 jettonClient: config.jettonClient,
                 allowedFinalityConfig: TOKEN_POOL_DEFAULT_FINALITY,
-                advancedPoolHooks: createAddressNone() as address,
+                advancedPoolHooks: null, // opt-in; wired later via setAdvancedPoolHooks
                 deployableCode: config.deployableCode,
             }.toCell(),
             localPolicy: TokenPool_LocalPolicy {

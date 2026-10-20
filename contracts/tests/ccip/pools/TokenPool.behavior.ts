@@ -11,7 +11,10 @@ import {
   TokenPool_ReleaseOrMintFinalized,
   TokenPool_RateLimitConfigPair,
   TokenPool_RateLimitConfigArgs,
+  TokenPool_LockOrBurn,
+  TokenPool_LockOrBurnInV1,
   TokenPool_ReleaseOrMint,
+  TokenPool_ReleaseOrMintDelivery,
   TokenPool_ReleaseOrMintFailure,
   TransferNotificationForRecipient,
   TokenPool_ReleaseOrMintForwardPayload,
@@ -27,6 +30,10 @@ import {
   Ownable2Step_AcceptOwnership,
   Ownable2Step_TransferOwnership,
 } from '../../../wrappers/gen/ccip/Router'
+import {
+  TokenPool_GetTransferInitiator,
+  TokenPool_TransferInitiator,
+} from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 
 export type TokenPoolBehaviorContext = {
   pool: SandboxContract<TokenPool>
@@ -40,9 +47,8 @@ export type TokenPoolBehaviorContext = {
   destTokenAddress: CrossChainAddress
   sourcePoolAddress: CrossChainAddress
   localToken: Address
-  /** Expected `transferInitiator` of the pool's release/mint delivery (the address to register in
-   * the TokenAdminRegistry); defaults to the pool. */
-  releaseOrMintInitiator?: Address
+  /** Expected `transferInitiator` of the pool's release/mint delivery; null (default) for a mint. */
+  releaseOrMintInitiator?: Address | null
 }
 
 export type TokenPoolBehaviorHooks = {
@@ -75,16 +81,41 @@ export function releaseRequest(
 const TokenPoolErrors = BurnMintTokenPool.Errors
 
 const DEPOSIT_ACCOUNT_NOTIFY_PREFIX = 0x88e0ef3e
+const JETTON_FORWARD_PAYLOAD_WRAP_PREFIX = 0x2d61600c
 
-/** Returns the `notify` target of a `DepositAccount_Notify` envelope boxed in a jetton forward payload. */
+/** Delivery to `recipient` whose forward payload routes the transfer notification to `notify`. */
+export function deliveryTo(recipient: Address, notify: Address): TokenPool_ReleaseOrMintDelivery {
+  return TokenPool_ReleaseOrMintDelivery.create({
+    recipient,
+    forwardTonAmount: toNano('0.01'),
+    forwardPayload: beginCell()
+      .storeUint(DEPOSIT_ACCOUNT_NOTIFY_PREFIX, 32)
+      .storeAddress(notify)
+      .endCell(),
+  })
+}
+
+/**
+ * Returns the `notify` target of the `DepositAccount_Notify` envelope inside the pool's
+ * `Jetton_ForwardPayloadWrap`, boxed in a jetton forward payload.
+ */
 export function parseDepositAccountNotify(forwardPayload: Slice): Address | null {
   const payload = forwardPayload.clone()
-  const envelope = payload.loadBit() ? payload.loadRef().beginParse() : payload
-  if (envelope.remainingBits < 32 || envelope.loadUint(32) !== DEPOSIT_ACCOUNT_NOTIFY_PREFIX) {
+  const wrap = payload.loadBit() ? payload.loadRef().beginParse() : payload
+  if (wrap.remainingBits < 32 || wrap.loadUint(32) !== JETTON_FORWARD_PAYLOAD_WRAP_PREFIX) {
     return null
   }
-  return envelope.loadAddress()
+  wrap.loadAddress() // initiator
+  wrap.loadMaybeRef() // context
+  const inner = wrap.loadMaybeRef()?.beginParse()
+  if (!inner || inner.remainingBits < 32 || inner.loadUint(32) !== DEPOSIT_ACCOUNT_NOTIFY_PREFIX) {
+    return null
+  }
+  return inner.loadAddress()
 }
+
+const sameInitiator = (actual: Address | null, expected: Address | null = null) =>
+  expected === null ? actual === null : actual?.equals(expected) === true
 
 export function runTokenPoolBehaviorTests(
   name: string,
@@ -99,6 +130,51 @@ export function runTokenPoolBehaviorTests(
   }
 
   describe(`${name} TokenPool behavior`, () => {
+    it.each(['lock', 'release'])(
+      'rejects a %s operation with addr_none as replyTo',
+      async (direction) => {
+        const ctx = await setup()
+        const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+        const locking = direction === 'lock'
+        const request = locking
+          ? TokenPool_LockOrBurnInV1.toCell(
+              TokenPool_LockOrBurnInV1.create({
+                transfer: TokenPool_Transfer.create({
+                  id: 902n,
+                  details: TokenPool_TransferDetails.create({
+                    receiver: ctx.destTokenAddress,
+                    remoteChainSelector: ctx.remoteChainSelector,
+                    originalSender: ctx.deployer.address,
+                    amount: 1n,
+                    localToken: ctx.localToken,
+                  }),
+                }),
+              }),
+            )
+          : TokenPool_ReleaseOrMintInV1.toCell(releaseRequest(ctx))
+        const body = beginCell()
+          .storeUint(locking ? TokenPool_LockOrBurn.PREFIX : TokenPool_ReleaseOrMint.PREFIX, 32)
+          .storeUint(902, 64)
+          .storeRef(request)
+          .storeUint(0, 32)
+        if (locking) body.storeMaybeRef(null)
+        body.storeAddress(null)
+        const result = await ctx.deployer.send({
+          to: ctx.pool.address,
+          value: toNano('0.5'),
+          body: body.endCell(),
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: ctx.deployer.address,
+          to: ctx.pool.address,
+          success: false,
+        })
+        const after = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+        expect(after.outbound.tokens).toEqual(before.outbound.tokens)
+        expect(after.inbound.tokens).toEqual(before.inbound.tokens)
+      },
+    )
+
     it('reports the configured chain as supported after setup', async () => {
       const ctx = await setup()
 
@@ -116,7 +192,7 @@ export function runTokenPoolBehaviorTests(
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
-          receiverAccount: ctx.recipient.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
         },
       )
 
@@ -139,7 +215,7 @@ export function runTokenPoolBehaviorTests(
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
-          receiverAccount: ctx.recipient.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
         },
       )
 
@@ -193,7 +269,7 @@ export function runTokenPoolBehaviorTests(
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
-          receiverAccount: ctx.recipient.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
         },
       )
 
@@ -243,7 +319,7 @@ export function runTokenPoolBehaviorTests(
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
-          receiverAccount: ctx.recipient.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
         },
       )
       expect(first.transactions).toHaveTransaction({
@@ -261,7 +337,7 @@ export function runTokenPoolBehaviorTests(
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
-          receiverAccount: ctx.recipient.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
         },
       )
       expect(second.transactions).toHaveTransaction({
@@ -483,7 +559,7 @@ export function runTokenPoolBehaviorTests(
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
-          receiverAccount: ctx.recipient.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
         },
       )
 
@@ -528,7 +604,7 @@ export function runTokenPoolBehaviorTests(
           request: releaseRequest(ctx, { sourcePoolAddress: wrongSourcePoolAddress }),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
-          receiverAccount: ctx.recipient.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
         },
       )
 
@@ -561,7 +637,7 @@ export function runTokenPoolBehaviorTests(
           }),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
-          receiverAccount: ctx.recipient.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
         },
       )
 
@@ -638,7 +714,7 @@ export function runTokenPoolBehaviorTests(
         }),
         requestedFinalityConfig: 0n,
         replyTo: ctx.deployer.address,
-        receiverAccount: ctx.recipient.address,
+        delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
       }
 
       const first = await ctx.pool.sendTokenPoolReleaseOrMint(
@@ -672,8 +748,7 @@ export function runTokenPoolBehaviorTests(
         return (
           notification.queryId === queryId &&
           notification.jettonAmount === amount &&
-          notification.transferInitiator?.equals(ctx.releaseOrMintInitiator ?? ctx.pool.address) ===
-            true &&
+          sameInitiator(notification.transferInitiator, ctx.releaseOrMintInitiator) &&
           notify?.equals(ctx.deployer.address) === true
         )
       })
@@ -703,6 +778,30 @@ export function runTokenPoolBehaviorTests(
       expect(failures).toHaveLength(0)
     })
 
+    it('answers the transfer initiator probe with the initiator of its deliveries', async () => {
+      const ctx = await setup()
+      const result = await ctx.unauthorized.send({
+        to: ctx.pool.address,
+        value: toNano('0.05'),
+        body: TokenPool_GetTransferInitiator.toCell(
+          TokenPool_GetTransferInitiator.create({ queryId: 950n }),
+        ),
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.unauthorized.address,
+        op: TokenPool_TransferInitiator.PREFIX,
+        body(body) {
+          if (!body) return false
+          const answer = TokenPool_TransferInitiator.fromSlice(body.beginParse())
+          return (
+            answer.queryId === 950n &&
+            sameInitiator(answer.transferInitiator, ctx.releaseOrMintInitiator)
+          )
+        },
+      })
+    })
+
     it('rejects releaseOrMint without a receiver account', async () => {
       const ctx = await setup()
       const result = await ctx.pool.sendTokenPoolReleaseOrMint(
@@ -713,7 +812,7 @@ export function runTokenPoolBehaviorTests(
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
-          receiverAccount: null,
+          delivery: null,
         },
       )
       expect(result.transactions).toHaveTransaction({

@@ -6,6 +6,7 @@ import "../../lib/deployable/types"
 import "../../lib/deployable/namespace"
 
 import "../common/types";
+import "../common/cross_chain_address_validation"
 
 import "../pools/lib/token_pool/types"
 import "../ccipsend_executor/types"
@@ -63,13 +64,13 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must be the Router
         OnRamp_Send => {
-            var st = lazy OnRamp_Storage.load();
-            val ccipSend = msg.msg.load();
+            val st = lazy OnRamp_Storage.load();
+            val ccipSend = lazy msg.msg.load();
             // validate allowlist
             val destChainConfigResult = st.destChainConfigs.get(ccipSend.destChainSelector);
             if (!destChainConfigResult.isFound) {
                 // This is a config error. The Router should not be sending messages to unknown chains.
-                return rejectMessage(OnRamp_Error.UnknownDestChainSelector, in.senderAddress, ccipSend, msg.metadata.sender);
+                return rejectMessage(OnRamp_Error.UnknownDestChainSelector, in.senderAddress, ccipSend.queryID, ccipSend.destChainSelector, msg.metadata.sender);
             }
             val destChainConfig = destChainConfigResult.loadValue();
             // ccipSend must be forwarded from the router
@@ -89,16 +90,25 @@ fun onInternalMessage(in: InMessage) {
             onExecutorRequestsWithdraw(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
-        OnRamp_ExecutorFinishedSuccessfully => {
-            val st = lazy OnRamp_Storage.load();
+        OnRamp_ExecutorReserveFee => {
+            var st = lazy OnRamp_Storage.load();
             assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
-            onExecutorFinishedSuccessfully(st, msg);
+            onExecutorReserveFee(mutate st, msg, in.senderAddress);
+            st.store();
+        }
+        // Sender must be Send Executor
+        OnRamp_ExecutorFinishedSuccessfully => {
+            var st = lazy OnRamp_Storage.load();
+            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            onExecutorFinishedSuccessfully(mutate st, msg);
+            st.store();
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedWithError => {
-            val st = lazy OnRamp_Storage.load();
+            var st = lazy OnRamp_Storage.load();
             assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
-            onExecutorFinishedWithError(st, msg);
+            onExecutorFinishedWithError(mutate st, msg);
+            st.store();
         }
         // Sender must be the owner
         OnRamp_SetDynamicConfig => {
@@ -278,16 +288,17 @@ destination chain configuration is enabled, enforces the optional allowlist,
 and deploys a CCIPSendExecutor to perform the send, carrying remaining value.
 */
 fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload: OnRamp_Send) {
+    val msg = lazy payload.msg.load();
     if (destChainConfig.allowlistEnabled) {
         val entry = destChainConfig.allowedSenders.get(payload.metadata.sender);
         if (!entry.isFound || !entry.loadValue()) {
-            return rejectMessage(OnRamp_Error.SenderNotAllowed, destChainConfig.router, payload.msg.load(), payload.metadata.sender);
+            return rejectMessage(OnRamp_Error.SenderNotAllowed, destChainConfig.router, msg.queryID, msg.destChainSelector, payload.metadata.sender, 0);
         }
     }
     val config = st.config.load();
     val staticConfig = st.staticConfig.load();
     var tokenRegistry: address? = null;
-    if (!payload.msg.load().tokenAmounts.empty()) {
+    if (!msg.tokenAmounts.empty()) {
         tokenRegistry = staticConfig.tokenAdminRegistry;
     }
     val executorId = generateRandomSendExecutorId();
@@ -352,6 +363,28 @@ fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequest
 
 fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsWithdraw, sender: address) {
     val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector as int);
+
+    // chainFamilySelector comes from the FeeQuoter via the executor; the remote token
+    // address is pool-supplied and untrusted, so validate it before custody moves
+    // (mirrors EVM FeeQuoter.processPoolReturnData).
+    try {
+        processPoolReturnData(msg);
+    } catch (e) {
+        val failure = createMessage({
+            bounce: false,
+            value: 0,
+            dest: destChainConfig.router,
+            body: Router_WithdrawToTokenPoolFailed {
+                queryID: msg.queryID,
+                destChainSelector: msg.destChainSelector,
+                withdrawRequest: msg.withdrawRequest,
+                error: e,
+            }
+        });
+        failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        return;
+    }
+
     val routerWithdraw = createMessage({
         bounce: true,
         value: 0,
@@ -359,28 +392,64 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
         body: Router_WithdrawToTokenPool {
             queryID: msg.queryID,
             destChainSelector: msg.destChainSelector,
+            executor: sender,
             withdrawRequest: msg.withdrawRequest,
         }
     });
     routerWithdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+fun processPoolReturnData(msg: OnRamp_ExecutorRequestsWithdraw) {
+    val withdrawRequest = lazy msg.withdrawRequest.load();
+    val prepared = lazy withdrawRequest.forwardPayload.load().prepared.load();
+    val out = prepared.out;
+    assert(snakedBytesLen(out.destPoolData) <= msg.destBytesOverhead) throw OnRamp_Error.SourceTokenDataTooLarge;
+    try {
+        validateDestFamilyAddress(msg.chainFamilySelector, out.destTokenAddress.load(), false);
+    } catch {
+        throw OnRamp_Error.InvalidDestTokenAddress;
+    }
+}
+
+/*
+Stores the validated fee before the executor begins any token work. Reserving
+against the original balance leaves the fee on the OnRamp while carrying the
+request's extra TON back to the executor for the remaining execution steps.
+*/
+fun onExecutorReserveFee(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorReserveFee, sendExecutor: address) {
+    st.pendingFeeReservations = st.pendingFeeReservations + msg.fee;
+
+    reserveGramsOnBalance(msg.fee, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
+    val confirmation = createMessage({
+        bounce: true,
+        value: 0,
+        dest: sendExecutor,
+        body: OnRamp_ExecutorFeeReserved {
+            executorID: msg.executorID,
+        },
+    });
+    // SAFETY: reserveGramsOnBalance ensures that the necessary funds are reserved before sending the confirmation message.
+    confirmation.send(SEND_MODE_CARRY_ALL_BALANCE + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+}
+
 /*
 Handles successful completion of a CCIPSendExecutor. Assigns a new sequence
 number and notifies the Router of the successful send.
 */
-fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedSuccessfully) {
+fun onExecutorFinishedSuccessfully(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedSuccessfully) {
     val ccipsend: Router_CCIPSend = msg.msg.load();
     val metadata = msg.metadata;
 
     // validate user transferred enough value
     // else refund and notify
 
-    // assign sequence number, we can't do this sooner since the message might fail validation/getFee
     var destChainConfig = st.destChainConfigs.mustGet(ccipsend.destChainSelector, OnRamp_Error.UnknownDestChainSelector);
+
+    // assign sequence number, we can't do this sooner since the message might fail validation/getFee
     destChainConfig.sequenceNumber = destChainConfig.sequenceNumber + 1;
     st.destChainConfigs.set(ccipsend.destChainSelector, destChainConfig);
-    st.store();
+    assert (st.pendingFeeReservations >= msg.fee.feeTokenAmount) throw OnRamp_Error.PendingFeeReservationsUnderflow;  
+    st.pendingFeeReservations = st.pendingFeeReservations - msg.fee.feeTokenAmount;  
 
     var rampMessage = TVM2AnyRampMessage {
         header: RampMessageHeader {
@@ -416,7 +485,13 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
     }.toCell().hash();
 
     rampMessage.header.messageId = rampMessage.generateMessageId(metadataHash);
-    
+
+    // The emit's forward fee is charged from the contract's balance, not from the
+    // inbound message value. Since the balance now holds the reserved fee, an
+    // unguarded emit would slowly drain it. Reserve the original balance so the
+    // emit and the confirmation below are paid from the inbound value only.
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+
     emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent { message: rampMessage });
 
     val confirmation = createMessage({
@@ -430,7 +505,8 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
             sender: metadata.sender,
         },
     });
-    reserveGramsOnBalance(msg.fee.feeTokenAmount, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    // SAFETY: reserveGramsOnBalance above keeps the original balance (including the
+    // reserved fee) intact; only the inbound value in excess of it is forwarded.
     confirmation.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
@@ -438,22 +514,30 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
 Handles execution failures reported by a CCIPSendExecutor. Forwards a
 Router_MessageRejected notification to the Router on the destination chain
 with error details for tracking and recovery.
+
+The failed send's fee reservation is released and refunded to the Router.
 */
-fun onExecutorFinishedWithError(st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedWithError) {
-    val ccipSend: Router_CCIPSend = msg.msg.load();
-    val metadata = msg.metadata;
-    val router = st.destChainConfigs.mustGet(ccipSend.destChainSelector, OnRamp_Error.UnknownDestChainSelector).router;
-    rejectMessage(msg.error, router, ccipSend, metadata.sender);
+fun onExecutorFinishedWithError(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedWithError) {
+    val router = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector).router;
+    val refund = msg.refund.loadOpt().unwrapOr(0); // No fee charged if refund is not present
+
+    // Release this send's reservation: the fee is about to leave the contract.
+    // Saturating: a report for a fee that was never reserved must not underflow
+    // the counter (which would inflate the spendable balance).
+    st.pendingFeeReservations = max(st.pendingFeeReservations - refund, 0);
+
+    rejectMessage(msg.error, router, msg.queryID, msg.destChainSelector, msg.sender, refund);
 }
 
-fun rejectMessage(error: int, router: address, ccipSend: Router_CCIPSend, sender: address) {
+fun rejectMessage(error: int, router: address, queryID: uint64, destChainSelector: uint64, sender: address, refund: coins = 0) {
     val errorMsg = createMessage({
         bounce: false,
-        value: 0,
+        // A charged fee is already reserved on this contract.
+        value: refund,
         dest: router,
         body: Router_MessageRejected {
-            queryID: ccipSend.queryID,
-            destChainSelector: ccipSend.destChainSelector,
+            queryID,
+            destChainSelector,
             sender,
             error,
         },
@@ -561,7 +645,9 @@ fun onWithdrawFeeTokens(msg: OnRamp_WithdrawFeeTokens) {
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
 
-    reserveGramsOnBalance(config.reserve, RESERVE_MODE_AT_MOST);
+    // Keep the static reserve AND the fees reserved for in-flight executors:
+    // those are committed and must not be paid out to the aggregator.
+    reserveGramsOnBalance(config.reserve + st.pendingFeeReservations, RESERVE_MODE_AT_MOST);
 
     val withdrawMsg = createMessage({
         bounce: true,
@@ -659,6 +745,13 @@ get fun reserve(): coins {
     return config.reserve;
 }
 
+// Total fees currently reserved for in-flight send executors. Committed to the
+// balance: excluded from withdrawals until the executor reports success or error.
+get fun pendingFeeReservations(): coins {
+    val st = lazy OnRamp_Storage.load();
+    return st.pendingFeeReservations;
+}
+
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
     requireSupportedVersion(version);
@@ -673,6 +766,7 @@ fun migrate(storage: cell, version: slice): cell {
         }.toCell(),
         config: old.config,
         destChainConfigs: old.destChainConfigs,
+        pendingFeeReservations: 0,
     }.toCell();
 }
 

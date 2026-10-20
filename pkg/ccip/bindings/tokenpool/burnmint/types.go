@@ -3,7 +3,6 @@ package burnmint
 import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
@@ -26,7 +25,7 @@ const (
 // jetton wallet address (the burn source) and the full forward payload for finalization.
 type BurnContext struct {
 	_              tlb.Magic                          `tlb:"#ba302a47" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	Wallet         *address.Address                   `tlb:"addr"`
+	Wallet         *address.Address                   `tlb:"addr required"`
 	ForwardPayload tokenpool.LockOrBurnForwardPayload `tlb:"^"`
 }
 
@@ -56,8 +55,7 @@ type ReturnExcessesBack struct {
 
 // Storage represents the BurnMintTokenPool contract storage.
 type Storage struct {
-	PoolData           tokenpool.Storage `tlb:"^"`
-	OffRampAccountCode *cell.Cell        `tlb:"^"` // Compiled code cell of the DepositAccount (off-ramp role)
+	PoolData tokenpool.Storage `tlb:"^"`
 }
 
 // --- Exit Codes ---

@@ -17,7 +17,7 @@ export const EntryErrors = tare.TokenAdminRegistryEntry.Errors
 export const CELL_UNDERFLOW = 9
 
 /** Enough value for any root operation, including a stale entry upgrade round trip. */
-export const OPERATION_VALUE = toNano('0.1')
+export const OPERATION_VALUE = toNano('0.2')
 
 export function createBlockchain(): Promise<Blockchain> {
   return Blockchain.create().then((blockchain) => {
@@ -26,6 +26,8 @@ export function createBlockchain(): Promise<Blockchain> {
       blockchain.verbosity.print = false
       blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
+    // Prevent rent collection by freezing time
+    blockchain.now = 1
     return blockchain
   })
 }
@@ -148,6 +150,8 @@ export async function registerToken(
     token?: Address
     /** Answer the entry's TEP-89 query as the token, enabling it. */
     answerWalletQuery?: boolean
+    /** Answer the entry's transfer initiator probe as the pool, setting it. */
+    answerPoolProbe?: boolean
   } = {},
 ) {
   const token = opt.token ?? fx.token
@@ -175,8 +179,27 @@ export async function registerToken(
   if (opt.answerWalletQuery ?? true) {
     await answerWalletQuery(fx, { token })
   }
+  if (opt.answerPoolProbe ?? true) {
+    await answerPoolProbe(fx, { token, queryId: opt.queryId })
+  }
   return result
 }
+
+/** Sends the `TokenPool_TransferInitiator` answer to the entry's probe, as the pool by default. */
+export const answerPoolProbe = (
+  fx: Fixture,
+  opt: {
+    token?: Address
+    from?: Address
+    transferInitiator?: Address | null
+    queryId?: bigint
+  } = {},
+) =>
+  entryFor(fx, opt.token ?? fx.token).sendTokenPoolTransferInitiator(
+    fx.blockchain.sender(opt.from ?? fx.pool),
+    toNano('0.02'),
+    { queryId: opt.queryId ?? 0n, transferInitiator: opt.transferInitiator ?? null },
+  )
 
 /** Sends the TEP-89 answer to the entry's registration query, as the token by default. */
 export const answerWalletQuery = (
@@ -237,20 +260,35 @@ export const overridePendingAdministrator = (
     administrator,
   })
 
-export const setPool = (
+export const requestSetPool = (
+  fx: Fixture,
+  actor: SandboxContract<TreasuryContract>,
+  tokenPool: Address | null,
+  queryId = 0n,
+  value = OPERATION_VALUE,
+) =>
+  fx.registry.sendTokenAdminRegistrySetPool(actor.getSender(), value, {
+    queryId,
+    tokenAddress: fx.token,
+    tokenPool,
+  })
+
+/** Requests the pool update and, for a new pool, answers the entry's probe as that pool. */
+export async function setPool(
   fx: Fixture,
   actor: SandboxContract<TreasuryContract>,
   tokenPool: Address | null,
   queryId = 0n,
   value = OPERATION_VALUE,
   transferInitiator: Address | null = null,
-) =>
-  fx.registry.sendTokenAdminRegistrySetPool(actor.getSender(), value, {
-    queryId,
-    tokenAddress: fx.token,
-    tokenPool,
-    transferInitiator,
-  })
+): Promise<Result> {
+  const request = await requestSetPool(fx, actor, tokenPool, queryId, value)
+  if (tokenPool === null) {
+    return request
+  }
+  const answer = await answerPoolProbe(fx, { from: tokenPool, transferInitiator, queryId })
+  return { transactions: [...request.transactions, ...answer.transactions] }
+}
 
 export function expectEntrySuccess(fx: Fixture, result: Result) {
   expect(result.transactions).toHaveTransaction({

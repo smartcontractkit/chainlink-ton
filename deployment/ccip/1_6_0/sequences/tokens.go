@@ -355,7 +355,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 					bindings.TypeLockReleaseLockboxTokenPool,
 					typeJettonLockBox,
 					bindings.TypeJettonWallet,
-					bindings.TypeDepositAccount,
+					bindings.TypeDeployable,
 				},
 			})
 			if err != nil {
@@ -385,6 +385,10 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 					"jetton wallet contract not found in compiled contracts package under %q",
 					bindings.TypeJettonWallet,
 				)
+			}
+			compiledDeployable, ok := compiledContracts[bindings.TypeDeployable]
+			if !ok {
+				return sequences.OnChainOutput{}, errors.New("failed to load Deployable code")
 			}
 
 			// The owner and RMN proxy are both set to the deployer wallet; RMN is not yet
@@ -437,6 +441,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 					},
 					AllowedFinalityConfig: allowedFinality,
 					AdvancedPoolHooks:     nil,
+					DeployableCode:        compiledDeployable.Code,
 				},
 				LocalPolicy: tokenpool.LocalPolicy{
 					CursePolicy: tokenpool.CursePolicy{
@@ -455,11 +460,6 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				TokenTransferFeeConfigs: nil,
 			}
 
-			offRampAccount, ok := compiledContracts[bindings.TypeDepositAccount]
-			if !ok {
-				return sequences.OnChainOutput{}, errors.New("failed to load off-ramp-account code")
-			}
-
 			// The pool keeps the lockbox address in its own storage, so the lockbox has to be
 			// built (address-wise) first. Its address derives from the lockbox StateInit, which
 			// does not depend on the pool — there is no cycle.
@@ -471,6 +471,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			// which we already know.
 			lockBoxData := lockbox.Storage{
 				ID:            jettonLockBoxID,
+				Initializer:   owner,
 				MinterAddress: tokenAddr,
 				WalletAddress: nil,
 				RBAC:          emptyRBACData(),
@@ -497,9 +498,8 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			// it is handed. The lockbox therefore must exist before the pool, which is why the
 			// pool address is precomputed from the exact same storage we deploy with.
 			storage := lockreleaselockbox.Storage{
-				PoolData:           poolData,
-				Lockbox:            lockBoxAddr,
-				OffRampAccountCode: offRampAccount.Code,
+				PoolData: poolData,
+				Lockbox:  lockBoxAddr,
 			}
 
 			poolStorageCell, err := tlb.ToCell(storage)
@@ -667,18 +667,13 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 				registryAddr = &r
 			}
 
-			transferInitiator, err := releaseOrMintInitiator(b.GetContext(), chain.Client, poolAddr)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("resolve release/mint transfer initiator of pool %s: %w", poolAddr.String(), err)
-			}
-
 			body := codec.MustWrapMessage[any](bindings.TypeTokenAdminRegistry, tokenadminregistry.RegisterToken{
 				TokenAddress: tokenAddr,
 				TokenInfo: tokenadminregistryentry.TokenInfo{
-					TokenPool:         poolAddr,
-					TransferInitiator: transferInitiator,
-					MinterAddress:     tokenAddr,
-					Version:           1,
+					// The entry probes the pool for its transfer initiator before setting it.
+					TokenPool:     poolAddr,
+					MinterAddress: tokenAddr,
+					Version:       1,
 				},
 				Administrator: chain.Wallet.Address(),
 			})
@@ -693,7 +688,7 @@ func (a *TonTokenAdapter) ConfigureTokenForTransfersSequence() *cldf_ops.Sequenc
 					{
 						Bounce:  true,
 						DstAddr: registryAddr,
-						Amount:  tlb.MustFromTON("0.1"),
+						Amount:  tlb.MustFromTON("0.2"),
 						Body:    body,
 					},
 				},
@@ -745,28 +740,12 @@ func deriveTokenAdminRegistryEntryAddress(registryAddr, tokenAddr *address.Addre
 	return tlb.StateInit{Code: deployableCode, Data: data}.CalcAddress(0), nil
 }
 
-// releaseOrMintInitiator returns the transfer initiator of the pool's release/mint deliveries, as
-// registered in the TokenAdminRegistry: the lockbox for lockbox pools, nil (the pool) otherwise.
-func releaseOrMintInitiator(ctx context.Context, client ton.APIClientWrapped, pool *address.Address) (*address.Address, error) {
-	typeAndVersion, err := ton_tvm.CallGetterLatest(ctx, client, pool, lockreleaselockbox.GetTypeAndVersion)
-	if err != nil {
-		return nil, fmt.Errorf("get typeAndVersion: %w", err)
-	}
-	if typeAndVersion.Type != string(bindings.TypeLockReleaseLockboxTokenPool) {
-		return nil, nil
-	}
-	lockBox, err := ton_tvm.CallGetterLatest(ctx, client, pool, lockreleaselockbox.GetLockbox)
-	if err != nil {
-		return nil, fmt.Errorf("get lockbox: %w", err)
-	}
-	return lockBox, nil
-}
-
 // waitForTokenAdminRegistryEntryDeployment waits until the entry runs its own
 // code and is enabled. RegisterToken deploys the entry asynchronously through
 // the registry root, so accepting administration before this transition would
 // be rejected with Deployable_Error.NotOwner (9200). The entry is enabled once
-// the token answers its TEP-89 wallet query with a wallet.
+// the token answers its TEP-89 wallet query with a wallet and the pool answers
+// its transfer initiator probe.
 func waitForTokenAdminRegistryEntryDeployment(client ton.APIClientWrapped, entryAddr *address.Address, entryCode *cell.Cell) error {
 	if client == nil || entryAddr == nil || entryCode == nil {
 		return errors.New("client, entry address, and entry code are required")
@@ -797,7 +776,7 @@ func waitForTokenAdminRegistryEntryDeployment(client ton.APIClientWrapped, entry
 		select {
 		case <-ctx.Done():
 			if deployed {
-				return fmt.Errorf("entry is disabled: the token did not answer its TEP-89 wallet query with a wallet within 30s (retry with TokenAdminRegistry_VerifyToken): %w", ctx.Err())
+				return fmt.Errorf("entry is disabled: the token did not answer its TEP-89 wallet query with a wallet, or the pool did not answer its transfer initiator probe, within 30s (retry with TokenAdminRegistry_VerifyToken / TokenAdminRegistry_RefreshTransferInitiator): %w", ctx.Err())
 			}
 			return fmt.Errorf("entry did not become active with its expected code within 30s: %w", ctx.Err())
 		case <-ticker.C:

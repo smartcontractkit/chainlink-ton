@@ -3,14 +3,15 @@ import { Cell, Sender, toNano } from '@ton/core'
 import {
   TokenPool,
   TokenPool_LockOrBurn,
+  TokenPool_LockOrBurnFailure,
   TokenPool_LockOrBurnForwardPayload,
   TokenPool_LockOrBurnInV1,
   TokenPool_LockOrBurnOutV1,
   TokenPool_LockOrBurnPrepared,
   TokenPool_LockOrBurnTransfer,
+  TokenPool_LockOrBurnWithdraw,
   TokenPool_ReleaseOrMint,
   TokenPool_ReleaseOrMintFailure,
-  TokenPool_ReleaseOrMintFinished,
   TokenPool_ReleaseOrMintForwardPayload,
   TokenPool_ReleaseOrMintInV1,
   TokenPool_ReleaseOrMintOutV1,
@@ -19,7 +20,8 @@ import {
   TokenPool_TransferDetails,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
-import { TokenPoolBehaviorContext, releaseRequest } from './TokenPool.behavior'
+import { contractCode } from '../../../wrappers/codeLoader'
+import { TokenPoolBehaviorContext, deliveryTo, releaseRequest } from './TokenPool.behavior'
 // Async Hook Behavior Tests (TON-TP/6)
 // ———————————————————————————————————————————————————————————————————————————————
 
@@ -32,6 +34,23 @@ export function runTokenPoolAsyncHookBehaviorTests(
   setup: () => Promise<TokenPoolAsyncHookBehaviorContext>,
 ) {
   describe(`${name} async hook behavior`, () => {
+    // Deploys a MockAdvancedPoolHooks instance with `id = 255`, which throws on
+    // PreflightCheck/PostflightCheck so the requests bounce back to the pool.
+    async function deployBounceHooks(
+      ctx: TokenPoolAsyncHookBehaviorContext,
+    ): Promise<SandboxContract<MockAdvancedPoolHooks>> {
+      const bounceHooks = ctx.blockchain.openContract(
+        MockAdvancedPoolHooks.fromStorage(
+          { id: 255n },
+          {
+            overrideContractCode: await contractCode.ccip.local('ccip.test.mockAdvancedPoolHooks'),
+          },
+        ),
+      )
+      await bounceHooks.sendDeploy(ctx.deployer.getSender(), toNano('0.1'))
+      return bounceHooks
+    }
+
     //
     // Helper: build a LockOrBurnInV1 request body
     //
@@ -78,7 +97,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request,
           requestedFinalityConfig: 0n,
           tokenArgs: null,
-          replyTo: null,
+          replyTo: ctx.deployer.address,
         }),
         prepared,
       })
@@ -105,7 +124,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           queryId: 0n,
           request,
           requestedFinalityConfig: 0n,
-          replyTo: null,
+          replyTo: ctx.deployer.address,
         }),
         prepared,
       })
@@ -215,7 +234,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
-          receiverAccount: ctx.recipient.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.offRamp.address),
         },
       )
 
@@ -249,7 +268,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
-          receiverAccount: ctx.recipient.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.offRamp.address),
         },
       )
 
@@ -281,7 +300,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       })
     })
 
-    it('does not emit ReleaseOrMintFailure when async postflight fails and replyTo is null', async () => {
+    it('always notifies the requester when async postflight fails', async () => {
       const ctx = await setup()
 
       const request = releaseRequest(ctx)
@@ -293,7 +312,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           queryId: 3n,
           request,
           requestedFinalityConfig: 0n,
-          replyTo: null,
+          replyTo: ctx.deployer.address,
         },
       )
 
@@ -316,12 +335,17 @@ export function runTokenPoolAsyncHookBehaviorTests(
         )
       })
 
-      expect(failures).toHaveLength(0)
+      expect(failures).toHaveLength(1)
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.deployer.address,
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
+      })
     })
 
-    // === Inline mode (replyTo = null for LockOrBurn) ===
+    // === Without asynchronous hooks ===
 
-    it('processes LockOrBurn inline when replyTo is null', async () => {
+    it('always sends LockOrBurnWithdraw to the requester', async () => {
       const ctx = await setup()
 
       const request = lockOrBurnIn(ctx)
@@ -331,13 +355,18 @@ export function runTokenPoolAsyncHookBehaviorTests(
         request,
         requestedFinalityConfig: 0n,
         tokenArgs: null,
-        replyTo: null,
+        replyTo: ctx.deployer.address,
       })
 
       expect(result.transactions).toHaveTransaction({
         from: ctx.deployer.address,
         to: ctx.pool.address,
         success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.deployer.address,
+        op: TokenPool_LockOrBurnWithdraw.PREFIX,
       })
     })
 
@@ -354,7 +383,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
-          receiverAccount: ctx.recipient.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
         },
       )
 
@@ -431,7 +460,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request: requestEven,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
-          receiverAccount: ctx.recipient.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.offRamp.address),
         },
       )
 
@@ -451,7 +480,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           request: requestOdd,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
-          receiverAccount: ctx.recipient.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.offRamp.address),
         },
       )
 
@@ -466,6 +495,199 @@ export function runTokenPoolAsyncHookBehaviorTests(
         from: ctx.pool.address,
         to: ctx.offRamp.address,
         success: true,
+      })
+    })
+
+    // === Hooks contract rejects the request at entry (bounce) ===
+    // A hooks contract that throws on our PreflightCheck/PostflightCheck (undeployed, wrong ABI,
+    // or rejecting at entry) bounces the request. Before this was handled, the bounce was dropped:
+    // the rate-limit capacity consumed at admission leaked and no *Failure reply was sent, so the
+    // flow stalled. The base TokenPool.onBouncedMessage must unwind both legs.
+
+    it('refunds outbound rate limit + sends LockOrBurnFailure when PreflightCheck bounces', async () => {
+      const ctx = await setup()
+
+      // A hooks contract whose `id` makes it throw on PreflightCheck/PostflightCheck.
+      const bounceHooks = await deployBounceHooks(ctx)
+      await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 9998n,
+        advancedPoolHooks: bounceHooks.address,
+      })
+
+      const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+
+      const result = await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
+        queryId: 8n,
+        request: lockOrBurnIn(ctx),
+        requestedFinalityConfig: 0n,
+        tokenArgs: null,
+        replyTo: ctx.deployer.address,
+      })
+
+      // The pool's PreflightCheck bounced back and was handled successfully.
+      expect(result.transactions).toHaveTransaction({
+        to: ctx.pool.address,
+        inMessageBounced: true,
+        success: true,
+      })
+
+      // The flow finalizes with a LockOrBurnFailure to the original requester.
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.deployer.address,
+        op: TokenPool_LockOrBurnFailure.PREFIX,
+        success: true,
+      })
+
+      // The outbound capacity consumed at admission was refunded.
+      const after = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+      expect(after.outbound.tokens).toEqual(before.outbound.tokens)
+    })
+
+    it('refunds inbound rate limit + sends ReleaseOrMintFailure when PostflightCheck bounces', async () => {
+      const ctx = await setup()
+
+      const bounceHooks = await deployBounceHooks(ctx)
+      await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 9997n,
+        advancedPoolHooks: bounceHooks.address,
+      })
+
+      const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+
+      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.deployer.getSender(),
+        toNano('1'),
+        {
+          queryId: 9n,
+          request: releaseRequest(ctx),
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.offRamp.address,
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        to: ctx.pool.address,
+        inMessageBounced: true,
+        success: true,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.offRamp.address,
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
+        success: true,
+      })
+
+      const after = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+      expect(after.inbound.tokens).toEqual(before.inbound.tokens)
+    })
+
+    it('refunds the outbound rate limit and fails the executor on LockOrBurnWithdrawFailed', async () => {
+      const ctx = await setup()
+
+      const request = lockOrBurnIn(ctx)
+      const requestMsg = TokenPool_LockOrBurn.create({
+        queryId: 9n,
+        request,
+        requestedFinalityConfig: 0n,
+        tokenArgs: null,
+        replyTo: ctx.deployer.address,
+      })
+
+      const prepared = TokenPool_LockOrBurnPrepared.create({
+        feeAmount: 0n,
+        destTokenAmount: toNano('1'),
+        out: TokenPool_LockOrBurnOutV1.create({
+          destTokenAddress: ctx.destTokenAddress,
+          destPoolData: Cell.EMPTY,
+        }),
+      })
+      const fwdp = TokenPool_LockOrBurnForwardPayload.create({
+        originalSender: ctx.deployer.address,
+        requestMsg,
+        prepared,
+      })
+
+      // Consume the outbound rate limit through the real admission path: queryId=8 is even,
+      // so the mock hooks accept the preflight and the pool proceeds to the withdraw leg,
+      // leaving the bucket debited. (Refunding into a full bucket would be capped and
+      // prove nothing.)
+      await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
+        queryId: 8n,
+        request,
+        requestedFinalityConfig: 0n,
+        tokenArgs: null,
+        replyTo: ctx.deployer.address,
+      })
+      const bucketBefore = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+      expect(bucketBefore.outbound.tokens).toBe(toNano('99'))
+
+      const result = await ctx.pool.sendTokenPoolLockOrBurnWithdrawFailed(
+        ctx.deployer.getSender(), // the pool's configured Router is the deployer in this setup
+        toNano('1'),
+        {
+          queryId: 9n,
+          forwardPayload: fwdp,
+          errorCode: 4242n,
+        },
+      )
+
+      // The pool must reinstate the rate limit consumed at admission.
+      const bucketAfter = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+      expect(bucketAfter.outbound.tokens).toBe(bucketBefore.outbound.tokens + toNano('1'))
+
+      // ...and notify the executor (replyTo) with a LockOrBurnFailure carrying the
+      // OnRamp's relayed error code.
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.deployer.address,
+        success: true,
+        op: TokenPool_LockOrBurnFailure.PREFIX,
+        body(x) {
+          if (!x) return false
+          const failure = TokenPool_LockOrBurnFailure.fromSlice(x.beginParse())
+          return failure.queryId === 9n && failure.errorCode === 4242n
+        },
+      })
+    })
+
+    it('rejects LockOrBurnWithdrawFailed from a sender that is not the Router', async () => {
+      const ctx = await setup()
+
+      const request = lockOrBurnIn(ctx)
+      const fwdp = TokenPool_LockOrBurnForwardPayload.create({
+        originalSender: ctx.deployer.address,
+        requestMsg: TokenPool_LockOrBurn.create({
+          queryId: 10n,
+          request,
+          requestedFinalityConfig: 0n,
+          tokenArgs: null,
+          replyTo: ctx.deployer.address,
+        }),
+        prepared: TokenPool_LockOrBurnPrepared.create({
+          feeAmount: 0n,
+          destTokenAmount: toNano('1'),
+          out: TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress: ctx.destTokenAddress,
+            destPoolData: Cell.EMPTY,
+          }),
+        }),
+      })
+
+      const result = await ctx.pool.sendTokenPoolLockOrBurnWithdrawFailed(
+        ctx.unauthorized.getSender(),
+        toNano('1'),
+        {
+          queryId: 10n,
+          forwardPayload: fwdp,
+          errorCode: 1n,
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        to: ctx.pool.address,
+        success: false,
       })
     })
   })

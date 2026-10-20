@@ -12,9 +12,9 @@ type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
     | FeeQuoter_MessageValidated
     | FeeQuoter_MessageValidationFailed
+    | OnRamp_ExecutorFeeReserved
     | TokenAdminRegistry_TokenInfo
     | TokenAdminRegistry_GetTokenInfoFailed
-    | ResponseWalletAddress
     | TokenPool_LockOrBurnWithdraw
     | TokenPool_LockOrBurnFinished
     | TokenPool_LockOrBurnFailure
@@ -51,6 +51,8 @@ fun SendExecutor_Costs.Execute(): int {
 fun SendExecutor_Costs.MessageValidated(): int {
     return
         + grams("0.002") // computeFee
+        + grams("0.019") // ExecutorReserveFee fwdFee
+        + OnRamp_Costs.ExecutorReserveFee()
         + grams("0.019") // ExecutorFinishedSuccessfully fwdFee
         + OnRamp_Costs.ExecutorFinishedSuccessfully();
 }
@@ -65,4 +67,6 @@ fun SendExecutor_Costs.MessageValidationFailed(): int {
 
 type CCIPSendExecutor_BouncedMessage =
     | FeeQuoter_GetValidatedFee
+    | OnRamp_ExecutorReserveFee
+    | TokenAdminRegistry_GetTokenInfo
     ;
