@@ -783,8 +783,7 @@ describe('DepositAccount', () => {
       toNano('0.5'),
       {
         queryId: 6n,
-        // The bounce handler requires a well-formed wrap: a non-null forward payload (as the
-        // Router always carries) plus the withdraw context (attached by the account itself).
+        // The bounce handler requires a well-formed wrap with withdraw context (attached by the account itself).
         ask: buildAskToTransfer(toNano('4'), recipient.address, recipient.address, Cell.EMPTY),
       },
     )

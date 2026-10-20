@@ -187,7 +187,7 @@ fun onWithdraw(sender: address, msg: DepositAccount_Withdraw, msgCell: cell) {
 fun onWithdrawBounced(wallet: address, ask: AskToTransfer) {
     val data = lazy DepositAccount_Data.load();
     val wrap = Jetton_ForwardPayloadWrap.from(ask.forwardPayload).unwrap(DepositAccount_Error.InvalidForwardPayload);
-    assert(wrap.context != null && wrap.forwardPayload != null, DepositAccount_Error.InvalidForwardPayload);
+    assert(wrap.context != null, DepositAccount_Error.InvalidForwardPayload);
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
