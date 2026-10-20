@@ -85,7 +85,7 @@ var GetVerifyNotCursed = tvm.Getter[*big.Int, bool]{
 	}),
 }
 
-// GetRMNUpdateCursedSubjectsFee gets the minimum value (nanoTON) that curse,
+// GetRMNUpdateCursedSubjectsFee gets the minimum value (nanoGRAM) that curse,
 // uncurse and sync messages must carry to propagate to every OffRamp.
 var GetRMNUpdateCursedSubjectsFee = tvm.NewNoArgsGetter(tvm.NoArgsOpts[*big.Int]{
 	Name: "rmn_updateCursedSubjectsFee",

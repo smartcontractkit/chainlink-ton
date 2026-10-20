@@ -951,12 +951,12 @@ fun RMNRemote.forwardCursedSubjects(self) {
     var entry = self.forwardUpdates.findFirst();
     while (entry.isFound) {
         val sendMsg = createMessage({
-            bounce: false,
+            bounce: BounceMode.RichBounce,
             value: Router_Costs.forwardCursedSubjects(),
             dest: entry.getKey(),
             body: OffRamp_UpdateCursedSubjects { cursedSubjects: self.policy.cursedSubjects },
         });
-        sendMsg.send(SEND_MODE_REGULAR);
+        sendMsg.send(SEND_MODE_REGULAR + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         entry = self.forwardUpdates.iterateNext(entry);
     }
 }

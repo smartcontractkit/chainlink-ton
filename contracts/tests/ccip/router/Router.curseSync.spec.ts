@@ -10,7 +10,7 @@ import { deployOffRampContract } from '../offramp/OffRamp.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
 
 const SUBJECT = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
-const BASE_FEE = toNano('0.02')
+const BASE_FEE = toNano('0.05')
 const PER_OFF_RAMP_FEE = toNano('0.05')
 
 describe('Router.curseSync', () => {

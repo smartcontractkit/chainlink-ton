@@ -404,7 +404,7 @@ fun Router_Costs.GetOnRampAccount(): int {
 // Minimum value for calling Router_RMNRemoteCurse, Router_RMNRemoteUncurse and
 // Router_RMNRemoteSyncOffRamps, which forward the cursed subjects to every OffRamp.
 fun Router_Costs.updateCursedSubjects(offRampCount: int): int {
-    return grams("0.02") // computeFee
+    return grams("0.05") // computeFee
         + offRampCount * Router_Costs.forwardCursedSubjects();
 }
 
