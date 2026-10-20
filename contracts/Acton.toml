@@ -103,7 +103,7 @@ depends = []
 display-name = "link.chain.ton.ccip.pool.TokenPool"
 src = "contracts/ccip/pools/TokenPool.tolk"
 domain = "ccip/pools"
-depends = []
+depends = ["Deployable"]
 
 [contracts.JettonLockBox]
 display-name = "link.chain.ton.ccip.pool.JettonLockBox"
@@ -115,19 +115,19 @@ depends = []
 display-name = "link.chain.ton.ccip.pool.BurnMintTokenPool"
 src = "contracts/ccip/pools/burn_mint/contract.tolk"
 domain = "ccip/pools"
-depends = []
+depends = ["Deployable"]
 
 [contracts.LockReleaseLockboxTokenPool]
 display-name = "link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool"
 src = "contracts/ccip/pools/lock_release_lockbox/contract.tolk"
 domain = "ccip/pools"
-depends = []
+depends = ["Deployable"]
 
 [contracts.MockAdvancedPoolHooks]
 display-name = "link.chain.ton.ccip.test.MockAdvancedPoolHooks"
 src = "contracts/ccip/test/mock_advanced_pool_hooks.tolk"
 domain = "ccip/test"
-depends = []
+depends = ["Deployable"]
 
 [contracts.TokenAdminRegistry]
 display-name = "link.chain.ton.ccip.TokenAdminRegistry"
