@@ -30,7 +30,7 @@ describe('FeeQuoter GetValidatedFee', () => {
   })
 
   it('should calculate fee for empty message', async () => {
-    const testTokens = FeeQuoterSetup.SOURCE_FEE_TOKENS // Native TON and Link
+    const testTokens = [FeeQuoterSetup.NATIVE_TON]
     for (const token of testTokens) {
       var message = setup.generateEmptyMessage({
         feeToken: token.token,
@@ -55,7 +55,7 @@ describe('FeeQuoter GetValidatedFee', () => {
   })
 
   it('should handle high gas limit message', async () => {
-    const testTokens = FeeQuoterSetup.SOURCE_FEE_TOKENS
+    const testTokens = [FeeQuoterSetup.NATIVE_TON]
     const customGasLimit = FeeQuoterSetup.MAX_GAS_LIMIT
     const customDataSize = FeeQuoterSetup.MAX_DATA_SIZE
     expect(customDataSize).toBeGreaterThan(
@@ -298,7 +298,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
   })
 
-  it.skip('should revert when fee token not supported', async () => {
+  it('should revert when fee token not supported', async () => {
     const notAFeeToken = FeeQuoterSetup.CUSTOM_TOKEN.token
 
     const message = rt.Router_CCIPSend.create({
@@ -344,6 +344,15 @@ describe('FeeQuoter GetValidatedFee', () => {
         )
       },
     })
+  })
+
+  it('should revert when paying with a registered non-native fee token', async () => {
+    const message = setup.generateEmptyMessage({ feeToken: FeeQuoterSetup.SOURCE_FEE_TOKEN.token })
+
+    await setup.assertGetFeeValidationError(
+      message,
+      feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.FeeTokenNotSupported'],
+    )
   })
 
   // Overflow/Underflow Edge Case Tests

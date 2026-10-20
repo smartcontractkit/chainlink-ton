@@ -760,10 +760,11 @@ func waitForTokenAdminRegistryEntryDeployment(client ton.APIClientWrapped, entry
 	for {
 		block, err := client.CurrentMasterchainInfo(ctx)
 		if err == nil {
-			account, accountErr := client.WaitForBlock(block.SeqNo).GetAccount(ctx, block, entryAddr)
+			waitClient := client.WaitForBlock(block.SeqNo)
+			account, accountErr := waitClient.GetAccount(ctx, block, entryAddr)
 			if accountErr == nil && account.IsActive && account.Code != nil && bytes.Equal(account.Code.Hash(), entryCode.Hash()) {
 				deployed = true
-				result, getErr := client.RunGetMethod(ctx, block, entryAddr, "enabled")
+				result, getErr := waitClient.RunGetMethod(ctx, block, entryAddr, "enabled")
 				if getErr == nil {
 					enabled, intErr := result.Int(0)
 					if intErr == nil && enabled.Sign() != 0 {

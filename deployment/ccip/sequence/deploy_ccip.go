@@ -104,7 +104,6 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				Owner:        chain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
-			WrappedNative: tvm.TonTokenAddr,
 			RMNRemote: router.RMNRemote{
 				Policy: router.CursePolicy{
 					Admin: ownable2step.Storage{
@@ -162,7 +161,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 
 	tonNativeTokenAddress := stateCCIP.TONNativeAddress
 	if tonNativeTokenAddress.IsAddrNone() {
-		tonNativeTokenAddress = *tvm.TonTokenAddr
+		tonNativeTokenAddress = *tvm.NativeGRAMAddr
 		addresses = append(addresses, datastore.AddressRef{
 			Address:       tonNativeTokenAddress.String(),
 			ChainSelector: in.ChainSelector,

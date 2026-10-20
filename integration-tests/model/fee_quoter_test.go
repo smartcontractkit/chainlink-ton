@@ -50,10 +50,10 @@ func TestDecodeFeeQuoterData(t *testing.T) {
 		WithLinkToken(tvm.LinkTokenAddr).
 		WithTokenPriceStalenessThreshold(uint32(3600)).
 		// USDPerToken
-		WithUSDPerToken(tvm.TonTokenAddr, big.NewInt(1804194200000000000), mustTimestamp("2025-11-18T17:58:08Z")).
+		WithUSDPerToken(tvm.NativeGRAMAddr, big.NewInt(1804194200000000000), mustTimestamp("2025-11-18T17:58:08Z")).
 		WithUSDPerToken(tvm.LinkTokenAddr, mustBigInt("13819996070000000000"), mustTimestamp("2025-11-18T17:58:08Z")).
 		// PremiumMultiplierWeiPerEthByToken
-		WithPremiumMultiplier(tvm.TonTokenAddr, 1).
+		WithPremiumMultiplier(tvm.NativeGRAMAddr, 1).
 		// DestChainConfigs
 		WithDestChainConfig(14767482510784806043, model.DestChainConfigs{
 			Config: model.DestChainConfig{
@@ -165,7 +165,7 @@ func TestDecodeFeeQuoterData(t *testing.T) {
 		// USDPerToken
 		require.Len(t, storage.USDPerToken, 2)
 
-		tonPrice, ok := storage.USDPerToken[tvm.TonTokenAddr.String()]
+		tonPrice, ok := storage.USDPerToken[tvm.NativeGRAMAddr.String()]
 		require.True(t, ok)
 		require.Equal(t, "1804194200000000000", tonPrice.Value.String())
 		require.Equal(t, mustTimestamp("2025-11-18T17:58:08Z"), tonPrice.Timestamp)
@@ -177,7 +177,7 @@ func TestDecodeFeeQuoterData(t *testing.T) {
 
 		// PremiumMultiplierWeiPerEthByToken
 		require.Len(t, storage.PremiumMultiplierWeiPerEthByToken, 1)
-		require.Equal(t, uint64(1), storage.PremiumMultiplierWeiPerEthByToken[tvm.TonTokenAddr.String()])
+		require.Equal(t, uint64(1), storage.PremiumMultiplierWeiPerEthByToken[tvm.NativeGRAMAddr.String()])
 
 		// DestChainConfigs
 		require.Len(t, storage.DestChainConfigsByChainSelector, 3)

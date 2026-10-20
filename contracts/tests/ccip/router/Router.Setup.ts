@@ -3,7 +3,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { assertLog } from '../../Logs'
 import { LogTypes } from '../../../wrappers/ccip/Logs'
-import { generateRandomContractId, LINK_TOKEN, WRAPPED_NATIVE } from '../../../src/utils'
+import { generateRandomContractId, LINK_TOKEN, NATIVE_GRAM } from '../../../src/utils'
 import * as Decimals from '../../lib/pricing/Decimals'
 import { ContractCoverageConfig } from '../../coverage/coverage'
 
@@ -153,7 +153,6 @@ async function deployRouterInstance(
       owner: deployer.address,
       pendingOwner: null,
     }),
-    wrappedNative: WRAPPED_NATIVE,
     onRamps: new Map(),
     offRamps: new Map(),
     rmnRemote: rt.RMNRemote.create({
@@ -222,7 +221,7 @@ async function deployFeeQuoterInstance(
         gasPriceUpdates: [],
         tokenPriceUpdates: [
           fq.TokenPriceUpdate.create({
-            sourceToken: WRAPPED_NATIVE,
+            sourceToken: NATIVE_GRAM,
             usdPerToken: Decimals.TESTING_VALUES.tokenPrice.eth,
           }),
           fq.TokenPriceUpdate.create({
@@ -279,7 +278,7 @@ async function deployFeeQuoterInstance(
 
   {
     const result = await feeQuoter.sendFeeQuoterUpdateFeeTokens(deployer.getSender(), toNano('1'), {
-      add: new Map([[WRAPPED_NATIVE, fq.FeeToken.create({ premiumMultiplierWeiPerEth: 1n })]]),
+      add: new Map([[NATIVE_GRAM, fq.FeeToken.create({ premiumMultiplierWeiPerEth: 1n })]]),
       remove: [],
     })
     expect(result.transactions).toHaveTransaction({
@@ -515,7 +514,7 @@ export async function deployRouterContract(
       rt.Ownable2Step.create({ owner: owner.address, pendingOwner: null }),
       data,
     )
-    data.storeAddress(WRAPPED_NATIVE)
+    data.storeAddress(NATIVE_GRAM)
     data.storeDict(null)
     data.storeDict(null)
     data.storeRef(legacyRMN.endCell())
@@ -536,7 +535,6 @@ export async function deployRouterContract(
     ownable: rt.Ownable2Step.create({
       owner: owner.address,
     }),
-    wrappedNative: WRAPPED_NATIVE,
     onRamps: new Map(),
     offRamps: new Map(),
     rmnRemote: rt.RMNRemote.create({

@@ -3,7 +3,7 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano, beginCell, Address } from '@ton/core'
 
-import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
+import { generateRandomContractId, NATIVE_GRAM } from '../../../src/utils'
 
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as feeQuoter from '../../../wrappers/gen/ccip/FeeQuoter'
@@ -82,7 +82,7 @@ export class FeeQuoterSetup {
 
   // Native TON
   static readonly NATIVE_TON: Token = {
-    token: WRAPPED_NATIVE,
+    token: NATIVE_GRAM,
     price: decimals.TESTING_VALUES.tokenPrice.ton,
   }
   // Generate random address from "sLINK"
@@ -101,15 +101,11 @@ export class FeeQuoterSetup {
   static readonly DEST_TOKENS: Token[] = [FeeQuoterSetup.DEST_LINK, FeeQuoterSetup.NATIVE_TON]
 
   //
-  static readonly SOURCE_FEE_TOKENS: Token[] = [
-    ...FeeQuoterSetup.SOURCE_TOKENS,
-    // TODO: add wrapped native when it is implemented
-  ]
+  // Note: the FeeQuoter only accepts NATIVE_GRAM (already in SOURCE_TOKENS) as a
+  // fee token; LINK is priced for the USD→juels conversion but cannot pay fees.
+  static readonly SOURCE_FEE_TOKENS: Token[] = [...FeeQuoterSetup.SOURCE_TOKENS]
 
-  static readonly DEST_FEE_TOKENS: Token[] = [
-    ...FeeQuoterSetup.DEST_TOKENS,
-    // TODO: add wrapped native when it is implemented
-  ]
+  static readonly DEST_FEE_TOKENS: Token[] = [...FeeQuoterSetup.DEST_TOKENS]
 
   static readonly CUSTOM_TOKEN: Token = {
     token: Address.parse(`0:${Buffer.from('CUSTOM').toString('hex').padStart(64, '0')}`),

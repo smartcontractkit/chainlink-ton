@@ -108,7 +108,7 @@ func TestAddLanes(t *testing.T) {
 		// See TonLaneAdapter.GetDefaultGasPrice().
 		GasPrice: big.NewInt(2.12e9),
 		TokenPrices: map[string]*big.Int{
-			tvm.TonTokenAddr.String(): big.NewInt(99),
+			tvm.NativeGRAMAddr.String(): big.NewInt(99),
 		},
 		RMNVerificationEnabled: false,
 		AllowListEnabled:       false,
