@@ -438,6 +438,9 @@ type TokenPool_BouncedMessage =
     | TokenPool_PreflightCheck
     | TokenPool_PostflightCheck;
 
+// minval:best-effort gate=none TokenPool_GetTransferInitiator
+// registry probe; answer from stored config, no value gate
+
 /// Asks a pool which address initiates the jetton transfers delivering its releases/mints. Sent
 /// by the token admin registry when a pool is set or refreshed.
 struct (0x500b10e4) TokenPool_GetTransferInitiator {

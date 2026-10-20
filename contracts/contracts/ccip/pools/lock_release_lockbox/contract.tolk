@@ -6,6 +6,7 @@ import "@stdlib/gas-payments"
 
 import "../../../lib/utils"
 import "../../../lib/budget/gas"
+import "../../../lib/budget/min_value"
 import "../../../lib/access/access_control"
 import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
@@ -200,9 +201,6 @@ fun onLockOrBurnTransferContinue(
         },
     };
 
-    // minval:check-fail gate=S LockReleaseLockboxTokenPool.TransferNotificationForRecipient
-    // safety and admission checks already done; include the lockbox flow and custody-return budget
-
     // Quote the inbound value as an upper bound before reducing the forwarded amount.
     val forwardingFee = createMessage(transferOpts)
         .estimateFeeWithoutSending(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -210,6 +208,9 @@ fun onLockOrBurnTransferContinue(
         * JETTON_TRANSFER_VALUE_BUFFER_PCT / 100; // 2x buffer for generic wallet costs
     val overhead = tokenPoolEntrypointCost() + forwardingFee + transferBudget;
 
+    // minval:check-fail gate=S LockReleaseLockboxTokenPool.TransferNotificationForRecipient
+    // safety and admission checks already done; include the lockbox flow and custody-return budget
+    assertMinValue(msgValue, overhead + 1, TokenPool_Error.InsufficientMessageValue);
     transferOpts.body.forwardTonAmount = msgValue - overhead;
     transferOpts.value = 0;
 

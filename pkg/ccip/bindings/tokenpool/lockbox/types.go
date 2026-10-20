@@ -27,6 +27,7 @@ type Deposit struct {
 	RemoteChainSelector uint64           `tlb:"## 64"`         // Destination chain selector for cross-chain routing.
 	Amount              tlb.Coins        `tlb:"."`             // The amount of tokens to deposit.
 	Context             *cell.Cell       `tlb:"maybe ^"`       // Optional context carried through the deposit flow.
+	ReturnAddress       *address.Address `tlb:"addr"`          // Where rejected custody is returned; defaults to the transfer initiator.
 }
 
 // WithdrawExtra holds optional extra fields for Withdraw.

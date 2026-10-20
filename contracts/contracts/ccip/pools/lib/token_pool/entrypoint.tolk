@@ -924,6 +924,8 @@ fun TokenPool<T>.onLockOrBurnWithdrawFailed(
     msg: TokenPool_LockOrBurnWithdrawFailed,
     msgValue: coins,
 ): void {
+    // minval:recovery gate=none TokenPool_LockOrBurnWithdrawFailed
+    // authenticated failure callback; recover locally, no gate
     self.onlyRouter(sender);
     // TBD do we need a hook here?
     val fwdp = lazy msg.forwardPayload.load();

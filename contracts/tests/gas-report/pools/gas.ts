@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, toNano } from '@ton/core'
+import { Address, beginCell, toNano } from '@ton/core'
 
 import { JettonWallet } from '../../../wrappers/jetton/JettonWallet'
 import {
@@ -12,6 +12,7 @@ import {
   TokenPool_LockOrBurnWithdraw,
   TokenPool_RateLimitConfigPair,
   RateLimiter_Config,
+  TokenPool_ReleaseOrMintDelivery,
   TokenPool_ReleaseOrMintInV1,
   TokenPool_Transfer,
   TokenPool_TransferDetails,
@@ -143,6 +144,19 @@ async function lockOrBurn(
   })
 }
 
+const DELIVERY_NOTIFY_PREFIX = 0x88e0ef3e
+
+function deliveryTo(recipient: Address, notify: Address): TokenPool_ReleaseOrMintDelivery {
+  return TokenPool_ReleaseOrMintDelivery.create({
+    recipient,
+    forwardTonAmount: toNano('0.01'),
+    forwardPayload: beginCell()
+      .storeUint(DELIVERY_NOTIFY_PREFIX, 32)
+      .storeAddress(notify)
+      .endCell(),
+  })
+}
+
 function releaseOrMint(
   handle: TokenPoolGasHandle,
   deployer: SandboxContract<TreasuryContract>,
@@ -169,6 +183,7 @@ function releaseOrMint(
     }),
     requestedFinalityConfig: 0n,
     replyTo: deployer.address,
+    delivery: deliveryTo(recipient.address, deployer.address),
   })
 }
 

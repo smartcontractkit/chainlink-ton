@@ -17,16 +17,6 @@ const BUDGET_UNITS_LVL4_XXXHIGH = 10_000_000;  // ≈0.667 TON  extremely high b
 const BUDGET_UNITS_LVL5_MAX     = 25_000_000;  // ≈1.667 TON  worst-case multi-hop rollback
 
 /// Default message forwarding budget (gas units) for replies / notifications.
-/// 
-/// The expectation is this is enough to cover the basic transaction costs for the recipient,
-/// at least validation and bounces, to avoid out of gas errors (no bounces).
-///
-/// TL;DR: Today (Q3/25), a basic transaction costs about 0.0025 TON.
-/// Current settings in basechain are as follows: 1 unit of gas costs 400 nanotons.
-/// Source: https://docs.ton.org/v3/documentation/smart-contracts/transaction-fees/fees
-///
-/// For comparison, the Jetton contract requires at least 21k gas units + fwd_fee + storage_fee
-/// to cover the token transaction costs.
 const DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS = BUDGET_UNITS_LVL0_MIN;
 
 /// Fee-size tiers for [calculateGasFeeFor].
