@@ -788,6 +788,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
     this.jettonLockBox = await buildJettonLockBox({
       blockchain: this.blockchain,
       minterAddress: this.token,
+      initializer: this.deployer.address,
       id: generateRandomContractId(),
     })
     this.tokenPool = await this.setupTokenPool()

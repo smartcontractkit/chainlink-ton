@@ -99,7 +99,11 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 		PoolType:           bindings.ShortLockReleaseLockboxTokenPool,
 		TokenPoolVersion:   semver.MustParse("1.6.0"),
 		ChainSelector:      tonSelector,
-		ExistingDataStore:  env.DataStore,
+		RouterRef: &datastore.AddressRef{
+			Address:       tonChain.WalletAddress.String(),
+			ChainSelector: tonSelector,
+		},
+		ExistingDataStore: env.DataStore,
 	})
 	require.NoError(t, err)
 	require.Len(t, poolOut.Output.Addresses, 1)

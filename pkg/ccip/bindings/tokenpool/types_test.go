@@ -10,7 +10,83 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockbox"
 )
+
+func TestInsufficientMessageValueExitCode(t *testing.T) {
+	decoded, err := ErrorInsufficientMessageValue.NewFrom(51725)
+	require.NoError(t, err)
+	require.Equal(t, ErrorInsufficientMessageValue, decoded)
+	require.Equal(t, "ErrorInsufficientMessageValue", decoded.String())
+}
+
+func TestLockboxDepositFailed_WireFormat(t *testing.T) {
+	token := address.NewAddress(0, 0, make([]byte, 32))
+	payload := cell.BeginCell().MustStoreUInt(301, 64).EndCell()
+	context := &lockbox.Deposit{
+		QueryID: 301, Token: token, RemoteChainSelector: 123,
+		Amount: tlb.MustFromTON("9"), Context: payload,
+	}
+	contextCell, err := tlb.ToCell(context)
+	require.NoError(t, err)
+	for name, attempted := range map[string]bool{"skipped": false, "queued": true} {
+		t.Run(name, func(t *testing.T) {
+			message := lockbox.DepositFailed{
+				QueryID: 301, Token: token, Depositor: token, Amount: tlb.MustFromTON("9"),
+				Context: context, ErrorCode: 47400, ReturnAttempted: attempted,
+			}
+			encoded, err := tlb.ToCell(message)
+			require.NoError(t, err)
+			expected := cell.BeginCell().MustStoreUInt(0x5e28ebd8, 32).MustStoreUInt(301, 64).
+				MustStoreAddr(token).MustStoreAddr(token).MustStoreCoins(9000000000).
+				MustStoreMaybeRef(contextCell).MustStoreUInt(47400, 32).MustStoreBoolBit(attempted).EndCell()
+			require.Equal(t, expected.Hash(), encoded.Hash())
+			var decoded lockbox.DepositFailed
+			require.NoError(t, tlb.LoadFromCell(&decoded, encoded.MustBeginParse()))
+			require.Equal(t, message.QueryID, decoded.QueryID)
+			require.Equal(t, message.ErrorCode, decoded.ErrorCode)
+			require.Equal(t, attempted, decoded.ReturnAttempted)
+			decodedContext, err := tlb.ToCell(decoded.Context)
+			require.NoError(t, err)
+			require.Equal(t, contextCell.Hash(), decodedContext.Hash())
+			require.Equal(t, payload.Hash(), decoded.Context.Context.Hash())
+		})
+	}
+}
+
+func TestLockboxWithdrawFailed_WireFormat(test *testing.T) {
+	token := address.NewAddress(0, 0, make([]byte, 32))
+	payload := cell.BeginCell().MustStoreUInt(301, 64).EndCell()
+	for _, withExtra := range []bool{false, true} {
+		context := &lockbox.Withdraw{
+			QueryID: 301, Token: token, RemoteChainSelector: 123,
+			Amount: tlb.MustFromTON("9"), Recipient: token,
+		}
+		if withExtra {
+			context.Extra = &lockbox.WithdrawExtra{SendExcessesTo: token, ForwardPayload: payload}
+		}
+		message := lockbox.WithdrawFailed{
+			QueryID: 301, Token: token, Context: context,
+		}
+		contextCell, err := tlb.ToCell(context)
+		require.NoError(test, err)
+		encoded, err := tlb.ToCell(message)
+		require.NoError(test, err)
+		expected := cell.BeginCell().MustStoreUInt(0x60bae556, 32).MustStoreUInt(301, 64).
+			MustStoreAddr(token).MustStoreMaybeRef(contextCell).EndCell()
+		require.Equal(test, expected.Hash(), encoded.Hash())
+		var decoded lockbox.WithdrawFailed
+		require.NoError(test, tlb.LoadFromCell(&decoded, encoded.MustBeginParse()))
+		decodedContext, err := tlb.ToCell(decoded.Context)
+		require.NoError(test, err)
+		require.Equal(test, contextCell.Hash(), decodedContext.Hash())
+		if withExtra {
+			require.Equal(test, payload.Hash(), decoded.Context.Extra.ForwardPayload.Hash())
+		} else {
+			require.Nil(test, decoded.Context.Extra)
+		}
+	}
+}
 
 // TestDynamicConfig_AllowedDepositNamespaces_WireFormat verifies that modelling
 // AllowedDepositNamespaces as *tlbe.Dict[uint32, struct{}] (tlb:".") produces
@@ -22,7 +98,10 @@ func TestDynamicConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
 		42: {},
 	})
 
+	router := address.NewAddress(0, 0, make([]byte, 32))
+
 	cfg := DynamicConfig{
+		Router:                   router,
 		AllowedDepositNamespaces: namespaces,
 	}
 
@@ -43,7 +122,7 @@ func TestDynamicConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
 		RateLimitAdmin           *address.Address `tlb:"addr"`
 		FeeAdmin                 *address.Address `tlb:"addr"`
 		AllowedDepositNamespaces *cell.Dictionary `tlb:"dict 32"`
-	}{AllowedDepositNamespaces: rawDict}
+	}{Router: router, AllowedDepositNamespaces: rawDict}
 	rawCell, err := tlb.ToCell(rawStruct)
 	require.NoError(t, err)
 
@@ -132,7 +211,7 @@ func TestDynamicConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
 		13: {},
 	})
 
-	cfg := DynamicConfig{AllowedDepositNamespaces: namespaces}
+	cfg := DynamicConfig{Router: address.NewAddress(0, 0, make([]byte, 32)), AllowedDepositNamespaces: namespaces}
 
 	c, err := tlb.ToCell(cfg)
 	require.NoError(t, err)
@@ -146,7 +225,7 @@ func TestDynamicConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
 	require.True(t, ok)
 
 	// Empty set round-trips as an empty map.
-	empty := DynamicConfig{AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}]()}
+	empty := DynamicConfig{Router: address.NewAddress(0, 0, make([]byte, 32)), AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}]()}
 	emptyCell, err := tlb.ToCell(empty)
 	require.NoError(t, err)
 

@@ -164,6 +164,14 @@ get fun getFee(
     throw 0xFFFF;
 }
 
+/// Matches Go binding GetFeeAmount (Name: "getFeeAmount").
+get fun getFeeAmount(
+    transfer: TokenPool_LockOrBurnTransfer,
+    requestedFinalityConfig: uint32,
+): coins {
+    throw 0xFFFF;
+}
+
 /// Matches Go binding GetCCVAmount (Name: "getCCVAmount").
 get fun getCCVAmount(
     remoteChainSelector: uint64,

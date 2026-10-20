@@ -159,6 +159,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     jettonLockBox = await buildJettonLockBox({
       blockchain,
       minterAddress: minter.address,
+      initializer: deployer.address,
       id: 1n,
     })
     tokenPool = blockchain.openContract(
