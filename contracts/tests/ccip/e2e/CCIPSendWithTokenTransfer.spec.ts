@@ -5,7 +5,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { assertLog } from '../../Logs'
-import { WRAPPED_NATIVE, generateRandomTonAddress } from '../../../src/utils'
+import { NATIVE_GRAM, generateRandomTonAddress } from '../../../src/utils'
 import { createEmptyCursePolicy } from '../../../wrappers/ccip/Router'
 
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
@@ -408,7 +408,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [rt.TokenAmount.create({ amount: TOKEN_AMOUNT, token: minter.address })],
-      feeToken: WRAPPED_NATIVE, // TODO should be just native?
+      feeToken: NATIVE_GRAM, // TODO should be just native?
       extraArgs: rt.GenericExtraArgsV2.create({
         gasLimit: 100n,
         allowOutOfOrderExecution: true,

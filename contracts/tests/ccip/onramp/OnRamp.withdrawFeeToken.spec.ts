@@ -7,7 +7,7 @@ import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
-import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
+import { generateRandomContractId, NATIVE_GRAM } from '../../../src/utils'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
@@ -71,7 +71,7 @@ describe('OnRamp - WithdrawFeeTokens', () => {
 
   it('should fail to withdraw non empty fee tokens', async () => {
     const result = await onramp.sendOnRampWithdrawFeeTokens(deployer.getSender(), toNano('0.5'), {
-      feeTokens: [WRAPPED_NATIVE],
+      feeTokens: [NATIVE_GRAM],
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -213,8 +213,8 @@ describe('OnRamp - WithdrawFeeTokens', () => {
       // A token transfer keeps the executor mid-flight after the reservation:
       // it pauses awaiting the TokenAdminRegistry's reply instead of finishing
       // immediately (which would release the reservation in the same chain).
-      tokenAmounts: [or.TokenAmount.create({ amount: toNano('1'), token: WRAPPED_NATIVE })],
-      feeToken: WRAPPED_NATIVE,
+      tokenAmounts: [or.TokenAmount.create({ amount: toNano('1'), token: NATIVE_GRAM })],
+      feeToken: NATIVE_GRAM,
       extraArgs: or.GenericExtraArgsV2.create({
         gasLimit: 100n,
         allowOutOfOrderExecution: true,

@@ -1,7 +1,7 @@
 import { toNano, Cell, beginCell, Builder, Slice } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import { WRAPPED_NATIVE } from '../../../src/utils'
+import { NATIVE_GRAM } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
@@ -9,6 +9,7 @@ import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import { setup, contractsCoverageConfig } from './Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
+import { FeeQuoterSetup } from '../feequoter/FeeQuoterSetup'
 
 const EVM_CC_ADDRESS: rt.CrossChainAddress = EVM_ADDRESS
 
@@ -88,7 +89,7 @@ describe.each(cases)(
       receiver: EVM_CC_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
-      feeToken: WRAPPED_NATIVE,
+      feeToken: NATIVE_GRAM,
       extraArgs: rt.GenericExtraArgsV2.create({
         gasLimit: 100n,
         allowOutOfOrderExecution: true,
@@ -130,9 +131,56 @@ describe.each(cases)(
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.ccipSend.receiver.asCell().equals(EVM_ADDRESS.asCell()) &&
                 decoded.ccipSend.tokenAmounts.length === 0 &&
-                decoded.ccipSend.feeToken!.equals(WRAPPED_NATIVE)
+                decoded.ccipSend.feeToken!.equals(NATIVE_GRAM)
               )
             },
+          })
+        })
+
+        it('should reject getValidatedFee paying fees with a non-native token', async () => {
+          const jettonMsg: rt.Router_CCIPSend = {
+            $: 'Router_CCIPSend',
+            queryID: 1n,
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+            receiver: EVM_ADDRESS,
+            data: Cell.EMPTY,
+            tokenAmounts: [],
+            feeToken: FeeQuoterSetup.CUSTOM_TOKEN.token,
+            extraArgs: rt.GenericExtraArgsV2.create({
+              gasLimit: 100n,
+              allowOutOfOrderExecution: true,
+            }),
+          }
+          const result = await router.sendRouterGetValidatedFee(sender.getSender(), toNano('0.5'), {
+            ccipSend: jettonMsg,
+            context,
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: sender.address,
+            to: router.address,
+            success: true,
+          })
+
+          expect(result.transactions).toHaveTransaction({
+            from: router.address,
+            to: sender.address,
+            op: rt.Router_MessageValidationFailed.PREFIX,
+            body(x) {
+              if (!x) return false
+              const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
+              return (
+                decoded.error ===
+                BigInt(rt.Router.Errors['Router_Error.FeePaymentsWithJettonsNotSupported'])
+              )
+            },
+          })
+
+          // The message must be rejected before reaching the OnRamp.
+          expect(result.transactions).not.toHaveTransaction({
+            from: router.address,
+            to: onRamp.address,
+            op: or.OnRamp_GetValidatedFee.PREFIX,
           })
         })
 
@@ -144,7 +192,7 @@ describe.each(cases)(
             receiver: EVM_ADDRESS,
             data: Cell.EMPTY,
             tokenAmounts: [],
-            feeToken: WRAPPED_NATIVE,
+            feeToken: NATIVE_GRAM,
             extraArgs: rt.GenericExtraArgsV2.create({
               gasLimit: 100n,
               allowOutOfOrderExecution: true,
@@ -205,7 +253,7 @@ describe.each(cases)(
             receiver: EVM_CC_ADDRESS,
             data: Cell.EMPTY,
             tokenAmounts: [],
-            feeToken: WRAPPED_NATIVE,
+            feeToken: NATIVE_GRAM,
             extraArgs: rt.GenericExtraArgsV2.create({
               gasLimit: 100n,
               allowOutOfOrderExecution: true,
@@ -269,7 +317,7 @@ describe.each(cases)(
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
                 decoded.msg.tokenAmounts.length === 0 &&
-                decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
+                decoded.msg.feeToken!.equals(NATIVE_GRAM)
               )
             },
           })
@@ -335,7 +383,7 @@ describe.each(cases)(
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
                 decoded.msg.tokenAmounts.length === 0 &&
-                decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
+                decoded.msg.feeToken!.equals(NATIVE_GRAM)
               )
             },
           })
@@ -405,7 +453,7 @@ describe.each(cases)(
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.ccipSend.receiver.asCell().equals(EVM_ADDRESS.asCell()) &&
                 decoded.ccipSend.tokenAmounts.length === 0 &&
-                decoded.ccipSend.feeToken!.equals(WRAPPED_NATIVE)
+                decoded.ccipSend.feeToken!.equals(NATIVE_GRAM)
               )
             },
           })
@@ -456,7 +504,7 @@ describe.each(cases)(
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
                 decoded.msg.tokenAmounts.length === 0 &&
-                decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
+                decoded.msg.feeToken!.equals(NATIVE_GRAM)
               )
             },
           })
@@ -511,7 +559,7 @@ describe.each(cases)(
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
                 decoded.msg.tokenAmounts.length === 0 &&
-                decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
+                decoded.msg.feeToken!.equals(NATIVE_GRAM)
               )
             },
           })

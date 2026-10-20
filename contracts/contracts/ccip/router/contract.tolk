@@ -22,6 +22,7 @@ import "../offramp/types"
 import "../rmn_remote/lib"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
+import "../common/addresses"
 
 import "types"
 import "messages"
@@ -746,9 +747,11 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee, sender: address, isV1: bool) 
     }
 
     if (ccipSend.feeToken == null) {
-        ccipSend.feeToken = st.wrappedNative;
+        ccipSend.feeToken = NATIVE_GRAM;
         // to save on gas, we only update ccipSendCell if necessary
         ccipSendCell = ccipSend.toCell();
+    } else if (ccipSend.feeToken != NATIVE_GRAM) {
+        return sendMessageValidationFailed(sender, Router_Error.FeePaymentsWithJettonsNotSupported as uint256, msg.ccipSend, msg.context, isV1);
     }
 
     val feeQuoterMsg = createMessage({
@@ -874,7 +877,9 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
     assert(!isCursed, Router_Error.SubjectCursed);
 
     if (msg.feeToken == null) {
-        msg.feeToken = st.wrappedNative
+        msg.feeToken = NATIVE_GRAM
+    } else if (msg.feeToken != NATIVE_GRAM) {
+        return sendMessageRejected(sender, msg.queryID, Router_Error.FeePaymentsWithJettonsNotSupported as uint256);
     }
 
     val onRampResult = st.onRamps.get(msg.destChainSelector);
@@ -1265,6 +1270,9 @@ fun migrate(storage: cell, version: slice): cell {
     requireSupportedVersion(version);
     val old = Router_Storage_V1_6_0.fromCell(storage);
     val oldRMN = old.rmnRemote.load();
+    // Ensure that the already configured wrapped native token matches the expected NATIVE_GRAM value to prevent inconsistencies during the migration.
+    assert(old.wrappedNative == NATIVE_GRAM) throw Upgradeable_Error.VersionMismatch;
+
     // The policy starts unseeded: the legacy RMN administrator keeps curse,
     // uncurse and role management as the implicit bearer of all three roles.
     var policy = CursePolicy.empty(oldRMN.admin);
@@ -1272,7 +1280,6 @@ fun migrate(storage: cell, version: slice): cell {
     return Storage {
         id: old.id,
         ownable: old.ownable,
-        wrappedNative: old.wrappedNative,
         onRamps: old.onRamps,
         offRamps: old.offRamps,
         rmnRemote: RMNRemote {

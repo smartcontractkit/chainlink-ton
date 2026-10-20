@@ -21,4 +21,5 @@ enum Router_Error {
     /// The withdraw's forward payload doesn't name the executor that requested it.
     WithdrawExecutorMismatch
     OnRampAccountWithdrawFailed
+    FeePaymentsWithJettonsNotSupported
 }
