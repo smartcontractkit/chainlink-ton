@@ -143,7 +143,8 @@ describe('Jetton wallet query fees', () => {
       {
         queryId: 0n,
         tokenAddress: token,
-        tokenInfo: tokenInfo(fx, fx.pool, token),
+        // No pool, so the entry is enabled once the token answers.
+        tokenInfo: tokenInfo(fx, null, token),
         administrator: fx.administrator.address,
       },
     )

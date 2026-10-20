@@ -31,10 +31,10 @@ fun TokenAdminRegistryEntry.deriveAddress(deployableCode: cell, tokenAddress: ad
 }
 
 /// Attached to the `TokenPool_GetTransferInitiator` probe; the pool's answer returns the unspent part.
-const TokenAdminRegistryEntry_POOL_PROBE_VALUE: int = grams("0.05"); // TODO update with real value
+const TokenAdminRegistryEntry_POOL_PROBE_VALUE: int = grams("0.008");
 
 /// Attached to the TEP-89 query sent at registration; the token's response returns the unspent part.
-const TokenAdminRegistryEntry_WALLET_QUERY_VALUE: int = grams("0.02"); // TODO update with real value
+const TokenAdminRegistryEntry_WALLET_QUERY_VALUE: int = grams("0.005");
 
 /// Version of the entry code. Bump it whenever the entry code or its storage
 /// layout changes. The root declares it as the minimum in every message to an

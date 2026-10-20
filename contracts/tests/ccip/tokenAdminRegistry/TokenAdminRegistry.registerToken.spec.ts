@@ -302,7 +302,7 @@ describe('TokenAdminRegistry - Register Token', () => {
 
     it('rejects VerifyToken without enough value for the query', async () => {
       await registerToken(fx, { answerWalletQuery: false })
-      const result = await verifyToken(fx.token, toNano('0.03'))
+      const result = await verifyToken(fx.token, Costs.verifyToken - 1n)
       expect(result.transactions).toHaveTransaction({
         from: fx.other.address,
         to: fx.registry.address,
