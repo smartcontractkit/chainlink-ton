@@ -127,9 +127,6 @@ func TestTonTokenAdapterDeployTokenAndPool(t *testing.T) {
 // deploy-jetton → deploy-pool → register-with-TokenAdminRegistry flow. It requires
 // the standalone TokenAdminRegistry, so CCIP contracts are deployed first.
 func TestTonTokenAdapterConfigureTokenForTransfers(t *testing.T) {
-	// MyLocalTon's genesis gas and forward prices are ~15x mainnet, so the
-	// TokenAdminRegistry's mainnet-sized fixed message values run out of gas.
-	t.Skip("TODO: re-enable once the local network uses mainnet-like fees")
 	t.Parallel()
 
 	lggr := logger.Test(t)
