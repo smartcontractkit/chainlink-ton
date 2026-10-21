@@ -179,7 +179,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
               // Tokens are withdrawn from the Router-owned OnRampAccount. The pool's cache is
               // refreshed from the Router on every LockOrBurn, but seed it too so the pool is
               // usable before the first relay.
-              allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+              allowedDepositNamespaces: new Set([]),
               jettonClient: tp.JettonClient.create({
                 masterAddress: minter.address,
                 jettonWalletCode: walletCode,
