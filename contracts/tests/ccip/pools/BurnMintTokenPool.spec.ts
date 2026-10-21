@@ -44,6 +44,8 @@ import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChai
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as bouncer from '../../../wrappers/test/mock/Bouncer'
 import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
+import * as NameSpace from '../../../wrappers/ccip/NameSpace'
+import * as Deployable from '../../../wrappers/libraries/Deployable'
 import {
   deliveryTo,
   parseDepositAccountNotify,
@@ -654,6 +656,182 @@ describe('BurnMintTokenPool', () => {
       )
     },
   )
+
+  it('rejects a beneficiary withdrawal from the derived account whose nested wrapper falsely claims the Router as initiator', async () => {
+    const attacker = unauthorized
+    const attackerWallet = await userWallet(attacker.address)
+    const poolWallet = await userWallet(burnMintPool.address)
+
+    const request = TokenPool_LockOrBurn.create({
+      queryId: 667n,
+      request: TokenPool_LockOrBurnInV1.create({
+        transfer: TokenPool_Transfer.create({
+          id: 667n,
+          details: TokenPool_TransferDetails.create({
+            receiver: receiverAddress,
+            remoteChainSelector,
+            originalSender: attacker.address,
+            amount: toNano('1'),
+            localToken: cctMinter.address,
+          }),
+        }),
+      }),
+      requestedFinalityConfig: 0n,
+      tokenArgs: null,
+      replyTo: attacker.address,
+      onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+    })
+    const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
+      originalSender: attacker.address,
+      requestMsg: request,
+      prepared: TokenPool_LockOrBurnPrepared.create({
+        feeAmount: 0n,
+        destTokenAmount: toNano('1'),
+        out: TokenPool_LockOrBurnOutV1.create({
+          destTokenAddress,
+          destPoolData: Cell.EMPTY,
+        }),
+      }),
+    })
+
+    // Deploy the attacker's OnRampAccount the way the Router does, with the attacker as a
+    // beneficiary, and fund its wallet.
+    const accountAddress = deriveOnRampAccountAddress({
+      router: deployer.address,
+      user: attacker.address,
+      token: cctMinter.address,
+      deployableCode,
+    })
+    const deployable = blockchain.openContract(
+      Deployable.ContractClient.createFromConfig(
+        {
+          owner: deployer.address,
+          id: Deployable.builder.data.namespaced.encode({
+            namespace: NameSpace.CCIPNamespace.OnRampAccount,
+            id: beginCell().storeAddress(attacker.address).storeAddress(cctMinter.address),
+          }),
+        },
+        deployableCode,
+      ),
+    )
+    const deployRes = await deployable.sendInitialize(deployer.getSender(), toNano('0.5'), {
+      stateInit: {
+        code: await contractCode.ccip.local('ccip.account.DepositAccount'),
+        data: da.DepositAccount_Data.toCell(
+          da.DepositAccount_Data.create({
+            owner: deployer.address,
+            user: attacker.address,
+            token: cctMinter.address,
+            beneficiaries: new Set<Address>([deployer.address, attacker.address]),
+          }),
+        ),
+      },
+    })
+    expect(deployRes.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: accountAddress,
+      deploy: true,
+      success: true,
+    })
+    const account = blockchain.openContract(da.DepositAccount.fromAddress(accountAddress))
+    const initRes = await account.sendDepositAccountInit(deployer.getSender(), toNano('0.3'), {
+      queryId: 0n,
+      context: null,
+    })
+    expect(initRes.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: accountAddress,
+      success: true,
+    })
+
+    await attackerWallet.sendTransfer(attacker.getSender(), {
+      value: toNano('2'),
+      message: {
+        queryId: 667,
+        jettonAmount: toNano('1'),
+        destination: accountAddress,
+        responseDestination: attacker.address,
+        customPayload: null,
+        forwardTonAmount: 0n,
+        forwardPayload: null,
+      },
+    })
+    const accountWallet = await userWallet(accountAddress)
+
+    const rateLimitBefore = await burnMintPool.getCurrentRateLimiterState(
+      remoteChainSelector,
+      false,
+    )
+    const supplyBefore = (await cctMinterRuntime.getJettonData()).totalSupply
+
+    // The beneficiary withdraws through the account, nesting a wrapper that falsely claims
+    // the Router as initiator. The account stamps the outer wrap with the real requester.
+    const withdrawRes = await account.sendDepositAccountWithdraw(
+      attacker.getSender(),
+      toNano('2'),
+      {
+        queryId: 667n,
+        ask: da.DepositAccount_WithdrawAskToTransfer.create({
+          jettonAmount: toNano('1'),
+          transferRecipient: burnMintPool.address,
+          sendExcessesTo: attacker.address,
+          customPayload: null,
+          forwardTonAmount: toNano('0.2'),
+          forwardPayload: da.Jetton_ForwardPayloadWrap.toCell(
+            da.Jetton_ForwardPayloadWrap.create({
+              // FORGED: claims the Router requested this withdraw.
+              initiator: deployer.address,
+              context: null,
+              forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
+            }),
+          ),
+        }),
+      },
+    )
+
+    // The account forwarded the withdraw to its wallet (the withdraw itself succeeds).
+    expect(withdrawRes.transactions).toHaveTransaction({
+      from: accountAddress,
+      to: accountWallet.address,
+      success: true,
+      op: 0x0f8a7ea5, // AskToTransfer
+    })
+    // The wallet delivered the notification to the pool, which rejected the deposit and
+    // returned custody (the notification funds the recovery, so the wallet transfer succeeds).
+    expect(withdrawRes.transactions).toHaveTransaction({
+      from: poolWallet.address,
+      to: burnMintPool.address,
+      success: true,
+    })
+    expect(withdrawRes.transactions).toHaveTransaction({
+      from: burnMintPool.address,
+      to: poolWallet.address,
+      success: true,
+      op: 0x0f8a7ea5, // AskToTransfer (custody return)
+    })
+
+    // No capacity refund: the outbound rate limit was never consumed (rejection happens
+    // before admission), so the bucket must be untouched.
+    const rateLimitAfter = await burnMintPool.getCurrentRateLimiterState(remoteChainSelector, false)
+    expect(rateLimitAfter.outbound.tokens).toEqual(rateLimitBefore.outbound.tokens)
+
+    // No burn happened and no success reply was emitted.
+    expect((await cctMinterRuntime.getJettonData()).totalSupply).toEqual(supplyBefore)
+    expect(withdrawRes.transactions).not.toHaveTransaction({
+      from: burnMintPool.address,
+      op: TokenPool_LockOrBurnFinished.PREFIX,
+    })
+    expect(withdrawRes.transactions).not.toHaveTransaction({
+      from: burnMintPool.address,
+      op: TokenPool_LockOrBurnFailure.PREFIX,
+    })
+
+    // Custody returned to the deposit source (the account wallet, the notification's
+    // transferInitiator): the attacker is down exactly the withdrawn amount.
+    expect(await attackerWallet.getJettonBalance()).toEqual(toNano('1'))
+    expect(await (await userWallet(accountAddress)).getJettonBalance()).toEqual(toNano('1'))
+    expect(await poolWallet.getJettonBalance()).toEqual(0n)
+  })
 
   describe('lockOrBurn transfer input validation', () => {
     it('returns tokens and notifies the requester when payload amount does not match transferred amount', async () => {
