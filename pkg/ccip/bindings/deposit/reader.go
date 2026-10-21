@@ -28,20 +28,6 @@ var GetOwner = tvm.NewNoArgsGetter(tvm.NoArgsOpts[*address.Address]{
 	}),
 })
 
-// GetProxy gets the account proxy address (account that messages are forwarded to).
-//
-// On-chain: get fun getProxy(): address
-var GetProxy = tvm.NewNoArgsGetter(tvm.NoArgsOpts[*address.Address]{
-	Name: "getProxy",
-	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {
-		addrSlice, err := r.Slice(0)
-		if err != nil {
-			return nil, fmt.Errorf("error getting Slice(0) - getProxy: %w", err)
-		}
-		return addrSlice.LoadAddr()
-	}),
-})
-
 // GetBeneficiaries gets the set of addresses that are allowed to withdraw jettons from this
 // account's wallet.
 //

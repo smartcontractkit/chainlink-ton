@@ -65,6 +65,23 @@ function mapToDict<K extends c.DictionaryKeyTypes, V>(m: Map<K, V>, keySerialize
 }
 
 
+function dictToSet<K extends c.DictionaryKeyTypes>(d: c.Dictionary<K, []>): Set<K> {
+    const set = new Set<K>();
+    for (const k of d.keys()) {
+        set.add(k);
+    }
+    return set;
+}
+
+function setToDict<K extends c.DictionaryKeyTypes>(s: Set<K>, keySerializer: c.DictionaryKey<K>, valueSerializer: c.DictionaryValue<[]>): c.Dictionary<K, []> {
+    const d = c.Dictionary.empty<K, []>(keySerializer, valueSerializer);
+    for (const k of s) {
+        d.set(k, []);
+    }
+    return d;
+}
+
+
 function storeTolkBitsN(v: c.Slice, nBits: number, b: c.Builder): void {
     if (v.remainingBits !== nBits) { throw new Error(`expected ${nBits} bits, got ${v.remainingBits}`); }
     if (v.remainingRefs !== 0) { throw new Error(`expected 0 refs, got ${v.remainingRefs}`); }
@@ -3463,6 +3480,7 @@ export const OnRamp_WithdrawFeeTokens = {
  >     requestedFinalityConfig: uint32
  >     tokenArgs: cell?
  >     replyTo: address
+ >     onRampNamespaces: map<uint32, ()>
  > }
  */
 export interface TokenPool_LockOrBurn {
@@ -3472,6 +3490,7 @@ export interface TokenPool_LockOrBurn {
     requestedFinalityConfig: uint32
     tokenArgs: c.Cell | null
     replyTo: c.Address
+    onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
 }
 
 export const TokenPool_LockOrBurn = {
@@ -3483,6 +3502,7 @@ export const TokenPool_LockOrBurn = {
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
         replyTo: c.Address
+        onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
     }): TokenPool_LockOrBurn {
         return {
             $: 'TokenPool_LockOrBurn',
@@ -3499,6 +3519,10 @@ export const TokenPool_LockOrBurn = {
             requestedFinalityConfig: s.loadUintBig(32),
             tokenArgs: s.loadBoolean() ? s.loadRef() : null,
             replyTo: s.loadAddress(),
+            onRampNamespaces: dictToSet(c.Dictionary.load<uint32, []>(c.Dictionary.Keys.BigUint(32), createDictionaryValue<[]>(
+                            (s) => [],
+                            (v,b) => { {} }
+                        ), s)),
         }
     },
     store(self: TokenPool_LockOrBurn, b: c.Builder): void {
@@ -3510,6 +3534,13 @@ export const TokenPool_LockOrBurn = {
             (v,b) => b.storeRef(v)
         );
         b.storeAddress(self.replyTo);
+        b.storeDict<uint32, []>(setToDict(self.onRampNamespaces, c.Dictionary.Keys.BigUint(32), createDictionaryValue<[]>(
+                        (s) => [],
+                        (v,b) => { {} }
+                    )), c.Dictionary.Keys.BigUint(32), createDictionaryValue<[]>(
+            (s) => [],
+            (v,b) => { {} }
+        ));
     },
     toCell(self: TokenPool_LockOrBurn): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurn>(self, TokenPool_LockOrBurn.store);

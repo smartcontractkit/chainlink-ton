@@ -72,27 +72,27 @@ func TestMessages_EncodingAndDecoding(t *testing.T) {
 	require.Equal(t, initMsg.QueryID, decodedInit.QueryID)
 	require.NotNil(t, decodedInit.Context)
 
-	// Withdraw (ask is boxed Cell<AskToTransfer>)
-	ask := AskToTransfer{
-		QueryID:           10,
+	ask := WithdrawAskToTransfer{
 		JettonAmount:      tlb.FromNanoTONU(1_000_000_000),
 		TransferRecipient: addr,
 		SendExcessesTo:    addr,
 		ForwardTonAmount:  tlb.FromNanoTONU(50_000_000),
 		ForwardPayload:    cell.BeginCell().EndCell(),
 	}
-	askCell, err := tlb.ToCell(ask)
-	require.NoError(t, err)
 	withdraw := Withdraw{
 		QueryID: 7,
-		Ask:     askCell,
+		Ask:     ask,
 	}
 	c, err = tlb.ToCell(withdraw)
 	require.NoError(t, err)
 	var decodedWithdraw Withdraw
 	require.NoError(t, tlb.Parse(&decodedWithdraw, c))
 	require.Equal(t, withdraw.QueryID, decodedWithdraw.QueryID)
-	require.Equal(t, askCell.Hash(), decodedWithdraw.Ask.Hash())
+	require.Equal(t, ask.JettonAmount, decodedWithdraw.Ask.JettonAmount)
+	require.Equal(t, ask.TransferRecipient, decodedWithdraw.Ask.TransferRecipient)
+	require.Equal(t, ask.SendExcessesTo, decodedWithdraw.Ask.SendExcessesTo)
+	require.Equal(t, ask.ForwardTonAmount, decodedWithdraw.Ask.ForwardTonAmount)
+	require.Equal(t, ask.ForwardPayload.Hash(), decodedWithdraw.Ask.ForwardPayload.Hash())
 
 	// Initialized
 	reply := Initialized{QueryID: 5, Context: nil}

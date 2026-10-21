@@ -1,26 +1,26 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/lisp-lists"
-import "@stdlib/gas-payments"
 
 import "../../../../lib/math"
 import "../../../../lib/utils"
 import "../../../../lib/jetton/messages"
 import "../../../../lib/jetton/jetton_client"
-import "../../../../lib/jetton/jetton-utils"
+import "../../../../lib/jetton/forward_payload_wrap"
 import "../../../../lib/access/ownable_2step"
-import "../../../../lib/access/access_control"
 import "../../../../lib/deployable/namespace"
 import "../../../../lib/funding/jetton_withdrawable"
 import "../../../common/types"
 import "../../../rmn_remote/lib"
 import "../../../router/types"
 
+import "../../../../../gen/Deployable.code"
+
+import "../rate_limiter"
 import "types"
 import "errors"
 import "messages"
 import "events"
 import "recovery"
-import "../rate_limiter"
 
 /// @notice Base abstract class with common functions for all token pools.
 /// A token pool serves as isolated place for holding tokens and token specific logic
@@ -48,6 +48,12 @@ struct TokenPool<T> {
 struct TokenPool_AdminConfig {
     ownable: Cell<Ownable2Step>;
     dynamicConfig: Cell<TokenPool_DynamicConfig>;
+
+    /// Allowed Deployables namespaces for source-chain deposit accounts. Refreshed from the
+    /// Router on every `TokenPool_LockOrBurn` (see `updateDepositNamespaces`); the namespace
+    /// check itself lives in `assertAuthorizedDepositInitiator`.
+    allowedDepositNamespaces: map<uint32, ()> = [];
+    
     /// The pool's Jetton identity (master + wallet code). Single source of truth used to
     /// derive and authenticate the pool's own wallet.
     jettonClient: JettonClient;
@@ -56,13 +62,6 @@ struct TokenPool_AdminConfig {
     allowedFinalityConfig: uint32 = TOKEN_POOL_DEFAULT_FINALITY;
     /// Optional advanced pool hooks contract for additional features like allowlists and CCV management.
     advancedPoolHooks: address? = null;
-    /// Compiled code of the Deployable contract used to derive source-chain deposit accounts
-    /// (e.g. OnRampAccount). Stored here (owner-only, immutable by design) so the pool can
-    /// authenticate a deposit source purely by recomputing the account's deterministic address
-    /// and its jetton wallet.
-    /// @dev Upgrading this after flows are in-flight can break auth for older accounts; it is
-    ///      intentionally part of admin (not dynamic) config.
-    deployableCode: cell? = null;
 }
 
 struct TokenPool_Data {
@@ -341,9 +340,6 @@ fun TokenPool<T>.setDynamicConfig(
     // feeAdmin: `null` means owner-only; the zero address is never a valid fee admin.
     assert(feeAdmin == null || !isZeroAddress(feeAdmin!), TokenPool_Error.ZeroAddressInvalid);
 
-    // TODO: should we drop the setAllowedDepositNamespaces and move to setDynamicConfig?
-    // Preserve allowedDepositNamespaces: it lives in dynamicConfig but is managed via its own
-    // setter (setAllowedDepositNamespaces).
     var dynamicConfig = adminConfig.dynamicConfig.load();
     dynamicConfig.router = router;
     dynamicConfig.rateLimitAdmin = rateLimitAdmin;
@@ -407,62 +403,6 @@ fun TokenPool<T>.setAdvancedPoolHooks(
             queryId,
             advancedPoolHooks,
         },
-    });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-}
-
-/// Sets the compiled Deployable code used to derive source-chain deposit accounts
-/// (e.g. OnRampAccount). Combined with `dynamicConfig.allowedDepositNamespaces` + the Router
-/// address, this lets the pool recompute and authenticate a deposit-account address.
-/// @param deployableCode The compiled Deployable code, or `null` to disable account-derived deposits.
-/// @dev Owner-only. Part of admin (not dynamic) config: upgrading after flows are in-flight can
-///      break auth for previously-derived accounts (see `TokenPool_AdminConfig.deployableCode`).
-fun TokenPool<T>.setDeployableCode(
-    mutate self,
-    sender: address,
-    queryId: uint64,
-    deployableCode: cell?,
-) {
-    var adminConfig = self.data.adminConfig.load();
-    adminConfig.ownable.load().requireOwner(sender);
-
-    adminConfig.deployableCode = deployableCode;
-    self.data.adminConfig = adminConfig.toCell();
-
-    val reply = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: sender,
-        body: TokenPool_DeployableCodeSet {
-            queryId,
-            deployableCode,
-        },
-    });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-}
-
-/// Sets the Deployables namespaces the pool accepts as source-chain deposit accounts.
-/// @param allowedDepositNamespaces The full set of allowed namespaces (replaces any previous set).
-/// @dev Owner-only. Part of dynamic config so it can be updated without pool redeployment.
-fun TokenPool<T>.setAllowedDepositNamespaces(
-    mutate self,
-    sender: address,
-    queryId: uint64,
-    allowedDepositNamespaces: map<uint32, ()>,
-) {
-    var adminConfig = self.data.adminConfig.load();
-    adminConfig.ownable.load().requireOwner(sender);
-
-    var dynamicConfig = adminConfig.dynamicConfig.load();
-    dynamicConfig.allowedDepositNamespaces = allowedDepositNamespaces;
-    adminConfig.dynamicConfig = dynamicConfig.toCell();
-    self.data.adminConfig = adminConfig.toCell();
-
-    val reply = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: sender,
-        body: TokenPool_AllowedDepositNamespacesSet { queryId },
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -709,12 +649,6 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         }
         TokenPool_SetAdvancedPoolHooks => {
             self.setAdvancedPoolHooks(msgSender, msg.queryId, msg.advancedPoolHooks);
-        }
-        TokenPool_SetDeployableCode => {
-            self.setDeployableCode(msgSender, msg.queryId, msg.deployableCode);
-        }
-        TokenPool_SetAllowedDepositNamespaces => {
-            self.setAllowedDepositNamespaces(msgSender, msg.queryId, msg.allowedDepositNamespaces);
         }
         TokenPool_SetRateLimitConfig => {
             self.setRateLimitConfig(msgSender, msg.queryId, msg.updates);
@@ -1425,6 +1359,8 @@ fun TokenPool<T>.onLockOrBurn(
     sender: address,
     msg: TokenPool_LockOrBurn,
 ): void {
+    self.updateDepositNamespaces(sender, msg.onRampNamespaces);
+
     if (self.hooks != null && self.hooks.onLockOrBurn != null) {
         self.context = self.hooks.onLockOrBurn(self.context!, sender, msg);
 
@@ -1442,6 +1378,23 @@ fun TokenPool<T>.onLockOrBurn(
     }
 
     self.onLockOrBurnWithdraw(transferInitiator, msg, prepared);
+}
+
+/// Replaces the pool's allowed deposit namespaces with the set relayed by the Router on a
+/// `TokenPool_LockOrBurn`. Only the configured Router may relay it.
+fun TokenPool<T>.updateDepositNamespaces(
+    mutate self,
+    sender: address,
+    onRampNamespaces: map<uint32, ()>,
+): void {
+    var adminConfig = lazy self.data.adminConfig.load();
+    val dynamicConfig = lazy adminConfig.dynamicConfig.load();
+    if (sender != dynamicConfig.router) {
+        return;
+    }
+
+    adminConfig.allowedDepositNamespaces = onRampNamespaces;
+    self.data.adminConfig = adminConfig.toCell();
 }
 
 /// Handles the withdrawal step after a lock or burn operation has been prepared/checked.
@@ -1489,15 +1442,12 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     assert(self.data.jettonClient().isWallet(sender), TokenPool_Error.Unauthorized);
 
     try {
-        // Authentication - we accept a deposit from either (1) the Router, or (2) a known Deployable namespace
-        // with Router as owner (a known deployable addr key, per-user deposit account), where  multiple namespaces
-        // can represent different types of OnRampAccount contracts. The TP needs to know (1) the Deployable
-        // code (stable), (2) the Router address (stable), and (3) a set of namespaces (account types) it trusts.
+        // Only callable by authorized router-owned deployables (see assertAuthorizedDepositInitiator).
 
-        val forwardPayload = loadForwardPayloadAsSlice(msg.forwardPayload);
-        val fwdp = TokenPool_LockOrBurnForwardPayload.fromSlice(forwardPayload!);
+        val wrapper = Jetton_ForwardPayloadWrap.from(msg.forwardPayload)!;
+        val fwdp = TokenPool_LockOrBurnForwardPayload.fromCell(wrapper.forwardPayload!);
 
-        self.processLockOrBurnTransfer(sender, msg, fwdp, msgValue);
+        self.processLockOrBurnTransfer(sender, msg, fwdp, msgValue, wrapper.initiator);
     } catch {
         // Malformed or unauthenticated payloads cannot authorize a capacity refund or reply.
         // Custody can still be returned if the notification funds recovery.
@@ -1506,22 +1456,20 @@ fun TokenPool<T>.onLockOrBurnTransfer(
 }
 
 /// Process a decoded Jetton transfer notification after its sender has been authenticated.
-/// @dev Deposit-source auth happens here, on the decoded forward payload: we accept custody that
-///      was initiated by (1) the configured Router's own wallet, or (2) a Deployables-derived
-///      per-user deposit account (e.g. OnRampAccount) whose namespace is allowed in dynamic config.
 fun TokenPool<T>.processLockOrBurnTransfer(
     mutate self,
     sender: address,
     msg: TransferNotificationForRecipient,
     fwdp: TokenPool_LockOrBurnForwardPayload,
     msgValue: coins,
+    withdrawalInitiator: address,
 ): void {
     val requestMsg = lazy fwdp.requestMsg.load();
     val request = lazy requestMsg.request.load();
     val details = lazy request.transfer.details.load();
 
     assert(msg.transferInitiator != null, TokenPool_Error.MissingTransferInitiator);
-    self.assertAuthorizedDepositInitiator(msg.transferInitiator!, details.originalSender);
+    self.assertAuthorizedDepositInitiator(msg.transferInitiator, withdrawalInitiator, details.originalSender);
 
     try {
         assert(details.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
@@ -1545,41 +1493,46 @@ fun TokenPool<T>.processLockOrBurnTransfer(
 
 /// Verifies that a deposit was initiated by a trusted source before the pool accepts custody.
 ///
-/// @param initiator The wallet owner that initiated the inbound Jetton transfer (`transferInitiator`).
+/// @param transferInitiator The wallet owner that initiated the inbound Jetton transfer.
+/// @param withdrawalInitiator The address that requested the DepositAccount to make the transfer.
 /// @param originalSender The original CCIP sender on the source chain, used to derive its
 ///        Router-owned account.
 ///
-/// @dev Accepts (1) the configured Router (standard LockOrBurn path), or (2) a Router deposit
-///      account in an allowed namespace for (originalSender, the pool's jetton master), so an
-///      account holding a different jetton never authenticates here.
-/// 
-///      Deposit-account acceptance is opt-in: the owner must configure its code and allowed namespaces.
-///      All other initiators are rejected, even when deposit accounts are disabled.
+/// @dev Accepts an OnRampAccount deposit account in an allowed namespace for (originalSender,
+///        the pool's jetton master), so an account holding a different jetton never authenticates here.
+///
+///      The `withdrawalInitiator == Router` check is what makes the forward payload trustworthy:
+///      a deposit-account beneficiary could otherwise withdraw (to this pool) with an arbitrary
+///      payload and spoof a transfer the Router never admitted. Account-auth is opt-in: it is
+///      only enforced once the pool owner configures it (allowed namespaces).
 fun TokenPool<T>.assertAuthorizedDepositInitiator(
     self,
-    initiator: address,
+    transferInitiator: address,
+    withdrawalInitiator: address,
     originalSender: address,
 ): void {
     val adminConfig = lazy self.data.adminConfig.load();
     val dynamicConfig = lazy adminConfig.dynamicConfig.load();
     val router = dynamicConfig.router;
 
-    // The Router itself is always a trusted source (standard Router -> pool withdraw path).
-    if (initiator == router) {
-        return;
-    }
-
     // Look through all allowed namespace/account types for one that derives to `initiator`.
-    var entry = dynamicConfig.allowedDepositNamespaces.findFirst();
+    var entry = adminConfig.allowedDepositNamespaces.findFirst();
     while (entry.isFound) {
         val namespace: Namespace = entry.getKey();
-        val account = self.deriveDepositAccount(router, namespace, originalSender)
-            .calculateAddress();
-        if (initiator == account) {
+        val account = self.deriveDepositAccount(
+            router,
+            namespace,
+            originalSender,
+        ).calculateAddress();
+        if (transferInitiator == account) {
+            // Once we have verified that the transfer initiator matches a derived deposit account,
+            // we must ensure that the withdrawal initiator is the Router itself so we can trust the
+            // forward payload
+            assert (withdrawalInitiator == router) throw TokenPool_Error.Unauthorized;
             return;
         }
 
-        entry = dynamicConfig.allowedDepositNamespaces.iterateNext(entry);
+        entry = adminConfig.allowedDepositNamespaces.iterateNext(entry);
     }
 
     throw TokenPool_Error.Unauthorized;
@@ -1594,11 +1547,9 @@ fun TokenPool<T>.deriveDepositAccount(
     user: address,
 ): AutoDeployAddress {
     val adminConfig = lazy self.data.adminConfig.load();
-    val code = adminConfig.deployableCode;
-    assert(code != null, TokenPool_Error.Unauthorized);
 
     val id = Router_DepositAccountID { user, token: adminConfig.jettonClient.masterAddress };
-    return NamespacedDeployableAddress<Router_DepositAccountID>(code!, { namespace, owner: router, id });
+    return NamespacedDeployableAddress<Router_DepositAccountID>(deployableCompiledCode(), { namespace, owner: router, id });
 }
 
 fun TokenPool<T>.onLockOrBurnTransferContinue(
