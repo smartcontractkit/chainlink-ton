@@ -8,6 +8,7 @@ replace github.com/smartcontractkit/chainlink-ton/cciplib => ../cciplib
 replace github.com/smartcontractkit/chainlink-ton => ../
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/gagliardetto/binary v0.8.0
 	github.com/rs/zerolog v1.35.1
@@ -31,7 +32,6 @@ require (
 	dario.cat/mergo v1.0.2 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
-	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20260416073033-7c2071eaa8d4 // indirect
 	github.com/TyphonHill/go-mermaid v1.0.0 // indirect
