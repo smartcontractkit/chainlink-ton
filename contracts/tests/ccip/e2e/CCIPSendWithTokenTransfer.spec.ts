@@ -175,16 +175,16 @@ describe('CCIPSend with token transfer (e2e)', () => {
                 router: router.address,
                 rateLimitAdmin: deployer.address,
                 feeAdmin: deployer.address,
-                // Tokens are withdrawn from the Router-owned OnRampAccount, so authorize
-                // its deterministic Deployables namespace as a deposit source.
-                allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
               }),
+              // Tokens are withdrawn from the Router-owned OnRampAccount. The pool's cache is
+              // refreshed from the Router on every LockOrBurn, but seed it too so the pool is
+              // usable before the first relay.
+              allowedDepositNamespaces: new Set([]),
               jettonClient: tp.JettonClient.create({
                 masterAddress: minter.address,
                 jettonWalletCode: walletCode,
               }),
               advancedPoolHooks: null,
-              deployableCode,
             }),
             localPolicy: tp.TokenPool_LocalPolicy.create({
               cursePolicy: createEmptyCursePolicy(deployer.address),

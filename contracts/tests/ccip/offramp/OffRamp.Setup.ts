@@ -984,8 +984,8 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
                 router: this.router.address,
                 rateLimitAdmin: this.deployer.address,
                 feeAdmin: this.deployer.address,
-                allowedDepositNamespaces: new Set(),
               }),
+              allowedDepositNamespaces: new Set(),
               jettonClient: tp.JettonClient.create({
                 masterAddress: token,
                 jettonWalletCode,
