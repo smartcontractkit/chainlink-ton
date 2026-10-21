@@ -72,7 +72,6 @@ func TestMessages_EncodingAndDecoding(t *testing.T) {
 	require.Equal(t, initMsg.QueryID, decodedInit.QueryID)
 	require.NotNil(t, decodedInit.Context)
 
-	// Withdraw (ask is boxed Cell<AskToTransfer>)
 	ask := WithdrawAskToTransfer{
 		JettonAmount:      tlb.FromNanoTONU(1_000_000_000),
 		TransferRecipient: addr,
@@ -80,7 +79,6 @@ func TestMessages_EncodingAndDecoding(t *testing.T) {
 		ForwardTonAmount:  tlb.FromNanoTONU(50_000_000),
 		ForwardPayload:    cell.BeginCell().EndCell(),
 	}
-	require.NoError(t, err)
 	withdraw := Withdraw{
 		QueryID: 7,
 		Ask:     ask,

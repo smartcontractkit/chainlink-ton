@@ -76,6 +76,13 @@ type ForwardNotification struct {
 	Notification *cell.Cell `tlb:"^"`                  // Cell<TransferNotificationForRecipient>
 }
 
+// Notify is the routing envelope placed as a jetton transfer's forward payload, directly or
+// inside a Jetton_ForwardPayloadWrap: the account forwards the notification to Notify.
+type Notify struct {
+	_      tlb.Magic        `tlb:"#88e0ef3e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	Notify *address.Address `tlb:"addr"`
+}
+
 // WithdrawFailed notifies the withdraw requester that the AskToTransfer bounced.
 type WithdrawFailed struct {
 	_             tlb.Magic        `tlb:"#a51b6cba" json:"-"` //nolint:revive // (opcode) should stay uninitialized
@@ -86,14 +93,19 @@ type WithdrawFailed struct {
 	Request       Withdraw         `tlb:"^"`
 }
 
-// AskToTransfer has the same fields as the standard jetton transfer request except from the QueryID.
+// WithdrawAskToTransfer has the same fields as the standard jetton transfer request except from
+// the QueryID.
+//
+// @dev Unlike the standard jetton AskToTransfer, whose forwardPayload is a
+//
+//	ForwardPayloadRemainder, the deposit account declares it as `cell?`
 type WithdrawAskToTransfer struct {
 	JettonAmount      tlb.Coins        `tlb:"."`
 	TransferRecipient *address.Address `tlb:"addr"`
-	SendExcessesTo    *address.Address `tlb:"maybe addr"`
-	CustomPayload     *cell.Cell       `tlb:"either . ^"`
+	SendExcessesTo    *address.Address `tlb:"addr"`
+	CustomPayload     *cell.Cell       `tlb:"maybe ^"`
 	ForwardTonAmount  tlb.Coins        `tlb:"."`
-	ForwardPayload    *cell.Cell       `tlb:"either . ^"`
+	ForwardPayload    *cell.Cell       `tlb:"maybe ^"`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{
