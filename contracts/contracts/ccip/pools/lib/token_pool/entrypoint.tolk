@@ -49,13 +49,9 @@ struct TokenPool_AdminConfig {
     ownable: Cell<Ownable2Step>;
     dynamicConfig: Cell<TokenPool_DynamicConfig>;
 
-    /// Allowed Deployables namespaces for source-chain deposit accounts. When a
-    /// `TransferNotificationForRecipient` is not authorised directly by the Router's own jetton
-    /// wallet, the pool authenticates it as coming from a Deployables-derived per-user account
-    /// (e.g. an OnRampAccount) whose namespace is present here.
-    /// @dev This field is part of dynamic config so it can be updated without redeploying the
-    ///      pool. Only namespaces whose deployable code is registered (see `TokenPool_AdminConfig`)
-    ///      are meaningful.
+    /// Allowed Deployables namespaces for source-chain deposit accounts. Refreshed from the
+    /// Router on every `TokenPool_LockOrBurn` (see `updateDepositNamespaces`); the namespace
+    /// check itself lives in `assertAuthorizedDepositInitiator`.
     allowedDepositNamespaces: map<uint32, ()> = [];
     
     /// The pool's Jetton identity (master + wallet code). Single source of truth used to
@@ -1446,11 +1442,7 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     assert(self.data.jettonClient().isWallet(sender), TokenPool_Error.Unauthorized);
 
     try {
-        // Authentication - we only accept deposits from Router-owned deposit accounts (e.g.
-        // OnRampAccounts) in namespaces the pool owner allowlisted. The TP needs to know (1) the
-        // Deployable code (stable), (2) the Router address (stable), and (3) a set of namespaces
-        // (account types) it trusts. The wrap's `initiator` must be the Router, so a beneficiary
-        // withdrawing directly from its account cannot smuggle an arbitrary forward payload.
+        // Only callable by authorized router-owned deployables (see assertAuthorizedDepositInitiator).
 
         val wrapper = Jetton_ForwardPayloadWrap.from(msg.forwardPayload)!;
         val fwdp = TokenPool_LockOrBurnForwardPayload.fromCell(wrapper.forwardPayload!);
@@ -1464,9 +1456,6 @@ fun TokenPool<T>.onLockOrBurnTransfer(
 }
 
 /// Process a decoded Jetton transfer notification after its sender has been authenticated.
-/// @dev Deposit-source auth happens here, on the decoded forward payload: we accept custody only
-///      from a Deployables-derived per-user deposit account (e.g. OnRampAccount) whose namespace
-///      is allowed in dynamic config, when the withdrawal was initiated by the Router itself.
 fun TokenPool<T>.processLockOrBurnTransfer(
     mutate self,
     sender: address,
@@ -1511,11 +1500,11 @@ fun TokenPool<T>.processLockOrBurnTransfer(
 ///
 /// @dev Accepts an OnRampAccount deposit account in an allowed namespace for (originalSender,
 ///        the pool's jetton master), so an account holding a different jetton never authenticates here.
-/// 
+///
 ///      The `withdrawalInitiator == Router` check is what makes the forward payload trustworthy:
 ///      a deposit-account beneficiary could otherwise withdraw (to this pool) with an arbitrary
 ///      payload and spoof a transfer the Router never admitted. Account-auth is opt-in: it is
-///      only enforced once the pool owner configures it (code, allowed namespaces).
+///      only enforced once the pool owner configures it (allowed namespaces).
 fun TokenPool<T>.assertAuthorizedDepositInitiator(
     self,
     transferInitiator: address,

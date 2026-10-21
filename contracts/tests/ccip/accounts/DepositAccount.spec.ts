@@ -516,8 +516,6 @@ describe('DepositAccount', () => {
     )
     expect(badAtk.transactions).toHaveTransaction({ to: depositAccount.address, success: false })
 
-    // `sendExcessesTo` is no longer constrained: the withdraw is relayed as-is and a bounce is
-    // reported to the requesting beneficiary (the wrap's `initiator`), not to `sendExcessesTo`.
     const otherExcess = await depositAccount.sendDepositAccountWithdraw(
       recipient.getSender(),
       toNano('0.5'),
