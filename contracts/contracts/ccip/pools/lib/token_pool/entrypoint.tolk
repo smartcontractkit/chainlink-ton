@@ -13,12 +13,14 @@ import "../../../common/types"
 import "../../../rmn_remote/lib"
 import "../../../router/types"
 
+import "../../../../../gen/Deployable.code"
+
+import "../rate_limiter"
 import "types"
 import "errors"
 import "messages"
 import "events"
 import "recovery"
-import "../rate_limiter"
 
 /// @notice Base abstract class with common functions for all token pools.
 /// A token pool serves as isolated place for holding tokens and token specific logic
@@ -1547,13 +1549,6 @@ fun TokenPool<T>.assertAuthorizedDepositInitiator(
     throw TokenPool_Error.Unauthorized;
 }
 
-
-import "../../../../../gen/Deployable.code"
-
-fun deployableCode(): cell {
-    return deployableCompiledCode();
-}
-
 /// Derives the address of `router`'s deposit account in a `namespace`
 @inline
 fun TokenPool<T>.deriveDepositAccount(
@@ -1565,7 +1560,7 @@ fun TokenPool<T>.deriveDepositAccount(
     val adminConfig = lazy self.data.adminConfig.load();
 
     val id = Router_DepositAccountID { user, token: adminConfig.jettonClient.masterAddress };
-    return NamespacedDeployableAddress<Router_DepositAccountID>(deployableCode(), { namespace, owner: router, id });
+    return NamespacedDeployableAddress<Router_DepositAccountID>(deployableCompiledCode(), { namespace, owner: router, id });
 }
 
 fun TokenPool<T>.onLockOrBurnTransferContinue(
