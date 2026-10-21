@@ -618,21 +618,21 @@ describe('LockReleaseLockboxTokenPool', () => {
   })
 
   describe('lock flow (jetton transfer -> lockbox custody)', () => {
-    it('should store pending lock on jetton transfer notification and forward to lockbox', async () => {
-      // Send jettons to pool via on-ramp jetton wallet (simulates cross-chain lock)
-      const onRampWallet = await userWallet(deployer.address)
-      const poolWallet = await userWallet(lockReleaseLockboxPool.address)
-
+    // Runs the authenticated lock flow: the deployer's wallet funds the derived OnRampAccount,
+    // which then transfers to the pool carrying the Router-initiated forward payload wrapper
+    // (same shape as `fundLockboxViaLock`). Sending directly from a user wallet with an
+    // unwrapped payload would take the pool's recovery path instead of locking.
+    const lockViaOnRampAccount = async (amount: bigint, queryId: bigint) => {
       const lockOrBurn = TokenPool_LockOrBurn.create({
-        queryId: 100n,
+        queryId,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: 100n,
+            id: queryId,
             details: TokenPool_TransferDetails.create({
               receiver: receiverAddress,
               remoteChainSelector,
               originalSender: deployer.address,
-              amount: toNano('10'),
+              amount,
               localToken: jettonMinter.address,
             }),
           }),
@@ -648,7 +648,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         requestMsg: lockOrBurn,
         prepared: TokenPool_LockOrBurnPrepared.create({
           feeAmount: 0n,
-          destTokenAmount: toNano('10'),
+          destTokenAmount: amount,
           out: TokenPool_LockOrBurnOutV1.create({
             destTokenAddress: destTokenAddress,
             destPoolData: Cell.EMPTY,
@@ -656,76 +656,113 @@ describe('LockReleaseLockboxTokenPool', () => {
         }),
       })
 
-      const result = await onRampWallet.sendTransfer(deployer.getSender(), {
-        value: toNano('2'),
+      const accountAddress = deriveOnRampAccountAddress({
+        router: deployer.address,
+        user: deployer.address,
+        token: jettonMinter.address,
+        deployableCode,
+      })
+      const deployerWallet = await userWallet(deployer.address)
+      await deployerWallet.sendTransfer(deployer.getSender(), {
+        value: toNano('3'),
         message: {
-          queryId: 100,
-          jettonAmount: toNano('10'),
+          queryId: Number(queryId),
+          jettonAmount: amount,
+          destination: accountAddress,
+          responseDestination: deployer.address,
+          customPayload: null,
+          forwardTonAmount: 0n,
+          forwardPayload: null,
+        },
+      })
+      const accountWallet = await userWallet(accountAddress)
+      return accountWallet.sendTransfer(blockchain.sender(accountAddress), {
+        value: toNano('3'),
+        message: {
+          queryId: Number(queryId),
+          jettonAmount: amount,
           destination: lockReleaseLockboxPool.address,
           responseDestination: deployer.address,
           customPayload: null,
-          forwardTonAmount: toNano('0.3'),
-          forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
+          forwardTonAmount: toNano('0.5'),
+          forwardPayload: da.Jetton_ForwardPayloadWrap.toCell(
+            da.Jetton_ForwardPayloadWrap.create({
+              initiator: deployer.address, // the Router: the pool requires it as the initiator
+              context: null,
+              forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
+            }),
+          ),
         },
       })
+    }
+
+    // The lockbox wallet is lazily deployed on first funding, so tolerate it not being active yet.
+    const lockboxBalance = async (): Promise<bigint> => {
+      try {
+        return await (await userWallet(jettonLockBox.address)).getJettonBalance()
+      } catch {
+        return 0n
+      }
+    }
+
+    it('should store pending lock on jetton transfer notification and forward to lockbox', async () => {
+      const poolWallet = await userWallet(lockReleaseLockboxPool.address)
+      const lockboxBalanceBefore = await lockboxBalance()
+
+      const result = await lockViaOnRampAccount(toNano('10'), 100n)
 
       // Pool's jetton wallet sends TransferNotificationForRecipient to pool
       expect(result.transactions).toHaveTransaction({
         from: poolWallet.address,
         to: lockReleaseLockboxPool.address,
+        op: TransferNotificationForRecipient.PREFIX,
         success: true,
       })
+      // The pool forwards custody to the lockbox (not a custody return to the sender).
+      expect(result.transactions).toHaveTransaction({
+        from: lockReleaseLockboxPool.address,
+        to: poolWallet.address,
+        op: AskToTransfer.PREFIX,
+        success: true,
+        body(body) {
+          if (!body) return false
+          const transfer = AskToTransfer.fromSlice(body.beginParse())
+          return (
+            transfer.jettonAmount === toNano('10') &&
+            transfer.transferRecipient.equals(jettonLockBox.address)
+          )
+        },
+      })
+      // The lock finalizes successfully with the reply sent to the Router stand-in.
+      expect(result.transactions).toHaveTransaction({
+        from: lockReleaseLockboxPool.address,
+        to: deployer.address,
+        op: TokenPool_LockOrBurnFinished.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        op: TokenPool_LockOrBurnFailure.PREFIX,
+      })
+      // The jettons ended up in the lockbox's wallet.
+      expect(await lockboxBalance()).toEqual(lockboxBalanceBefore + toNano('10'))
     })
 
     it('should store pending lock when forwarded amount matches transfer amount', async () => {
-      // Verify the pending lock is created when amounts match
-      const onRampWallet = await userWallet(deployer.address)
+      const lockboxBalanceBefore = await lockboxBalance()
 
-      const lockOrBurn = TokenPool_LockOrBurn.create({
-        queryId: 101n,
-        request: TokenPool_LockOrBurnInV1.create({
-          transfer: TokenPool_Transfer.create({
-            id: 101n,
-            details: TokenPool_TransferDetails.create({
-              receiver: receiverAddress,
-              remoteChainSelector,
-              originalSender: deployer.address,
-              amount: toNano('5'),
-              localToken: jettonMinter.address,
-            }),
-          }),
-        }),
-        requestedFinalityConfig: 0n,
-        tokenArgs: null,
-        replyTo: deployer.address,
-        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
-      })
+      const result = await lockViaOnRampAccount(toNano('5'), 101n)
 
-      const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: deployer.address,
-        requestMsg: lockOrBurn,
-        prepared: TokenPool_LockOrBurnPrepared.create({
-          feeAmount: 0n,
-          destTokenAmount: toNano('5'),
-          out: TokenPool_LockOrBurnOutV1.create({
-            destTokenAddress: destTokenAddress,
-            destPoolData: Cell.EMPTY,
-          }),
-        }),
+      // Amounts match, so the lock finalizes and custody lands in the lockbox.
+      expect(result.transactions).toHaveTransaction({
+        from: lockReleaseLockboxPool.address,
+        to: deployer.address,
+        op: TokenPool_LockOrBurnFinished.PREFIX,
+        success: true,
       })
-
-      await onRampWallet.sendTransfer(deployer.getSender(), {
-        value: toNano('2'),
-        message: {
-          queryId: 101,
-          jettonAmount: toNano('5'),
-          destination: lockReleaseLockboxPool.address,
-          responseDestination: deployer.address,
-          customPayload: null,
-          forwardTonAmount: toNano('0.3'),
-          forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
-        },
+      expect(result.transactions).not.toHaveTransaction({
+        op: TokenPool_LockOrBurnFailure.PREFIX,
       })
+      expect(await lockboxBalance()).toEqual(lockboxBalanceBefore + toNano('5'))
     })
   })
 
