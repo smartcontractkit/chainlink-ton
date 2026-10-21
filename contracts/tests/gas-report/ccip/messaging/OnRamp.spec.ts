@@ -1,52 +1,31 @@
-import {
-  Blockchain,
-  SandboxContract,
-  TreasuryContract,
-  printTransactionFees,
-  createMetricStore,
-  makeSnapshotMetric,
-  ContractDatabase,
-  resetMetricStore,
-} from '@ton/sandbox'
-import { toNano, Address } from '@ton/core'
+import { Blockchain, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox'
+import { toNano, Address, Cell } from '@ton/core'
 import * as or from '../../../../wrappers/gen/ccip/OnRamp'
 import * as rt from '../../../../wrappers/gen/ccip/Router'
 import { createCursePolicy } from '../../../../wrappers/ccip/Router'
 import * as fq from '../../../../wrappers/gen/ccip/FeeQuoter'
+import * as deployable from '../../../../wrappers/libraries/Deployable'
 import '@ton/test-utils'
 import { NATIVE_GRAM } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
-import { createMaxPayload, createExtraArgs } from './config'
-import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
-import * as path from 'path'
-import * as fs from 'fs'
+import { createExtraArgs, createPayload, LANE_MAX_DATA_BYTES, SEND_DATA_SIZE_SWEEP } from './config'
+import { AddressBook, GasReport, gasReportConfig } from '../../utils'
 import { getValidatedFee } from '../../../../src/ccipSend/fee'
-import { opMapFunc } from './opMapFunc'
 import { contractCode } from '../../../../wrappers/codeLoader'
 import { ChainFamilySelectors, ChainSelectors } from '../../../utils/Selectors'
-import '../../../utils/evmAddress'
 import EVM_ADDRESS from '../../../utils/evmAddress'
 
-// Override console to remove Jest's "console.log" prefixes
 const jestConsole = console
-
-// Load contract database for metric analysis
-const contractDatabasePath = path.join(__dirname, '../../../../contract.abi.json')
-const contractDatabaseData = fs.existsSync(contractDatabasePath)
-  ? JSON.parse(fs.readFileSync(contractDatabasePath, 'utf8'))
-  : {}
-const contractDatabase = ContractDatabase.from(contractDatabaseData)
-
-// Initialize metric store
-const store = createMetricStore()
 
 describe('CCIP OnRamp Gas Estimation', () => {
   let blockchain: Blockchain
+  let report: GasReport
   let deployer: SandboxContract<TreasuryContract>
   let router: SandboxContract<rt.Router>
   let onRamp: SandboxContract<or.OnRamp>
   let feeQuoter: SandboxContract<fq.FeeQuoter>
   let sender: SandboxContract<TreasuryContract>
+  let book: AddressBook
 
   beforeEach(() => {
     global.console = require('console')
@@ -54,18 +33,17 @@ describe('CCIP OnRamp Gas Estimation', () => {
   afterEach(() => {
     global.console = jestConsole
   })
+  afterAll(() => report.finish())
 
   beforeAll(async () => {
-    // Use default config (mainnet) to avoid rate limiting
-    blockchain = await Blockchain.create()
-    blockchain.verbosity.debugLogs = true
+    blockchain = await Blockchain.create({ config: await gasReportConfig() })
+    report = new GasReport('messaging-onramp', blockchain)
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
 
-    // Deploy FeeQuoter
     feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
 
-    // Override FeeQuoter config for large payloads (gas testing)
+    // Lift the lane limits so the data size sweep passes fee validation.
     await feeQuoter.sendFeeQuoterUpdateDestChainConfigs(deployer.getSender(), toNano('1'), {
       updates: [
         fq.FeeQuoter_UpdateDestChainConfig.create({
@@ -73,7 +51,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
           destChainConfig: fq.FeeQuoterDestChainConfig.create({
             isEnabled: true,
             maxNumberOfTokensPerMsg: 0n,
-            maxDataBytes: 10000n,
+            maxDataBytes: 20000n,
             maxPerMsgGasLimit: 100000n,
             destGasOverhead: 0n,
             destGasPerPayloadByteBase: 0n,
@@ -94,13 +72,10 @@ describe('CCIP OnRamp Gas Estimation', () => {
       ],
     })
 
-    // Deploy Router
     const routerCode = await contractCode.ccip.local('Router')
     const routerData = rt.Storage.create({
       id: 0n,
-      ownable: rt.Ownable2Step.create({
-        owner: deployer.address,
-      }),
+      ownable: rt.Ownable2Step.create({ owner: deployer.address }),
       offRamps: new Map(),
       onRamps: new Map(),
       rmnRemote: rt.RMNRemote.create({
@@ -113,12 +88,9 @@ describe('CCIP OnRamp Gas Estimation', () => {
     )
     await router.sendDeploy(deployer.getSender(), toNano('1'))
 
-    // Deploy OnRamp
     const onRampData = or.OnRamp_Storage.create({
       id: 0n,
-      ownable: or.Ownable2Step.create({
-        owner: deployer.address,
-      }),
+      ownable: or.Ownable2Step.create({ owner: deployer.address }),
       staticConfig: or.OnRamp_StaticConfig.create({
         chainSelector: ChainSelectors.testnet.ton,
         tokenAdminRegistry: deployer.address,
@@ -138,7 +110,6 @@ describe('CCIP OnRamp Gas Estimation', () => {
     )
     await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
 
-    // Configure Router
     await router.sendRouterApplyRampUpdates(
       deployer.getSender(),
       toNano('0.1'),
@@ -150,8 +121,6 @@ describe('CCIP OnRamp Gas Estimation', () => {
         }),
       }),
     )
-
-    // Configure OnRamp
     await onRamp.sendOnRampUpdateDestChainConfigs(deployer.getSender(), toNano('0.1'), {
       updates: [
         or.OnRampUpdateDestChainConfig.create({
@@ -161,116 +130,70 @@ describe('CCIP OnRamp Gas Estimation', () => {
         }),
       ],
     })
+
+    book = new AddressBook({
+      Sender: [sender, 'external'],
+      Router: [router, 'ccip'],
+      OnRamp: [onRamp, 'ccip'],
+      FeeQuoter: [feeQuoter, 'ccip'],
+    })
   })
 
-  it('should measure message passing only', async () => {
-    // Reset metric store before measurement
-    resetMetricStore()
-
-    const msg = {
-      queryID: 1,
-      destChainSelector: ChainSelectors.testnet.evm,
-      receiver: EVM_ADDRESS,
-      data: createMaxPayload(),
-      tokenAmounts: [],
-      feeToken: NATIVE_GRAM,
-      extraArgs: createExtraArgs(),
-    }
-
-    const generatedMsg = rt.Router_CCIPSend.create({
+  async function ccipSend(data: Cell) {
+    const msg = rt.Router_CCIPSend.create({
       queryID: 1n,
       destChainSelector: ChainSelectors.testnet.evm,
       receiver: EVM_ADDRESS,
-      data: msg.data,
+      data,
       tokenAmounts: [],
-      feeToken: msg.feeToken,
-      extraArgs: rt.GenericExtraArgsV2.fromSlice(msg.extraArgs.beginParse()),
+      feeToken: NATIVE_GRAM,
+      extraArgs: rt.GenericExtraArgsV2.fromSlice(createExtraArgs().beginParse()),
     })
+    const fee = await getValidatedFee(blockchain, router.address, msg)
+    return router.sendRouterCCIPSend(sender.getSender(), fee + toNano('1'), msg)
+  }
 
-    const fee = await getValidatedFee(blockchain, router.address, generatedMsg)
-    console.log(`Validated fee for message: ${fee.toString()} nanotons`)
+  function nameExecutor(result: SendMessageResult) {
+    for (const tx of result.transactions) {
+      const inMsg = tx.inMessage
+      if (
+        inMsg?.info.type === 'internal' &&
+        inMsg.info.src instanceof Address &&
+        inMsg.info.src.equals(onRamp.address) &&
+        inMsg.body.beginParse().preloadUint(32) === deployable.opcodes.in.initializeAndSend
+      ) {
+        book.set('SendExecutor', inMsg.info.dest, 'ccip')
+        return
+      }
+    }
+    throw new Error('CCIPSendExecutor not found')
+  }
 
-    const result = await router.sendRouterCCIPSend(
-      sender.getSender(),
-      fee + toNano('1'),
-      generatedMsg,
-    )
-
-    // Assert all expected transactions
-    expect(result.transactions).toHaveTransaction({
-      from: sender.address,
-      to: router.address,
-      success: true,
-    })
-
+  function expectACK(result: SendMessageResult) {
     expect(result.transactions).toHaveTransaction({
       from: router.address,
-      to: onRamp.address,
-      success: true,
+      to: sender.address,
+      op: rt.Router_CCIPSendACK.PREFIX,
     })
+  }
 
-    // Find executor address
-    const executorAddress = ((): Address => {
-      for (const tx of result.transactions) {
-        if (
-          tx.inMessage != null &&
-          tx.inMessage.info.type === 'internal' &&
-          tx.inMessage.info.src instanceof Address &&
-          tx.inMessage.info.src.equals(onRamp.address) &&
-          tx.inMessage.info.dest instanceof Address &&
-          !tx.inMessage.info.dest.equals(feeQuoter.address)
-        ) {
-          return tx.inMessage.info.dest
-        }
-      }
-      throw Error('Executor address not found')
-    })()
-
-    expect(result.transactions).toHaveTransaction({
-      from: onRamp.address,
-      to: executorAddress,
-      deploy: true,
-      success: true,
+  it(`should measure message passing with ${LANE_MAX_DATA_BYTES} bytes of data`, async () => {
+    const { result } = await report.measure('CCIPSend + Max Payload', {
+      run: () => ccipSend(createPayload(LANE_MAX_DATA_BYTES)),
+      book,
+      discover: nameExecutor,
     })
+    expectACK(result)
+  })
 
-    expect(result.transactions).toHaveTransaction({
-      from: executorAddress,
-      to: feeQuoter.address,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: feeQuoter.address,
-      to: executorAddress,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: executorAddress,
-      to: onRamp.address,
-      success: true,
-    })
-
-    // Analyze with metrics API
-    const snapshot = makeSnapshotMetric(store, {
-      contractDatabase,
-      label: 'OnRamp Flow',
-    })
-
-    // Create address to name mapping
-    const addressMap: Record<string, string> = {
-      [sender.address.toString()]: 'Sender',
-      [router.address.toString()]: 'Router',
-      [onRamp.address.toString()]: 'OnRamp',
-      [feeQuoter.address.toString()]: 'FeeQuoter',
-      [executorAddress.toString()]: 'Executor',
+  it('should measure how the message cost scales with data size', async () => {
+    for (const size of SEND_DATA_SIZE_SWEEP) {
+      const { result } = await report.measure(`sweep: CCIPSend + ${size} bytes`, {
+        run: () => ccipSend(createPayload(size)),
+        book,
+        discover: nameExecutor,
+      })
+      expectACK(result)
     }
-
-    const flowAnalysis = analyzeSnapshot(snapshot, addressMap, result)
-    printFlowAnalysis(flowAnalysis)
-
-    // Also print raw transaction fees for comparison
-    console.log('\n=== RAW TRANSACTION FEES (for debugging) ===')
-    printTransactionFees(result.transactions, opMapFunc())
   })
 })

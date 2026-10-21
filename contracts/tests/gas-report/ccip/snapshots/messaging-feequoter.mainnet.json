@@ -1,0 +1,251 @@
+{
+  "network": "mainnet",
+  "gasPrice": "4369067",
+  "flows": [
+    {
+      "label": "Fee Validation + Max Payload",
+      "hops": [
+        {
+          "index": 0,
+          "parent": null,
+          "children": [
+            1
+          ],
+          "from": "External",
+          "to": "Sender",
+          "owner": "external",
+          "op": "external",
+          "success": true,
+          "exitCode": 0,
+          "actionResultCode": 0,
+          "gasUsed": "1937",
+          "computeFee": "129134",
+          "storageFee": "1",
+          "forwardFee": "1325401",
+          "actionFee": "441793",
+          "totalFee": "1940662",
+          "cost": "1454536",
+          "valueIn": "0",
+          "valueOut": "1000000000",
+          "retained": "-1002824270"
+        },
+        {
+          "index": 1,
+          "parent": 0,
+          "children": [
+            2
+          ],
+          "from": "Sender",
+          "to": "Router",
+          "owner": "ccip",
+          "op": "Router_GetValidatedFee",
+          "success": true,
+          "exitCode": 0,
+          "actionResultCode": 0,
+          "gasUsed": "6429",
+          "computeFee": "428601",
+          "storageFee": "1",
+          "forwardFee": "1358868",
+          "actionFee": "452949",
+          "totalFee": "881551",
+          "cost": "1787470",
+          "valueIn": "1000000000",
+          "valueOut": "998212531",
+          "retained": "-1"
+        },
+        {
+          "index": 2,
+          "parent": 1,
+          "children": [
+            3
+          ],
+          "from": "Router",
+          "to": "OnRamp",
+          "owner": "ccip",
+          "op": "OnRamp_GetValidatedFee",
+          "success": true,
+          "exitCode": 0,
+          "actionResultCode": 0,
+          "gasUsed": "4014",
+          "computeFee": "267601",
+          "storageFee": "0",
+          "forwardFee": "1383401",
+          "actionFee": "461126",
+          "totalFee": "728727",
+          "cost": "1651002",
+          "valueIn": "998212531",
+          "valueOut": "996561529",
+          "retained": "0"
+        },
+        {
+          "index": 3,
+          "parent": 2,
+          "children": [
+            4
+          ],
+          "from": "OnRamp",
+          "to": "FeeQuoter",
+          "owner": "ccip",
+          "op": "FeeQuoter_GetValidatedFee",
+          "success": true,
+          "exitCode": 0,
+          "actionResultCode": 0,
+          "gasUsed": "32997",
+          "computeFee": "2199801",
+          "storageFee": "1",
+          "forwardFee": "1392268",
+          "actionFee": "464082",
+          "totalFee": "2663884",
+          "cost": "3592070",
+          "valueIn": "996561529",
+          "valueOut": "992969460",
+          "retained": "-1"
+        },
+        {
+          "index": 4,
+          "parent": 3,
+          "children": [
+            5
+          ],
+          "from": "FeeQuoter",
+          "to": "OnRamp",
+          "owner": "ccip",
+          "op": "FeeQuoter_MessageValidated",
+          "success": true,
+          "exitCode": 0,
+          "actionResultCode": 0,
+          "gasUsed": "4093",
+          "computeFee": "272868",
+          "storageFee": "0",
+          "forwardFee": "1359134",
+          "actionFee": "453037",
+          "totalFee": "725905",
+          "cost": "1632002",
+          "valueIn": "992969460",
+          "valueOut": "991337458",
+          "retained": "0"
+        },
+        {
+          "index": 5,
+          "parent": 4,
+          "children": [
+            6
+          ],
+          "from": "OnRamp",
+          "to": "Router",
+          "owner": "ccip",
+          "op": "OnRamp_MessageValidated",
+          "success": true,
+          "exitCode": 0,
+          "actionResultCode": 0,
+          "gasUsed": "5374",
+          "computeFee": "358268",
+          "storageFee": "0",
+          "forwardFee": "1334534",
+          "actionFee": "444837",
+          "totalFee": "803105",
+          "cost": "1692802",
+          "valueIn": "991337458",
+          "valueOut": "989644656",
+          "retained": "0"
+        },
+        {
+          "index": 6,
+          "parent": 5,
+          "children": [],
+          "from": "Router",
+          "to": "Sender",
+          "owner": "external",
+          "op": "Router_MessageValidated",
+          "success": true,
+          "exitCode": 0,
+          "actionResultCode": 0,
+          "gasUsed": "309",
+          "computeFee": "20601",
+          "storageFee": "0",
+          "forwardFee": "0",
+          "actionFee": "0",
+          "totalFee": "20601",
+          "cost": "20601",
+          "valueIn": "989644656",
+          "valueOut": "0",
+          "retained": "989624055"
+        }
+      ],
+      "totals": {
+        "ccip": "10355346",
+        "registry": "0",
+        "token": "0",
+        "external": "1475137"
+      },
+      "retained": {
+        "Sender": "-13200215",
+        "Router": "-1",
+        "OnRamp": "0",
+        "FeeQuoter": "-1"
+      },
+      "entrypoints": [
+        {
+          "hop": 1,
+          "contract": "Router",
+          "op": "Router_GetValidatedFee",
+          "cost": {
+            "ccip": "10355346",
+            "registry": "0",
+            "token": "0",
+            "external": "20601"
+          },
+          "retained": "989624053"
+        },
+        {
+          "hop": 2,
+          "contract": "OnRamp",
+          "op": "OnRamp_GetValidatedFee",
+          "cost": {
+            "ccip": "8567876",
+            "registry": "0",
+            "token": "0",
+            "external": "20601"
+          },
+          "retained": "989624054"
+        },
+        {
+          "hop": 3,
+          "contract": "FeeQuoter",
+          "op": "FeeQuoter_GetValidatedFee",
+          "cost": {
+            "ccip": "6916874",
+            "registry": "0",
+            "token": "0",
+            "external": "20601"
+          },
+          "retained": "989624054"
+        },
+        {
+          "hop": 4,
+          "contract": "OnRamp",
+          "op": "FeeQuoter_MessageValidated",
+          "cost": {
+            "ccip": "3324804",
+            "registry": "0",
+            "token": "0",
+            "external": "20601"
+          },
+          "retained": "989624055"
+        },
+        {
+          "hop": 5,
+          "contract": "Router",
+          "op": "OnRamp_MessageValidated",
+          "cost": {
+            "ccip": "1692802",
+            "registry": "0",
+            "token": "0",
+            "external": "20601"
+          },
+          "retained": "989624055"
+        }
+      ]
+    }
+  ]
+}

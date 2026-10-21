@@ -1,4 +1,4 @@
-import { Blockchain, BlockchainTransaction, SendMessageResult, fetchConfig } from '@ton/sandbox'
+import { Blockchain, BlockchainTransaction, SendMessageResult } from '@ton/sandbox'
 import { Address, Cell, beginCell, fromNano, toNano } from '@ton/core'
 import '@ton/test-utils'
 import * as fs from 'fs'
@@ -16,13 +16,14 @@ import {
   setup,
   tokenInfo,
 } from '../../../ccip/tokenAdminRegistry/TokenAdminRegistry.Setup'
+import { gasReportConfig, gasReportNetwork } from '../../utils'
 
 // Fees of the TEP-89 wallet query an entry sends to its token (request and
 // response forward fees, minter execution, entry handling the response) for
 // each available jetton minter, checked against SAFETY_FACTOR times
-// TokenAdminRegistryEntry_WALLET_QUERY_VALUE. Uses the TAR_FLOWS_NETWORK config
+// TokenAdminRegistryEntry_WALLET_QUERY_VALUE. Uses the GAS_REPORT_NETWORK config
 // and writes snapshots/jetton-wallet-query.<network>.json.
-const NETWORK = (process.env['TAR_FLOWS_NETWORK'] ?? 'mainnet') as 'mainnet' | 'testnet' | 'default'
+const NETWORK = gasReportNetwork()
 const SNAPSHOT = path.join(__dirname, 'snapshots', `jetton-wallet-query.${NETWORK}.json`)
 const SAFETY_FACTOR = 5n
 
@@ -45,7 +46,7 @@ describe('Jetton wallet query fees', () => {
   let config: Cell | undefined
 
   beforeAll(async () => {
-    config = NETWORK === 'default' ? undefined : await fetchConfig(NETWORK)
+    config = await gasReportConfig()
   })
 
   beforeEach(async () => {

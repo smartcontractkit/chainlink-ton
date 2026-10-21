@@ -1,4 +1,4 @@
-import { Blockchain, BlockchainTransaction, SendMessageResult, fetchConfig } from '@ton/sandbox'
+import { Blockchain, BlockchainTransaction, SendMessageResult } from '@ton/sandbox'
 import { Address, Cell, fromNano, toNano } from '@ton/core'
 import '@ton/test-utils'
 import * as fs from 'fs'
@@ -27,12 +27,13 @@ import {
   setup,
   tokenInfo,
 } from '../../../ccip/tokenAdminRegistry/TokenAdminRegistry.Setup'
+import { gasReportConfig, gasReportNetwork, isInternal, op, storageFee, txFee } from '../../utils'
 
 // Runs each TokenAdminRegistry flow with exactly its minimum value against a real
 // CCT minter and token pools. Each budgeted leg and the flow's own execution must
 // cost at most 1/SAFETY_FACTOR of their budget, and the root and entry must not lose
-// balance. TAR_FLOWS_NETWORK: mainnet (default), testnet or `default` (bundled config).
-const NETWORK = (process.env['TAR_FLOWS_NETWORK'] ?? 'mainnet') as 'mainnet' | 'testnet' | 'default'
+// balance. GAS_REPORT_NETWORK: mainnet (default), testnet or `default` (bundled config).
+const NETWORK = gasReportNetwork()
 const SNAPSHOT = path.join(__dirname, 'snapshots', `token-admin-registry-flows.${NETWORK}.json`)
 const SAFETY_FACTOR = 5n
 
@@ -68,40 +69,6 @@ type FlowResult = {
 
 const results: Record<string, FlowResult> = {}
 
-// A message's forwardFee excludes the share (1/3) its sender pays in totalFees.
-const fullForwardFee = (remaining: bigint) => (remaining * 3n) / 2n
-
-const inForwardFee = (tx: BlockchainTransaction) => {
-  const info = tx.inMessage?.info
-  return info?.type === 'internal' ? fullForwardFee(info.forwardFee) : 0n
-}
-
-/** Fees a transaction pays besides the forward fees of the internal messages it sends. */
-const ownFee = (tx: BlockchainTransaction) =>
-  tx.totalFees.coins -
-  tx.outMessages
-    .values()
-    .reduce((sum, m) => sum + (m.info.type === 'internal' ? m.info.forwardFee / 2n : 0n), 0n)
-
-const txFee = (tx: BlockchainTransaction) => inForwardFee(tx) + ownFee(tx)
-
-const storageFee = (tx: BlockchainTransaction) =>
-  tx.description.type === 'generic' ? (tx.description.storagePhase?.storageFeesCollected ?? 0n) : 0n
-
-const op = (tx: BlockchainTransaction) => {
-  const body = tx.inMessage!.body.beginParse()
-  return body.remainingBits >= 32 ? body.preloadUint(32) : undefined
-}
-
-const isInternal = (tx: BlockchainTransaction, src?: Address, dest?: Address) => {
-  const info = tx.inMessage?.info
-  return (
-    info?.type === 'internal' &&
-    (src === undefined || info.src.equals(src)) &&
-    (dest === undefined || info.dest.equals(dest))
-  )
-}
-
 describe('TokenAdminRegistry flow fees', () => {
   let blockchain: Blockchain
   let fx: Fixture
@@ -110,7 +77,7 @@ describe('TokenAdminRegistry flow fees', () => {
   let pools: Record<PoolName, Address>
 
   beforeAll(async () => {
-    config = NETWORK === 'default' ? undefined : await fetchConfig(NETWORK)
+    config = await gasReportConfig()
     walletCode = await contractCode.ccip.local('ccip.cct.JettonWallet')
   })
 
