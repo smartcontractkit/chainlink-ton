@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -64,7 +63,7 @@ import (
 	tonlpstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 )
 
-var debugMode = os.Getenv("DEBUG_MODE") == "true"
+var debugMode = true
 
 func init() {
 	testadapters.GetTestAdapterRegistry().RegisterTestAdapter(chain_selectors.FamilyTon, semver.MustParse("1.6.0"), NewTONAdapter)
