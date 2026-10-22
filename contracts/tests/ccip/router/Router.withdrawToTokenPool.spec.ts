@@ -9,6 +9,7 @@ import { contractCode } from '../../../wrappers/codeLoader'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as deposit from '../../../wrappers/gen/ccip/DepositAccount'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
+import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { setup, contractsCoverageConfig } from './Router.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
@@ -149,6 +150,7 @@ describe('Router.withdrawToTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       }),
       prepared: rt.TokenPool_LockOrBurnPrepared.create({
         feeAmount: 0n,
@@ -160,20 +162,21 @@ describe('Router.withdrawToTokenPool', () => {
       }),
     })
 
-  // The AskToTransfer the Router builds in `onWithdrawToTokenPool`, as reported back in a
-  // DepositAccount_WithdrawFailed.
-  const buildAsk = (tokenPool: Address) =>
-    deposit.AskToTransfer.create({
-      jettonAmount: toNano('5'),
-      transferRecipient: tokenPool,
-      sendExcessesTo: router.address,
-      customPayload: null,
-      forwardTonAmount: 0n,
-      forwardPayload: beginCell()
-        .storeMaybeRef(
-          rt.TokenPool_LockOrBurnForwardPayload.toCell(buildLockOrBurnForwardPayload()),
-        )
-        .asSlice(),
+  // The DepositAccount_Withdraw the Router builds in `onWithdrawToTokenPool`, as reported back
+  // in a DepositAccount_WithdrawFailed.
+  const buildWithdraw = (tokenPool: Address): deposit.DepositAccount_Withdraw =>
+    deposit.DepositAccount_Withdraw.create({
+      queryId: 0n,
+      ask: deposit.DepositAccount_WithdrawAskToTransfer.create({
+        jettonAmount: toNano('5'),
+        transferRecipient: tokenPool,
+        sendExcessesTo: onRamp.address,
+        customPayload: null,
+        forwardTonAmount: 0n,
+        forwardPayload: rt.TokenPool_LockOrBurnForwardPayload.toCell(
+          buildLockOrBurnForwardPayload(),
+        ),
+      }),
     })
 
   const expectCCIPSendFailed = (
@@ -218,7 +221,8 @@ describe('Router.withdrawToTokenPool', () => {
       success: true,
     })
 
-    // ...and forwarded it to the deposit account as DepositAccount_Withdraw, building the AskToTransfer from the request's fields.
+    // ...and forwarded it to the deposit account as DepositAccount_Withdraw, building the ask
+    // from the request's fields. Excess TON goes to the OnRamp (the withdraw requester).
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: accountAddress,
@@ -231,7 +235,7 @@ describe('Router.withdrawToTokenPool', () => {
           ask.jettonAmount === withdrawRequest.amount &&
           ask.transferRecipient.equals(tokenPool.address) &&
           ask.sendExcessesTo != null &&
-          ask.sendExcessesTo.equals(router.address)
+          ask.sendExcessesTo.equals(onRamp.address)
         )
       },
     })
@@ -268,7 +272,7 @@ describe('Router.withdrawToTokenPool', () => {
     const tokenPool = await blockchain.treasury('tokenPool')
     const accountAddress = await deployDepositAccount(sender)
     const walletAddress = await blockchain.treasury('accountWallet')
-    const ask = buildAsk(tokenPool.address)
+    const withdraw = buildWithdraw(tokenPool.address)
 
     // The deposit account reports the bounced withdraw (as it does when its AskToTransfer
     // bounces back from the jetton wallet).
@@ -281,7 +285,7 @@ describe('Router.withdrawToTokenPool', () => {
         user: sender.address,
         token,
         walletAddress: walletAddress.address,
-        ask,
+        request: withdraw,
       },
     )
 
@@ -377,7 +381,7 @@ describe('Router.withdrawToTokenPool', () => {
     const attacker = await blockchain.treasury('attacker')
     const tokenPool = await blockchain.treasury('tokenPool')
     const walletAddress = await blockchain.treasury('accountWallet')
-    const ask = buildAsk(tokenPool.address)
+    const withdraw = buildWithdraw(tokenPool.address)
 
     // The attacker claims the withdraw failed for the sender's deposit account, but the message
     // does not come from the account address the Router derives from the reported identity.
@@ -388,7 +392,7 @@ describe('Router.withdrawToTokenPool', () => {
         user: sender.address,
         token,
         walletAddress: walletAddress.address,
-        ask,
+        request: withdraw,
       },
     )
 
@@ -414,7 +418,7 @@ describe('Router.withdrawToTokenPool', () => {
         user: sender.address,
         token: otherToken,
         walletAddress: walletAddress.address,
-        ask: buildAsk(tokenPool.address),
+        request: buildWithdraw(tokenPool.address),
       },
     )
 

@@ -51,7 +51,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockreleaselockbox"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
@@ -157,77 +156,21 @@ func (a *TONAdapter) BuildMessage(components testadapters.MessageComponents) (an
 		ExtraArgs:         c, // TODO handle ExtraArgs properly
 		FeeToken:          feeToken,
 	}
-	// If there are no tokenAmounts this is arbitrary messaging, return the CCIPSend message
-	if components.TokenAmounts == nil {
-		return ccipSend, nil
-	}
 	if len(components.TokenAmounts) > 1 {
 		return nil, errors.New("multiple token transfers are not supported on TON")
 	}
-	tokenAmount := components.TokenAmounts[0]
-	// Right now for messages with token transfers we transfer the tokens to the Router wallet and the CCIPSend message goes in the forward payload.
-	tokenAddr, err := address.ParseAddr(tokenAmount.Token)
-	if err != nil {
-		return nil, errors.New("failed to parse token address")
-	}
-
-	routerAddr, err := a.getAddress(state.Router)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get router address: %w", err)
-	}
-
-	// The message is sent to the sender's own jetton wallet, which then forwards the
-	// tokens to the Router's jetton wallet (derived on-chain from TransferRecipient).
-	ownedWalletAddr, err := tvm.CallGetterLatest(context.Background(), a.Client, tokenAddr, minter.GetWalletAddress, a.WalletAddress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to derive owned jetton wallet address: %w", err)
-	}
-
-	ccipSendCell, err := tlb.ToCell(ccipSend)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert CCIPSend message to cell: %w", err)
-	}
-
-	return TokenTransferMessage{
-		OwnedJettonWallet: ownedWalletAddr,
-		Transfer: jettonwallet.AskToTransfer{
-			QueryID:           rand.Uint64(),
-			JettonAmount:      tokenAmounts[0].Amount,
-			TransferRecipient: &routerAddr,
-			SendExcessesTo:    a.WalletAddress,
-			ForwardTonAmount:  tlb.MustFromTON("5"),
-			ForwardPayload:    ccipSendCell,
-		},
-	}, nil
-}
-
-// TokenTransferMessage is the message built by BuildMessage when the CCIP request includes
-// token transfers. It must be sent to OwnedJettonWallet (the sender's own jetton wallet, already
-// deployed via the pre-mint step in DeployToken), which forwards the tokens to the Router along
-// with the CCIPSend message as forward payload.
-type TokenTransferMessage struct {
-	OwnedJettonWallet *address.Address
-	Transfer          jettonwallet.AskToTransfer
+	return ccipSend, nil
 }
 
 func (a *TONAdapter) SendMessage(ctx context.Context, destChainSelector uint64, m any) (uint64, string, error) {
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Sending CCIP message")
 
-	var seq uint64
-	var eAny any
-	var err error
-	switch msg := m.(type) {
-	case router.CCIPSend:
-		// Arbitrary messaging (no token transfer): send the CCIPSend message directly to the Router.
-		seq, eAny, err = SendCCIPMessage(ctx, a.Chain, a.state, a.Selector, msg)
-	case TokenTransferMessage:
-		// Token transfer: send the jetton transfer to the sender's own jetton wallet, which
-		// forwards the tokens (and the CCIPSend message in the forward payload) to the Router.
-		seq, eAny, err = SendTokenTransferMessage(ctx, a.Chain, a.state, a.Selector, msg)
-	default:
-		return 0, "", fmt.Errorf("unsupported message type %T: expected router.CCIPSend or TokenTransferMessage", m)
+	msg, ok := m.(router.CCIPSend)
+	if !ok {
+		return 0, "", fmt.Errorf("unsupported message type %T: expected router.CCIPSend", m)
 	}
+	seq, eAny, err := SendCCIPMessage(ctx, a.Chain, a.state, a.Selector, msg)
 	if err != nil {
 		return 0, "", err
 	}
@@ -554,22 +497,138 @@ func (a *TONAdapter) startMonitor(t *testing.T, offRamp address.Address, filter 
 	return cancel
 }
 
+// AllowRouterToWithdrawTokens deposits amount jettons into the deployer's Router-owned on-ramp
+// account, from which the Router withdraws them on each CCIPSend with token amounts. It also funds
+// the lockbox pool's liquidity so the pool can release tokens when TON is the destination.
 func (a *TONAdapter) AllowRouterToWithdrawTokens(ctx context.Context, tokenAddress string, amount *big.Int) error {
-	// Real jetton approval (e.g. minting an allowance / notifying the pool) is not
-	// yet implemented; no tokens actually move so there is nothing to approve yet.
+	tokenAddr, err := address.ParseAddr(tokenAddress)
+	if err != nil {
+		return fmt.Errorf("failed to parse token address %q: %w", tokenAddress, err)
+	}
+	routerAddr, err := a.getAddress(state.Router)
+	if err != nil {
+		return err
+	}
 
-	// Fund the LockReleaseLockboxTokenPool with liquidity so it can release tokens when
-	// acting as a destination. The pool escrows jettons in a shared JettonLockBox; we
-	// mint tokens directly to that lockbox's jetton wallet address. This is test-only
-	// setup — EVM and Solana use BurnMintTokenPools that don't need liquidity, but TON
-	// uses LockReleaseLockboxTokenPool which custodies real tokens.
+	onRampAccount, err := a.deployOnRampAccount(ctx, &routerAddr, tokenAddr)
+	if err != nil {
+		return fmt.Errorf("failed to deploy on-ramp account: %w", err)
+	}
+	if err := a.depositToOnRampAccount(ctx, tokenAddr, onRampAccount, amount); err != nil {
+		return fmt.Errorf("failed to deposit into on-ramp account %s: %w", onRampAccount.String(), err)
+	}
+
 	if err := a.fundPoolLiquidity(ctx, tokenAddress); err != nil {
 		return fmt.Errorf("failed to fund pool liquidity: %w", err)
 	}
-
 	return nil
 }
 
+func (a *TONAdapter) deployOnRampAccount(ctx context.Context, routerAddr, tokenAddr *address.Address) (*address.Address, error) {
+	expected, err := tvm.CallGetterLatest(ctx, a.Client, routerAddr, router.GetOnRampAccountAddress,
+		router.AccountAddressArgs{User: a.WalletAddress, Token: tokenAddr})
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive on-ramp account address: %w", err)
+	}
+
+	queryID, err := tvm.RandomQueryID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate query id: %w", err)
+	}
+	body, err := tlb.ToCell(router.GetOnRampAccount{QueryID: queryID, Token: tokenAddr})
+	if err != nil {
+		return nil, fmt.Errorf("failed to build GetOnRampAccount message: %w", err)
+	}
+	ttConn := tracetracking.NewSignedAPIClient(a.Client, *a.Wallet)
+	msg, err := ttConn.SendAndWaitForTrace(ctx, *routerAddr, &wallet.Message{
+		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      true,
+			DstAddr:     routerAddr,
+			Amount:      tlb.MustFromTON("0.5"),
+			Body:        body,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to send GetOnRampAccount: %w", err)
+	}
+	if !msg.TraceSucceeded() {
+		return nil, errors.New("GetOnRampAccount trace failed")
+	}
+
+	reply := msg.FindMessageTo(a.WalletAddress)
+	if reply == nil || reply.InternalMsg == nil {
+		return nil, errors.New("router did not reply to GetOnRampAccount")
+	}
+	var use router.UseOnRampAccount
+	if err := tlb.LoadFromCell(&use, reply.InternalMsg.Body.MustBeginParse()); err != nil {
+		var failed router.OnRampAccountFailed
+		if failErr := tlb.LoadFromCell(&failed, reply.InternalMsg.Body.MustBeginParse()); failErr == nil {
+			return nil, fmt.Errorf("router rejected GetOnRampAccount with error %s", failed.Error.String())
+		}
+		return nil, fmt.Errorf("failed to parse GetOnRampAccount reply: %w", err)
+	}
+	if !use.Account.Equals(expected) {
+		return nil, fmt.Errorf("router returned on-ramp account %s, expected %s", use.Account.String(), expected.String())
+	}
+	return use.Account, nil
+}
+
+func (a *TONAdapter) depositToOnRampAccount(ctx context.Context, tokenAddr, onRampAccount *address.Address, amount *big.Int) error {
+	ownedWallet, err := tvm.CallGetterLatest(ctx, a.Client, tokenAddr, minter.GetWalletAddress, a.WalletAddress)
+	if err != nil {
+		return fmt.Errorf("failed to derive owned jetton wallet address: %w", err)
+	}
+	accountWallet, err := tvm.CallGetterLatest(ctx, a.Client, tokenAddr, minter.GetWalletAddress, onRampAccount)
+	if err != nil {
+		return fmt.Errorf("failed to derive on-ramp account jetton wallet address: %w", err)
+	}
+
+	queryID, err := tvm.RandomQueryID()
+	if err != nil {
+		return fmt.Errorf("failed to generate query id: %w", err)
+	}
+	body, err := tlb.ToCell(jettonwallet.AskToTransfer{
+		QueryID:           queryID,
+		JettonAmount:      tlb.MustFromNano(amount, 9),
+		TransferRecipient: onRampAccount,
+		SendExcessesTo:    a.WalletAddress,
+		ForwardTonAmount:  tlb.ZeroCoins,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to build jetton transfer: %w", err)
+	}
+	ttConn := tracetracking.NewSignedAPIClient(a.Client, *a.Wallet)
+	msg, err := ttConn.SendAndWaitForTrace(ctx, *ownedWallet, &wallet.Message{
+		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      true,
+			DstAddr:     ownedWallet,
+			Amount:      tlb.MustFromTON("0.2"),
+			Body:        body,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to send jetton transfer: %w", err)
+	}
+	if !msg.TraceSucceeded() {
+		return errors.New("jetton transfer trace failed")
+	}
+
+	balance, err := tvm.CallGetterLatest(ctx, a.Client, accountWallet, jettonwallet.GetWalletData)
+	if err != nil {
+		return fmt.Errorf("failed to read on-ramp account jetton balance: %w", err)
+	}
+	if balance.Cmp(amount) < 0 {
+		return fmt.Errorf("on-ramp account jetton balance %s is lower than deposited amount %s", balance.String(), amount.String())
+	}
+	return nil
+}
+
+// GetTokenBalance returns the balance of the off-ramp deposit account where the Router delivers
+// tokenAddress jettons for ownerAddress.
 func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, ownerAddress []byte) (*big.Int, error) {
 	minterAddr, err := address.ParseAddr(tokenAddress)
 	if err != nil {
@@ -586,19 +645,15 @@ func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, o
 		return nil, fmt.Errorf("failed to parse owner address %q: %w", ownerAddrStr, err)
 	}
 
-	// Look up the pool address from the datastore via the state provider.
-	poolAddrStr, err := a.state.GetAddress(datastore.ContractType(bindings.ShortLockReleaseLockboxTokenPool))
+	routerAddr, err := a.getAddress(state.Router)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get pool address: %w", err)
-	}
-	poolAddr, err := address.ParseAddr(poolAddrStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse pool address %q: %w", poolAddrStr, err)
+		return nil, err
 	}
 
-	depositAccountAddr, err := tvm.CallGetterLatest(ctx, a.Client, poolAddr, tokenpool.GetDepositAccount, ownerAddr)
+	depositAccountAddr, err := tvm.CallGetterLatest(ctx, a.Client, &routerAddr, router.GetOffRampAccountAddress,
+		router.AccountAddressArgs{User: ownerAddr, Token: minterAddr})
 	if err != nil {
-		return nil, fmt.Errorf("failed to derive deposit account for receiver %q: %w", ownerAddrStr, err)
+		return nil, fmt.Errorf("failed to derive off-ramp account for receiver %q: %w", ownerAddrStr, err)
 	}
 
 	walletAddr, err := tvm.CallGetterLatest(ctx, a.Client, minterAddr, minter.GetWalletAddress, depositAccountAddr)
@@ -1004,56 +1059,6 @@ func SendCCIPMessage(
 	}
 
 	return sendCellAndAwaitCCIPMessageSent(ctx, chain, sourceChain, routerAddr, ccipSendCell, value, knownAddresses)
-}
-
-// SendTokenTransferMessage sends a CCIP token transfer request from a TON chain. The jetton
-// AskToTransfer message is sent to the sender's own jetton wallet (msg.OwnedJettonWallet), which
-// forwards the tokens to the Router along with the CCIPSend message carried in the transfer's
-// forward payload.
-func SendTokenTransferMessage(
-	ctx context.Context,
-	chain cldf_ton.Chain,
-	state testadapters.StateProvider,
-	sourceChain uint64,
-	msg TokenTransferMessage) (uint64, any, error) {
-	clientConn := chain.Client
-
-	l, err := logger.New()
-	if err != nil {
-		return 0, nil, err
-	}
-
-	rawFeeQuoterAddr, err := state.GetAddress("FeeQuoter")
-	if err != nil {
-		return 0, nil, err
-	}
-	feeQuoterAddr := address.MustParseAddr(rawFeeQuoterAddr)
-
-	l.Infof("Getting Fee to send CCIP token transfer from chain selector %d", sourceChain)
-
-	fee, err := getValidatedFee(ctx, clientConn, feeQuoterAddr, msg.Transfer.ForwardPayload)
-	if err != nil {
-		return 0, nil, err
-	}
-	l.Infof("Fee to send CCIP token transfer: %s nano TON", fee.String())
-
-	transferCell, err := tlb.ToCell(msg.Transfer)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to convert token transfer message to cell: %w", err)
-	}
-
-	// The attached value must cover the CCIP fee (forwarded on to the Router alongside the
-	// tokens via ForwardTonAmount) plus gas for the jetton wallet -> jetton wallet -> Router
-	// notification hops.
-	value := big.NewInt(0).Add(fee, msg.Transfer.ForwardTonAmount.Nano())
-	value = value.Add(value, tlb.MustFromTON("0.5").Nano() /* To cover for gas */)
-
-	knownAddresses := map[string]debug.TypeAndVersion{
-		msg.OwnedJettonWallet.String(): {Type: "OwnedJettonWallet", Version: *semver.MustParse("0.0.0")},
-		feeQuoterAddr.String():         {Type: "FeeQuoter", Version: *semver.MustParse("0.0.0")},
-	}
-
-	return sendCellAndAwaitCCIPMessageSent(ctx, chain, sourceChain, msg.OwnedJettonWallet, transferCell, value, knownAddresses)
 }
 
 // getValidatedFee queries the FeeQuoter for the fee (in native TON) required to send ccipSendCell.

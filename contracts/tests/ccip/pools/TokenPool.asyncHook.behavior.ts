@@ -22,6 +22,7 @@ import {
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { TokenPoolBehaviorContext, deliveryTo, releaseRequest } from './TokenPool.behavior'
+import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 // Async Hook Behavior Tests (TON-TP/6)
 // ———————————————————————————————————————————————————————————————————————————————
 
@@ -98,6 +99,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: ctx.deployer.address,
+          onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
         }),
         prepared,
       })
@@ -165,6 +167,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
 
       // Pool sends PreflightCheck to hooks
@@ -195,6 +198,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
 
       // Pool sends PreflightCheck to hooks
@@ -356,6 +360,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -410,6 +415,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: ctx.deployer.address,
+          onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
         },
       )
 
@@ -430,6 +436,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: ctx.deployer.address,
+          onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
         },
       )
 
@@ -522,6 +529,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
 
       // The pool's PreflightCheck bounced back and was handled successfully.
@@ -593,6 +601,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
 
       const prepared = TokenPool_LockOrBurnPrepared.create({
@@ -619,6 +628,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
       const bucketBefore = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
       expect(bucketBefore.outbound.tokens).toBe(toNano('99'))
@@ -664,6 +674,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: ctx.deployer.address,
+          onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
         }),
         prepared: TokenPool_LockOrBurnPrepared.create({
           feeAmount: 0n,
