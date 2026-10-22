@@ -25,7 +25,8 @@ import {
   TokenPool_Budget,
   TokenPool_BudgetSet,
   TokenPool_Config,
-  TokenPool_FlowBudget,
+  TokenPool_LockOrBurnBudget,
+  TokenPool_ReleaseOrMintBudget,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { CURSE_ROLE } from '../../../wrappers/ccip/Router'
 import { BurnMintTokenPool } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
@@ -161,13 +162,12 @@ export function runTokenPoolBehaviorTests(
             deliveryTo(ctx.recipient.address, ctx.deployer.address).forwardTonAmount
         })
 
-        it('reports admission at least the configured values and never below safety', async () => {
-          const effective = await ctx.pool.getBudget()
-          for (const flow of [effective.lockOrBurn, effective.releaseOrMint]) {
-            expect(flow.safety).toBeGreaterThanOrEqual(budget.safety)
-            expect(flow.admission).toBeGreaterThanOrEqual(budget.admission)
-            expect(flow.admission).toBeGreaterThanOrEqual(flow.safety)
-          }
+        it('reports at least the configured values, with admission never below safety', async () => {
+          const { lockOrBurn, releaseOrMint } = await ctx.pool.getBudget()
+          expect(lockOrBurn.safety).toBeGreaterThanOrEqual(budget.safety)
+          expect(lockOrBurn.admission).toBeGreaterThanOrEqual(budget.admission)
+          expect(lockOrBurn.admission).toBeGreaterThanOrEqual(lockOrBurn.safety)
+          expect(releaseOrMint.admission).toBeGreaterThanOrEqual(budget.admission)
         })
 
         describe('LockOrBurn', () => {
@@ -948,8 +948,8 @@ export function runTokenPoolBehaviorTests(
 
     describe('SetBudget', () => {
       const raised = TokenPool_Budget.create({
-        lockOrBurn: TokenPool_FlowBudget.create({ admission: toNano('2'), safety: toNano('1') }),
-        releaseOrMint: TokenPool_FlowBudget.create({ admission: 0n, safety: toNano('1') }),
+        lockOrBurn: TokenPool_LockOrBurnBudget.create({ admission: 0n, safety: toNano('1') }),
+        releaseOrMint: TokenPool_ReleaseOrMintBudget.create({ admission: toNano('2') }),
       })
 
       it('raises the budget and replies with the effective values', async () => {
@@ -960,9 +960,9 @@ export function runTokenPoolBehaviorTests(
         })
 
         const effective = await ctx.pool.getBudget()
-        expect(effective.lockOrBurn).toMatchObject({ admission: toNano('2'), safety: toNano('1') })
         // Admission always covers safety.
-        expect(effective.releaseOrMint).toMatchObject({ admission: toNano('1'), safety: toNano('1') })
+        expect(effective.lockOrBurn).toMatchObject({ admission: toNano('1'), safety: toNano('1') })
+        expect(effective.releaseOrMint).toMatchObject({ admission: toNano('2') })
         expect(result.transactions).toHaveTransaction({
           from: ctx.pool.address,
           to: ctx.deployer.address,
@@ -976,8 +976,8 @@ export function runTokenPoolBehaviorTests(
         await ctx.pool.sendTokenPoolSetBudget(ctx.deployer.getSender(), toNano('0.05'), {
           queryId: 961n,
           budget: TokenPool_Budget.create({
-            lockOrBurn: TokenPool_FlowBudget.create({ admission: 1n, safety: 1n }),
-            releaseOrMint: TokenPool_FlowBudget.create({ admission: 1n, safety: 1n }),
+            lockOrBurn: TokenPool_LockOrBurnBudget.create({ admission: 1n, safety: 1n }),
+            releaseOrMint: TokenPool_ReleaseOrMintBudget.create({ admission: 1n }),
           }),
         })
         expect(await ctx.pool.getBudget()).toEqual(defaults)

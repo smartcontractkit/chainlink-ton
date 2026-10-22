@@ -9,8 +9,9 @@
 import "@stdlib/gas-payments"
 
 import "../../ccip/cct/fees-management"
-import "../../ccip/pools/lib/token_pool/recovery"
+import "../../ccip/pools/lib/token_pool/jetton_fees"
 import "../../ccip/pools/burn_mint/types"
+import "../../ccip/pools/lock_release_lockbox/types"
 import "../../ccip/budget/min_value"
 import "../../lib/budget/gas"
 
@@ -42,28 +43,21 @@ get fun get_jettonWalletMinStorageFee(): coins { return calculateJettonWalletMin
 /// config the budget functions use (no duplicated gas-price constant in TS).
 get fun get_calculateGasFee(gasUsed: int): coins { return calculateGasFee(MY_WORKCHAIN, gasUsed); }
 
-/* === Token-pool transfer budget (pools/lib/token_pool/recovery) === */
+/* === Jetton wallet fee model (pools/lib/token_pool/jetton_fees) === */
 
-get fun get_jettonTransferBufferPct(): int { return JETTON_TRANSFER_VALUE_BUFFER_PCT; }
-get fun get_tokenPoolReturnTransferValue(): coins { return TokenPool_RETURN_TRANSFER_VALUE; }
-
-get fun get_jettonTransferOpBudget(fwdFee: coins, hasForward: bool): coins {
-    return jettonTransferOpBudget(fwdFee, hasForward);
-}
-
-get fun get_jettonTransferValue(forwardTonAmount: coins, fwdFee: coins): coins {
-    return jettonTransferValue(forwardTonAmount, fwdFee);
-}
-
-get fun get_jettonTransferForwardValue(available: coins, fwdFee: coins, bufferPct: int): coins {
-    return jettonTransferForwardValue(available, fwdFee, bufferPct);
+get fun get_jettonTransferFee(fwdFee: coins, hasForward: bool, generic: bool): coins {
+    val fees = generic ? JettonWalletFees.Generic : JettonWalletFees.Reference;
+    return fees.transferFee(fwdFee, hasForward);
 }
 
 /* === BurnMint mint budget (pools/burn_mint/types) === */
 
-get fun get_cctTransferBufferPct(): int { return CCT_TRANSFER_BUFFER_PCT; }
 
 get fun get_cctMintOpBudget(walletDeployFee: coins): coins { return cctMintOpBudget(walletDeployFee); }
+
+/* === LockRelease lock custody cost (pools/lock_release_lockbox/types) === */
+
+get fun get_lockReleaseLockNotificationGasUnits(): int { return LockReleaseLockboxTokenPool_LOCK_NOTIFICATION_GAS_UNITS; }
 
 /* === CCIP token-pool admission floors (ccip/budget/min_value) === */
 

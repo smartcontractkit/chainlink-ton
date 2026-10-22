@@ -267,18 +267,24 @@ type AdminConfig struct {
 	DeployableCode        *cell.Cell           `tlb:"maybe ^"`
 }
 
-// FlowBudget is the TON budget of one pool flow (LockOrBurn or ReleaseOrMint).
-// Admission is checked at the flow entrypoint and published to CCIP; Safety is checked
-// before custody moves. A zero stored value means "use the pool-type default".
-type FlowBudget struct {
+// LockOrBurnBudget is the pool's LockOrBurn budget. Admission is checked at the entrypoint and
+// published to CCIP; Safety is forwarded with the pool's last custody move and pays finalization.
+// A zero stored value means "use the pool-type default".
+type LockOrBurnBudget struct {
 	Admission tlb.Coins `tlb:"."`
 	Safety    tlb.Coins `tlb:"."`
 }
 
+// ReleaseOrMintBudget is the pool's ReleaseOrMint budget. Admission is checked at the entrypoint
+// and is the remote chain's per-token destGasOverhead.
+type ReleaseOrMintBudget struct {
+	Admission tlb.Coins `tlb:"."`
+}
+
 // Budget is the per-instance pool budget. Configured values can only raise the defaults.
 type Budget struct {
-	LockOrBurn    FlowBudget `tlb:"."`
-	ReleaseOrMint FlowBudget `tlb:"."`
+	LockOrBurn    LockOrBurnBudget    `tlb:"."`
+	ReleaseOrMint ReleaseOrMintBudget `tlb:"."`
 }
 
 // AdmissionBudget is the admission budget the pool publishes to CCIP.
@@ -619,9 +625,11 @@ type QueryCCVsReply struct {
 
 // LockOrBurnWithdraw requests token withdrawal from the on-ramp.
 type LockOrBurnWithdraw struct {
-	_              tlb.Magic                `tlb:"#e7a35041" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64                   `tlb:"## 64"`
-	ForwardPayload LockOrBurnForwardPayload `tlb:"."`
+	_       tlb.Magic `tlb:"#e7a35041" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64    `tlb:"## 64"`
+	// ForwardTonAmount is the TON the custody notification carries to the pool: its LockOrBurn safety budget.
+	ForwardTonAmount tlb.Coins                `tlb:"."`
+	ForwardPayload   LockOrBurnForwardPayload `tlb:"."`
 }
 
 // LockOrBurnFinished notifies that a lock/burn operation finished.

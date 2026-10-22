@@ -15,21 +15,31 @@ const BurnMintTokenPool_FACILITY_ID = BurnMintTokenPool_FACILITY_NAME.crc32() % 
 
 const BurnMintTokenPool_CLAIM_ADMIN_VALUE = grams("0.05");
 
-/// Pool-type default safety budgets, measured by the gas-report tests at 66.67 nTON/gas.
-/// LockOrBurn: the custody notification funds burn -> minter excess -> finalize (~0.004 TON); ~4x.
+/// Pool-type default budgets, measured by the gas-report tests at 66.67 nTON/gas.
+/// LockOrBurn safety: the custody transfer funds burn -> minter excess -> finalize (~0.004 TON); ~4x.
 const BurnMintTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS = BUDGET_UNITS_LVL3_HIGH; // ~0.0167 TON
-/// ReleaseOrMint: the mint transaction funds pool -> minter -> recipient wallet (~0.014 TON); ~3.5x. The caller's continuation is added on top.
-const BurnMintTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS = BUDGET_UNITS_LVL4_XHIGH * 2; // ~0.083 TON
+/// LockOrBurn admission: the entry, the withdraw relay and the custody transfer carrying the safety.
+const BurnMintTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 500_000; // ~0.033 TON
+/// ReleaseOrMint admission: pool -> minter -> recipient wallet (~0.014 TON); ~7x. The caller's
+/// delivery forward is added on top.
+const BurnMintTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS = 1_500_000; // ~0.1 TON
+
+/// Upper bound on the gas the mint transaction runs after its funding check: building and sending
+/// the mint.
+const BurnMintTokenPool_MINT_SEND_GAS_UNITS = BUDGET_UNITS_LVL0_MIN;
 
 fun BurnMintTokenPool_defaultBudget(): TokenPool_Budget {
     return {
-        lockOrBurn: TokenPool_FlowBudget.fromSafety(calculateMinValue(BurnMintTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS, 1)),
-        releaseOrMint: TokenPool_FlowBudget.fromSafety(calculateMinValue(BurnMintTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS, 1)),
+        lockOrBurn: {
+            admission: calculateMinValue(BurnMintTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS, 1),
+            safety: calculateMinValue(BurnMintTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS, 1),
+        },
+        releaseOrMint: {
+            admission: calculateMinValue(BurnMintTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS, 1),
+        },
     };
 }
 
-/// Known CCT wallets need only a small cushion over the reference transfer estimate.
-const CCT_TRANSFER_BUFFER_PCT = 110;
 /// CCT `MintNewJettons`: the minter's compute and the wallet-deploy message it sends. The minter
 /// keeps its storage reserve from its own balance, so a mint leaves nothing behind in it.
 fun cctMintOpBudget(walletDeployFee: coins): coins {

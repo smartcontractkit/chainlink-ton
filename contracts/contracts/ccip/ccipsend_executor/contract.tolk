@@ -374,6 +374,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
                 depositAccount: senderOnRampAccount(self.onrampSend.metadata.sender, tokenAmount.token, self.addresses.load().router),
                 amount: tokenAmount.amount,
                 tokenPool: state.tokenPool,
+                forwardTonAmount: msg.forwardTonAmount,
                 forwardPayload: msg.forwardPayload.toCell(),
             }.toCell()
         },

@@ -1169,79 +1169,113 @@ export const TokenPool_ReleaseOrMintOutV1 = {
 }
 
 /**
- > struct TokenPool_FlowBudget {
+ > struct TokenPool_LockOrBurnBudget {
  >     admission: coins
  >     safety: coins
  > }
  */
-export interface TokenPool_FlowBudget {
-    readonly $: 'TokenPool_FlowBudget'
+export interface TokenPool_LockOrBurnBudget {
+    readonly $: 'TokenPool_LockOrBurnBudget'
     admission: coins /* = 0 */
     safety: coins /* = 0 */
 }
 
-export const TokenPool_FlowBudget = {
+export const TokenPool_LockOrBurnBudget = {
     create(args: {
         admission?: coins /* = 0 */
         safety?: coins /* = 0 */
-    }): TokenPool_FlowBudget {
+    }): TokenPool_LockOrBurnBudget {
         return {
-            $: 'TokenPool_FlowBudget',
+            $: 'TokenPool_LockOrBurnBudget',
             admission: 0n,
             safety: 0n,
             ...args
         }
     },
-    fromSlice(s: c.Slice): TokenPool_FlowBudget {
+    fromSlice(s: c.Slice): TokenPool_LockOrBurnBudget {
         return {
-            $: 'TokenPool_FlowBudget',
+            $: 'TokenPool_LockOrBurnBudget',
             admission: s.loadCoins(),
             safety: s.loadCoins(),
         }
     },
-    store(self: TokenPool_FlowBudget, b: c.Builder): void {
+    store(self: TokenPool_LockOrBurnBudget, b: c.Builder): void {
         b.storeCoins(self.admission);
         b.storeCoins(self.safety);
     },
-    toCell(self: TokenPool_FlowBudget): c.Cell {
-        return makeCellFrom<TokenPool_FlowBudget>(self, TokenPool_FlowBudget.store);
+    toCell(self: TokenPool_LockOrBurnBudget): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnBudget>(self, TokenPool_LockOrBurnBudget.store);
+    }
+}
+
+/**
+ > struct TokenPool_ReleaseOrMintBudget {
+ >     admission: coins
+ > }
+ */
+export interface TokenPool_ReleaseOrMintBudget {
+    readonly $: 'TokenPool_ReleaseOrMintBudget'
+    admission: coins /* = 0 */
+}
+
+export const TokenPool_ReleaseOrMintBudget = {
+    create(args: {
+        admission?: coins /* = 0 */
+    }): TokenPool_ReleaseOrMintBudget {
+        return {
+            $: 'TokenPool_ReleaseOrMintBudget',
+            admission: 0n,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_ReleaseOrMintBudget {
+        return {
+            $: 'TokenPool_ReleaseOrMintBudget',
+            admission: s.loadCoins(),
+        }
+    },
+    store(self: TokenPool_ReleaseOrMintBudget, b: c.Builder): void {
+        b.storeCoins(self.admission);
+    },
+    toCell(self: TokenPool_ReleaseOrMintBudget): c.Cell {
+        return makeCellFrom<TokenPool_ReleaseOrMintBudget>(self, TokenPool_ReleaseOrMintBudget.store);
     }
 }
 
 /**
  > struct TokenPool_Budget {
- >     lockOrBurn: TokenPool_FlowBudget
- >     releaseOrMint: TokenPool_FlowBudget
+ >     lockOrBurn: TokenPool_LockOrBurnBudget
+ >     releaseOrMint: TokenPool_ReleaseOrMintBudget
  > }
  */
 export interface TokenPool_Budget {
     readonly $: 'TokenPool_Budget'
-    lockOrBurn: TokenPool_FlowBudget /* = TokenPool_FlowBudget { 0 as coins, 0 as coins } */
-    releaseOrMint: TokenPool_FlowBudget /* = TokenPool_FlowBudget { 0 as coins, 0 as coins } */
+    lockOrBurn: TokenPool_LockOrBurnBudget /* = TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } */
+    releaseOrMint: TokenPool_ReleaseOrMintBudget /* = TokenPool_ReleaseOrMintBudget { 0 as coins } */
 }
 
 export const TokenPool_Budget = {
     create(args: {
-        lockOrBurn?: TokenPool_FlowBudget /* = TokenPool_FlowBudget { 0 as coins, 0 as coins } */
-        releaseOrMint?: TokenPool_FlowBudget /* = TokenPool_FlowBudget { 0 as coins, 0 as coins } */
+        lockOrBurn?: TokenPool_LockOrBurnBudget /* = TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } */
+        releaseOrMint?: TokenPool_ReleaseOrMintBudget /* = TokenPool_ReleaseOrMintBudget { 0 as coins } */
     }): TokenPool_Budget {
         return {
             $: 'TokenPool_Budget',
-            lockOrBurn: { $: 'TokenPool_FlowBudget', admission: 0n, safety: 0n },
-            releaseOrMint: { $: 'TokenPool_FlowBudget', admission: 0n, safety: 0n },
+            lockOrBurn: { $: 'TokenPool_LockOrBurnBudget', admission: 0n, safety: 0n },
+            releaseOrMint: { $: 'TokenPool_ReleaseOrMintBudget', admission: 0n },
             ...args
         }
     },
     fromSlice(s: c.Slice): TokenPool_Budget {
         return {
             $: 'TokenPool_Budget',
-            lockOrBurn: TokenPool_FlowBudget.fromSlice(s),
-            releaseOrMint: TokenPool_FlowBudget.fromSlice(s),
+            lockOrBurn: TokenPool_LockOrBurnBudget.fromSlice(s),
+            releaseOrMint: TokenPool_ReleaseOrMintBudget.fromSlice(s),
         }
     },
     store(self: TokenPool_Budget, b: c.Builder): void {
-        TokenPool_FlowBudget.store(self.lockOrBurn, b);
-        TokenPool_FlowBudget.store(self.releaseOrMint, b);
+        TokenPool_LockOrBurnBudget.store(self.lockOrBurn, b);
+        TokenPool_ReleaseOrMintBudget.store(self.releaseOrMint, b);
     },
     toCell(self: TokenPool_Budget): c.Cell {
         return makeCellFrom<TokenPool_Budget>(self, TokenPool_Budget.store);
@@ -1366,7 +1400,7 @@ export interface TokenPool_Data {
     tokenDecimals: uint8
     remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
     tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
-    budget: TokenPool_Budget /* = TokenPool_Budget { TokenPool_FlowBudget { 0 as coins, 0 as coins } as TokenPool_FlowBudget, TokenPool_FlowBudget { 0 as coins, 0 as coins } as TokenPool_FlowBudget } */
+    budget: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins } as TokenPool_ReleaseOrMintBudget } */
 }
 
 export const TokenPool_Data = {
@@ -1376,11 +1410,11 @@ export const TokenPool_Data = {
         tokenDecimals: uint8
         remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
-        budget?: TokenPool_Budget /* = TokenPool_Budget { TokenPool_FlowBudget { 0 as coins, 0 as coins } as TokenPool_FlowBudget, TokenPool_FlowBudget { 0 as coins, 0 as coins } as TokenPool_FlowBudget } */
+        budget?: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins } as TokenPool_ReleaseOrMintBudget } */
     }): TokenPool_Data {
         return {
             $: 'TokenPool_Data',
-            budget: { $: 'TokenPool_Budget', lockOrBurn: { $: 'TokenPool_FlowBudget', admission: 0n, safety: 0n }, releaseOrMint: { $: 'TokenPool_FlowBudget', admission: 0n, safety: 0n } },
+            budget: { $: 'TokenPool_Budget', lockOrBurn: { $: 'TokenPool_LockOrBurnBudget', admission: 0n, safety: 0n }, releaseOrMint: { $: 'TokenPool_ReleaseOrMintBudget', admission: 0n } },
             ...args
         }
     },
@@ -3066,12 +3100,14 @@ export const TokenPool_QueryCCVsReply = {
 /**
  > struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
  >     queryId: uint64
+ >     forwardTonAmount: coins
  >     forwardPayload: TokenPool_LockOrBurnForwardPayload
  > }
  */
 export interface TokenPool_LockOrBurnWithdraw {
     readonly $: 'TokenPool_LockOrBurnWithdraw'
     queryId: uint64
+    forwardTonAmount: coins
     forwardPayload: TokenPool_LockOrBurnForwardPayload
 }
 
@@ -3080,6 +3116,7 @@ export const TokenPool_LockOrBurnWithdraw = {
 
     create(args: {
         queryId?: uint64
+        forwardTonAmount: coins
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }): TokenPool_LockOrBurnWithdraw {
         return {
@@ -3093,12 +3130,14 @@ export const TokenPool_LockOrBurnWithdraw = {
         return {
             $: 'TokenPool_LockOrBurnWithdraw',
             queryId: s.loadUintBig(64),
+            forwardTonAmount: s.loadCoins(),
             forwardPayload: TokenPool_LockOrBurnForwardPayload.fromSlice(s),
         }
     },
     store(self: TokenPool_LockOrBurnWithdraw, b: c.Builder): void {
         b.storeUint(0xe7a35041, 32);
         b.storeUint(self.queryId, 64);
+        b.storeCoins(self.forwardTonAmount);
         TokenPool_LockOrBurnForwardPayload.store(self.forwardPayload, b);
     },
     toCell(self: TokenPool_LockOrBurnWithdraw): c.Cell {
@@ -5497,7 +5536,7 @@ export class TokenPool implements c.Contract {
         tokenDecimals: uint8
         remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
-        budget?: TokenPool_Budget /* = TokenPool_Budget { TokenPool_FlowBudget { 0 as coins, 0 as coins } as TokenPool_FlowBudget, TokenPool_FlowBudget { 0 as coins, 0 as coins } as TokenPool_FlowBudget } */
+        budget?: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins } as TokenPool_ReleaseOrMintBudget } */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? TokenPool.CodeCell,
@@ -6406,18 +6445,17 @@ export class TokenPool implements c.Contract {
     }
 
     async getBudget(provider: ContractProvider): Promise<TokenPool_Budget> {
-        const r = StackReader.fromGetMethod(4, await provider.get('getBudget', []));
+        const r = StackReader.fromGetMethod(3, await provider.get('getBudget', []));
         return ({
             $: 'TokenPool_Budget',
             lockOrBurn: ({
-                $: 'TokenPool_FlowBudget',
+                $: 'TokenPool_LockOrBurnBudget',
                 admission: r.readBigInt(),
                 safety: r.readBigInt(),
             }),
             releaseOrMint: ({
-                $: 'TokenPool_FlowBudget',
+                $: 'TokenPool_ReleaseOrMintBudget',
                 admission: r.readBigInt(),
-                safety: r.readBigInt(),
             }),
         });
     }

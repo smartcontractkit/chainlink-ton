@@ -245,19 +245,19 @@ export function walletHopByInternalTransfer(result: SendResult): { send: any; re
   return { send, receive }
 }
 
-/// The pool funds a wallet hop from `jettonTransferOpBudget(fwdFee, hasForward)` (optionally scaled
-/// by a buffer for non-reference tokens). Assert that on-chain TON budget covers the hop's actual
-/// measured fees — this is what catches a change to the pool budget function itself, not just the
-/// token constants it is built from.
-export async function assertBufferedTransferBudgetCoversHop(
+/// The pool funds a wallet hop with `JettonWalletFees.transferFee(fwdFee, hasForward)`, using the
+/// reference model for CCT and the doubled model for other wallets. Assert that fee covers the
+/// hop's measured fees; this catches a change to the fee model itself, not just the token
+/// constants it is built from.
+export async function assertWalletFeeCoversHop(
   cct: CctHarnessContract,
-  hop: { send: any; receive: any; bufferPct?: bigint },
+  hop: { send: any; receive: any },
+  generic: boolean,
 ): Promise<void> {
-  const bufferPct = hop.bufferPct ?? (await cct.getJettonTransferBufferPct())
   const fwdFee: bigint = hop.receive.inMessage.info.forwardFee
-  const budget = await cct.getJettonTransferOpBudget(fwdFee, true)
+  const fee = await cct.getJettonTransferFee(fwdFee, true, generic)
   const actual = hop.send.totalFees.coins + hop.receive.totalFees.coins
-  expect((budget * bufferPct) / 100n).toBeGreaterThanOrEqual(actual)
+  expect(fee).toBeGreaterThanOrEqual(actual)
 }
 
 /// Drives the standard token-pool operations (a full LockOrBurn and a full ReleaseOrMint) against a

@@ -20,6 +20,7 @@ import "../../rmn_remote/lib"
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/budget"
 import "../lib/token_pool/recovery"
+import "../lib/token_pool/jetton_fees"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
 import "../lib/token_pool/errors"
@@ -144,65 +145,57 @@ fun onBouncedMessage(in: InMessageBounced) {
 fun onLockOrBurnTransferContinue(
     st: Storage,
     _sender: address,
-    msgValue: coins,
+    _msgValue: coins, // the custody forward: the lock's safety plus its custody cost
     msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
+    // The last custody move: the deposit carries the safety; the rest pays this transfer, whose
+    // wallet rejects an underfunded transfer before custody moves and returns its unused fee.
+    val safety = loadPool(st).budget().lockOrBurn.safety;
+    // On rejection the lockbox returns custody straight to the original sender.
+    lockTransfer(st, fwdPayload, msg.transferInitiator, safety).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    return st;
+}
+
+/// Moves the locked custody from the pool's wallet to the lockbox, forwarding `forwardTonAmount`
+/// with the deposit.
+fun lockTransfer(
+    st: Storage,
+    fwdPayload: TokenPool_LockOrBurnForwardPayload,
+    returnAddress: address?,
+    forwardTonAmount: coins,
+): OutMessage {
     val requestMsg = lazy fwdPayload.requestMsg.load();
     val prepared = lazy fwdPayload.prepared.load();
+    val requestInV1 = lazy requestMsg.request.load();
+    val requestDetails = lazy requestInV1.transfer.details.load();
+    val jc = st.poolData.load().jettonClient();
 
     val context = LockReleaseLockboxTokenPool_LockContext {
         forwardPayload: fwdPayload.toCell(),
     };
-
-    // Calculate addresses.
-    val jc = st.poolData.load().jettonClient();
-    val ownWallet = jc.walletAddress();
-
-    val requestInV1 = lazy requestMsg.request.load();
-    val requestDetails = lazy requestInV1.transfer.details.load();
     val depositMsg = JettonLockBox_Deposit {
         queryId: requestMsg.queryId,
         token: jc.masterAddress,
         remoteChainSelector: requestDetails.remoteChainSelector,
         amount: prepared.destTokenAmount,
         context: context.toCell(),
-        // On rejection the lockbox returns custody straight to the original sender
-        returnAddress: msg.transferInitiator,
+        returnAddress,
     };
-
-    // Transfer jettons from our wallet to the lockbox wallet.
-    var transferOpts = CreateMessageOptions<AskToTransfer> {
+    return createMessage({
         bounce: BounceMode.RichBounce,
-        value: msgValue,
-        dest: ownWallet,
+        value: 0,
+        dest: jc.walletAddress(),
         body: AskToTransfer {
             queryId: requestMsg.queryId,
             jettonAmount: prepared.destTokenAmount,
             transferRecipient: st.lockbox,
             sendExcessesTo: contract.getAddress(),
             customPayload: context.toCell(),
-            forwardTonAmount: msgValue, // Upper bound for the quote; reduced below.
+            forwardTonAmount,
             forwardPayload: beginCell().storeMaybeRef(depositMsg.toCell()).endCell().beginParse(),
         },
-    };
-
-    // Quote the inbound value as an upper bound before reducing the forwarded amount.
-    val forwardingFee = createMessage(transferOpts)
-        .estimateFeeWithoutSending(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    val transferBudget = jettonTransferOpBudget(forwardingFee, true)
-        * JETTON_TRANSFER_VALUE_BUFFER_PCT / 100; // 2x buffer for generic wallet costs
-    val overhead = tokenPoolEntrypointCost() + forwardingFee + transferBudget;
-
-    // The base safety check funds this; the lockbox gets everything above the transfer cost.
-    assertMinValue(msgValue, overhead + 1, TokenPool_Error.InsufficientMessageValue);
-    transferOpts.body.forwardTonAmount = msgValue - overhead;
-    transferOpts.value = 0;
-
-    val transfer = createMessage(transferOpts);
-    transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-
-    return st;
+    });
 }
 
 /* --- Bounced AskToTransfer during lock --- */
@@ -329,17 +322,13 @@ fun onReleaseOrMintContinue(
         forwardPayload: delivery.forwardPayload,
     };
 
-    var withdrawExtra = JettonLockBox_WithdrawExtra {
-        sendExcessesTo: contract.getAddress(),
-        // TODO: was delivery.forwardTonAmount
-        forwardTonAmount: msgValue, // Upper bound for the fee quote; reduced below.
-        forwardPayload: wrap.toCell(),
-    };
-
+    // The recipient's notification carries exactly the caller's continuation; the rest pays the
+    // lockbox and its wallet transfer. Both check their own cost and reject an underfunded
+    // withdraw before custody moves; the wallet returns its unused fee to the pool.
     val jc = st.poolData.load().jettonClient();
-    var withdrawOpts = CreateMessageOptions<JettonLockBox_Withdraw> {
+    val withdraw = createMessage({
         bounce: BounceMode.RichBounce,
-        value: msgValue,
+        value: 0,
         dest: st.lockbox,
         body: JettonLockBox_Withdraw {
             queryId: msg.queryId,
@@ -347,32 +336,14 @@ fun onReleaseOrMintContinue(
             remoteChainSelector: details.remoteChainSelector,
             amount: prepared.localAmount,
             recipient: delivery.recipient,
-            extra: withdrawExtra.toCell(),
+            extra: JettonLockBox_WithdrawExtra {
+                sendExcessesTo: contract.getAddress(),
+                forwardTonAmount: delivery.forwardTonAmount,
+                forwardPayload: wrap.toCell(),
+            }.toCell(),
         },
-    };
-    val fwdFee = createMessage(withdrawOpts)
-        .estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
-
-    try {
-        val available = msgValue - tokenPoolEntrypointCost() - fwdFee;
-        // The lockbox relays to its wallet before the transfer (its own `Withdraw` check); wallet
-        // costs use the generic 2x buffer.
-        val lockboxBudget = calculateGasFee(contract.getAddress().getWorkchain(), JettonLockBox_WITHDRAW_GAS_UNITS) + fwdFee;
-        withdrawExtra.forwardTonAmount = jettonTransferForwardValue(available - lockboxBudget, fwdFee);
-        // Last check before custody moves: the delivery must fund the caller's continuation.
-        assert(withdrawExtra.forwardTonAmount >= max(delivery.forwardTonAmount, 1), TokenPool_Error.InsufficientMessageValue);
-        withdrawOpts.value = available;
-        withdrawOpts.body.extra = withdrawExtra.toCell();
-
-        // TODO: should this be SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE
-        val withdraw = createMessage(withdrawOpts);
-        withdraw.send(SEND_MODE_PAY_FEES_SEPARATELY);
-    } catch (errorCode) {
-        var pool = loadPool(st);
-        pool.recoverReleaseOrMintFailure(forwardPayload, errorCode, msgValue);
-        st.poolData = pool.data.toCell();
-        return st;
-    }
+    });
+    withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
     return st;
 }
@@ -424,6 +395,16 @@ fun defaultBudget(_ctx: Storage?): TokenPool_Budget {
     return LockReleaseLockboxTokenPool_defaultBudget();
 }
 
+/// The lock's custody cost: the custody notification transaction and its transfer to the lockbox
+/// (forward fee and the wallet's fee). The return address is the custody transfer's initiator,
+/// unknown here; any standard address quotes the same.
+fun lockOrBurnCustodyCost(ctx: Storage?, fwdPayload: TokenPool_LockOrBurnForwardPayload, safety: coins): coins {
+    val transfer = lockTransfer(ctx!, fwdPayload, contract.getAddress(), safety);
+    val fwdFee = transfer.estimateFeeWithoutSending(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    val gasFee = calculateGasFee(contract.getAddress().getWorkchain(), LockReleaseLockboxTokenPool_LOCK_NOTIFICATION_GAS_UNITS);
+    return gasFee + fwdFee + JettonWalletFees.Generic.transferFee(fwdFee, true);
+}
+
 /// Releases are transferred out of the lockbox's wallet.
 fun transferInitiator(ctx: Storage?): address? {
     assert(ctx != null && ctx!.lockbox != createAddressNone(), LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
@@ -447,6 +428,7 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             onReleaseOrMintContinue,
             onWithdrawFeeTokens: null,
             defaultBudget,
+            lockOrBurnCustodyCost,
             transferInitiator,
         },
     };

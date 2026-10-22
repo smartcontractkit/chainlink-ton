@@ -46,7 +46,8 @@ type Router_InMsg =
     | DepositAccount_Initialized
     | DepositAccount_WalletUnavailable
     | DepositAccount_WithdrawFailed
-    | TransferNotificationForRecipient;
+    | TransferNotificationForRecipient
+    | ReturnExcessesBack;
 
 type Router_BouncedMessage = 
     | Receiver_CCIPReceiveV2
@@ -100,6 +101,8 @@ struct Router_WithdrawRequest {
     depositAccount: address;
     amount: coins;
     tokenPool: address;
+    /// TON the pool's custody notification carries (`TokenPool_LockOrBurnWithdraw.forwardTonAmount`).
+    forwardTonAmount: coins;
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 

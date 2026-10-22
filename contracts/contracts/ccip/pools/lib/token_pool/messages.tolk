@@ -332,6 +332,10 @@ type TokenPool_InMessage =
 
 struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
     queryId: uint64;
+    /// TON the custody notification must carry to the pool (`TokenPool.custodyForward`). The
+    /// sender's wallet forwards exactly this and rejects an underfunded transfer before custody
+    /// moves.
+    forwardTonAmount: coins;
     forwardPayload: TokenPool_LockOrBurnForwardPayload;
 }
 

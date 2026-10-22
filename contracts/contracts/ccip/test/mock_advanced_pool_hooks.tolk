@@ -39,7 +39,7 @@ fun onInternalMessage(in: InMessage) {
             replyPreflight(msg);
         }
         TokenPool_PostflightCheck => {
-            replyPostflight(msg);
+            replyPostflight(msg, in.valueCoins);
         }
         TokenPool_GetCCVs => {
             replyGetCCVs(msg);
@@ -64,6 +64,8 @@ fun onInternalMessage(in: InMessage) {
 ///     user contracts cannot fake it) and the pool must propagate that raw code unmodified.
 const MOCK_HOOKS_BOUNCE_ID = 255;
 const MOCK_HOOKS_OOG_ID = 254;
+/// `id == 253`: a costly hook. Its postflight reply carries half of the request's value.
+const MOCK_HOOKS_COSTLY_ID = 253;
 
 fun replyGetCCVs(msg: TokenPool_GetCCVs) {
     val data = MockAdvancedPoolHooks_Data.load();
@@ -127,7 +129,7 @@ fun replyPreflight(msg: TokenPool_PreflightCheck) {
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun replyPostflight(msg: TokenPool_PostflightCheck) {
+fun replyPostflight(msg: TokenPool_PostflightCheck, msgValue: coins) {
     // id == 255 => reject at entry (throw); the base onBouncedMessage must refund the inbound
     // rate limit + send ReleaseOrMintFailure (see replyPreflight).
     if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_BOUNCE_ID) {
@@ -150,6 +152,11 @@ fun replyPostflight(msg: TokenPool_PostflightCheck) {
         }.toCell();
     }
 
+    if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_COSTLY_ID) {
+        createMessage({ bounce: false, value: msgValue / 2, dest: msg.replyTo, body: body })
+            .send(SEND_MODE_PAY_FEES_SEPARATELY);
+        return;
+    }
     val reply = createMessage({
         bounce: false,
         value: 0,

@@ -151,7 +151,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class CctCostHarness implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECKAEAAaUAART/APSkE/S88sgLAQIBYgIDABjQ+JHyQIQPAccA8vQCASAEBQIBIAYHAgEgFhcAV7sQZyceMEqHOBA6Nw+DyggRhKcPg2oIEdOXD4NqBzgQQJghAJZgGAcPg3oIAgEgCAkCASAKCwIBIBQVAgEgDA0AC7LInD4NoAIBIA4PAgFYEhMCASAQEQAeqmFzgQQJghAJZgGAcPg3AGmlyODkoAdQ5wIHRknweUECMJRH8G1BAjpyR/BtQOcCCBMEIBLMAwBL8G9BUQDJUgglQ0tsEwAJpyECOnMAEaZ25wIHRuHweQAJpq0CMJUAbbM4SFyceMEqHOBA6Nw+DyggRhKcPg2oIEdOXD4NqBzgQQJghAJZgGAcPg3oIEAyKiAZKkEoKSAAE7L6oEYSnD4NqCACASAYGQIBIBwdAgEgGhsAB7a0bjAAEbJIIIQBfXhAIAALsW3gRMSgAgEgHh8CAVgmJwIBICAhAgFmJCUADa2pQQHoSEACASAiIwAKqrqBAMgACqv6gRhKAAmlSQIelwAJpJkCBeUACaz3wDdAAA+s78EEBMS0QA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECIAEAASMAART/APSkE/S88sgLAQIBYgIDABjQ+JHyQIQPAccA8vQCASAEBQIBIAYHAgEgEhMADbpGeCAK/IgCASAICQIBIAoLABO3fVAjCU4fBtQQAgEgDA0AC7LInD4NoAIBIA4PAgFYEBEACquQgR05AB6qYXOBBAmCEAlmAYBw+DcAEaZ25wIHRuHweQAJpq0CMJUCASAUFQIBIBgZAgEgFhcAB7a0bjAAebBepFxkXDiAXJx4wQCpBKoc4EDo3D4PKCBGEpw+DaggR05cPg2oHOBBAmCEAlmAYBw+DegAXFyAeMEqKSAAC7Ft4ETEoAIBIBobAA+3O/BBATEtEAIBIBwdAgFmHh8ADa2pQQHoSEAAC6/9QIwlQAAJpUkCHpcACaSZAgXl');
 
     static Errors = {
     }
@@ -236,43 +236,12 @@ export class CctCostHarness implements c.Contract {
         return r.readBigInt();
     }
 
-    async getJettonTransferBufferPct(provider: ContractProvider): Promise<bigint> {
-        const r = StackReader.fromGetMethod(1, await provider.get('get_jettonTransferBufferPct', []));
-        return r.readBigInt();
-    }
-
-    async getTokenPoolReturnTransferValue(provider: ContractProvider): Promise<coins> {
-        const r = StackReader.fromGetMethod(1, await provider.get('get_tokenPoolReturnTransferValue', []));
-        return r.readBigInt();
-    }
-
-    async getJettonTransferOpBudget(provider: ContractProvider, fwdFee: coins, hasForward: boolean): Promise<coins> {
-        const r = StackReader.fromGetMethod(1, await provider.get('get_jettonTransferOpBudget', [
+    async getJettonTransferFee(provider: ContractProvider, fwdFee: coins, hasForward: boolean, generic: boolean): Promise<coins> {
+        const r = StackReader.fromGetMethod(1, await provider.get('get_jettonTransferFee', [
             { type: 'int', value: fwdFee },
             { type: 'int', value: (hasForward ? -1n : 0n) },
+            { type: 'int', value: (generic ? -1n : 0n) },
         ]));
-        return r.readBigInt();
-    }
-
-    async getJettonTransferValue(provider: ContractProvider, forwardTonAmount: coins, fwdFee: coins): Promise<coins> {
-        const r = StackReader.fromGetMethod(1, await provider.get('get_jettonTransferValue', [
-            { type: 'int', value: forwardTonAmount },
-            { type: 'int', value: fwdFee },
-        ]));
-        return r.readBigInt();
-    }
-
-    async getJettonTransferForwardValue(provider: ContractProvider, available: coins, fwdFee: coins, bufferPct: bigint): Promise<coins> {
-        const r = StackReader.fromGetMethod(1, await provider.get('get_jettonTransferForwardValue', [
-            { type: 'int', value: available },
-            { type: 'int', value: fwdFee },
-            { type: 'int', value: bufferPct },
-        ]));
-        return r.readBigInt();
-    }
-
-    async getCctTransferBufferPct(provider: ContractProvider): Promise<bigint> {
-        const r = StackReader.fromGetMethod(1, await provider.get('get_cctTransferBufferPct', []));
         return r.readBigInt();
     }
 
@@ -280,6 +249,11 @@ export class CctCostHarness implements c.Contract {
         const r = StackReader.fromGetMethod(1, await provider.get('get_cctMintOpBudget', [
             { type: 'int', value: walletDeployFee },
         ]));
+        return r.readBigInt();
+    }
+
+    async getLockReleaseLockNotificationGasUnits(provider: ContractProvider): Promise<bigint> {
+        const r = StackReader.fromGetMethod(1, await provider.get('get_lockReleaseLockNotificationGasUnits', []));
         return r.readBigInt();
     }
 

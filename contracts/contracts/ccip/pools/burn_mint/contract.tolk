@@ -2,6 +2,7 @@
 tolk 1.4.2
 
 import "@stdlib/lisp-lists"
+import "@stdlib/gas-payments"
 
 import "../../../lib/utils"
 import "../../../lib/access/ownable_2step"
@@ -25,6 +26,7 @@ import "../lib/token_pool/errors"
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/budget"
 import "../lib/token_pool/recovery"
+import "../lib/token_pool/jetton_fees"
 import "../lib/token_pool/events"
 
 import "types"
@@ -150,7 +152,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 fun onLockOrBurnTransferContinue(
     st: Storage,
     sender: address,
-    _msgValue: coins, // carries the pool's requested custody forward (LockOrBurn safety)
+    _msgValue: coins, // the custody forward the pool requested: its LockOrBurn safety
     _msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
@@ -211,30 +213,30 @@ fun onReleaseOrMintContinue(
     };
     val jettonClient = st.poolData.load().jettonClient();
 
-    // Quote with upper-bound coin amounts before reducing them. This covers the actual mint
-    // payload, unlike the incoming account reply's originalForwardFee.
-    var transfer = InternalTransferStep {
+    // The recipient's notification carries exactly the caller's continuation. The minter gets the
+    // exact cost of the mint, so it keeps nothing; the wallet returns its unused fee to the pool.
+    val transfer = InternalTransferStep {
         queryId: msg.queryId,
         jettonAmount: prepared.localAmount,
         transferInitiator: null,
-        sendExcessesTo: contract.getAddress(), // pool keeps any excesses
-        forwardTonAmount: msgValue, // TODO: was delivery.forwardTonAmount
+        sendExcessesTo: contract.getAddress(),
+        forwardTonAmount: delivery.forwardTonAmount,
         forwardPayload: wrap.asForwardPayload(),
     };
     var mintOpts = CreateMessageOptions<MintNewJettons> {
         bounce: BounceMode.RichBounce,
-        value: msgValue,
+        value: msgValue, // Upper bound for the fee quote; reduced below.
         dest: jettonClient.masterAddress,
         body: MintNewJettons {
             queryId: msg.queryId,
             mintRecipient: delivery.recipient,
-            tonAmount: msgValue,
+            tonAmount: msgValue, // Upper bound for the fee quote; reduced below.
             internalTransferMsg: transfer.toCell(),
         },
     };
-    val fwdFee = createMessage(mintOpts)
-        .estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
-    // The minter forwards the transfer in a wallet-deploy message; quote that exact message.
+    // The minter checks the wallet transfer against this message's forward fee, so the reference
+    // model is exact. It forwards the transfer in a wallet-deploy message, quoted as sent.
+    val fwdFee = createMessage(mintOpts).estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
     val walletDeployFee = createMessage({
         bounce: BounceMode.Only256BitsOfBody,
         value: msgValue,
@@ -242,24 +244,20 @@ fun onReleaseOrMintContinue(
         body: transfer.toCell(),
     }).estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
 
-    try {
-        val available = msgValue - tokenPoolEntrypointCost() - fwdFee;
-        val tonAmount = available - cctMintOpBudget(walletDeployFee);
-        transfer.forwardTonAmount = jettonTransferForwardValue(tonAmount, fwdFee, CCT_TRANSFER_BUFFER_PCT);
-        // Last check before custody moves: the delivery must fund the caller's continuation,
-        // otherwise unwind locally instead of minting without a completing notification.
-        assert(transfer.forwardTonAmount >= max(delivery.forwardTonAmount, 1), TokenPool_Error.InsufficientMessageValue);
-        mintOpts.value = available;
-        mintOpts.body.tonAmount = tonAmount;
-        mintOpts.body.internalTransferMsg = transfer.toCell();
+    val tonAmount = JettonWalletFees.Reference.transferValue(delivery.forwardTonAmount, fwdFee);
+    mintOpts.body.tonAmount = tonAmount;
+    mintOpts.value = cctMintOpBudget(walletDeployFee) + tonAmount;
 
-        val mint = createMessage(mintOpts);
-        mint.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    try {
+        // Last check before custody moves. The mint carries an explicit value, so this transaction
+        // must afford it; otherwise unwind locally rather than fail the send.
+        val gasFee = calculateGasFee(contract.getAddress().getWorkchain(), getGasConsumedAtTheMoment() + BurnMintTokenPool_MINT_SEND_GAS_UNITS);
+        assertMinValue(msgValue, mintOpts.value + fwdFee + gasFee, TokenPool_Error.InsufficientMessageValue);
+        createMessage(mintOpts).send(SEND_MODE_PAY_FEES_SEPARATELY);
     } catch (errorCode) {
         var pool = loadPool(st);
         pool.recoverReleaseOrMintFailure(forwardPayload, errorCode, msgValue);
         st.poolData = pool.data.toCell();
-        return st;
     }
 
     return st;

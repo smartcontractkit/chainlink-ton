@@ -213,9 +213,15 @@ struct TokenPool_Hooks<T> {
     // ----------------------------------------------------------------------
 
     /// Pool-type default budget: the floor the per-instance `budget` can only raise.
-    /// @dev Base behavior: the CCIP default (`ccipMinValue` safety for both flows). Pool types
+    /// @dev Base behavior: the CCIP defaults (`ccipAdmissionValue`, `ccipMinValue`). Pool types
     ///      return their measured defaults; a custom pool may compute them.
     defaultBudget: ((T?) -> TokenPool_Budget)? = null;
+
+    /// What the pool spends between receiving custody and its last custody move, when that is a
+    /// further transfer (e.g. to a lockbox) forwarding `safety`. The custody transfer carries it on
+    /// top of `safety`.
+    /// @dev Base behavior: zero, i.e. the custody transfer is the last custody move.
+    lockOrBurnCustodyCost: ((T?, TokenPool_LockOrBurnForwardPayload, coins) -> coins)? = null;
 
     /// `transferInitiator` of the pool's release/mint jetton deliveries, reported to the registry.
     /// @dev Base behavior: `null`, i.e. the pool delivers by minting.
@@ -237,10 +243,20 @@ fun TokenPool<T>.budget(self): TokenPool_Budget {
     val floor = self.hooks != null && self.hooks.defaultBudget != null
         ? self.hooks.defaultBudget(self.context)
         : TokenPool_Budget {
-            lockOrBurn: TokenPool_FlowBudget.fromSafety(ccipMinValue()),
-            releaseOrMint: TokenPool_FlowBudget.fromSafety(ccipMinValue()),
+            lockOrBurn: { admission: ccipAdmissionValue(), safety: ccipMinValue() },
+            releaseOrMint: { admission: ccipAdmissionValue() },
         };
     return self.data.budget.over(floor);
+}
+
+/// TON the custody transfer must carry to the pool: the LockOrBurn `safety`, plus the cost of
+/// moving custody on when the pool's last custody move comes later.
+fun TokenPool<T>.custodyForward(self, fwdp: TokenPool_LockOrBurnForwardPayload): coins {
+    val safety = self.budget().lockOrBurn.safety;
+    val custodyCost = self.hooks != null && self.hooks.lockOrBurnCustodyCost != null
+        ? self.hooks.lockOrBurnCustodyCost(self.context, fwdp, safety)
+        : 0 as coins;
+    return safety + custodyCost;
 }
 
 /// Flat floor for admin, config and query handlers: a visible error instead of an out-of-gas
@@ -943,8 +959,8 @@ fun TokenPool<T>.onPreflightCheckFinished(
     val fwdp = msg.forwardPayload.load();
 
     try {
-        // The reply carries the rest of the flow; it must still cover the custody leg.
-        assertMinValue(msgValue, self.budget().lockOrBurn.safety, TokenPool_Error.InsufficientMessageValue);
+        // The reply carries the rest of the flow; it must still cover the custody transfer.
+        assertMinValue(msgValue, self.custodyForward(fwdp), TokenPool_Error.InsufficientMessageValue);
     } catch (errorCode) {
         self.recoverLockOrBurnFailure(fwdp, errorCode, msgValue);
         return;
@@ -1007,9 +1023,8 @@ fun TokenPool<T>.onPostflightCheckFinished(
     val prepared = lazy fwdp.prepared.load();
 
     try {
-        // Safety: the last check before custody moves (mint or release).
-        val required = self.budget().releaseOrMint.safety + requestMsg.continuationValue();
-        assertMinValue(msgValue, required, TokenPool_Error.InsufficientMessageValue);
+        // The reply carries the rest of the flow; it must still cover the delivery's forward.
+        assertMinValue(msgValue, requestMsg.continuationValue(), TokenPool_Error.InsufficientMessageValue);
     } catch (errorCode) {
         self.recoverReleaseOrMintFailure(fwdp, errorCode, msgValue);
         return;
@@ -1644,17 +1659,19 @@ fun TokenPool<T>.onLockOrBurnWithdraw(
     prepared: TokenPool_LockOrBurnPrepared,
 ): void {
     // TODO: expose as a hook
+    val forwardPayload = TokenPool_LockOrBurnForwardPayload {
+        originalSender: sender,
+        requestMsg: msg.toCell(),
+        prepared: prepared.toCell(),
+    };
     val withdrawalMsg = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
         dest: msg.replyTo,
         body: TokenPool_LockOrBurnWithdraw {
             queryId: msg.queryId,
-            forwardPayload: TokenPool_LockOrBurnForwardPayload {
-                originalSender: sender,
-                requestMsg: msg.toCell(),
-                prepared: prepared.toCell(),
-            },
+            forwardTonAmount: self.custodyForward(forwardPayload),
+            forwardPayload,
         },
     });
     withdrawalMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -1716,9 +1733,9 @@ fun TokenPool<T>.processLockOrBurnTransfer(
     self.assertAuthorizedDepositInitiator(msg.transferInitiator!, details.originalSender);
 
     try {
-        // Safety: the last check before the pool moves custody on (burn or lockbox deposit).
-        // A shortfall unwinds and returns the received custody.
-        assertMinValue(msgValue, self.budget().lockOrBurn.safety, TokenPool_Error.InsufficientMessageValue);
+        // The custody transfer must carry the forward the pool asked for; a shortfall unwinds and
+        // returns the received custody.
+        assertMinValue(msgValue, self.custodyForward(fwdp), TokenPool_Error.InsufficientMessageValue);
         assert(details.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
         self.onLockOrBurnTransferContinue(sender, msgValue, msg, fwdp);
     } catch (errorCode) {
@@ -1952,6 +1969,8 @@ fun TokenPool<T>.onReleaseOrMint(
     // operation hook takes over.
     val required = self.budget().releaseOrMint.admission + msg.continuationValue();
     assertMinValue(msgValue, required, TokenPool_Error.InsufficientMessageValue);
+    // The recipient's notification completes a delivery, so it must carry value.
+    assert(msg.delivery == null || msg.delivery!.load().forwardTonAmount > 0, TokenPool_Error.UnsupportedOperation);
 
     if (self.hooks != null && self.hooks.onReleaseOrMint != null) {
         self.context = self.hooks.onReleaseOrMint(self.context!, msg);

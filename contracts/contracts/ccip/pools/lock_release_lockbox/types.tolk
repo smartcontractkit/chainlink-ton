@@ -10,18 +10,31 @@ import "../lib/token_pool/budget"
 const LockReleaseLockboxTokenPool_FACILITY_NAME = "link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool";
 const LockReleaseLockboxTokenPool_FACILITY_ID = LockReleaseLockboxTokenPool_FACILITY_NAME.crc32() % 640 + 10;
 
-/// Pool-type default safety budgets for wGRAM-like wallets, measured by the gas-report tests at
+/// Pool-type default budgets for wGRAM-like wallets, measured by the gas-report tests at
 /// 66.67 nTON/gas. Raise per instance (`TokenPool_SetBudget`) for jettons with costlier wallets.
-/// LockOrBurn: the custody notification funds pool -> lockbox -> finalize (~0.012 TON); ~3.5x.
-const LockReleaseLockboxTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS = BUDGET_UNITS_LVL4_XHIGH; // ~0.0417 TON
-/// ReleaseOrMint: the withdraw transaction funds pool -> lockbox -> recipient wallet (~0.015 TON);
-/// ~2.8x. The caller's continuation is added on top.
-const LockReleaseLockboxTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS = BUDGET_UNITS_LVL4_XHIGH; // ~0.0417 TON
+/// LockOrBurn safety: the lockbox deposit forwards it to the lockbox's confirmation, the finalize
+/// and its reply (~0.006 TON); ~2.8x.
+const LockReleaseLockboxTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS = BUDGET_UNITS_LVL3_HIGH; // ~0.0167 TON
+/// LockOrBurn admission: the entry, the withdraw relay and the custody transfer, which carries the
+/// safety plus the lock's custody cost (~0.035 TON in total).
+const LockReleaseLockboxTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 875_000; // ~0.058 TON
+/// ReleaseOrMint admission: pool -> lockbox -> recipient wallet (~0.015 TON); ~3.9x. The caller's
+/// delivery forward is added on top.
+const LockReleaseLockboxTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS = 875_000; // ~0.058 TON
+
+/// Gas of the pool's custody notification transaction, which moves custody on to the lockbox
+/// (measured ~35.6k; the gas-report tests check this bound).
+const LockReleaseLockboxTokenPool_LOCK_NOTIFICATION_GAS_UNITS = 45_000;
 
 fun LockReleaseLockboxTokenPool_defaultBudget(): TokenPool_Budget {
     return {
-        lockOrBurn: TokenPool_FlowBudget.fromSafety(calculateMinValue(LockReleaseLockboxTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS, 1)),
-        releaseOrMint: TokenPool_FlowBudget.fromSafety(calculateMinValue(LockReleaseLockboxTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS, 1)),
+        lockOrBurn: {
+            admission: calculateMinValue(LockReleaseLockboxTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS, 1),
+            safety: calculateMinValue(LockReleaseLockboxTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS, 1),
+        },
+        releaseOrMint: {
+            admission: calculateMinValue(LockReleaseLockboxTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS, 1),
+        },
     };
 }
 

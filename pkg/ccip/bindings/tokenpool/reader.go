@@ -189,6 +189,28 @@ var GetAllowedFinalityConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint32]{
 	}),
 })
 
+// GetBudget gets the pool's effective TON budget: the configured values raised to the pool-type
+// defaults. ReleaseOrMint.Admission is the remote chain's per-token destGasOverhead.
+//
+// On-chain: get fun getBudget(): TokenPool_Budget
+var GetBudget = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Budget]{
+	Name: "getBudget",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (Budget, error) {
+		var v [3]tlb.Coins
+		for i := range v {
+			n, err := r.Int(uint(i))
+			if err != nil {
+				return Budget{}, fmt.Errorf("error getting Int(%d) - budget: %w", i, err)
+			}
+			v[i] = tlb.FromNanoTON(n)
+		}
+		return Budget{
+			LockOrBurn:    LockOrBurnBudget{Admission: v[0], Safety: v[1]},
+			ReleaseOrMint: ReleaseOrMintBudget{Admission: v[2]},
+		}, nil
+	}),
+})
+
 // GetAdvancedPoolHooks gets the advanced pool hooks address.
 //
 // On-chain: fun TokenPool<T>.getAdvancedPoolHooks(self): address?

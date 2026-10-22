@@ -17,7 +17,7 @@ import { JettonClient, BurnMintTokenPool } from '../../../wrappers/gen/ccip/pool
 import { contractCode } from '../../../wrappers/codeLoader'
 import { deployCctHarness } from '../harness'
 import {
-  assertBufferedTransferBudgetCoversHop,
+  assertWalletFeeCoversHop,
   internalTxTo,
   runTokenPoolGasCalibration,
   walletHopByInternalTransfer,
@@ -116,15 +116,12 @@ runTokenPoolGasCalibration({
       }),
       assertTokenBudget: async (kind, result) => {
         if (kind === 'lock') {
-          // The user funds the inbound wallet hop; the reference transfer budget must still cover it.
-          await assertBufferedTransferBudgetCoversHop(harness, {
-            ...walletHopByInternalTransfer(result),
-            bufferPct: 100n,
-          })
+          // The user funds the inbound wallet hop; the reference fee model must still cover it.
+          await assertWalletFeeCoversHop(harness, walletHopByInternalTransfer(result), false)
           return
         }
         // Release: the mint passes through the minter, which keeps nothing (its storage reserve is
-        // pre-funded), and the (110% buffered) transfer budget covers the minter → account hop.
+        // pre-funded), and the reference fee model covers the minter → account hop.
         const minterTx = internalTxTo(result, cctMinter.address)
         const sent = [...minterTx.outMessages.values()].reduce(
           (sum: bigint, m: any) => sum + m.info.value.coins + m.info.forwardFee,
@@ -134,10 +131,7 @@ runTokenPoolGasCalibration({
         console.table([{ operation: 'minter retained on mint (nTON)', value: retained }])
         expect(retained).toBeGreaterThanOrEqual(0n)
         expect(retained).toBeLessThanOrEqual(toNano('0.0005'))
-        await assertBufferedTransferBudgetCoversHop(harness, {
-          ...walletHopByInternalTransfer(result),
-          bufferPct: await harness.getCctTransferBufferPct(),
-        })
+        await assertWalletFeeCoversHop(harness, walletHopByInternalTransfer(result), false)
       },
     }
   },

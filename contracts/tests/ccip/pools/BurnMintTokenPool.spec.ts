@@ -1204,7 +1204,7 @@ describe('BurnMintTokenPool', () => {
         .endCell(),
     },
   ])(
-    'mints and forwards unused funding to the continuation ($payload payload)',
+    'mints with exactly the declared continuation and keeps unused funding in the pool ($payload payload)',
     async ({ offchainTokenData }) => {
       // Leave only the minter's storage reserve: minting must be funded by the message.
       const minterAccount = await blockchain.getContract(cctMinter.address)
@@ -1224,12 +1224,11 @@ describe('BurnMintTokenPool', () => {
           op: cct.MintNewJettons.PREFIX,
           success: true,
         })
-        // At most 0.1 TON is consumed/retained by deployment, minting and transfer costs.
-        // The rest must follow the continuation, even when the caller adds more funding.
+        // The notification carries exactly the caller's continuation, whatever the funding.
         expect(result.transactions).toHaveTransaction({
           to: recipient.address,
           op: TransferNotificationForRecipient.PREFIX,
-          value: (value) => value !== undefined && value > toNano(funding) - toNano('0.1'),
+          value: deliveryTo(recipient.address, deployer.address).forwardTonAmount,
           success: true,
         })
         expect((await cctMinterRuntime.getJettonData()).totalSupply).toEqual(
@@ -1237,8 +1236,9 @@ describe('BurnMintTokenPool', () => {
         )
         expect(minterAccount.balance).toBeGreaterThanOrEqual(minterBalance)
         expect(minterAccount.balance - minterBalance).toBeLessThan(toNano('0.02'))
-        expect((await blockchain.getContract(burnMintPool.address)).balance).toBeGreaterThanOrEqual(
-          poolBalance,
+        // At most 0.1 TON pays for the mint and transfer; the pool keeps the rest.
+        expect((await blockchain.getContract(burnMintPool.address)).balance).toBeGreaterThan(
+          poolBalance + toNano(funding) - toNano('0.1'),
         )
       }
     },

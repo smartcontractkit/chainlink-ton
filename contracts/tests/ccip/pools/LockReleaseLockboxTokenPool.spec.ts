@@ -728,7 +728,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       )
     }
 
-    it('releases tokens and forwards unused funding to the continuation', async () => {
+    it('releases tokens with exactly the declared continuation and keeps unused funding in the pool', async () => {
       await fundLockboxViaLock(toNano('5'))
       const lockboxWallet = await userWallet(jettonLockBox.address)
 
@@ -745,18 +745,19 @@ describe('LockReleaseLockboxTokenPool', () => {
           op: JettonLockBox_Withdraw.PREFIX,
           success: true,
         })
-        // The recipient notification receives the unused TON, not a fixed notification allowance.
+        // The notification carries exactly the caller's continuation, whatever the funding.
         expect(result.transactions).toHaveTransaction({
           to: recipient.address,
           op: TransferNotificationForRecipient.PREFIX,
-          value: (value) => value !== undefined && value > toNano(funding) - toNano('0.1'),
+          value: deliveryTo(recipient.address, deployer.address).forwardTonAmount,
           success: true,
         })
         expect(await lockboxWallet.getJettonBalance()).toEqual(
           toNano('5') - toNano('1') * BigInt(index + 1),
         )
-        expect((await blockchain.getContract(pool.address)).balance).toBeGreaterThanOrEqual(
-          poolBalance,
+        // At most 0.1 TON pays for the lockbox and transfer; the pool keeps the rest.
+        expect((await blockchain.getContract(pool.address)).balance).toBeGreaterThan(
+          poolBalance + toNano(funding) - toNano('0.1'),
         )
         expect(
           (await blockchain.getContract(jettonLockBox.address)).balance,
@@ -1161,7 +1162,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       { inbound: '0.5', forwarded: true },
       { inbound: '0.8', forwarded: true },
     ])(
-      'funds the lockbox from $inbound TON without subsidizing the transfer',
+      'locks from $inbound TON, forwarding a fixed deposit continuation to the lockbox',
       async ({ inbound, forwarded }) => {
         // Fund lockbox wallet with a small mint to activate it
         await jettonMinter.sendMint(deployer.getSender(), {
@@ -1269,9 +1270,9 @@ describe('LockReleaseLockboxTokenPool', () => {
           body(body) {
             if (!body) return false
             const transfer = AskToTransfer.fromSlice(body.beginParse())
+            // The fixed deposit continuation (~0.0167 TON), not the remainder.
             return (
-              transfer.forwardTonAmount > toNano(inbound) / 2n &&
-              transfer.forwardTonAmount < toNano(inbound)
+              transfer.forwardTonAmount > toNano('0.01') && transfer.forwardTonAmount < toNano('0.02')
             )
           },
         })

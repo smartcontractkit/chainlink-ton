@@ -38,9 +38,6 @@ describe('gas calibration harness', () => {
       messageSizeBurnNotificationCells: await cct.getMessageSizeBurnNotificationCells(),
       forwardInitStateOverhead: await cct.getForwardInitStateOverhead(),
       jettonWalletMinStorageFee: await cct.getJettonWalletMinStorageFee(),
-      jettonTransferBufferPct: await cct.getJettonTransferBufferPct(),
-      tokenPoolReturnTransferValue: await cct.getTokenPoolReturnTransferValue(),
-      cctTransferBufferPct: await cct.getCctTransferBufferPct(),
       ccipMinValueGasUnits: await cct.getCcipMinValueGasUnits(),
       ccipAdmissionGasUnits: await cct.getCcipAdmissionGasUnits(),
       calculateGasFee: await cct.getCalculateGasFee(10_000n),
@@ -55,16 +52,13 @@ describe('gas calibration harness', () => {
     expect(values.jettonWalletMinStorageFee).toBeGreaterThan(0n)
     expect(values.calculateGasFee).toBeGreaterThan(0n)
 
-    const noForward = await cct.getJettonTransferOpBudget(fwdFee, false)
-    const withForward = await cct.getJettonTransferOpBudget(fwdFee, true)
-    expect(withForward).toBeGreaterThan(noForward)
+    const noForward = await cct.getJettonTransferFee(fwdFee, false, false)
+    const withForward = await cct.getJettonTransferFee(fwdFee, true, false)
+    expect(withForward).toBe(noForward + fwdFee + 1n)
 
-    // jettonTransferValue(0, fwd) = opBudget(fwd, hasForward=false) * buffer / 100 + 1
-    const transferValue = await cct.getJettonTransferValue(0n, fwdFee)
-    expect(transferValue).toBe((noForward * values.jettonTransferBufferPct) / 100n + 1n)
-
-    const forwardValue = await cct.getJettonTransferForwardValue(toNano('1'), fwdFee, 200n)
-    expect(forwardValue).toBeGreaterThan(0n)
+    // Generic = reference doubled; both include the 1 nanoton the wallet's strict check needs.
+    const generic = await cct.getJettonTransferFee(fwdFee, true, true)
+    expect(generic).toBe((withForward - 1n) * 2n + 1n)
 
     expect(await cct.getCctMintOpBudget(fwdFee)).toBeGreaterThan(fwdFee)
   })

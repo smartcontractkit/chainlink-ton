@@ -63,6 +63,7 @@ function buildWithdrawRequest(opts: {
     depositAccount: opts.depositAccount,
     amount: 1n,
     tokenPool: opts.tokenPool,
+    forwardTonAmount: 0n,
     forwardPayload: tp.TokenPool_LockOrBurnForwardPayload.create({
       originalSender: opts.originalSender,
       requestMsg,

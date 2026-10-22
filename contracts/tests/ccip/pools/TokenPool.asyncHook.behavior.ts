@@ -40,8 +40,9 @@ export function runTokenPoolAsyncHookBehaviorTests(
     describe('callback value shortfall', () => {
       const floor = toNano('1')
       const insufficientMessageValue = 51725n // TokenPool_Error.InsufficientMessageValue
+      const MOCK_HOOKS_COSTLY_ID = 253n // Replies with half of the request's value.
 
-      it('aborts LockOrBurn locally when a successful preflight reply is below the safety floor', async () => {
+      it('aborts LockOrBurn locally when a successful preflight reply is below the custody forward', async () => {
         const ctx = await setup()
         const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
         await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
@@ -87,24 +88,31 @@ export function runTokenPoolAsyncHookBehaviorTests(
         expect(after.inbound.tokens).toEqual(before.inbound.tokens)
       })
 
-      it('aborts ReleaseOrMint locally when a successful postflight reply is below the safety floor', async () => {
+      it('aborts ReleaseOrMint locally when a costly hook leaves less than the delivery forward', async () => {
         const ctx = await setup()
+        const costlyHooks = await deployMockHooks(ctx, MOCK_HOOKS_COSTLY_ID)
+        await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
+          queryId: 9996n,
+          advancedPoolHooks: costlyHooks.address,
+        })
         const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
-        await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
+        const delivery = { ...deliveryTo(ctx.recipient.address, ctx.deployer.address), forwardTonAmount: floor }
+        const admission = (await ctx.pool.getBudget()).releaseOrMint.admission
 
         const { transactions } = await ctx.pool.sendTokenPoolReleaseOrMint(
           ctx.deployer.getSender(),
-          floor,
+          admission + floor,
           {
             queryId: 2n,
             request: releaseRequest(ctx),
             requestedFinalityConfig: 0n,
             replyTo: ctx.deployer.address,
+            delivery,
           },
         )
 
         expect(transactions).toHaveTransaction({
-          from: ctx.hooks.address,
+          from: costlyHooks.address,
           to: ctx.pool.address,
           op: TokenPool_PostflightCheckFinished.PREFIX,
           value: (value) => value !== undefined && value < floor,
@@ -120,7 +128,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           }),
         })
         expect(transactions).not.toHaveTransaction({
-          to: ctx.hooks.address,
+          to: costlyHooks.address,
           inMessageBounced: true,
         })
         const after = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
@@ -131,19 +139,26 @@ export function runTokenPoolAsyncHookBehaviorTests(
 
     // Deploys a MockAdvancedPoolHooks instance with `id = 255`, which throws on
     // PreflightCheck/PostflightCheck so the requests bounce back to the pool.
-    async function deployBounceHooks(
+    function deployBounceHooks(
       ctx: TokenPoolAsyncHookBehaviorContext,
     ): Promise<SandboxContract<MockAdvancedPoolHooks>> {
-      const bounceHooks = ctx.blockchain.openContract(
+      return deployMockHooks(ctx, 255n)
+    }
+
+    async function deployMockHooks(
+      ctx: TokenPoolAsyncHookBehaviorContext,
+      id: bigint,
+    ): Promise<SandboxContract<MockAdvancedPoolHooks>> {
+      const hooks = ctx.blockchain.openContract(
         MockAdvancedPoolHooks.fromStorage(
-          { id: 255n },
+          { id },
           {
             overrideContractCode: await contractCode.ccip.local('ccip.test.mockAdvancedPoolHooks'),
           },
         ),
       )
-      await bounceHooks.sendDeploy(ctx.deployer.getSender(), toNano('0.1'))
-      return bounceHooks
+      await hooks.sendDeploy(ctx.deployer.getSender(), toNano('0.1'))
+      return hooks
     }
 
     //
