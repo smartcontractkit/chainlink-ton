@@ -1169,6 +1169,124 @@ export const TokenPool_ReleaseOrMintOutV1 = {
 }
 
 /**
+ > struct TokenPool_FlowBudget {
+ >     admission: coins
+ >     safety: coins
+ > }
+ */
+export interface TokenPool_FlowBudget {
+    readonly $: 'TokenPool_FlowBudget'
+    admission: coins /* = 0 */
+    safety: coins /* = 0 */
+}
+
+export const TokenPool_FlowBudget = {
+    create(args: {
+        admission?: coins /* = 0 */
+        safety?: coins /* = 0 */
+    }): TokenPool_FlowBudget {
+        return {
+            $: 'TokenPool_FlowBudget',
+            admission: 0n,
+            safety: 0n,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_FlowBudget {
+        return {
+            $: 'TokenPool_FlowBudget',
+            admission: s.loadCoins(),
+            safety: s.loadCoins(),
+        }
+    },
+    store(self: TokenPool_FlowBudget, b: c.Builder): void {
+        b.storeCoins(self.admission);
+        b.storeCoins(self.safety);
+    },
+    toCell(self: TokenPool_FlowBudget): c.Cell {
+        return makeCellFrom<TokenPool_FlowBudget>(self, TokenPool_FlowBudget.store);
+    }
+}
+
+/**
+ > struct TokenPool_Budget {
+ >     lockOrBurn: TokenPool_FlowBudget
+ >     releaseOrMint: TokenPool_FlowBudget
+ > }
+ */
+export interface TokenPool_Budget {
+    readonly $: 'TokenPool_Budget'
+    lockOrBurn: TokenPool_FlowBudget /* = TokenPool_FlowBudget { 0 as coins, 0 as coins } */
+    releaseOrMint: TokenPool_FlowBudget /* = TokenPool_FlowBudget { 0 as coins, 0 as coins } */
+}
+
+export const TokenPool_Budget = {
+    create(args: {
+        lockOrBurn?: TokenPool_FlowBudget /* = TokenPool_FlowBudget { 0 as coins, 0 as coins } */
+        releaseOrMint?: TokenPool_FlowBudget /* = TokenPool_FlowBudget { 0 as coins, 0 as coins } */
+    }): TokenPool_Budget {
+        return {
+            $: 'TokenPool_Budget',
+            lockOrBurn: { $: 'TokenPool_FlowBudget', admission: 0n, safety: 0n },
+            releaseOrMint: { $: 'TokenPool_FlowBudget', admission: 0n, safety: 0n },
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_Budget {
+        return {
+            $: 'TokenPool_Budget',
+            lockOrBurn: TokenPool_FlowBudget.fromSlice(s),
+            releaseOrMint: TokenPool_FlowBudget.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_Budget, b: c.Builder): void {
+        TokenPool_FlowBudget.store(self.lockOrBurn, b);
+        TokenPool_FlowBudget.store(self.releaseOrMint, b);
+    },
+    toCell(self: TokenPool_Budget): c.Cell {
+        return makeCellFrom<TokenPool_Budget>(self, TokenPool_Budget.store);
+    }
+}
+
+/**
+ > struct TokenPool_AdmissionBudget {
+ >     lockOrBurn: coins
+ >     releaseOrMint: coins
+ > }
+ */
+export interface TokenPool_AdmissionBudget {
+    readonly $: 'TokenPool_AdmissionBudget'
+    lockOrBurn: coins
+    releaseOrMint: coins
+}
+
+export const TokenPool_AdmissionBudget = {
+    create(args: {
+        lockOrBurn: coins
+        releaseOrMint: coins
+    }): TokenPool_AdmissionBudget {
+        return {
+            $: 'TokenPool_AdmissionBudget',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_AdmissionBudget {
+        return {
+            $: 'TokenPool_AdmissionBudget',
+            lockOrBurn: s.loadCoins(),
+            releaseOrMint: s.loadCoins(),
+        }
+    },
+    store(self: TokenPool_AdmissionBudget, b: c.Builder): void {
+        b.storeCoins(self.lockOrBurn);
+        b.storeCoins(self.releaseOrMint);
+    },
+    toCell(self: TokenPool_AdmissionBudget): c.Cell {
+        return makeCellFrom<TokenPool_AdmissionBudget>(self, TokenPool_AdmissionBudget.store);
+    }
+}
+
+/**
  > struct TokenPool_AdminConfig {
  >     ownable: Cell<Ownable2Step>
  >     dynamicConfig: Cell<TokenPool_DynamicConfig>
@@ -1248,7 +1366,7 @@ export interface TokenPool_Data {
     tokenDecimals: uint8
     remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
     tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
-    budget: TokenPool_Budget /* = TokenPool_Budget { MinValueConfig { null as null as coins? } as MinValueConfig, MinValueConfig { null as null as coins? } as MinValueConfig } */
+    budget: TokenPool_Budget /* = TokenPool_Budget { TokenPool_FlowBudget { 0 as coins, 0 as coins } as TokenPool_FlowBudget, TokenPool_FlowBudget { 0 as coins, 0 as coins } as TokenPool_FlowBudget } */
 }
 
 export const TokenPool_Data = {
@@ -1258,11 +1376,11 @@ export const TokenPool_Data = {
         tokenDecimals: uint8
         remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
-        budget?: TokenPool_Budget /* = TokenPool_Budget { MinValueConfig { null as null as coins? } as MinValueConfig, MinValueConfig { null as null as coins? } as MinValueConfig } */
+        budget?: TokenPool_Budget /* = TokenPool_Budget { TokenPool_FlowBudget { 0 as coins, 0 as coins } as TokenPool_FlowBudget, TokenPool_FlowBudget { 0 as coins, 0 as coins } as TokenPool_FlowBudget } */
     }): TokenPool_Data {
         return {
             $: 'TokenPool_Data',
-            budget: { $: 'TokenPool_Budget', safety: { $: 'MinValueConfig', value: null }, admission: { $: 'MinValueConfig', value: null } },
+            budget: { $: 'TokenPool_Budget', lockOrBurn: { $: 'TokenPool_FlowBudget', admission: 0n, safety: 0n }, releaseOrMint: { $: 'TokenPool_FlowBudget', admission: 0n, safety: 0n } },
             ...args
         }
     },
@@ -1287,46 +1405,6 @@ export const TokenPool_Data = {
     },
     toCell(self: TokenPool_Data): c.Cell {
         return makeCellFrom<TokenPool_Data>(self, TokenPool_Data.store);
-    }
-}
-
-/**
- > struct TokenPool_Budget {
- >     safety: MinValueConfig
- >     admission: MinValueConfig
- > }
- */
-export interface TokenPool_Budget {
-    readonly $: 'TokenPool_Budget'
-    safety: MinValueConfig /* = MinValueConfig { null as null as coins? } */
-    admission: MinValueConfig /* = MinValueConfig { null as null as coins? } */
-}
-
-export const TokenPool_Budget = {
-    create(args: {
-        safety?: MinValueConfig /* = MinValueConfig { null as null as coins? } */
-        admission?: MinValueConfig /* = MinValueConfig { null as null as coins? } */
-    }): TokenPool_Budget {
-        return {
-            $: 'TokenPool_Budget',
-            safety: { $: 'MinValueConfig', value: null },
-            admission: { $: 'MinValueConfig', value: null },
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_Budget {
-        return {
-            $: 'TokenPool_Budget',
-            safety: MinValueConfig.fromSlice(s),
-            admission: MinValueConfig.fromSlice(s),
-        }
-    },
-    store(self: TokenPool_Budget, b: c.Builder): void {
-        MinValueConfig.store(self.safety, b);
-        MinValueConfig.store(self.admission, b);
-    },
-    toCell(self: TokenPool_Budget): c.Cell {
-        return makeCellFrom<TokenPool_Budget>(self, TokenPool_Budget.store);
     }
 }
 
@@ -3603,6 +3681,178 @@ export const TokenPool_AdvancedPoolHooksSet = {
 }
 
 /**
+ > struct (0x480060f1) TokenPool_GetConfig {
+ >     queryId: uint64
+ > }
+ */
+export interface TokenPool_GetConfig {
+    readonly $: 'TokenPool_GetConfig'
+    queryId: uint64
+}
+
+export const TokenPool_GetConfig = {
+    PREFIX: 0x480060f1,
+
+    create(args: {
+        queryId?: uint64
+    }): TokenPool_GetConfig {
+        return {
+            $: 'TokenPool_GetConfig',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_GetConfig {
+        loadAndCheckPrefix32(s, 0x480060f1, 'TokenPool_GetConfig');
+        return {
+            $: 'TokenPool_GetConfig',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: TokenPool_GetConfig, b: c.Builder): void {
+        b.storeUint(0x480060f1, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: TokenPool_GetConfig): c.Cell {
+        return makeCellFrom<TokenPool_GetConfig>(self, TokenPool_GetConfig.store);
+    }
+}
+
+/**
+ > struct (0x1c8a40b8) TokenPool_Config {
+ >     queryId: uint64
+ >     transferInitiator: address?
+ >     admission: TokenPool_AdmissionBudget
+ > }
+ */
+export interface TokenPool_Config {
+    readonly $: 'TokenPool_Config'
+    queryId: uint64
+    transferInitiator: c.Address | null
+    admission: TokenPool_AdmissionBudget
+}
+
+export const TokenPool_Config = {
+    PREFIX: 0x1c8a40b8,
+
+    create(args: {
+        queryId?: uint64
+        transferInitiator: c.Address | null
+        admission: TokenPool_AdmissionBudget
+    }): TokenPool_Config {
+        return {
+            $: 'TokenPool_Config',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_Config {
+        loadAndCheckPrefix32(s, 0x1c8a40b8, 'TokenPool_Config');
+        return {
+            $: 'TokenPool_Config',
+            queryId: s.loadUintBig(64),
+            transferInitiator: s.loadMaybeAddress(),
+            admission: TokenPool_AdmissionBudget.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_Config, b: c.Builder): void {
+        b.storeUint(0x1c8a40b8, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.transferInitiator);
+        TokenPool_AdmissionBudget.store(self.admission, b);
+    },
+    toCell(self: TokenPool_Config): c.Cell {
+        return makeCellFrom<TokenPool_Config>(self, TokenPool_Config.store);
+    }
+}
+
+/**
+ > struct (0x1e54ab8b) TokenPool_SetBudget {
+ >     queryId: uint64
+ >     budget: TokenPool_Budget
+ > }
+ */
+export interface TokenPool_SetBudget {
+    readonly $: 'TokenPool_SetBudget'
+    queryId: uint64
+    budget: TokenPool_Budget
+}
+
+export const TokenPool_SetBudget = {
+    PREFIX: 0x1e54ab8b,
+
+    create(args: {
+        queryId?: uint64
+        budget: TokenPool_Budget
+    }): TokenPool_SetBudget {
+        return {
+            $: 'TokenPool_SetBudget',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_SetBudget {
+        loadAndCheckPrefix32(s, 0x1e54ab8b, 'TokenPool_SetBudget');
+        return {
+            $: 'TokenPool_SetBudget',
+            queryId: s.loadUintBig(64),
+            budget: TokenPool_Budget.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_SetBudget, b: c.Builder): void {
+        b.storeUint(0x1e54ab8b, 32);
+        b.storeUint(self.queryId, 64);
+        TokenPool_Budget.store(self.budget, b);
+    },
+    toCell(self: TokenPool_SetBudget): c.Cell {
+        return makeCellFrom<TokenPool_SetBudget>(self, TokenPool_SetBudget.store);
+    }
+}
+
+/**
+ > struct (0xfa704988) TokenPool_BudgetSet {
+ >     queryId: uint64
+ >     budget: TokenPool_Budget
+ > }
+ */
+export interface TokenPool_BudgetSet {
+    readonly $: 'TokenPool_BudgetSet'
+    queryId: uint64
+    budget: TokenPool_Budget
+}
+
+export const TokenPool_BudgetSet = {
+    PREFIX: 0xfa704988,
+
+    create(args: {
+        queryId?: uint64
+        budget: TokenPool_Budget
+    }): TokenPool_BudgetSet {
+        return {
+            $: 'TokenPool_BudgetSet',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_BudgetSet {
+        loadAndCheckPrefix32(s, 0xfa704988, 'TokenPool_BudgetSet');
+        return {
+            $: 'TokenPool_BudgetSet',
+            queryId: s.loadUintBig(64),
+            budget: TokenPool_Budget.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_BudgetSet, b: c.Builder): void {
+        b.storeUint(0xfa704988, 32);
+        b.storeUint(self.queryId, 64);
+        TokenPool_Budget.store(self.budget, b);
+    },
+    toCell(self: TokenPool_BudgetSet): c.Cell {
+        return makeCellFrom<TokenPool_BudgetSet>(self, TokenPool_BudgetSet.store);
+    }
+}
+
+/**
  > struct TokenPool_LockedOrBurned {
  >     remoteChainSelector: uint64
  >     details: Cell<TokenPool_LockedOrBurnedDetails>
@@ -4610,42 +4860,6 @@ export const RateLimiter_TokenBucket = {
 }
 
 /**
- > struct MinValueConfig {
- >     value: coins?
- > }
- */
-export interface MinValueConfig {
-    readonly $: 'MinValueConfig'
-    value: coins | null /* = null */
-}
-
-export const MinValueConfig = {
-    create(args: {
-        value?: coins | null /* = null */
-    }): MinValueConfig {
-        return {
-            $: 'MinValueConfig',
-            value: null,
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): MinValueConfig {
-        return {
-            $: 'MinValueConfig',
-            value: s.loadBoolean() ? s.loadCoins() : null,
-        }
-    },
-    store(self: MinValueConfig, b: c.Builder): void {
-        storeTolkNullable<coins>(self.value, b,
-            (v,b) => b.storeCoins(v)
-        );
-    },
-    toCell(self: MinValueConfig): c.Cell {
-        return makeCellFrom<MinValueConfig>(self, MinValueConfig.store);
-    }
-}
-
-/**
  > type ForwardPayloadRemainder = RemainingBitsAndRefs
  */
 export type ForwardPayloadRemainder = RemainingBitsAndRefs
@@ -5249,7 +5463,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECQAEAAbcAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBICorAgEgCAkCASAYGQIBIAoLAgEgFBUCASAMDQIBIBARAgFmDg8ADa3Iwgf5eEAAC6BeED/LwgALocYQP8vCAgEgEhMADa3YQgf5eEAADKlfhA/y8AAMqtCED/LwAgFuFhcADbAfIQP8vCAAC6dRCB/l4QALpFEIH+XhAgEgGhsCASAmJwIBIBwdAgEgJCUCASAeHwIBYiIjAAyqh4QP8vACASAgIQALpjsIH+XhAAulCwgf5eEAC6H6ED/LwgALoH4QP8vCAA2vRUIH+XhAAA2s40IH+XhAAgFYKCkADbK64QP8vCAADKl6hA/y8AAMqraED/LwAgFYLC0CASAuLwANs3ohA/y8IAANs7nhA/y8IAIBIDAxAgEgNjcCAWYyMwIBZjQ1AAuk2wgf5eEAC6bxCB/l4QALp98IH+XhAAumKwgf5eECASA4OQIBID4/AA2vAcIH+XhAAgFIOjsAC6VfCB/l4QIBWDw9AAu+eED/LwgAC7gYQP8vCAANrGvCB/l4QAANrDjCB/l4QA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECQgEAAcMAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBICwtAgEgCAkCASAYGQIBIAoLAgEgFBUCASAMDQIBIBARAgFmDg8ADa3Iwgf5eEAAC6BeED/LwgALocYQP8vCAgEgEhMADa3YQgf5eEAADKlfhA/y8AAMqtCED/LwAgFuFhcADbAfIQP8vCAAC6dRCB/l4QALpFEIH+XhAgEgGhsCASAoKQIBIBwdAgEgJCUCASAeHwIBYiIjAAyqh4QP8vACASAgIQALpjsIH+XhAAulCwgf5eEAC6H6ED/LwgALoH4QP8vCAgEgJicADazjQgf5eEAADKm6hA/y8AAMqoqED/LwAgFYKisADbK64QP8vCAADKl6hA/y8AAMqraED/LwAgFYLi8CASAwMQANs3ohA/y8IAANs7nhA/y8IAIBIDIzAgEgODkCAWY0NQIBZjY3AAuk2wgf5eEAC6bxCB/l4QALp98IH+XhAAumKwgf5eECASA6OwIBIEBBAA2vAcIH+XhAAgFIPD0AC6VfCB/l4QIBWD4/AAu+eED/LwgAC7gYQP8vCAANrGvCB/l4QAANrDjCB/l4QA==');
 
     static Errors = {
     }
@@ -5283,7 +5497,7 @@ export class TokenPool implements c.Contract {
         tokenDecimals: uint8
         remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
-        budget?: TokenPool_Budget /* = TokenPool_Budget { MinValueConfig { null as null as coins? } as MinValueConfig, MinValueConfig { null as null as coins? } as MinValueConfig } */
+        budget?: TokenPool_Budget /* = TokenPool_Budget { TokenPool_FlowBudget { 0 as coins, 0 as coins } as TokenPool_FlowBudget, TokenPool_FlowBudget { 0 as coins, 0 as coins } as TokenPool_FlowBudget } */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? TokenPool.CodeCell,
@@ -5475,6 +5689,19 @@ export class TokenPool implements c.Contract {
         disableChainSelectors: SnakedCell<uint64>
     }) {
         return TokenPool_ApplyTokenTransferFeeConfigUpdates.toCell(TokenPool_ApplyTokenTransferFeeConfigUpdates.create(body));
+    }
+
+    static createCellOfTokenPoolSetBudget(body: {
+        queryId?: uint64
+        budget: TokenPool_Budget
+    }) {
+        return TokenPool_SetBudget.toCell(TokenPool_SetBudget.create(body));
+    }
+
+    static createCellOfTokenPoolGetConfig(body: {
+        queryId?: uint64
+    }) {
+        return TokenPool_GetConfig.toCell(TokenPool_GetConfig.create(body));
     }
 
     static createCellOfTokenPoolCurse(body: {
@@ -5794,6 +6021,27 @@ export class TokenPool implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: TokenPool_ApplyTokenTransferFeeConfigUpdates.toCell(TokenPool_ApplyTokenTransferFeeConfigUpdates.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolSetBudget(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        budget: TokenPool_Budget
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_SetBudget.toCell(TokenPool_SetBudget.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenPoolGetConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_GetConfig.toCell(TokenPool_GetConfig.create(body)),
             ...extraOptions
         });
     }
@@ -6155,5 +6403,22 @@ export class TokenPool implements c.Contract {
             ) },
         ]));
         return r.readBoolean();
+    }
+
+    async getBudget(provider: ContractProvider): Promise<TokenPool_Budget> {
+        const r = StackReader.fromGetMethod(4, await provider.get('getBudget', []));
+        return ({
+            $: 'TokenPool_Budget',
+            lockOrBurn: ({
+                $: 'TokenPool_FlowBudget',
+                admission: r.readBigInt(),
+                safety: r.readBigInt(),
+            }),
+            releaseOrMint: ({
+                $: 'TokenPool_FlowBudget',
+                admission: r.readBigInt(),
+                safety: r.readBigInt(),
+            }),
+        });
     }
 }

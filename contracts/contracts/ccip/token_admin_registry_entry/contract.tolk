@@ -47,8 +47,8 @@ fun onInternalMessage(in: InMessage) {
         ResponseWalletAddress => {
             onResponseWalletAddress(msg, in.senderAddress);
         }
-        TokenPool_TransferInitiator => {
-            onTransferInitiator(msg, in.senderAddress);
+        TokenPool_Config => {
+            onPoolConfig(msg, in.senderAddress);
         }
         else => {
             assert (in.body.isEmpty()) throw 0xFFFF;
@@ -85,8 +85,8 @@ fun onMessageFromRoot(msg: TokenAdminRegistryEntry_MessageFromRoot, replay: bool
         TokenAdminRegistryEntry_VerifyToken => {
             onVerifyToken(msg.queryId);
         }
-        TokenAdminRegistryEntry_RefreshTransferInitiator => {
-            onRefreshTransferInitiator(msg.queryId);
+        TokenAdminRegistryEntry_RefreshPoolConfig => {
+            onRefreshPoolConfig(msg.queryId);
         }
     }
 }
@@ -97,7 +97,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     in.bouncedBody.skipBouncedPrefix();
     val bounced = lazy TokenAdminRegistryEntry_BouncedMessage.fromSlice(in.bouncedBody);
     match (bounced) {
-        TokenPool_GetTransferInitiator => {
+        TokenPool_GetConfig => {
             val st = lazy TokenRegistry_Storage.load();
             if (st.pendingPool != null && in.senderAddress == st.pendingPool!) {
                 delist(bounced.queryId);
@@ -173,6 +173,7 @@ fun onRegistrationInitialized(msg: TokenAdminRegistryEntry_RegistrationInitializ
         st.pendingPool = tokenInfo.tokenPool;
         tokenInfo.tokenPool = null;
         tokenInfo.transferInitiator = null;
+        tokenInfo.admission = null;
         st.tokenInfo = tokenInfo.toCell();
         st.store();
     }
@@ -186,7 +187,7 @@ fun verify(st: TokenRegistry_Storage, queryId: uint64) {
         queryWallet(st.tokenAddress, queryId);
     }
     if (st.pendingPool != null) {
-        probeTransferInitiator(st.pendingPool!, queryId);
+        probePoolConfig(st.pendingPool!, queryId);
     }
 }
 
@@ -264,7 +265,7 @@ fun onSetPool(queryId: uint64, msg: TokenAdminRegistryEntry_SetPool) {
     if (msg.tokenPool != null) {
         st.pendingPool = msg.tokenPool;
         st.store();
-        return probeTransferInitiator(msg.tokenPool!, queryId);
+        return probePoolConfig(msg.tokenPool!, queryId);
     }
 
     delist(queryId);
@@ -276,6 +277,7 @@ fun delist(queryId: uint64) {
     val previousPool = tokenInfo.tokenPool;
     tokenInfo.tokenPool = null;
     tokenInfo.transferInitiator = null;
+    tokenInfo.admission = null;
     st.tokenInfo = tokenInfo.toCell();
     st.pendingPool = null;
     st.store();
@@ -284,27 +286,27 @@ fun delist(queryId: uint64) {
     }
 }
 
-/// Re-probes the pending pool, or the current one, e.g. after a pool upgrade changed its transfer
-/// initiator.
-fun onRefreshTransferInitiator(queryId: uint64) {
+/// Re-probes the pending pool, or the current one, e.g. after the pool changed its transfer
+/// initiator or admission budget.
+fun onRefreshPoolConfig(queryId: uint64) {
     val st = lazy TokenRegistry_Storage.load();
     val pool = st.pendingPool != null ? st.pendingPool : st.tokenInfo.load().tokenPool;
     if (pool != null) {
-        probeTransferInitiator(pool!, queryId);
+        probePoolConfig(pool!, queryId);
     }
 }
 
-fun probeTransferInitiator(pool: address, queryId: uint64) {
+fun probePoolConfig(pool: address, queryId: uint64) {
     createMessage({
         bounce: true,
         value: TokenAdminRegistryEntry_POOL_PROBE_VALUE,
         dest: pool,
-        body: TokenPool_GetTransferInitiator { queryId },
+        body: TokenPool_GetConfig { queryId },
     }).send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// Accepts the answer of the pending pool (setting it) or of the current pool (refreshing it).
-fun onTransferInitiator(msg: TokenPool_TransferInitiator, sender: address) {
+fun onPoolConfig(msg: TokenPool_Config, sender: address) {
     var st = lazy TokenRegistry_Storage.load();
     var tokenInfo = st.tokenInfo.load();
     val previousPool = tokenInfo.tokenPool;
@@ -317,6 +319,7 @@ fun onTransferInitiator(msg: TokenPool_TransferInitiator, sender: address) {
     val previousTransferInitiator = tokenInfo.transferInitiator;
     tokenInfo.tokenPool = sender;
     tokenInfo.transferInitiator = msg.transferInitiator;
+    tokenInfo.admission = msg.admission.toCell();
     st.tokenInfo = tokenInfo.toCell();
     st.store();
 

@@ -30,6 +30,7 @@ get fun get_gasConsumptionJettonTransfer(): int { return GAS_CONSUMPTION_JettonT
 get fun get_gasConsumptionJettonReceive(): int { return GAS_CONSUMPTION_JettonReceive; }
 get fun get_gasConsumptionBurnRequest(): int { return GAS_CONSUMPTION_BurnRequest; }
 get fun get_gasConsumptionBurnNotification(): int { return GAS_CONSUMPTION_BurnNotification; }
+get fun get_gasConsumptionMint(): int { return GAS_CONSUMPTION_Mint; }
 
 get fun get_messageSizeBurnNotificationBits(): int { return MESSAGE_SIZE_BurnNotification_bits; }
 get fun get_messageSizeBurnNotificationCells(): int { return MESSAGE_SIZE_BurnNotification_cells; }
@@ -61,10 +62,8 @@ get fun get_jettonTransferForwardValue(available: coins, fwdFee: coins, bufferPc
 /* === BurnMint mint budget (pools/burn_mint/types) === */
 
 get fun get_cctTransferBufferPct(): int { return CCT_TRANSFER_BUFFER_PCT; }
-get fun get_cctMintOpGasUnits(): int { return CCT_MINT_OP_GAS_UNITS; }
-get fun get_cctMintStorageReserve(): coins { return CCT_MINT_STORAGE_RESERVE; }
 
-get fun get_cctMintOpBudget(fwdFee: coins): coins { return cctMintOpBudget(fwdFee); }
+get fun get_cctMintOpBudget(walletDeployFee: coins): coins { return cctMintOpBudget(walletDeployFee); }
 
 /* === CCIP token-pool admission floors (ccip/budget/min_value) === */
 

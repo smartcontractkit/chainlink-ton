@@ -2,6 +2,7 @@
 tolk 1.4.2
 
 import "@stdlib/common.tolk"
+import "@stdlib/gas-payments"
 
 import "../../../lib/utils"
 import "../../../lib/access/access_control"
@@ -9,8 +10,6 @@ import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/budget/min_value"
-
-import "../../budget/min_value"
 
 import "../lib/token_pool/recovery"
 
@@ -89,11 +88,6 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
 
     // Only the initializer bound at construction (stateInit) may initialize.
     assert(sender == st.initializer, JettonLockBox_Error.UnauthorizedInitializer);
-
-    // minval:check-bounce gate=S JettonLockBox_Init
-    // one-time init; reject shortfall before binding initializer or changing configuration
-    val minValue = ccipMinValue();
-    assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
 
     // Validate addresses are not zero
     assert(!isZeroAddress(msg.minterAddress), JettonLockBox_Error.UnsupportedToken);
@@ -185,11 +179,8 @@ fun onDepositWithTransferNotification(
         assert(deposit!.token == st.minterAddress, JettonLockBox_Error.UnsupportedToken);
         assert(deposit!.amount == msg.jettonAmount, JettonLockBox_Error.MissingOrMalformedForwardPayload);
 
-        // minval:check-fail gate=S JettonLockBox.TransferNotificationForRecipient
-        // authenticated deposit; shortfall uses the correlated custody-return path
-        val minValue = ccipMinValue();
-        assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
-
+        // Custody has arrived: no value check. Rejecting would cost a return transfer; the
+        // operator funds the confirmation when it sends the deposit.
         emit<JettonLockBox_Deposit>(TOPIC_DEPOSIT, deposit!);
 
         // Reply to the pool so it knows the deposit is confirmed.
@@ -258,11 +249,6 @@ fun onDepositWithTransferNotification(
 fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLockBox_Withdraw) {
     assert(st.isInitialized(), JettonLockBox_Error.ContractNotInitialized);
 
-    // minval:check-bounce gate=S JettonLockBox_Withdraw
-    // reject before withdrawing custody; operator handles the request bounce
-    val minValue = ccipMinValue();
-    assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
-
     val rbac = hookTrait__AccessControl(st);
     rbac.requireRole(OPERATOR_ROLE, sender);
 
@@ -285,6 +271,11 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
 
     // Get forwardTonAmount from extra (defaults to 0 for backward compatibility).
     val forwardTonAmount = msg.extra != null ? msg.extra!.load().forwardTonAmount : 0 as coins;
+
+    // Before custody moves: fund this relay and the requested forward. The jetton wallet checks
+    // its own transfer cost; either failure bounces to the operator before tokens leave.
+    val minValue = forwardTonAmount + calculateGasFee(contract.getAddress().getWorkchain(), JettonLockBox_WITHDRAW_GAS_UNITS);
+    assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
 
     // The caller (pool) tags its payload with a `Jetton_ForwardPayloadWrap` carrying its own
     // failure context. Unwrap one layer so the delivered payload is the caller's original

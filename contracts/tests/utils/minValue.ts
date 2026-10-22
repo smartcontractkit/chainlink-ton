@@ -1,6 +1,10 @@
 import { Address, beginCell, toNano } from '@ton/core'
 import { Blockchain } from '@ton/sandbox'
-import { TokenPool_Data } from '../../wrappers/gen/ccip/pools/TokenPool'
+import {
+  TokenPool_Budget,
+  TokenPool_Data,
+  TokenPool_FlowBudget,
+} from '../../wrappers/gen/ccip/pools/TokenPool'
 
 /// Shared fixture funding for the default sandbox configuration.
 /// These fixed values are not guarantees for other prices, configured floors or complete flows.
@@ -10,25 +14,22 @@ export const MIN_VALUE = {
   ccip: toNano('0.5'),
 } as const
 
-/** Configure a sandbox fixture before sending messages; there is no on-chain floor setter. */
-export async function setTokenPoolSafetyFloor(
-  blockchain: Blockchain,
-  address: Address,
-  value: bigint,
-) {
-  await updateTokenPoolData(blockchain, address, (data) => {
-    data.budget.safety.value = value
-  })
+/** Raises both flows' safety budget on a sandbox pool (admission follows, as it covers safety). */
+export async function setTokenPoolSafetyFloor(blockchain: Blockchain, address: Address, value: bigint) {
+  await setTokenPoolBudget(blockchain, address, { safety: value, admission: 0n })
 }
 
-export async function setTokenPoolAdmissionPolicy(
+/** Writes the same per-flow budget for LockOrBurn and ReleaseOrMint; zero keeps the pool default. */
+export async function setTokenPoolBudget(
   blockchain: Blockchain,
   address: Address,
-  policy: { safety: bigint; admission: bigint | null },
+  flow: { safety: bigint; admission: bigint },
 ) {
   await updateTokenPoolData(blockchain, address, (data) => {
-    data.budget.safety.value = policy.safety
-    data.budget.admission.value = policy.admission
+    data.budget = TokenPool_Budget.create({
+      lockOrBurn: TokenPool_FlowBudget.create(flow),
+      releaseOrMint: TokenPool_FlowBudget.create(flow),
+    })
   })
 }
 

@@ -8,6 +8,7 @@ import "../../../common/types"
 import "../../../rmn_remote/lib"
 
 import "types"
+import "budget"
 
 struct (0x56f73d37) TokenPool_ApplyChainUpdates {
     queryId: uint64;
@@ -321,6 +322,8 @@ type TokenPool_InMessage =
     | TokenPool_SetAllowedDepositNamespaces
     | TokenPool_SetRateLimitConfig
     | TokenPool_ApplyTokenTransferFeeConfigUpdates
+    | TokenPool_SetBudget
+    | TokenPool_GetConfig
     | TokenPool_Curse
     | TokenPool_Uncurse
     | TokenPool_RMNOwnableMessage
@@ -430,7 +433,9 @@ type TokenPool_OutMessage =
     | TokenPool_RateLimitConfiguredNotification
     | TokenPool_AdvancedPoolHooksSet
     | TokenPool_ChainUpdatesApplied
-    | TokenPool_FeeConfigApplied;
+    | TokenPool_FeeConfigApplied
+    | TokenPool_BudgetSet
+    | TokenPool_Config;
 
 type TokenPool_BouncedMessage =
     | TokenPool_LockOrBurnWithdraw
@@ -438,17 +443,29 @@ type TokenPool_BouncedMessage =
     | TokenPool_PreflightCheck
     | TokenPool_PostflightCheck;
 
-// minval:best-effort gate=none TokenPool_GetTransferInitiator
-// registry probe; answer from stored config, no value gate
-
-/// Asks a pool which address initiates the jetton transfers delivering its releases/mints. Sent
-/// by the token admin registry when a pool is set or refreshed.
-struct (0x500b10e4) TokenPool_GetTransferInitiator {
+/// Asks a pool for the configuration the token admin registry caches: the initiator of its
+/// release/mint deliveries and its admission budgets. Sent when a pool is set or refreshed, e.g.
+/// after the pool owner changed its budget or hooks.
+struct (0x480060f1) TokenPool_GetConfig {
     queryId: uint64;
 }
 
-/// Answer to `TokenPool_GetTransferInitiator`. A null initiator means the pool delivers by minting.
-struct (0x904443b3) TokenPool_TransferInitiator {
+/// Answer to `TokenPool_GetConfig`. A null initiator means the pool delivers by minting.
+struct (0x1c8a40b8) TokenPool_Config {
     queryId: uint64;
     transferInitiator: address?;
+    admission: TokenPool_AdmissionBudget;
+}
+
+/// Sets the pool's per-instance budget. Values only raise the pool-type defaults; zero keeps the
+/// default. Owner-only. Refresh the registry afterwards so CCIP funds the new admission budget.
+struct (0x1e54ab8b) TokenPool_SetBudget {
+    queryId: uint64;
+    budget: TokenPool_Budget;
+}
+
+/// Replied on `TokenPool_SetBudget` with the resulting effective budget.
+struct (0xfa704988) TokenPool_BudgetSet {
+    queryId: uint64;
+    budget: TokenPool_Budget;
 }

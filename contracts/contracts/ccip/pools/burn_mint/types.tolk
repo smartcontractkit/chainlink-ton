@@ -4,7 +4,9 @@ import "@stdlib/gas-payments"
 
 import "../../../lib/jetton/jetton_client"
 import "../lib/token_pool/messages"
+import "../lib/token_pool/budget"
 import "../../../lib/budget/gas"
+import "../../../lib/budget/min_value"
 import "../../cct/fees-management"
 
 /// Facility ID used for error code derivation; (crc32(<facility>) % 640) + 10
@@ -13,18 +15,25 @@ const BurnMintTokenPool_FACILITY_ID = BurnMintTokenPool_FACILITY_NAME.crc32() % 
 
 const BurnMintTokenPool_CLAIM_ADMIN_VALUE = grams("0.05");
 
+/// Pool-type default safety budgets, measured by the gas-report tests at 66.67 nTON/gas.
+/// LockOrBurn: the custody notification funds burn -> minter excess -> finalize (~0.004 TON); ~4x.
+const BurnMintTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS = BUDGET_UNITS_LVL3_HIGH; // ~0.0167 TON
+/// ReleaseOrMint: the mint transaction funds pool -> minter -> recipient wallet (~0.014 TON); ~3.5x. The caller's continuation is added on top.
+const BurnMintTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS = BUDGET_UNITS_LVL4_XHIGH * 2; // ~0.083 TON
+
+fun BurnMintTokenPool_defaultBudget(): TokenPool_Budget {
+    return {
+        lockOrBurn: TokenPool_FlowBudget.fromSafety(calculateMinValue(BurnMintTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS, 1)),
+        releaseOrMint: TokenPool_FlowBudget.fromSafety(calculateMinValue(BurnMintTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS, 1)),
+    };
+}
+
 /// Known CCT wallets need only a small cushion over the reference transfer estimate.
 const CCT_TRANSFER_BUFFER_PCT = 110;
-/// TODO: calibrate CCT MintNewJettons compute against cold/warm wallet traces. This deliberately
-/// conservative seed covers minter execution only, not wallet execution or continuation work.
-const CCT_MINT_OP_GAS_UNITS = BUDGET_UNITS_LVL1_LOW;
-const CCT_MINT_STORAGE_RESERVE = grams("0.01"); // Matches CCT JettonMinter's RAWRESERVE.
-
-/// CCT MintNewJettons retains its compute cost, wallet-deployment forwarding fee and storage
-/// reserve. Charge the full reserve conservatively even when the minter is already funded.
-fun cctMintOpBudget(fwdFee: coins): coins {
-    return calculateGasFee(MY_WORKCHAIN, CCT_MINT_OP_GAS_UNITS)
-        + fwdFee + forwardInitStateOverhead() + CCT_MINT_STORAGE_RESERVE;
+/// CCT `MintNewJettons`: the minter's compute and the wallet-deploy message it sends. The minter
+/// keeps its storage reserve from its own balance, so a mint leaves nothing behind in it.
+fun cctMintOpBudget(walletDeployFee: coins): coins {
+    return calculateGasFee(MY_WORKCHAIN, GAS_CONSUMPTION_Mint) + walletDeployFee;
 }
 
 /// Context carried by the CCT burn path (burn only). Stores the pool's own jetton

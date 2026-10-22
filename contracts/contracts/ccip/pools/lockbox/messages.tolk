@@ -2,6 +2,12 @@
 /// JettonLockBox message types for deposit, withdrawal, and initialization.
 
 import "../../../lib/jetton/messages"
+import "../../../lib/budget/gas"
+
+/// The lockbox's own work on `JettonLockBox_Withdraw`: validation, the withdrawal log and the
+/// relay to its jetton wallet (measured ~14.4k gas). The wallet checks its own transfer cost, and
+/// the operator funds both on top of the requested `forwardTonAmount`.
+const JettonLockBox_WITHDRAW_GAS_UNITS = BUDGET_UNITS_LVL1_LOW;
 
 /// Embedded in a jetton transfer's forwardPayload to identify the deposit context.
 /// The lockbox extracts this from `TransferNotificationForRecipient.forwardPayload` on deposit.

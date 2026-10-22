@@ -233,3 +233,30 @@ func TestDynamicConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
 	require.NoError(t, tlb.LoadFromCell(&decodedEmpty, emptyCell.MustBeginParse()))
 	require.Empty(t, decodedEmpty.AllowedDepositNamespaces.AsMap())
 }
+
+// TestConfig_WireFormat pins TokenPool_Config: opcode, query id, transfer initiator, then the
+// admission budget inline (lockOrBurn, releaseOrMint).
+func TestConfig_WireFormat(t *testing.T) {
+	msg := Config{
+		QueryID:           7,
+		TransferInitiator: address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"),
+		Admission: AdmissionBudget{
+			LockOrBurn:    tlb.MustFromTON("0.1"),
+			ReleaseOrMint: tlb.MustFromTON("0.2"),
+		},
+	}
+	c, err := tlb.ToCell(msg)
+	require.NoError(t, err)
+
+	s := c.MustBeginParse()
+	require.Equal(t, uint64(0x1c8a40b8), s.MustLoadUInt(32))
+	require.Equal(t, uint64(7), s.MustLoadUInt(64))
+	require.Equal(t, msg.TransferInitiator.String(), s.MustLoadAddr().String())
+	require.Equal(t, tlb.MustFromTON("0.1").Nano(), s.MustLoadBigCoins())
+	require.Equal(t, tlb.MustFromTON("0.2").Nano(), s.MustLoadBigCoins())
+	require.Zero(t, s.BitsLeft())
+
+	var decoded Config
+	require.NoError(t, tlb.LoadFromCell(&decoded, c.MustBeginParse()))
+	require.Equal(t, msg.Admission, decoded.Admission)
+}

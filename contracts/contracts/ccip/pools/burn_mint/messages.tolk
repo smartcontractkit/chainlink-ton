@@ -9,8 +9,7 @@ struct (0x39898e4d) BurnMintTokenPool_ClaimMinterAdmin {
 
 type BurnMintTokenPool_InMessage =
     | BurnMintTokenPool_ClaimMinterAdmin
-    | CCT_ReturnExcessesBack
-    | TokenPool_GetTransferInitiator;
+    | CCT_ReturnExcessesBack;
 
 type BurnMintTokenPool_OutMessage =
     | AskToTransfer

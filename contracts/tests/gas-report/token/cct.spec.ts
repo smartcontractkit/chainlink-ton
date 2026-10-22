@@ -54,6 +54,9 @@ runTokenGasCalibration({
         burnRequest: Number(await harness.getGasConsumptionBurnRequest()),
         burnNotification: Number(await harness.getGasConsumptionBurnNotification()),
       }),
+      assertBudget: async (measured) => {
+        expect(Number(measured.mintMinterGas)).toEqual(Number(await harness.getGasConsumptionMint()))
+      },
     }
   },
 })

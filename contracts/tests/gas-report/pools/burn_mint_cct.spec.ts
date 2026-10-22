@@ -16,7 +16,6 @@ import {
 import { JettonClient, BurnMintTokenPool } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { deployCctHarness } from '../harness'
-import { vmGasUsed } from '../token/gas'
 import {
   assertBufferedTransferBudgetCoversHop,
   internalTxTo,
@@ -124,16 +123,17 @@ runTokenPoolGasCalibration({
           })
           return
         }
-        // Release: the CCT mint op budget must cover the minter execution, and the (110% buffered)
-        // transfer budget must cover the minter → account notification hop.
+        // Release: the mint passes through the minter, which keeps nothing (its storage reserve is
+        // pre-funded), and the (110% buffered) transfer budget covers the minter → account hop.
         const minterTx = internalTxTo(result, cctMinter.address)
-        const fwdFee: bigint = minterTx.inMessage.info.forwardFee
-        expect(BigInt(Number(await harness.getCctMintOpGasUnits()))).toBeGreaterThanOrEqual(
-          vmGasUsed(minterTx),
+        const sent = [...minterTx.outMessages.values()].reduce(
+          (sum: bigint, m: any) => sum + m.info.value.coins + m.info.forwardFee,
+          0n,
         )
-        expect(await harness.getCctMintOpBudget(fwdFee)).toBeGreaterThanOrEqual(
-          minterTx.totalFees.coins,
-        )
+        const retained = minterTx.inMessage.info.value.coins - sent - minterTx.totalFees.coins
+        console.table([{ operation: 'minter retained on mint (nTON)', value: retained }])
+        expect(retained).toBeGreaterThanOrEqual(0n)
+        expect(retained).toBeLessThanOrEqual(toNano('0.0005'))
         await assertBufferedTransferBudgetCoversHop(harness, {
           ...walletHopByInternalTransfer(result),
           bufferPct: await harness.getCctTransferBufferPct(),

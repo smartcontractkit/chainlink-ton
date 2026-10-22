@@ -3,6 +3,7 @@ import "@stdlib/lisp-lists"
 
 import "../../lib/utils"
 import "../../lib/budget/min_value"
+import "../../lib/budget/gas"
 import "../../lib/funding/withdrawable"
 import "../../lib/access/ownable_2step"
 import "../../lib/access/access_control"
@@ -23,6 +24,7 @@ import "../offramp/types"
 import "../rmn_remote/lib"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
+import "../pools/lib/token_pool/recovery"
 
 import "types"
 import "messages"
@@ -116,7 +118,7 @@ fun onInternalMessage(in: InMessage) {
         Router_WithdrawToTokenPool => {
             var st = lazy Storage.load();
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
-            onWithdrawToTokenPool(mutate st, msg);
+            onWithdrawToTokenPool(mutate st, msg, in.valueCoins);
         }
         // Sender must be OnRamp
         Router_WithdrawToTokenPoolFailed => {
@@ -401,11 +403,11 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
 /// Asks the sender's on-ramp account to transfer the jettons to the pool. A rejected or bounced
 /// transfer fails the CCIPSend through `failWithdrawToTokenPool`, which finds the executor in the
 /// transfer's forward payload, so that payload must name the executor requesting the withdraw.
-fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
+fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool, msgValue: coins) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
     val fwdp = lazy withdrawRequest.forwardPayload.load();
     val request = lazy fwdp.requestMsg.load();
-    if (request.replyTo == null || request.replyTo! != msg.executor) {
+    if (request.replyTo != msg.executor) {
         return sendLockOrBurnRelayFailure(
             msg.executor,
             msg.queryID,
@@ -413,25 +415,30 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
             Router_Error.WithdrawExecutorMismatch as int32,
         );
     }
-    val withdraw = createMessage({
+    var ask = AskToTransfer {
+        queryId: msg.queryID,
+        jettonAmount: withdrawRequest.amount,
+        transferRecipient: withdrawRequest.tokenPool,
+        // TBD the Depossit account only allows sendExcessesTo to point to sender (Router). This will result in the Router slowly accumulating excess funds over time.
+        sendExcessesTo: contract.getAddress(),
+        customPayload: null,
+        forwardTonAmount: msgValue, // Upper bound for the fee quote; reduced below.
+        forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
+    };
+    var withdrawOpts = CreateMessageOptions<DepositAccount_Withdraw> {
         bounce: BounceMode.RichBounce,
         value: 0,
         dest: withdrawRequest.depositAccount,
-        body: DepositAccount_Withdraw {
-            queryId: msg.queryID,
-            ask: AskToTransfer {
-                queryId: msg.queryID,
-                jettonAmount: withdrawRequest.amount,
-                transferRecipient: withdrawRequest.tokenPool,
-                // TBD the Depossit account only allows sendExcessesTo to point to sender (Router). This will result in the Router slowly accumulating excess funds over time.
-                sendExcessesTo: contract.getAddress(),
-                customPayload: null,
-                forwardTonAmount: grams("0.5"),
-                forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
-            }.toCell(),
-        },
-    });
-    withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        body: DepositAccount_Withdraw { queryId: msg.queryID, ask: ask.toCell() },
+    };
+    // The pool's custody notification gets everything left after this relay, the deposit account
+    // and the wallet transfer; the pool checks its safety budget on arrival. An underfunded
+    // transfer is rejected by the wallet before custody moves.
+    val fwdFee = createMessage(withdrawOpts).estimateFeeWithoutSending(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    val relayCost = tokenPoolEntrypointCost() + fwdFee + calculateGasFeeDefault();
+    ask.forwardTonAmount = jettonTransferForwardValue(max(0, msgValue - relayCost), fwdFee);
+    withdrawOpts.body.ask = ask.toCell();
+    createMessage(withdrawOpts).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// Deploys (or re-confirms) the sender's on-ramp account for `msg.token`. `Deployable_Initialize`

@@ -18,6 +18,7 @@ import "../../common/types"
 import "../../rmn_remote/lib"
 
 import "../lib/token_pool/entrypoint"
+import "../lib/token_pool/budget"
 import "../lib/token_pool/recovery"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
@@ -83,21 +84,6 @@ fun onInternalMessage(in: InMessage): void {
         ReturnExcessesBack => {
             // minval:best-effort gate=none ReturnExcessesBack
             // passive excess receipt; retain coins without advancing an operation or granting authority
-        }
-        TokenPool_GetTransferInitiator => {
-            // TODO: wrong zero addr check, and this should be done on init
-            assert(st.lockbox != createAddressNone(), LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
-            val reply = createMessage({
-                bounce: BounceMode.NoBounce,
-                value: 0,
-                dest: in.senderAddress,
-                body: TokenPool_TransferInitiator {
-                    queryId: msg.queryId,
-                    // Releases are transferred out of the lockbox's wallet.
-                    transferInitiator: st.lockbox
-                },
-            });
-            reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         else => {
             assert(in.body.isEmpty()) throw 0xFFFF;
@@ -208,8 +194,7 @@ fun onLockOrBurnTransferContinue(
         * JETTON_TRANSFER_VALUE_BUFFER_PCT / 100; // 2x buffer for generic wallet costs
     val overhead = tokenPoolEntrypointCost() + forwardingFee + transferBudget;
 
-    // minval:check-fail gate=S LockReleaseLockboxTokenPool.TransferNotificationForRecipient
-    // safety and admission checks already done; include the lockbox flow and custody-return budget
+    // The base safety check funds this; the lockbox gets everything above the transfer cost.
     assertMinValue(msgValue, overhead + 1, TokenPool_Error.InsufficientMessageValue);
     transferOpts.body.forwardTonAmount = msgValue - overhead;
     transferOpts.value = 0;
@@ -370,11 +355,12 @@ fun onReleaseOrMintContinue(
 
     try {
         val available = msgValue - tokenPoolEntrypointCost() - fwdFee;
-        // The lockbox relays to its wallet before the transfer. TODO: calibrate this relay's
-        // compute allowance against traces; wallet costs use the generic 2x buffer.
-        val lockboxBudget = calculateGasFeeFor(FEE_SIZE_LARGE) + fwdFee;
+        // The lockbox relays to its wallet before the transfer (its own `Withdraw` check); wallet
+        // costs use the generic 2x buffer.
+        val lockboxBudget = calculateGasFee(contract.getAddress().getWorkchain(), JettonLockBox_WITHDRAW_GAS_UNITS) + fwdFee;
         withdrawExtra.forwardTonAmount = jettonTransferForwardValue(available - lockboxBudget, fwdFee);
-        assert(withdrawExtra.forwardTonAmount > 0, TokenPool_Error.InsufficientMessageValue);
+        // Last check before custody moves: the delivery must fund the caller's continuation.
+        assert(withdrawExtra.forwardTonAmount >= max(delivery.forwardTonAmount, 1), TokenPool_Error.InsufficientMessageValue);
         withdrawOpts.value = available;
         withdrawOpts.body.extra = withdrawExtra.toCell();
 
@@ -434,6 +420,16 @@ fun recoverReleaseFromLockboxWithdraw(
 
 /* === Pool loader === */
 
+fun defaultBudget(_ctx: Storage?): TokenPool_Budget {
+    return LockReleaseLockboxTokenPool_defaultBudget();
+}
+
+/// Releases are transferred out of the lockbox's wallet.
+fun transferInitiator(ctx: Storage?): address? {
+    assert(ctx != null && ctx!.lockbox != createAddressNone(), LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
+    return ctx!.lockbox;
+}
+
 fun loadPool(st: Storage): TokenPool<Storage> {
     return TokenPool<Storage> {
         data: st.poolData.load(),
@@ -450,6 +446,8 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             postflightCheck: null,
             onReleaseOrMintContinue,
             onWithdrawFeeTokens: null,
+            defaultBudget,
+            transferInitiator,
         },
     };
 }
@@ -536,6 +534,11 @@ get fun getCurrentRateLimiterState(remoteChainSelector: uint64, fastFinality: bo
 get fun isSupportedToken(token: address): bool {
     val pool = loadPool(Storage.load());
     return pool.isSupportedToken(token);
+}
+
+/// Effective per-flow budget (instance config raised to the pool-type default).
+get fun getBudget(): TokenPool_Budget {
+    return loadPool(Storage.load()).budget();
 }
 
 /// Returns the pool's dynamic configuration (router, rateLimitAdmin, feeAdmin).

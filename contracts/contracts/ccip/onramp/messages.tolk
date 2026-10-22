@@ -52,9 +52,10 @@ struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
     originalSender: address,
 }
 
-// TODO real numbers
-fun OnRamp_ExecutorRequestsLockOrBurn.cost(): int {
-    return grams("1");
+/// The pool's LockOrBurn admission budget (from the token admin registry) plus the OnRamp and
+/// Router relay hops in front of it.
+fun OnRamp_ExecutorRequestsLockOrBurn.cost(poolAdmission: coins): coins {
+    return grams("0.02") + poolAdmission;
 }
 
 struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {

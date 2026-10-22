@@ -267,18 +267,24 @@ type AdminConfig struct {
 	DeployableCode        *cell.Cell           `tlb:"maybe ^"`
 }
 
-// MinValueConfig is an optional override of a min-value floor (`value: coins?`).
-// A nil Value means "use the protocol default".
-type MinValueConfig struct {
-	Value *tlb.Coins `tlb:"maybe ."`
+// FlowBudget is the TON budget of one pool flow (LockOrBurn or ReleaseOrMint).
+// Admission is checked at the flow entrypoint and published to CCIP; Safety is checked
+// before custody moves. A zero stored value means "use the pool-type default".
+type FlowBudget struct {
+	Admission tlb.Coins `tlb:"."`
+	Safety    tlb.Coins `tlb:"."`
 }
 
-// Budget holds the pool's optional budget overrides. `Safety` funds bounded local
-// work and a safe exit; `Admission` is the flow admission threshold checked before
-// capacity consumption.
+// Budget is the per-instance pool budget. Configured values can only raise the defaults.
 type Budget struct {
-	Safety    MinValueConfig `tlb:"."`
-	Admission MinValueConfig `tlb:"."`
+	LockOrBurn    FlowBudget `tlb:"."`
+	ReleaseOrMint FlowBudget `tlb:"."`
+}
+
+// AdmissionBudget is the admission budget the pool publishes to CCIP.
+type AdmissionBudget struct {
+	LockOrBurn    tlb.Coins `tlb:"."`
+	ReleaseOrMint tlb.Coins `tlb:"."`
 }
 
 // Storage represents the TokenPool_Data storage layout shared by every TokenPool
@@ -420,17 +426,32 @@ type ReleaseOrMint struct {
 	Delivery                *ReleaseOrMintDelivery `tlb:"maybe ^"`
 }
 
-// GetTransferInitiator asks a pool which address initiates its release/mint deliveries.
-type GetTransferInitiator struct {
-	_       tlb.Magic `tlb:"#500b10e4" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+// GetConfig asks a pool for the configuration CCIP caches in the token admin registry.
+type GetConfig struct {
+	_       tlb.Magic `tlb:"#480060f1" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
-// TransferInitiator answers GetTransferInitiator; nil means the pool delivers by minting.
-type TransferInitiator struct {
-	_                 tlb.Magic        `tlb:"#904443b3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+// Config answers GetConfig. A nil TransferInitiator means the pool delivers by minting.
+type Config struct {
+	_                 tlb.Magic        `tlb:"#1c8a40b8" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID           uint64           `tlb:"## 64"`
 	TransferInitiator *address.Address `tlb:"addr"`
+	Admission         AdmissionBudget  `tlb:"."`
+}
+
+// SetBudget sets the pool's per-instance budget (owner only).
+type SetBudget struct {
+	_       tlb.Magic `tlb:"#1e54ab8b" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64    `tlb:"## 64"`
+	Budget  Budget    `tlb:"."`
+}
+
+// BudgetSet answers SetBudget with the effective budget.
+type BudgetSet struct {
+	_       tlb.Magic `tlb:"#fa704988" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64    `tlb:"## 64"`
+	Budget  Budget    `tlb:"."`
 }
 
 // ReleaseOrMintDelivery is the jetton transfer the pool performs to deliver released/minted tokens.
@@ -862,6 +883,9 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	GetCCVs{},
 	GetCCVsAndFees{},
 	QueryCCVsReply{},
+	// Config + budget
+	GetConfig{},
+	SetBudget{},
 	// Outgoing
 	LockOrBurnWithdraw{},
 	LockOrBurnFinished{},
@@ -881,6 +905,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	rbac.RoleAdminChanged{},
 	AdvancedPoolHooksSet{},
 	DeployableCodeSet{},
+	Config{},
+	BudgetSet{},
 	AllowedDepositNamespacesSet{},
 	ChainUpdatesApplied{},
 	FeeConfigApplied{},

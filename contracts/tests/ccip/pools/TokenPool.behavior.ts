@@ -22,6 +22,10 @@ import {
   RateLimiter_Config,
   TokenPool_Transfer,
   TokenPool_TransferDetails,
+  TokenPool_Budget,
+  TokenPool_BudgetSet,
+  TokenPool_Config,
+  TokenPool_FlowBudget,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { CURSE_ROLE } from '../../../wrappers/ccip/Router'
 import { BurnMintTokenPool } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
@@ -30,11 +34,8 @@ import {
   Ownable2Step_AcceptOwnership,
   Ownable2Step_TransferOwnership,
 } from '../../../wrappers/gen/ccip/Router'
-import {
-  TokenPool_GetTransferInitiator,
-  TokenPool_TransferInitiator,
-} from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
-import { setTokenPoolAdmissionPolicy } from '../../utils/minValue'
+import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
+import { setTokenPoolBudget } from '../../utils/minValue'
 
 export type TokenPoolBehaviorContext = {
   pool: SandboxContract<TokenPool>
@@ -132,27 +133,41 @@ export function runTokenPoolBehaviorTests(
 
   describe(`${name} TokenPool behavior`, () => {
     describe('flow admission', () => {
-      // S = global safety allowance; A = admission threshold (>= S).
-      const safety = toNano('0.1')
       // Downstream continuations consume value, so an admitted flow needs headroom.
       const headroom = toNano('0.5')
       const policies = [
-        { name: 'unset', admission: null, threshold: safety },
-        { name: 'zero', admission: 0n, threshold: safety },
-        { name: 'below safety', admission: toNano('0.05'), threshold: safety },
-        { name: 'above safety', admission: toNano('0.3'), threshold: toNano('0.3') },
+        { name: 'default', budget: { safety: 0n, admission: 0n } },
+        { name: 'raised safety', budget: { safety: toNano('0.1'), admission: 0n } },
+        { name: 'raised admission', budget: { safety: toNano('0.1'), admission: toNano('0.3') } },
       ]
       const acceptedBoundaries = [
         { name: 'at', offset: 0n },
         { name: 'one nanoton above', offset: 1n },
       ]
 
-      describe.each(policies)('$name admission', ({ admission, threshold }) => {
+      describe.each(policies)('$name budget', ({ budget }) => {
         let ctx: TokenPoolBehaviorContext
+        let lockOrBurnThreshold: bigint
+        let releaseOrMintThreshold: bigint
 
         beforeEach(async () => {
           ctx = await setup()
-          await setTokenPoolAdmissionPolicy(ctx.blockchain, ctx.pool.address, { safety, admission })
+          await setTokenPoolBudget(ctx.blockchain, ctx.pool.address, budget)
+          const effective = await ctx.pool.getBudget()
+          lockOrBurnThreshold = effective.lockOrBurn.admission
+          // ReleaseOrMint admission also covers the caller's delivery continuation.
+          releaseOrMintThreshold =
+            effective.releaseOrMint.admission +
+            deliveryTo(ctx.recipient.address, ctx.deployer.address).forwardTonAmount
+        })
+
+        it('reports admission at least the configured values and never below safety', async () => {
+          const effective = await ctx.pool.getBudget()
+          for (const flow of [effective.lockOrBurn, effective.releaseOrMint]) {
+            expect(flow.safety).toBeGreaterThanOrEqual(budget.safety)
+            expect(flow.admission).toBeGreaterThanOrEqual(budget.admission)
+            expect(flow.admission).toBeGreaterThanOrEqual(flow.safety)
+          }
         })
 
         describe('LockOrBurn', () => {
@@ -180,7 +195,7 @@ export function runTokenPoolBehaviorTests(
           it('rejects one nanoton below the threshold without consuming capacity', async () => {
             const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
 
-            const { transactions } = await sendLockOrBurn(threshold - 1n)
+            const { transactions } = await sendLockOrBurn(lockOrBurnThreshold - 1n)
 
             expect(transactions).toHaveTransaction({
               from: ctx.deployer.address,
@@ -197,7 +212,7 @@ export function runTokenPoolBehaviorTests(
           it.each(acceptedBoundaries)('accepts $name the threshold', async ({ offset }) => {
             const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
 
-            const { transactions } = await sendLockOrBurn(threshold + offset + headroom)
+            const { transactions } = await sendLockOrBurn(lockOrBurnThreshold + offset + headroom)
 
             expect(transactions).toHaveTransaction({
               from: ctx.deployer.address,
@@ -226,7 +241,7 @@ export function runTokenPoolBehaviorTests(
           it('rejects one nanoton below the threshold without consuming capacity', async () => {
             const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
 
-            const { transactions } = await sendReleaseOrMint(threshold - 1n)
+            const { transactions } = await sendReleaseOrMint(releaseOrMintThreshold - 1n)
 
             expect(transactions).toHaveTransaction({
               from: ctx.deployer.address,
@@ -243,7 +258,7 @@ export function runTokenPoolBehaviorTests(
           it.each(acceptedBoundaries)('accepts $name the threshold', async ({ offset }) => {
             const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
 
-            const { transactions } = await sendReleaseOrMint(threshold + offset + headroom)
+            const { transactions } = await sendReleaseOrMint(releaseOrMintThreshold + offset + headroom)
 
             expect(transactions).toHaveTransaction({
               from: ctx.deployer.address,
@@ -908,27 +923,78 @@ export function runTokenPoolBehaviorTests(
       expect(failures).toHaveLength(0)
     })
 
-    it('answers the transfer initiator probe with the initiator of its deliveries', async () => {
+    it('answers the config probe with its delivery initiator and admission budgets', async () => {
       const ctx = await setup()
-      const result = await ctx.unauthorized.send({
-        to: ctx.pool.address,
-        value: toNano('0.05'),
-        body: TokenPool_GetTransferInitiator.toCell(
-          TokenPool_GetTransferInitiator.create({ queryId: 950n }),
-        ),
+      const { lockOrBurn, releaseOrMint } = await ctx.pool.getBudget()
+      const result = await ctx.pool.sendTokenPoolGetConfig(ctx.unauthorized.getSender(), toNano('0.05'), {
+        queryId: 950n,
       })
       expect(result.transactions).toHaveTransaction({
         from: ctx.pool.address,
         to: ctx.unauthorized.address,
-        op: TokenPool_TransferInitiator.PREFIX,
+        op: TokenPool_Config.PREFIX,
         body(body) {
           if (!body) return false
-          const answer = TokenPool_TransferInitiator.fromSlice(body.beginParse())
+          const answer = TokenPool_Config.fromSlice(body.beginParse())
           return (
             answer.queryId === 950n &&
-            sameInitiator(answer.transferInitiator, ctx.releaseOrMintInitiator)
+            sameInitiator(answer.transferInitiator, ctx.releaseOrMintInitiator) &&
+            answer.admission.lockOrBurn === lockOrBurn.admission &&
+            answer.admission.releaseOrMint === releaseOrMint.admission
           )
         },
+      })
+    })
+
+    describe('SetBudget', () => {
+      const raised = TokenPool_Budget.create({
+        lockOrBurn: TokenPool_FlowBudget.create({ admission: toNano('2'), safety: toNano('1') }),
+        releaseOrMint: TokenPool_FlowBudget.create({ admission: 0n, safety: toNano('1') }),
+      })
+
+      it('raises the budget and replies with the effective values', async () => {
+        const ctx = await setup()
+        const result = await ctx.pool.sendTokenPoolSetBudget(ctx.deployer.getSender(), toNano('0.05'), {
+          queryId: 960n,
+          budget: raised,
+        })
+
+        const effective = await ctx.pool.getBudget()
+        expect(effective.lockOrBurn).toMatchObject({ admission: toNano('2'), safety: toNano('1') })
+        // Admission always covers safety.
+        expect(effective.releaseOrMint).toMatchObject({ admission: toNano('1'), safety: toNano('1') })
+        expect(result.transactions).toHaveTransaction({
+          from: ctx.pool.address,
+          to: ctx.deployer.address,
+          body: TokenPool_BudgetSet.toCell(TokenPool_BudgetSet.create({ queryId: 960n, budget: effective })),
+        })
+      })
+
+      it('cannot lower the pool-type defaults', async () => {
+        const ctx = await setup()
+        const defaults = await ctx.pool.getBudget()
+        await ctx.pool.sendTokenPoolSetBudget(ctx.deployer.getSender(), toNano('0.05'), {
+          queryId: 961n,
+          budget: TokenPool_Budget.create({
+            lockOrBurn: TokenPool_FlowBudget.create({ admission: 1n, safety: 1n }),
+            releaseOrMint: TokenPool_FlowBudget.create({ admission: 1n, safety: 1n }),
+          }),
+        })
+        expect(await ctx.pool.getBudget()).toEqual(defaults)
+      })
+
+      it('rejects a non-owner', async () => {
+        const ctx = await setup()
+        const result = await ctx.pool.sendTokenPoolSetBudget(ctx.unauthorized.getSender(), toNano('0.05'), {
+          queryId: 962n,
+          budget: raised,
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: ctx.unauthorized.address,
+          to: ctx.pool.address,
+          success: false,
+          exitCode: ownable2step.Errors.OnlyCallableByOwner,
+        })
       })
     })
 

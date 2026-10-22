@@ -104,9 +104,9 @@ fun onInternalMessage(in: InMessage) {
             assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_WALLET_QUERY_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
             forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_VerifyToken {});
         }
-        TokenAdminRegistry_RefreshTransferInitiator => {
+        TokenAdminRegistry_RefreshPoolConfig => {
             assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_POOL_PROBE_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
-            forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_RefreshTransferInitiator {});
+            forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_RefreshPoolConfig {});
         }
         else => {
             var st = lazy TokenAdminRegistry_Storage.load();
@@ -221,6 +221,7 @@ fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
             tokenPool: tokenInfo.tokenPool,
             transferInitiator: tokenInfo.transferInitiator == null ? null : tokenInfo.transferInitiator!.toCell(),
             version: tokenInfo.version,
+            admission: tokenInfo.admission,
         },
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }

@@ -151,7 +151,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class CctCostHarness implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECKgEAAcYAART/APSkE/S88sgLAQIBYgIDABjQ+JHyQIQPAccA8vQCASAEBQIBIAYHAgEgGhsCAW4ICQIBIAoLAFesgzk48YJUOcCB0bh8HlBAjCU4fBtQQI6cuHwbUDnAggTBCASzAMA4fBvQQAANrJRBAHUwQAIBIAwNAgEgGBkCASAODwIBIBYXAgEgEBECAVgUFQIBIBITAB6qYXOBBAmCEAlmAYBw+DcAaaXI4OSgB1DnAgdGSfB5QQIwlEfwbUECOnJH8G1A5wIIEwQgEswDAEvwb0FRAMlSCCVDS2wTAAmnIQI6cwARpnbnAgdG4fB5AAmmrQIwlQAPrfjBBExLQEAAC62ROHwbQABtszhIXJx4wSoc4EDo3D4PKCBGEpw+DaggR05cPg2oHOBBAmCEAlmAYBw+DeggQDIqIBkqQSgpIAAxsvqggDqYHD4NqBzgQOjcPg8oIIImJaAoIAIBIBwdAgEgICECASAeHwAHtrRuMAARskgghAF9eEAgAAuxbeBETKACASAiIwIBWCgpAgEgJCUCAWYmJwANralBAehIQAALrV1AgGRAAAmlSQIelwAJpJkCBeUACaz3wDdAAA+s78EEBMS0QA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECKAEAAaUAART/APSkE/S88sgLAQIBYgIDABjQ+JHyQIQPAccA8vQCASAEBQIBIAYHAgEgFhcAV7sQZyceMEqHOBA6Nw+DyggRhKcPg2oIEdOXD4NqBzgQQJghAJZgGAcPg3oIAgEgCAkCASAKCwIBIBQVAgEgDA0AC7LInD4NoAIBIA4PAgFYEhMCASAQEQAeqmFzgQQJghAJZgGAcPg3AGmlyODkoAdQ5wIHRknweUECMJRH8G1BAjpyR/BtQOcCCBMEIBLMAwBL8G9BUQDJUgglQ0tsEwAJpyECOnMAEaZ25wIHRuHweQAJpq0CMJUAbbM4SFyceMEqHOBA6Nw+DyggRhKcPg2oIEdOXD4NqBzgQQJghAJZgGAcPg3oIEAyKiAZKkEoKSAAE7L6oEYSnD4NqCACASAYGQIBIBwdAgEgGhsAB7a0bjAAEbJIIIQBfXhAIAALsW3gRMSgAgEgHh8CAVgmJwIBICAhAgFmJCUADa2pQQHoSEACASAiIwAKqrqBAMgACqv6gRhKAAmlSQIelwAJpJkCBeUACaz3wDdAAA+s78EEBMS0QA==');
 
     static Errors = {
     }
@@ -201,6 +201,11 @@ export class CctCostHarness implements c.Contract {
 
     async getGasConsumptionBurnNotification(provider: ContractProvider): Promise<bigint> {
         const r = StackReader.fromGetMethod(1, await provider.get('get_gasConsumptionBurnNotification', []));
+        return r.readBigInt();
+    }
+
+    async getGasConsumptionMint(provider: ContractProvider): Promise<bigint> {
+        const r = StackReader.fromGetMethod(1, await provider.get('get_gasConsumptionMint', []));
         return r.readBigInt();
     }
 
@@ -271,19 +276,9 @@ export class CctCostHarness implements c.Contract {
         return r.readBigInt();
     }
 
-    async getCctMintOpGasUnits(provider: ContractProvider): Promise<bigint> {
-        const r = StackReader.fromGetMethod(1, await provider.get('get_cctMintOpGasUnits', []));
-        return r.readBigInt();
-    }
-
-    async getCctMintStorageReserve(provider: ContractProvider): Promise<coins> {
-        const r = StackReader.fromGetMethod(1, await provider.get('get_cctMintStorageReserve', []));
-        return r.readBigInt();
-    }
-
-    async getCctMintOpBudget(provider: ContractProvider, fwdFee: coins): Promise<coins> {
+    async getCctMintOpBudget(provider: ContractProvider, walletDeployFee: coins): Promise<coins> {
         const r = StackReader.fromGetMethod(1, await provider.get('get_cctMintOpBudget', [
-            { type: 'int', value: fwdFee },
+            { type: 'int', value: walletDeployFee },
         ]));
         return r.readBigInt();
     }

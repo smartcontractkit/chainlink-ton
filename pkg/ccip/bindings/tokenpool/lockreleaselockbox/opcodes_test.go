@@ -12,7 +12,7 @@ import (
 func TestLockReleaseLockboxMessageOpcodes(t *testing.T) {
 	tvmtest.CheckOpcodes(t, TLBs, tvmtest.OpcodeSpec{
 		Prefix:  "LockReleaseLockboxTokenPool_",
-		Package: reflect.TypeOf(Storage{}).PkgPath(),
+		Package: reflect.TypeFor[Storage]().PkgPath(),
 		Skip: map[string]bool{
 			// Standard jetton opcode 0xd53276db; `nolint:opcode` on-chain, so it
 			// intentionally deviates from crc32("ReturnExcessesBack").

@@ -178,8 +178,8 @@ describe('JettonLockBox', () => {
   })
 
   describe('deposit', () => {
-    it('reports a deposit value shortfall locally without bouncing or subsidizing custody return', async () => {
-      const balanceBefore = (await blockchain.getContract(lockbox.address)).balance
+    it('confirms an authenticated deposit with little value, without a value check', async () => {
+      const forwardTonAmount = toNano('0.005')
       const payload = JettonLockBox_Deposit.toCell(
         JettonLockBox_Deposit.create({
           queryId: 220n,
@@ -197,39 +197,23 @@ describe('JettonLockBox', () => {
           destination: lockbox.address,
           responseDestination: operator.address,
           customPayload: null,
-          // Below the safety floor but enough to execute the notification handler.
-          forwardTonAmount: toNano('0.005'),
+          // Custody has arrived: confirming is cheaper than returning it.
+          forwardTonAmount,
           forwardPayload: payload,
         },
       })
-      expect(result.transactions).toHaveTransaction({
-        to: lockbox.address,
-        op: TransferNotificationForRecipient.PREFIX,
-        success: true,
-      })
+      // The confirmation is funded by the deposit's own value, not the lockbox balance.
       expect(result.transactions).toHaveTransaction({
         from: lockbox.address,
         to: operator.address,
-        op: JettonLockBox_DepositFailed.PREFIX,
-        body: (body) => {
-          if (!body) return false
-          const failure = JettonLockBox_DepositFailed.fromSlice(body.beginParse())
-          return (
-            failure.errorCode ===
-              BigInt(JettonLockBox.Errors['JettonLockBox_Error.NotEnoughValue']) &&
-            !failure.returnAttempted &&
-            failure.context !== null
-          )
-        },
+        op: JettonLockBox_Deposited.PREFIX,
+        value: (value) => value !== undefined && value < forwardTonAmount,
       })
       expect(result.transactions).not.toHaveTransaction({
         from: lockbox.address,
-        op: JettonLockBox_Deposited.PREFIX,
+        op: JettonLockBox_DepositFailed.PREFIX,
       })
       expect(await lockboxWallet.getJettonBalance()).toEqual(1n)
-      expect((await blockchain.getContract(lockbox.address)).balance).toBeGreaterThanOrEqual(
-        balanceBefore,
-      )
     })
 
     it('notifies rejected deposits without subsidizing repeated underfunded returns', async () => {
