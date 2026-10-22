@@ -5,7 +5,7 @@ import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import { createCursePolicy } from '../../../wrappers/ccip/Router'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { WRAPPED_NATIVE, generateRandomContractId } from '../../../src/utils'
+import { generateRandomContractId } from '../../../src/utils'
 import { deployOffRampContract } from '../offramp/OffRamp.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
 
@@ -28,7 +28,6 @@ describe('Router.curseSync', () => {
         rt.Storage.create({
           id: generateRandomContractId(),
           ownable: rt.Ownable2Step.create({ owner: deployer.address }),
-          wrappedNative: WRAPPED_NATIVE,
           onRamps: new Map(),
           offRamps: new Map(),
           rmnRemote: rt.RMNRemote.create({
