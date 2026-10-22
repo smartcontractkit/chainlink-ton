@@ -60,6 +60,30 @@ struct (0x31580269) TokenAdminRegistryEntry_RegistrationInitialized {
     queryId: uint64;
 }
 
+/// Entry execution, the TEP-89 wallet query, the pool probe, and the relays of
+/// the administrator proposal and of the PoolSet that follows the probe answer.
+fun TokenAdminRegistryEntry_RegistrationInitialized.cost(): coins {
+    return grams("0.004")
+        + TokenAdminRegistryEntry_WALLET_QUERY_VALUE
+        + TokenAdminRegistryEntry_POOL_PROBE_VALUE
+        + 2 * TokenAdminRegistryEntry_relayEventCost();
+}
+
+/// Value an entry attaches to an event it sends to the root to be emitted.
+/// Unspent value stays on the root.
+fun TokenAdminRegistryEntry_relayEventCost(): coins {
+    return grams("0.004");
+}
+
+/// Value the root deploys an entry with: the deploy forward fee and Deployable
+/// initialization, the RegistrationInitialized self-message, and a 0.04 TON
+/// storage fee reserve that stays on the entry.
+fun TokenAdminRegistryEntry_deployCost(): coins {
+    return grams("0.04")
+        + grams("0.011")
+        + TokenAdminRegistryEntry_RegistrationInitialized.cost();
+}
+
 struct (0x6dcbe573) TokenAdminRegistryEntry_ProposeAdministrator {
     administrator: address
 }
@@ -88,14 +112,9 @@ struct (0xa14b0288) TokenAdminRegistryEntry_VerifyToken {}
 struct (0x91f8fb81) TokenAdminRegistryEntry_RefreshTransferInitiator {}
 
 /// Value the root attaches to an Upgradeable_Upgrade sent to an entry.
+/// Re-measure with a real code install and `migrate` when a new version ships.
 fun TokenAdminRegistryEntry_upgradeCost(): coins {
-    return grams("0.01");
-}
-
-/// Worst-case cost of a stale entry round trip: entry -> root, then root ->
-/// entry with the Upgradeable_Upgrade and the Resume.
-fun TokenAdminRegistryEntry_upgradeRoundTripCost(): coins {
-    return grams("0.02");
+    return grams("0.012");
 }
 
 /// Sent by the root right after an Upgradeable_Upgrade to replay a deferred request. TON

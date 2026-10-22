@@ -28,7 +28,6 @@ const CONTRACT_VERSION = "1.6.0";
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistryEntry_InMessage.fromSlice(in.body);
     match (msg) {
-        // TODO: min value assertion throughout
         TokenAdminRegistryEntry_RegistrationInitialized => {
             onRegistrationInitialized(msg, in.senderAddress);
         }
@@ -368,7 +367,7 @@ fun notifyRoot(body: cell) {
     val st = TokenRegistry_Storage.load();
     createMessage({
         bounce: true,
-        value: grams("0.01"),
+        value: TokenAdminRegistryEntry_relayEventCost(),
         dest: st.adminConfig.load().tokenAdminRegistry,
         body,
     }).send(SEND_MODE_PAY_FEES_SEPARATELY);

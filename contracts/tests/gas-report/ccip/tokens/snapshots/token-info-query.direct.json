@@ -1,0 +1,81 @@
+{
+  "current-entry": {
+    "transactions": [
+      {
+        "from": "Requester",
+        "to": "TokenAdminRegistryEntry",
+        "opCode": "0x7aef4c2d",
+        "gasUsed": 4383,
+        "computeFee": "292201",
+        "forwardFee": "117468",
+        "totalFee": "409669"
+      },
+      {
+        "from": "TokenAdminRegistryEntry",
+        "to": "Requester",
+        "opCode": "0x0a58e678",
+        "gasUsed": 309,
+        "computeFee": "20601",
+        "forwardFee": "0",
+        "totalFee": "20601"
+      }
+    ],
+    "totalTransactions": 2,
+    "totalGasUsed": 4692,
+    "totalFee": "430270",
+    "totalFeeTON": "0.000430270"
+  },
+  "stale-entry": {
+    "transactions": [
+      {
+        "from": "Requester",
+        "to": "TokenAdminRegistryEntry",
+        "opCode": "0x7aef4c2d",
+        "gasUsed": 5157,
+        "computeFee": "343801",
+        "forwardFee": "136134",
+        "totalFee": "479935"
+      },
+      {
+        "from": "TokenAdminRegistryEntry",
+        "to": "TokenAdminRegistry",
+        "opCode": "0x55b8b654",
+        "gasUsed": 4510,
+        "computeFee": "300668",
+        "forwardFee": "1157868",
+        "totalFee": "1458536"
+      },
+      {
+        "from": "TokenAdminRegistry",
+        "to": "TokenAdminRegistryEntry",
+        "opCode": "0x1fa23ab9",
+        "gasUsed": 8614,
+        "computeFee": "574268",
+        "forwardFee": "1237802",
+        "totalFee": "1812070"
+      },
+      {
+        "from": "TokenAdminRegistryEntry",
+        "to": "TokenAdminRegistryEntry",
+        "opCode": "0x47d63a64",
+        "gasUsed": 6567,
+        "computeFee": "437801",
+        "forwardFee": "117468",
+        "totalFee": "555269"
+      },
+      {
+        "from": "TokenAdminRegistryEntry",
+        "to": "Requester",
+        "opCode": "0x0a58e678",
+        "gasUsed": 309,
+        "computeFee": "20601",
+        "forwardFee": "0",
+        "totalFee": "20601"
+      }
+    ],
+    "totalTransactions": 5,
+    "totalGasUsed": 25157,
+    "totalFee": "4326411",
+    "totalFeeTON": "0.004326411"
+  }
+}

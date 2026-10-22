@@ -1,4 +1,5 @@
 import { crc32 } from 'zlib'
+import { toNano } from '@ton/core'
 import { errorCode, facilityId } from '../utils'
 
 export const ARTIFACT_NAME = 'TokenAdminRegistry'
@@ -21,3 +22,38 @@ export const EventTopics = {
   AdministratorTransferred: crc32('AdministratorTransferred'),
   PoolSet: crc32('PoolSet'),
 } as const
+
+/** Mirrors the TokenAdminRegistry cost functions in Tolk. */
+export const Costs = (() => {
+  const relayEvent = toNano('0.004')
+  const walletQuery = toNano('0.005')
+  const poolProbe = toNano('0.008')
+  const registrationInitializedBase = toNano('0.004')
+  const registrationInitialized =
+    registrationInitializedBase + walletQuery + poolProbe + 2n * relayEvent
+  const entryStorageReserve = toNano('0.04')
+  const deployBase = toNano('0.011')
+  const deploy = entryStorageReserve + deployBase + registrationInitialized
+  const registerTokenBase = toNano('0.003')
+  const forwardBase = toNano('0.006')
+  const forward = forwardBase + relayEvent
+  return {
+    relayEvent,
+    walletQuery,
+    poolProbe,
+    registrationInitializedBase,
+    registrationInitialized,
+    entryStorageReserve,
+    deployBase,
+    deploy,
+    registerTokenBase,
+    registerToken: registerTokenBase + deploy,
+    getTokenInfo: toNano('0.008'),
+    forwardBase,
+    forward,
+    setPool: forward + poolProbe,
+    refreshTransferInitiator: forward + poolProbe,
+    verifyToken: forward + walletQuery,
+    upgrade: toNano('0.012'),
+  }
+})()
