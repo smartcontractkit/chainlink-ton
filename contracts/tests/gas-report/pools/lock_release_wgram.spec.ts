@@ -21,7 +21,6 @@ import { JettonLockBox, AccessControl_Data } from '../../../wrappers/gen/ccip/po
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { deployCctHarness } from '../harness'
-import { vmGasUsed } from '../token/gas'
 import {
   assertWalletFeeCoversHop,
   runTokenPoolGasCalibration,
@@ -38,8 +37,6 @@ function emptyAccessControlData(): AccessControl_Data {
 // LockRelease↔wGRAM: locks into a lockbox, releases from it. wGRAM wallets cost more than the CCT
 // reference the pool budget is calibrated to, so the buffered transfer budget is exercised on real
 // lock and release hops.
-const TRANSFER_NOTIFICATION_OP = 0x7362d09c
-
 runTokenPoolGasCalibration({
   name: 'LockRelease↔wGRAM',
   setup: async (blockchain: Blockchain, deployer: SandboxContract<TreasuryContract>) => {
@@ -158,18 +155,7 @@ runTokenPoolGasCalibration({
       }),
       // Fund lockbox custody so the release withdraw can transfer to the recipient account.
       fundForRelease: () => mintWgram(jettonLockBox.address, toNano('5')).then(() => undefined),
-      assertTokenBudget: async (kind, result) => {
-        if (kind === 'lock') {
-          // The lock's custody cost prices the custody notification transaction at a pinned gas.
-          const notification = result.transactions.find(
-            (tx: any) =>
-              tx.inMessage?.info.dest?.equals?.(lockReleasePool.address) &&
-              tx.inMessage.body.beginParse().preloadUint(32) === TRANSFER_NOTIFICATION_OP,
-          )
-          const pinned = await harness.getLockReleaseLockNotificationGasUnits()
-          console.table([{ operation: 'pool custody notification', gasUsed: vmGasUsed(notification) }])
-          expect(vmGasUsed(notification)).toBeLessThanOrEqual(pinned)
-        }
+      assertTokenBudget: async (_kind, result) => {
         // Both lock (pool wallet → lockbox wallet) and release (lockbox wallet → account wallet)
         // hops are funded from the generic (doubled) fee model.
         await assertWalletFeeCoversHop(harness, walletHopByInternalTransfer(result), true)

@@ -749,7 +749,7 @@ describe('BurnMintTokenPool', () => {
     })
   })
 
-  it('burns tokens and finalizes even when the burn confirmation is below the safety floor', async () => {
+  it('burns tokens and finalizes even when the burn confirmation is below the custody forward', async () => {
     const deployerWallet = await userWallet(deployer.address)
     const poolWallet = await userWallet(burnMintPool.address)
 
@@ -854,14 +854,14 @@ describe('BurnMintTokenPool', () => {
     // Pool sends CCT_AskToBurn (with continuation context) to its own wallet; the CCT wallet
     // relays it via the minter back to the pool on CCT_ReturnExcessesBack, which finalizes.
     const result2 = await deployerWallet.sendTransfer(deployer.getSender(), {
-      value: toNano('0.5'),
+      value: toNano('1'),
       message: {
         queryId: Number(queryId),
         jettonAmount,
         destination: burnMintPool.address,
         responseDestination: null,
         customPayload: null,
-        forwardTonAmount: toNano('0.3'),
+        forwardTonAmount: adminFloor * 2n,
         forwardPayload: forwardPayloadCell,
       },
     })
@@ -869,7 +869,7 @@ describe('BurnMintTokenPool', () => {
     expect(result2.transactions).toHaveTransaction({
       to: pool.address,
       op: CCT_ReturnExcessesBack.PREFIX,
-      value: (value) => value !== undefined && value < adminFloor,
+      value: (value) => value !== undefined && value < adminFloor * 2n,
       success: true,
     })
     expect(await poolWallet.getJettonBalance()).toEqual(0n)

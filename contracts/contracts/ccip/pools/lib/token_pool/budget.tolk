@@ -4,10 +4,10 @@
 /// instance can raise (`TokenPool_SetBudget`). In storage, a zero field means "use the default".
 /// See docs/contracts/overview/ccip/budget/TP-VALUE-BUDGET-AUDIT.md.
 
-/// - `admission`: checked at the entrypoint and published to CCIP. Pays the flow up to the pool's
-///   last custody move.
-/// - `safety`: forwarded with the pool's last custody move (the custody transfer to a burning pool,
-///   the deposit to a lockbox). Pays finalization or recovery.
+/// - `admission`: checked at the entrypoint and published to CCIP. Covers the pre-custody path and
+///   the full custody forward.
+/// - `safety`: one custody phase's budget. The first custody transfer carries
+///   `lockOrBurnCustodyMoves * safety`; pays finalization or recovery.
 struct TokenPool_LockOrBurnBudget {
     admission: coins = 0;
     safety: coins = 0;

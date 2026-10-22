@@ -162,11 +162,11 @@ export function runTokenPoolBehaviorTests(
             deliveryTo(ctx.recipient.address, ctx.deployer.address).forwardTonAmount
         })
 
-        it('reports at least the configured values, with admission never below safety', async () => {
+        it('reports at least the configured values, with admission covering both custody phases', async () => {
           const { lockOrBurn, releaseOrMint } = await ctx.pool.getBudget()
           expect(lockOrBurn.safety).toBeGreaterThanOrEqual(budget.safety)
           expect(lockOrBurn.admission).toBeGreaterThanOrEqual(budget.admission)
-          expect(lockOrBurn.admission).toBeGreaterThanOrEqual(lockOrBurn.safety)
+          expect(lockOrBurn.admission).toBeGreaterThanOrEqual(lockOrBurn.safety * 2n)
           expect(releaseOrMint.admission).toBeGreaterThanOrEqual(budget.admission)
         })
 
@@ -960,8 +960,8 @@ export function runTokenPoolBehaviorTests(
         })
 
         const effective = await ctx.pool.getBudget()
-        // Admission always covers safety.
-        expect(effective.lockOrBurn).toMatchObject({ admission: toNano('1'), safety: toNano('1') })
+        // Admission covers both custody phases.
+        expect(effective.lockOrBurn).toMatchObject({ admission: toNano('2'), safety: toNano('1') })
         expect(effective.releaseOrMint).toMatchObject({ admission: toNano('2') })
         expect(result.transactions).toHaveTransaction({
           from: ctx.pool.address,

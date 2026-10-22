@@ -152,7 +152,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 fun onLockOrBurnTransferContinue(
     st: Storage,
     sender: address,
-    _msgValue: coins, // the custody forward the pool requested: its LockOrBurn safety
+    _msgValue: coins, // the custody forward: two custody phases' safety
     _msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {

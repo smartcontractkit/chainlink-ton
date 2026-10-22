@@ -11,9 +11,7 @@ import "@stdlib/gas-payments"
 import "../../ccip/cct/fees-management"
 import "../../ccip/pools/lib/token_pool/jetton_fees"
 import "../../ccip/pools/burn_mint/types"
-import "../../ccip/pools/lock_release_lockbox/types"
 import "../../ccip/budget/min_value"
-import "../../lib/budget/gas"
 
 contract CctCostHarness {
     author: "SmartContract Chainlink Limited SEZC"
@@ -54,10 +52,6 @@ get fun get_jettonTransferFee(fwdFee: coins, hasForward: bool, generic: bool): c
 
 
 get fun get_cctMintOpBudget(walletDeployFee: coins): coins { return cctMintOpBudget(walletDeployFee); }
-
-/* === LockRelease lock custody cost (pools/lock_release_lockbox/types) === */
-
-get fun get_lockReleaseLockNotificationGasUnits(): int { return LockReleaseLockboxTokenPool_LOCK_NOTIFICATION_GAS_UNITS; }
 
 /* === CCIP token-pool admission floors (ccip/budget/min_value) === */
 

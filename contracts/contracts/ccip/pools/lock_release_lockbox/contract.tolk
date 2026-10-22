@@ -5,8 +5,6 @@ import "@stdlib/lisp-lists"
 import "@stdlib/gas-payments"
 
 import "../../../lib/utils"
-import "../../../lib/budget/gas"
-import "../../../lib/budget/min_value"
 import "../../../lib/access/access_control"
 import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
@@ -20,7 +18,6 @@ import "../../rmn_remote/lib"
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/budget"
 import "../lib/token_pool/recovery"
-import "../lib/token_pool/jetton_fees"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
 import "../lib/token_pool/errors"
@@ -145,12 +142,12 @@ fun onBouncedMessage(in: InMessageBounced) {
 fun onLockOrBurnTransferContinue(
     st: Storage,
     _sender: address,
-    _msgValue: coins, // the custody forward: the lock's safety plus its custody cost
+    _msgValue: coins, // the custody forward: two custody phases' safety
     msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
-    // The last custody move: the deposit carries the safety; the rest pays this transfer, whose
-    // wallet rejects an underfunded transfer before custody moves and returns its unused fee.
+    // The last custody move: the deposit carries one custody phase's safety; the rest pays this
+    // transfer, whose wallet rejects an underfunded transfer before custody moves.
     val safety = loadPool(st).budget().lockOrBurn.safety;
     // On rejection the lockbox returns custody straight to the original sender.
     lockTransfer(st, fwdPayload, msg.transferInitiator, safety).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -395,16 +392,6 @@ fun defaultBudget(_ctx: Storage?): TokenPool_Budget {
     return LockReleaseLockboxTokenPool_defaultBudget();
 }
 
-/// The lock's custody cost: the custody notification transaction and its transfer to the lockbox
-/// (forward fee and the wallet's fee). The return address is the custody transfer's initiator,
-/// unknown here; any standard address quotes the same.
-fun lockOrBurnCustodyCost(ctx: Storage?, fwdPayload: TokenPool_LockOrBurnForwardPayload, safety: coins): coins {
-    val transfer = lockTransfer(ctx!, fwdPayload, contract.getAddress(), safety);
-    val fwdFee = transfer.estimateFeeWithoutSending(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    val gasFee = calculateGasFee(contract.getAddress().getWorkchain(), LockReleaseLockboxTokenPool_LOCK_NOTIFICATION_GAS_UNITS);
-    return gasFee + fwdFee + JettonWalletFees.Generic.transferFee(fwdFee, true);
-}
-
 /// Releases are transferred out of the lockbox's wallet.
 fun transferInitiator(ctx: Storage?): address? {
     assert(ctx != null && ctx!.lockbox != createAddressNone(), LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
@@ -428,7 +415,6 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             onReleaseOrMintContinue,
             onWithdrawFeeTokens: null,
             defaultBudget,
-            lockOrBurnCustodyCost,
             transferInitiator,
         },
     };

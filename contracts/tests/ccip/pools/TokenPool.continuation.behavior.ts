@@ -107,7 +107,7 @@ export function runTokenPoolContinuationBehaviorTests(
       expect(capacityAfter.inbound.tokens).toEqual(capacityBefore.inbound.tokens - 1n)
     })
 
-    it('returns received custody and restores capacity when its notification is below the safety floor', async () => {
+    it('returns received custody and restores capacity when its notification is below the custody forward', async () => {
       const ctx = await setup()
       const floor = toNano('0.3')
       await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
@@ -117,7 +117,7 @@ export function runTokenPoolContinuationBehaviorTests(
       )
       const admitted = await ctx.pool.sendTokenPoolLockOrBurn(
         ctx.deployer.getSender(),
-        toNano('0.5'),
+        floor * 2n,
         {
           queryId: 1n,
           request: TokenPool_LockOrBurnInV1.create({
@@ -159,7 +159,7 @@ export function runTokenPoolContinuationBehaviorTests(
           destination: ctx.pool.address,
           responseDestination: ctx.deployer.address,
           customPayload: null,
-          forwardTonAmount: toNano('0.2'), // Below the floor, but enough to fund the custody return.
+          forwardTonAmount: toNano('0.2'), // Below the 2S custody forward, but enough to fund the return.
           forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
         },
       })
@@ -167,7 +167,7 @@ export function runTokenPoolContinuationBehaviorTests(
       expect(transactions).toHaveTransaction({
         to: ctx.pool.address,
         op: TransferNotificationForRecipient.PREFIX,
-        value: (value) => value !== undefined && value < floor,
+        value: (value) => value !== undefined && value < floor * 2n,
         success: true,
       })
       expect(transactions).toHaveTransaction({

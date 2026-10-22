@@ -252,11 +252,6 @@ export class CctCostHarness implements c.Contract {
         return r.readBigInt();
     }
 
-    async getLockReleaseLockNotificationGasUnits(provider: ContractProvider): Promise<bigint> {
-        const r = StackReader.fromGetMethod(1, await provider.get('get_lockReleaseLockNotificationGasUnits', []));
-        return r.readBigInt();
-    }
-
     async getCcipMinValueGasUnits(provider: ContractProvider): Promise<bigint> {
         const r = StackReader.fromGetMethod(1, await provider.get('get_ccipMinValueGasUnits', []));
         return r.readBigInt();

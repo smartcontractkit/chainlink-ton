@@ -49,7 +49,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
 
         const { transactions } = await ctx.pool.sendTokenPoolLockOrBurn(
           ctx.deployer.getSender(),
-          floor,
+          floor * 2n,
           {
             queryId: 2n, // The mock hook approves even query IDs.
             request: lockOrBurnIn(ctx),
@@ -63,7 +63,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           from: ctx.hooks.address,
           to: ctx.pool.address,
           op: TokenPool_PreflightCheckFinished.PREFIX,
-          value: (value) => value !== undefined && value < floor,
+          value: (value) => value !== undefined && value < floor * 2n,
           success: true,
         })
         expect(transactions).toHaveTransaction({

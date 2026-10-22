@@ -12,19 +12,15 @@ const LockReleaseLockboxTokenPool_FACILITY_ID = LockReleaseLockboxTokenPool_FACI
 
 /// Pool-type default budgets for wGRAM-like wallets, measured by the gas-report tests at
 /// 66.67 nTON/gas. Raise per instance (`TokenPool_SetBudget`) for jettons with costlier wallets.
-/// LockOrBurn safety: the lockbox deposit forwards it to the lockbox's confirmation, the finalize
-/// and its reply (~0.006 TON); ~2.8x.
+/// LockOrBurn safety: one custody phase. The first transfer carries two phases' safety; the
+/// lockbox deposit forwards one.
 const LockReleaseLockboxTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS = BUDGET_UNITS_LVL3_HIGH; // ~0.0167 TON
-/// LockOrBurn admission: the entry, the withdraw relay and the custody transfer, which carries the
-/// safety plus the lock's custody cost (~0.035 TON in total).
+/// LockOrBurn admission: the entry, the withdraw relay and the custody transfer, which carries two
+/// custody phases' safety (~0.033 TON).
 const LockReleaseLockboxTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 875_000; // ~0.058 TON
 /// ReleaseOrMint admission: pool -> lockbox -> recipient wallet (~0.015 TON); ~3.9x. The caller's
 /// delivery forward is added on top.
 const LockReleaseLockboxTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS = 875_000; // ~0.058 TON
-
-/// Gas of the pool's custody notification transaction, which moves custody on to the lockbox
-/// (measured ~35.6k; the gas-report tests check this bound).
-const LockReleaseLockboxTokenPool_LOCK_NOTIFICATION_GAS_UNITS = 45_000;
 
 fun LockReleaseLockboxTokenPool_defaultBudget(): TokenPool_Budget {
     return {
