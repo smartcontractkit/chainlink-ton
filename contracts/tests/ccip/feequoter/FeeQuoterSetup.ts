@@ -647,7 +647,7 @@ export class FeeQuoterSetup {
    * token amounts) that the typed body loader cannot parse.
    */
   async assertGetFeeValidationErrorRaw(body: Cell, expectedError: number): Promise<void> {
-    const result = await this.bind.feeQuoter.sendInternal(
+    const result = await this.bind.feeQuoter.send(
       this.acc.externalCaller.getSender(),
       toNano('1'),
       body,
@@ -664,7 +664,7 @@ export class FeeQuoterSetup {
         continue
       }
       if (parsed.remainingBits < 32) continue
-      if (parsed.loadUint(32) === sx.opcodes.in.messageValidationFailed) {
+      if (parsed.loadUint(32) === sx.FeeQuoter_MessageValidationFailed.PREFIX) {
         sawValidationFailed = true
         actualError = parsed.loadUintBig(256)
         break

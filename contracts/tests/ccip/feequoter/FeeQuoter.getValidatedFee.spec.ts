@@ -12,7 +12,7 @@ import { verifyBodyMessage } from '../../utils/verifyMessageBody'
 import { Blockchain } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 import { ChainSelectors } from '../../utils/Selectors'
-import { FromBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+import { FromBuffer, ToBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { findTransactionRequired } from '@ton/test-utils'
 
 describe('FeeQuoter GetValidatedFee', () => {
@@ -944,17 +944,21 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
 
     it('reverts when defaultTxGasLimit exceeds maxPerMsgGasLimit for absent gasLimit', async () => {
-      await setup.bind.feeQuoter.sendFeeQuoterUpdateDestChainConfigs(setup.acc.owner.getSender(),toNano('1'), {
-        updates: [
-          feeQuoter.FeeQuoter_UpdateDestChainConfig.create({
-            destChainSelector: ChainSelectors.testnet.evm,
-            destChainConfig: {
-              ...FeeQuoterSetup.destChainConfig,
-              defaultTxGasLimit: FeeQuoterSetup.MAX_GAS_LIMIT + 1n,
-            },
-          }),
-        ],
-      })
+      await setup.bind.feeQuoter.sendFeeQuoterUpdateDestChainConfigs(
+        setup.acc.owner.getSender(),
+        toNano('1'),
+        {
+          updates: [
+            feeQuoter.FeeQuoter_UpdateDestChainConfig.create({
+              destChainSelector: ChainSelectors.testnet.evm,
+              destChainConfig: {
+                ...FeeQuoterSetup.destChainConfig,
+                defaultTxGasLimit: FeeQuoterSetup.MAX_GAS_LIMIT + 1n,
+              },
+            }),
+          ],
+        },
+      )
 
       const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.evm,
@@ -962,10 +966,16 @@ describe('FeeQuoter GetValidatedFee', () => {
         data: beginCell().endCell(),
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs: validEVMExtraArgs,
+        extraArgs: rt.GenericExtraArgsV2.create({
+          gasLimit: null,
+          allowOutOfOrderExecution: true,
+        }),
       })
 
-      await setup.assertGetFeeValidationError(message,feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.GasLimitTooHigh'])
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.GasLimitTooHigh'],
+      )
     })
 
     // NOTE: GasLimitTooHigh already tested above as "should revert when gas limit too high"
@@ -1215,7 +1225,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         data: Cell.EMPTY,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs: rt.GenericExtraArgsV2.create({
+        extraArgs: rt.SuiExtraArgsV1.create({
           ...validSVMExtraArgs,
           allowOutOfOrderExecution: false,
         }),
@@ -1681,44 +1691,35 @@ describe('FeeQuoter GetValidatedFee', () => {
   })
 
   describe('canonical snake and library-reference hardening', () => {
-    const evmGenericArgs = (): Cell =>
-      rt.builder.data.extraArgs
-        .encode({
-          kind: 'generic-v2',
-          gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
-          allowOutOfOrderExecution: true,
-        })
-        .endCell()
+    const evmGenericArgs = () =>
+      rt.GenericExtraArgsV2.create({
+        gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+        allowOutOfOrderExecution: true,
+      })
 
     it('resolves an absent EVMExtraArgsV2 gasLimit to the default (no null in reply)', async () => {
-      // Encode via the binding with gasLimit omitted: the codec stores the
+      // Encode via the binding with a null gasLimit: the codec stores the
       // maybe-bit as absent, which is exactly the malformed input under test.
-      const noGasArgs = rt.builder.data.extraArgs
-        .encode({
-          kind: 'generic-v2',
-          allowOutOfOrderExecution: true,
-        })
-        .endCell()
-
-      const message: rt.CCIPSend = {
+      const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.evm,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: Cell.EMPTY,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs: noGasArgs,
-      }
+        extraArgs: rt.GenericExtraArgsV2.create({
+          gasLimit: null,
+          allowOutOfOrderExecution: true,
+        }),
+      })
 
       const validated = await setup.getValidatedFee(message)
       // The echoed extra args must decode via the binding and carry a
       // present 256-bit gas limit (the default), never an absent maybe.
-      const echoed = rt.builder.data.extraArgs.load(validated.msg.extraArgs.beginParse())
-      if (echoed.kind !== 'generic-v2') {
-        throw new Error(
-          `Expected echoed extraArgs to be of kind "generic-v2", but got "${echoed.kind}"`,
-        )
+      const echoed = validated.msg.extraArgs
+      if (echoed.$ !== 'GenericExtraArgsV2') {
+        throw new Error(`Expected echoed extraArgs to be GenericExtraArgsV2, but got "${echoed.$}"`)
       }
-      expect(echoed.gasLimit).toBeDefined() // gasLimit is present, not null
+      expect(echoed.gasLimit).not.toBeNull() // gasLimit is present, not null
       expect(echoed.gasLimit).toBe(BigInt(FeeQuoterSetup.GAS_LIMIT))
       expect(echoed.allowOutOfOrderExecution).toBe(true) // allowOutOfOrderExecution preserved
     })
@@ -1728,32 +1729,38 @@ describe('FeeQuoter GetValidatedFee', () => {
       const leafB = beginCell().storeUint(2, 8).endCell()
       const branched = beginCell().storeRef(leafA).storeRef(leafB).endCell()
 
-      const message: rt.CCIPSend = {
+      const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.evm,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: branched,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: evmGenericArgs(),
-      }
+      })
 
-      await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidMsgData)
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidMsgData'],
+      )
     })
 
     it('rejects a non-byte-full non-terminal message.data cell', async () => {
       const tail = beginCell().storeUint(0, 8).endCell()
       const headPartial = beginCell().storeUint(0, 4).storeRef(tail).endCell()
 
-      const message: rt.CCIPSend = {
+      const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.evm,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: headPartial,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: evmGenericArgs(),
-      }
+      })
 
-      await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidMsgData)
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidMsgData'],
+      )
     })
 
     it('rejects a library-reference message.data cell', async () => {
@@ -1762,16 +1769,19 @@ describe('FeeQuoter GetValidatedFee', () => {
         .storeBuffer(Buffer.alloc(32, 0xab))
         .endCell({ exotic: true })
 
-      const message: rt.CCIPSend = {
+      const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.evm,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: libRef,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: evmGenericArgs(),
-      }
+      })
 
-      await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidMsgData)
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidMsgData'],
+      )
     })
 
     it('rejects a library-reference tokenAmounts cell (resolving to empty)', async () => {
@@ -1781,26 +1791,48 @@ describe('FeeQuoter GetValidatedFee', () => {
         .endCell({ exotic: true })
 
       // Build the fee-quoter request body manually so we can inject the exotic
-      // tokenAmounts cell that the typed builder would never emit; every other
-      // field uses the typed bindings and exported opcodes.
+      // tokenAmounts cell that the typed bindings would never emit; every other
+      // field uses the exported opcodes and the CrossChainAddress wire format.
+      const destAddressBytes = ToBuffer(FeeQuoterSetup.DEST_ADDRESS)
       const ccipSendBody = beginCell()
-        .storeUint(rt.opcodes.in.ccipSend, 32)
+        .storeUint(rt.Router_CCIPSend.PREFIX, 32)
         .storeUint(0, 64) // queryID
         .storeUint(ChainSelectors.testnet.evm, 64)
-        .storeBuilder(rt.builder.data.crossChainAddress.encode(FeeQuoterSetup.DEST_ADDRESS))
+        .storeUint(destAddressBytes.byteLength, 8) // CrossChainAddress length prefix
+        .storeBuffer(destAddressBytes)
         .storeRef(Cell.EMPTY) // data
         .storeRef(libRef) // tokenAmounts (exotic!)
         .storeAddress(FeeQuoterSetup.NATIVE_TON.token)
-        .storeRef(evmGenericArgs())
+        .storeRef(rt.GenericExtraArgsV2.toCell(evmGenericArgs()))
         .endCell()
 
       const body = beginCell()
-        .storeUint(feeQuoter.opcodes.in.getValidatedFee, 32)
+        .storeUint(feeQuoter.FeeQuoter_GetValidatedFee.PREFIX, 32)
         .storeRef(ccipSendBody)
-        .endCell() // empty context slice
+        .storeMaybeRef(null) // context
+        .endCell()
 
-      await setup.assertGetFeeValidationErrorRaw(body, feeQuoter.errors.UnsupportedNumberOfTokens)
+      await setup.assertGetFeeValidationErrorRaw(
+        body,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.UnsupportedNumberOfTokens'],
+      )
     })
+
+    // Malformed extraArgs cells (split/truncated/exotic snakes) cannot be
+    // expressed through the typed bindings, so these tests serialize the
+    // request with the manual wrapper and inject the raw extraArgs cell.
+    const rawExtraArgsMessage = (destChainSelector: bigint, extraArgs: Cell): Cell =>
+      feeQuoterManual.FeeQuoter_GetValidatedFee.toCell({
+        msg: {
+          queryID: 0n,
+          destChainSelector,
+          receiver: FeeQuoterSetup.DEST_ADDRESS,
+          data: Cell.EMPTY,
+          tokenAmounts: [],
+          feeToken: FeeQuoterSetup.NATIVE_TON.token,
+          extraArgs,
+        },
+      })
 
     it('rejects SVM accounts split across a cell boundary', async () => {
       // 256-bit account split: 128 bits in the outer cell, 128 bits in the ref.
@@ -1810,7 +1842,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         .endCell()
 
       const extraArgs = beginCell()
-        .storeUint(rt.ExtraArgsOpcodes.svmV1, 32)
+        .storeUint(rt.SVMExtraArgsV1.PREFIX, 32)
         .storeUint(FeeQuoterSetup.GAS_LIMIT, 32) // computeUnits
         .storeUint(0, 64) // accountIsWritableBitmap
         .storeBit(true) // allowOutOfOrderExecution
@@ -1818,16 +1850,10 @@ describe('FeeQuoter GetValidatedFee', () => {
         .storeRef(accountsSplit)
         .endCell()
 
-      const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
-        receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: Cell.EMPTY,
-        tokenAmounts: [],
-        feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs,
-      }
-
-      await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidExtraArgsData)
+      await setup.assertGetFeeValidationErrorRaw(
+        rawExtraArgsMessage(ChainSelectors.testnet.solana, extraArgs),
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidExtraArgsData'],
+      )
     })
 
     it('rejects SVM accounts with a truncated element', async () => {
@@ -1839,7 +1865,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         .endCell()
 
       const extraArgs = beginCell()
-        .storeUint(rt.ExtraArgsOpcodes.svmV1, 32)
+        .storeUint(rt.SVMExtraArgsV1.PREFIX, 32)
         .storeUint(FeeQuoterSetup.GAS_LIMIT, 32)
         .storeUint(0, 64)
         .storeBit(true)
@@ -1847,16 +1873,10 @@ describe('FeeQuoter GetValidatedFee', () => {
         .storeRef(accountsTruncated)
         .endCell()
 
-      const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
-        receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: Cell.EMPTY,
-        tokenAmounts: [],
-        feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs,
-      }
-
-      await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidExtraArgsData)
+      await setup.assertGetFeeValidationErrorRaw(
+        rawExtraArgsMessage(ChainSelectors.testnet.solana, extraArgs),
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidExtraArgsData'],
+      )
     })
 
     it('rejects a library-reference SVM accounts cell', async () => {
@@ -1866,7 +1886,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         .endCell({ exotic: true })
 
       const extraArgs = beginCell()
-        .storeUint(rt.ExtraArgsOpcodes.svmV1, 32)
+        .storeUint(rt.SVMExtraArgsV1.PREFIX, 32)
         .storeUint(FeeQuoterSetup.GAS_LIMIT, 32)
         .storeUint(0, 64)
         .storeBit(true)
@@ -1874,16 +1894,10 @@ describe('FeeQuoter GetValidatedFee', () => {
         .storeRef(libRef)
         .endCell()
 
-      const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
-        receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: Cell.EMPTY,
-        tokenAmounts: [],
-        feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs,
-      }
-
-      await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidExtraArgsData)
+      await setup.assertGetFeeValidationErrorRaw(
+        rawExtraArgsMessage(ChainSelectors.testnet.solana, extraArgs),
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidExtraArgsData'],
+      )
     })
 
     // Control: a well-formed multi-cell SVM accounts snake is still accepted.
@@ -1892,30 +1906,20 @@ describe('FeeQuoter GetValidatedFee', () => {
     // accounts plus a continuation ref, and a tail cell holding the fourth —
     // exercising the continuation traversal for a valid fixed-width snake.
     it('accepts a canonical multi-cell SVM accounts snake', async () => {
-      const extraArgs = rt.builder.data.extraArgs
-        .encode({
-          kind: 'svm-v1',
-          computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
-          accountIsWritableBitMap: 0n,
-          allowOutOfOrderExecution: true,
-          tokenReceiver: Buffer.alloc(32),
-          accounts: [
-            Buffer.alloc(32, 1),
-            Buffer.alloc(32, 2),
-            Buffer.alloc(32, 3),
-            Buffer.alloc(32, 4),
-          ],
-        })
-        .endCell()
-
-      const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+      const message = rt.Router_CCIPSend.create({
+        destChainSelector: ChainSelectors.testnet.solana,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: Cell.EMPTY,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs,
-      }
+        extraArgs: rt.SVMExtraArgsV1.create({
+          computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
+          accountIsWritableBitmap: 0n,
+          allowOutOfOrderExecution: true,
+          tokenReceiver: 0n,
+          accounts: [1n, 2n, 3n, 4n],
+        }),
+      })
 
       const result = await setup.getValidatedFee(message)
       expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
@@ -1930,115 +1934,96 @@ describe('FeeQuoter GetValidatedFee', () => {
         .storeRef(partialTail)
         .endCell()
 
-      const message: rt.CCIPSend = {
+      const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.evm,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: evmGenericArgs(),
-      }
-
-      await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidMsgData)
-    })
-
-    it('reports TooManySVMExtraArgsAccounts (not the Sui error) for too many accounts', async () => {
-      const extraArgs = rt.builder.data.extraArgs
-        .encode({
-          kind: 'svm-v1',
-          computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
-          accountIsWritableBitMap: 0n,
-          allowOutOfOrderExecution: true,
-          tokenReceiver: Buffer.alloc(32),
-          // SVM_EXTRA_ARGS_MAX_ACCOUNTS is 64; the accounts count is checked
-          // before the expanded-data budget.
-          accounts: Array.from({ length: 65 }, (_, i) => Buffer.alloc(32, i + 1)),
-        })
-        .endCell()
-
-      const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
-        receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: Cell.EMPTY,
-        tokenAmounts: [],
-        feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs,
-      }
-
-      await setup.assertGetFeeValidationError(message, feeQuoter.errors.TooManySVMExtraArgsAccounts)
-    })
-
-    it('rejects an SVM writable bitmap addressing accounts beyond the list', async () => {
-      const extraArgs = rt.builder.data.extraArgs
-        .encode({
-          kind: 'svm-v1',
-          computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
-          // bit 3 set while only 3 accounts (bits 0..2) are carried
-          accountIsWritableBitMap: 1n << 3n,
-          allowOutOfOrderExecution: true,
-          tokenReceiver: Buffer.alloc(32),
-          accounts: [Buffer.alloc(32, 1), Buffer.alloc(32, 2), Buffer.alloc(32, 3)],
-        })
-        .endCell()
-
-      const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
-        receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: Cell.EMPTY,
-        tokenAmounts: [],
-        feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs,
-      }
+      })
 
       await setup.assertGetFeeValidationError(
         message,
-        feeQuoter.errors.InvalidSVMExtraArgsWritableBitmap,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidMsgData'],
+      )
+    })
+
+    it('reports TooManySVMExtraArgsAccounts (not the Sui error) for too many accounts', async () => {
+      const message = rt.Router_CCIPSend.create({
+        destChainSelector: ChainSelectors.testnet.solana,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: Cell.EMPTY,
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: rt.SVMExtraArgsV1.create({
+          computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
+          accountIsWritableBitmap: 0n,
+          allowOutOfOrderExecution: true,
+          tokenReceiver: 0n,
+          // SVM_EXTRA_ARGS_MAX_ACCOUNTS is 64; the accounts count is checked
+          // before the expanded-data budget.
+          accounts: Array.from({ length: 65 }, (_, i) => BigInt(i + 1)),
+        }),
+      })
+
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TooManySVMExtraArgsAccounts'],
+      )
+    })
+
+    it('rejects an SVM writable bitmap addressing accounts beyond the list', async () => {
+      const message = rt.Router_CCIPSend.create({
+        destChainSelector: ChainSelectors.testnet.solana,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: Cell.EMPTY,
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: rt.SVMExtraArgsV1.create({
+          computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
+          // bit 3 set while only 3 accounts (bits 0..2) are carried
+          accountIsWritableBitmap: 1n << 3n,
+          allowOutOfOrderExecution: true,
+          tokenReceiver: 0n,
+          accounts: [1n, 2n, 3n],
+        }),
+      })
+
+      await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidSVMExtraArgsWritableBitmap'],
       )
     })
 
     it('accepts an SVM writable bitmap within the account count', async () => {
-      const extraArgs = rt.builder.data.extraArgs
-        .encode({
-          kind: 'svm-v1',
-          computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
-          accountIsWritableBitMap: 0b101n, // bits 0..2, all within 3 accounts
-          allowOutOfOrderExecution: true,
-          tokenReceiver: Buffer.alloc(32),
-          accounts: [Buffer.alloc(32, 1), Buffer.alloc(32, 2), Buffer.alloc(32, 3)],
-        })
-        .endCell()
-
-      const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+      const message = rt.Router_CCIPSend.create({
+        destChainSelector: ChainSelectors.testnet.solana,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: Cell.EMPTY,
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs,
-      }
+        extraArgs: rt.SVMExtraArgsV1.create({
+          computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
+          accountIsWritableBitmap: 0b101n, // bits 0..2, all within 3 accounts
+          allowOutOfOrderExecution: true,
+          tokenReceiver: 0n,
+          accounts: [1n, 2n, 3n],
+        }),
+      })
 
       const result = await setup.getValidatedFee(message)
       expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
     })
 
-    it('rejects Sui receiverObjectIds split across a cell boundary', async () => {
-      const suiExtraArgsWithObjectIds = (objectIds: Cell): Cell =>
+    const suiExtraArgsWithObjectIds = (objectIds: Cell): Cell =>
       beginCell()
-        .storeUint(rt.ExtraArgsOpcodes.suiV1, 32)
+        .storeUint(rt.SuiExtraArgsV1.PREFIX, 32)
         .storeUint(FeeQuoterSetup.GAS_LIMIT, 256) // gasLimit (mandatory for Sui)
         .storeBit(true) // allowOutOfOrderExecution
         .storeBuffer(Buffer.alloc(32), 32) // tokenReceiver
         .storeRef(objectIds)
         .endCell()
-
-    const suiMessage = (extraArgs: Cell): rt.CCIPSend => ({
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
-      receiver: FeeQuoterSetup.DEST_ADDRESS,
-      data: Cell.EMPTY,
-      tokenAmounts: [],
-      feeToken: FeeQuoterSetup.NATIVE_TON.token,
-      extraArgs,
-    })
 
     it('rejects Sui receiverObjectIds split across a cell boundary', async () => {
       const objectIdsSplit = beginCell()
@@ -2046,9 +2031,9 @@ describe('FeeQuoter GetValidatedFee', () => {
         .storeRef(beginCell().storeBuffer(Buffer.alloc(16, 2), 16).endCell())
         .endCell()
 
-      await setup.assertGetFeeValidationError(
-        suiMessage(suiExtraArgsWithObjectIds(objectIdsSplit)),
-        feeQuoter.errors.InvalidExtraArgsData,
+      await setup.assertGetFeeValidationErrorRaw(
+        rawExtraArgsMessage(ChainSelectors.testnet.sui, suiExtraArgsWithObjectIds(objectIdsSplit)),
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidExtraArgsData'],
       )
     })
 
@@ -2058,9 +2043,12 @@ describe('FeeQuoter GetValidatedFee', () => {
         .storeBuffer(Buffer.alloc(16, 2), 16)
         .endCell()
 
-      await setup.assertGetFeeValidationError(
-        suiMessage(suiExtraArgsWithObjectIds(objectIdsTruncated)),
-        feeQuoter.errors.InvalidExtraArgsData,
+      await setup.assertGetFeeValidationErrorRaw(
+        rawExtraArgsMessage(
+          ChainSelectors.testnet.sui,
+          suiExtraArgsWithObjectIds(objectIdsTruncated),
+        ),
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidExtraArgsData'],
       )
     })
 
@@ -2070,24 +2058,28 @@ describe('FeeQuoter GetValidatedFee', () => {
         .storeBuffer(Buffer.alloc(32, 0xef))
         .endCell({ exotic: true })
 
-      await setup.assertGetFeeValidationError(
-        suiMessage(suiExtraArgsWithObjectIds(libRef)),
-        feeQuoter.errors.InvalidExtraArgsData,
+      await setup.assertGetFeeValidationErrorRaw(
+        rawExtraArgsMessage(ChainSelectors.testnet.sui, suiExtraArgsWithObjectIds(libRef)),
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidExtraArgsData'],
       )
     })
 
     it('accepts a canonical Sui receiverObjectIds snake', async () => {
-      const extraArgs = rt.builder.data.extraArgs
-        .encode({
-          kind: 'sui-v1',
+      const message = rt.Router_CCIPSend.create({
+        destChainSelector: ChainSelectors.testnet.sui,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: Cell.EMPTY,
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: rt.SuiExtraArgsV1.create({
           gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
           allowOutOfOrderExecution: true,
-          tokenReceiver: Buffer.alloc(32),
-          receiverObjectIds: [Buffer.alloc(32, 1), Buffer.alloc(32, 2), Buffer.alloc(32, 3)],
-        })
-        .endCell()
+          tokenReceiver: 0n,
+          receiverObjectIds: [1n, 2n, 3n],
+        }),
+      })
 
-      const result = await setup.getValidatedFee(suiMessage(extraArgs))
+      const result = await setup.getValidatedFee(message)
       expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
     })
   })
