@@ -1211,20 +1211,24 @@ export const TokenPool_LockOrBurnBudget = {
 /**
  > struct TokenPool_ReleaseOrMintBudget {
  >     admission: coins
+ >     safety: coins
  > }
  */
 export interface TokenPool_ReleaseOrMintBudget {
     readonly $: 'TokenPool_ReleaseOrMintBudget'
     admission: coins /* = 0 */
+    safety: coins /* = 0 */
 }
 
 export const TokenPool_ReleaseOrMintBudget = {
     create(args: {
         admission?: coins /* = 0 */
+        safety?: coins /* = 0 */
     }): TokenPool_ReleaseOrMintBudget {
         return {
             $: 'TokenPool_ReleaseOrMintBudget',
             admission: 0n,
+            safety: 0n,
             ...args
         }
     },
@@ -1232,10 +1236,12 @@ export const TokenPool_ReleaseOrMintBudget = {
         return {
             $: 'TokenPool_ReleaseOrMintBudget',
             admission: s.loadCoins(),
+            safety: s.loadCoins(),
         }
     },
     store(self: TokenPool_ReleaseOrMintBudget, b: c.Builder): void {
         b.storeCoins(self.admission);
+        b.storeCoins(self.safety);
     },
     toCell(self: TokenPool_ReleaseOrMintBudget): c.Cell {
         return makeCellFrom<TokenPool_ReleaseOrMintBudget>(self, TokenPool_ReleaseOrMintBudget.store);
@@ -1251,18 +1257,18 @@ export const TokenPool_ReleaseOrMintBudget = {
 export interface TokenPool_Budget {
     readonly $: 'TokenPool_Budget'
     lockOrBurn: TokenPool_LockOrBurnBudget /* = TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } */
-    releaseOrMint: TokenPool_ReleaseOrMintBudget /* = TokenPool_ReleaseOrMintBudget { 0 as coins } */
+    releaseOrMint: TokenPool_ReleaseOrMintBudget /* = TokenPool_ReleaseOrMintBudget { 0 as coins, 0 as coins } */
 }
 
 export const TokenPool_Budget = {
     create(args: {
         lockOrBurn?: TokenPool_LockOrBurnBudget /* = TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } */
-        releaseOrMint?: TokenPool_ReleaseOrMintBudget /* = TokenPool_ReleaseOrMintBudget { 0 as coins } */
+        releaseOrMint?: TokenPool_ReleaseOrMintBudget /* = TokenPool_ReleaseOrMintBudget { 0 as coins, 0 as coins } */
     }): TokenPool_Budget {
         return {
             $: 'TokenPool_Budget',
             lockOrBurn: { $: 'TokenPool_LockOrBurnBudget', admission: 0n, safety: 0n },
-            releaseOrMint: { $: 'TokenPool_ReleaseOrMintBudget', admission: 0n },
+            releaseOrMint: { $: 'TokenPool_ReleaseOrMintBudget', admission: 0n, safety: 0n },
             ...args
         }
     },
@@ -1400,7 +1406,7 @@ export interface TokenPool_Data {
     tokenDecimals: uint8
     remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
     tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
-    budget: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins } as TokenPool_ReleaseOrMintBudget } */
+    budget: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins, 0 as coins } as TokenPool_ReleaseOrMintBudget } */
 }
 
 export const TokenPool_Data = {
@@ -1410,11 +1416,11 @@ export const TokenPool_Data = {
         tokenDecimals: uint8
         remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
-        budget?: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins } as TokenPool_ReleaseOrMintBudget } */
+        budget?: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins, 0 as coins } as TokenPool_ReleaseOrMintBudget } */
     }): TokenPool_Data {
         return {
             $: 'TokenPool_Data',
-            budget: { $: 'TokenPool_Budget', lockOrBurn: { $: 'TokenPool_LockOrBurnBudget', admission: 0n, safety: 0n }, releaseOrMint: { $: 'TokenPool_ReleaseOrMintBudget', admission: 0n } },
+            budget: { $: 'TokenPool_Budget', lockOrBurn: { $: 'TokenPool_LockOrBurnBudget', admission: 0n, safety: 0n }, releaseOrMint: { $: 'TokenPool_ReleaseOrMintBudget', admission: 0n, safety: 0n } },
             ...args
         }
     },
@@ -5536,7 +5542,7 @@ export class TokenPool implements c.Contract {
         tokenDecimals: uint8
         remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
-        budget?: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins } as TokenPool_ReleaseOrMintBudget } */
+        budget?: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins, 0 as coins } as TokenPool_ReleaseOrMintBudget } */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? TokenPool.CodeCell,
@@ -6445,7 +6451,7 @@ export class TokenPool implements c.Contract {
     }
 
     async getBudget(provider: ContractProvider): Promise<TokenPool_Budget> {
-        const r = StackReader.fromGetMethod(3, await provider.get('getBudget', []));
+        const r = StackReader.fromGetMethod(4, await provider.get('getBudget', []));
         return ({
             $: 'TokenPool_Budget',
             lockOrBurn: ({
@@ -6456,6 +6462,7 @@ export class TokenPool implements c.Contract {
             releaseOrMint: ({
                 $: 'TokenPool_ReleaseOrMintBudget',
                 admission: r.readBigInt(),
+                safety: r.readBigInt(),
             }),
         });
     }

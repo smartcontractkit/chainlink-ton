@@ -88,7 +88,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         expect(after.inbound.tokens).toEqual(before.inbound.tokens)
       })
 
-      it('aborts ReleaseOrMint locally when a costly hook leaves less than the delivery forward', async () => {
+      it('aborts ReleaseOrMint locally when a costly hook leaves less than the release forward', async () => {
         const ctx = await setup()
         const costlyHooks = await deployMockHooks(ctx, MOCK_HOOKS_COSTLY_ID)
         await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
@@ -115,7 +115,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           from: costlyHooks.address,
           to: ctx.pool.address,
           op: TokenPool_PostflightCheckFinished.PREFIX,
-          value: (value) => value !== undefined && value < floor,
+          value: (value) => value !== undefined && value < floor * 2n,
           success: true,
         })
         expect(transactions).toHaveTransaction({

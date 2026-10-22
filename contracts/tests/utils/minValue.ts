@@ -15,22 +15,25 @@ export const MIN_VALUE = {
   ccip: toNano('0.5'),
 } as const
 
-/** Raises each flow's last value gate: the LockOrBurn safety and the ReleaseOrMint admission. */
+export type TokenPoolFlowBudget = { safety: bigint; admission: bigint }
+
+/** Raises both flows' safety floors; admission keeps the pool defaults. */
 export async function setTokenPoolSafetyFloor(blockchain: Blockchain, address: Address, value: bigint) {
-  await setTokenPoolBudget(blockchain, address, { safety: value, admission: 0n }, value)
+  const budget = { safety: value, admission: 0n }
+  await setTokenPoolBudget(blockchain, address, budget, budget)
 }
 
-/** Writes the LockOrBurn budget and the ReleaseOrMint admission; zero keeps the pool default. */
+/** Writes both flow budgets; zero keeps the pool default. */
 export async function setTokenPoolBudget(
   blockchain: Blockchain,
   address: Address,
-  lockOrBurn: { safety: bigint; admission: bigint },
-  releaseOrMintAdmission = lockOrBurn.admission,
+  lockOrBurn: TokenPoolFlowBudget,
+  releaseOrMint: TokenPoolFlowBudget = lockOrBurn,
 ) {
   await updateTokenPoolData(blockchain, address, (data) => {
     data.budget = TokenPool_Budget.create({
       lockOrBurn: TokenPool_LockOrBurnBudget.create(lockOrBurn),
-      releaseOrMint: TokenPool_ReleaseOrMintBudget.create({ admission: releaseOrMintAdmission }),
+      releaseOrMint: TokenPool_ReleaseOrMintBudget.create(releaseOrMint),
     })
   })
 }

@@ -167,7 +167,9 @@ export function runTokenPoolBehaviorTests(
           expect(lockOrBurn.safety).toBeGreaterThanOrEqual(budget.safety)
           expect(lockOrBurn.admission).toBeGreaterThanOrEqual(budget.admission)
           expect(lockOrBurn.admission).toBeGreaterThanOrEqual(lockOrBurn.safety * 2n)
+          expect(releaseOrMint.safety).toBeGreaterThanOrEqual(budget.safety)
           expect(releaseOrMint.admission).toBeGreaterThanOrEqual(budget.admission)
+          expect(releaseOrMint.admission).toBeGreaterThanOrEqual(releaseOrMint.safety)
         })
 
         describe('LockOrBurn', () => {
@@ -949,7 +951,10 @@ export function runTokenPoolBehaviorTests(
     describe('SetBudget', () => {
       const raised = TokenPool_Budget.create({
         lockOrBurn: TokenPool_LockOrBurnBudget.create({ admission: 0n, safety: toNano('1') }),
-        releaseOrMint: TokenPool_ReleaseOrMintBudget.create({ admission: toNano('2') }),
+        releaseOrMint: TokenPool_ReleaseOrMintBudget.create({
+          admission: toNano('2'),
+          safety: toNano('1'),
+        }),
       })
 
       it('raises the budget and replies with the effective values', async () => {
@@ -962,7 +967,10 @@ export function runTokenPoolBehaviorTests(
         const effective = await ctx.pool.getBudget()
         // Admission covers both custody phases.
         expect(effective.lockOrBurn).toMatchObject({ admission: toNano('2'), safety: toNano('1') })
-        expect(effective.releaseOrMint).toMatchObject({ admission: toNano('2') })
+        expect(effective.releaseOrMint).toMatchObject({
+          admission: toNano('2'),
+          safety: toNano('1'),
+        })
         expect(result.transactions).toHaveTransaction({
           from: ctx.pool.address,
           to: ctx.deployer.address,
@@ -977,7 +985,7 @@ export function runTokenPoolBehaviorTests(
           queryId: 961n,
           budget: TokenPool_Budget.create({
             lockOrBurn: TokenPool_LockOrBurnBudget.create({ admission: 1n, safety: 1n }),
-            releaseOrMint: TokenPool_ReleaseOrMintBudget.create({ admission: 1n }),
+            releaseOrMint: TokenPool_ReleaseOrMintBudget.create({ admission: 1n, safety: 1n }),
           }),
         })
         expect(await ctx.pool.getBudget()).toEqual(defaults)

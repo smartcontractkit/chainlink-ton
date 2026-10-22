@@ -212,15 +212,17 @@ fun onReleaseOrMintContinue(
         forwardPayload: delivery.forwardPayload,
     };
     val jettonClient = st.poolData.load().jettonClient();
+    val forwardTonAmount = loadPool(st).releaseOrMintForward(msg);
 
-    // The recipient's notification carries exactly the caller's continuation. The minter gets the
-    // exact cost of the mint, so it keeps nothing; the wallet returns its unused fee to the pool.
+    // The recipient's notification carries the pool's finalization safety plus the caller's
+    // continuation. The minter gets the exact cost of the mint, so it keeps nothing; the wallet
+    // returns its unused fee to the pool.
     val transfer = InternalTransferStep {
         queryId: msg.queryId,
         jettonAmount: prepared.localAmount,
         transferInitiator: null,
         sendExcessesTo: contract.getAddress(),
-        forwardTonAmount: delivery.forwardTonAmount,
+        forwardTonAmount,
         forwardPayload: wrap.asForwardPayload(),
     };
     var mintOpts = CreateMessageOptions<MintNewJettons> {
@@ -244,7 +246,7 @@ fun onReleaseOrMintContinue(
         body: transfer.toCell(),
     }).estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
 
-    val tonAmount = JettonWalletFees.Reference.transferValue(delivery.forwardTonAmount, fwdFee);
+    val tonAmount = JettonWalletFees.Reference.transferValue(forwardTonAmount, fwdFee);
     mintOpts.body.tonAmount = tonAmount;
     mintOpts.value = cctMintOpBudget(walletDeployFee) + tonAmount;
 

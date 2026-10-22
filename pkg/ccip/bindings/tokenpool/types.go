@@ -276,9 +276,11 @@ type LockOrBurnBudget struct {
 }
 
 // ReleaseOrMintBudget is the pool's ReleaseOrMint budget. Admission is checked at the entrypoint
-// and is the remote chain's per-token destGasOverhead.
+// and is the remote chain's per-token destGasOverhead. Safety funds post-delivery finalization and
+// is forwarded with the delivery.
 type ReleaseOrMintBudget struct {
 	Admission tlb.Coins `tlb:"."`
+	Safety    tlb.Coins `tlb:"."`
 }
 
 // Budget is the per-instance pool budget. Configured values can only raise the defaults.

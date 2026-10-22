@@ -22,8 +22,10 @@ const BurnMintTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS = BUDGET_UNITS_LVL3_HIGH; 
 /// LockOrBurn admission: the entry, the withdraw relay and the custody transfer carrying two
 /// custody phases' safety.
 const BurnMintTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 750_000; // ~0.050 TON
-/// ReleaseOrMint admission: pool -> minter -> recipient wallet (~0.014 TON); ~7x. The caller's
-/// delivery forward is added on top.
+/// ReleaseOrMint safety: the pool's post-delivery finalization.
+const BurnMintTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS = 300_000; // ~0.02 TON
+/// ReleaseOrMint admission: pool -> minter -> recipient wallet (~0.014 TON); ~7x. Includes the
+/// finalization safety; the caller's delivery forward is added on top.
 const BurnMintTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS = 1_500_000; // ~0.1 TON
 
 /// Upper bound on the gas the mint transaction runs after its funding check: building and sending
@@ -38,6 +40,7 @@ fun BurnMintTokenPool_defaultBudget(): TokenPool_Budget {
         },
         releaseOrMint: {
             admission: calculateMinValue(BurnMintTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS, 1),
+            safety: calculateMinValue(BurnMintTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS, 1),
         },
     };
 }

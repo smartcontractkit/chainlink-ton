@@ -196,7 +196,7 @@ var GetAllowedFinalityConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint32]{
 var GetBudget = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Budget]{
 	Name: "getBudget",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (Budget, error) {
-		var v [3]tlb.Coins
+		var v [4]tlb.Coins
 		for i := range v {
 			n, err := r.Int(uint(i))
 			if err != nil {
@@ -206,7 +206,7 @@ var GetBudget = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Budget]{
 		}
 		return Budget{
 			LockOrBurn:    LockOrBurnBudget{Admission: v[0], Safety: v[1]},
-			ReleaseOrMint: ReleaseOrMintBudget{Admission: v[2]},
+			ReleaseOrMint: ReleaseOrMintBudget{Admission: v[2], Safety: v[3]},
 		}, nil
 	}),
 })

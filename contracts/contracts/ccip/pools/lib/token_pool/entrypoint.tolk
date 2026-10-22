@@ -244,7 +244,7 @@ fun TokenPool<T>.budget(self): TokenPool_Budget {
         ? self.hooks.defaultBudget(self.context)
         : TokenPool_Budget {
             lockOrBurn: { admission: ccipAdmissionValue(), safety: ccipMinValue() },
-            releaseOrMint: { admission: ccipAdmissionValue() },
+            releaseOrMint: { admission: ccipAdmissionValue(), safety: ccipMinValue() },
         };
     val effective = self.data.budget.over(floor);
     return {
@@ -268,6 +268,12 @@ fun TokenPool<T>.custodyMoves(self): int {
 /// TON the custody transfer must carry to the pool: `safety` for each remaining custody phase.
 fun TokenPool<T>.custodyForward(self): coins {
     return self.budget().lockOrBurn.safety * self.custodyMoves();
+}
+
+/// TON the release/mint delivery must forward: the pool's finalization safety plus the caller's
+/// delivery continuation.
+fun TokenPool<T>.releaseOrMintForward(self, requestMsg: TokenPool_ReleaseOrMint): coins {
+    return self.budget().releaseOrMint.safety + requestMsg.continuationValue();
 }
 
 /// Flat floor for admin, config and query handlers: a visible error instead of an out-of-gas
@@ -1031,8 +1037,8 @@ fun TokenPool<T>.onPostflightCheckFinished(
     val prepared = lazy fwdp.prepared.load();
 
     try {
-        // The reply carries the rest of the flow; it must still cover the delivery's forward.
-        assertMinValue(msgValue, requestMsg.continuationValue(), TokenPool_Error.InsufficientMessageValue);
+        // The reply carries the rest of the flow; it must still cover the delivery and finalization.
+        assertMinValue(msgValue, self.releaseOrMintForward(requestMsg), TokenPool_Error.InsufficientMessageValue);
     } catch (errorCode) {
         self.recoverReleaseOrMintFailure(fwdp, errorCode, msgValue);
         return;
@@ -1973,8 +1979,8 @@ fun TokenPool<T>.onReleaseOrMint(
     msgValue: coins,
     msg: TokenPool_ReleaseOrMint,
 ): void {
-    // Admission plus the caller's delivery continuation, before any capacity is consumed or an
-    // operation hook takes over.
+    // Admission (including finalization safety) plus the caller's delivery continuation, before
+    // any capacity is consumed or an operation hook takes over.
     val required = self.budget().releaseOrMint.admission + msg.continuationValue();
     assertMinValue(msgValue, required, TokenPool_Error.InsufficientMessageValue);
     // The recipient's notification completes a delivery, so it must carry value.

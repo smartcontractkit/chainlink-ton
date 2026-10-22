@@ -14,9 +14,12 @@ struct TokenPool_LockOrBurnBudget {
 }
 
 /// - `admission`: checked at the entrypoint and published to CCIP as the remote chain's
-///   `destGasOverhead`. The delivery's forward is the caller's (`delivery.forwardTonAmount`).
+///   `destGasOverhead`. Includes the pre-custody path and `safety`.
+/// - `safety`: the pool's post-delivery finalization budget. Forwarded with the delivery as
+///   `safety + delivery.forwardTonAmount`.
 struct TokenPool_ReleaseOrMintBudget {
     admission: coins = 0;
+    safety: coins = 0;
 }
 
 struct TokenPool_Budget {
@@ -30,10 +33,15 @@ fun TokenPool_LockOrBurnBudget.over(self, floor: TokenPool_LockOrBurnBudget): To
     return { admission: max(max(self.admission, floor.admission), safety), safety };
 }
 
+fun TokenPool_ReleaseOrMintBudget.over(self, floor: TokenPool_ReleaseOrMintBudget): TokenPool_ReleaseOrMintBudget {
+    val safety = max(self.safety, floor.safety);
+    return { admission: max(max(self.admission, floor.admission), safety), safety };
+}
+
 fun TokenPool_Budget.over(self, floor: TokenPool_Budget): TokenPool_Budget {
     return {
         lockOrBurn: self.lockOrBurn.over(floor.lockOrBurn),
-        releaseOrMint: { admission: max(self.releaseOrMint.admission, floor.releaseOrMint.admission) },
+        releaseOrMint: self.releaseOrMint.over(floor.releaseOrMint),
     };
 }
 

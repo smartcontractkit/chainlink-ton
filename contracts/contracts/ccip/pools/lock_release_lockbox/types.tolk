@@ -18,8 +18,10 @@ const LockReleaseLockboxTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS = BUDGET_UNITS_L
 /// LockOrBurn admission: the entry, the withdraw relay and the custody transfer, which carries two
 /// custody phases' safety (~0.033 TON).
 const LockReleaseLockboxTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 875_000; // ~0.058 TON
-/// ReleaseOrMint admission: pool -> lockbox -> recipient wallet (~0.015 TON); ~3.9x. The caller's
-/// delivery forward is added on top.
+/// ReleaseOrMint safety: the pool's post-delivery finalization.
+const LockReleaseLockboxTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS = 300_000; // ~0.02 TON
+/// ReleaseOrMint admission: pool -> lockbox -> recipient wallet (~0.015 TON); ~3.9x. Includes the
+/// finalization safety; the caller's delivery forward is added on top.
 const LockReleaseLockboxTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS = 875_000; // ~0.058 TON
 
 fun LockReleaseLockboxTokenPool_defaultBudget(): TokenPool_Budget {
@@ -30,6 +32,7 @@ fun LockReleaseLockboxTokenPool_defaultBudget(): TokenPool_Budget {
         },
         releaseOrMint: {
             admission: calculateMinValue(LockReleaseLockboxTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS, 1),
+            safety: calculateMinValue(LockReleaseLockboxTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS, 1),
         },
     };
 }

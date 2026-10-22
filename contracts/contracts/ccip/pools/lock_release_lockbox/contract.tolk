@@ -319,10 +319,11 @@ fun onReleaseOrMintContinue(
         forwardPayload: delivery.forwardPayload,
     };
 
-    // The recipient's notification carries exactly the caller's continuation; the rest pays the
-    // lockbox and its wallet transfer. Both check their own cost and reject an underfunded
-    // withdraw before custody moves; the wallet returns its unused fee to the pool.
+    // The recipient's notification carries the pool's finalization safety plus the caller's
+    // continuation; the rest pays the lockbox and its wallet transfer. Both check their own cost
+    // and reject an underfunded withdraw before custody moves.
     val jc = st.poolData.load().jettonClient();
+    val forwardTonAmount = loadPool(st).releaseOrMintForward(msg);
     val withdraw = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
@@ -335,7 +336,7 @@ fun onReleaseOrMintContinue(
             recipient: delivery.recipient,
             extra: JettonLockBox_WithdrawExtra {
                 sendExcessesTo: contract.getAddress(),
-                forwardTonAmount: delivery.forwardTonAmount,
+                forwardTonAmount,
                 forwardPayload: wrap.toCell(),
             }.toCell(),
         },

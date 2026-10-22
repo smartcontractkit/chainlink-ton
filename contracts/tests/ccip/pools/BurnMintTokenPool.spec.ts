@@ -1204,11 +1204,12 @@ describe('BurnMintTokenPool', () => {
         .endCell(),
     },
   ])(
-    'mints with exactly the declared continuation and keeps unused funding in the pool ($payload payload)',
+    'mints with the declared continuation plus its safety and keeps unused funding in the pool ($payload payload)',
     async ({ offchainTokenData }) => {
       // Leave only the minter's storage reserve: minting must be funded by the message.
       const minterAccount = await blockchain.getContract(cctMinter.address)
       minterAccount.balance = toNano('0.01')
+      const releaseSafety = (await burnMintPool.getBudget()).releaseOrMint.safety
 
       // First mint creates the recipient wallet; the second reuses it with more funding.
       for (const [index, funding] of ['0.3', '0.6'].entries()) {
@@ -1224,11 +1225,11 @@ describe('BurnMintTokenPool', () => {
           op: cct.MintNewJettons.PREFIX,
           success: true,
         })
-        // The notification carries exactly the caller's continuation, whatever the funding.
+        // The notification carries the pool safety plus the caller's continuation.
         expect(result.transactions).toHaveTransaction({
           to: recipient.address,
           op: TransferNotificationForRecipient.PREFIX,
-          value: deliveryTo(recipient.address, deployer.address).forwardTonAmount,
+          value: releaseSafety + deliveryTo(recipient.address, deployer.address).forwardTonAmount,
           success: true,
         })
         expect((await cctMinterRuntime.getJettonData()).totalSupply).toEqual(

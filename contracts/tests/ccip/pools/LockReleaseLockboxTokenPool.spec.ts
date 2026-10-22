@@ -728,9 +728,10 @@ describe('LockReleaseLockboxTokenPool', () => {
       )
     }
 
-    it('releases tokens with exactly the declared continuation and keeps unused funding in the pool', async () => {
+    it('releases tokens with the declared continuation plus its safety and keeps unused funding in the pool', async () => {
       await fundLockboxViaLock(toNano('5'))
       const lockboxWallet = await userWallet(jettonLockBox.address)
+      const releaseSafety = (await lockReleaseLockboxPool.getBudget()).releaseOrMint.safety
 
       // First release creates the recipient wallet; the second reuses it with more funding.
       for (const [index, funding] of ['0.3', '0.6'].entries()) {
@@ -745,11 +746,11 @@ describe('LockReleaseLockboxTokenPool', () => {
           op: JettonLockBox_Withdraw.PREFIX,
           success: true,
         })
-        // The notification carries exactly the caller's continuation, whatever the funding.
+        // The notification carries the pool safety plus the caller's continuation.
         expect(result.transactions).toHaveTransaction({
           to: recipient.address,
           op: TransferNotificationForRecipient.PREFIX,
-          value: deliveryTo(recipient.address, deployer.address).forwardTonAmount,
+          value: releaseSafety + deliveryTo(recipient.address, deployer.address).forwardTonAmount,
           success: true,
         })
         expect(await lockboxWallet.getJettonBalance()).toEqual(
