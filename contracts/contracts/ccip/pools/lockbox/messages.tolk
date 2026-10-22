@@ -2,12 +2,6 @@
 /// JettonLockBox message types for deposit, withdrawal, and initialization.
 
 import "../../../lib/jetton/messages"
-import "../../../lib/budget/gas"
-
-/// The lockbox's own work on `JettonLockBox_Withdraw`: validation, the withdrawal log and the
-/// relay to its jetton wallet (measured ~14.4k gas). The wallet checks its own transfer cost, and
-/// the operator funds both on top of the requested `forwardTonAmount`.
-const JettonLockBox_WITHDRAW_GAS_UNITS = BUDGET_UNITS_LVL1_LOW;
 
 /// Embedded in a jetton transfer's forwardPayload to identify the deposit context.
 /// The lockbox extracts this from `TransferNotificationForRecipient.forwardPayload` on deposit.
@@ -21,10 +15,10 @@ struct (0x9e9ec361) JettonLockBox_Deposit {
     amount: coins;
     /// Optional pool-specific context forwarded back in the Deposited reply.
     context: cell?;
-    /// Where to return custody if the deposit is rejected. Defaults to the transfer initiator
-    /// (the depositor). Lets the lockbox return directly to the original account, skipping a hop
-    /// through the pool.
-    returnAddress: address? = null;
+    /// Where to return custody on rejection. Defaults to the transfer initiator (depositor).
+    returnAddress: address?;
+    /// CCIP post-custody failure budget, forwarded to the initiator on rejection.
+    failureValue: coins;
 }
 
 /// Extra fields for withdraw — stored in a cell ref to keep the main struct compact.
@@ -65,8 +59,7 @@ struct (0x6d077f2e) JettonLockBox_Deposited {
     context: cell?;
 }
 
-/// Logical rejection; returnAttempted means a return was queued, not that custody arrived.
-/// Custody is returned separately to returnAddress, without a notification relay through the pool.
+/// Error message sent to the deposit initiator after a failed deposit.
 struct (0x5e28ebd8) JettonLockBox_DepositFailed {
     queryId: uint64;
     token: address;
@@ -74,8 +67,7 @@ struct (0x5e28ebd8) JettonLockBox_DepositFailed {
     amount: coins;
     /// Original deposit request; null only when the forward payload could not be decoded.
     context: Cell<JettonLockBox_Deposit>?;
-    errorCode: int32;                               // Raw TVM exit code (signed).
-    returnAttempted: bool;
+    errorCode: int32;
 }
 
 /// One-time init message — sets jetton addresses and grants admin role.

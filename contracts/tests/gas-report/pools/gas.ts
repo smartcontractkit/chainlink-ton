@@ -111,6 +111,7 @@ async function lockOrBurn(
     requestedFinalityConfig: 0n,
     tokenArgs: null,
     replyTo: deployer.address,
+    failureValue: toNano('0.02'),
   })
 
   const withdrawTx = admitted.transactions

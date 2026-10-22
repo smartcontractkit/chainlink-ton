@@ -95,13 +95,6 @@ fun isZeroAddress(addr: address): bool {
     return addr == ZERO_ADDRESS;
 }
 
-/// Reserves the pre-message balance and storage due so subsequent actions use inbound value.
-fun reserveBalanceBeforeInMessage(msgValue: coins): void {
-    val originalBalance = contract.getOriginalBalance();
-    val balanceBeforeMessage = originalBalance > msgValue ? originalBalance - msgValue : 0 as coins;
-    reserveGramsOnBalance(balanceBeforeMessage + contract.getStorageDuePayment(), RESERVE_MODE_AT_MOST);
-}
-
 /// Computes the Keccak-256 hash of the given data.
 fun keccak256(data: builder): uint256
     asm "1 PUSHINT HASHEXT_KECCAK256";

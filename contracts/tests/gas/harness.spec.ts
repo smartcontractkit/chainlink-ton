@@ -54,7 +54,8 @@ describe('gas calibration harness', () => {
 
     const noForward = await cct.getJettonTransferFee(fwdFee, false, false)
     const withForward = await cct.getJettonTransferFee(fwdFee, true, false)
-    expect(withForward).toBe(noForward + fwdFee + 1n)
+    // The model adds the strict-check buffer once, at the end.
+    expect(withForward).toBe(noForward + fwdFee)
 
     // Generic = reference doubled; both include the 1 nanoton the wallet's strict check needs.
     const generic = await cct.getJettonTransferFee(fwdFee, true, true)

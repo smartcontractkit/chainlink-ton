@@ -216,6 +216,12 @@ fun OnRamp_Costs.ExecutorFinishedWithError(): int {
         ;
 }
 
+/// TON the pool forwards to the executor when a post-custody lock/burn fails.
+/// The executor already holds the base failure budget; this is the pool-attached continuation.
+fun OnRamp_Costs.TokenPoolFailure(): coins {
+    return grams("0.02");
+}
+
 // Minimum value for calling OnRamp_WithdrawFeeTokens
 @inline
 fun OnRamp_Costs.WithdrawFeeTokens(): int {

@@ -25,7 +25,6 @@ import "../lib/token_pool/messages"
 import "../lib/token_pool/errors"
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/budget"
-import "../lib/token_pool/recovery"
 import "../lib/token_pool/jetton_fees"
 import "../lib/token_pool/events"
 
@@ -101,7 +100,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val msg = lazy BurnMintTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
-        // Bounced ask here is a failed fee withdrawal.
+        // Recovery returns are best-effort; their bounced value stays with the pool.
         AskToTransfer => {
             val data = st.poolData.load();
             val wallet  = data.jettonClient().walletAddress();

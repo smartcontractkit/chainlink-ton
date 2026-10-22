@@ -56,6 +56,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
             requestedFinalityConfig: 0n,
             tokenArgs: null,
             replyTo: ctx.deployer.address,
+            failureValue: toNano('0.01'),
           },
         )
 
@@ -208,6 +209,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: ctx.deployer.address,
+          failureValue: toNano('0.01'),
         }),
         prepared,
       })
@@ -275,6 +277,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
+        failureValue: toNano('0.01'),
       })
 
       // Pool sends PreflightCheck to hooks
@@ -305,6 +308,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
+        failureValue: toNano('0.01'),
       })
 
       // Pool sends PreflightCheck to hooks
@@ -466,6 +470,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
+        failureValue: toNano('0.01'),
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -520,6 +525,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: ctx.deployer.address,
+          failureValue: toNano('0.01'),
         },
       )
 
@@ -540,6 +546,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: ctx.deployer.address,
+          failureValue: toNano('0.01'),
         },
       )
 
@@ -632,6 +639,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
+        failureValue: toNano('0.01'),
       })
 
       // The pool's PreflightCheck bounced back and was handled successfully.
@@ -703,6 +711,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
+        failureValue: toNano('0.01'),
       })
 
       const prepared = TokenPool_LockOrBurnPrepared.create({
@@ -729,6 +738,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: ctx.deployer.address,
+        failureValue: toNano('0.01'),
       })
       const bucketBefore = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
       expect(bucketBefore.outbound.tokens).toBe(toNano('99'))
@@ -774,6 +784,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: ctx.deployer.address,
+          failureValue: toNano('0.01'),
         }),
         prepared: TokenPool_LockOrBurnPrepared.create({
           feeAmount: 0n,

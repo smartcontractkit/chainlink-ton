@@ -5,9 +5,9 @@
 /// See docs/contracts/overview/ccip/budget/TP-VALUE-BUDGET-AUDIT.md.
 
 /// - `admission`: checked at the entrypoint and published to CCIP. Covers the pre-custody path and
-///   the full custody forward.
+///   `lockOrBurnCustodyMoves * safety`. The separate failure continuation `F` is not included.
 /// - `safety`: one custody phase's budget. The first custody transfer carries
-///   `lockOrBurnCustodyMoves * safety`; pays finalization or recovery.
+///   `lockOrBurnCustodyMoves * safety + F`; pays finalization or the best-effort return.
 struct TokenPool_LockOrBurnBudget {
     admission: coins = 0;
     safety: coins = 0;

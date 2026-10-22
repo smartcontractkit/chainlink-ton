@@ -28,6 +28,7 @@ type Deposit struct {
 	Amount              tlb.Coins        `tlb:"."`             // The amount of tokens to deposit.
 	Context             *cell.Cell       `tlb:"maybe ^"`       // Optional context carried through the deposit flow.
 	ReturnAddress       *address.Address `tlb:"addr"`          // Where rejected custody is returned; defaults to the transfer initiator.
+	FailureValue        tlb.Coins        `tlb:"."`             // CCIP post-custody failure budget.
 }
 
 // WithdrawExtra holds optional extra fields for Withdraw.
@@ -58,16 +59,15 @@ type Deposited struct {
 	Context   *cell.Cell       `tlb:"maybe ^"`       // Optional context carried through the deposit flow.
 }
 
-// DepositFailed reports logical rejection; ReturnAttempted does not confirm custody delivery.
+// DepositFailed is sent back to the transfer initiator if a deposit fails.
 type DepositFailed struct {
-	_               tlb.Magic        `tlb:"#5e28ebd8" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID         uint64           `tlb:"## 64"`
-	Token           *address.Address `tlb:"addr required"`
-	Depositor       *address.Address `tlb:"addr required"`
-	Amount          tlb.Coins        `tlb:"."`
-	Context         *Deposit         `tlb:"maybe ^"`
-	ErrorCode       int32            `tlb:"## 32"` // Raw TVM exit code (signed).
-	ReturnAttempted bool             `tlb:"bool"`
+	_         tlb.Magic        `tlb:"#5e28ebd8" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID   uint64           `tlb:"## 64"`
+	Token     *address.Address `tlb:"addr required"`
+	Depositor *address.Address `tlb:"addr required"`
+	Amount    tlb.Coins        `tlb:"."`
+	Context   *Deposit         `tlb:"maybe ^"`
+	ErrorCode int32            `tlb:"## 32"` // Raw TVM exit code (signed).
 }
 
 // Init initializes the lockbox with a jetton minter/wallet and admin.

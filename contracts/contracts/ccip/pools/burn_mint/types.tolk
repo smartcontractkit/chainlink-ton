@@ -16,12 +16,12 @@ const BurnMintTokenPool_FACILITY_ID = BurnMintTokenPool_FACILITY_NAME.crc32() % 
 const BurnMintTokenPool_CLAIM_ADMIN_VALUE = grams("0.05");
 
 /// Pool-type default budgets, measured by the gas-report tests at 66.67 nTON/gas.
-/// LockOrBurn safety: one custody phase. The first transfer carries two phases' safety; the burn
-/// and minter path carry the remainder.
-const BurnMintTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS = BUDGET_UNITS_LVL3_HIGH; // ~0.0167 TON
+/// LockOrBurn safety: one custody phase. Covers success finalization or the best-effort return.
+/// The first transfer carries `2S + F`; the burn and minter path carry the remainder.
+const BurnMintTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS = 525_000; // ~0.035 TON
 /// LockOrBurn admission: the entry, the withdraw relay and the custody transfer carrying two
 /// custody phases' safety.
-const BurnMintTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 750_000; // ~0.050 TON
+const BurnMintTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 1_350_000; // ~0.090 TON
 /// ReleaseOrMint safety: the pool's post-delivery finalization.
 const BurnMintTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS = 300_000; // ~0.02 TON
 /// ReleaseOrMint admission: pool -> minter -> recipient wallet (~0.014 TON); ~7x. Includes the

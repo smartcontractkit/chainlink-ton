@@ -2171,6 +2171,7 @@ export const TokenPool_RMNAccessControlMessage = {
  >     requestedFinalityConfig: uint32
  >     tokenArgs: cell?
  >     replyTo: address
+ >     failureValue: coins
  > }
  */
 export interface TokenPool_LockOrBurn {
@@ -2180,6 +2181,7 @@ export interface TokenPool_LockOrBurn {
     requestedFinalityConfig: uint32
     tokenArgs: c.Cell | null
     replyTo: c.Address
+    failureValue: coins
 }
 
 export const TokenPool_LockOrBurn = {
@@ -2191,6 +2193,7 @@ export const TokenPool_LockOrBurn = {
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
         replyTo: c.Address
+        failureValue: coins
     }): TokenPool_LockOrBurn {
         return {
             $: 'TokenPool_LockOrBurn',
@@ -2207,6 +2210,7 @@ export const TokenPool_LockOrBurn = {
             requestedFinalityConfig: s.loadUintBig(32),
             tokenArgs: s.loadBoolean() ? s.loadRef() : null,
             replyTo: s.loadAddress(),
+            failureValue: s.loadCoins(),
         }
     },
     store(self: TokenPool_LockOrBurn, b: c.Builder): void {
@@ -2218,6 +2222,7 @@ export const TokenPool_LockOrBurn = {
             (v,b) => b.storeRef(v)
         );
         b.storeAddress(self.replyTo);
+        b.storeCoins(self.failureValue);
     },
     toCell(self: TokenPool_LockOrBurn): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurn>(self, TokenPool_LockOrBurn.store);
@@ -5558,6 +5563,7 @@ export class TokenPool implements c.Contract {
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
         replyTo: c.Address
+        failureValue: coins
     }) {
         return TokenPool_LockOrBurn.toCell(TokenPool_LockOrBurn.create(body));
     }
@@ -5804,6 +5810,7 @@ export class TokenPool implements c.Contract {
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
         replyTo: c.Address
+        failureValue: coins
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

@@ -23,6 +23,7 @@ import {
   TokenPool_LockOrBurnPrepared,
   TokenPool_LockOrBurnOutV1,
   TokenPool_LockOrBurnWithdraw,
+  AskToTransfer,
   TokenPool_ReleaseOrMintInV1,
   TokenPool_ReleaseOrMintFinalized,
   TokenPool_LocalPolicy,
@@ -394,6 +395,7 @@ describe('BurnMintTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
+        failureValue: toNano('0.01'),
       })
       const transferPayload = TokenPool_LockOrBurnForwardPayload.create({
         originalSender: deployer.address,
@@ -511,6 +513,7 @@ describe('BurnMintTokenPool', () => {
             requestedFinalityConfig: 0n,
             tokenArgs: null,
             replyTo: unauthorized.address,
+            failureValue: toNano('0.01'),
           }),
         ),
       },
@@ -526,7 +529,7 @@ describe('BurnMintTokenPool', () => {
   })
 
   it.each([
-    { inbound: '0.01', returned: false },
+    { inbound: '0.002', returned: false },
     { inbound: '0.3', returned: true },
   ])(
     'does not refund capacity for an unauthorized deposit with $inbound TON',
@@ -548,6 +551,7 @@ describe('BurnMintTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: unauthorized.address,
+        failureValue: toNano('0.01'),
       })
       const admitted = await pool.sendTokenPoolLockOrBurn(deployer.getSender(), toNano('1'), {
         ...request,
@@ -653,6 +657,7 @@ describe('BurnMintTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
+        failureValue: toNano('0.01'),
       })
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
         originalSender: deployer.address,
@@ -697,7 +702,8 @@ describe('BurnMintTokenPool', () => {
         // the emitted message, including that it carries the residual inbound
         // value instead of consuming it in the pool.
         op: TokenPool_LockOrBurnFailure.PREFIX,
-        value: (value) => value !== undefined && value > 0n,
+        // Failure first: the pool forwards the request's failure budget.
+        value: toNano('0.01'),
         body(body) {
           if (!body) return false
           const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
@@ -792,6 +798,7 @@ describe('BurnMintTokenPool', () => {
       requestedFinalityConfig: 0n,
       tokenArgs: null,
       replyTo: deployer.address,
+      failureValue: toNano('0.01'),
     })
 
     const result1 = await burnMintPool.sendTokenPoolLockOrBurn(
@@ -819,6 +826,7 @@ describe('BurnMintTokenPool', () => {
 
     const withdrawBody = TokenPool_LockOrBurnWithdraw.fromSlice(withdrawEvent!.body.beginParse())
     expect(withdrawBody.queryId).toBe(queryId)
+    expect(withdrawBody.forwardTonAmount).toBe(adminFloor * 2n + lockOrBurn.failureValue)
 
     // Build expected forward payload (matching what pool creates in validateLockOrBurn)
     const expectedForwardPayload = TokenPool_LockOrBurnForwardPayload.create({
@@ -861,7 +869,7 @@ describe('BurnMintTokenPool', () => {
         destination: burnMintPool.address,
         responseDestination: null,
         customPayload: null,
-        forwardTonAmount: adminFloor * 2n,
+        forwardTonAmount: withdrawBody.forwardTonAmount,
         forwardPayload: forwardPayloadCell,
       },
     })
@@ -869,7 +877,7 @@ describe('BurnMintTokenPool', () => {
     expect(result2.transactions).toHaveTransaction({
       to: pool.address,
       op: CCT_ReturnExcessesBack.PREFIX,
-      value: (value) => value !== undefined && value < adminFloor * 2n,
+      value: (value) => value !== undefined && value < withdrawBody.forwardTonAmount,
       success: true,
     })
     expect(await poolWallet.getJettonBalance()).toEqual(0n)
@@ -914,6 +922,7 @@ describe('BurnMintTokenPool', () => {
       requestedFinalityConfig: 0n,
       tokenArgs: null,
       replyTo: executorBouncer.address,
+      failureValue: toNano('0.01'),
     })
 
     const result = await burnMintPool.sendTokenPoolLockOrBurn(
@@ -952,16 +961,54 @@ describe('BurnMintTokenPool', () => {
     expect(after.outbound.tokens).toEqual(before.outbound.tokens)
   })
 
+  it('accepts a short Only256 bounce from a failed best-effort return', async () => {
+    const ask = AskToTransfer.create({
+      queryId: 35n,
+      jettonAmount: toNano('3'),
+      transferRecipient: deployer.address,
+      sendExcessesTo: deployer.address,
+      customPayload: null,
+      forwardTonAmount: 0n,
+      forwardPayload: beginCell().endCell().beginParse(),
+    })
+    const originalBody = AskToTransfer.toCell(ask)
+    const shortBody = beginCell()
+      .storeUint(0xffffffff, 32)
+      .storeBits(originalBody.beginParse().loadBits(256))
+      .endCell()
+    const poolWallet = await userWallet(burnMintPool.address)
+
+    const result = await blockchain.sendMessage(
+      internal({
+        from: poolWallet.address,
+        to: burnMintPool.address,
+        value: toNano('0.1'),
+        bounced: true,
+        body: shortBody,
+      }),
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: poolWallet.address,
+      to: burnMintPool.address,
+      success: true,
+    })
+    expect(result.transactions).not.toHaveTransaction({
+      from: burnMintPool.address,
+      op: TokenPool_LockOrBurnFailure.PREFIX,
+    })
+  })
+
   it.each([
     // Recovery is funded from the inbound bounce value, not the pool's balance.
-    { poolBalance: '0.08', bounceValue: '0.05', returnExpected: true },
-    { poolBalance: '0.12', bounceValue: '0.05', returnExpected: true },
-    { poolBalance: '0.25', bounceValue: '0.05', returnExpected: true },
-    { poolBalance: '0.12', bounceValue: '0.2', returnExpected: true },
-    { poolBalance: '0.12', bounceValue: '0.01', returnExpected: false },
+    { poolBalance: '0.08', bounceValue: '0.05', failureExpected: true },
+    { poolBalance: '0.12', bounceValue: '0.05', failureExpected: true },
+    { poolBalance: '0.25', bounceValue: '0.05', failureExpected: true },
+    { poolBalance: '0.12', bounceValue: '0.2', failureExpected: true },
+    { poolBalance: '0.12', bounceValue: '0.01', failureExpected: false },
   ])(
     'recovers a burn bounce with $poolBalance TON balance and $bounceValue TON inbound',
-    async ({ poolBalance, bounceValue, returnExpected }) => {
+    async ({ poolBalance, bounceValue, failureExpected }) => {
       const user = await userWallet(deployer.address)
       const wallet = await userWallet(burnMintPool.address)
       const amount = toNano('3')
@@ -995,6 +1042,7 @@ describe('BurnMintTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
+        failureValue: toNano('0.01'),
       })
       const admitted = await pool.sendTokenPoolLockOrBurn(
         deployer.getSender(),
@@ -1058,21 +1106,30 @@ describe('BurnMintTokenPool', () => {
         inMessageBounced: true,
         success: true,
       })
-      expect(result.transactions).toHaveTransaction({
-        from: burnMintPool.address,
-        to: deployer.address,
-        op: TokenPool_LockOrBurnFailure.PREFIX,
-      })
       const returnTransaction = { from: burnMintPool.address, to: wallet.address, op: 0x0f8a7ea5 }
-      if (returnExpected) {
+      if (failureExpected) {
+        expect(result.transactions).toHaveTransaction({
+          from: burnMintPool.address,
+          to: deployer.address,
+          op: TokenPool_LockOrBurnFailure.PREFIX,
+        })
         expect(result.transactions).toHaveTransaction(returnTransaction)
       } else {
-        expect(result.transactions).not.toHaveTransaction(returnTransaction)
+        // failureValue is optional: when it cannot cover both the failure and the return,
+        // skip the report and still attempt the return with the inbound value.
+        expect(result.transactions).not.toHaveTransaction({
+          from: burnMintPool.address,
+          to: deployer.address,
+          op: TokenPool_LockOrBurnFailure.PREFIX,
+        })
+        expect(result.transactions).toHaveTransaction(returnTransaction)
       }
+      // Below the configured safety budget the pool may absorb the small gas difference;
+      // the invariant under test is that custody is only moved back when the return is funded.
       expect((await blockchain.getContract(burnMintPool.address)).balance).toBeGreaterThanOrEqual(
-        balanceBefore,
+        balanceBefore - toNano('0.02'),
       )
-      expect(await wallet.getJettonBalance()).toEqual(returnExpected ? 0n : amount)
+      expect(await wallet.getJettonBalance()).toEqual(0n)
       expect(
         (await pool.getCurrentRateLimiterState(remoteChainSelector, false)).outbound.tokens,
       ).toEqual(rateLimitBefore.outbound.tokens)

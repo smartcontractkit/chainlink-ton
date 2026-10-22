@@ -150,6 +150,7 @@ describe('Router.withdrawToTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo,
+        failureValue: toNano('0.01'),
       }),
       prepared: rt.TokenPool_LockOrBurnPrepared.create({
         feeAmount: 0n,

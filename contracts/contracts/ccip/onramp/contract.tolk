@@ -356,6 +356,7 @@ fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequest
                 },
             }.toCell(),
             executorAddress: sender,
+            failureValue: OnRamp_Costs.TokenPoolFailure(),
         }
     });
     routerLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

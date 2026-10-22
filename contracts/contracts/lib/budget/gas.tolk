@@ -38,3 +38,13 @@ fun calculateGasFeeFor(size: int): coins {
     }
     return calculateGasFeeDefault();
 }
+
+/// Reserves the pre-message balance and storage due so subsequent actions use inbound value.
+fun reserveBalanceBeforeInMessage(msgValue: coins): void {
+    val rentDue = contract.getStorageDuePayment();
+    val originalBalance = contract.getOriginalBalance();
+    val balanceBeforeMessage = originalBalance > msgValue
+        ? originalBalance - msgValue
+        : 0 as coins;
+    reserveGramsOnBalance(balanceBeforeMessage + rentDue, RESERVE_MODE_AT_MOST);
+}

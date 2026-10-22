@@ -191,6 +191,7 @@ export function runTokenPoolBehaviorTests(
               requestedFinalityConfig: 0n,
               tokenArgs: null,
               replyTo: ctx.deployer.address,
+              failureValue: toNano('0.01'),
             })
           }
 

@@ -4,6 +4,7 @@ import "@stdlib/gas-payments"
 
 import "../../../../lib/math"
 import "../../../../lib/utils"
+import "../../../../lib/budget/gas"
 import "../../../../lib/budget/min_value"
 import "../../../../lib/jetton/messages"
 import "../../../../lib/jetton/jetton_client"
@@ -24,7 +25,6 @@ import "budget"
 import "errors"
 import "messages"
 import "events"
-import "recovery"
 
 /// @notice Base abstract class with common functions for all token pools.
 /// A token pool serves as isolated place for holding tokens and token specific logic
@@ -265,9 +265,10 @@ fun TokenPool<T>.custodyMoves(self): int {
     return moves;
 }
 
-/// TON the custody transfer must carry to the pool: `safety` for each remaining custody phase.
-fun TokenPool<T>.custodyForward(self): coins {
-    return self.budget().lockOrBurn.safety * self.custodyMoves();
+/// TON the custody transfer must carry to the pool: `safety` for each remaining custody phase
+/// plus the caller-provided failure continuation.
+fun TokenPool<T>.custodyForward(self, failureValue: coins): coins {
+    return self.budget().lockOrBurn.safety * self.custodyMoves() + failureValue;
 }
 
 /// TON the release/mint delivery must forward: the pool's finalization safety plus the caller's
@@ -924,6 +925,12 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
 
 /// Shared bounce handler for the messages the base TokenPool library (see `TokenPool_BouncedMessage`)
 fun TokenPool<T>.onBouncedMessage(mutate self, bouncedSender: address, msgValue: coins, bouncedBody: slice): bool {
+    // A failed best-effort return: accept its value in the pool. The truncated body is
+    // intentionally not parsed; jettons remain in the pool wallet.
+    if (isShortAskToTransferBounce(bouncedBody)) {
+        return true;
+    }
+
     val rich = lazy RichBounceBody.fromSlice(bouncedBody);
     val msg = lazy TokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
@@ -974,7 +981,11 @@ fun TokenPool<T>.onPreflightCheckFinished(
 
     try {
         // The reply carries the rest of the flow; it must still cover the custody transfer.
-        assertMinValue(msgValue, self.custodyForward(), TokenPool_Error.InsufficientMessageValue);
+        assertMinValue(
+            msgValue,
+            self.custodyForward(fwdp.requestMsg.load().failureValue),
+            TokenPool_Error.InsufficientMessageValue,
+        );
     } catch (errorCode) {
         self.recoverLockOrBurnFailure(fwdp, errorCode, msgValue);
         return;
@@ -1085,7 +1096,7 @@ fun TokenPool<T>.sendReleaseOrMintFailure(
             errorCode,
         },
     });
-    failure.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
+    failure.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 /// Refunds the outbound (or fast-finality outbound) rate limit capacity that was consumed
@@ -1134,26 +1145,46 @@ fun TokenPool<T>.recoverLockOrBurnFailure(
     msgValue: coins,
     custodyReturn: AskToTransfer? = null,
 ): void {
-    reserveBalanceBeforeInMessage(msgValue);
     self.refundLockOrBurnRateLimit(forwardPayload);
 
+    // Determine the failure value to send back based on whether custody return is required.
     val requestMsg = lazy forwardPayload.requestMsg.load();
+    val failureValue = custodyReturn != null ? requestMsg.failureValue : 0 as coins;
+
     val failure = createMessage({
         bounce: BounceMode.NoBounce,
-        value: 0,
+        value: failureValue,
         dest: requestMsg.replyTo,
-        body: TokenPool_LockOrBurnFailure {
-            queryId: requestMsg.queryId,
-            errorCode,
-        },
+        body: TokenPool_LockOrBurnFailure { queryId: requestMsg.queryId, errorCode },
     });
 
     if (custodyReturn != null) {
         val wallet = self.data.jettonClient().walletAddress();
-        sendTokenPoolRecoveryReturn(msgValue, wallet, custodyReturn!, failure);
+        // A failed return uses a short bounce; the pool accepts the returned TON and never
+        // enters the rich-bounce recovery handler.
+        val transfer = createMessage({
+            bounce: BounceMode.Only256BitsOfBody,
+            value: 0,
+            dest: wallet,
+            body: custodyReturn,
+        });
+
+        // Funds are always returned best-effort, but the failure report is optional and
+        // funded by the caller's failureValue. If it cannot be funded without starving the
+        // return, skip it and return the remaining inbound value.
+        val failureCost = failureValue + failure.estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
+        if (failureValue > 0 && msgValue > failureCost) {
+            reserveBalanceBeforeInMessage(msgValue);
+            failure.send(SEND_MODE_PAY_FEES_SEPARATELY);
+            transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
+            return;
+        }
+
+        transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
+        return;
     }
 
-    failure.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
+    failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// Unwinds an admitted release/mint that failed downstream: refunds the inbound capacity consumed
@@ -1684,7 +1715,7 @@ fun TokenPool<T>.onLockOrBurnWithdraw(
         dest: msg.replyTo,
         body: TokenPool_LockOrBurnWithdraw {
             queryId: msg.queryId,
-            forwardTonAmount: self.custodyForward(),
+            forwardTonAmount: self.custodyForward(msg.failureValue),
             forwardPayload,
         },
     });
@@ -1724,7 +1755,19 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     } catch {
         // Malformed or unauthenticated payloads cannot authorize a capacity refund or reply.
         // Custody can still be returned if the notification funds recovery.
-        TokenPool<T>.returnTransfer(sender, msg, msgValue);
+        val returnTransfer = TokenPool<T>.buildReturnTransfer(msg);
+        if (returnTransfer == null) {
+            return;
+        }
+
+        val transfer = createMessage({
+            bounce: BounceMode.Only256BitsOfBody,
+            value: 0,
+            dest: sender, // wallet that sent the original transfer
+            body: returnTransfer!,
+        });
+
+        transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
     }
 }
 
@@ -1749,22 +1792,15 @@ fun TokenPool<T>.processLockOrBurnTransfer(
     try {
         // The custody transfer must carry the forward the pool asked for; a shortfall unwinds and
         // returns the received custody.
-        assertMinValue(msgValue, self.custodyForward(), TokenPool_Error.InsufficientMessageValue);
+        assertMinValue(
+            msgValue,
+            self.custodyForward(fwdp.requestMsg.load().failureValue),
+            TokenPool_Error.InsufficientMessageValue,
+        );
         assert(details.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
         self.onLockOrBurnTransferContinue(sender, msgValue, msg, fwdp);
     } catch (errorCode) {
-        // TODO: clean up this error handing
-        val custodyReturn = msg.jettonAmount > 0
-            ? AskToTransfer {
-                queryId: msg.queryId,
-                jettonAmount: msg.jettonAmount,
-                transferRecipient: msg.transferInitiator!,
-                sendExcessesTo: msg.transferInitiator,
-                customPayload: null,
-                forwardTonAmount: 0,
-                forwardPayload: beginCell().storeMaybeRef(null).endCell().beginParse(),
-            }
-            : null;
+        val custodyReturn = TokenPool<T>.buildReturnTransfer(msg);
         self.recoverLockOrBurnFailure(fwdp, errorCode, msgValue, custodyReturn);
     }
 }
@@ -1857,23 +1893,27 @@ fun TokenPool<T>.createCustodyReturn(forwardPayload: TokenPool_LockOrBurnForward
     };
 }
 
-/// Returns custody only when the notification funds a complete wallet transfer.
-fun TokenPool<T>.returnTransfer(sender: address, msg: TransferNotificationForRecipient, inboundValue: coins): void {
-    reserveBalanceBeforeInMessage(inboundValue);
-
+/// Returns an `AskToTransfer` message to return the transferred tokens to the initiator,
+/// or `null` if no return is possible (e.g., to minter - a null transfer initiator)
+fun TokenPool<T>.buildReturnTransfer(msg: TransferNotificationForRecipient): AskToTransfer? {
     if (msg.transferInitiator == null || msg.jettonAmount == 0) {
-        return;
+        return null;
     }
 
-    sendTokenPoolRecoveryReturn(inboundValue, sender, AskToTransfer {
+    val transfer = AskToTransfer {
         queryId: msg.queryId,
         jettonAmount: msg.jettonAmount,
         transferRecipient: msg.transferInitiator!,
         sendExcessesTo: msg.transferInitiator,
         customPayload: null,
         forwardTonAmount: 0,
-        forwardPayload: beginCell().storeMaybeRef(null).endCell().beginParse(),
-    });
+        forwardPayload: beginCell()
+            .storeMaybeRef(null)
+            .endCell()
+            .beginParse(),
+    };
+
+    return transfer;
 }
 
 fun TokenPool<T>.onLockOrBurnTransferFinalize(

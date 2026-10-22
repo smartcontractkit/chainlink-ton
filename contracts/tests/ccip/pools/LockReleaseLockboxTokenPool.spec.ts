@@ -308,6 +308,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       requestedFinalityConfig: 0n,
       tokenArgs: null,
       replyTo: deployer.address,
+      failureValue: toNano('0.01'),
     })
     const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
       originalSender: deployer.address,
@@ -503,6 +504,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
+        failureValue: toNano('0.01'),
       })
       const transferPayload = TokenPool_LockOrBurnForwardPayload.create({
         originalSender: deployer.address,
@@ -612,6 +614,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
+        failureValue: toNano('0.01'),
       })
 
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
@@ -669,6 +672,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
+        failureValue: toNano('0.01'),
       })
 
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
@@ -992,9 +996,12 @@ describe('LockReleaseLockboxTokenPool', () => {
           op: TransferNotificationForRecipient.PREFIX,
           success: true,
         })
-        expect(result.transactions).not.toHaveTransaction({
+        // Best-effort return: the 0.005 TON notification cannot fund the wallet transfer,
+        // so the attempt fails and the tokens stay in the pool.
+        expect(result.transactions).toHaveTransaction({
           from: lockReleaseLockboxPool.address,
           op: 0x0f8a7ea5,
+          success: false,
         })
         expect(
           (await blockchain.getContract(lockReleaseLockboxPool.address)).balance,
@@ -1062,6 +1069,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
+        failureValue: toNano('0.01'),
       })
       const admitted = await pool.sendTokenPoolLockOrBurn(
         deployer.getSender(),
@@ -1101,6 +1109,7 @@ describe('LockReleaseLockboxTokenPool', () => {
               }),
             }),
           }),
+          failureValue: toNano('0.02'),
         }),
       )
       const result = await onRampWallet.sendTransfer(deployer.getSender(), {
@@ -1123,13 +1132,15 @@ describe('LockReleaseLockboxTokenPool', () => {
         body(body) {
           if (!body) return false
           const failure = JettonLockBox_DepositFailed.fromSlice(body.beginParse())
-          return failure.queryId === queryId && failure.returnAttempted
+          return failure.queryId === queryId
         },
       })
       expect(result.transactions).toHaveTransaction({
         from: lockReleaseLockboxPool.address,
         to: deployer.address,
         op: TokenPool_LockOrBurnFailure.PREFIX,
+        // Failure first: the pool forwards the remaining lockbox failure budget.
+        value: (value) => value !== undefined && value > 0n,
       })
       expect(result.transactions).not.toHaveTransaction({
         from: lockReleaseLockboxPool.address,
@@ -1205,6 +1216,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: deployer.address,
+          failureValue: toNano('0.01'),
         })
 
         const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
@@ -1220,6 +1232,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           }),
         })
 
+        const safety = (await lockReleaseLockboxPool.getBudget()).lockOrBurn.safety
         const result = await onRampWallet.sendTransfer(deployer.getSender(), {
           value: toNano('3'),
           message: {
@@ -1241,24 +1254,25 @@ describe('LockReleaseLockboxTokenPool', () => {
         })
         expect(
           (await blockchain.getContract(lockReleaseLockboxPool.address)).balance,
-        ).toBeGreaterThanOrEqual(poolBalanceBefore)
+        ).toBeGreaterThanOrEqual(poolBalanceBefore - toNano('0.02'))
         if (!forwarded) {
+          // failureValue is optional: when it cannot cover both the failure and the return,
+          // skip the report and still attempt the return with the inbound value.
           expect(result.transactions).not.toHaveTransaction({
-            from: lockReleaseLockboxPool.address,
-            op: AskToTransfer.PREFIX,
-          })
-          expect(result.transactions).toHaveTransaction({
             from: lockReleaseLockboxPool.address,
             to: deployer.address,
             op: TokenPool_LockOrBurnFailure.PREFIX,
-            body(body) {
-              if (!body) return false
-              const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
-              return failure.queryId === 300n && failure.errorCode === 51725n
-            },
           })
-          expect(await poolWallet.getJettonBalance()).toEqual(toNano('8'))
+          expect(result.transactions).toHaveTransaction({
+            from: lockReleaseLockboxPool.address,
+            to: poolWallet.address,
+            op: AskToTransfer.PREFIX,
+          })
+          expect(await poolWallet.getJettonBalance()).toEqual(0n)
           expect(await lockboxWallet.getJettonBalance()).toEqual(initialLockboxBalance)
+          expect(
+            (await blockchain.getContract(lockReleaseLockboxPool.address)).balance,
+          ).toBeGreaterThanOrEqual(poolBalanceBefore - toNano('0.02'))
           return
         }
 
@@ -1271,10 +1285,8 @@ describe('LockReleaseLockboxTokenPool', () => {
           body(body) {
             if (!body) return false
             const transfer = AskToTransfer.fromSlice(body.beginParse())
-            // The fixed deposit continuation (~0.0167 TON), not the remainder.
-            return (
-              transfer.forwardTonAmount > toNano('0.01') && transfer.forwardTonAmount < toNano('0.02')
-            )
+            // The last custody move forwards the safety budget plus the failure continuation.
+            return transfer.forwardTonAmount === safety + lockOrBurn.failureValue
           },
         })
 

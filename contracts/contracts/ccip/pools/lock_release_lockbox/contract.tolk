@@ -17,7 +17,6 @@ import "../../rmn_remote/lib"
 
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/budget"
-import "../lib/token_pool/recovery"
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
 import "../lib/token_pool/errors"
@@ -146,11 +145,13 @@ fun onLockOrBurnTransferContinue(
     msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
-    // The last custody move: the deposit carries one custody phase's safety; the rest pays this
-    // transfer, whose wallet rejects an underfunded transfer before custody moves.
+    // The last custody move carries one custody phase's safety plus the CCIP failure budget.
+    // The rest pays this transfer, whose wallet rejects an underfunded transfer before custody moves.
     val safety = loadPool(st).budget().lockOrBurn.safety;
+    val requestMsg = lazy fwdPayload.requestMsg.load();
     // On rejection the lockbox returns custody straight to the original sender.
-    lockTransfer(st, fwdPayload, msg.transferInitiator, safety).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    lockTransfer(st, fwdPayload, msg.transferInitiator, safety + requestMsg.failureValue)
+        .send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     return st;
 }
 
@@ -178,6 +179,7 @@ fun lockTransfer(
         amount: prepared.destTokenAmount,
         context: context.toCell(),
         returnAddress,
+        failureValue: requestMsg.failureValue,
     };
     return createMessage({
         bounce: BounceMode.RichBounce,

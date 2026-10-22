@@ -48,6 +48,7 @@ function buildWithdrawRequest(opts: {
     requestedFinalityConfig: 0n,
     tokenArgs: null,
     replyTo: opts.originalSender,
+    failureValue: toNano('0.01'),
   })
 
   const prepared = tp.TokenPool_LockOrBurnPrepared.create({

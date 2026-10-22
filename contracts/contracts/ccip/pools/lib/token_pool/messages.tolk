@@ -117,6 +117,8 @@ struct (0xfa7da444) TokenPool_LockOrBurn {
     requestedFinalityConfig: uint32;
     tokenArgs: cell?;
     replyTo: address;
+    /// CCIP post-custody failure budget, forwarded to the initiator on rejection.
+    failureValue: coins;
 }
 
 struct TokenPool_LockOrBurnForwardPayload {

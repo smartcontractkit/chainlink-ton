@@ -187,6 +187,8 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount: 1n,
           context: null,
+          returnAddress: null,
+          failureValue: toNano('0.01'),
         }),
       )
       const result = await operatorWallet.sendTransfer(operator.getSender(), {
@@ -216,7 +218,7 @@ describe('JettonLockBox', () => {
       expect(await lockboxWallet.getJettonBalance()).toEqual(1n)
     })
 
-    it('notifies rejected deposits without subsidizing repeated underfunded returns', async () => {
+    it('returns rejected deposits without a failure report when failureValue is zero', async () => {
       const balanceBefore = (await blockchain.getContract(lockbox.address)).balance
       const jettonsBefore = await operatorWallet.getJettonBalance()
       for (const queryId of [221, 222, 223]) {
@@ -232,32 +234,22 @@ describe('JettonLockBox', () => {
             forwardPayload: Cell.EMPTY,
           },
         })
-        expect(result.transactions).not.toHaveTransaction({
+        expect(result.transactions).toHaveTransaction({
           from: lockbox.address,
           to: lockboxWallet.address,
           op: AskToTransfer.PREFIX,
         })
-        expect(result.transactions).toHaveTransaction({
+        expect(result.transactions).not.toHaveTransaction({
           from: lockbox.address,
           to: operator.address,
           op: JettonLockBox_DepositFailed.PREFIX,
-          body(body) {
-            if (!body) return false
-            const failure = JettonLockBox_DepositFailed.fromSlice(body.beginParse())
-            return (
-              failure.amount === 1n &&
-              failure.depositor.equals(operator.address) &&
-              !failure.returnAttempted &&
-              failure.context === null
-            )
-          },
         })
         expect((await blockchain.getContract(lockbox.address)).balance).toBeGreaterThanOrEqual(
           balanceBefore,
         )
       }
-      expect(await operatorWallet.getJettonBalance()).toEqual(jettonsBefore - 3n)
-      expect(await lockboxWallet.getJettonBalance()).toEqual(3n)
+      expect(await operatorWallet.getJettonBalance()).toEqual(jettonsBefore)
+      expect(await lockboxWallet.getJettonBalance()).toEqual(0n)
     })
 
     it('should accept deposit via jetton transfer → TransferNotificationForRecipient', async () => {
@@ -272,6 +264,8 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount,
           context: null,
+          returnAddress: null,
+          failureValue: toNano('0.01'),
         }),
       )
 
@@ -330,6 +324,8 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount: 0n,
           context: callerContext,
+          returnAddress: null,
+          failureValue: toNano('0.01'),
         }),
       )
 
@@ -455,6 +451,8 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount: toNano('3'),
           context: null,
+          returnAddress: null,
+          failureValue: toNano('0.01'),
         }),
       )
 
@@ -513,6 +511,8 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount,
           context: null,
+          returnAddress: null,
+          failureValue: toNano('0.01'),
         }),
       )
 
@@ -563,7 +563,7 @@ describe('JettonLockBox', () => {
         body(body) {
           if (!body) return false
           const failure = JettonLockBox_DepositFailed.fromSlice(body.beginParse())
-          return failure.queryId === queryId && failure.returnAttempted
+          return failure.queryId === queryId
         },
       })
     })
@@ -603,6 +603,8 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount: depositAmount,
           context: null,
+          returnAddress: null,
+          failureValue: toNano('0.01'),
         }),
       )
 
@@ -1091,6 +1093,8 @@ describe('JettonLockBox', () => {
               remoteChainSelector,
               amount: depositAmount,
               context: null,
+              returnAddress: null,
+              failureValue: toNano('0.01'),
             }),
           ),
         },
@@ -1193,6 +1197,44 @@ describe('JettonLockBox', () => {
             )
           )
         },
+      })
+    })
+
+    it('accepts a short Only256 bounce from a failed best-effort return', async () => {
+      const ask = AskToTransfer.create({
+        queryId: 313n,
+        jettonAmount: toNano('5'),
+        transferRecipient: recipient.address,
+        sendExcessesTo: operator.address,
+        customPayload: null,
+        forwardTonAmount: 0n,
+        forwardPayload: beginCell().endCell().beginParse(),
+      })
+      const originalBody = AskToTransfer.toCell(ask)
+      const shortBody = beginCell()
+        .storeUint(0xffffffff, 32)
+        .storeBits(originalBody.beginParse().loadBits(256))
+        .endCell()
+
+      const result = await blockchain.sendMessage(
+        internal({
+          from: lockboxWallet.address,
+          to: lockbox.address,
+          value: toNano('0.2'),
+          bounced: true,
+          body: shortBody,
+        }),
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: lockboxWallet.address,
+        to: lockbox.address,
+        success: true,
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        from: lockbox.address,
+        to: operator.address,
+        op: JettonLockBox_WithdrawFailed.PREFIX,
       })
     })
 

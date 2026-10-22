@@ -1027,6 +1027,7 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
             requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
             tokenArgs: null, // TBD?
             replyTo: msg.executorAddress,
+            failureValue: msg.failureValue,
         }
     });
     tokenPoolLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

@@ -135,6 +135,7 @@ export function runTokenPoolContinuationBehaviorTests(
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: ctx.deployer.address,
+          failureValue: toNano('0.01'),
         },
       )
       const withdraw = findTransactionRequired(admitted.transactions, {

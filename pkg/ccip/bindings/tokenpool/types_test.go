@@ -29,29 +29,24 @@ func TestLockboxDepositFailed_WireFormat(t *testing.T) {
 	}
 	contextCell, err := tlb.ToCell(context)
 	require.NoError(t, err)
-	for name, attempted := range map[string]bool{"skipped": false, "queued": true} {
-		t.Run(name, func(t *testing.T) {
-			message := lockbox.DepositFailed{
-				QueryID: 301, Token: token, Depositor: token, Amount: tlb.MustFromTON("9"),
-				Context: context, ErrorCode: 47400, ReturnAttempted: attempted,
-			}
-			encoded, err := tlb.ToCell(message)
-			require.NoError(t, err)
-			expected := cell.BeginCell().MustStoreUInt(0x5e28ebd8, 32).MustStoreUInt(301, 64).
-				MustStoreAddr(token).MustStoreAddr(token).MustStoreCoins(9000000000).
-				MustStoreMaybeRef(contextCell).MustStoreUInt(47400, 32).MustStoreBoolBit(attempted).EndCell()
-			require.Equal(t, expected.Hash(), encoded.Hash())
-			var decoded lockbox.DepositFailed
-			require.NoError(t, tlb.LoadFromCell(&decoded, encoded.MustBeginParse()))
-			require.Equal(t, message.QueryID, decoded.QueryID)
-			require.Equal(t, message.ErrorCode, decoded.ErrorCode)
-			require.Equal(t, attempted, decoded.ReturnAttempted)
-			decodedContext, err := tlb.ToCell(decoded.Context)
-			require.NoError(t, err)
-			require.Equal(t, contextCell.Hash(), decodedContext.Hash())
-			require.Equal(t, payload.Hash(), decoded.Context.Context.Hash())
-		})
+	message := lockbox.DepositFailed{
+		QueryID: 301, Token: token, Depositor: token, Amount: tlb.MustFromTON("9"),
+		Context: context, ErrorCode: 47400,
 	}
+	encoded, err := tlb.ToCell(message)
+	require.NoError(t, err)
+	expected := cell.BeginCell().MustStoreUInt(0x5e28ebd8, 32).MustStoreUInt(301, 64).
+		MustStoreAddr(token).MustStoreAddr(token).MustStoreCoins(9000000000).
+		MustStoreMaybeRef(contextCell).MustStoreUInt(47400, 32).EndCell()
+	require.Equal(t, expected.Hash(), encoded.Hash())
+	var decoded lockbox.DepositFailed
+	require.NoError(t, tlb.LoadFromCell(&decoded, encoded.MustBeginParse()))
+	require.Equal(t, message.QueryID, decoded.QueryID)
+	require.Equal(t, message.ErrorCode, decoded.ErrorCode)
+	decodedContext, err := tlb.ToCell(decoded.Context)
+	require.NoError(t, err)
+	require.Equal(t, contextCell.Hash(), decodedContext.Hash())
+	require.Equal(t, payload.Hash(), decoded.Context.Context.Hash())
 }
 
 func TestLockboxWithdrawFailed_WireFormat(test *testing.T) {
@@ -135,7 +130,7 @@ func TestDynamicConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
 // raw *cell.Dictionary serialized through the "dict 128" tag: a map<uint128,()>
 // with 0-bit unit values, inlined into the enclosing cell.
 func TestCursedSubjects_WireFormat(t *testing.T) {
-	subjects := tlbe.NewDict[tlbe.Uint128, struct{}](map[tlbe.Uint128]struct{}{
+	subjects := tlbe.NewDict(map[tlbe.Uint128]struct{}{
 		*tlbe.NewUint128(big.NewInt(1)):  {},
 		*tlbe.NewUint128(big.NewInt(42)): {},
 	})
@@ -161,7 +156,7 @@ func TestCursedSubjects_WireFormat(t *testing.T) {
 
 // TestCursedSubjects_RoundTrip verifies encode/decode via the tlb:"." marshaller.
 func TestCursedSubjects_RoundTrip(t *testing.T) {
-	subjects := tlbe.NewDict[tlbe.Uint128, struct{}](map[tlbe.Uint128]struct{}{
+	subjects := tlbe.NewDict(map[tlbe.Uint128]struct{}{
 		*tlbe.NewUint128(big.NewInt(7)): {},
 	})
 
@@ -186,7 +181,7 @@ func TestRemoteChainConfig_RemotePools_Decode(t *testing.T) {
 	}
 
 	cfg := remotePoolsHolder{
-		RemotePools: tlbe.NewDict[tlbe.Uint256, uint64](map[tlbe.Uint256]uint64{
+		RemotePools: tlbe.NewDict(map[tlbe.Uint256]uint64{
 			*tlbe.NewUint256(big.NewInt(5)): 123,
 		}),
 	}
@@ -206,7 +201,7 @@ func TestRemoteChainConfig_RemotePools_Decode(t *testing.T) {
 // TestDynamicConfig_AllowedDepositNamespaces_RoundTrip verifies encode/decode
 // through tonutils-go's tlb loader (using the tlb:"." marshaller path).
 func TestDynamicConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
-	namespaces := tlbe.NewDict[uint32, struct{}](map[uint32]struct{}{
+	namespaces := tlbe.NewDict(map[uint32]struct{}{
 		7:  {},
 		13: {},
 	})
