@@ -5,7 +5,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { assertLog } from '../../Logs'
-import { WRAPPED_NATIVE, generateRandomTonAddress } from '../../../src/utils'
+import { NATIVE_GRAM, generateRandomTonAddress } from '../../../src/utils'
 import { createEmptyCursePolicy } from '../../../wrappers/ccip/Router'
 
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
@@ -175,16 +175,16 @@ describe('CCIPSend with token transfer (e2e)', () => {
                 router: router.address,
                 rateLimitAdmin: deployer.address,
                 feeAdmin: deployer.address,
-                // Tokens are withdrawn from the Router-owned OnRampAccount, so authorize
-                // its deterministic Deployables namespace as a deposit source.
-                allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
               }),
+              // Tokens are withdrawn from the Router-owned OnRampAccount. The pool's cache is
+              // refreshed from the Router on every LockOrBurn, but seed it too so the pool is
+              // usable before the first relay.
+              allowedDepositNamespaces: new Set([]),
               jettonClient: tp.JettonClient.create({
                 masterAddress: minter.address,
                 jettonWalletCode: walletCode,
               }),
               advancedPoolHooks: null,
-              deployableCode,
             }),
             localPolicy: tp.TokenPool_LocalPolicy.create({
               cursePolicy: createEmptyCursePolicy(deployer.address),
@@ -408,7 +408,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [rt.TokenAmount.create({ amount: TOKEN_AMOUNT, token: minter.address })],
-      feeToken: WRAPPED_NATIVE, // TODO should be just native?
+      feeToken: NATIVE_GRAM, // TODO should be just native?
       extraArgs: rt.GenericExtraArgsV2.create({
         gasLimit: 100n,
         allowOutOfOrderExecution: true,

@@ -1,4 +1,4 @@
-import { toNano } from '@ton/core'
+import { toNano, beginCell, contractAddress } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
@@ -10,6 +10,8 @@ import {
 } from '../../../wrappers/ccip/Router'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { deployRouterContract } from './Router.Setup'
+import { LINK_TOKEN } from '../../../src/utils'
+import * as upgradeable from '../../../wrappers/libraries/versioning/Upgradeable'
 
 const SUBJECT = 1n
 
@@ -93,4 +95,59 @@ describe('Router.cursing - migration from 1.6.x', () => {
       expect(await router.getCursedSubjects()).toEqual([])
     })
   }
+
+  it('rejects the upgrade when the legacy wrappedNative is not NATIVE_GRAM', async () => {
+    const [version, getPrevCode] = Object.entries(SUPPORTED_PREV_VERSIONS)[0]
+    const prevCode = await getPrevCode()
+
+    // Build the legacy storage manually with a mismatched wrappedNative:
+    // deployRouterContract always seeds NATIVE_GRAM, which migrate() accepts.
+    const owner = await blockchain.treasury('mismatchOwner')
+    const legacyRMN = beginCell()
+    rt.Ownable2Step.store(
+      rt.Ownable2Step.create({ owner: owner.address, pendingOwner: null }),
+      legacyRMN,
+    )
+    rt.CursedSubjects.store(rt.CursedSubjects.create({ data: new Set() }), legacyRMN)
+    legacyRMN.storeDict(null)
+
+    const storageCell = beginCell()
+    storageCell.storeUint(1234, 32) // id
+    rt.Ownable2Step.store(
+      rt.Ownable2Step.create({ owner: owner.address, pendingOwner: null }),
+      storageCell,
+    )
+    storageCell.storeAddress(LINK_TOKEN) // wrappedNative: not the expected NATIVE_GRAM
+    storageCell.storeDict(null) // onRamps
+    storageCell.storeDict(null) // offRamps
+    storageCell.storeRef(legacyRMN.endCell())
+
+    const init = { code: prevCode, data: storageCell.endCell() }
+    const mismatchedRouter = blockchain.openContract(
+      rt.Router.fromAddress(contractAddress(0, init)),
+    )
+    const deployer = await blockchain.treasury('mismatchDeployer')
+    await deployer.send({
+      to: mismatchedRouter.address,
+      value: toNano('1'),
+      init,
+      body: beginCell().endCell(),
+    })
+
+    const upgrade = await mismatchedRouter.sendUpgradeableUpgrade(
+      owner.getSender(),
+      toNano('0.05'),
+      { queryId: 0n, code: await contractCode.ccip.local('Router') },
+    )
+    expect(upgrade.transactions).toHaveTransaction({
+      from: owner.address,
+      to: mismatchedRouter.address,
+      success: false,
+      exitCode: upgradeable.Error.VersionMismatch,
+    })
+
+    // The code must be unchanged: the contract still reports the legacy version.
+    const [, upgradedVersion] = await mismatchedRouter.getTypeAndVersion()
+    expect(upgradedVersion.loadStringTail()).toEqual(version)
+  })
 })

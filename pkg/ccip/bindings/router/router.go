@@ -43,7 +43,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorDestChainNotEnabled)
-		ecMax = int32(ErrorInsufficientFee)
+		ecMax = int32(ErrorFeePaymentsWithJettonsNotSupported)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -59,15 +59,23 @@ const (
 	ErrorMissingTokenAmounts
 	ErrorNoMultiTokenTransfers
 	ErrorInsufficientFee
+	ErrorTokenAmountMismatch
+	ErrorForwardPayloadIsNotCCIPSend
+	ErrorSourceChainSelectorMismatch
+	ErrorSenderIsNotDepositAccount
+	ErrorSenderIsNotOnRampAccount
+	ErrorDepositAccountWalletUnavailable
+	ErrorWithdrawExecutorMismatch
+	ErrorOnRampAccountWithdrawFailed
+	ErrorFeePaymentsWithJettonsNotSupported
 )
 
 type Storage struct {
-	ID            uint32               `tlb:"## 32"`
-	Ownable       ownable2step.Storage `tlb:"."`
-	WrappedNative *address.Address     `tlb:"addr"`
-	OnRamps       *cell.Dictionary     `tlb:"dict 64"`
-	OffRamps      *cell.Dictionary     `tlb:"dict 64"`
-	RMNRemote     RMNRemote            `tlb:"^"`
+	ID        uint32               `tlb:"## 32"`
+	Ownable   ownable2step.Storage `tlb:"."`
+	OnRamps   *cell.Dictionary     `tlb:"dict 64"`
+	OffRamps  *cell.Dictionary     `tlb:"dict 64"`
+	RMNRemote RMNRemote            `tlb:"^"`
 }
 
 type RMNRemote struct {
@@ -130,6 +138,25 @@ type CCIPSend struct {
 	TokenAmounts      common.SnakedCell[TokenAmount] `tlb:"^"`
 	FeeToken          *address.Address               `tlb:"addr"`
 	ExtraArgs         *cell.Cell                     `tlb:"^"`
+}
+
+type GetOnRampAccount struct {
+	_       tlb.Magic        `tlb:"#0e24d5ba" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64           `tlb:"## 64"`
+	Token   *address.Address `tlb:"addr"`
+}
+
+type UseOnRampAccount struct {
+	_       tlb.Magic        `tlb:"#f28658e0" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64           `tlb:"## 64"`
+	Account *address.Address `tlb:"addr"`
+	Token   *address.Address `tlb:"addr"`
+}
+
+type OnRampAccountFailed struct {
+	_       tlb.Magic `tlb:"#2c734db9" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64    `tlb:"## 64"`
+	Error   *big.Int  `tlb:"## 256"`
 }
 
 type RouteMessage struct {
@@ -213,6 +240,9 @@ type RMNAccessControlMessage[T rbac.InMessage | any] struct {
 var TLBs = tvm.MustNewTLBMap([]any{
 	ApplyRampUpdates{},
 	CCIPSend{},
+	GetOnRampAccount{},
+	UseOnRampAccount{},
+	OnRampAccountFailed{},
 	RouteMessage{},
 	CCIPReceiveConfirm{},
 	CCIPSendACK{},

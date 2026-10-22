@@ -2,7 +2,7 @@ import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import * as coverage from '../../coverage/coverage'
-import { WRAPPED_NATIVE } from '../../../src/utils'
+import { NATIVE_GRAM } from '../../../src/utils'
 
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
@@ -34,7 +34,7 @@ describe('OnRamp - generate message id', () => {
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
-    feeToken: WRAPPED_NATIVE,
+    feeToken: NATIVE_GRAM,
     extraArgs: or.GenericExtraArgsV2.create({
       gasLimit: 100n,
       allowOutOfOrderExecution: true,

@@ -9,7 +9,8 @@ import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
-import { WRAPPED_NATIVE } from '../../../src/utils'
+import { NATIVE_GRAM } from '../../../src/utils'
+import { FeeQuoterSetup } from '../feequoter/FeeQuoterSetup'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
@@ -30,7 +31,7 @@ describe('OnRamp - Send', () => {
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
-    feeToken: WRAPPED_NATIVE,
+    feeToken: NATIVE_GRAM,
     extraArgs: or.GenericExtraArgsV2.create({
       gasLimit: 100n,
       allowOutOfOrderExecution: true,
@@ -248,6 +249,47 @@ describe('OnRamp - Send', () => {
           msg.error === BigInt(or.OnRamp.Errors['OnRamp_Error.SenderNotAllowed'])
         )
       },
+    })
+  })
+
+  it('should reject message paying fees with a non-native token', async () => {
+    const jettonCCIPSend = {
+      ...ccipSend,
+      feeToken: FeeQuoterSetup.CUSTOM_TOKEN.token,
+    }
+
+    const result = await onramp.sendOnRampSend(
+      mockRouter.getSender(),
+      toNano('1'),
+      onRampSendBody(jettonCCIPSend),
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: mockRouter.address,
+      to: onramp.address,
+      success: true,
+      op: or.OnRamp_Send.PREFIX,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: mockRouter.address,
+      success: true,
+      op: rt.Router_MessageRejected.PREFIX,
+      body: (body) => {
+        if (!body) return false
+        const msg = rt.Router_MessageRejected.fromSlice(body.beginParse())
+        return (
+          msg.destChainSelector === jettonCCIPSend.destChainSelector &&
+          msg.sender.equals(senderAddress) &&
+          msg.error === BigInt(or.OnRamp.Errors['OnRamp_Error.FeePaymentsWithJettonsNotSupported'])
+        )
+      },
+    })
+
+    // No executor must be deployed for a rejected message.
+    expect(result.transactions).not.toHaveTransaction({
+      from: onramp.address,
+      op: deployable.opcodes.in.initializeAndSend,
     })
   })
 

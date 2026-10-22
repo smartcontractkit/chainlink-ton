@@ -11,4 +11,5 @@ enum OnRamp_Error {
     InvalidDestTokenAddress
     SourceTokenDataTooLarge
     PendingFeeReservationsUnderflow
+    FeePaymentsWithJettonsNotSupported
 }

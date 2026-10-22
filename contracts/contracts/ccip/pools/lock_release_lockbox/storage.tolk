@@ -39,7 +39,6 @@ fun Storage.init(config: LockReleaseLockboxTokenPool_InitConfig): Storage {
                 jettonClient: config.jettonClient,
                 allowedFinalityConfig: TOKEN_POOL_DEFAULT_FINALITY,
                 advancedPoolHooks: null, // opt-in; wired later via setAdvancedPoolHooks
-                deployableCode: config.deployableCode,
             }.toCell(),
             localPolicy: TokenPool_LocalPolicy {
                 cursePolicy: CursePolicy.newWithAdmin(config.rmnAdmin),

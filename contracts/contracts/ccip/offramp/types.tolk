@@ -170,13 +170,6 @@ struct Any2TVMRampMessage {
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }
 
-fun T?.unwrap(self, error: int): T {
-    if (self == null) {
-        throw error;
-    }
-    return self;
-}
-
 fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
     // Loosely based on https://github.com/smartcontractkit/chainlink-ccip/blob/2d2ce6abb3f7626dbd3008e4232da4faa839feff/chains/evm/contracts/libraries/Internal.sol#L113-L134
     return Any2TVMRampMessageIDData{

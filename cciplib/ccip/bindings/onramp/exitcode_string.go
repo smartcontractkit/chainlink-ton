@@ -14,11 +14,15 @@ func _() {
 	_ = x[InvalidConfig-13403]
 	_ = x[UnknownToken-13404]
 	_ = x[InsufficientValue-13405]
+	_ = x[InvalidDestTokenAddress-13406]
+	_ = x[SourceTokenDataTooLarge-13407]
+	_ = x[PendingFeeReservationsUnderflow-13408]
+	_ = x[FeePaymentsWithJettonsNotSupported-13409]
 }
 
-const _ExitCode_name = "UnknownDestChainSelectorUnauthorizedSenderNotAllowedInvalidConfigUnknownTokenInsufficientValue"
+const _ExitCode_name = "UnknownDestChainSelectorUnauthorizedSenderNotAllowedInvalidConfigUnknownTokenInsufficientValueInvalidDestTokenAddressSourceTokenDataTooLargePendingFeeReservationsUnderflowFeePaymentsWithJettonsNotSupported"
 
-var _ExitCode_index = [...]uint8{0, 24, 36, 52, 65, 77, 94}
+var _ExitCode_index = [...]uint8{0, 24, 36, 52, 65, 77, 94, 117, 140, 171, 205}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 13400

@@ -9,6 +9,8 @@ import { setup, contractsCoverageConfig } from './Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 import { ccipSendCost } from '../../../wrappers/ccip/Router'
+import { NATIVE_GRAM } from '../../../src/utils'
+import { FeeQuoterSetup } from '../feequoter/FeeQuoterSetup'
 
 describe('Router.ccipSend', () => {
   let blockchain: Blockchain
@@ -45,7 +47,7 @@ describe('Router.ccipSend', () => {
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
-    feeToken: null, // defaults to WRAPPED_NATIVE
+    feeToken: null, // defaults to NATIVE_GRAM
     extraArgs: rt.GenericExtraArgsV2.create({ gasLimit: 100n, allowOutOfOrderExecution: true }),
   })
 
@@ -62,6 +64,57 @@ describe('Router.ccipSend', () => {
       from: router.address,
       to: onRamp.address,
       success: true,
+      op: or.OnRamp_Send.PREFIX,
+    })
+  })
+
+  it('should default a null feeToken to NATIVE_GRAM when forwarding to the OnRamp', async () => {
+    const result = await router.sendRouterCCIPSend(sender.getSender(), ccipSendCost, msg)
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: onRamp.address,
+      success: true,
+      op: or.OnRamp_Send.PREFIX,
+      body(x) {
+        if (!x) return false
+        const decoded = or.OnRamp_Send.fromSlice(x.beginParse())
+        return decoded.msg.feeToken != null && decoded.msg.feeToken.equals(NATIVE_GRAM)
+      },
+    })
+  })
+
+  it('should reject message paying fees with a non-native token', async () => {
+    const jettonMsg = {
+      ...msg,
+      feeToken: FeeQuoterSetup.CUSTOM_TOKEN.token,
+    }
+    const result = await router.sendRouterCCIPSend(sender.getSender(), ccipSendCost, jettonMsg)
+
+    expect(result.transactions).toHaveTransaction({
+      from: sender.address,
+      to: router.address,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.Router_CCIPSendNACK.PREFIX,
+      body(x) {
+        if (!x) return false
+        const decoded = rt.Router_CCIPSendNACK.fromSlice(x.beginParse())
+        return (
+          decoded.error ===
+          BigInt(rt.Router.Errors['Router_Error.FeePaymentsWithJettonsNotSupported'])
+        )
+      },
+    })
+
+    // The message must be rejected before reaching the OnRamp.
+    expect(result.transactions).not.toHaveTransaction({
+      from: router.address,
+      to: onRamp.address,
       op: or.OnRamp_Send.PREFIX,
     })
   })

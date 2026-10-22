@@ -123,7 +123,7 @@ var DeployChainContracts = cldf_ops.NewSequence(
 		{
 			_input := operation.UpdateFeeQuoterFeeTokensInput{
 				FeeTokens: map[string]operation.FeeTokenConfig{
-					tvm.TonTokenAddr.String(): {
+					tvm.NativeGRAMAddr.String(): {
 						PremiumMultiplierWeiPerEth: 1,
 					},
 					tvm.LinkTokenAddr.String(): {
@@ -232,7 +232,7 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 				TokenPriceStalenessThreshold: cfg.TokenPriceStalenessThreshold,
 				FeeTokens: map[ccipConfig.TokenSymbol]ccipConfig.FeeToken{
 					"TON": {
-						Address:                    tvm.TonTokenAddr,
+						Address:                    tvm.NativeGRAMAddr,
 						PremiumMultiplierWeiPerEth: 1,
 					},
 					// TODO update link token dummy address here after https://smartcontract-it.atlassian.net/browse/NONEVM-3269

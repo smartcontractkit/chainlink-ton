@@ -6,8 +6,8 @@ import "types"
 import "storage"
 
 import "../common/types";
-import "../common/errors"
 import "../common/cross_chain_address_validation"
+import "../common/addresses"
 import "../pools/lib/token_pool/types"
 import "../../lib/access/ownable_2step";
 import "../../lib/funding/withdrawable"
@@ -263,6 +263,8 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<FeeQuoter_DestO
 
     assert(destChainConfig.config.isEnabled, FeeQuoter_Error.DestChainNotEnabled);
     assert(msg.feeToken != null, FeeQuoter_Error.FeeTokenNotSupported);
+    // Fee payment with Jetton is not supported
+    assert(msg.feeToken == NATIVE_GRAM, FeeQuoter_Error.FeeTokenNotSupported);
     val feeToken = msg.feeToken!;
     val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported);
     val feeTokenPrice = st.getValidatedTokenPrice(feeToken);
