@@ -7,6 +7,7 @@ enum FeeQuoter_Error {
     ExtraArgOutOfOrderExecutionMustBeTrue
     InvalidExtraArgsData
     UnsupportedNumberOfTokens
+    InvalidTokenAmountsData
     InvalidSuiReceiverAddress
     InvalidSVMReceiverAddress
     InvalidTokenReceiver

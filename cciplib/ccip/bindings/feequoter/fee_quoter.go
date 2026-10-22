@@ -51,6 +51,7 @@ const (
 	ErrorExtraArgOutOfOrderExecutionMustBeTrue
 	ErrorInvalidExtraArgsData
 	ErrorUnsupportedNumberOfTokens
+	ErrorInvalidTokenAmountsData
 	ErrorInvalidSuiReceiverAddress
 	ErrorInvalidSVMReceiverAddress
 	ErrorInvalidTokenReceiver

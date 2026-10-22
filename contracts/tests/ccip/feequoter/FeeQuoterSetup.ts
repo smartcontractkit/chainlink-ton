@@ -764,6 +764,8 @@ function printErrorName(error: number): string {
       return 'InvalidSVMExtraArgsWritableBitmap'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TooManySVMExtraArgsAccounts']:
       return 'TooManySVMExtraArgsAccounts'
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidTokenAmountsData']:
+      return 'InvalidTokenAmountsData'
     default:
       throw new Error(`Unknown error code: ${error.toString()}`)
   }

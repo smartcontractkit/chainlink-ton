@@ -17,7 +17,6 @@ import "../../lib/math";
 import "../router/messages"
 
 import "@stdlib/lisp-lists"
-import "@stdlib/exotic-cells"
 
 tolk 1.4.2
 
@@ -392,16 +391,28 @@ fun getEnabledTokenTransferFeeConfig(destChainConfig: DestChainConfig, token: ad
 fun validateTokenTransfers(destChainConfig: DestChainConfig, tokenAmounts: SnakedCell<TokenAmount>): (int, int) {
     var tokenCount = 0;
     var tokenTransferBytesOverhead = 0;
-    var tokenAmountsIter = tokenAmounts.iter();
+    try {
+        var tokenAmountsIter = tokenAmounts.iter();
 
-    while (!tokenAmountsIter.empty()) {
-        val tokenAmount = tokenAmountsIter.next();
-        tokenCount += 1;
-        assert (tokenCount <= destChainConfig.config.maxNumberOfTokensPerMsg) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
+        while (!tokenAmountsIter.empty()) {
+            val tokenAmount = tokenAmountsIter.next();
+            tokenCount += 1;
+            assert (tokenCount <= destChainConfig.config.maxNumberOfTokensPerMsg) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
 
-        val config = getEnabledTokenTransferFeeConfig(destChainConfig, tokenAmount.token);
-        val tokenBytesOverhead = config != null ? config!.destBytesOverhead as int : CCIP_LOCK_OR_BURN_V1_RET_BYTES;
-        tokenTransferBytesOverhead = mustAdd(tokenTransferBytesOverhead, tokenBytesOverhead, FeeQuoter_Error.ExecutionCostOverflow);
+            val config = getEnabledTokenTransferFeeConfig(destChainConfig, tokenAmount.token);
+            val tokenBytesOverhead = config != null ? config!.destBytesOverhead as int : CCIP_LOCK_OR_BURN_V1_RET_BYTES;
+            tokenTransferBytesOverhead = mustAdd(tokenTransferBytesOverhead, tokenBytesOverhead, FeeQuoter_Error.ExecutionCostOverflow);
+        }
+    } catch (e) {
+        match (e) {
+            // Iterator<T>.next() throws Utils_Error.InvalidData when finding exotic (library reference) cells
+            Utils_Error.InvalidData as int => {
+                throw FeeQuoter_Error.InvalidTokenAmountsData;
+            }
+            else => {
+                throw e;
+            }
+        }
     }
 
     return (tokenCount, tokenTransferBytesOverhead);
@@ -451,10 +462,6 @@ get fun validatedTokenPrice(token: address): uint224 {
 fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256, tokenCount: int, tokenTransferBytesOverhead: int): (ExtraArgs, int, uint256) {
     // Check that payload is formed correctly.
     assert (msgDataLen <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
-
-    // TODO: implement this for real token transfer
-    val (tokenAmountsSlice, tokenAmountsExotic) = message.tokenAmounts.beginParseSpecial();
-    assert (!tokenAmountsExotic && tokenAmountsSlice.isEmpty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
 
     // NOTE: we could deploy distinct contracts to cut down on code
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
@@ -594,8 +601,9 @@ fun parseSuiExtraArgs(extraArgs: Cell<ExtraArgs>, maxPerMsgGasLimit: uint32): Su
     return extra;
 }
 
-fun validateExtraArgsCollection(collection: cell, elemBits: int): int {
-    val (count, errorCode) = collection.canonicalFixedWidthSnakeSafe(elemBits);
+fun validateExtraArgsCollection(collection: SnakedCell<uint256>, elemBits: int): int {
+    val it = collection.iter();
+    val (count, errorCode) = it.sizeSafe(elemBits);
     match (errorCode) {
         0 => { /* continue */ }
         8 => {

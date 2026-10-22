@@ -1814,7 +1814,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
       await setup.assertGetFeeValidationErrorRaw(
         body,
-        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.UnsupportedNumberOfTokens'],
+        feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidTokenAmountsData'],
       )
     })
 

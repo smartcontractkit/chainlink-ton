@@ -172,30 +172,50 @@ fun SnakedCell<T>.asSingle(self): T? {
     return token
 }
 
-// Iterates over arrays stored as snake data.
+// Creates an iterator that iterates over arrays stored as snake data.
+// Parsing is lazy: construction never touches the cell, so `iter()` cannot
+// throw. Validation errors (exotic cells, malformed snakes) surface from the
+// accessors instead.
 struct Iterator<T> {
-    data: slice;
+    root: cell
+    buffer: slice?
 }
 
 @inline
 fun Iterator<T>.new(data: cell): Iterator<T> {
-    return Iterator<T> { data: data.beginParse() };
+    return Iterator<T> { root: data, buffer: null };
+}
+
+// The head's slice. Parses on first use.
+@inline
+fun Iterator<T>.parsed(self): slice {
+    if (self.buffer == null) {
+        val (data, isExotic) = self.root.beginParseSpecial();
+        assert(!isExotic, Utils_Error.InvalidData);
+        return data;
+    }
+    return self.buffer;
 }
 
 @inline
 fun Iterator<T>.empty(self): bool {
-    return self.data.isEmpty()
+    return self.parsed().isEmpty();
 }
 
 @inline
 fun Iterator<T>.next(mutate self): T {
-    val (bits, refs) = self.data.remainingBitsAndRefsCount();
+    var data = self.parsed();
+    val (bits, refs) = data.remainingBitsAndRefsCount();
     if (bits == 0) {
         // for snakeData to be well formed, there should only be one reference
         assert(refs == 1, Utils_Error.InvalidData);
-        self.data = self.data.loadRef().beginParse();
+        val (nextSlice, isExotic) = data.loadRef().beginParseSpecial();
+        assert(!isExotic, Utils_Error.InvalidData);
+        data = nextSlice;
     }
-    return self.data.loadAny<T>();
+    val value = data.loadAny<T>();
+    self.buffer = data;
+    return value;
 }
 
 // Expensive to calculate
@@ -203,7 +223,7 @@ fun Iterator<T>.next(mutate self): T {
 @inline
 fun Iterator<T>.countBytes(self): int {
     val maxCells = 128;
-    val (_cellsCount, dataBitsSize, _cellRefs) = self.data.calculateSizeStrict(maxCells);
+    val (_cellsCount, dataBitsSize, _cellRefs) = self.parsed().calculateSizeStrict(maxCells);
     assert(dataBitsSize % 8 == 0, Utils_Error.InvalidData);
     return dataBitsSize / 8;
 }
@@ -224,9 +244,38 @@ fun Iterator<T>.countBytesSafe(self): (int, int) {
     }
 }
 
-@inline
-fun Iterator<T>.size(self, elemSize: int): int {
-    return self.countBytes() / elemSize
+/// Validates a snake of fixed-width elements (e.g. 256-bit accounts): every cell
+/// must hold only whole elements, so none straddles a cell boundary.
+///
+/// @note EXPENSIVE: iterates over all cells in the snake to count elements.
+///
+/// @param elemBits the element width in BITS (e.g. 256 for 32-byte accounts).
+///
+/// Returns the number of complete elements.
+fun Iterator<T>.size(self, elemBits: int): int {
+    assert (elemBits > 0 && elemBits <= 1023, Utils_Error.InvalidData);
+    var curr: slice = self.parsed();
+    var totalElements = 0;
+    var cells = 0;
+    while (true) {
+        cells += 1;
+        assert (cells <= SNAKE_MAX_CELLS, 8); // cell-overflow exit code
+
+        // a partial trailing element would straddle the cell boundary
+        val bits = curr.remainingBitsCount();
+        val refs = curr.remainingRefsCount();
+        assert (bits % elemBits == 0, Utils_Error.InvalidData);
+        assert (refs == 0 || refs == 1, Utils_Error.InvalidData);
+
+        totalElements += bits / elemBits;
+        if (refs == 0) {
+            return totalElements;
+        }
+        val next = curr.loadRef();
+        val (nextSlice, isExotic) = next.beginParseSpecial();
+        assert (!isExotic, Utils_Error.InvalidData);
+        curr = nextSlice;
+    }
 }
 
 /// Maximum number of cells visited when validating a user-supplied snake.
@@ -252,7 +301,7 @@ fun cell.assertCanonicalByteSnake(self): int {
         // `Iterator.countBytes`, preserving the caller's error-code mapping.
         assert (cells <= SNAKE_MAX_CELLS, 8);
 
-        var (s, isExotic) = curr!.beginParseSpecial();
+        var (s, isExotic) = curr.beginParseSpecial();
         assert (!isExotic, Utils_Error.InvalidData);
 
         val bits = s.remainingBitsCount();
@@ -271,39 +320,6 @@ fun cell.assertCanonicalByteSnake(self): int {
     return totalBytes;
 }
 
-/// Validates a snake of fixed-width elements (e.g. 256-bit accounts): every cell
-/// must hold only whole elements, so none straddles a cell boundary. Unlike the
-/// byte snake, an intermediate cell need not be full — it just has to end on an
-/// element boundary, which is what the offchain decoder produces and consumes
-/// (it loads whole elements before following the continuation).
-/// Returns the number of complete elements.
-@inline
-fun cell.assertCanonicalFixedWidthSnake(self, elemBits: int): int {
-    assert (elemBits > 0 && elemBits <= 1023, Utils_Error.InvalidData);
-    var curr: cell? = self;
-    var totalElements = 0;
-    var cells = 0;
-    while (curr != null) {
-        cells += 1;
-        assert (cells <= SNAKE_MAX_CELLS, 8);
-
-        var (s, isExotic) = curr!.beginParseSpecial();
-        assert (!isExotic, Utils_Error.InvalidData);
-
-        // a partial trailing element would straddle the cell boundary
-        val bits = s.remainingBitsCount();
-        val refs = s.remainingRefsCount();
-        assert (bits % elemBits == 0, Utils_Error.InvalidData);
-        if (refs != 0) {
-            assert (refs == 1, Utils_Error.InvalidData);
-        }
-
-        totalElements += bits / elemBits;
-        curr = refs == 1 ? s.loadRef() : null;
-    }
-    return totalElements;
-}
-
 /// Same as `Iterator.countBytesSafe`: returns (0, errorCode) instead of throwing.
 ///
 /// ExitCodes:
@@ -319,9 +335,9 @@ fun cell.canonicalByteSnakeSafe(self): (int, int) {
 }
 
 /// Same as `Iterator.countBytesSafe`: returns (0, errorCode) instead of throwing.
-fun cell.canonicalFixedWidthSnakeSafe(self, elemBits: int): (int, int) {
+fun Iterator<T>.sizeSafe(self, elemBits: int): (int, int) {
     try {
-        return (self.assertCanonicalFixedWidthSnake(elemBits), 0);
+        return (self.size(elemBits), 0);
     } catch (e) {
         return (0, e);
     }
