@@ -4849,18 +4849,18 @@ export class OffRamp implements c.Contract {
         return OffRamp_NotifySuccess.toCell(OffRamp_NotifySuccess.create(body));
     }
 
+    static createCellOfOffRampUpdateCursedSubjects(body: {
+        cursedSubjects: CursedSubjects
+    }) {
+        return OffRamp_UpdateCursedSubjects.toCell(OffRamp_UpdateCursedSubjects.create(body));
+    }
+
     static createCellOfOffRampTokenTransferDelivered(body: {
         queryId?: uint64
         execId: ReceiveExecutorId
         delivered: OffRamp_DeliveredTransfer
     }) {
         return OffRamp_TokenTransferDelivered.toCell(OffRamp_TokenTransferDelivered.create(body));
-    }
-
-    static createCellOfOffRampUpdateCursedSubjects(body: {
-        cursedSubjects: CursedSubjects
-    }) {
-        return OffRamp_UpdateCursedSubjects.toCell(OffRamp_UpdateCursedSubjects.create(body));
     }
 
     static createCellOfOffRampSetDynamicConfig(body: {
@@ -5085,6 +5085,16 @@ export class OffRamp implements c.Contract {
         });
     }
 
+    async sendOffRampUpdateCursedSubjects(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        cursedSubjects: CursedSubjects
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: OffRamp_UpdateCursedSubjects.toCell(OffRamp_UpdateCursedSubjects.create(body)),
+            ...extraOptions
+        });
+    }
+
     async sendOffRampTokenTransferDelivered(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         execId: ReceiveExecutorId
@@ -5093,16 +5103,6 @@ export class OffRamp implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: OffRamp_TokenTransferDelivered.toCell(OffRamp_TokenTransferDelivered.create(body)),
-            ...extraOptions
-        });
-    }
-
-    async sendOffRampUpdateCursedSubjects(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        cursedSubjects: CursedSubjects
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: OffRamp_UpdateCursedSubjects.toCell(OffRamp_UpdateCursedSubjects.create(body)),
             ...extraOptions
         });
     }

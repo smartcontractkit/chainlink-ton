@@ -86,6 +86,19 @@ var GetVerifyNotCursed = tvm.Getter[*big.Int, bool]{
 	}),
 }
 
+// GetRMNUpdateCursedSubjectsFee gets the minimum value (nanoGRAM) that curse,
+// uncurse and sync messages must carry to propagate to every OffRamp.
+var GetRMNUpdateCursedSubjectsFee = tvm.NewNoArgsGetter(tvm.NoArgsOpts[*big.Int]{
+	Name: "rmn_updateCursedSubjectsFee",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*big.Int, error) {
+		v, err := r.Int(0)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse rmn_updateCursedSubjectsFee result: %w", err)
+		}
+		return v, nil
+	}),
+})
+
 type AccountAddressArgs struct {
 	User  *address.Address
 	Token *address.Address
