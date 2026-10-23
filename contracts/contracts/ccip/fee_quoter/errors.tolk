@@ -29,7 +29,13 @@ enum FeeQuoter_Error {
     FeeCalculationOverflow
     FeeOverflow
     MessageFeeTooHigh
+<<<<<<< HEAD
     TokenTransferConfigMustBeEnabled
     InvalidDestBytesOverhead
+=======
+
+    // Appended to end: existing codes are part of the observed ABI
+    TooManySVMExtraArgsAccounts
+>>>>>>> tags/contracts/1.6.3
     InvalidSVMExtraArgsWritableBitmap
 }

@@ -40,7 +40,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorUnsupportedChainFamilySelector)
-		ecMax = int32(ErrorMessageFeeTooHigh)
+		ecMax = int32(ErrorInvalidSVMExtraArgsWritableBitmap)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -72,6 +72,9 @@ const (
 	ErrorFeeCalculationOverflow
 	ErrorFeeOverflow
 	ErrorMessageFeeTooHigh
+	// Appended to end: existing codes are part of the observed ABI
+	ErrorTooManySVMExtraArgsAccounts
+	ErrorInvalidSVMExtraArgsWritableBitmap
 )
 
 // Registry method names
