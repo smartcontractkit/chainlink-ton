@@ -10,34 +10,39 @@ func _() {
 	var x [1]struct{}
 	_ = x[ErrorUnsupportedChainFamilySelector-34400]
 	_ = x[ErrorGasLimitTooHigh-34401]
-	_ = x[ExtraArgOutOfOrderExecutionMustBeTrue-34402]
+	_ = x[ErrorExtraArgOutOfOrderExecutionMustBeTrue-34402]
 	_ = x[ErrorInvalidExtraArgsData-34403]
 	_ = x[ErrorUnsupportedNumberOfTokens-34404]
-	_ = x[ErrorInvalidSuiReceiverAddress-34405]
-	_ = x[ErrorInvalidSVMReceiverAddress-34406]
-	_ = x[ErrorInvalidTokenReceiver-34407]
-	_ = x[ErrorTooManySuiExtraArgsReceiverObjectIDs-34408]
-	_ = x[ErrorMsgDataTooLarge-34409]
-	_ = x[ErrorStaleGasPrice-34410]
-	_ = x[ErrorDestChainNotEnabled-34411]
-	_ = x[ErrorFeeTokenNotSupported-34412]
-	_ = x[ErrorInvalidMsgData-34413]
-	_ = x[ErrorTokenNotSupported-34414]
-	_ = x[ErrorUnknownDestChainSelector-34415]
-	_ = x[ErrorInsufficientFee-34416]
-	_ = x[ErrorTokenTransfersNotSupported-34417]
-	_ = x[ErrorUnauthorizedPriceUpdater-34418]
-	_ = x[ErrorExecutionCostOverflow-34419]
-	_ = x[ErrorPremiumFeeOverflow-34420]
-	_ = x[ErrorDataAvailabilityCostOverflow-34421]
-	_ = x[ErrorFeeCalculationOverflow-34422]
-	_ = x[ErrorFeeOverflow-34423]
-	_ = x[ErrorMessageFeeTooHigh-34424]
+	_ = x[ErrorInvalidTokenAmountsData-34405]
+	_ = x[ErrorInvalidSuiReceiverAddress-34406]
+	_ = x[ErrorInvalidSVMReceiverAddress-34407]
+	_ = x[ErrorInvalidTokenReceiver-34408]
+	_ = x[ErrorTooManySuiExtraArgsReceiverObjectIDs-34409]
+	_ = x[ErrorTooManySVMExtraArgsAccounts-34410]
+	_ = x[ErrorInvalidSVMExtraArgsWritableBitmap-34411]
+	_ = x[ErrorMsgDataTooLarge-34412]
+	_ = x[ErrorStaleGasPrice-34413]
+	_ = x[ErrorDestChainNotEnabled-34414]
+	_ = x[ErrorFeeTokenNotSupported-34415]
+	_ = x[ErrorInvalidMsgData-34416]
+	_ = x[ErrorTokenNotSupported-34417]
+	_ = x[ErrorUnknownDestChainSelector-34418]
+	_ = x[ErrorInsufficientFee-34419]
+	_ = x[ErrorTokenTransfersNotSupported-34420]
+	_ = x[ErrorUnauthorizedPriceUpdater-34421]
+	_ = x[ErrorExecutionCostOverflow-34422]
+	_ = x[ErrorPremiumFeeOverflow-34423]
+	_ = x[ErrorDataAvailabilityCostOverflow-34424]
+	_ = x[ErrorFeeCalculationOverflow-34425]
+	_ = x[ErrorFeeOverflow-34426]
+	_ = x[ErrorMessageFeeTooHigh-34427]
+	_ = x[ErrorTokenTransferConfigMustBeEnabled-34428]
+	_ = x[ErrorInvalidDestBytesOverhead-34429]
 }
 
-const _ExitCode_name = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidSuiReceiverAddressErrorInvalidSVMReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorMsgDataTooLargeErrorStaleGasPriceErrorDestChainNotEnabledErrorFeeTokenNotSupportedErrorInvalidMsgDataErrorTokenNotSupportedErrorUnknownDestChainSelectorErrorInsufficientFeeErrorTokenTransfersNotSupportedErrorUnauthorizedPriceUpdaterErrorExecutionCostOverflowErrorPremiumFeeOverflowErrorDataAvailabilityCostOverflowErrorFeeCalculationOverflowErrorFeeOverflowErrorMessageFeeTooHigh"
+const _ExitCode_name = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighErrorExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidTokenAmountsDataErrorInvalidSuiReceiverAddressErrorInvalidSVMReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorTooManySVMExtraArgsAccountsErrorInvalidSVMExtraArgsWritableBitmapErrorMsgDataTooLargeErrorStaleGasPriceErrorDestChainNotEnabledErrorFeeTokenNotSupportedErrorInvalidMsgDataErrorTokenNotSupportedErrorUnknownDestChainSelectorErrorInsufficientFeeErrorTokenTransfersNotSupportedErrorUnauthorizedPriceUpdaterErrorExecutionCostOverflowErrorPremiumFeeOverflowErrorDataAvailabilityCostOverflowErrorFeeCalculationOverflowErrorFeeOverflowErrorMessageFeeTooHighErrorTokenTransferConfigMustBeEnabledErrorInvalidDestBytesOverhead"
 
-var _ExitCode_index = [...]uint16{0, 35, 55, 92, 117, 147, 177, 207, 232, 273, 293, 311, 335, 360, 379, 401, 430, 450, 481, 510, 536, 559, 592, 619, 635, 657}
+var _ExitCode_index = [...]uint16{0, 35, 55, 97, 122, 152, 180, 210, 240, 265, 306, 338, 376, 396, 414, 438, 463, 482, 504, 533, 553, 584, 613, 639, 662, 695, 722, 738, 760, 797, 826}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 34400

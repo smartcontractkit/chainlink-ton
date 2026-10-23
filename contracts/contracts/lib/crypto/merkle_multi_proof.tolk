@@ -31,8 +31,8 @@ fun merkleRoot<I>(
     proofs: Iterator<uint256>,
     proofFlagBits: uint256,
 ): uint256 {
-    val leavesLen = leaves.size(32);
-    val proofsLen = proofs.size(32);
+    val leavesLen = leaves.size(32 * 8);
+    val proofsLen = proofs.size(32 * 8);
 
     assert (leavesLen != 0, MerkleMultiProof_Error.InvalidProofLeavesCannotBeEmpty);
     assert (leavesLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofLeavesTooLarge);

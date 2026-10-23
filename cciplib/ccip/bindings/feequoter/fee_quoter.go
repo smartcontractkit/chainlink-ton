@@ -40,7 +40,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorUnsupportedChainFamilySelector)
-		ecMax = int32(ErrorMessageFeeTooHigh)
+		ecMax = int32(ErrorInvalidDestBytesOverhead)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -48,13 +48,16 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 const (
 	ErrorUnsupportedChainFamilySelector ExitCode = ExitCode(34400 + iota)
 	ErrorGasLimitTooHigh
-	ExtraArgOutOfOrderExecutionMustBeTrue
+	ErrorExtraArgOutOfOrderExecutionMustBeTrue
 	ErrorInvalidExtraArgsData
 	ErrorUnsupportedNumberOfTokens
+	ErrorInvalidTokenAmountsData
 	ErrorInvalidSuiReceiverAddress
 	ErrorInvalidSVMReceiverAddress
 	ErrorInvalidTokenReceiver
 	ErrorTooManySuiExtraArgsReceiverObjectIDs
+	ErrorTooManySVMExtraArgsAccounts
+	ErrorInvalidSVMExtraArgsWritableBitmap
 	ErrorMsgDataTooLarge
 	ErrorStaleGasPrice
 	ErrorDestChainNotEnabled
@@ -65,13 +68,14 @@ const (
 	ErrorInsufficientFee
 	ErrorTokenTransfersNotSupported
 	ErrorUnauthorizedPriceUpdater
-	// Overflow protection errors
 	ErrorExecutionCostOverflow
 	ErrorPremiumFeeOverflow
 	ErrorDataAvailabilityCostOverflow
 	ErrorFeeCalculationOverflow
 	ErrorFeeOverflow
 	ErrorMessageFeeTooHigh
+	ErrorTokenTransferConfigMustBeEnabled
+	ErrorInvalidDestBytesOverhead
 )
 
 // Registry method names
