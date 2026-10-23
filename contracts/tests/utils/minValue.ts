@@ -18,7 +18,11 @@ export const MIN_VALUE = {
 export type TokenPoolFlowBudget = { safety: bigint; admission: bigint }
 
 /** Raises both flows' safety floors; admission keeps the pool defaults. */
-export async function setTokenPoolSafetyFloor(blockchain: Blockchain, address: Address, value: bigint) {
+export async function setTokenPoolSafetyFloor(
+  blockchain: Blockchain,
+  address: Address,
+  value: bigint,
+) {
   const budget = { safety: value, admission: 0n }
   await setTokenPoolBudget(blockchain, address, budget, budget)
 }
