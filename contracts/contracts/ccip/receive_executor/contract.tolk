@@ -335,6 +335,7 @@ fun onDepositAccountNotification(sender: address, msg: DepositAccount_ForwardNot
         return;
     }
 
+    // Authentication passed: let the funded executor finish delivery and execution.
     setGasLimitToMaximum();
     onTokenTransferDelivered(mutate st, ttInfo, ttInfo.state.tokenPool, notification.jettonAmount);
     st.store();
@@ -360,9 +361,11 @@ fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: Receive
     }
 
     // The receiver may never confirm, so the delivery is reported independently of execution.
+    // The only mode-64 send: it carries the inbound remainder after gas and its forward fee.
+    // `execute` below pays its fixed value from the balance.
     val deliveredMsg = createMessage({
         bounce: false,
-        value: OffRamp_Costs.tokenTransferDelivered(),
+        value: 0,
         dest: st.owner,
         body: OffRamp_TokenTransferDelivered {
             queryId: st.state.queryId,
@@ -370,7 +373,7 @@ fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: Receive
             delivered: delivered.toCell(),
         },
     });
-    deliveredMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    deliveredMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     execute(mutate st)
 }
 

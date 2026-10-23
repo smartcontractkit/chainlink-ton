@@ -151,6 +151,7 @@ describe('Router.cursing', () => {
         }),
       }),
       executorAddress: sender.address,
+      failureValue: toNano('0.01'),
     })
 
     expect(result.transactions).toHaveTransaction({

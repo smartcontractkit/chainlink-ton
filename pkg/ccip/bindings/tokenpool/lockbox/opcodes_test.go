@@ -12,6 +12,6 @@ import (
 func TestLockBoxMessageOpcodes(t *testing.T) {
 	tvmtest.CheckOpcodes(t, TLBs, tvmtest.OpcodeSpec{
 		Prefix:  "JettonLockBox_",
-		Package: reflect.TypeOf(Storage{}).PkgPath(),
+		Package: reflect.TypeFor[Storage]().PkgPath(),
 	})
 }

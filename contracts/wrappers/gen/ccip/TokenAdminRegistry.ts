@@ -425,45 +425,45 @@ export const TokenAdminRegistry_SetPool = {
 }
 
 /**
- > struct (0x2fb10afd) TokenAdminRegistry_RefreshTransferInitiator {
+ > struct (0xbb82eda5) TokenAdminRegistry_RefreshPoolConfig {
  >     queryId: uint64
  >     tokenAddress: address
  > }
  */
-export interface TokenAdminRegistry_RefreshTransferInitiator {
-    readonly $: 'TokenAdminRegistry_RefreshTransferInitiator'
+export interface TokenAdminRegistry_RefreshPoolConfig {
+    readonly $: 'TokenAdminRegistry_RefreshPoolConfig'
     queryId: uint64
     tokenAddress: c.Address
 }
 
-export const TokenAdminRegistry_RefreshTransferInitiator = {
-    PREFIX: 0x2fb10afd,
+export const TokenAdminRegistry_RefreshPoolConfig = {
+    PREFIX: 0xbb82eda5,
 
     create(args: {
         queryId?: uint64
         tokenAddress: c.Address
-    }): TokenAdminRegistry_RefreshTransferInitiator {
+    }): TokenAdminRegistry_RefreshPoolConfig {
         return {
-            $: 'TokenAdminRegistry_RefreshTransferInitiator',
+            $: 'TokenAdminRegistry_RefreshPoolConfig',
             ...args,
             queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): TokenAdminRegistry_RefreshTransferInitiator {
-        loadAndCheckPrefix32(s, 0x2fb10afd, 'TokenAdminRegistry_RefreshTransferInitiator');
+    fromSlice(s: c.Slice): TokenAdminRegistry_RefreshPoolConfig {
+        loadAndCheckPrefix32(s, 0xbb82eda5, 'TokenAdminRegistry_RefreshPoolConfig');
         return {
-            $: 'TokenAdminRegistry_RefreshTransferInitiator',
+            $: 'TokenAdminRegistry_RefreshPoolConfig',
             queryId: s.loadUintBig(64),
             tokenAddress: s.loadAddress(),
         }
     },
-    store(self: TokenAdminRegistry_RefreshTransferInitiator, b: c.Builder): void {
-        b.storeUint(0x2fb10afd, 32);
+    store(self: TokenAdminRegistry_RefreshPoolConfig, b: c.Builder): void {
+        b.storeUint(0xbb82eda5, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.tokenAddress);
     },
-    toCell(self: TokenAdminRegistry_RefreshTransferInitiator): c.Cell {
-        return makeCellFrom<TokenAdminRegistry_RefreshTransferInitiator>(self, TokenAdminRegistry_RefreshTransferInitiator.store);
+    toCell(self: TokenAdminRegistry_RefreshPoolConfig): c.Cell {
+        return makeCellFrom<TokenAdminRegistry_RefreshPoolConfig>(self, TokenAdminRegistry_RefreshPoolConfig.store);
     }
 }
 
@@ -561,6 +561,7 @@ export const TokenAdminRegistry_GetTokenInfo = {
  >     tokenPool: address?
  >     transferInitiator: Cell<address>?
  >     version: uint32
+ >     admission: Cell<TokenPool_AdmissionBudget>?
  > }
  */
 export interface TokenAdminRegistry_TokenInfo {
@@ -571,6 +572,7 @@ export interface TokenAdminRegistry_TokenInfo {
     tokenPool: c.Address | null
     transferInitiator: c.Address | null
     version: uint32
+    admission: TokenPool_AdmissionBudget | null /* = null */
 }
 
 export const TokenAdminRegistry_TokenInfo = {
@@ -583,9 +585,11 @@ export const TokenAdminRegistry_TokenInfo = {
         tokenPool: c.Address | null
         transferInitiator: c.Address | null
         version: uint32
+        admission?: TokenPool_AdmissionBudget | null /* = null */
     }): TokenAdminRegistry_TokenInfo {
         return {
             $: 'TokenAdminRegistry_TokenInfo',
+            admission: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -602,6 +606,7 @@ export const TokenAdminRegistry_TokenInfo = {
                 (s) => s.loadAddress()
             ) : null,
             version: s.loadUintBig(32),
+            admission: s.loadBoolean() ? loadCellRef<TokenPool_AdmissionBudget>(s, TokenPool_AdmissionBudget.fromSlice) : null,
         }
     },
     store(self: TokenAdminRegistry_TokenInfo, b: c.Builder): void {
@@ -616,6 +621,9 @@ export const TokenAdminRegistry_TokenInfo = {
             ); }
         );
         b.storeUint(self.version, 32);
+        storeTolkNullable<TokenPool_AdmissionBudget>(self.admission, b,
+            (v,b) => storeCellRef<TokenPool_AdmissionBudget>(v, b, TokenPool_AdmissionBudget.store)
+        );
     },
     toCell(self: TokenAdminRegistry_TokenInfo): c.Cell {
         return makeCellFrom<TokenAdminRegistry_TokenInfo>(self, TokenAdminRegistry_TokenInfo.store);
@@ -1384,7 +1392,7 @@ export const Deployable_Message = {
 }
 
 /**
- > type TokenAdminRegistryEntry_RootMessage = TokenAdminRegistryEntry_GetTokenInfo | TokenAdminRegistryEntry_ProposeAdministrator | TokenAdminRegistryEntry_TransferAdminRole | TokenAdminRegistryEntry_AcceptAdminRole | TokenAdminRegistryEntry_SetPool | TokenAdminRegistryEntry_VerifyToken | TokenAdminRegistryEntry_RefreshTransferInitiator
+ > type TokenAdminRegistryEntry_RootMessage = TokenAdminRegistryEntry_GetTokenInfo | TokenAdminRegistryEntry_ProposeAdministrator | TokenAdminRegistryEntry_TransferAdminRole | TokenAdminRegistryEntry_AcceptAdminRole | TokenAdminRegistryEntry_SetPool | TokenAdminRegistryEntry_VerifyToken | TokenAdminRegistryEntry_RefreshPoolConfig
  */
 export type TokenAdminRegistryEntry_RootMessage =
     | TokenAdminRegistryEntry_GetTokenInfo
@@ -1393,7 +1401,7 @@ export type TokenAdminRegistryEntry_RootMessage =
     | TokenAdminRegistryEntry_AcceptAdminRole
     | TokenAdminRegistryEntry_SetPool
     | TokenAdminRegistryEntry_VerifyToken
-    | TokenAdminRegistryEntry_RefreshTransferInitiator
+    | TokenAdminRegistryEntry_RefreshPoolConfig
 
 export const TokenAdminRegistryEntry_RootMessage = {
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_RootMessage {
@@ -1403,7 +1411,7 @@ export const TokenAdminRegistryEntry_RootMessage = {
             lookupPrefix(s, 0x39c6e872, 32) ? TokenAdminRegistryEntry_AcceptAdminRole.fromSlice(s) :
             lookupPrefix(s, 0xa64e05c9, 32) ? TokenAdminRegistryEntry_SetPool.fromSlice(s) :
             lookupPrefix(s, 0xa14b0288, 32) ? TokenAdminRegistryEntry_VerifyToken.fromSlice(s) :
-            lookupPrefix(s, 0x91f8fb81, 32) ? TokenAdminRegistryEntry_RefreshTransferInitiator.fromSlice(s) :
+            lookupPrefix(s, 0xecf005ba, 32) ? TokenAdminRegistryEntry_RefreshPoolConfig.fromSlice(s) :
             throwNonePrefixMatch('TokenAdminRegistryEntry_RootMessage');
     },
     store(self: TokenAdminRegistryEntry_RootMessage, b: c.Builder): void {
@@ -1426,8 +1434,8 @@ export const TokenAdminRegistryEntry_RootMessage = {
             case 'TokenAdminRegistryEntry_VerifyToken':
                 TokenAdminRegistryEntry_VerifyToken.store(self, b);
                 break;
-            case 'TokenAdminRegistryEntry_RefreshTransferInitiator':
-                TokenAdminRegistryEntry_RefreshTransferInitiator.store(self, b);
+            case 'TokenAdminRegistryEntry_RefreshPoolConfig':
+                TokenAdminRegistryEntry_RefreshPoolConfig.store(self, b);
                 break;
         }
     },
@@ -1768,32 +1776,32 @@ export const TokenAdminRegistryEntry_VerifyToken = {
 }
 
 /**
- > struct (0x91f8fb81) TokenAdminRegistryEntry_RefreshTransferInitiator {
+ > struct (0xecf005ba) TokenAdminRegistryEntry_RefreshPoolConfig {
  > }
  */
-export interface TokenAdminRegistryEntry_RefreshTransferInitiator {
-    readonly $: 'TokenAdminRegistryEntry_RefreshTransferInitiator'
+export interface TokenAdminRegistryEntry_RefreshPoolConfig {
+    readonly $: 'TokenAdminRegistryEntry_RefreshPoolConfig'
 }
 
-export const TokenAdminRegistryEntry_RefreshTransferInitiator = {
-    PREFIX: 0x91f8fb81,
+export const TokenAdminRegistryEntry_RefreshPoolConfig = {
+    PREFIX: 0xecf005ba,
 
-    create(): TokenAdminRegistryEntry_RefreshTransferInitiator {
+    create(): TokenAdminRegistryEntry_RefreshPoolConfig {
         return {
-            $: 'TokenAdminRegistryEntry_RefreshTransferInitiator',
+            $: 'TokenAdminRegistryEntry_RefreshPoolConfig',
         }
     },
-    fromSlice(s: c.Slice): TokenAdminRegistryEntry_RefreshTransferInitiator {
-        loadAndCheckPrefix32(s, 0x91f8fb81, 'TokenAdminRegistryEntry_RefreshTransferInitiator');
+    fromSlice(s: c.Slice): TokenAdminRegistryEntry_RefreshPoolConfig {
+        loadAndCheckPrefix32(s, 0xecf005ba, 'TokenAdminRegistryEntry_RefreshPoolConfig');
         return {
-            $: 'TokenAdminRegistryEntry_RefreshTransferInitiator',
+            $: 'TokenAdminRegistryEntry_RefreshPoolConfig',
         }
     },
-    store(self: TokenAdminRegistryEntry_RefreshTransferInitiator, b: c.Builder): void {
-        b.storeUint(0x91f8fb81, 32);
+    store(self: TokenAdminRegistryEntry_RefreshPoolConfig, b: c.Builder): void {
+        b.storeUint(0xecf005ba, 32);
     },
-    toCell(self: TokenAdminRegistryEntry_RefreshTransferInitiator): c.Cell {
-        return makeCellFrom<TokenAdminRegistryEntry_RefreshTransferInitiator>(self, TokenAdminRegistryEntry_RefreshTransferInitiator.store);
+    toCell(self: TokenAdminRegistryEntry_RefreshPoolConfig): c.Cell {
+        return makeCellFrom<TokenAdminRegistryEntry_RefreshPoolConfig>(self, TokenAdminRegistryEntry_RefreshPoolConfig.store);
     }
 }
 
@@ -1840,6 +1848,7 @@ export const TokenAdminRegistryEntry_Resume = {
  >     transferInitiator: address?
  >     minterAddress: address
  >     version: uint32
+ >     admission: Cell<TokenPool_AdmissionBudget>?
  > }
  */
 export interface TokenRegistry_TokenInfo {
@@ -1848,6 +1857,7 @@ export interface TokenRegistry_TokenInfo {
     transferInitiator: c.Address | null /* = null */
     minterAddress: c.Address
     version: uint32 /* = 1 */
+    admission: TokenPool_AdmissionBudget | null /* = null */
 }
 
 export const TokenRegistry_TokenInfo = {
@@ -1856,11 +1866,13 @@ export const TokenRegistry_TokenInfo = {
         transferInitiator?: c.Address | null /* = null */
         minterAddress: c.Address
         version?: uint32 /* = 1 */
+        admission?: TokenPool_AdmissionBudget | null /* = null */
     }): TokenRegistry_TokenInfo {
         return {
             $: 'TokenRegistry_TokenInfo',
             transferInitiator: null,
             version: 1n,
+            admission: null,
             ...args
         }
     },
@@ -1871,6 +1883,7 @@ export const TokenRegistry_TokenInfo = {
             transferInitiator: s.loadMaybeAddress(),
             minterAddress: s.loadAddress(),
             version: s.loadUintBig(32),
+            admission: s.loadBoolean() ? loadCellRef<TokenPool_AdmissionBudget>(s, TokenPool_AdmissionBudget.fromSlice) : null,
         }
     },
     store(self: TokenRegistry_TokenInfo, b: c.Builder): void {
@@ -1878,9 +1891,50 @@ export const TokenRegistry_TokenInfo = {
         b.storeAddress(self.transferInitiator);
         b.storeAddress(self.minterAddress);
         b.storeUint(self.version, 32);
+        storeTolkNullable<TokenPool_AdmissionBudget>(self.admission, b,
+            (v,b) => storeCellRef<TokenPool_AdmissionBudget>(v, b, TokenPool_AdmissionBudget.store)
+        );
     },
     toCell(self: TokenRegistry_TokenInfo): c.Cell {
         return makeCellFrom<TokenRegistry_TokenInfo>(self, TokenRegistry_TokenInfo.store);
+    }
+}
+
+/**
+ > struct TokenPool_AdmissionBudget {
+ >     lockOrBurn: coins
+ >     releaseOrMint: coins
+ > }
+ */
+export interface TokenPool_AdmissionBudget {
+    readonly $: 'TokenPool_AdmissionBudget'
+    lockOrBurn: coins
+    releaseOrMint: coins
+}
+
+export const TokenPool_AdmissionBudget = {
+    create(args: {
+        lockOrBurn: coins
+        releaseOrMint: coins
+    }): TokenPool_AdmissionBudget {
+        return {
+            $: 'TokenPool_AdmissionBudget',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_AdmissionBudget {
+        return {
+            $: 'TokenPool_AdmissionBudget',
+            lockOrBurn: s.loadCoins(),
+            releaseOrMint: s.loadCoins(),
+        }
+    },
+    store(self: TokenPool_AdmissionBudget, b: c.Builder): void {
+        b.storeCoins(self.lockOrBurn);
+        b.storeCoins(self.releaseOrMint);
+    },
+    toCell(self: TokenPool_AdmissionBudget): c.Cell {
+        return makeCellFrom<TokenPool_AdmissionBudget>(self, TokenPool_AdmissionBudget.store);
     }
 }
 
@@ -1923,7 +1977,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenAdminRegistry implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Upgradeable_Error.VersionMismatch': 19900,
@@ -2070,11 +2124,11 @@ export class TokenAdminRegistry implements c.Contract {
         return TokenAdminRegistry_VerifyToken.toCell(TokenAdminRegistry_VerifyToken.create(body));
     }
 
-    static createCellOfTokenAdminRegistryRefreshTransferInitiator(body: {
+    static createCellOfTokenAdminRegistryRefreshPoolConfig(body: {
         queryId?: uint64
         tokenAddress: c.Address
     }) {
-        return TokenAdminRegistry_RefreshTransferInitiator.toCell(TokenAdminRegistry_RefreshTransferInitiator.create(body));
+        return TokenAdminRegistry_RefreshPoolConfig.toCell(TokenAdminRegistry_RefreshPoolConfig.create(body));
     }
 
     static createCellOfOwnable2StepTransferOwnership(body: {
@@ -2274,13 +2328,13 @@ export class TokenAdminRegistry implements c.Contract {
         });
     }
 
-    async sendTokenAdminRegistryRefreshTransferInitiator(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendTokenAdminRegistryRefreshPoolConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         tokenAddress: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: TokenAdminRegistry_RefreshTransferInitiator.toCell(TokenAdminRegistry_RefreshTransferInitiator.create(body)),
+            body: TokenAdminRegistry_RefreshPoolConfig.toCell(TokenAdminRegistry_RefreshPoolConfig.create(body)),
             ...extraOptions
         });
     }

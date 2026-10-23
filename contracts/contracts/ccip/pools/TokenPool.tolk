@@ -4,6 +4,7 @@ import "@stdlib/lisp-lists"
 import "../common/types"
 
 import "lib/token_pool/types"
+import "lib/token_pool/budget"
 import "lib/token_pool/entrypoint"
 import "lib/token_pool/messages"
 import "lib/token_pool/errors"
@@ -185,5 +186,10 @@ get fun getCCVAmount(
 
 /// Matches Go binding GetIsSupportedToken (Name: "isSupportedToken").
 get fun isSupportedToken(token: address): bool {
+    throw 0xFFFF;
+}
+
+/// Effective per-flow budget (instance config raised to the pool-type default).
+get fun getBudget(): TokenPool_Budget {
     throw 0xFFFF;
 }

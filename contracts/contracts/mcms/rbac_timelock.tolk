@@ -2,6 +2,8 @@
 tolk 1.4.2
 
 import "../lib/utils";
+import "../lib/budget/gas";
+import "../lib/budget/min_value";
 import "../lib/access/access_control";
 
 const Timelock_FACILITY_NAME = "link.chain.ton.mcms.Timelock";
@@ -305,7 +307,9 @@ type Timelock_InMessage =
     | Timelock_UnblockFunctionSelector
     | Timelock_BypasserExecuteBatch
     | Timelock_UpdateExecutorRoleCheck
-    | Timelock_SubmitErrorReport;
+    | Timelock_SubmitErrorReport
+    // Role management handled by the AccessControl trait in the dispatch fallback.
+    | AccessControl_InMessage;
 
 /// Union of all outgoing messages.
 type Timelock_OutMessage =
@@ -745,7 +749,10 @@ fun Timelock<T>.init(
     // @dev: anyone can call init, but only once. The deployer should send init message with stateInit (deployment).
     // Check that the contract is not already initialized
     assert(!self.isInitialized()) throw Timelock_Error.ContractAlreadyInitialized;
-    assert(value >= Timelock_Costs.init()) throw Timelock_Error.InsufficientFee;
+
+    // minval:check-admission gate=A/static Timelock_Init
+    // must cover the init cost and rent reserve; rejects on shortfall
+    assertMinValue(value, Timelock_Costs.init(), Timelock_Error.InsufficientFee);
 
     var rbac = self.hookTrait__AccessControl();
 
@@ -834,9 +841,7 @@ fun Timelock<T>.scheduleBatch(
 
         // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
         // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-        if (call.value < calculateGasFeeDefault()) {
-            throw Timelock_Error.InsufficientValue;
-        }
+        assertMinValue(call.value, calculateGasFeeDefault(), Timelock_Error.InsufficientValue);
 
         val body = Timelock_CallScheduled{
             queryId,
@@ -852,7 +857,9 @@ fun Timelock<T>.scheduleBatch(
         index += 1;
     }
 
-    assert(value >= Timelock_Costs.scheduleBatch(index)) throw Timelock_Error.InsufficientFee;
+    // minval:check-admission gate=A/dynamic Timelock_ScheduleBatch
+    // size-scaled (per-call event fees + reply); rejects on shortfall
+    assertMinValue(value, Timelock_Costs.scheduleBatch(index), Timelock_Error.InsufficientFee);
 
     val reply = createMessage({
         bounce: false,
@@ -881,6 +888,10 @@ fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint32): void {
 fun Timelock<T>.cancel(mutate self, sender: address, _value: coins, queryId: uint64, id: uint256): void {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     self.onlyRoleOrAdminRole(CANCELLER_ROLE, sender);
+
+    // minval:best-effort gate=none Timelock_Cancel
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     assert(self.isOperationPending(id)) throw Timelock_Error.OperationCanNotBeCancelled;
 
     // Remove the timestamp for the operation
@@ -958,7 +969,9 @@ fun Timelock<T>.executeBatch(
         index += 1;
     }
 
-    assert(value >= Timelock_Costs.executeBatch(index)) throw Timelock_Error.InsufficientFee;
+    // minval:check-admission gate=A/dynamic Timelock_ExecuteBatch
+    // size-scaled (per-call event fees + reply); rejects on shortfall
+    assertMinValue(value, Timelock_Costs.executeBatch(index), Timelock_Error.InsufficientFee);
 
     self.afterCall(id);
 
@@ -1026,6 +1039,10 @@ fun Timelock<T>.updateDelay(
     newDelay: uint32
 ): void {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+
+    // minval:best-effort gate=none Timelock_UpdateDelay
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -1055,6 +1072,10 @@ fun Timelock<T>.updateOpFinalizationTimeout(
     newOpFinalizationTimeout: uint32
 ): void {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+
+    // minval:best-effort gate=none Timelock_UpdateOpFinalizationTimeout
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -1097,6 +1118,10 @@ fun Timelock<T>.blockFunctionSelector(
     selector: uint32
 ): bool {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+
+    // minval:best-effort gate=none Timelock_BlockFunctionSelector
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -1132,6 +1157,10 @@ fun Timelock<T>.unblockFunctionSelector(
     selector: uint32,
 ): bool {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+
+    // minval:best-effort gate=none Timelock_UnblockFunctionSelector
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -1199,7 +1228,9 @@ fun Timelock<T>.bypasserExecuteBatch(
         index += 1;
     }
 
-    assert(value >= Timelock_Costs.bypasserExecuteBatch(index)) throw Timelock_Error.InsufficientFee;
+    // minval:check-admission gate=A/dynamic Timelock_BypasserExecuteBatch
+    // size-scaled (per-call fees + reply); rejects on shortfall
+    assertMinValue(value, Timelock_Costs.bypasserExecuteBatch(index), Timelock_Error.InsufficientFee);
 
     val reply = createMessage({
         bounce: false,
@@ -1221,6 +1252,10 @@ fun Timelock<T>.updateExecutorRoleCheck(
     enabled: bool,
 ): void {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+
+    // minval:best-effort gate=none Timelock_UpdateExecutorRoleCheck
+    // the caller's dispatch owns funding; TODO: check-bounce
+
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -1249,7 +1284,10 @@ fun Timelock<T>.submitErrorReport(
     errorCode: uint32
 ) {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
-    assert(value >= Timelock_Costs.submitErrorReport()) throw Timelock_Error.InsufficientFee;
+
+    // minval:check-admission gate=A/static Timelock_SubmitErrorReport
+    // must cover the error-report cost; rejects on shortfall
+    assertMinValue(value, Timelock_Costs.submitErrorReport(), Timelock_Error.InsufficientFee);
 
     // Only the oracle can submit error reports
     val rbac = self.hookTrait__AccessControl();
@@ -1423,17 +1461,18 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
             self.submitErrorReport(msgSender, msgValue, msg.queryId, msg.opBatch.load(),
                 msg.opTxHash, msg.errorTxHash, msg.errorCode);
         }
+        // Role management handled by the AccessControl trait.
+        AccessControl_GrantRole => {
+            self.dispatchAccessControl(msgSender, msgValue, msgBody);
+        }
+        AccessControl_RevokeRole => {
+            self.dispatchAccessControl(msgSender, msgValue, msgBody);
+        }
+        AccessControl_RenounceRole => {
+            self.dispatchAccessControl(msgSender, msgValue, msgBody);
+        }
         else => {
-            assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
-            var rbac = self.hookTrait__AccessControl();
-
-            val msgHandled = 0
-                || rbac.onInternalMessage(msgSender, msgValue, msgBody);
-
-            if (msgHandled) {
-                // Map from underlying trait storage to contract storage
-                self.data.rbac = rbac.data.toCell();
-            }
+            self.dispatchAccessControl(msgSender, msgValue, msgBody);
 
             // Notice: allow empty message (top up)
             // @dev Contract might receive/hold TON as part of the maintenance process.
@@ -1442,6 +1481,18 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
             //  - ignore all other messages, empty or not empty
             //  - accept generic replies, don't throw "wrong opcode"
         }
+    }
+}
+
+/// Dispatches an AccessControl message (or an unrecognized message) to the trait.
+fun Timelock<T>.dispatchAccessControl(mutate self, sender: address, value: coins, body: slice) {
+    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+    var rbac = self.hookTrait__AccessControl();
+    val msgHandled = 0
+        || rbac.onInternalMessage(sender, value, body);
+    if (msgHandled) {
+        // Map from underlying trait storage to contract storage
+        self.data.rbac = rbac.data.toCell();
     }
 }
 

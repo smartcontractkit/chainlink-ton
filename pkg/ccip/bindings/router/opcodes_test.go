@@ -10,6 +10,6 @@ import (
 func TestRouterMessageOpcodes(t *testing.T) {
 	tvmtest.CheckOpcodes(t, TLBs, tvmtest.OpcodeSpec{
 		Prefix:  "Router_",
-		Package: reflect.TypeOf(Storage{}).PkgPath(),
+		Package: reflect.TypeFor[Storage]().PkgPath(),
 	})
 }

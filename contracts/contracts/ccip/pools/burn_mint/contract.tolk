@@ -2,23 +2,30 @@
 tolk 1.4.2
 
 import "@stdlib/lisp-lists"
+import "@stdlib/gas-payments"
 
 import "../../../lib/utils"
 import "../../../lib/access/ownable_2step"
 import "../../../lib/access/access_control"
+import "../../../lib/deployable/types"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
+import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/funding/jetton_withdrawable"
+import "../../../lib/budget/min_value"
 
 import "../../common/types"
 import "../../cct/messages"
 import "../../rmn_remote/lib"
+import "../../budget/min_value"
 
 import "../lib/token_pool/types"
 import "../lib/token_pool/messages"
 import "../lib/token_pool/errors"
 import "../lib/token_pool/entrypoint"
+import "../lib/token_pool/budget"
+import "../lib/token_pool/jetton_fees"
 import "../lib/token_pool/events"
 
 import "types"
@@ -65,55 +72,17 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy BurnMintTokenPool_InMessage.fromSlice(in.body);
     match (msg) {
         BurnMintTokenPool_ClaimMinterAdmin => {
-            onClaimMinterAdmin(mutate st, in.senderAddress, msg.queryId);
+            onClaimMinterAdmin(mutate st, in.senderAddress, in.valueCoins, msg.queryId);
             st.store();
         }
         CCT_ReturnExcessesBack => {
             onCCTReturnExcessesBack(mutate st, in.senderAddress, msg);
             st.store();
         }
-        TokenPool_GetTransferInitiator => {
-            val reply = createMessage({
-                bounce: BounceMode.NoBounce,
-                value: 0,
-                dest: in.senderAddress,
-                body: TokenPool_TransferInitiator {
-                    queryId: msg.queryId,
-                    // Mints carry no transfer initiator; the CCT wallet only accepts that from the minter
-                    transferInitiator: null
-                },
-            });
-            reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-        }
         else => {
             assert(in.body.isEmpty()) throw 0xFFFF;
         }
     }
-}
-
-/// @notice Sends the CCT `AskToBurn` operational message to the pool's own jetton wallet
-/// to burn the locked tokens. The burn continuation context is attached as `forwardPayload`,
-/// which the CCT wallet relays via the minter back to the pool on `CCT_ReturnExcessesBack`.
-fun sendBurnMessage(
-    st: Storage,
-    queryId: uint64,
-    context: BurnMintTokenPool_BurnContext,
-) {
-    val operation = lazy context.forwardPayload.load();
-    val prepared = lazy operation.prepared.load();
-    val burnMsg = createMessage({
-        bounce: BounceMode.RichBounce,
-        value: BurnMintTokenPool_BURN_VALUE,
-        dest: context.wallet,
-        body: CCT_AskToBurn {
-            queryId,
-            jettonAmount: prepared.destTokenAmount,
-            sendExcessesTo: contract.getAddress(),
-            customPayload: null, // Not supported atm
-            forwardPayload: context.toCell(),
-        },
-    });
-    burnMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// @notice Handles bounced burn/mint messages: refunds rate limit and sends failure reply.
@@ -122,7 +91,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     // Base library first recovers the messages it emits (GetCCVs query, LockOrBurnWithdraw).
     var basePool = loadPool(st);
-    if (basePool.onBouncedMessage(in.senderAddress, in.bouncedBody, in.valueCoins)) {
+    if (basePool.onBouncedMessage(in.senderAddress, in.valueCoins, in.bouncedBody)) {
         st.poolData = basePool.data.toCell();
         st.store();
         return;
@@ -131,7 +100,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val msg = lazy BurnMintTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
-        // Bounced ask here is a failed fee withdrawal.
+        // Recovery returns are best-effort; their bounced value stays with the pool.
         AskToTransfer => {
             val data = st.poolData.load();
             val wallet  = data.jettonClient().walletAddress();
@@ -177,21 +146,39 @@ fun onBouncedMessage(in: InMessageBounced) {
 
 /// @notice Handles TransferNotificationForRecipient on the burn path.
 /// The pool's own jetton wallet has already credited custody; burn directly via CCT
-/// `AskToBurn` carrying the continuation context, then finalize on `CCT_ReturnExcessesBack`.
+/// `AskToBurn` carrying the continuation context as `forwardPayload`, then finalize
+/// on `CCT_ReturnExcessesBack` back to sender (pool).
 fun onLockOrBurnTransferContinue(
     st: Storage,
     sender: address,
+    _msgValue: coins, // the custody forward: two custody phases' safety
     _msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
-    _msgValue: coins,
 ): Storage {
     val requestMsg = lazy fwdPayload.requestMsg.load();
     val context = BurnMintTokenPool_BurnContext {
-        wallet: sender,
+        wallet: sender, // own wallet
         forwardPayload: fwdPayload.toCell(),
     };
 
-    sendBurnMessage(st, requestMsg.queryId, context);
+    val operation = lazy context.forwardPayload.load();
+    val prepared = lazy operation.prepared.load();
+
+    // Custody has moved: forward everything. The CCT wallet's burn check rejects an underfunded
+    // burn before it commits (the bounce returns custody), and the excess carries the finalize.
+    val burnMsg = createMessage({
+        bounce: BounceMode.RichBounce,
+        value: 0,
+        dest: context.wallet,
+        body: CCT_AskToBurn {
+            queryId: requestMsg.queryId,
+            jettonAmount: prepared.destTokenAmount,
+            sendExcessesTo: contract.getAddress(),
+            customPayload: null, // not supported atm
+            forwardPayload: context.toCell(),
+        },
+    });
+    burnMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
     return st;
 }
@@ -199,12 +186,13 @@ fun onLockOrBurnTransferContinue(
 fun onReleaseOrMintContinue(
     ctx: Storage?,
     sender: address,
+    msgValue: coins,
     msg: TokenPool_ReleaseOrMint,
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
     assert(msg.delivery != null, TokenPool_Error.UnsupportedOperation);
-    val st = ctx!;
+    var st = ctx!;
     val delivery = msg.delivery!.load();
     val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
         originalSender: sender,
@@ -223,25 +211,55 @@ fun onReleaseOrMintContinue(
         forwardPayload: delivery.forwardPayload,
     };
     val jettonClient = st.poolData.load().jettonClient();
-    val mint = createMessage({
+    val forwardTonAmount = loadPool(st).releaseOrMintForward(msg);
+
+    // The recipient's notification carries the pool's finalization safety plus the caller's
+    // continuation. The minter gets the exact cost of the mint, so it keeps nothing; the wallet
+    // returns its unused fee to the pool.
+    val transfer = InternalTransferStep {
+        queryId: msg.queryId,
+        jettonAmount: prepared.localAmount,
+        transferInitiator: null,
+        sendExcessesTo: contract.getAddress(),
+        forwardTonAmount,
+        forwardPayload: wrap.asForwardPayload(),
+    };
+    var mintOpts = CreateMessageOptions<MintNewJettons> {
         bounce: BounceMode.RichBounce,
-        value: BurnMintTokenPool_MINT_VALUE,
+        value: msgValue, // Upper bound for the fee quote; reduced below.
         dest: jettonClient.masterAddress,
         body: MintNewJettons {
             queryId: msg.queryId,
             mintRecipient: delivery.recipient,
-            tonAmount: BurnMintTokenPool_MINT_VALUE,
-            internalTransferMsg: InternalTransferStep {
-                queryId: msg.queryId,
-                jettonAmount: prepared.localAmount,
-                transferInitiator: null,
-                sendExcessesTo: contract.getAddress(),
-                forwardTonAmount: delivery.forwardTonAmount,
-                forwardPayload: wrap.asForwardPayload(),
-            }.toCell(),
+            tonAmount: msgValue, // Upper bound for the fee quote; reduced below.
+            internalTransferMsg: transfer.toCell(),
         },
-    });
-    mint.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    };
+    // The minter checks the wallet transfer against this message's forward fee, so the reference
+    // model is exact. It forwards the transfer in a wallet-deploy message, quoted as sent.
+    val fwdFee = createMessage(mintOpts).estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
+    val walletDeployFee = createMessage({
+        bounce: BounceMode.Only256BitsOfBody,
+        value: msgValue,
+        dest: calcDeployedJettonWallet(delivery.recipient, jettonClient.masterAddress, jettonClient.jettonWalletCode),
+        body: transfer.toCell(),
+    }).estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
+
+    val tonAmount = JettonWalletFees.Reference.transferValue(forwardTonAmount, fwdFee);
+    mintOpts.body.tonAmount = tonAmount;
+    mintOpts.value = cctMintOpBudget(walletDeployFee) + tonAmount;
+
+    try {
+        // Last check before custody moves. The mint carries an explicit value, so this transaction
+        // must afford it; otherwise unwind locally rather than fail the send.
+        val gasFee = calculateGasFee(contract.getAddress().getWorkchain(), getGasConsumedAtTheMoment() + BurnMintTokenPool_MINT_SEND_GAS_UNITS);
+        assertMinValue(msgValue, mintOpts.value + fwdFee + gasFee, TokenPool_Error.InsufficientMessageValue);
+        createMessage(mintOpts).send(SEND_MODE_PAY_FEES_SEPARATELY);
+    } catch (errorCode) {
+        var pool = loadPool(st);
+        pool.recoverReleaseOrMintFailure(forwardPayload, errorCode, msgValue);
+        st.poolData = pool.data.toCell();
+    }
 
     return st;
 }
@@ -249,8 +267,13 @@ fun onReleaseOrMintContinue(
 fun onClaimMinterAdmin(
     mutate st: Storage,
     sender: address,
+    msgValue: coins,
     queryId: uint64,
 ) {
+    // minval:check-bounce gate=S BurnMintTokenPool_ClaimMinterAdmin
+    // owner-only minter admin claim
+    assertMinValue(msgValue, ccipMinValue(), TokenPool_Error.InsufficientMessageValue);
+
     st.poolData.load().adminConfig.load().ownable.load().requireOwner(sender);
 
     val claim = createMessage({
@@ -272,6 +295,9 @@ fun onCCTReturnExcessesBack(
     sender: address,
     msg: CCT_ReturnExcessesBack,
 ) {
+    // minval:non-reject gate=none CCT_ReturnExcessesBack
+    // burn committed; authenticate and complete, no reversal exists;
+
     // Context-less signals are pure excess returns (mint/transfer paths) — nothing to finalize.
     if (msg.forwardPayload == null) {
         return;
@@ -290,6 +316,10 @@ fun onCCTReturnExcessesBack(
     st.poolData = pool.data.toCell();
 }
 
+fun defaultBudget(_ctx: Storage?): TokenPool_Budget {
+    return BurnMintTokenPool_defaultBudget();
+}
+
 fun loadPool(st: Storage): TokenPool<Storage> {
     return TokenPool<Storage> {
         data: st.poolData.load(),
@@ -306,6 +336,9 @@ fun loadPool(st: Storage): TokenPool<Storage> {
             postflightCheck: null,
             onReleaseOrMintContinue,
             onWithdrawFeeTokens: null,
+            defaultBudget,
+            // Mints carry no transfer initiator; the CCT wallet only accepts that from the minter.
+            transferInitiator: null,
         },
     };
 }
@@ -386,6 +419,11 @@ get fun getCurrentRateLimiterState(remoteChainSelector: uint64, fastFinality: bo
 get fun isSupportedToken(token: address): bool {
     val pool = loadPool(Storage.load());
     return pool.isSupportedToken(token);
+}
+
+/// Effective per-flow budget (instance config raised to the pool-type default).
+get fun getBudget(): TokenPool_Budget {
+    return loadPool(Storage.load()).budget();
 }
 
 /// Returns the pool's dynamic configuration (router, rateLimitAdmin, feeAdmin).

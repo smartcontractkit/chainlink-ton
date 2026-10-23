@@ -12,6 +12,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/versioning/upgradeable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistryentry"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 )
 
 var (
@@ -74,10 +75,10 @@ type SetPool struct {
 	TokenPool *address.Address `tlb:"addr"`
 }
 
-// crc32('TokenAdminRegistry_RefreshTransferInitiator')
-// Permissionless: the entry re-probes its pool's transfer initiator.
-type RefreshTransferInitiator struct {
-	_            tlb.Magic        `tlb:"#2fb10afd" json:"-"` //nolint:revive // used by tlb reflection for encoding
+// crc32('TokenAdminRegistry_RefreshPoolConfig')
+// Permissionless: the entry re-probes its pool's config.
+type RefreshPoolConfig struct {
+	_            tlb.Magic        `tlb:"#bb82eda5" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	QueryID      uint64           `tlb:"## 64"`
 	TokenAddress *address.Address `tlb:"addr"`
 }
@@ -100,6 +101,8 @@ type TokenInfo struct {
 	// TransferInitiator reported by the pool; nil when the pool delivers by minting.
 	TransferInitiator *address.Address `tlb:"maybe ^ addr"`
 	Version           uint32           `tlb:"## 32"`
+	// Admission budgets reported by the pool; nil until it answers the config probe.
+	Admission *tokenpool.AdmissionBudget `tlb:"maybe ^"`
 }
 
 // crc32('TokenAdminRegistry_GetTokenInfoFailed')

@@ -10,6 +10,6 @@ import (
 func TestTokenPoolMessageOpcodes(t *testing.T) {
 	tvmtest.CheckOpcodes(t, TLBs, tvmtest.OpcodeSpec{
 		Prefix:  "TokenPool_",
-		Package: reflect.TypeOf(Storage{}).PkgPath(),
+		Package: reflect.TypeFor[Storage]().PkgPath(),
 	})
 }

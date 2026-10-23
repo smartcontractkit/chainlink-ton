@@ -26,6 +26,7 @@ import {
   setPool,
   setup,
   tokenInfo,
+  POOL_ADMISSION,
 } from './TokenAdminRegistry.Setup'
 
 describe('TokenAdminRegistry - Get Token Info', () => {
@@ -75,6 +76,7 @@ describe('TokenAdminRegistry - Get Token Info', () => {
         tokenPool: fx.pool,
         transferInitiator: null,
         version: 1n,
+        admission: POOL_ADMISSION,
       }),
     )
   })
@@ -166,6 +168,7 @@ describe('TokenAdminRegistry - Get Token Info', () => {
         tokenPool: fx.pool,
         transferInitiator: null,
         version: 1n,
+        admission: POOL_ADMISSION,
       }),
     )
   })

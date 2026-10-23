@@ -17,6 +17,7 @@ const STORAGE_SIZE_InitStateWallet_cells  = 3
 
 const MESSAGE_SIZE_BurnNotification_bits  = 754   // body = 32+64+124+(3+8+256)+(3+8+256)
 const MESSAGE_SIZE_BurnNotification_cells = 1     // body always in ref
+const MESSAGE_SIZE_Address_bits           = 267   // std address: 3+8+256
 
 const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600  // 5 years
 
@@ -26,10 +27,11 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600  // 5 years
 // they must be absolutely equal to consumed gas; if not, tests fail;
 // actual consumed gas (desired value of these constants) are printed to console after tests run
 
-const GAS_CONSUMPTION_JettonTransfer    = 6153
-const GAS_CONSUMPTION_JettonReceive     = 7253
-const GAS_CONSUMPTION_BurnRequest       = 4368
-const GAS_CONSUMPTION_BurnNotification  = 3855
+const GAS_CONSUMPTION_JettonTransfer    = 6218
+const GAS_CONSUMPTION_JettonReceive     = 7481
+const GAS_CONSUMPTION_BurnRequest       = 4882
+const GAS_CONSUMPTION_BurnNotification  = 3915
+const GAS_CONSUMPTION_Mint              = 6218
 
 
 fun calculateJettonWalletMinStorageFee() {
@@ -59,12 +61,21 @@ fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: 
     ) throw ERROR_NOT_ENOUGH_GAS;
 }
 
-fun checkAmountIsEnoughToBurn(msgValue: int) {
+/// Funds the whole burn: the wallet, the minter's notification and, when `hasExcesses`, the
+/// minter's `ReturnExcessesBack`. Both outgoing messages carry the request's `forwardPayload`, so
+/// the incoming forward fee (plus the burn initiator address the notification adds) bounds each
+/// of them, as in `checkAmountIsEnoughToTransfer`. An underfunded burn is rejected here, before
+/// supply changes, instead of committing and dropping the excess that completes the operation.
+fun checkAmountIsEnoughToBurn(msgValue: int, fwdFee: int, hasExcesses: bool) {
     var jettonWalletGasConsumption = getPrecompiledGasConsumption();
     var sendBurnGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_BurnRequest : jettonWalletGasConsumption;
 
+    val payloadFee = fwdFee + calculateForwardFeeWithoutLumpPrice(MY_WORKCHAIN, MESSAGE_SIZE_Address_bits, 0);
+    val messageFee = max(payloadFee, calculateForwardFee(MY_WORKCHAIN, MESSAGE_SIZE_BurnNotification_bits, MESSAGE_SIZE_BurnNotification_cells));
+    val fwdCount = hasExcesses ? 2 : 1;
+
     assert (msgValue >
-        calculateForwardFee(MY_WORKCHAIN, MESSAGE_SIZE_BurnNotification_bits, MESSAGE_SIZE_BurnNotification_cells) +
+        fwdCount * messageFee +
         calculateGasFee(MY_WORKCHAIN, sendBurnGasConsumption) +
         calculateGasFee(MY_WORKCHAIN, GAS_CONSUMPTION_BurnNotification)
     ) throw ERROR_NOT_ENOUGH_GAS;

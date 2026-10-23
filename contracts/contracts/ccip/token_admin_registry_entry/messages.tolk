@@ -9,10 +9,10 @@ type TokenAdminRegistryEntry_InMessage =
     | Upgradeable_Upgrade
     | TokenAdminRegistryEntry_Resume
     | ResponseWalletAddress
-    | TokenPool_TransferInitiator;
+    | TokenPool_Config;
 
 type TokenAdminRegistryEntry_BouncedMessage =
-    | TokenPool_GetTransferInitiator
+    | TokenPool_GetConfig
     | RequestWalletAddress;
 
 /// Messages the root sends wrapped in TokenAdminRegistryEntry_MessageFromRoot.
@@ -23,7 +23,7 @@ type TokenAdminRegistryEntry_RootMessage =
     | TokenAdminRegistryEntry_AcceptAdminRole
     | TokenAdminRegistryEntry_SetPool
     | TokenAdminRegistryEntry_VerifyToken
-    | TokenAdminRegistryEntry_RefreshTransferInitiator;
+    | TokenAdminRegistryEntry_RefreshPoolConfig;
 
 /// Envelope for every message the root sends to an entry. Its layout must
 /// never change: the entry checks `minEntryVersion` before loading `content`,
@@ -85,7 +85,7 @@ struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
 
 struct (0xa14b0288) TokenAdminRegistryEntry_VerifyToken {}
 
-struct (0x91f8fb81) TokenAdminRegistryEntry_RefreshTransferInitiator {}
+struct (0xecf005ba) TokenAdminRegistryEntry_RefreshPoolConfig {}
 
 /// Value the root attaches to an Upgradeable_Upgrade sent to an entry.
 fun TokenAdminRegistryEntry_upgradeCost(): coins {

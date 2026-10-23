@@ -1,6 +1,7 @@
 import "../token_admin_registry_entry/types"
 import "../token_admin_registry_entry/messages"
 import "../../lib/versioning/upgradeable"
+import "../pools/lib/token_pool/budget"
 
 type TokenAdminRegistry_InMessage =
     | TokenAdminRegistry_RegisterToken
@@ -17,7 +18,7 @@ type TokenAdminRegistry_InMessage =
     | TokenAdminRegistry_AdministratorTransferred
     | TokenAdminRegistry_PoolSet
     | TokenAdminRegistry_VerifyToken
-    | TokenAdminRegistry_RefreshTransferInitiator;
+    | TokenAdminRegistry_RefreshPoolConfig;
 
 /// Root messages to an entry that may come back as rich bounces.
 type TokenAdminRegistry_BouncedEntryMessage =
@@ -65,13 +66,14 @@ struct (0x37bcaede) TokenAdminRegistry_SetPool {
     queryId: uint64;
     tokenAddress: address;
     /// A null pool delists the token from CCIP. A new pool is only set once it answers the
-    /// `TokenPool_GetTransferInitiator` probe.
+    /// `TokenPool_GetConfig` probe.
     tokenPool: address?;
 }
 
-/// Permissionless: has the derived entry re-probe its pool's transfer initiator.
-// crc32('TokenAdminRegistry_RefreshTransferInitiator')
-struct (0x2fb10afd) TokenAdminRegistry_RefreshTransferInitiator {
+/// Permissionless: has the derived entry re-probe its pool's config (transfer initiator and
+/// admission budgets).
+// crc32('TokenAdminRegistry_RefreshPoolConfig')
+struct (0xbb82eda5) TokenAdminRegistry_RefreshPoolConfig {
     queryId: uint64;
     tokenAddress: address;
 }
@@ -111,6 +113,8 @@ struct (0x0a9bf5d1) TokenAdminRegistry_TokenInfo {
     transferInitiator: Cell<address>?;
     /// Pool interface version.
     version: uint32;
+    /// Admission budgets reported by the pool; null until it answers the config probe.
+    admission: Cell<TokenPool_AdmissionBudget>? = null;
 }
 
 /// Sent to the GetTokenInfo requester when the entry could not answer, which

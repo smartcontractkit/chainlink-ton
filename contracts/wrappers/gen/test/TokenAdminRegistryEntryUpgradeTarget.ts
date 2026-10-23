@@ -182,7 +182,7 @@ export const UpgradeTarget_Storage = {
 }
 
 /**
- > type TokenAdminRegistryEntry_RootMessage = TokenAdminRegistryEntry_GetTokenInfo | TokenAdminRegistryEntry_ProposeAdministrator | TokenAdminRegistryEntry_TransferAdminRole | TokenAdminRegistryEntry_AcceptAdminRole | TokenAdminRegistryEntry_SetPool | TokenAdminRegistryEntry_VerifyToken | TokenAdminRegistryEntry_RefreshTransferInitiator
+ > type TokenAdminRegistryEntry_RootMessage = TokenAdminRegistryEntry_GetTokenInfo | TokenAdminRegistryEntry_ProposeAdministrator | TokenAdminRegistryEntry_TransferAdminRole | TokenAdminRegistryEntry_AcceptAdminRole | TokenAdminRegistryEntry_SetPool | TokenAdminRegistryEntry_VerifyToken | TokenAdminRegistryEntry_RefreshPoolConfig
  */
 export type TokenAdminRegistryEntry_RootMessage =
     | TokenAdminRegistryEntry_GetTokenInfo
@@ -191,7 +191,7 @@ export type TokenAdminRegistryEntry_RootMessage =
     | TokenAdminRegistryEntry_AcceptAdminRole
     | TokenAdminRegistryEntry_SetPool
     | TokenAdminRegistryEntry_VerifyToken
-    | TokenAdminRegistryEntry_RefreshTransferInitiator
+    | TokenAdminRegistryEntry_RefreshPoolConfig
 
 export const TokenAdminRegistryEntry_RootMessage = {
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_RootMessage {
@@ -201,7 +201,7 @@ export const TokenAdminRegistryEntry_RootMessage = {
             lookupPrefix(s, 0x39c6e872, 32) ? TokenAdminRegistryEntry_AcceptAdminRole.fromSlice(s) :
             lookupPrefix(s, 0xa64e05c9, 32) ? TokenAdminRegistryEntry_SetPool.fromSlice(s) :
             lookupPrefix(s, 0xa14b0288, 32) ? TokenAdminRegistryEntry_VerifyToken.fromSlice(s) :
-            lookupPrefix(s, 0x91f8fb81, 32) ? TokenAdminRegistryEntry_RefreshTransferInitiator.fromSlice(s) :
+            lookupPrefix(s, 0xecf005ba, 32) ? TokenAdminRegistryEntry_RefreshPoolConfig.fromSlice(s) :
             throwNonePrefixMatch('TokenAdminRegistryEntry_RootMessage');
     },
     store(self: TokenAdminRegistryEntry_RootMessage, b: c.Builder): void {
@@ -224,8 +224,8 @@ export const TokenAdminRegistryEntry_RootMessage = {
             case 'TokenAdminRegistryEntry_VerifyToken':
                 TokenAdminRegistryEntry_VerifyToken.store(self, b);
                 break;
-            case 'TokenAdminRegistryEntry_RefreshTransferInitiator':
-                TokenAdminRegistryEntry_RefreshTransferInitiator.store(self, b);
+            case 'TokenAdminRegistryEntry_RefreshPoolConfig':
+                TokenAdminRegistryEntry_RefreshPoolConfig.store(self, b);
                 break;
         }
     },
@@ -513,32 +513,32 @@ export const TokenAdminRegistryEntry_VerifyToken = {
 }
 
 /**
- > struct (0x91f8fb81) TokenAdminRegistryEntry_RefreshTransferInitiator {
+ > struct (0xecf005ba) TokenAdminRegistryEntry_RefreshPoolConfig {
  > }
  */
-export interface TokenAdminRegistryEntry_RefreshTransferInitiator {
-    readonly $: 'TokenAdminRegistryEntry_RefreshTransferInitiator'
+export interface TokenAdminRegistryEntry_RefreshPoolConfig {
+    readonly $: 'TokenAdminRegistryEntry_RefreshPoolConfig'
 }
 
-export const TokenAdminRegistryEntry_RefreshTransferInitiator = {
-    PREFIX: 0x91f8fb81,
+export const TokenAdminRegistryEntry_RefreshPoolConfig = {
+    PREFIX: 0xecf005ba,
 
-    create(): TokenAdminRegistryEntry_RefreshTransferInitiator {
+    create(): TokenAdminRegistryEntry_RefreshPoolConfig {
         return {
-            $: 'TokenAdminRegistryEntry_RefreshTransferInitiator',
+            $: 'TokenAdminRegistryEntry_RefreshPoolConfig',
         }
     },
-    fromSlice(s: c.Slice): TokenAdminRegistryEntry_RefreshTransferInitiator {
-        loadAndCheckPrefix32(s, 0x91f8fb81, 'TokenAdminRegistryEntry_RefreshTransferInitiator');
+    fromSlice(s: c.Slice): TokenAdminRegistryEntry_RefreshPoolConfig {
+        loadAndCheckPrefix32(s, 0xecf005ba, 'TokenAdminRegistryEntry_RefreshPoolConfig');
         return {
-            $: 'TokenAdminRegistryEntry_RefreshTransferInitiator',
+            $: 'TokenAdminRegistryEntry_RefreshPoolConfig',
         }
     },
-    store(self: TokenAdminRegistryEntry_RefreshTransferInitiator, b: c.Builder): void {
-        b.storeUint(0x91f8fb81, 32);
+    store(self: TokenAdminRegistryEntry_RefreshPoolConfig, b: c.Builder): void {
+        b.storeUint(0xecf005ba, 32);
     },
-    toCell(self: TokenAdminRegistryEntry_RefreshTransferInitiator): c.Cell {
-        return makeCellFrom<TokenAdminRegistryEntry_RefreshTransferInitiator>(self, TokenAdminRegistryEntry_RefreshTransferInitiator.store);
+    toCell(self: TokenAdminRegistryEntry_RefreshPoolConfig): c.Cell {
+        return makeCellFrom<TokenAdminRegistryEntry_RefreshPoolConfig>(self, TokenAdminRegistryEntry_RefreshPoolConfig.store);
     }
 }
 
