@@ -7,6 +7,8 @@ import "../../lib/deployable/namespace"
 
 import "../common/types";
 import "../common/cross_chain_address_validation"
+import "../common/addresses"
+
 
 import "../pools/lib/token_pool/types"
 import "../ccipsend_executor/types"
@@ -294,6 +296,9 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
         if (!entry.isFound || !entry.loadValue()) {
             return rejectMessage(OnRamp_Error.SenderNotAllowed, destChainConfig.router, msg.queryID, msg.destChainSelector, payload.metadata.sender, 0);
         }
+    }
+    if (msg.feeToken != null && msg.feeToken != NATIVE_GRAM) {
+        return rejectMessage(OnRamp_Error.FeePaymentsWithJettonsNotSupported, destChainConfig.router, msg.queryID, msg.destChainSelector, payload.metadata.sender, 0);
     }
     val config = st.config.load();
     val staticConfig = st.staticConfig.load();

@@ -121,14 +121,19 @@ describe('DepositAccount', () => {
     return { deployable, depositAccount, deployRes, res }
   }
 
-  const buildAskToTransfer = (amount: bigint, to: Address, requester: Address | null = null) =>
-    da.AskToTransfer.create({
+  const buildAskToTransfer = (
+    amount: bigint,
+    to: Address,
+    requester: Address | null = null,
+    forwardPayload: Cell | null = null,
+  ) =>
+    da.DepositAccount_WithdrawAskToTransfer.create({
       jettonAmount: amount,
       transferRecipient: to,
       sendExcessesTo: requester,
       customPayload: null,
       forwardTonAmount: 0n,
-      forwardPayload: da.ForwardPayloadRemainder.fromSlice(Cell.EMPTY.beginParse()),
+      forwardPayload,
     })
 
   // Build a boxed Jetton `TransferNotificationForRecipient` body as a real wallet would send it
@@ -511,15 +516,19 @@ describe('DepositAccount', () => {
     )
     expect(badAtk.transactions).toHaveTransaction({ to: depositAccount.address, success: false })
 
-    // A beneficiary must set `ask.sendExcessesTo` to themselves, else the withdraw is rejected.
-    const badExcess = await depositAccount.sendDepositAccountWithdraw(
+    const otherExcess = await depositAccount.sendDepositAccountWithdraw(
       recipient.getSender(),
       toNano('0.5'),
       {
         ask: buildAskToTransfer(toNano('4'), to, user.address), // sendExcessesTo != requester
       },
     )
-    expect(badExcess.transactions).toHaveTransaction({ to: depositAccount.address, success: false })
+    expect(otherExcess.transactions).toHaveTransaction({
+      from: depositAccount.address,
+      to: walletAddress,
+      success: true,
+      op: da.AskToTransfer.PREFIX,
+    })
   })
 
   it('rejects a withdraw before the account learned its jetton wallet', async () => {
@@ -772,7 +781,8 @@ describe('DepositAccount', () => {
       toNano('0.5'),
       {
         queryId: 6n,
-        ask: buildAskToTransfer(toNano('4'), recipient.address, recipient.address),
+        // The bounce handler requires a well-formed wrap with withdraw context (attached by the account itself).
+        ask: buildAskToTransfer(toNano('4'), recipient.address, recipient.address, Cell.EMPTY),
       },
     )
     expect(res.transactions).toHaveTransaction({
@@ -792,7 +802,7 @@ describe('DepositAccount', () => {
           failed.user.equals(userAddr()) &&
           failed.token.equals(token) &&
           failed.walletAddress.equals(missingWallet.address) &&
-          failed.ask.jettonAmount === toNano('4')
+          failed.request.ask.jettonAmount === toNano('4')
         )
       },
     })

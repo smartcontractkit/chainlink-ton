@@ -49,14 +49,10 @@ const (
 // --- Data types (no opcodes) ---
 
 // DynamicConfig holds the router and admin addresses for the pool.
-//
-// AllowedDepositNamespaces is a unit-value set (map<uint32,()> on-chain): a key
-// is present if the corresponding deployable namespace is allowed as a deposit source.
 type DynamicConfig struct {
-	Router                   *address.Address             `tlb:"addr required"`
-	RateLimitAdmin           *address.Address             `tlb:"addr"`
-	FeeAdmin                 *address.Address             `tlb:"addr"`
-	AllowedDepositNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
+	Router         *address.Address `tlb:"addr required"`
+	RateLimitAdmin *address.Address `tlb:"addr"`
+	FeeAdmin       *address.Address `tlb:"addr"`
 }
 
 // LocalPolicy holds the pool's independently managed RMN policy. It is
@@ -259,12 +255,12 @@ type JettonClient struct {
 
 // AdminConfig holds the admin configuration for the pool.
 type AdminConfig struct {
-	Ownable               ownable2step.Storage `tlb:"^"`
-	DynamicConfig         DynamicConfig        `tlb:"^"`
-	JettonClient          JettonClient         `tlb:"."`
-	AllowedFinalityConfig uint32               `tlb:"## 32"`
-	AdvancedPoolHooks     *address.Address     `tlb:"addr"`
-	DeployableCode        *cell.Cell           `tlb:"maybe ^"`
+	Ownable                  ownable2step.Storage         `tlb:"^"`
+	DynamicConfig            DynamicConfig                `tlb:"^"`
+	AllowedDepositNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
+	JettonClient             JettonClient                 `tlb:"."`
+	AllowedFinalityConfig    uint32                       `tlb:"## 32"`
+	AdvancedPoolHooks        *address.Address             `tlb:"addr"`
 }
 
 // LockOrBurnBudget is the pool's LockOrBurn budget. Admission is checked at the entrypoint and
@@ -356,20 +352,6 @@ type SetAdvancedPoolHooks struct {
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
 }
 
-// SetDeployableCode sets the Compiled Deployable code used to derive source-chain deposit accounts.
-type SetDeployableCode struct {
-	_              tlb.Magic  `tlb:"#3868e309" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64     `tlb:"## 64"`
-	DeployableCode *cell.Cell `tlb:"maybe ^"`
-}
-
-// SetAllowedDepositNamespaces sets the Deployables namespaces the pool accepts as deposit sources.
-type SetAllowedDepositNamespaces struct {
-	_                        tlb.Magic                    `tlb:"#84384142" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID                  uint64                       `tlb:"## 64"`
-	AllowedDepositNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
-}
-
 // SetRateLimitConfig sets the rate limit configurations.
 type SetRateLimitConfig struct {
 	_       tlb.Magic                              `tlb:"#4fe2d26c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
@@ -415,6 +397,9 @@ type RMNAccessControlMessage[T rbac.InMessage | any] struct {
 }
 
 // LockOrBurn locks tokens into the pool or burns the tokens. ReplyTo must be non-nil.
+//
+// OnRampNamespaces carries the Router's accepted deposit-account namespaces, relayed on
+// every request so the pool can refresh its deposit-auth cache (see DynamicConfig).
 type LockOrBurn struct {
 	_                       tlb.Magic        `tlb:"#fa7da444" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID                 uint64           `tlb:"## 64"`
@@ -424,6 +409,7 @@ type LockOrBurn struct {
 	ReplyTo                 *address.Address `tlb:"addr required"`
 	// FailureValue is the CCIP post-custody failure budget.
 	FailureValue tlb.Coins `tlb:"."`
+	OnRampNamespaces        *tlbe.Dict[uint32, struct{}] `tlb:"."`
 }
 
 // ReleaseOrMint releases or mints tokens on the destination chain. ReplyTo must be non-nil.
@@ -725,19 +711,6 @@ type AdvancedPoolHooksSet struct {
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
 }
 
-// DeployableCodeSet confirms the deployable code was set.
-type DeployableCodeSet struct {
-	_              tlb.Magic  `tlb:"#89d602e5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64     `tlb:"## 64"`
-	DeployableCode *cell.Cell `tlb:"maybe ^"`
-}
-
-// AllowedDepositNamespacesSet confirms the allowed deposit namespaces were set.
-type AllowedDepositNamespacesSet struct {
-	_       tlb.Magic `tlb:"#c1ffe3a6" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID uint64    `tlb:"## 64"`
-}
-
 // --- Events ---
 
 // LockedOrBurnedDetails holds details of a locked/burned event.
@@ -876,8 +849,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	SetDynamicConfig{},
 	SetAllowedFinalityConfig{},
 	SetAdvancedPoolHooks{},
-	SetDeployableCode{},
-	SetAllowedDepositNamespaces{},
 	SetRateLimitConfig{},
 	ApplyTokenTransferFeeConfigUpdates{},
 	Curse{},
@@ -916,10 +887,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	rbac.RoleRevoked{},
 	rbac.RoleAdminChanged{},
 	AdvancedPoolHooksSet{},
-	DeployableCodeSet{},
 	Config{},
 	BudgetSet{},
-	AllowedDepositNamespacesSet{},
 	ChainUpdatesApplied{},
 	FeeConfigApplied{},
 	// AdvancedPoolHooks outgoing (sent from TokenPool to hooks contract)

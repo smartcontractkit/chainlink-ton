@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+
 import "../../../../lib/utils"
 import "../../../../lib/access/access_control"
 import "../../../../lib/jetton/messages"
@@ -45,32 +46,6 @@ struct (0x3f5c9f57) TokenPool_SetAdvancedPoolHooks {
     advancedPoolHooks: address?;
 }
 
-/// Sets the compiled Deployable code used to derive source-chain deposit accounts.
-/// @dev Owner-only (admin config). See `TokenPool_AdminConfig.deployableCode`.
-struct (0x3868e309) TokenPool_SetDeployableCode {
-    queryId: uint64;
-    deployableCode: cell?;
-}
-
-/// Replied on `TokenPool_SetDeployableCode` to confirm tx and return excess to sender.
-struct (0x89d602e5) TokenPool_DeployableCodeSet {
-    queryId: uint64;
-    deployableCode: cell?;
-}
-
-/// Sets the Deployables namespaces whose deposit-account contracts the pool will accept.
-/// @dev Owner-only (dynamic config). Each entry must be a namespace for which
-///      `TokenPool_AdminConfig.deployableCode` is registered. Replaces any previous set.
-struct (0x84384142) TokenPool_SetAllowedDepositNamespaces {
-    queryId: uint64;
-    allowedDepositNamespaces: map<uint32, ()>;
-}
-
-/// Replied on `TokenPool_SetAllowedDepositNamespaces` to confirm tx and return excess to sender.
-struct (0xc1ffe3a6) TokenPool_AllowedDepositNamespacesSet {
-    queryId: uint64;
-}
-
 struct (0x4fe2d26c) TokenPool_SetRateLimitConfig {
     queryId: uint64;
     updates: SnakedCell<TokenPool_RateLimitConfigArgs>;
@@ -111,14 +86,20 @@ struct (0x2e7a1790) TokenPool_RMNAccessControlMessage {
 /// @param lockOrBurnIn Encoded data fields for the processing of tokens on the source chain.
 /// @param requestedFinalityConfig Requested finality encoding (see `FinalityCodec`).
 /// @param tokenArgs Additional token arguments.
+/// @param onRampNamespaces The Router's accepted deposit-account namespaces, relayed on every
+///        request so the pool can refresh its deposit-auth cache.
 struct (0xfa7da444) TokenPool_LockOrBurn {
     queryId: uint64;
     request: Cell<TokenPool_LockOrBurnInV1>; // TODO: consider renaming
     requestedFinalityConfig: uint32;
     tokenArgs: cell?;
+
+    // Continuation info
+
     replyTo: address;
     /// CCIP post-custody failure budget, forwarded to the initiator on rejection.
     failureValue: coins;
+    onRampNamespaces: map<uint32, ()> = [];
 }
 
 struct TokenPool_LockOrBurnForwardPayload {
@@ -320,8 +301,6 @@ type TokenPool_InMessage =
     | TokenPool_SetDynamicConfig
     | TokenPool_SetAllowedFinalityConfig
     | TokenPool_SetAdvancedPoolHooks
-    | TokenPool_SetDeployableCode
-    | TokenPool_SetAllowedDepositNamespaces
     | TokenPool_SetRateLimitConfig
     | TokenPool_ApplyTokenTransferFeeConfigUpdates
     | TokenPool_SetBudget
@@ -434,8 +413,6 @@ type TokenPool_OutMessage =
     | TokenPool_RemotePoolRemovedNotification
     | TokenPool_FinalityConfigSet
     | TokenPool_DynamicConfigSet
-    | TokenPool_DeployableCodeSet
-    | TokenPool_AllowedDepositNamespacesSet
     | TokenPool_RateLimitConfiguredNotification
     | TokenPool_AdvancedPoolHooksSet
     | TokenPool_ChainUpdatesApplied

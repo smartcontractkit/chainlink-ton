@@ -133,7 +133,7 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 		Receiver:          receiverBytes,
 		Data:              msg.Data,
 		TokenAmounts:      nil,
-		FeeToken:          tvm.TonTokenAddr,
+		FeeToken:          tvm.NativeGRAMAddr,
 		ExtraArgs:         extraArgsCell,
 	}
 

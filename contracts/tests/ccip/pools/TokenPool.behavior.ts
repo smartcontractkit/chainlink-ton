@@ -28,6 +28,7 @@ import {
   TokenPool_LockOrBurnBudget,
   TokenPool_ReleaseOrMintBudget,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
+import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 import { CURSE_ROLE } from '../../../wrappers/ccip/Router'
 import { BurnMintTokenPool } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { getExternals, testLog } from '../../Logs'
@@ -192,6 +193,7 @@ export function runTokenPoolBehaviorTests(
               tokenArgs: null,
               replyTo: ctx.deployer.address,
               failureValue: toNano('0.01'),
+              onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
             })
           }
 
@@ -261,7 +263,9 @@ export function runTokenPoolBehaviorTests(
           it.each(acceptedBoundaries)('accepts $name the threshold', async ({ offset }) => {
             const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
 
-            const { transactions } = await sendReleaseOrMint(releaseOrMintThreshold + offset + headroom)
+            const { transactions } = await sendReleaseOrMint(
+              releaseOrMintThreshold + offset + headroom,
+            )
 
             expect(transactions).toHaveTransaction({
               from: ctx.deployer.address,
@@ -929,9 +933,13 @@ export function runTokenPoolBehaviorTests(
     it('answers the config probe with its delivery initiator and admission budgets', async () => {
       const ctx = await setup()
       const { lockOrBurn, releaseOrMint } = await ctx.pool.getBudget()
-      const result = await ctx.pool.sendTokenPoolGetConfig(ctx.unauthorized.getSender(), toNano('0.05'), {
-        queryId: 950n,
-      })
+      const result = await ctx.pool.sendTokenPoolGetConfig(
+        ctx.unauthorized.getSender(),
+        toNano('0.05'),
+        {
+          queryId: 950n,
+        },
+      )
       expect(result.transactions).toHaveTransaction({
         from: ctx.pool.address,
         to: ctx.unauthorized.address,
@@ -960,10 +968,14 @@ export function runTokenPoolBehaviorTests(
 
       it('raises the budget and replies with the effective values', async () => {
         const ctx = await setup()
-        const result = await ctx.pool.sendTokenPoolSetBudget(ctx.deployer.getSender(), toNano('0.05'), {
-          queryId: 960n,
-          budget: raised,
-        })
+        const result = await ctx.pool.sendTokenPoolSetBudget(
+          ctx.deployer.getSender(),
+          toNano('0.05'),
+          {
+            queryId: 960n,
+            budget: raised,
+          },
+        )
 
         const effective = await ctx.pool.getBudget()
         // Admission covers both custody phases.
@@ -975,7 +987,9 @@ export function runTokenPoolBehaviorTests(
         expect(result.transactions).toHaveTransaction({
           from: ctx.pool.address,
           to: ctx.deployer.address,
-          body: TokenPool_BudgetSet.toCell(TokenPool_BudgetSet.create({ queryId: 960n, budget: effective })),
+          body: TokenPool_BudgetSet.toCell(
+            TokenPool_BudgetSet.create({ queryId: 960n, budget: effective }),
+          ),
         })
       })
 
@@ -994,10 +1008,14 @@ export function runTokenPoolBehaviorTests(
 
       it('rejects a non-owner', async () => {
         const ctx = await setup()
-        const result = await ctx.pool.sendTokenPoolSetBudget(ctx.unauthorized.getSender(), toNano('0.05'), {
-          queryId: 962n,
-          budget: raised,
-        })
+        const result = await ctx.pool.sendTokenPoolSetBudget(
+          ctx.unauthorized.getSender(),
+          toNano('0.05'),
+          {
+            queryId: 962n,
+            budget: raised,
+          },
+        )
         expect(result.transactions).toHaveTransaction({
           from: ctx.unauthorized.address,
           to: ctx.pool.address,

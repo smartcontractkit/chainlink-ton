@@ -67,6 +67,6 @@ var RandomQueryID = src.RandomQueryID
 
 var TLBMapKeyStorage = src.TLBMapKeyStorage
 
-var TonTokenAddr = src.TonTokenAddr
+var NativeGRAMAddr = src.NativeGRAMAddr
 
 var ZeroAddress = src.ZeroAddress

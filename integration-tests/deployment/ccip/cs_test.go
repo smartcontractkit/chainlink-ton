@@ -87,8 +87,8 @@ func TestDeployCCIP(t *testing.T) {
 		Selector: tonChain.Selector,
 		GasPrice: big.NewInt(2.12e9),
 		TokenPrices: map[string]*big.Int{
-			tvm.TonTokenAddr.String(): big.NewInt(99),
-			linkAddr.String():         big.NewInt(20),
+			tvm.NativeGRAMAddr.String(): big.NewInt(99),
+			linkAddr.String():           big.NewInt(20),
 		},
 		FeeQuoterDestChainConfig: tonops.TonFeeQuoterDestChainConfig,
 		// TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{},

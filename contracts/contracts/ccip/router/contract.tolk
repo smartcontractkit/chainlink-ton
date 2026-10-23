@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/lisp-lists"
 
+import "../../../gen/Deployable.code"
+import "../../../gen/DepositAccount.code"
+
 import "../../lib/utils"
 import "../../lib/budget/min_value"
 import "../../lib/funding/withdrawable"
@@ -23,15 +26,13 @@ import "../offramp/types"
 import "../rmn_remote/lib"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
+import "../common/addresses"
 
 import "types"
 import "messages"
 import "storage"
 import "errors"
 import "events"
-
-import "../../../gen/Deployable.code"
-import "../../../gen/DepositAccount.code"
 import "utils"
 
 tolk 1.4.2
@@ -116,7 +117,7 @@ fun onInternalMessage(in: InMessage) {
         Router_WithdrawToTokenPool => {
             var st = lazy Storage.load();
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
-            onWithdrawToTokenPool(mutate st, msg);
+            onWithdrawToTokenPool(mutate st, msg, in.senderAddress);
         }
         // Sender must be OnRamp
         Router_WithdrawToTokenPoolFailed => {
@@ -301,32 +302,28 @@ fun onBouncedMessage(in: InMessageBounced) {
         val richMsg = lazy Router_RichBouncedMessage.fromCell(rich.originalBody);
         match (richMsg) {
             TokenPool_LockOrBurn => {
-                if (richMsg.replyTo != null) {
-                    sendLockOrBurnRelayFailure(
-                        richMsg.replyTo!,
-                        richMsg.queryId,
-                        in.senderAddress,
-                        rich.exitCode,
-                    );
-                }
+                sendLockOrBurnRelayFailure(
+                    richMsg.replyTo,
+                    richMsg.queryId,
+                    in.senderAddress,
+                    rich.exitCode,
+                );
             }
             TokenPool_ReleaseOrMint => {
-                if (richMsg.replyTo != null) {
-                    // Recover the lane from the request and route the failure
-                    // back through its OffRamp.
-                    val request = lazy richMsg.request.load();
-                    val details = lazy request.transfer.details.load();
-                    val st = lazy Storage.load();
-                    val offRamp = st.offRamps.mustGet(details.remoteChainSelector, Router_Error.SourceChainNotEnabled);
-                    sendReleaseOrMintRelayFailure(
-                        offRamp,
-                        details.remoteChainSelector,
-                        richMsg.replyTo!,
-                        richMsg.queryId,
-                        in.senderAddress,
-                        rich.exitCode,
-                    );
-                }
+                // Recover the lane from the request and route the failure
+                // back through its OffRamp.
+                val request = lazy richMsg.request.load();
+                val details = lazy request.transfer.details.load();
+                val st = lazy Storage.load();
+                val offRamp = st.offRamps.mustGet(details.remoteChainSelector, Router_Error.SourceChainNotEnabled);
+                sendReleaseOrMintRelayFailure(
+                    offRamp,
+                    details.remoteChainSelector,
+                    richMsg.replyTo,
+                    richMsg.queryId,
+                    in.senderAddress,
+                    rich.exitCode,
+                );
             }
             // Ignored: a retried deployment bounces off the already-initialized account, and a
             // failed fresh deployment is reported by the `DepositAccount_Init` bounce that follows.
@@ -347,7 +344,7 @@ fun onBouncedMessage(in: InMessageBounced) {
             }
             // The on-ramp account rejected the withdraw (e.g. it doesn't know its wallet yet).
             DepositAccount_Withdraw => {
-                failWithdrawToTokenPool(richMsg.ask.load(), rich.exitCode);
+                failWithdrawToTokenPool(richMsg, rich.exitCode);
             }
         }
         return;
@@ -404,7 +401,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
 /// Asks the sender's on-ramp account to transfer the jettons to the pool. A rejected or bounced
 /// transfer fails the CCIPSend through `failWithdrawToTokenPool`, which finds the executor in the
 /// transfer's forward payload, so that payload must name the executor requesting the withdraw.
-fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
+fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool, onramp: address) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
     val fwdp = lazy withdrawRequest.forwardPayload.load();
     val request = lazy fwdp.requestMsg.load();
@@ -418,20 +415,34 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     }
     // The notification carries what the pool asked for; the wallet rejects an underfunded transfer
     // before custody moves. The deposit account requires the excess to return to the Router.
-    val ask = AskToTransfer {
-        queryId: msg.queryID,
+    // val ask = AskToTransfer {
+    //     queryId: msg.queryID,
+    //     jettonAmount: withdrawRequest.amount,
+    //     transferRecipient: withdrawRequest.tokenPool,
+    //     sendExcessesTo: contract.getAddress(),
+    //     customPayload: null,
+    //     forwardTonAmount: withdrawRequest.forwardTonAmount,
+    //     forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
+    // };
+
+    // TODO: use standard `AskToTransfer` above,
+    // remove the unnecessary custom `DepositAccount_WithdrawAskToTransfer` msg
+    val ask = DepositAccount_WithdrawAskToTransfer {
         jettonAmount: withdrawRequest.amount,
         transferRecipient: withdrawRequest.tokenPool,
-        sendExcessesTo: contract.getAddress(),
+        // TODO: this excess should be returned to user
+        // @notice we want the OnRamp to keep any excess funds, so we set sendExcessesTo to the sender (OnRamp).
+        sendExcessesTo: onramp,
         customPayload: null,
         forwardTonAmount: withdrawRequest.forwardTonAmount,
-        forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
+        forwardPayload: withdrawRequest.forwardPayload,
     };
+
     val withdraw = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
         dest: withdrawRequest.depositAccount,
-        body: DepositAccount_Withdraw { queryId: msg.queryID, ask: ask.toCell() },
+        body: DepositAccount_Withdraw { queryId: msg.queryID, ask },
     });
     withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -511,22 +522,22 @@ fun onOnRampAccountReady(context: Router_OnRampAccountContext, msg: DepositAccou
 ///      Off-ramp accounts never report here: only their receiver can withdraw from them.
 fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: address) {
     assert(sender == onRampAccountAddress(msg.user, msg.token), Router_Error.SenderIsNotOnRampAccount);
-    val ask = lazy msg.ask.load();
+    val request = lazy msg.request.load();
     emit(TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC, TokenPoolWithdrawBounced {
         wallet: msg.walletAddress,
-        tokenPool: ask.transferRecipient,
+        tokenPool: request.ask.transferRecipient,
         queryId: msg.queryId,
         exitCode: 0,
     });
-    failWithdrawToTokenPool(ask, Router_Error.OnRampAccountWithdrawFailed as int32);
+    failWithdrawToTokenPool(request, Router_Error.OnRampAccountWithdrawFailed as int32);
 }
 
 /// Fails the CCIPSend whose withdraw from the sender's on-ramp account did not go through. `ask`
 /// was built by `onWithdrawToTokenPool`, which checked that its forward payload names the executor.
-fun failWithdrawToTokenPool(ask: AskToTransfer, exitCode: int32) {
-    val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromSlice(loadForwardPayloadAsSlice(ask.forwardPayload)!);
-    val request = lazy fwdp.requestMsg.load();
-    sendLockOrBurnRelayFailure(request.replyTo!, ask.queryId, ask.transferRecipient!, exitCode);
+fun failWithdrawToTokenPool(request: DepositAccount_Withdraw, exitCode: int32) {
+    val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromCell(request.ask.forwardPayload!);
+    val lockOrBurn = lazy fwdp.requestMsg.load();
+    sendLockOrBurnRelayFailure(lockOrBurn.replyTo!, lockOrBurn.queryId, request.ask.transferRecipient, exitCode);
 }
 
 /// Returns accidentally transferred jettons to the transfer initiator. The Router's own jetton
@@ -751,9 +762,11 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee, sender: address, isV1: bool) 
     }
 
     if (ccipSend.feeToken == null) {
-        ccipSend.feeToken = st.wrappedNative;
+        ccipSend.feeToken = NATIVE_GRAM;
         // to save on gas, we only update ccipSendCell if necessary
         ccipSendCell = ccipSend.toCell();
+    } else if (ccipSend.feeToken != NATIVE_GRAM) {
+        return sendMessageValidationFailed(sender, Router_Error.FeePaymentsWithJettonsNotSupported as uint256, msg.ccipSend, msg.context, isV1);
     }
 
     val feeQuoterMsg = createMessage({
@@ -879,7 +892,9 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
     assert(!isCursed, Router_Error.SubjectCursed);
 
     if (msg.feeToken == null) {
-        msg.feeToken = st.wrappedNative
+        msg.feeToken = NATIVE_GRAM
+    } else if (msg.feeToken != NATIVE_GRAM) {
+        return sendMessageRejected(sender, msg.queryID, Router_Error.FeePaymentsWithJettonsNotSupported as uint256);
     }
 
     val onRampResult = st.onRamps.get(msg.destChainSelector);
@@ -1017,6 +1032,8 @@ We don't want to move funds then return if any of those fail, but ideally we do 
 withdraw path should go through the executor - so the TP needs to withdraw -> executor, which can verify the token amounts and will withdraw -> on-ramp, which can verify the executor. Finally the on-ramp withdraws from the Router - the TP accepts only transfers from the Router JettonWallet.
 */
 fun onLockOrBurn(msg: Router_LockOrBurn) {
+    var onRampNamespaces: map<uint32, ()> = [];
+    onRampNamespaces.set(DeployableNamespace_OnRampAccount, ());
     val tokenPoolLockOrBurn = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
@@ -1028,6 +1045,8 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
             tokenArgs: null, // TBD?
             replyTo: msg.executorAddress,
             failureValue: msg.failureValue,
+            // Keep the pool's deposit-auth namespace cache in sync
+            onRampNamespaces,
         }
     });
     tokenPoolLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -1271,6 +1290,9 @@ fun migrate(storage: cell, version: slice): cell {
     requireSupportedVersion(version);
     val old = Router_Storage_V1_6_0.fromCell(storage);
     val oldRMN = old.rmnRemote.load();
+    // Ensure that the already configured wrapped native token matches the expected NATIVE_GRAM value to prevent inconsistencies during the migration.
+    assert(old.wrappedNative == NATIVE_GRAM) throw Upgradeable_Error.VersionMismatch;
+
     // The policy starts unseeded: the legacy RMN administrator keeps curse,
     // uncurse and role management as the implicit bearer of all three roles.
     var policy = CursePolicy.empty(oldRMN.admin);
@@ -1278,7 +1300,6 @@ fun migrate(storage: cell, version: slice): cell {
     return Storage {
         id: old.id,
         ownable: old.ownable,
-        wrappedNative: old.wrappedNative,
         onRamps: old.onRamps,
         offRamps: old.offRamps,
         rmnRemote: RMNRemote {

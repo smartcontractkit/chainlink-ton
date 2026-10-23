@@ -9,6 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockbox"
 )
@@ -83,21 +84,25 @@ func TestLockboxWithdrawFailed_WireFormat(test *testing.T) {
 	}
 }
 
-// TestDynamicConfig_AllowedDepositNamespaces_WireFormat verifies that modelling
+// TestAdminConfig_AllowedDepositNamespaces_WireFormat verifies that modelling
 // AllowedDepositNamespaces as *tlbe.Dict[uint32, struct{}] (tlb:".") produces
 // exactly the same wire form as a raw *cell.Dictionary serialized through the
 // "dict 32" tag: a map<uint32,()> whose unit values are 0-bit inline leaves.
-func TestDynamicConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
+func TestAdminConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
 	namespaces := tlbe.NewDict[uint32, struct{}](map[uint32]struct{}{
 		1:  {},
 		42: {},
 	})
 
 	router := address.NewAddress(0, 0, make([]byte, 32))
+	tokenData := make([]byte, 32)
+	tokenData[0] = 1
+	token := address.NewAddress(0, 0, tokenData)
 
-	cfg := DynamicConfig{
-		Router:                   router,
+	cfg := AdminConfig{
+		DynamicConfig:            DynamicConfig{Router: router},
 		AllowedDepositNamespaces: namespaces,
+		JettonClient:             JettonClient{MasterAddress: token, JettonWalletCode: cell.BeginCell().EndCell()},
 	}
 
 	cfgCell, err := tlb.ToCell(cfg)
@@ -113,11 +118,31 @@ func TestDynamicConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
 	}
 
 	rawStruct := struct {
-		Router                   *address.Address `tlb:"addr"`
-		RateLimitAdmin           *address.Address `tlb:"addr"`
-		FeeAdmin                 *address.Address `tlb:"addr"`
+		Ownable       ownable2step.Storage `tlb:"^"`
+		DynamicConfig struct {
+			Router         *address.Address `tlb:"addr"`
+			RateLimitAdmin *address.Address `tlb:"addr"`
+			FeeAdmin       *address.Address `tlb:"addr"`
+		} `tlb:"^"`
 		AllowedDepositNamespaces *cell.Dictionary `tlb:"dict 32"`
-	}{Router: router, AllowedDepositNamespaces: rawDict}
+		JettonClient             struct {
+			MasterAddress    *address.Address `tlb:"addr required"`
+			JettonWalletCode *cell.Cell       `tlb:"^"`
+		} `tlb:"."`
+		AllowedFinalityConfig uint32           `tlb:"## 32"`
+		AdvancedPoolHooks     *address.Address `tlb:"addr"`
+	}{
+		DynamicConfig: struct {
+			Router         *address.Address `tlb:"addr"`
+			RateLimitAdmin *address.Address `tlb:"addr"`
+			FeeAdmin       *address.Address `tlb:"addr"`
+		}{Router: router},
+		AllowedDepositNamespaces: rawDict,
+		JettonClient: struct {
+			MasterAddress    *address.Address `tlb:"addr required"`
+			JettonWalletCode *cell.Cell       `tlb:"^"`
+		}{MasterAddress: token, JettonWalletCode: cell.BeginCell().EndCell()},
+	}
 	rawCell, err := tlb.ToCell(rawStruct)
 	require.NoError(t, err)
 
@@ -198,20 +223,27 @@ func TestRemoteChainConfig_RemotePools_Decode(t *testing.T) {
 	require.Equal(t, uint64(123), got)
 }
 
-// TestDynamicConfig_AllowedDepositNamespaces_RoundTrip verifies encode/decode
+// TestAdminConfig_AllowedDepositNamespaces_RoundTrip verifies encode/decode
 // through tonutils-go's tlb loader (using the tlb:"." marshaller path).
-func TestDynamicConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
+func TestAdminConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
 	namespaces := tlbe.NewDict(map[uint32]struct{}{
 		7:  {},
 		13: {},
 	})
 
-	cfg := DynamicConfig{Router: address.NewAddress(0, 0, make([]byte, 32)), AllowedDepositNamespaces: namespaces}
+	tokenData := make([]byte, 32)
+	tokenData[0] = 1
+	token := address.NewAddress(0, 0, tokenData)
+	cfg := AdminConfig{
+		DynamicConfig:            DynamicConfig{Router: address.NewAddress(0, 0, make([]byte, 32))},
+		AllowedDepositNamespaces: namespaces,
+		JettonClient:             JettonClient{MasterAddress: token, JettonWalletCode: cell.BeginCell().EndCell()},
+	}
 
 	c, err := tlb.ToCell(cfg)
 	require.NoError(t, err)
 
-	var decoded DynamicConfig
+	var decoded AdminConfig
 	require.NoError(t, tlb.LoadFromCell(&decoded, c.MustBeginParse()))
 	require.Len(t, decoded.AllowedDepositNamespaces.AsMap(), 2)
 	_, ok := decoded.AllowedDepositNamespaces.Get(7)
@@ -220,11 +252,15 @@ func TestDynamicConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
 	require.True(t, ok)
 
 	// Empty set round-trips as an empty map.
-	empty := DynamicConfig{Router: address.NewAddress(0, 0, make([]byte, 32)), AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}]()}
+	empty := AdminConfig{
+		DynamicConfig:            DynamicConfig{Router: address.NewAddress(0, 0, make([]byte, 32))},
+		AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}](),
+		JettonClient:             JettonClient{MasterAddress: token, JettonWalletCode: cell.BeginCell().EndCell()},
+	}
 	emptyCell, err := tlb.ToCell(empty)
 	require.NoError(t, err)
 
-	var decodedEmpty DynamicConfig
+	var decodedEmpty AdminConfig
 	require.NoError(t, tlb.LoadFromCell(&decodedEmpty, emptyCell.MustBeginParse()))
 	require.Empty(t, decodedEmpty.AllowedDepositNamespaces.AsMap())
 }

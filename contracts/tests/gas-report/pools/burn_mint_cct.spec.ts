@@ -59,8 +59,8 @@ runTokenPoolGasCalibration({
                 router: deployer.address,
                 rateLimitAdmin: null,
                 feeAdmin: null,
-                allowedDepositNamespaces: new Set(),
               }),
+              allowedDepositNamespaces: new Set(),
               jettonClient: JettonClient.create({
                 masterAddress: cctMinter.address,
                 jettonWalletCode: cctWalletCode,

@@ -17,7 +17,6 @@ import {
   asSnakedCell,
   generateEd25519KeyPair,
   generateRandomContractId,
-  WRAPPED_NATIVE,
 } from '../../../src/utils'
 import { contractCode } from '../../../wrappers/codeLoader'
 
@@ -293,7 +292,6 @@ export class OffRampTestSetup {
         ownable: rt.Ownable2Step.create({
           owner: this.deployer.address,
         }),
-        wrappedNative: WRAPPED_NATIVE,
         onRamps: new Map(),
         offRamps: new Map(),
         rmnRemote: rt.RMNRemote.create({
@@ -986,8 +984,8 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
                 router: this.router.address,
                 rateLimitAdmin: this.deployer.address,
                 feeAdmin: this.deployer.address,
-                allowedDepositNamespaces: new Set(),
               }),
+              allowedDepositNamespaces: new Set(),
               jettonClient: tp.JettonClient.create({
                 masterAddress: token,
                 jettonWalletCode,

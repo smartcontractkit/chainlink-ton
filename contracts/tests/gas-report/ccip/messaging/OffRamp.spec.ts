@@ -19,7 +19,7 @@ import {
   generateMockTonAddress,
   uint8ArrayToBigInt,
   generateEd25519KeyPair,
-  WRAPPED_NATIVE,
+  NATIVE_GRAM,
 } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
 import * as tr from '../../../../wrappers/gen/ccip/TestReceiver'
@@ -112,7 +112,6 @@ describe('CCIP OffRamp Gas Estimation', () => {
         ownable: rt.Ownable2Step.create({
           owner: deployer.address,
         }),
-        wrappedNative: WRAPPED_NATIVE,
         onRamps: new Map(),
         offRamps: new Map(),
         rmnRemote: rt.RMNRemote.create({

@@ -19,12 +19,11 @@ import (
 // ---------- Router Model Struct Definitions ----------
 
 type RouterStorage struct {
-	ID            uint32                      `json:"id"`
-	Ownable       Ownable2Step                `json:"ownable"`
-	WrappedNative *address.Address            `json:"wrappedNative"`
-	OnRamps       map[uint64]*address.Address `json:"onRamps"`
-	OffRamps      map[uint64]*address.Address `json:"offRamps"`
-	RMNRemote     RMNRemote                   `json:"rmnRemote"`
+	ID        uint32                      `json:"id"`
+	Ownable   Ownable2Step                `json:"ownable"`
+	OnRamps   map[uint64]*address.Address `json:"onRamps"`
+	OffRamps  map[uint64]*address.Address `json:"offRamps"`
+	RMNRemote RMNRemote                   `json:"rmnRemote"`
 }
 
 type RMNRemote struct {
@@ -71,14 +70,6 @@ func (b *RouterStorageBuilder) WithOwnable(owner, pending *address.Address) *Rou
 		Owner:        owner,
 		PendingOwner: pending,
 	}
-	return b
-}
-
-func (b *RouterStorageBuilder) WithWrapperNative(wrappedNative *address.Address) *RouterStorageBuilder {
-	if b.err != nil {
-		return b
-	}
-	b.storage.WrappedNative = wrappedNative
 	return b
 }
 
@@ -144,7 +135,6 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 			raw.Ownable.Owner,
 			raw.Ownable.PendingOwner,
 		).
-		WithWrapperNative(raw.WrappedNative).
 		WithRMNRemote(raw.RMNRemote.Policy.Admin.Owner, raw.RMNRemote.Policy.Admin.PendingOwner)
 	b.storage.RMNRemote.Roles = raw.RMNRemote.Policy.RBAC.Roles
 	// OnRamp
@@ -231,7 +221,6 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 			Owner:        s.Ownable.Owner,
 			PendingOwner: s.Ownable.PendingOwner,
 		},
-		WrappedNative: s.WrappedNative,
 		RMNRemote: router.RMNRemote{
 			Policy: router.CursePolicy{
 				Admin: ownable2step.Storage{

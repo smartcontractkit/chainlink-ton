@@ -8,9 +8,10 @@ import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
-import { setup } from './OnRamp.Setup'
-import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 import { FromBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
+import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
+import { setup } from './OnRamp.Setup'
 import { findTransactionRequired } from '@ton/test-utils'
 
 // Valid EVM destination token address: 32-byte abi-encoded, <= uint160, >= precompile space.
@@ -49,6 +50,7 @@ function buildWithdrawRequest(opts: {
     tokenArgs: null,
     replyTo: opts.originalSender,
     failureValue: toNano('0.01'),
+    onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
   })
 
   const prepared = tp.TokenPool_LockOrBurnPrepared.create({

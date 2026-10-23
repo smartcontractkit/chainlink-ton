@@ -37,11 +37,11 @@ jobs:
           CHAINLINK_TON_VERSION=$(cat ./scripts/.chainlink-ton_version | tr -d '[:space:]')
 
           # Use the pinned version by default.
-          # For PRs, use the PR head branch.
+          # For PRs, use the PR head commit SHA (branch names with slashes aren't valid Go module versions).
           # For scheduled runs, use the current repository SHA from the default branch.
-          # If the pinned version file is empty, also fall back to the current ref/SHA.
+          # If the pinned version file is empty, also fall back to the current SHA.
           if [[ "${{ github.event_name }}" == "schedule" || -z "$CHAINLINK_TON_VERSION" ]]; then
-              CHAINLINK_TON_VERSION="${{ github.head_ref || github.sha }}"
+              CHAINLINK_TON_VERSION="${{ github.event.pull_request.head.sha || github.sha }}"
           fi
 
           echo "chainlink-ton_version=$CHAINLINK_TON_VERSION" >> "$GITHUB_OUTPUT"

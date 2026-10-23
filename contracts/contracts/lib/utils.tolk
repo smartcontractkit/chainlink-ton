@@ -292,6 +292,14 @@ fun lisp_list<T>.asSingle(mutate self): T? {
     return item;
 }
 
+// Unwraps the optional value or throws the provided error if it is null.
+fun T?.unwrap(self, error: int): T {
+    if (self == null) {
+        throw error;
+    }
+    return self;
+}
+
 // Unwraps the optional value or returns the provided default.
 fun T?.unwrapOr(self, default: T): T {
     if (self == null) {

@@ -2,6 +2,7 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, toNano } from '@ton/core'
 
+import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 import { JettonWallet } from '../../../wrappers/jetton/JettonWallet'
 import {
   TokenPool,
@@ -112,6 +113,7 @@ async function lockOrBurn(
     tokenArgs: null,
     replyTo: deployer.address,
     failureValue: toNano('0.02'),
+    onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
   })
 
   const withdrawTx = admitted.transactions

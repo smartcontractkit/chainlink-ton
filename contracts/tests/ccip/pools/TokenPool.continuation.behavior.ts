@@ -17,6 +17,10 @@ import {
   TransferNotificationForRecipient,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { setTokenPoolSafetyFloor } from '../../utils/minValue'
+import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
+import * as da from '../../../wrappers/gen/ccip/DepositAccount'
+import { deriveOnRampAccountAddress } from '../../../wrappers/ccip/OnRampAccount'
+import { contractCode } from '../../../wrappers/codeLoader'
 import { deliveryTo, releaseRequest, TokenPoolBehaviorContext } from './TokenPool.behavior'
 
 const INSUFFICIENT_MESSAGE_VALUE = 51725n // TokenPool_Error.InsufficientMessageValue
@@ -136,6 +140,7 @@ export function runTokenPoolContinuationBehaviorTests(
           tokenArgs: null,
           replyTo: ctx.deployer.address,
           failureValue: toNano('0.01'),
+          onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
         },
       )
       const withdraw = findTransactionRequired(admitted.transactions, {
@@ -152,18 +157,50 @@ export function runTokenPoolContinuationBehaviorTests(
       )
       const tokensBefore = await wallet.getJettonBalance()
 
-      const { transactions } = await wallet.sendTransfer(ctx.deployer.getSender(), {
+      // Fund the derived OnRamp account, then let it make the authenticated transfer.
+      const deployableCode = await contractCode.ccip.local('Deployable')
+      const accountAddress = deriveOnRampAccountAddress({
+        router: ctx.onRampAddress,
+        user: ctx.deployer.address,
+        token: ctx.localToken,
+        deployableCode,
+      })
+      await wallet.sendTransfer(ctx.deployer.getSender(), {
         value: toNano('0.6'),
         message: {
           queryId: 1,
           jettonAmount: 1n,
-          destination: ctx.pool.address,
+          destination: accountAddress,
           responseDestination: ctx.deployer.address,
           customPayload: null,
-          forwardTonAmount: toNano('0.2'), // Below the 2S custody forward, but enough to fund the return.
-          forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
+          forwardTonAmount: 0n,
+          forwardPayload: null,
         },
       })
+      const accountWallet = ctx.blockchain.openContract(
+        JettonWallet.createFromAddress(await minter.getWalletAddress(accountAddress)),
+      )
+      const { transactions } = await accountWallet.sendTransfer(
+        ctx.blockchain.sender(accountAddress),
+        {
+          value: toNano('0.6'),
+          message: {
+            queryId: 1,
+            jettonAmount: 1n,
+            destination: ctx.pool.address,
+            responseDestination: ctx.deployer.address,
+            customPayload: null,
+            forwardTonAmount: toNano('0.2'), // Below the 2S + F custody forward.
+            forwardPayload: da.Jetton_ForwardPayloadWrap.toCell(
+              da.Jetton_ForwardPayloadWrap.create({
+                initiator: ctx.onRampAddress, // the Router: the pool requires it as the initiator
+                context: null,
+                forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
+              }),
+            ),
+          },
+        },
+      )
 
       expect(transactions).toHaveTransaction({
         to: ctx.pool.address,
@@ -184,7 +221,7 @@ export function runTokenPoolContinuationBehaviorTests(
         from: ctx.pool.address,
         op: TokenPool_LockOrBurnFinished.PREFIX,
       })
-      expect(await wallet.getJettonBalance()).toEqual(tokensBefore)
+      expect(await accountWallet.getJettonBalance()).toEqual(1n)
       const capacityAfter = await ctx.pool.getCurrentRateLimiterState(
         ctx.remoteChainSelector,
         false,
