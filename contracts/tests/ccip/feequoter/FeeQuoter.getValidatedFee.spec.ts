@@ -1680,10 +1680,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // Audit 2026:09 regression tests (F1-F4)
-  // -------------------------------------------------------------------------
-  describe('Audit 2026:09 - canonical snake and library-reference hardening', () => {
+  describe('canonical snake and library-reference hardening', () => {
     const evmGenericArgs = (): Cell =>
       rt.builder.data.extraArgs
         .encode({
@@ -1693,9 +1690,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         })
         .endCell()
 
-    // F1: a tagged GenericExtraArgsV2 that omits the optional gasLimit must be
-    // resolved to the default before being echoed, never re-encoded as null.
-    it('F1: resolves an absent EVMExtraArgsV2 gasLimit to the default (no null in reply)', async () => {
+    it('resolves an absent EVMExtraArgsV2 gasLimit to the default (no null in reply)', async () => {
       // Encode via the binding with gasLimit omitted: the codec stores the
       // maybe-bit as absent, which is exactly the malformed input under test.
       const noGasArgs = rt.builder.data.extraArgs
@@ -1728,8 +1723,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       expect(echoed.allowOutOfOrderExecution).toBe(true) // allowOutOfOrderExecution preserved
     })
 
-    // F2: branched `data` must be rejected (aggregate counting would accept it).
-    it('F2: rejects branched message.data', async () => {
+    it('rejects branched message.data', async () => {
       const leafA = beginCell().storeUint(1, 8).endCell()
       const leafB = beginCell().storeUint(2, 8).endCell()
       const branched = beginCell().storeRef(leafA).storeRef(leafB).endCell()
@@ -1746,8 +1740,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidMsgData)
     })
 
-    // F2: a mid-chain partial cell must be rejected (Go decoder pads it).
-    it('F2: rejects a non-byte-full non-terminal message.data cell', async () => {
+    it('rejects a non-byte-full non-terminal message.data cell', async () => {
       const tail = beginCell().storeUint(0, 8).endCell()
       const headPartial = beginCell().storeUint(0, 4).storeRef(tail).endCell()
 
@@ -1763,8 +1756,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidMsgData)
     })
 
-    // F2/F4: a library-reference cell for message.data must be rejected.
-    it('F2: rejects a library-reference message.data cell', async () => {
+    it('rejects a library-reference message.data cell', async () => {
       const libRef = beginCell()
         .storeUint(2, 8) // exotic type: LibraryReference
         .storeBuffer(Buffer.alloc(32, 0xab))
@@ -1782,9 +1774,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidMsgData)
     })
 
-    // F4 Variant A: a library-reference `tokenAmounts` cell that resolves to an
-    // empty cell must be rejected rather than echoed verbatim.
-    it('F4: rejects a library-reference tokenAmounts cell (resolving to empty)', async () => {
+    it('rejects a library-reference tokenAmounts cell (resolving to empty)', async () => {
       const libRef = beginCell()
         .storeUint(2, 8)
         .storeBuffer(Buffer.alloc(32, 0xcd))
@@ -1812,9 +1802,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       await setup.assertGetFeeValidationErrorRaw(body, feeQuoter.errors.UnsupportedNumberOfTokens)
     })
 
-    // F3: an SVM accounts snake with an element straddling a cell boundary must
-    // be rejected (aggregate `size()` would accept it).
-    it('F3: rejects SVM accounts split across a cell boundary', async () => {
+    it('rejects SVM accounts split across a cell boundary', async () => {
       // 256-bit account split: 128 bits in the outer cell, 128 bits in the ref.
       const accountsSplit = beginCell()
         .storeBuffer(Buffer.alloc(16, 1), 16) // first half of account 0
@@ -1842,8 +1830,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidExtraArgsData)
     })
 
-    // F3: an SVM accounts snake with a truncated trailing element must be rejected.
-    it('F3: rejects SVM accounts with a truncated element', async () => {
+    it('rejects SVM accounts with a truncated element', async () => {
       // 256 + 128 bits: aggregate 384 bits divides by 8 and by 32, but the last
       // element is incomplete.
       const accountsTruncated = beginCell()
@@ -1872,8 +1859,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidExtraArgsData)
     })
 
-    // F3/F4: a library-reference SVM accounts cell must be rejected.
-    it('F3: rejects a library-reference SVM accounts cell', async () => {
+    it('rejects a library-reference SVM accounts cell', async () => {
       const libRef = beginCell()
         .storeUint(2, 8)
         .storeBuffer(Buffer.alloc(32, 0xef))
@@ -1905,7 +1891,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     // codec splits the accounts snake into an intermediate cell holding three
     // accounts plus a continuation ref, and a tail cell holding the fourth —
     // exercising the continuation traversal for a valid fixed-width snake.
-    it('F3: accepts a canonical multi-cell SVM accounts snake', async () => {
+    it('accepts a canonical multi-cell SVM accounts snake', async () => {
       const extraArgs = rt.builder.data.extraArgs
         .encode({
           kind: 'svm-v1',
@@ -1935,10 +1921,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
     })
 
-    // F2: a byte snake whose terminal cell carries a partial byte. The
-    // `bits % 8 != 0` branch is unreachable through the typed message builder
-    // (it writes whole bytes), so the data cell is built by hand.
-    it('F2: rejects a byte snake with a non-byte-aligned terminal cell', async () => {
+    it('rejects a byte snake with a non-byte-aligned terminal cell', async () => {
       // A canonical linear chain (one continuation ref per non-terminal cell)
       // whose terminal cell holds 4 bits, i.e. a partial byte.
       const partialTail = beginCell().storeUint(3, 4).endCell()
@@ -1959,9 +1942,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidMsgData)
     })
 
-    // F3: the SVM accounts-count error must name the SVM failure, not the Sui
-    // one. Previously this threw TooManySuiExtraArgsReceiverObjectIds.
-    it('F3: reports TooManySVMExtraArgsAccounts (not the Sui error) for too many accounts', async () => {
+    it('reports TooManySVMExtraArgsAccounts (not the Sui error) for too many accounts', async () => {
       const extraArgs = rt.builder.data.extraArgs
         .encode({
           kind: 'svm-v1',
@@ -1987,10 +1968,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       await setup.assertGetFeeValidationError(message, feeQuoter.errors.TooManySVMExtraArgsAccounts)
     })
 
-    // SVM `accountIsWritableBitmap` must not address accounts the message does
-    // not carry, otherwise the destination cannot execute the message as
-    // requested. Mirrors EVM FeeQuoter's InvalidSVMExtraArgsWritableBitmap.
-    it('F3: rejects an SVM writable bitmap addressing accounts beyond the list', async () => {
+    it('rejects an SVM writable bitmap addressing accounts beyond the list', async () => {
       const extraArgs = rt.builder.data.extraArgs
         .encode({
           kind: 'svm-v1',
@@ -2018,8 +1996,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       )
     })
 
-    // Control: a bitmap that addresses exactly the carried accounts is valid.
-    it('F3: accepts an SVM writable bitmap within the account count', async () => {
+    it('accepts an SVM writable bitmap within the account count', async () => {
       const extraArgs = rt.builder.data.extraArgs
         .encode({
           kind: 'svm-v1',
@@ -2044,9 +2021,8 @@ describe('FeeQuoter GetValidatedFee', () => {
       expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
     })
 
-    // Sui mirrors the SVM collection validation through a different call site
-    // and a different field name, so it needs its own coverage.
-    const suiExtraArgsWithObjectIds = (objectIds: Cell): Cell =>
+    it('rejects Sui receiverObjectIds split across a cell boundary', async () => {
+      const suiExtraArgsWithObjectIds = (objectIds: Cell): Cell =>
       beginCell()
         .storeUint(rt.ExtraArgsOpcodes.suiV1, 32)
         .storeUint(FeeQuoterSetup.GAS_LIMIT, 256) // gasLimit (mandatory for Sui)
@@ -2064,7 +2040,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       extraArgs,
     })
 
-    it('F3: rejects Sui receiverObjectIds split across a cell boundary', async () => {
+    it('rejects Sui receiverObjectIds split across a cell boundary', async () => {
       const objectIdsSplit = beginCell()
         .storeBuffer(Buffer.alloc(16, 1), 16) // first half of object id 0
         .storeRef(beginCell().storeBuffer(Buffer.alloc(16, 2), 16).endCell())
@@ -2076,7 +2052,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       )
     })
 
-    it('F3: rejects Sui receiverObjectIds with a truncated element', async () => {
+    it('rejects Sui receiverObjectIds with a truncated element', async () => {
       const objectIdsTruncated = beginCell()
         .storeBuffer(Buffer.alloc(32, 1), 32)
         .storeBuffer(Buffer.alloc(16, 2), 16)
@@ -2088,9 +2064,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       )
     })
 
-    // F4 variant B on the Sui call site: the FeeQuoter would resolve the library
-    // reference while validating, then re-emit the descriptor.
-    it('F3: rejects a library-reference Sui receiverObjectIds cell', async () => {
+    it('rejects a library-reference Sui receiverObjectIds cell', async () => {
       const libRef = beginCell()
         .storeUint(2, 8)
         .storeBuffer(Buffer.alloc(32, 0xef))
@@ -2102,8 +2076,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       )
     })
 
-    // Control: a canonical Sui receiverObjectIds snake is still accepted.
-    it('F3: accepts a canonical Sui receiverObjectIds snake', async () => {
+    it('accepts a canonical Sui receiverObjectIds snake', async () => {
       const extraArgs = rt.builder.data.extraArgs
         .encode({
           kind: 'sui-v1',

@@ -40,7 +40,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorUnsupportedChainFamilySelector)
-		ecMax = int32(ErrorInvalidSVMExtraArgsWritableBitmap)
+		ecMax = int32(ErrorInvalidDestBytesOverhead)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -48,13 +48,15 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 const (
 	ErrorUnsupportedChainFamilySelector ExitCode = ExitCode(34400 + iota)
 	ErrorGasLimitTooHigh
-	ExtraArgOutOfOrderExecutionMustBeTrue
+	ErrorExtraArgOutOfOrderExecutionMustBeTrue
 	ErrorInvalidExtraArgsData
 	ErrorUnsupportedNumberOfTokens
 	ErrorInvalidSuiReceiverAddress
 	ErrorInvalidSVMReceiverAddress
 	ErrorInvalidTokenReceiver
 	ErrorTooManySuiExtraArgsReceiverObjectIDs
+	ErrorTooManySVMExtraArgsAccounts
+	ErrorInvalidSVMExtraArgsWritableBitmap
 	ErrorMsgDataTooLarge
 	ErrorStaleGasPrice
 	ErrorDestChainNotEnabled
@@ -65,16 +67,14 @@ const (
 	ErrorInsufficientFee
 	ErrorTokenTransfersNotSupported
 	ErrorUnauthorizedPriceUpdater
-	// Overflow protection errors
 	ErrorExecutionCostOverflow
 	ErrorPremiumFeeOverflow
 	ErrorDataAvailabilityCostOverflow
 	ErrorFeeCalculationOverflow
 	ErrorFeeOverflow
 	ErrorMessageFeeTooHigh
-	// Appended to end: existing codes are part of the observed ABI
-	ErrorTooManySVMExtraArgsAccounts
-	ErrorInvalidSVMExtraArgsWritableBitmap
+	ErrorTokenTransferConfigMustBeEnabled
+	ErrorInvalidDestBytesOverhead
 )
 
 // Registry method names

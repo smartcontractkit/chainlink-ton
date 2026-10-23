@@ -34,8 +34,6 @@ const LEAF_DOMAIN_SEPARATOR: bits256 = "0000000000000000000000000000000000000000
 
 type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1;
 
-type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1;
-
 // nolint:opcode : hex encoded bytes4(keccak256("CCIP EVMExtraArgsV2"))
 struct (0x181dcf10) GenericExtraArgsV2 {
     gasLimit: uint256?;
