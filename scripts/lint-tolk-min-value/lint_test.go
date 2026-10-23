@@ -36,10 +36,10 @@ func fixture(t *testing.T, abi, src string) (string, string) {
 	if err := os.MkdirAll(srcDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(abiDir, "Demo.json"), []byte(abi), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(abiDir, "Demo.json"), []byte(abi), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, "demo.tolk"), []byte(src), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "demo.tolk"), []byte(src), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	return abiDir, srcDir

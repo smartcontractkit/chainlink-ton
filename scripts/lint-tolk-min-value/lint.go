@@ -183,13 +183,19 @@ func loadABI(dir string) ([]contract, error) {
 // --- Markers ---
 
 func loadMarkers(srcDir string) (map[string][]marker, error) {
+	root, err := os.OpenRoot(srcDir)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = root.Close() }()
+
 	byMessage := map[string][]marker{}
-	err := filepath.WalkDir(srcDir, func(path string, entry fs.DirEntry, walkErr error) error {
+	err = fs.WalkDir(root.FS(), ".", func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
 		if entry.IsDir() {
-			if entry.Name() == "node_modules" || strings.HasPrefix(entry.Name(), ".") {
+			if path != "." && (entry.Name() == "node_modules" || strings.HasPrefix(entry.Name(), ".")) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -197,11 +203,11 @@ func loadMarkers(srcDir string) (map[string][]marker, error) {
 		if !strings.HasSuffix(path, ".tolk") {
 			return nil
 		}
-		data, err := os.ReadFile(path)
+		data, err := root.ReadFile(path)
 		if err != nil {
 			return err
 		}
-		for _, m := range parseMarkers(string(data), path) {
+		for _, m := range parseMarkers(string(data), filepath.Join(srcDir, path)) {
 			byMessage[m.Message] = append(byMessage[m.Message], m)
 		}
 		return nil

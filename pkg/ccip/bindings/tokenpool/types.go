@@ -407,9 +407,10 @@ type LockOrBurn struct {
 	RequestedFinalityConfig uint32           `tlb:"## 32"`
 	TokenArgs               *cell.Cell       `tlb:"maybe ^"`
 	ReplyTo                 *address.Address `tlb:"addr required"`
+
 	// FailureValue is the CCIP post-custody failure budget.
-	FailureValue tlb.Coins `tlb:"."`
-	OnRampNamespaces        *tlbe.Dict[uint32, struct{}] `tlb:"."`
+	FailureValue     tlb.Coins                    `tlb:"."`
+	OnRampNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
 }
 
 // ReleaseOrMint releases or mints tokens on the destination chain. ReplyTo must be non-nil.

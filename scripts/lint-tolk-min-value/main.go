@@ -77,12 +77,12 @@ func writeSpec(dir string, r report) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "overview.md"), []byte(r.overview()), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "overview.md"), []byte(r.overview()), 0o600); err != nil {
 		return err
 	}
 	for _, c := range r.contracts {
 		path := filepath.Join(dir, c.Name+".md")
-		if err := os.WriteFile(path, []byte(r.contractDoc(c)), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(r.contractDoc(c)), 0o600); err != nil {
 			return err
 		}
 	}
