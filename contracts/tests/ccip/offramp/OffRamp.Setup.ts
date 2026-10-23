@@ -405,7 +405,6 @@ export class OffRampTestSetup {
     ]
   }
 
-  // TODO should recieve opts
   createTestMessage(
     sequenceNumber = 1n,
     messageId = 1n,
@@ -579,7 +578,6 @@ export class OffRampTestSetup {
     }
     return of.ExecutionReport.create({
       sourceChainSelector,
-      // TODO tolk type should should be snakedCell
       messages: asSnakedCell(messages, (msg) =>
         (() => {
           const b = beginCell()

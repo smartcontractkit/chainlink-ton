@@ -285,7 +285,7 @@ fun onDepositFailed(
         return;
     }
 
-    // TODO: the lockbox returns only the post-fee `destTokenAmount` to `returnTo`, so the CCIP
+    // TODO[VALUE]: [NONEVM-5766] the lockbox returns only the post-fee `destTokenAmount` to `returnTo`, so the CCIP
     //       fee is retained by the pool on rejection. Refund the fee (details.amount - destTokenAmount)
     //       to the original sender to make the sender whole.
 

@@ -1420,7 +1420,7 @@ fun MCMS<T>.cleanExpiredRoots(
     queryId: uint64,
     roots: SnakedCell<RootDescriptor>,
 ) {
-    // TODO: no value gate; loops over roots; add a safety check
+    // TODO[VALUE]: [NONEVM-5766] no value gate; loops over roots; add a safety check
 
     self.data.ownable.requireOwner(sender);
 

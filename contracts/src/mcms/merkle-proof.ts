@@ -170,7 +170,7 @@ function fillSignatures(root: bigint, validUntil: bigint, signers: SigningKey[])
 
   for (const signer of signers) {
     const signature = signer.sign(msgHash)
-    // TODO: validate signature
+    // TODO[TEST]: validate signature
     signatures.push({ v: signature.v, r: BigInt(signature.r), s: BigInt(signature.s) })
   }
 

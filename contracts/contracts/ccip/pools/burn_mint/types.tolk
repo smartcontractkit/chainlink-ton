@@ -76,7 +76,7 @@ enum BurnMintTokenPool_Error {
     OffRampAccountDeployFailed // 45004
 }
 
-// TODO: remove?
+// TODO[DELETE]: remove?
 struct BurnMintTokenPool_InitConfig {
     owner: address;
     rmnAdmin: address;

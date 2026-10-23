@@ -12,6 +12,7 @@ const OffRamp_FACILITY_ID = OffRamp_FACILITY_NAME.crc32() % 640 + 10;  // 221
 
 struct ExecutionReport {
     sourceChainSelector: uint64;
+    // TODO[REFACTOR]: type should should be snakedCell
     messages: cell; // single Any2TVMRampMessage, though interface is set up to possibly support vec<Any2TVMRampMessage> in the future
     // Offchain token data for every message and token transfer in the report.
     // A tokenless report may use either `[]` (empty outer list) or `[[]]` (one
@@ -23,16 +24,6 @@ struct ExecutionReport {
     proofs: SnakedCell<uint256>; // Proofs used to construct the merkle root as vec<uint256>
     proofFlagBits: uint256;
 }
-
-// /// OffChainTokenData represents the offchain token data for all token transfers of all messages in an ExecutionReport.
-// type OffChainTokenData = lisp_list<OffChainTokenDataPerMessage>
-
-// /// OffChainTokenDataPerMessage represents the offchain token data of every token transfer of a single message.
-// type OffChainTokenDataPerMessage = lisp_list<SnakeBytes>
-
-// /// SnakeBytes is a byte array
-// /// TODO: implement serialization/deserialization
-// type SnakeBytes = cell
 
 struct GasOverride {
     receiverExecutionGasLimit: coins? = null;

@@ -64,7 +64,7 @@ enum LockReleaseLockBoxTokenPool_Error {
     LockBoxWithdrawFailed // 20906
 }
 
-// TODO: remove?
+// TODO[DELETE]: remove?
 struct LockReleaseLockboxTokenPool_InitConfig {
     owner: address;
     rmnAdmin: address;

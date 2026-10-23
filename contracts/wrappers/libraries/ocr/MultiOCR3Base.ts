@@ -29,7 +29,7 @@ export enum Errors {
   NoSigners,
 }
 
-// TODO bigints
+// TODO[?]: bigints
 export const OCR3_PLUGIN_TYPE_COMMIT = BigInt(0x0000)
 export const OCR3_PLUGIN_TYPE_EXECUTE = BigInt(0x0001)
 

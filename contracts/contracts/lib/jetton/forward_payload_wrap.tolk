@@ -46,7 +46,7 @@ fun Jetton_ForwardPayloadWrap.unwrapForwardPayload(payload: cell?): cell? {
     }
 
     val s = payload!.beginParse();
-    // TODO: use reflection for opcode
+    // TODO[REFACTOR]: use reflection for opcode
     if (s.remainingBitsCount() < 32 || s.preloadUint(32) != 0x2d61600c) {
         return payload;
     }

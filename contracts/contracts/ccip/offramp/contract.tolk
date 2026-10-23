@@ -581,7 +581,7 @@ fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMi
             request: msg.request,
             requestedFinalityConfig: msg.requestedFinalityConfig,
             replyTo: sendExecutor,
-            // TODO: consider routing to the original transmitter
+            // TODO[TP]: [NONEVM-5336] consider routing to the original transmitter
             sendExcessesTo: contract.getAddress(),
         }
     });
@@ -1018,7 +1018,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         messageId: message.header.messageId,
     };
 
-    // TODO: this hides the validation error that caused the message to fail.
+    // TODO[DESIGN]: this hides the validation error that caused the message to fail.
     try {
         val hasTokens = message.tokenAmounts != null && !message.tokenAmounts.empty();
         // A tokenless report may have offchainTokenData as `[]` (empty outer

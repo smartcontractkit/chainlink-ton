@@ -18,7 +18,7 @@ import { merkleProof } from '../../src/mcms'
 describe('MCMS - IntegrationTest', () => {
   let blockchain: Blockchain
 
-  // TODO: blockchain global chain ID (will need to be signed int)
+  // TODO[REFACTOR]: blockchain global chain ID (will need to be signed int)
   let chainId = -239n
 
   var code: {
@@ -1013,7 +1013,7 @@ describe('MCMS - IntegrationTest', () => {
           success: true,
         })
 
-        // TODO: verify emit Cancelled(callsHash);
+        // TODO[TEST]: verify emit Cancelled(callsHash);
 
         blockchain.now = blockchain.now! + Number(MIN_DELAY)
 

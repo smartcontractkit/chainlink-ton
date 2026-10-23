@@ -102,7 +102,7 @@ const SVM_TOKEN_TRANSFER_DATA_OVERHEAD: uint256 = (4 + 32) // source_pool
 + 32 // per-chain token billing config, not always included in the token lookup table
 + 32; // OffRamp pool signer PDA, not included in the token lookup table
 
-// TBD this should live in a different file
+// TODO[REFACTOR]: Move these constants to a client library like in EVM
 const SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS = 64;
 const SUI_MESSAGING_ACCOUNTS_OVERHEAD = 1;
 const SUI_ACCOUNT_BYTE_SIZE: uint256 = 32;

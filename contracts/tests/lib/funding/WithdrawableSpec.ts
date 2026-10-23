@@ -568,7 +568,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
             queryId: 9n,
             destination: suiteSetup.recipient.address,
             amount: withdrawAmount,
-            reserve: toNano('0'), // TODO call drain all with custom reserve instead
+            reserve: toNano('0'), // TODO[TEST]: call drain all with custom reserve instead
             drainAllAvailable: false,
           })
 
@@ -786,7 +786,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
             queryId: 17n,
             destination: suiteSetup.recipient.address,
             amount: withdrawAmount,
-            reserve: toNano('0'), // TODO call drain all with custom reserve instead
+            reserve: toNano('0'), // TODO[TEST]: call drain all with custom reserve instead
             drainAllAvailable: false,
           })
 
@@ -845,7 +845,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
             queryId: 19n,
             destination: suiteSetup.recipient.address,
             amount: withdrawAmount,
-            reserve: toNano('0'), // TODO call drain all with custom reserve instead
+            reserve: toNano('0'), // TODO[TEST]: call drain all with custom reserve instead
             drainAllAvailable: false,
           })
 

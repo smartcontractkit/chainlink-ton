@@ -1028,7 +1028,6 @@ fun sendMessageRejected(sender: address, queryID: uint64, error: uint256) {
     nackMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-//TODO: Sending LockOrBurn to the TokenPool should trigger a withdraw pattern to get the tokens to the TP
 /*
 The thing is at this point we still didn't go through all the preflight checks - (1) gas check for TP processing - unique per TP/Jetton, (2) rate limiter check, (3) advanced hooks check
 
@@ -1055,7 +1054,7 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
             queryId: msg.queryID,
             request: msg.request,
             requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
-            tokenArgs: null, // TBD?
+            tokenArgs: null, // TODO[REMOVE]: tokenArgs are not supported?
             replyTo: msg.executorAddress,
             finalizationValue: msg.finalizationValue,
             // Keep the pool's deposit-auth namespace cache in sync
@@ -1432,7 +1431,7 @@ struct Ramp {
     ramp: address
 }
 
-/// TODO returns lisp_list<OnRamp>
+/// TODO[REFACTOR]: returns lisp_list<OnRamp>
 get fun onRamps(): lisp_list<Cell<Ramp>> {
     val st = lazy Storage.load();
     var onRamps: lisp_list<Cell<Ramp>> = [];
@@ -1448,7 +1447,7 @@ get fun onRamps(): lisp_list<Cell<Ramp>> {
     return onRamps;
 }
 
-/// TODO returns lisp_list<OffRamp>
+/// TODO[REFACTOR]: returns lisp_list<OffRamp>
 get fun offRamps(): lisp_list<Cell<Ramp>> {
     val st = lazy Storage.load();
     var offRamps: lisp_list<Cell<Ramp>> = [];

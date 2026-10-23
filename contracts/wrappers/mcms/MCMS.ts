@@ -510,7 +510,7 @@ export const builder = {
             queryId: src.loadUintBig(64),
             root: src.loadUintBig(256),
             validUntil: src.loadUintBig(64),
-            metadata: src.loadRef().beginParse() as unknown as RootMetadata, // TODO: decode metadata properly
+            metadata: src.loadRef().beginParse() as unknown as RootMetadata, // TODO[TEST]: decode metadata properly
             metadataProof: src.loadRef(),
             signatures: src.loadRef(),
           }

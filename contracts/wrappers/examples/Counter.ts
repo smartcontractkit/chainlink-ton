@@ -103,7 +103,7 @@ export const builder = {
           id: src.loadUintBig(32),
           value: src.loadUint(32),
           ownable: {
-            // TODO: use ownable2step decoder
+            // TODO[REFACTOR]: use ownable2step decoder
             owner: src.loadAddress(),
             pendingOwner: src.loadMaybeAddress(),
           },

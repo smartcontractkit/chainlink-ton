@@ -16,7 +16,7 @@ contract TokenPool {
     description: "link.chain.ton.ccip.pool.TokenPool"
 
     storage: TokenPool_Data
-    incomingMessages: TokenPool_InMessage // TODO: all incoming messages should be registered
+    incomingMessages: TokenPool_InMessage // TODO[REFACTOR]: all incoming messages should be registered
     outgoingMessages: TokenPool_OutMessage
     emittedEvents: TokenPool_Events
 }

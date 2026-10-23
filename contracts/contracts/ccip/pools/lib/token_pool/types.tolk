@@ -30,7 +30,7 @@ const RM_CUSTODY_MOVES_BEFORE_RELEASE_MINT: int = 2;
 struct TokenPool_DynamicConfig {
     router: address;
     rateLimitAdmin: address? = null;
-    feeAdmin: address?; // TODO this is not being used?
+    feeAdmin: address?; // TODO[DESIGN]: this is not being used?
 }
 
 struct TokenPool_LocalPolicy {
@@ -64,7 +64,7 @@ struct TokenPool_ChainUpdate {
 
 struct TokenPool_RemoteChainConfig {
     remoteTokenAddress: Cell<CrossChainAddress>;               // Address of the remote token, ABI encoded in the case of a remote EVM chain.
-    // TODO: EnumerableSet.Bytes32Set remotePools;
+    // TODO[REFACTOR]: [NONEVM-5336] EnumerableSet.Bytes32Set remotePools;
     remotePools: map<uint256, Cell<CrossChainAddress>> = [];   // Set of remote pool hashes, ABI encoded in the case of a remote EVM chain.
     rateLimiters: Cell<TokenPool_RateLimiterPair>;             // Rate limiter configs.
     fastFinalityRateLimiters: Cell<TokenPool_RateLimiterPair>; // Rate limiter configs for fast finality transfers.
@@ -83,12 +83,12 @@ struct TokenPool_TokenTransferFeeConfigArgs {
     tokenTransferFeeConfig: TokenPool_TokenTransferFeeConfig; // Token transfer fee configuration.
 }
 
-// TODO: triage new types below
+// TODO[REFACTOR]: [NONEVM-5336] triage new types below
 
 struct TokenPool_LockOrBurnPrepared {
     feeAmount: coins;
     /// Token amount in local token decimals after deducting the fee.
-    // TBD: rename to just amount?
+    // TODO[REFACTOR]: [NONEVM-5336] rename to just amount?
     destTokenAmount: coins; 
     out: TokenPool_LockOrBurnOutV1;
 }
@@ -117,8 +117,6 @@ enum TokenPool_MessageDirection: uint8 {
     Inbound = 1
 }
 
-// TBD: Do we really need this generics? Makes the code harder to read and abigen has difficuitles generating the wrappers for generics
-
 /// Struct representing a token transfer operation, including the unique transfer ID and the details of the transfer.
 /// 
 /// Type parameters:
@@ -126,6 +124,7 @@ enum TokenPool_MessageDirection: uint8 {
 /// - `R`: The type of the recipient's address on the destination chain
 /// - `C`: The type of the amount of tokens, denominated in the source token's decimals
 struct TokenPool_Transfer<S, R, C> {
+    // TODO[REFACTOR]: [NONEVM-5336] is this the same as queryID?
     id : uint256;                                   // Unique transfer ID for this TP operation.
     details: Cell<TokenPool_TransferDetails<S, R, C>>; // Details of the transfer.
 }

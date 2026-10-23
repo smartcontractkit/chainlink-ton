@@ -317,6 +317,6 @@ export class ContractClient implements Contract {
           value: role,
         },
       ])
-      .then((r) => r.stack.readCell()) // TODO: check if this works and can be read as a dictionary
+      .then((r) => r.stack.readCell()) // TODO[REFACTOR]: check if this works and can be read as a dictionary
   }
 }

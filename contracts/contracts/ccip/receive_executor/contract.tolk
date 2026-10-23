@@ -312,9 +312,9 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
 }
 
 // Returns all balance to the OffRamp; a manual execution funds the retry again.
-// TODO add reason
+// TODO[DESIGN]: add reason
 fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, _errorCode: uint16 = 0) {
-    // TODO: propagate `_errorCode` through `OffRamp_NotifyFailure` so the reason is observable.
+    // TODO[DESIGN]: propagate `_errorCode` through `OffRamp_NotifyFailure` so the reason is observable.
     val notifyFailure = createMessage({
         bounce: true,
         value: 0,

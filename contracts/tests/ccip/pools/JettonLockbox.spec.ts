@@ -354,7 +354,7 @@ describe('JettonLockBox', () => {
       expect(result.transactions).toHaveTransaction({
         from: lockboxWallet.address,
         to: lockbox.address,
-        // TODO: ?
+        // TODO[?]: ?
         success: true, // The message itself succeeds (no bounce), but deposit is silently skipped
       })
       expect(result.transactions).toHaveTransaction({
