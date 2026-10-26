@@ -202,6 +202,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         return;
     }
 
+    self.onrampSend.msg = msg.msg;
+
     // The FeeQuoter only reports destOverheads for token-transfer messages; a tokenless
     // message legitimately carries null there, so the single-overhead requirement below
     // applies to the token path only. It must hold BEFORE the fee is locked: a malformed

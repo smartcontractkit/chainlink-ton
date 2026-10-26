@@ -1098,13 +1098,13 @@ fun MCMS<T>.setConfig(
 
     // Validate input lengths
     var signerAddrsIterator = signerAddresses.iter();
-    val numSigners = signerAddrsIterator.size(20); // notice size in bytes
+    val numSigners = signerAddrsIterator.size(20 * 8); // notice size in bits
     if (numSigners == 0 || numSigners > MAX_NUM_SIGNERS) {
         throw MCMS_Error.OutOfBoundsNumSigners;
     }
 
     var signerGroupIterator = signerGroups.iter();
-    if (numSigners != signerGroupIterator.size(1)) { // notice size in bytes
+    if (numSigners != signerGroupIterator.size(8)) { // notice size in bits (1 byte)
         throw MCMS_Error.SignerGroupsLengthMismatch;
     }
 

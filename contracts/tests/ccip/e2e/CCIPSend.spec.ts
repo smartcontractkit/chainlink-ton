@@ -1,8 +1,9 @@
-import { toNano, Cell, Address } from '@ton/core'
+import { toNano, Cell, Address, beginCell } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { crc32 } from 'zlib'
 
 import { LogTypes } from '../../../wrappers/ccip/Logs'
-import { assertLog } from '../../Logs'
+import { assertLog, getExternals } from '../../Logs'
 import * as coverage from '../../coverage/coverage'
 import {
   verifyBodyIsRouterMessageSent,
@@ -192,6 +193,75 @@ describe('Router', () => {
         },
       })
     }
+  })
+
+  it('should apply default extra args when CCIPSend is sent with empty extra args', async () => {
+    // When the user sends a CCIPSend with empty extra args, the FeeQuoter should
+    // parse them and apply the default gas limit from the dest chain config.
+    // The OnRamp should then emit a CCIPMessageSent event with the validated extra args.
+    const ccipSendWithEmptyExtraArgs = rt.Router_CCIPSend.create({
+      queryID: 2n,
+      destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      receiver: EVM_ADDRESS,
+      data: Cell.EMPTY,
+      tokenAmounts: [],
+      feeToken: NATIVE_GRAM,
+      extraArgs: rt.GenericExtraArgsV2.create({
+        gasLimit: null,
+        allowOutOfOrderExecution: true,
+      }), // absent gasLimit: the quoter must apply the default
+    })
+
+    // Get the fee off-chain to know how much value to send
+    const offchainFee = await getValidatedFee(
+      blockchain,
+      router.address,
+      ccipSendWithEmptyExtraArgs,
+    )
+    const totalSendValue = offchainFee + toNano('0.5')
+
+    const result = await router.sendRouterCCIPSend(
+      sender.getSender(),
+      totalSendValue,
+      ccipSendWithEmptyExtraArgs,
+    )
+
+    // The full flow should succeed
+    expect(result.transactions).toHaveTransaction({
+      from: sender.address,
+      to: router.address,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: onRamp.address,
+      success: true,
+    })
+
+    // Find and decode the CCIPMessageSent event
+    const ccipMessageSentTopic = BigInt(crc32(LogTypes.CCIPMessageSent))
+    const ccipMessageSentExternal = getExternals(result.transactions).find((msg) => {
+      if (msg.info.type !== 'external-out') return false
+      if (!msg.info.src.equals(onRamp.address)) return false
+      if (!msg.info.dest) return false
+      return msg.info.dest.value === ccipMessageSentTopic
+    })
+
+    expect(ccipMessageSentExternal).toBeDefined()
+    if (!ccipMessageSentExternal || !ccipMessageSentExternal.body) {
+      throw new Error('CCIPMessageSent event not found')
+    }
+
+    const event = or.CCIPMessageSent.fromSlice(ccipMessageSentExternal.body.beginParse())
+
+    // The ramp message body should contain extra args that are no longer empty.
+    // The FeeQuoter should have applied the default gas limit from the dest chain config.
+    const extraArgs = event.message.body.extraArgs
+    if (extraArgs.$ !== 'GenericExtraArgsV2') {
+      throw new Error(`Unexpected extraArgs kind: ${extraArgs.$}`)
+    }
+    expect(extraArgs.gasLimit).toBe(1n) // The defaultTxGasLimit in Router.Setup is 1
+    expect(extraArgs.allowOutOfOrderExecution).toBe(true)
   })
 
   afterAll(async () => {
