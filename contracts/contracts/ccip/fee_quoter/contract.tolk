@@ -34,7 +34,13 @@ const CONTRACT_VERSION = "1.7.0".literalSlice();
 const RESERVE = ton("1");
 
 fun requireSupportedVersion(version: slice) {
-    assert (version.bitsEqual("1.6.2".literalSlice())) throw Upgradeable_Error.VersionMismatch;
+    assert (
+        version.bitsEqual("1.6.0".literalSlice())
+        || version.bitsEqual("1.6.1".literalSlice())
+        || version.bitsEqual("1.6.2".literalSlice())
+        || version.bitsEqual("1.6.3".literalSlice())
+    ) 
+    throw Upgradeable_Error.VersionMismatch;
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -249,12 +255,12 @@ get fun validatedFeeCell(msg: Cell<Router_CCIPSend>): coins {
 }
 
 get fun validatedFee(msg: Router_CCIPSend): coins {
-    val (fee, _, _) = calculateValidatedFee(msg);
+    val (fee, _, _, _) = calculateValidatedFee(msg);
     return fee.feeTokenAmount;
 }
 
 // @returns (fee, destOverheads, chainFamilySelector)
-fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<FeeQuoter_DestOverhead>?, uint32) {
+fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, ExtraArgs, lisp_list<FeeQuoter_DestOverhead>?, uint32) {
     var st = lazy Storage.load();
 
     val destChainConfigResult = st.destChainConfigs.get(msg.destChainSelector);
@@ -269,8 +275,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<FeeQuoter_DestO
     val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported);
     val feeTokenPrice = st.getValidatedTokenPrice(feeToken);
 
-    val it = (msg.data as SnakedCell<uint8>).iter();
-    val (msgDataLen, errorCode) = it.countBytesSafe();
+    val (msgDataLen, errorCode) = msg.data.canonicalByteSnakeSafe();
     match (errorCode) {
         0 => { /* continue */ }
         8 => {
@@ -285,7 +290,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<FeeQuoter_DestO
     }
 
     val (tokenCount, tokenTransferBytesOverhead) = validateTokenTransfers(destChainConfig, msg.tokenAmounts);
-    val (gasLimit, extraArgsDataLen) = validateMessageAndResolveGasLimitForDestination(
+    val (validatedExtraArgs, gasLimit, extraArgsDataLen) = validateMessageAndResolveGasLimitForDestination(
         msg.extraArgs,
         destChainConfig.config,
         msg,
@@ -345,6 +350,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, lisp_list<FeeQuoter_DestO
             feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow),
             feeValueJuels: feeValueJuels as uint96, // safe because already checked against maxFeeJuelsPerMsg
         },
+        validatedExtraArgs,
         destOverheads,
         destChainConfig.config.chainFamilySelector,
     );
@@ -385,16 +391,28 @@ fun getEnabledTokenTransferFeeConfig(destChainConfig: DestChainConfig, token: ad
 fun validateTokenTransfers(destChainConfig: DestChainConfig, tokenAmounts: SnakedCell<TokenAmount>): (int, int) {
     var tokenCount = 0;
     var tokenTransferBytesOverhead = 0;
-    var tokenAmountsIter = tokenAmounts.iter();
+    try {
+        var tokenAmountsIter = tokenAmounts.iter();
 
-    while (!tokenAmountsIter.empty()) {
-        val tokenAmount = tokenAmountsIter.next();
-        tokenCount += 1;
-        assert (tokenCount <= destChainConfig.config.maxNumberOfTokensPerMsg) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
+        while (!tokenAmountsIter.empty()) {
+            val tokenAmount = tokenAmountsIter.next();
+            tokenCount += 1;
+            assert (tokenCount <= destChainConfig.config.maxNumberOfTokensPerMsg) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
 
-        val config = getEnabledTokenTransferFeeConfig(destChainConfig, tokenAmount.token);
-        val tokenBytesOverhead = config != null ? config!.destBytesOverhead as int : CCIP_LOCK_OR_BURN_V1_RET_BYTES;
-        tokenTransferBytesOverhead = mustAdd(tokenTransferBytesOverhead, tokenBytesOverhead, FeeQuoter_Error.ExecutionCostOverflow);
+            val config = getEnabledTokenTransferFeeConfig(destChainConfig, tokenAmount.token);
+            val tokenBytesOverhead = config != null ? config!.destBytesOverhead as int : CCIP_LOCK_OR_BURN_V1_RET_BYTES;
+            tokenTransferBytesOverhead = mustAdd(tokenTransferBytesOverhead, tokenBytesOverhead, FeeQuoter_Error.ExecutionCostOverflow);
+        }
+    } catch (e) {
+        match (e) {
+            // Iterator<T>.next() throws Utils_Error.InvalidData when finding exotic (library reference) cells
+            Utils_Error.InvalidData as int => {
+                throw FeeQuoter_Error.InvalidTokenAmountsData;
+            }
+            else => {
+                throw e;
+            }
+        }
     }
 
     return (tokenCount, tokenTransferBytesOverhead);
@@ -441,7 +459,7 @@ get fun validatedTokenPrice(token: address): uint224 {
     return st.getValidatedTokenPrice(token);
 }
 
-fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256, tokenCount: int, tokenTransferBytesOverhead: int): (int, uint256) {
+fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256, tokenCount: int, tokenTransferBytesOverhead: int): (ExtraArgs, int, uint256) {
     // Check that payload is formed correctly.
     assert (msgDataLen <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
 
@@ -449,9 +467,10 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, 
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_TVM) {
-        val gasLimit = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
+        val genericExtraArgsV2 = parseGenericExtraArgs(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
+        val gasLimit = genericExtraArgsV2.gasLimit!; // not-nil after parsing
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit == 0);
-        return (gasLimit, 0);
+        return (genericExtraArgsV2 as ExtraArgs, gasLimit, 0);
     }
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
         val suiExtraArgs = parseSuiExtraArgs(extraArgs, config.maxPerMsgGasLimit);
@@ -459,9 +478,12 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, 
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit == 0);
         assert (tokenCount == 0 || suiExtraArgs.tokenReceiver != 0) throw FeeQuoter_Error.InvalidTokenReceiver;
 
-        // objectIds are 32 bytes long
-        val objectIds = suiExtraArgs.receiverObjectIds.iter();
-        val receiverObjectIdsLength = objectIds.size(SUI_ACCOUNT_BYTE_SIZE);
+        // Require a canonical snake: complete elements (no element straddles a cell
+        // boundary) and no exotic/branched cells.
+        val receiverObjectIdsLength = validateExtraArgsCollection(
+            suiExtraArgs.receiverObjectIds,
+            SUI_ACCOUNT_BYTE_SIZE * 8,
+        );
         // The max payload size for SUI is heavily dependent on the receiver object ids passed into extra args and the number of
         // tokens. Below, token and account overhead will count towards maxDataBytes.
         var suiExpandedDataLength = msgDataLen;
@@ -488,16 +510,19 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, 
 
         assert (suiExpandedDataLength <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
 
-        return (gasLimit, suiExtraArgsDataLen);
+        return (suiExtraArgs as ExtraArgs, gasLimit, suiExtraArgsDataLen);
     }
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
         val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.maxPerMsgGasLimit);
         val gasLimit = svmExtraArgs.computeUnits;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit == 0);
 
-        // accounts are 32 bytes long
-        val accounts = svmExtraArgs.accounts.iter();
-        val accountsLength = accounts.size(SVM_ACCOUNT_BYTE_SIZE);
+        // Require a canonical snake: complete elements (no element straddles a cell
+        // boundary) and no exotic/branched cells.
+        val accountsLength = validateExtraArgsCollection(
+            svmExtraArgs.accounts,
+            SVM_ACCOUNT_BYTE_SIZE * 8,
+        );
         assert (tokenCount == 0 || svmExtraArgs.tokenReceiver != 0) throw FeeQuoter_Error.InvalidTokenReceiver;
         // The max payload size for SVM is heavily dependent on the receiver object ids passed into extra args and the number of
         // tokens. Below, token and account overhead will count towards maxDataBytes.
@@ -516,10 +541,12 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, 
             svmExpandedDataLength += svmExtraArgsDataLen;
         }
 
-        assert (accountsLength <= SVM_EXTRA_ARGS_MAX_ACCOUNTS) throw FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds;
-        if (accountsLength < SVM_EXTRA_ARGS_MAX_ACCOUNTS) {
-            assert (svmExtraArgs.accountIsWritableBitmap >> accountsLength == 0) throw FeeQuoter_Error.InvalidSVMExtraArgsWritableBitmap;
-        }
+        assert (accountsLength <= SVM_EXTRA_ARGS_MAX_ACCOUNTS) throw FeeQuoter_Error.TooManySVMExtraArgsAccounts;
+
+        // Mirrors EVM FeeQuoter. Safe to shift: `accountsLength` is bounded by
+        // SVM_EXTRA_ARGS_MAX_ACCOUNTS above.
+        assert (svmExtraArgs.accountIsWritableBitmap >> accountsLength == 0) throw FeeQuoter_Error.InvalidSVMExtraArgsWritableBitmap;
+
 
         val tokenTransferDataOverhead = mustProd(tokenCount, SVM_TOKEN_TRANSFER_DATA_OVERHEAD, FeeQuoter_Error.ExecutionCostOverflow);
         svmExtraArgsDataLen = mustAdd(svmExtraArgsDataLen, tokenTransferDataOverhead, FeeQuoter_Error.ExecutionCostOverflow);
@@ -528,26 +555,20 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, 
 
         assert (svmExpandedDataLength <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
 
-        return (gasLimit, svmExtraArgsDataLen);
+        return (svmExtraArgs as ExtraArgs, gasLimit, svmExtraArgsDataLen);
     } else {
         throw FeeQuoter_Error.UnsupportedChainFamilySelector;
     }
 }
 
-fun resolveGenericGasLimit(extraArgs: Cell<ExtraArgs>, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): int {
-    val gasLimit = parseGenericExtraArgs(extraArgs, defaultTxGasLimit, maxPerMsgGasLimit).gasLimit;
-    if (gasLimit != null) {
-        return gasLimit as int
-    }
-    return 0;
-}
-
 fun parseGenericExtraArgs(extraArgs: Cell<ExtraArgs>, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): GenericExtraArgsV2 {
     val extra = _parseUnvalidatedEVMExtraArgs(extraArgs, defaultTxGasLimit);
-    assert (extra.gasLimit == null || extra.gasLimit <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
+    // Resolve an absent gasLimit to the default so it never escapes unresolved.
+    val gasLimit = extra.gasLimit != null ? extra.gasLimit! : defaultTxGasLimit as uint256;
+    assert (gasLimit <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
     // Out of order is always enforced because we don't do ordering on non-EVMs
     assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
-    return extra;
+    return GenericExtraArgsV2 { gasLimit, allowOutOfOrderExecution: extra.allowOutOfOrderExecution };
 }
 
 fun _parseUnvalidatedEVMExtraArgs(extraArgs: Cell<ExtraArgs>, defaultTxGasLimit: uint32): GenericExtraArgsV2 {
@@ -580,11 +601,31 @@ fun parseSuiExtraArgs(extraArgs: Cell<ExtraArgs>, maxPerMsgGasLimit: uint32): Su
     return extra;
 }
 
+fun validateExtraArgsCollection(collection: SnakedCell<uint256>, elemBits: int): int {
+    val it = collection.iter();
+    val (count, errorCode) = it.sizeSafe(elemBits);
+    match (errorCode) {
+        0 => { /* continue */ }
+        8 => {
+            throw FeeQuoter_Error.MsgDataTooLarge;
+        }
+        Utils_Error.InvalidData as int => {
+            throw FeeQuoter_Error.InvalidExtraArgsData;
+        }
+        else => {
+            throw errorCode;
+        }
+    }
+    return count;
+}
+
 fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
     val msg = payload.msg.load();
     var response: OutMessage;
     try {
-        val (fee, destOverheads, chainFamilySelector) = calculateValidatedFee(msg);
+        val (fee, extraArgs, destOverheads, chainFamilySelector) = calculateValidatedFee(msg);
+        var ccipSend = lazy payload.msg.load();
+        ccipSend.extraArgs = extraArgs.toCell();
 
         response = createMessage({
             bounce: true,
@@ -594,7 +635,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
                 fee,
                 destOverheads,
                 chainFamilySelector,
-                msg: payload.msg,
+                msg: ccipSend.toCell(),
                 context: payload.context,
             }
         });
