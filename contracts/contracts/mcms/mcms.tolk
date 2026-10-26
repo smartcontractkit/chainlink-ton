@@ -1561,20 +1561,14 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
             self.cleanExpiredRoots(msgSender, msgValue, msg.queryId, msg.roots);
         }
         // noop handlers (expected replies for ownable ops when owning self)
-        // minval:non-reject gate=none MCMS_OracleRoleTransferred
-        // noop reply to our own oracle-role transfer; nothing to finalize
         MCMS_OracleRoleTransferred => {
-            // noop
+            // minval:non-reject gate=none MCMS_OracleRoleTransferred
         }
-        // minval:non-reject gate=none MCMS_ConfigSet
-        // noop reply to our own config set; nothing to finalize
         MCMS_ConfigSet => {
-            // noop
+            // minval:non-reject gate=none MCMS_ConfigSet
         },
-        // minval:non-reject gate=none MCMS_ExpiredRootsCleaned
-        // noop reply to our own roots cleanup; nothing to finalize
         MCMS_ExpiredRootsCleaned => {
-            // noop
+            // minval:non-reject gate=none MCMS_ExpiredRootsCleaned
         }
         else => {
             val _msgHandled = 0

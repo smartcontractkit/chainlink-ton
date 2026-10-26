@@ -307,9 +307,7 @@ type Timelock_InMessage =
     | Timelock_UnblockFunctionSelector
     | Timelock_BypasserExecuteBatch
     | Timelock_UpdateExecutorRoleCheck
-    | Timelock_SubmitErrorReport
-    // Role management handled by the AccessControl trait in the dispatch fallback.
-    | AccessControl_InMessage;
+    | Timelock_SubmitErrorReport;
 
 /// Union of all outgoing messages.
 type Timelock_OutMessage =
@@ -1460,16 +1458,6 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
         Timelock_SubmitErrorReport => {
             self.submitErrorReport(msgSender, msgValue, msg.queryId, msg.opBatch.load(),
                 msg.opTxHash, msg.errorTxHash, msg.errorCode);
-        }
-        // Role management handled by the AccessControl trait.
-        AccessControl_GrantRole => {
-            self.dispatchAccessControl(msgSender, msgValue, msgBody);
-        }
-        AccessControl_RevokeRole => {
-            self.dispatchAccessControl(msgSender, msgValue, msgBody);
-        }
-        AccessControl_RenounceRole => {
-            self.dispatchAccessControl(msgSender, msgValue, msgBody);
         }
         else => {
             self.dispatchAccessControl(msgSender, msgValue, msgBody);

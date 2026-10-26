@@ -11,10 +11,12 @@ const BUDGET_UNITS_LVL0_MIN     = 30_000;      // ≈0.002 TON  accept + validat
 const BUDGET_UNITS_LVL1_LOW     = 60_000;      // ≈0.004 TON  + one reply
 const BUDGET_UNITS_LVL2_MID     = 120_000;     // ≈0.008 TON  a jetton transfer + notification
 const BUDGET_UNITS_LVL3_HIGH    = 250_000;     // ≈0.017 TON  full custody return (transfer + notify + reply)
-const BUDGET_UNITS_LVL4_XHIGH   = 625_000;     // ≈0.042 TON  multi-hop / fan-out operation
-const BUDGET_UNITS_LVL4_XXHIGH  = 2_500_000;   // ≈0.167 TON  very high budget
-const BUDGET_UNITS_LVL4_XXXHIGH = 10_000_000;  // ≈0.667 TON  extremely high budget
-const BUDGET_UNITS_LVL5_MAX     = 25_000_000;  // ≈1.667 TON  worst-case multi-hop rollback
+const BUDGET_UNITS_LVL4_XHIGH   = 1_000_000;   // ≈0.067 TON  multi-hop / fan-out operation (tx max limit)
+const BUDGET_UNITS_LVL5_XXHIGH  = 2_500_000;   // ≈0.167 TON  very high budget
+const BUDGET_UNITS_LVL6_XXXHIGH = 10_000_000;  // ≈0.667 TON  extremely high budget (10x tx max limit)
+const BUDGET_UNITS_LVL7_MAX     = 25_000_000;  // ≈1.667 TON  worst-case multi-hop rollback (25x tx max limit)
+
+const BUDGET_TX_MAX = 1_000_000; // LVL4_XHIGH
 
 /// Default message forwarding budget (gas units) for replies / notifications.
 const DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS = BUDGET_UNITS_LVL0_MIN;
@@ -39,7 +41,15 @@ fun calculateGasFeeFor(size: int): coins {
     return calculateGasFeeDefault();
 }
 
-/// Reserves the pre-message balance and storage due so subsequent actions use inbound value.
+/// Reserves the balance the account had before this inbound message plus any storage due, so
+/// action-phase sends *and external-out events* are funded by the inbound value.
+///
+/// `getOriginalBalance()` already includes the inbound value, hence the subtraction; callers must
+/// pass the actual inbound `in.valueCoins`. The reserve must be installed before the first send or
+/// emit in the transaction. `RESERVE_MODE_AT_MOST` is best-effort: if gas/fees/events exceed the
+/// inbound value, the reserve is capped at the available balance and the pre-message balance may
+/// be touched. Success paths rely on the admission gates to make that impossible; recovery paths
+/// deliberately accept it rather than roll back.
 fun reserveBalanceBeforeInMessage(msgValue: coins): void {
     val rentDue = contract.getStorageDuePayment();
     val originalBalance = contract.getOriginalBalance();

@@ -401,7 +401,7 @@ describe('BurnMintTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
-        failureValue: toNano('0.01'),
+        finalizationValue: toNano('0.01'),
         onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
       const transferPayload = TokenPool_LockOrBurnForwardPayload.create({
@@ -552,7 +552,7 @@ describe('BurnMintTokenPool', () => {
             requestedFinalityConfig: 0n,
             tokenArgs: null,
             replyTo: unauthorized.address,
-            failureValue: toNano('0.01'),
+            finalizationValue: toNano('0.01'),
             onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
           }),
         ),
@@ -591,7 +591,7 @@ describe('BurnMintTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: unauthorized.address,
-        failureValue: toNano('0.01'),
+        finalizationValue: toNano('0.01'),
         onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
       const admitted = await pool.sendTokenPoolLockOrBurn(deployer.getSender(), toNano('1'), {
@@ -699,7 +699,7 @@ describe('BurnMintTokenPool', () => {
       requestedFinalityConfig: 0n,
       tokenArgs: null,
       replyTo: attacker.address,
-      failureValue: toNano('0.01'),
+      finalizationValue: toNano('0.01'),
       onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
     })
     const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
@@ -874,7 +874,7 @@ describe('BurnMintTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
-        failureValue: toNano('0.01'),
+        finalizationValue: toNano('0.01'),
         onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
@@ -1042,7 +1042,7 @@ describe('BurnMintTokenPool', () => {
       requestedFinalityConfig: 0n,
       tokenArgs: null,
       replyTo: deployer.address,
-      failureValue: toNano('0.01'),
+      finalizationValue: toNano('0.01'),
       onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
     })
 
@@ -1071,7 +1071,7 @@ describe('BurnMintTokenPool', () => {
 
     const withdrawBody = TokenPool_LockOrBurnWithdraw.fromSlice(withdrawEvent!.body.beginParse())
     expect(withdrawBody.queryId).toBe(queryId)
-    expect(withdrawBody.forwardTonAmount).toBe(adminFloor * 2n + lockOrBurn.failureValue)
+    expect(withdrawBody.forwardTonAmount).toBe(adminFloor * 2n + lockOrBurn.finalizationValue)
 
     // Build expected forward payload (matching what pool creates in validateLockOrBurn)
     const expectedForwardPayload = TokenPool_LockOrBurnForwardPayload.create({
@@ -1194,7 +1194,7 @@ describe('BurnMintTokenPool', () => {
       requestedFinalityConfig: 0n,
       tokenArgs: null,
       replyTo: executorBouncer.address,
-      failureValue: toNano('0.01'),
+      finalizationValue: toNano('0.01'),
       onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
     })
 
@@ -1315,7 +1315,7 @@ describe('BurnMintTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
-        failureValue: toNano('0.01'),
+        finalizationValue: toNano('0.01'),
         onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       })
       const admitted = await pool.sendTokenPoolLockOrBurn(
@@ -1474,30 +1474,6 @@ describe('BurnMintTokenPool', () => {
     expect(result.transactions).not.toHaveTransaction({
       from: burnMintPool.address,
       op: TokenPool_ReleaseOrMintFinalized.PREFIX,
-    })
-  })
-
-  it('rejects a mint with null delivery: there would be nobody to route the delivery to', async () => {
-    const result = await burnMintPool.sendTokenPoolReleaseOrMint(
-      deployer.getSender(),
-      toNano('0.6'),
-      {
-        queryId: 305n,
-        request: mintRequest(305n, toNano('1')),
-        requestedFinalityConfig: 0n,
-        replyTo: offRamp.address,
-      },
-    )
-
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: burnMintPool.address,
-      success: false,
-      exitCode: BurnMintTokenPool.Errors['TokenPool_Error.UnsupportedOperation'],
-    })
-    expect(result.transactions).not.toHaveTransaction({
-      from: burnMintPool.address,
-      to: cctMinter.address,
     })
   })
 

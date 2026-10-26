@@ -57,9 +57,10 @@ describe('gas calibration harness', () => {
     // The model adds the strict-check buffer once, at the end.
     expect(withForward).toBe(noForward + fwdFee)
 
-    // Generic = reference doubled; both include the 1 nanoton the wallet's strict check needs.
+    // Generic = reference doubled; both include the same strict-check/drift margin.
+    const JETTON_WALLET_FEE_MARGIN = 1_000n
     const generic = await cct.getJettonTransferFee(fwdFee, true, true)
-    expect(generic).toBe((withForward - 1n) * 2n + 1n)
+    expect(generic).toBe((withForward - JETTON_WALLET_FEE_MARGIN) * 2n + JETTON_WALLET_FEE_MARGIN)
 
     expect(await cct.getCctMintOpBudget(fwdFee)).toBeGreaterThan(fwdFee)
   })

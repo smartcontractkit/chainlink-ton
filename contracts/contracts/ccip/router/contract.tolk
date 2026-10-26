@@ -1044,7 +1044,8 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
             requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
             tokenArgs: null, // TBD?
             replyTo: msg.executorAddress,
-            failureValue: msg.failureValue,
+            // TODO: rename as finalizationValue to match the LockOrBurn context field
+            finalizationValue: msg.failureValue,
             // Keep the pool's deposit-auth namespace cache in sync
             onRampNamespaces,
         }

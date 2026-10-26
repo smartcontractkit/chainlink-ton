@@ -167,7 +167,7 @@ export function runTokenPoolBehaviorTests(
           const { lockOrBurn, releaseOrMint } = await ctx.pool.getBudget()
           expect(lockOrBurn.safety).toBeGreaterThanOrEqual(budget.safety)
           expect(lockOrBurn.admission).toBeGreaterThanOrEqual(budget.admission)
-          expect(lockOrBurn.admission).toBeGreaterThanOrEqual(lockOrBurn.safety * 2n)
+          expect(lockOrBurn.admission).toBeGreaterThanOrEqual(lockOrBurn.safety * 3n)
           expect(releaseOrMint.safety).toBeGreaterThanOrEqual(budget.safety)
           expect(releaseOrMint.admission).toBeGreaterThanOrEqual(budget.admission)
           expect(releaseOrMint.admission).toBeGreaterThanOrEqual(releaseOrMint.safety)
@@ -192,7 +192,7 @@ export function runTokenPoolBehaviorTests(
               requestedFinalityConfig: 0n,
               tokenArgs: null,
               replyTo: ctx.deployer.address,
-              failureValue: toNano('0.01'),
+              finalizationValue: toNano('0.01'),
               onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
             })
           }
@@ -978,8 +978,8 @@ export function runTokenPoolBehaviorTests(
         )
 
         const effective = await ctx.pool.getBudget()
-        // Admission covers both custody phases.
-        expect(effective.lockOrBurn).toMatchObject({ admission: toNano('2'), safety: toNano('1') })
+        // Admission covers the withdraw relay and both custody phases.
+        expect(effective.lockOrBurn).toMatchObject({ admission: toNano('3'), safety: toNano('1') })
         expect(effective.releaseOrMint).toMatchObject({
           admission: toNano('2'),
           safety: toNano('1'),
@@ -1022,27 +1022,6 @@ export function runTokenPoolBehaviorTests(
           success: false,
           exitCode: ownable2step.Errors.OnlyCallableByOwner,
         })
-      })
-    })
-
-    it('rejects releaseOrMint without a receiver account', async () => {
-      const ctx = await setup()
-      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
-        ctx.deployer.getSender(),
-        toNano('0.6'),
-        {
-          queryId: 940n,
-          request: releaseRequest(ctx),
-          requestedFinalityConfig: 0n,
-          replyTo: ctx.deployer.address,
-          delivery: null,
-        },
-      )
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.deployer.address,
-        to: ctx.pool.address,
-        success: false,
-        exitCode: TokenPoolErrors['TokenPool_Error.UnsupportedOperation'],
       })
     })
 

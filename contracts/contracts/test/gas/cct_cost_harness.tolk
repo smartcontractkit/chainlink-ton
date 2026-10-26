@@ -10,8 +10,8 @@ import "@stdlib/gas-payments"
 
 import "../../ccip/cct/fees-management"
 import "../../ccip/pools/lib/token_pool/jetton_fees"
+import "../../ccip/pools/lib/token_pool/budget"
 import "../../ccip/pools/burn_mint/types"
-import "../../ccip/budget/min_value"
 
 contract CctCostHarness {
     author: "SmartContract Chainlink Limited SEZC"
@@ -55,5 +55,5 @@ get fun get_cctMintOpBudget(walletDeployFee: coins): coins { return cctMintOpBud
 
 /* === CCIP token-pool admission floors (ccip/budget/min_value) === */
 
-get fun get_ccipMinValueGasUnits(): int { return CCIP_MIN_VALUE_GAS_UNITS; }
-get fun get_ccipAdmissionGasUnits(): int { return CCIP_ADMISSION_GAS_UNITS; }
+get fun get_ccipMinValueGasUnits(): int { return TokenPool_Costs.admin(); }
+get fun get_ccipAdmissionGasUnits(): int { return TokenPool_Costs.admission(); }

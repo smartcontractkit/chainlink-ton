@@ -331,7 +331,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     val sendMode = SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
     val fwdFee = createMessage(transferOpts).estimateFeeWithoutSending(sendMode);
 
-    // minval:check-admission gate=A/dynamic JettonLockBox_Withdraw
+    // minval:check-bounce gate=A/dynamic JettonLockBox_Withdraw
     // Before custody moves; check budget for transfer/forward and withdrawal relay/failure
     // This check is an estimate and an early guard; the actual jetton wallet checks its own
     // transfer cost and bounces back if not enough value is provided.

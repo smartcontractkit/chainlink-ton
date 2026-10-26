@@ -151,7 +151,7 @@ describe('Router.withdrawToTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo,
-        failureValue: toNano('0.01'),
+        finalizationValue: toNano('0.01'),
         onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       }),
       prepared: rt.TokenPool_LockOrBurnPrepared.create({

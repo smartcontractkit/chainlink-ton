@@ -121,7 +121,7 @@ export function runTokenPoolContinuationBehaviorTests(
       )
       const admitted = await ctx.pool.sendTokenPoolLockOrBurn(
         ctx.deployer.getSender(),
-        floor * 2n,
+        floor * 3n + toNano('0.01'),
         {
           queryId: 1n,
           request: TokenPool_LockOrBurnInV1.create({
@@ -139,7 +139,7 @@ export function runTokenPoolContinuationBehaviorTests(
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: ctx.deployer.address,
-          failureValue: toNano('0.01'),
+          finalizationValue: toNano('0.01'),
           onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
         },
       )
@@ -190,7 +190,7 @@ export function runTokenPoolContinuationBehaviorTests(
             destination: ctx.pool.address,
             responseDestination: ctx.deployer.address,
             customPayload: null,
-            forwardTonAmount: toNano('0.2'), // Below the 2S + F custody forward.
+            forwardTonAmount: toNano('0.2'), // Below the 3S + F admission and 2S + F custody forwards.
             forwardPayload: da.Jetton_ForwardPayloadWrap.toCell(
               da.Jetton_ForwardPayloadWrap.create({
                 initiator: ctx.onRampAddress, // the Router: the pool requires it as the initiator
@@ -205,7 +205,7 @@ export function runTokenPoolContinuationBehaviorTests(
       expect(transactions).toHaveTransaction({
         to: ctx.pool.address,
         op: TransferNotificationForRecipient.PREFIX,
-        value: (value) => value !== undefined && value < floor * 2n,
+        value: (value) => value !== undefined && value < floor * 3n,
         success: true,
       })
       expect(transactions).toHaveTransaction({

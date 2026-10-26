@@ -49,7 +49,7 @@ function buildWithdrawRequest(opts: {
     requestedFinalityConfig: 0n,
     tokenArgs: null,
     replyTo: opts.originalSender,
-    failureValue: toNano('0.01'),
+    finalizationValue: toNano('0.01'),
     onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
   })
 

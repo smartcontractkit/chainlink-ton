@@ -52,10 +52,16 @@ struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
     originalSender: address,
 }
 
-/// The pool's LockOrBurn admission budget (from the token admin registry) plus the OnRamp and
-/// Router relay hops in front of it.
+/// The pool's LockOrBurn admission budget (from the token admin registry), the post-custody
+/// failure continuation `F`, and a buffer for the OnRamp and Router relay fees in front of the
+/// pool. The buffer makes the pool receive the full `A + F` after the relays take their fees;
+/// any remainder returns as pool/custody excess.
 fun OnRamp_ExecutorRequestsLockOrBurn.cost(poolAdmission: coins): coins {
-    return grams("0.02") + poolAdmission;
+    return
+        + OnRamp_Costs.TokenPoolFailure()
+        + poolAdmission
+        + grams("0.005") // OnRamp + Router relay buffer
+        ;
 }
 
 struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {

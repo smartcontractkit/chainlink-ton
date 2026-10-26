@@ -36,7 +36,7 @@ fun onInternalMessage(in: InMessage) {
 
     match (msg) {
         TokenPool_PreflightCheck => {
-            replyPreflight(msg);
+            replyPreflight(msg, in.valueCoins);
         }
         TokenPool_PostflightCheck => {
             replyPostflight(msg, in.valueCoins);
@@ -97,7 +97,7 @@ fun replyGetCCVs(msg: TokenPool_GetCCVs) {
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun replyPreflight(msg: TokenPool_PreflightCheck) {
+fun replyPreflight(msg: TokenPool_PreflightCheck, msgValue: coins) {
     // id == 255 => reject at entry (throw), so the request bounces back to the pool and its
     // base onBouncedMessage must refund the outbound rate limit + send LockOrBurnFailure.
     if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_BOUNCE_ID) {
@@ -120,6 +120,11 @@ fun replyPreflight(msg: TokenPool_PreflightCheck) {
         }.toCell();
     }
 
+    if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_COSTLY_ID) {
+        createMessage({ bounce: false, value: msgValue / 2, dest: msg.replyTo, body: body })
+            .send(SEND_MODE_PAY_FEES_SEPARATELY);
+        return;
+    }
     val reply = createMessage({
         bounce: false,
         value: 0,

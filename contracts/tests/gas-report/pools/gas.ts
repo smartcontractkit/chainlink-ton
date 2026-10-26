@@ -112,7 +112,7 @@ async function lockOrBurn(
     requestedFinalityConfig: 0n,
     tokenArgs: null,
     replyTo: deployer.address,
-    failureValue: toNano('0.02'),
+    finalizationValue: toNano('0.02'),
     onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
   })
 

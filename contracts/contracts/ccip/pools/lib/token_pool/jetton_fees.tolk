@@ -18,8 +18,15 @@ enum JettonWalletFees {
 
 const JETTON_GENERIC_WALLET_FEE_MULTIPLIER = 2;
 
+/// The pre-send quote and the wallet's `originalForwardFee` check are not bit-exact: the quote is
+/// built from the not-yet-final message (placeholder value, serialization changes), so the wallet
+/// can require a few dozen nanotons more than the quote. Keep a small explicit margin rather than
+/// relying on the strict-`>` `+1` alone; this is negligible against `S`.
+const JETTON_WALLET_FEE_MARGIN = 1_000;
+
 /// Least value above `forwardTonAmount` the wallet accepts for one transfer whose incoming message
-/// is quoted at `fwdFee`. The final nanoton satisfies the wallet's strict `>` check.
+/// is quoted at `fwdFee`. `JETTON_WALLET_FEE_MARGIN` satisfies the wallet's strict `>` check and
+/// absorbs quote drift.
 fun JettonWalletFees.transferFee(self, fwdFee: coins, hasForward: bool): coins {
     val fwdCount = hasForward ? 2 : 1; // second sending (forward) will be cheaper than first
     val reference = 0
@@ -31,8 +38,7 @@ fun JettonWalletFees.transferFee(self, fwdFee: coins, hasForward: bool): coins {
         + calculateGasFee(MY_WORKCHAIN, GAS_CONSUMPTION_JettonReceive)
         + calculateJettonWalletMinStorageFee();
     val multiplier = self == JettonWalletFees.Reference ? 1 : JETTON_GENERIC_WALLET_FEE_MULTIPLIER;
-    val buffer = 1; // extra nanoton to satisfy the wallet's strict `>` check
-    return reference * multiplier + buffer;
+    return reference * multiplier + JETTON_WALLET_FEE_MARGIN;
 }
 
 /// Value to attach to a transfer that delivers `forwardTonAmount`.

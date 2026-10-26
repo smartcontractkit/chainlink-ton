@@ -1983,7 +1983,7 @@ export const TokenPool_RMNAccessControlMessage = {
  >     requestedFinalityConfig: uint32
  >     tokenArgs: cell?
  >     replyTo: address
- >     failureValue: coins
+ >     finalizationValue: coins
  >     onRampNamespaces: map<uint32, ()>
  > }
  */
@@ -1994,7 +1994,7 @@ export interface TokenPool_LockOrBurn {
     requestedFinalityConfig: uint32
     tokenArgs: c.Cell | null
     replyTo: c.Address
-    failureValue: coins
+    finalizationValue: coins
     onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
 }
 
@@ -2007,7 +2007,7 @@ export const TokenPool_LockOrBurn = {
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
         replyTo: c.Address
-        failureValue: coins
+        finalizationValue: coins
         onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
     }): TokenPool_LockOrBurn {
         return {
@@ -2025,7 +2025,7 @@ export const TokenPool_LockOrBurn = {
             requestedFinalityConfig: s.loadUintBig(32),
             tokenArgs: s.loadBoolean() ? s.loadRef() : null,
             replyTo: s.loadAddress(),
-            failureValue: s.loadCoins(),
+            finalizationValue: s.loadCoins(),
             onRampNamespaces: dictToSet(c.Dictionary.load<uint32, []>(c.Dictionary.Keys.BigUint(32), createDictionaryValue<[]>(
                             (s) => [],
                             (v,b) => { {} }
@@ -2041,7 +2041,7 @@ export const TokenPool_LockOrBurn = {
             (v,b) => b.storeRef(v)
         );
         b.storeAddress(self.replyTo);
-        b.storeCoins(self.failureValue);
+        b.storeCoins(self.finalizationValue);
         b.storeDict<uint32, []>(setToDict(self.onRampNamespaces, c.Dictionary.Keys.BigUint(32), createDictionaryValue<[]>(
                         (s) => [],
                         (v,b) => { {} }
@@ -2104,7 +2104,7 @@ export const TokenPool_LockOrBurnForwardPayload = {
  >     request: Cell<TokenPool_ReleaseOrMintInV1>
  >     requestedFinalityConfig: uint32
  >     replyTo: address
- >     delivery: Cell<TokenPool_ReleaseOrMintDelivery>?
+ >     delivery: Cell<TokenPool_ReleaseOrMintDelivery>
  > }
  */
 export interface TokenPool_ReleaseOrMint {
@@ -2113,7 +2113,7 @@ export interface TokenPool_ReleaseOrMint {
     request: TokenPool_ReleaseOrMintInV1
     requestedFinalityConfig: uint32
     replyTo: c.Address
-    delivery: TokenPool_ReleaseOrMintDelivery | null /* = null */
+    delivery: TokenPool_ReleaseOrMintDelivery
 }
 
 export const TokenPool_ReleaseOrMint = {
@@ -2124,11 +2124,10 @@ export const TokenPool_ReleaseOrMint = {
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo: c.Address
-        delivery?: TokenPool_ReleaseOrMintDelivery | null /* = null */
+        delivery: TokenPool_ReleaseOrMintDelivery
     }): TokenPool_ReleaseOrMint {
         return {
             $: 'TokenPool_ReleaseOrMint',
-            delivery: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -2141,7 +2140,7 @@ export const TokenPool_ReleaseOrMint = {
             request: loadCellRef<TokenPool_ReleaseOrMintInV1>(s, TokenPool_ReleaseOrMintInV1.fromSlice),
             requestedFinalityConfig: s.loadUintBig(32),
             replyTo: s.loadAddress(),
-            delivery: s.loadBoolean() ? loadCellRef<TokenPool_ReleaseOrMintDelivery>(s, TokenPool_ReleaseOrMintDelivery.fromSlice) : null,
+            delivery: loadCellRef<TokenPool_ReleaseOrMintDelivery>(s, TokenPool_ReleaseOrMintDelivery.fromSlice),
         }
     },
     store(self: TokenPool_ReleaseOrMint, b: c.Builder): void {
@@ -2150,9 +2149,7 @@ export const TokenPool_ReleaseOrMint = {
         storeCellRef<TokenPool_ReleaseOrMintInV1>(self.request, b, TokenPool_ReleaseOrMintInV1.store);
         b.storeUint(self.requestedFinalityConfig, 32);
         b.storeAddress(self.replyTo);
-        storeTolkNullable<TokenPool_ReleaseOrMintDelivery>(self.delivery, b,
-            (v,b) => storeCellRef<TokenPool_ReleaseOrMintDelivery>(v, b, TokenPool_ReleaseOrMintDelivery.store)
-        );
+        storeCellRef<TokenPool_ReleaseOrMintDelivery>(self.delivery, b, TokenPool_ReleaseOrMintDelivery.store);
     },
     toCell(self: TokenPool_ReleaseOrMint): c.Cell {
         return makeCellFrom<TokenPool_ReleaseOrMint>(self, TokenPool_ReleaseOrMint.store);
@@ -5389,7 +5386,7 @@ export class TokenPool implements c.Contract {
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
         replyTo: c.Address
-        failureValue: coins
+        finalizationValue: coins
         onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
     }) {
         return TokenPool_LockOrBurn.toCell(TokenPool_LockOrBurn.create(body));
@@ -5431,7 +5428,7 @@ export class TokenPool implements c.Contract {
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo: c.Address
-        delivery?: TokenPool_ReleaseOrMintDelivery | null /* = null */
+        delivery: TokenPool_ReleaseOrMintDelivery
     }) {
         return TokenPool_ReleaseOrMint.toCell(TokenPool_ReleaseOrMint.create(body));
     }
@@ -5623,7 +5620,7 @@ export class TokenPool implements c.Contract {
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
         replyTo: c.Address
-        failureValue: coins
+        finalizationValue: coins
         onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -5685,7 +5682,7 @@ export class TokenPool implements c.Contract {
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo: c.Address
-        delivery?: TokenPool_ReleaseOrMintDelivery | null /* = null */
+        delivery: TokenPool_ReleaseOrMintDelivery
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

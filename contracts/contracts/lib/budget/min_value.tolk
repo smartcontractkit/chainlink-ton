@@ -9,11 +9,6 @@ import "@stdlib/gas-payments"
 ///
 /// See docs/contracts/overview/ccip/MIN-VALUE-CHECKS.md.
 
-/// Converts a gas-unit budget to a TON floor at the current gas price, scaled by `buffer`.
-fun calculateMinValue(gasUnits: int, buffer: int): coins {
-    return calculateGasFee(contract.getAddress().getWorkchain(), gasUnits) * buffer;
-}
-
 /// Optional override of a min-value floor. Empty => use the component default.
 struct MinValueConfig {
     value: coins? = null;
@@ -26,6 +21,6 @@ fun MinValueConfig.resolve(self, default: coins): coins {
 
 /// Asserts the inbound message value meets a floor.
 /// @param errorCode A protocol-scoped error code (e.g. `TokenPool_Error.InsufficientMessageValue`).
-fun assertMinValue(msgValue: coins, minValue: coins, errorCode: int): void {
-    assert(msgValue >= minValue, errorCode);
+fun assertMinValue(value: coins, minValue: coins, errorCode: int): void {
+    assert(value >= minValue, errorCode);
 }
