@@ -31,8 +31,8 @@ type OffRamp_InMessage =
     | Router_TokenPoolReleaseOrMintFailed
     | OffRamp_NotifyFailure
     | OffRamp_NotifySuccess
-    | OffRamp_TokenTransferDelivered
     | OffRamp_UpdateCursedSubjects
+    | OffRamp_TokenTransferDelivered
     | OffRamp_SetDynamicConfig
     | OCR3Base_SetOCR3Config
     | Upgradeable_Upgrade
