@@ -137,6 +137,7 @@ fun onInternalMessage(in: InMessage) {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
             requireRMNCurseAdmin(rmn, in.senderAddress);
+            rmn.requireUpdateCursedSubjectsFee(in.valueCoins);
             onRMNRemoteCurse(st, rmn, msg);
         }
         // Sender must hold the RMN uncurse role.
@@ -144,7 +145,15 @@ fun onInternalMessage(in: InMessage) {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
             requireRMNUncurseAdmin(rmn, in.senderAddress);
+            rmn.requireUpdateCursedSubjectsFee(in.valueCoins);
             onRMNRemoteUncurse(st, rmn, msg);
+        }
+        // Permissionless: only re-sends the Router's own state, funded by the caller.
+        Router_RMNRemoteSyncOffRamps => {
+            val st = lazy Storage.load();
+            val rmn = st.rmnRemote.load();
+            rmn.requireUpdateCursedSubjectsFee(in.valueCoins);
+            rmn.forwardCursedSubjects();
         }
         Router_RMNRemoteVerifyNotCursed => {
             val result = verifyNotCursed(msg.subject);
@@ -919,19 +928,7 @@ fun onRMNRemoteCurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteCurse) {
     st.rmnRemote = rmn.toCell();
     st.store();
 
-    // propagate update to caches
-    var entry = rmn.forwardUpdates.findFirst();
-    while (entry.isFound) {
-        val destination = entry.getKey();
-        val sendMsg = createMessage({
-            bounce: false,
-            value: grams("0.05"),
-            dest: destination,
-            body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.policy.cursedSubjects },
-        });
-        sendMsg.send(SEND_MODE_IGNORE_ERRORS);
-        entry = rmn.forwardUpdates.iterateNext(entry);
-    }
+    rmn.forwardCursedSubjects();
 }
 
 fun requireRMNCurseAdmin(rmn: RMNRemote, sender: address) {
@@ -951,18 +948,36 @@ fun onRMNRemoteUncurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteUncurse
     st.rmnRemote = rmn.toCell();
     st.store();
 
-    // propagate update to caches
-    var entry = rmn.forwardUpdates.findFirst();
+    rmn.forwardCursedSubjects();
+}
+
+fun RMNRemote.updateCursedSubjectsFee(self): coins {
+    var offRampCount = 0;
+    var entry = self.forwardUpdates.findFirst();
     while (entry.isFound) {
-        val destination = entry.getKey();
+        offRampCount += 1;
+        entry = self.forwardUpdates.iterateNext(entry);
+    }
+    return Router_Costs.updateCursedSubjects(offRampCount);
+}
+
+fun RMNRemote.requireUpdateCursedSubjectsFee(self, value: coins) {
+    assert(value >= self.updateCursedSubjectsFee()) throw Router_Error.InsufficientFee;
+}
+
+// Errors are not ignored: if any update cannot be sent, the whole transaction
+// (including the curse change) is rolled back and must be retried with more value.
+fun RMNRemote.forwardCursedSubjects(self) {
+    var entry = self.forwardUpdates.findFirst();
+    while (entry.isFound) {
         val sendMsg = createMessage({
-            bounce: false,
-            value: grams("0.05"),
-            dest: destination,
-            body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.policy.cursedSubjects },
+            bounce: BounceMode.RichBounce,
+            value: Router_Costs.forwardCursedSubjects(),
+            dest: entry.getKey(),
+            body: OffRamp_UpdateCursedSubjects { cursedSubjects: self.policy.cursedSubjects },
         });
-        sendMsg.send(SEND_MODE_IGNORE_ERRORS);
-        entry = rmn.forwardUpdates.iterateNext(entry);
+        sendMsg.send(SEND_MODE_REGULAR + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+        entry = self.forwardUpdates.iterateNext(entry);
     }
 }
 
@@ -1340,6 +1355,11 @@ get fun cursedSubjects(): lisp_list<uint128> {
     val st = lazy Storage.load();
     val rmn = st.rmnRemote.load();
     return keysLispList(rmn.policy.cursedSubjects.data)!;
+}
+
+/// Minimum value to attach to curse, uncurse and sync messages.
+get fun rmn_updateCursedSubjectsFee(): coins {
+    return Storage.load().rmnRemote.load().updateCursedSubjectsFee();
 }
 
 /// Gets the current owner of the contract.

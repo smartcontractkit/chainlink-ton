@@ -5,6 +5,7 @@
   contracts_1_6,
   contracts_1_6_1,
   contracts_1_6_2,
+  contracts_1_6_3,
   jetton-contracts,
   acton,
   abigen,
@@ -37,12 +38,14 @@ pkgs.mkShell {
   PATH_CONTRACTS_1_6 = "${contracts_1_6}"; # Notice: loaded from GH release, artifacts in root of the package
   PATH_CONTRACTS_1_6_1 = "${contracts_1_6_1}"; # Notice: loaded from GH release, artifacts in root of the package
   PATH_CONTRACTS_1_6_2 = "${contracts_1_6_2}"; # Notice: loaded from GH release, artifacts in root of the package
+  PATH_CONTRACTS_1_6_3 = "${contracts_1_6_3}"; # Notice: loaded from GH release, artifacts in root of the package
 
   shellHook = ''
     echo "Loaded TVM contracts at following paths:"
     echo "  - CCIP 1.6.0: (env:PATH_CONTRACTS_1_6)    $PATH_CONTRACTS_1_6"
     echo "  - CCIP 1.6.1: (env:PATH_CONTRACTS_1_6_1)    $PATH_CONTRACTS_1_6_1"
     echo "  - CCIP 1.6.2: (env:PATH_CONTRACTS_1_6_2)    $PATH_CONTRACTS_1_6_2"
+    echo "  - CCIP 1.6.3: (env:PATH_CONTRACTS_1_6_3)    $PATH_CONTRACTS_1_6_3"
     echo "  - Jetton:     (env:PATH_CONTRACTS_JETTON) $PATH_CONTRACTS_JETTON"
   '';
 }
