@@ -153,7 +153,7 @@ func (a *TONAdapter) BuildMessage(components testadapters.MessageComponents) (an
 		Data:              components.Data,
 		Receiver:          components.Receiver,
 		TokenAmounts:      tokenAmounts,
-		ExtraArgs:         c, // TODO handle ExtraArgs properly
+		ExtraArgs:         c,
 		FeeToken:          feeToken,
 	}
 	if len(components.TokenAmounts) > 1 {
@@ -311,7 +311,6 @@ func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...
 		tag := []byte{0x18, 0x1d, 0xcf, 0x10} //nolint:prealloc //  - TODO(lint-migration): golangci-lint 2.11 rule tightened
 		return append(tag, data...), nil
 	default:
-		// TODO: add support for other families
 		return nil, fmt.Errorf("unsupported source family: %s", sourceFamily)
 	}
 }
@@ -435,7 +434,7 @@ func (a *TONAdapter) startExecuteMonitor(t *testing.T, offRamp address.Address) 
 	}, "Execute")
 }
 
-// TODO leaks go routine
+// TODO[TEST]: [NONEVM-6586] leaks go routine
 func (a *TONAdapter) startMonitor(t *testing.T, offRamp address.Address, filter func(msg tracetracking.ReceivedMessage) bool, msgType string) (cancel func()) {
 	fmt.Printf("Starting monitor for OffRamp: %s\n", offRamp.String())
 	router, err := a.getAddress("Router")
@@ -799,13 +798,13 @@ func successfullJettonTransfer(minterAuthority, jettonMinter, receiverWallet *ad
 		authorityToMinter := matchesMsg(Msg{
 			Src: minterAuthority,
 			Dst: jettonMinter,
-			Op:  0x642b7d07, // MintNewJettons // TODO make this depend on the Jetton implementation
+			Op:  0x642b7d07, // MintNewJettons
 		})
 
 		minterToWallet := matchesMsg(Msg{
 			Src: jettonMinter,
 			Dst: receiverWallet,
-			Op:  0x178d4519, // InternalTransferStep // TODO make this depend on the Jetton implementation
+			Op:  0x178d4519, // InternalTransferStep
 		})
 		return !authorityToMinter && !minterToWallet, nil
 	}
@@ -1162,7 +1161,6 @@ func sendCellAndAwaitCCIPMessageSent(
 		return 0, nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
 
-	// TODO: This is temporary debugging code to be removed later
 	knownAddresses[senderAddr.String()] = debug.TypeAndVersion{Type: "SenderWallet", Version: *semver.MustParse("0.0.0")}
 	l.Infof("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(knownAddresses).DumpReceived(receivedMsg))
 	l.Infof("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(knownAddresses, sequenceDiagram.OutputFmtURL).DumpReceived(receivedMsg))

@@ -117,8 +117,8 @@ func (a *TonTokenAdapter) AddressRefToBytes(ref datastore.AddressRef) ([]byte, e
 // DeriveTokenAddress looks up the deployed jetton minter that shares the pool's qualifier.
 // Convention: the DeployTokenInput.Qualifier and DeployTokenPoolInput.TokenPoolQualifier
 // match (e.g. both "TEST_TOKEN_USDC"); this lets us resolve the token from the pool ref.
-// TODO: This should probably read the Token address from the pool on-chain: smartcontractkit/chainlink-ccip@a58c4ba/deployment/docs/implementing-adapters.md?plain=1#L157
-// For now we can keep it like this and modify it when the actul TokenPools are integrated
+// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] This should probably read the Token address from the pool on-chain: smartcontractkit/chainlink-ccip@a58c4ba/deployment/docs/implementing-adapters.md?plain=1#L157
+// For now we can keep it like this and modify it when the actual TokenPools are integrated
 func (a *TonTokenAdapter) DeriveTokenAddress(e cldf.Environment, chainSelector uint64, poolRef datastore.AddressRef) (string, error) {
 	candidates := e.DataStore.Addresses().Filter(
 		datastore.AddressRefByChainSelector(chainSelector),
@@ -136,7 +136,7 @@ func (a *TonTokenAdapter) DeriveTokenAddress(e cldf.Environment, chainSelector u
 }
 
 // DeriveTokenDecimals returns the decimals for the jetton at `token`.
-// TODO: replace with an on-chain get_jetton_data call once a typed getter binding is available.
+// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] replace with an on-chain get_jetton_data call once a typed getter binding is available.
 func (a *TonTokenAdapter) DeriveTokenDecimals(e cldf.Environment, chainSelector uint64, poolRef datastore.AddressRef, token []byte) (uint8, error) {
 	return defaultJettonDecimals, nil
 }
@@ -171,7 +171,7 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 			if a.Package == "" {
 				a.Package = utils.ContractsVersionLocal
 			}
-			// TODO: We should check the Type value in the DeployTokenInput to decide wether we deploy this standard token, wGram, or a cross-chain token implementation
+			// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] We should check the Type value in the DeployTokenInput to decide wether we deploy this standard token, wGram, or a cross-chain token implementation
 			if input.Type != bindings.ShortJettonMinter {
 				return sequences.OnChainOutput{}, fmt.Errorf("unsupported token type %q for TON; only %q is supported", input.Type, bindings.ShortJettonMinter)
 			}
@@ -852,7 +852,7 @@ func emptyRBACData() rbac.Data {
 	return rbac.Data{Roles: tlbe.NewEmptyDict[tlbe.Uint256, rbac.RoleRef]()}
 }
 
-// TODO: ManualRegistration is a no-op for the minimal skeleton.
+// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] ManualRegistration is a no-op for the minimal skeleton.
 func (a *TonTokenAdapter) ManualRegistration() *cldf_ops.Sequence[tokensapi.ManualRegistrationSequenceInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		"ton/sequences/ccip/tooling-api/token-adapter/manual-registration",
@@ -864,7 +864,7 @@ func (a *TonTokenAdapter) ManualRegistration() *cldf_ops.Sequence[tokensapi.Manu
 	)
 }
 
-// TODO: SetTokenPoolRateLimits is a no-op for the minimal skeleton.
+// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] SetTokenPoolRateLimits is a no-op for the minimal skeleton.
 func (a *TonTokenAdapter) SetTokenPoolRateLimits() *cldf_ops.Sequence[tokensapi.TPRLRemotes, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		"ton/sequences/ccip/tooling-api/token-adapter/set-token-pool-rate-limits",
@@ -876,7 +876,7 @@ func (a *TonTokenAdapter) SetTokenPoolRateLimits() *cldf_ops.Sequence[tokensapi.
 	)
 }
 
-// TODO: UpdateAuthorities is a no-op for the minimal skeleton. TestAdapter callers
+// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] UpdateAuthorities is a no-op for the minimal skeleton. TestAdapter callers
 // set SkipOwnershipTransfer=true so this is never executed at runtime, but the
 // interface signature must still be satisfied.
 func (a *TonTokenAdapter) UpdateAuthorities() *cldf_ops.Sequence[tokensapi.UpdateAuthoritiesInput, sequences.OnChainOutput, *cldf.Environment] {
@@ -890,7 +890,7 @@ func (a *TonTokenAdapter) UpdateAuthorities() *cldf_ops.Sequence[tokensapi.Updat
 	)
 }
 
-// TODO: MigrateLockReleasePoolLiquiditySequence is not supported on TON. The interface
+// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] MigrateLockReleasePoolLiquiditySequence is not supported on TON. The interface
 // permits returning nil.
 func (a *TonTokenAdapter) MigrateLockReleasePoolLiquiditySequence() *cldf_ops.Sequence[tokensapi.MigrateLockReleasePoolLiquidityInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return nil

@@ -90,7 +90,7 @@ var DeployChainContracts = cldf_ops.NewSequence(
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update dependency provider: %w", err)
 		}
 
-		// TODO should we include these updates operations in this DeployCCIPSequence ? Probably move to a custom operation and call in CLD ?
+		// TODO[TOOLING]: [NONEVM-6092] should we include these updates operations in this DeployCCIPSequence ? Probably move to a custom operation and call in CLD ?
 		msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 
 		// feequoter.addPriceUpdater(offramp)
@@ -106,7 +106,7 @@ var DeployChainContracts = cldf_ops.NewSequence(
 					{
 						Bounce:  true,
 						DstAddr: &addr,
-						Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
+						Amount:  tlb.MustFromTON("0.1"), // TODO[TOOLING]: [NONEVM-6092] (ops/gas): static, should allow overrides?
 						Body:    codec.MustWrapMessage[any](bindings.PkgCCIP+".FeeQuoter", body),
 					},
 				},
@@ -235,7 +235,6 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 						Address:                    tvm.NativeGRAMAddr,
 						PremiumMultiplierWeiPerEth: 1,
 					},
-					// TODO update link token dummy address here after https://smartcontract-it.atlassian.net/browse/NONEVM-3269
 				},
 			},
 			OffRampParams: ccipConfig.OffRampParams{
@@ -247,8 +246,9 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 				MinTTGasLimit:                    ccipConfig.DefaultOffRampMinTTGasLimit,
 			},
 			OnRampParams: ccipConfig.OnRampParams{
-				ID:            contractID,
-				Coin:          defaultCCIPContractCoin,
+				ID:   contractID,
+				Coin: defaultCCIPContractCoin,
+				// TODO[TOOLING-ALLOWLIST]: [NONEVM-4252]
 				ChainSelector: cfg.ChainSelector,
 				FeeAggregator: deployer, // defaults to deployer, can be updated later via SetDynamicConfig
 				Reserve:       defaultReserveAmount,

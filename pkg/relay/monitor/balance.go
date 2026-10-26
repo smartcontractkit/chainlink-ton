@@ -33,7 +33,6 @@ type BalanceMonitorOpts struct {
 	NewClient func(context.Context) (ton.APIClientWrapped, error)
 }
 
-// TODO: Add TON to metrics
 const TON = "TON"
 
 // NewBalanceMonitor returns a balance monitoring services.Service which reports balance of all Keystore accounts.
@@ -245,7 +244,6 @@ func hexPublicKeyToWalletAddress(hexPubKey string) (string, error) {
 func (b *balanceMonitor) SendMetric(ctx context.Context, account string, balance float64) {
 	b.CLFrameworkBalanceMetrics.RecordNodeBalance(ctx, account, balance)
 
-	// TODO remove after migration to new metrics is complete and stable
 	b.CLCommonBalanceMetrics.Record(ctx, balance, account, b.ChainInfo)
 
 	b.Logger.Debugw("Account balance updated", "unit", b.ChainNativeCurrency, "account", account, "balance", balance)

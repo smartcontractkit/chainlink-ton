@@ -62,7 +62,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 		b.Logger.Infof("Will try to fetch contracts package from package ref: %s", contractsPackage)
 	}
 
-	// TODO: don't directly execute deployments, instead return them as txs
+	// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] don't directly execute deployments, instead return them as txs
 	addresses := make([]datastore.AddressRef, 0)
 
 	// Fetch the contract code using the Fully Qualified Name of the contracts instead of the types used in the datastore
@@ -187,7 +187,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			DestChainConfigs:             nil,
 		}
 
-		// TODO: handle setting FeeTokens and PremiumMultiplierWeiPerEthByFeeToken
+		// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] handle setting FeeTokens and PremiumMultiplierWeiPerEthByFeeToken
 		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeFeeQuoter], feeQuoterStorage, nil, in.CCIPConfig.FeeQuoterParams.Coin)
 		if err != nil {
 			return sequences.OnChainOutput{}, err

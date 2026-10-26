@@ -444,7 +444,7 @@ func (c *client) queryActorIfNotVisited(ctx context.Context, block *ton.BlockIDE
 	result, err := c.connection.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, addr, "typeAndVersion")
 	if err != nil {
 		// We don't fail here because many contracts don't implement typeAndVersion
-		return nil // TODO try deducing from code?
+		return nil
 	}
 
 	defer func() {

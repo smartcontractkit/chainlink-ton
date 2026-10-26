@@ -18,7 +18,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
-	// TODO: These imports should be removed and injected via options/factories
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
@@ -33,9 +32,6 @@ const (
 	defaultPointerNilProb     = 0.15
 )
 
-// TODO: replace with third-party option like github.com/go-faker/faker
-// Example: https://github.com/go-faker/faker/blob/main/example_custom_struct_test.go
-//
 // Generator produces TL-B compliant random values for tests.
 type Generator struct {
 	rng                *rand.Rand
@@ -489,7 +485,6 @@ func ensureAssignable(value reflect.Value, targetType reflect.Type) (reflect.Val
 	return reflect.Value{}, fmt.Errorf("%w: cannot assign %s to %s", ErrUnsupportedSample, value.Type(), targetType)
 }
 
-// TODO: all these should be injected via options (to avoid circular dependencies)
 func buildDefaultFactories() map[reflect.Type]Factory {
 	coinsVal := tlb.MustFromTON("0.125")
 	return map[reflect.Type]Factory{

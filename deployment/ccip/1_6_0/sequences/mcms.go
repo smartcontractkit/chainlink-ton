@@ -38,7 +38,7 @@ func (a *TonDeployAdapter) DeployMCMS() *cldfops.Sequence[ccipddeploy.MCMSDeploy
 
 var DeployMCMSContracts = cldfops.NewSequence(
 	"ton/sequences/ccip/tooling-api/deploy-mcms",
-	semver.MustParse("0.0.4"), // TODO mcms and timelock has different versions, can we pick mcms version here?
+	semver.MustParse("0.0.4"), // TODO[TOOLING]: [NONEVM-6092] mcms and timelock has different versions, can we pick mcms version here?
 	"Deploys all MCM contracts with config",
 	func(b cldfops.Bundle, chains cldfchain.BlockChains, input ccipddeploy.MCMSDeploymentConfigPerChainWithAddress) (output ccipdseq.OnChainOutput, err error) {
 		chain := chains.TonChains()[input.ChainSelector]
@@ -82,7 +82,7 @@ var DeployMCMSContracts = cldfops.NewSequence(
 	},
 )
 
-// TODO: unify and deduplicate with state.LoadMCMSOnChainState
+// TODO[TOOLING]: [NONEVM-6092] unify and deduplicate with state.LoadMCMSOnChainState
 func extractMCMSChainStateFromMCMSDeploymentInput(chain cldfton.Chain, existing []cldfds.AddressRef, qualifier string) (map[uint64]state.MCMSChainState, error) {
 	none := address.NewAddressNone()
 	s := state.MCMSChainState{
@@ -298,7 +298,7 @@ func (a *TonDeployAdapter) UpdateMCMSConfig() *cldfops.Sequence[ccipddeploy.Upda
 				r, err := cldfops.ExecuteOperation(b, opsmcms.SetConfig, dp, opsmcms.SetConfigInput{
 					Bounce:    true,
 					DstAddr:   contractAddr,
-					Amount:    tlb.MustFromTON("0.5"), // TODO: make dynamic based on input
+					Amount:    tlb.MustFromTON("0.5"), // TODO[TOOLING]: [NONEVM-6092] make dynamic based on input
 					Config:    &in.MCMConfig,
 					ClearRoot: false,
 					Plan:      true,

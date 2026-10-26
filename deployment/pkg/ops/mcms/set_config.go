@@ -54,7 +54,7 @@ var SetConfig = cldfops.NewOperation(
 		}
 
 		// Plan a setConfig message
-		// TODO: check is ConfigTransformer.ToChainConfig can be used? Is it used anywhere else for any chain?
+		// TODO[TOOLING-MCMS]: [NONEVM-6578] check is ConfigTransformer.ToChainConfig can be used? Is it used anywhere else for any chain?
 		configurer, err := mcmston.NewConfigurer(chain.Wallet, tlb.MustFromTON("0"), mcmston.WithDoNotSendInstructionsOnChain())
 		if err != nil {
 			return opston.SendMessagesOutput{}, fmt.Errorf("failed to transform MCMS config to chain format: %w", err)

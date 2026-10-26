@@ -27,7 +27,7 @@ var SetOCR3OfframpSequence = operations.NewSequence(
 func setOCR3OfframpSequence(b operations.Bundle, dp *dep.DependencyProvider, in SetOCR3OfframpSeqInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 
-	// TODO: this just needs to loop over configs
+	// TODO[TOOLING]: [NONEVM-6092] this just needs to loop over configs
 
 	// Set commit OCR3 Config
 	if configCommit, exists := in.Configs[operation.PluginTypeCCIPCommit]; exists {

@@ -233,7 +233,7 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 		OutgoingInternalReceivedMessages: make([]*ReceivedMessage, 0),
 	}
 
-	// TODO: find magic fee
+	// NOTE: we are missing a component of the fee, referred to as the magicFee
 	// There is a component of the fee I was not being able to identify.
 	// tonutils-go provides a tx.TotalFees message that returns all fees charged
 	// on sender excluding the fwdFee of the outgoing messages. I have confirmed
@@ -245,7 +245,6 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 	//                     =╰───────────────────── fwdFees ─────────────────────╯+ actionFees +  storageFee  +    gasFee    +  magicFee
 	//                     =╰─────────────────────── actionPhaseFees ────────────────────────╯ ╰storagePhase╯ ╰computePhase╯ ╰importFee?╯
 
-	// TODO: handle fine
 	// According to documentation: _"Starting from the fourth global version of_
 	// _TON, if a "send message" action fails, the account is required to pay_
 	// _for processing the cells of the message, referred to as the action_fine_"
@@ -342,8 +341,6 @@ func (m *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.Interna
 //
 // Returns an error if any of the outgoing messages failed to be processed
 // or if there are issues with transaction monitoring.
-//
-// TODO: This could be optimized by grouping outgoing messages by recipient address
 func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ctx context.Context, c ton.APIClientWrapped) error {
 	for len(m.OutgoingInternalSentMessages) != 0 {
 		sentMessage := m.OutgoingInternalSentMessages[0]
@@ -405,9 +402,6 @@ func waitForMatchingMessage(ctx context.Context, transactionsReceived chan *tlb.
 //
 // Returns nil if the transaction doesn't match this sent message, or an error
 // if the transaction cannot be processed properly.
-//
-// TODO: This matching could be more efficient with proper indexing by recipient
-// address or other identifiers.
 func (m SentMessage) MapToReceivedMessageIfMatches(rTX *tlb.Transaction) (*ReceivedMessage, error) {
 	if rTX.IO.In == nil || rTX.IO.In.MsgType != tlb.MsgTypeInternal {
 		return nil, fmt.Errorf("transaction is not internal: %s", rTX.Dump())

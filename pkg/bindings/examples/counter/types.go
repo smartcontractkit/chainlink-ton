@@ -17,7 +17,6 @@ type ContractData struct {
 	ID    uint32 `tlb:"## 32"`
 	Value uint32 `tlb:"## 32"`
 
-	// TODO: import as ownable2step.Data bindings from pkg/bindings/lib/access/ownable_2step
 	Ownable ownable2step.Storage `tlb:"."`
 }
 

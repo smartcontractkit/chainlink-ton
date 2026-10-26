@@ -39,7 +39,6 @@ func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 
 // InternalMessageInfo implements lib.ContractDecoder.
 func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
-	// TODO: use lib.Wrapper to describe generic payloads
 	info, err := lib.NewMessageInfoFromCell(d.ContractType(), msg, TLBs, d.tlbsCtx)
 	if err != nil {
 		return jetton.NewDecoder(d.tlbsCtx, d.ContractType()).InternalMessageInfo(msg)

@@ -36,7 +36,6 @@ type MCMSSuiteState struct {
 	Timelock *address.Address
 }
 
-// TODO refactor state management for different protocol NONEVM-3181
 func LoadMCMSOnChainState(e cldf.Environment) (map[uint64]MCMSChainState, error) {
 	chains := make(map[uint64]MCMSChainState)
 	for chainSelector := range e.BlockChains.TonChains() {
