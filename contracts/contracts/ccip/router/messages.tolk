@@ -229,7 +229,7 @@ struct (0x6f2d00df) Router_LockOrBurn {
     request: Cell<TokenPool_LockOrBurnInV1>,
     executorAddress: address,
     /// CCIP post-custody failure budget forwarded to the pool.
-    failureValue: coins,
+    finalizationValue: coins,
 }
 
 /// Relays an inbound token operation from the registered OffRamp to the pool.

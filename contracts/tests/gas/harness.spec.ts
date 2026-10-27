@@ -58,9 +58,10 @@ describe('gas calibration harness', () => {
     expect(withForward).toBe(noForward + fwdFee)
 
     // Generic = reference doubled; both include the same strict-check/drift margin.
-    const JETTON_WALLET_FEE_MARGIN = 1_000n
+    const margin = await cct.getJettonWalletFeeMargin()
+    const multiplier = await cct.getJettonGenericWalletFeeMultiplier()
     const generic = await cct.getJettonTransferFee(fwdFee, true, true)
-    expect(generic).toBe((withForward - JETTON_WALLET_FEE_MARGIN) * 2n + JETTON_WALLET_FEE_MARGIN)
+    expect(generic).toBe((withForward - margin) * multiplier + margin)
 
     expect(await cct.getCctMintOpBudget(fwdFee)).toBeGreaterThan(fwdFee)
   })

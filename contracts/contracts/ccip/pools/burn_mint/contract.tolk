@@ -24,8 +24,8 @@ import "../lib/token_pool/messages"
 import "../lib/token_pool/errors"
 import "../lib/token_pool/entrypoint"
 import "../lib/token_pool/budget"
-import "../lib/token_pool/jetton_fees"
 import "../lib/token_pool/events"
+import "../lib/token_pool/jetton_fees"
 
 import "types"
 import "messages"
@@ -93,6 +93,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     if (basePool.onBouncedMessage(in.senderAddress, in.valueCoins, in.bouncedBody)) {
         st.poolData = basePool.data.toCell();
         st.store();
+
         return;
     }
 
@@ -185,12 +186,13 @@ fun onLockOrBurnTransferContinue(
     val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
     val fwdFee = createMessage(burnOpts).estimateFeeWithoutSending(sendMode);
 
-    // minval:check-fail gate=S LockReleaseLockboxTokenPool.TransferNotificationForRecipient
-    // Check safety budget min size as reference transfer plus LVL3_HIGH finalization costs.
-    // TODO: should be max(transfer, burn)
+    // minval:check-fail gate=S BurnMintTokenPool.TransferNotificationForRecipient
+    // Check safety budget min size as reference burn/transfer plus LVL3_HIGH finalization costs.
     val safety = st.TokenPool().budget().lockOrBurn.safety;
-    val minValue = JettonWalletFees.Reference.transferValue(0, fwdFee)
-        + TokenPool_Costs.finalization(); // T + max(F0, F1) = T + F
+    val minValue = max(
+        JettonFees.Reference.transferValue(0, fwdFee),
+        JettonFees.Reference.burnValue(fwdFee, true)
+    ) + TokenPool_Costs.finalization();
     assertMinValue(safety, minValue, TokenPool_Error.InsufficientMessageValue);
 
     val burn = createMessage(burnOpts);
@@ -264,7 +266,7 @@ fun onReleaseOrMintContinue(
         body: transfer.toCell(),
     }).estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
 
-    val tonAmount = JettonWalletFees.Reference.transferValue(forwardTonAmount, fwdFee);
+    val tonAmount = JettonFees.Reference.transferValue(forwardTonAmount, fwdFee);
     mintOpts.body.tonAmount = tonAmount;
     mintOpts.value = cctMintOpBudget(walletDeployFee) + tonAmount;
 

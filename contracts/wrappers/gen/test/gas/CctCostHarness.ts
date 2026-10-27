@@ -151,7 +151,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class CctCostHarness implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECHgEAASYAART/APSkE/S88sgLAQIBYgIDABjQ+JHyQIQPAccA8vQCASAEBQIBWAYHAgEgEBECASAICQATt31QIwlOHwbUEAIBIAoLAAuyyJw+DaACASAMDQIBWA4PAAqrkIEdOQAeqmFzgQQJghAJZgGAcPg3ABGmducCB0bh8HkACaatAjCVAgEgEhMCASAWFwIBIBQVAAe2tG4wAHuwXqRcZFw4gFyceMEWKhzgQOjcPg8oIEYSnD4NqCBHTlw+Dagc4EECYIQCWYBgHD4N6ABcXIB4wSogQPooIAALsW3gRMSgAgEgGBkAH7c7/wUfSIYQQQHoSAA/BtACASAaGwIBZhwdAB2tqXwUfSIYQQHoSAD8G0AAC6/9QIwlQAAJpUkCHpcACaSZAgXl');
+    static CodeCell = c.Cell.fromBase64('te6ccgECIwEAAZEAART/APSkE/S88sgLAQIBYgIDABjQ+JHyQIQPAccA8vQCASAEBQIBWAYHAgEgEhMCASAICQATt31QIwTOHwbUEAIBIAoLAAuyyJw+DaACASAMDQIBWBARAAqrkIEdOQIBIA4PAAmnHwIH0QAdpMLnAggTBCASzAMA4fBvABGmducCB0bh8HkACaatAjBNAgEgFBUCASAZGgIBIBYXAAe2tG4wAZOwXqOQ3Fw4wRyceMEbSBugRgmIuMEIW6BHTlYA+MEUCOoc4EDo3D4PKABcPg2oAFw+Dagc4EECYIQCWYBgHD4N6BxqIED6KDjDYBgAC7Ft4ETEoACKcgFxcOMEIXHjBG0gboEYJiLjBCFugR05WAPjBFAkqHOBA6Nw+DygAXD4NqACcPg2EqBzgQQJghAJZgGAcPg3oKiBA+igAgEgGxwAH7c7/wUfSIYQQQHoSAA/BtACASAdHgIBIB8gAB2tqXwUfSIYQQHoSAD8G0AAC6/9QIwTQAIBWCEiAAetLDlAAAmlSQIelwAJpJkCBeU=');
 
     static Errors = {
     }
@@ -242,6 +242,16 @@ export class CctCostHarness implements c.Contract {
             { type: 'int', value: (hasForward ? -1n : 0n) },
             { type: 'int', value: (generic ? -1n : 0n) },
         ]));
+        return r.readBigInt();
+    }
+
+    async getJettonWalletFeeMargin(provider: ContractProvider): Promise<coins> {
+        const r = StackReader.fromGetMethod(1, await provider.get('get_jettonWalletFeeMargin', []));
+        return r.readBigInt();
+    }
+
+    async getJettonGenericWalletFeeMultiplier(provider: ContractProvider): Promise<bigint> {
+        const r = StackReader.fromGetMethod(1, await provider.get('get_jettonGenericWalletFeeMultiplier', []));
         return r.readBigInt();
     }
 

@@ -58,7 +58,7 @@ struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
 /// any remainder returns as pool/custody excess.
 fun OnRamp_ExecutorRequestsLockOrBurn.cost(poolAdmission: coins): coins {
     return
-        + OnRamp_Costs.TokenPoolFailure()
+        + OnRamp_Costs.TokenPoolFinalization()
         + poolAdmission
         + grams("0.005") // OnRamp + Router relay buffer
         ;
@@ -222,9 +222,8 @@ fun OnRamp_Costs.ExecutorFinishedWithError(): int {
         ;
 }
 
-/// TON the pool forwards to the executor when a post-custody lock/burn fails.
-/// The executor already holds the base failure budget; this is the pool-attached continuation.
-fun OnRamp_Costs.TokenPoolFailure(): coins {
+/// TON the pool forwards to the executor as the caller-provided finalization/continuation.
+fun OnRamp_Costs.TokenPoolFinalization(): coins {
     return grams("0.02");
 }
 

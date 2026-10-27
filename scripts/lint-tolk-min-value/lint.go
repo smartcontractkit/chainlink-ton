@@ -203,9 +203,10 @@ func loadMarkers(srcDir string) (map[string][]marker, error) {
 		if !strings.HasSuffix(path, ".tolk") {
 			return nil
 		}
-		data, err := root.ReadFile(path)
-		if err != nil {
-			return err
+
+		data, readErr := root.ReadFile(path)
+		if readErr != nil {
+			return readErr
 		}
 		for _, m := range parseMarkers(string(data), filepath.Join(srcDir, path)) {
 			byMessage[m.Message] = append(byMessage[m.Message], m)

@@ -97,12 +97,19 @@ type TokenInfo struct {
 	QueryID       uint64           `tlb:"## 64"`
 	Token         *address.Address `tlb:"addr"`
 	MinterAddress *address.Address `tlb:"addr"`
-	TokenPool     *address.Address `tlb:"addr"`
+	Version       uint32           `tlb:"## 32"`
+	// PoolInfo is nil when the token is not enabled (delisted or awaiting the pool probe).
+	PoolInfo *PoolInfo `tlb:"maybe ^"`
+}
+
+// PoolInfo is present only when the token's pool is enabled. Keeping the pool, its transfer
+// initiator, and its admission budgets together guarantees that an enabled pool always has an
+// admission.
+type PoolInfo struct {
+	TokenPool *address.Address `tlb:"addr"`
 	// TransferInitiator reported by the pool; nil when the pool delivers by minting.
-	TransferInitiator *address.Address `tlb:"maybe ^ addr"`
-	Version           uint32           `tlb:"## 32"`
-	// Admission budgets reported by the pool; nil until it answers the config probe.
-	Admission *tokenpool.AdmissionBudget `tlb:"maybe ^"`
+	TransferInitiator *address.Address          `tlb:"maybe ^ addr"`
+	Admission         tokenpool.AdmissionBudget `tlb:"^"`
 }
 
 // crc32('TokenAdminRegistry_GetTokenInfoFailed')

@@ -1578,11 +1578,10 @@ fun TokenPool<T>.onLockOrBurn(
     msgValue: coins,
     msg: TokenPool_LockOrBurn,
 ): void {
-    // minval:check-bounce gate=A/static TokenPool_LockOrBurn
     // The inbound value must cover the TP admission plus the caller-provided finalization value.
-    // The client (executor/OnRamp/Router) adds a relay buffer so the pool receives the full
-    // `A + F`; otherwise the relay fees would eat into it. This gate runs before the operation
-    // hook, so an override cannot skip admission (F8).
+    // The client adds a relay buffer so the pool receives the full `A + F`.; `budget()` clamps
+    // `A` to at least `3S`, so this is also the pre-withdraw `3S + F` gate.
+    // This gate runs before the operation hook, so an override cannot skip admission.
     assertMinValue(
         msgValue,
         self.budget().lockOrBurn.admission + msg.finalizationValue,
@@ -1612,10 +1611,9 @@ fun TokenPool<T>.onLockOrBurn(
         return; // Async hook was triggered; will resume via onPreflightCheckFinished/Failed.
     }
 
-    // minval:check-bounce gate=S TokenPool_LockOrBurn
-    //
-    // Before withdrawing, the pool must still hold the full `3S + F`: one `S` pays this withdraw
-    // relay and the pool's own processing, and `2S + F` is forwarded to the deposit account.
+    // Defense-in-depth: `budget()` guarantees `A >= 3S`, and the entry gate above checked
+    // `A + F`, so this cannot fail unless that invariant is broken. Kept explicit, without a
+    // second minval marker.
     val custodyMoves = LB_CUSTODY_MOVES_BEFORE_WITHDRAW;
     val minValue = self.custodyForward(custodyMoves, msg.finalizationValue);
     assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
@@ -1972,13 +1970,11 @@ fun TokenPool<T>.onReleaseOrMint(
     msgValue: coins,
     msg: TokenPool_ReleaseOrMint,
 ): void {
-    // minval:check-bounce gate=A/static TokenPool_ReleaseOrMint
-    // The message value is checked for admission plus the caller's finalization. This gate runs
-    // before the operation hook, so an override cannot skip admission (F8).
+    // The message value is checked for admission plus the caller's finalization.
+    // This gate runs before the operation hook, so an override cannot skip admission.
     var minValue = self.budget().releaseOrMint.admission + msg.finalizationValue();
     assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
 
-    // minval:check-bounce gate=A/static TokenPool_ReleaseOrMint
     // The recipient's notification completes a delivery, so it must carry value.
     minValue = TokenPool_Costs.callerFinalization();
     assertMinValue(msg.finalizationValue(), minValue, TokenPool_Error.InsufficientMessageValue);
@@ -1997,7 +1993,9 @@ fun TokenPool<T>.onReleaseOrMint(
     }
 
     // minval:check-bounce gate=A/static TokenPool_ReleaseOrMint
-    // The message value is checked for full configured forward value plus the caller's finalization
+    // Defense-in-depth: release admission is clamped to at least `S`, so the entry `A + D` gate
+    // already covers the pool's `S + D` delivery forward. Kept explicit, without a second
+    // minval marker.
     // TODO: should be V > 2 * S + F
     minValue = self.releaseOrMintForward(msg.finalizationValue());
     assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);

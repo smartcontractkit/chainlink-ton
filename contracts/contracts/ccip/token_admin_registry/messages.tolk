@@ -106,15 +106,20 @@ struct (0x0a9bf5d1) TokenAdminRegistry_TokenInfo {
     queryId: uint64;
     token: address;
     minterAddress: address;
-    /// A null pool means the token is delisted from CCIP.
-    tokenPool: address?;
-    /// `transferInitiator` of the jetton transfers delivering a release/mint, as reported by the
-    /// pool. Null when the pool delivers by minting.
-    transferInitiator: Cell<address>?;
     /// Pool interface version.
     version: uint32;
-    /// Admission budgets reported by the pool; null until it answers the config probe.
-    admission: Cell<TokenPool_AdmissionBudget>? = null;
+    /// Pool-specific state. Null means the token is not enabled: delisted, or its pool has not
+    /// answered the config probe yet.
+    poolInfo: Cell<TokenAdminRegistry_PoolInfo>? = null;
+}
+
+struct TokenAdminRegistry_PoolInfo {
+    tokenPool: address;
+    /// `transferInitiator` of the jetton transfers delivering a release/mint, as reported by the
+    /// pool. Null when the pool delivers by minting.
+    transferInitiator: address?;
+    /// Admission budgets reported by the pool.
+    admission: Cell<TokenPool_AdmissionBudget>;
 }
 
 /// Sent to the GetTokenInfo requester when the entry could not answer, which

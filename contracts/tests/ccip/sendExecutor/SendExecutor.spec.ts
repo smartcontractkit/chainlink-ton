@@ -23,6 +23,12 @@ import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import * as bouncer from '../../../wrappers/test/mock/Bouncer'
 
+/** A realistic admission for executor tests; the minter check is what these tests target. */
+const TEST_ADMISSION = sx.TokenPool_AdmissionBudget.create({
+  lockOrBurn: toNano('0.1'),
+  releaseOrMint: toNano('0.05'),
+})
+
 describe('SendExecutor - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
     type: FACILITY_NAME,
@@ -1103,9 +1109,12 @@ describe('SendExecutor - Unit tests', () => {
         queryId: 0n,
         token: NATIVE_GRAM,
         minterAddress: deployer.address,
-        tokenPool: deployer.address, // non-null so the executor proceeds
-        transferInitiator: null,
         version: 0n,
+        poolInfo: sx.TokenAdminRegistry_PoolInfo.create({
+          tokenPool: deployer.address, // non-null so the executor proceeds
+          transferInitiator: null,
+          admission: TEST_ADMISSION,
+        }),
       },
     )
 
@@ -1143,9 +1152,8 @@ describe('SendExecutor - Unit tests', () => {
         queryId: 0n,
         token: NATIVE_GRAM,
         minterAddress: deployer.address,
-        tokenPool: null, // token not enabled
-        transferInitiator: null,
         version: 0n,
+        poolInfo: null, // token not enabled
       },
     )
 

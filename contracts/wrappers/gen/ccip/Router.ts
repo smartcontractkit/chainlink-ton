@@ -4104,7 +4104,7 @@ export const Router_GetValidatedFee = {
  >     tokenPool: address
  >     request: Cell<TokenPool_LockOrBurnInV1>
  >     executorAddress: address
- >     failureValue: coins
+ >     finalizationValue: coins
  > }
  */
 export interface Router_LockOrBurn {
@@ -4113,7 +4113,7 @@ export interface Router_LockOrBurn {
     tokenPool: c.Address
     request: TokenPool_LockOrBurnInV1
     executorAddress: c.Address
-    failureValue: coins
+    finalizationValue: coins
 }
 
 export const Router_LockOrBurn = {
@@ -4124,7 +4124,7 @@ export const Router_LockOrBurn = {
         tokenPool: c.Address
         request: TokenPool_LockOrBurnInV1
         executorAddress: c.Address
-        failureValue: coins
+        finalizationValue: coins
     }): Router_LockOrBurn {
         return {
             $: 'Router_LockOrBurn',
@@ -4140,7 +4140,7 @@ export const Router_LockOrBurn = {
             tokenPool: s.loadAddress(),
             request: loadCellRef<TokenPool_LockOrBurnInV1>(s, TokenPool_LockOrBurnInV1.fromSlice),
             executorAddress: s.loadAddress(),
-            failureValue: s.loadCoins(),
+            finalizationValue: s.loadCoins(),
         }
     },
     store(self: Router_LockOrBurn, b: c.Builder): void {
@@ -4149,7 +4149,7 @@ export const Router_LockOrBurn = {
         b.storeAddress(self.tokenPool);
         storeCellRef<TokenPool_LockOrBurnInV1>(self.request, b, TokenPool_LockOrBurnInV1.store);
         b.storeAddress(self.executorAddress);
-        b.storeCoins(self.failureValue);
+        b.storeCoins(self.finalizationValue);
     },
     toCell(self: Router_LockOrBurn): c.Cell {
         return makeCellFrom<Router_LockOrBurn>(self, Router_LockOrBurn.store);
@@ -5472,7 +5472,7 @@ export class Router implements c.Contract {
         tokenPool: c.Address
         request: TokenPool_LockOrBurnInV1
         executorAddress: c.Address
-        failureValue: coins
+        finalizationValue: coins
     }) {
         return Router_LockOrBurn.toCell(Router_LockOrBurn.create(body));
     }
@@ -5813,7 +5813,7 @@ export class Router implements c.Contract {
         tokenPool: c.Address
         request: TokenPool_LockOrBurnInV1
         executorAddress: c.Address
-        failureValue: coins
+        finalizationValue: coins
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

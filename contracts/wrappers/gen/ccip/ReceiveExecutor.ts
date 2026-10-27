@@ -737,10 +737,8 @@ export const TokenAdminRegistry_GetTokenInfo = {
  >     queryId: uint64
  >     token: address
  >     minterAddress: address
- >     tokenPool: address?
- >     transferInitiator: Cell<address>?
  >     version: uint32
- >     admission: Cell<TokenPool_AdmissionBudget>?
+ >     poolInfo: Cell<TokenAdminRegistry_PoolInfo>?
  > }
  */
 export interface TokenAdminRegistry_TokenInfo {
@@ -748,10 +746,8 @@ export interface TokenAdminRegistry_TokenInfo {
     queryId: uint64
     token: c.Address
     minterAddress: c.Address
-    tokenPool: c.Address | null
-    transferInitiator: c.Address | null
     version: uint32
-    admission: TokenPool_AdmissionBudget | null /* = null */
+    poolInfo: TokenAdminRegistry_PoolInfo | null /* = null */
 }
 
 export const TokenAdminRegistry_TokenInfo = {
@@ -761,14 +757,12 @@ export const TokenAdminRegistry_TokenInfo = {
         queryId?: uint64
         token: c.Address
         minterAddress: c.Address
-        tokenPool: c.Address | null
-        transferInitiator: c.Address | null
         version: uint32
-        admission?: TokenPool_AdmissionBudget | null /* = null */
+        poolInfo?: TokenAdminRegistry_PoolInfo | null /* = null */
     }): TokenAdminRegistry_TokenInfo {
         return {
             $: 'TokenAdminRegistry_TokenInfo',
-            admission: null,
+            poolInfo: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -780,12 +774,8 @@ export const TokenAdminRegistry_TokenInfo = {
             queryId: s.loadUintBig(64),
             token: s.loadAddress(),
             minterAddress: s.loadAddress(),
-            tokenPool: s.loadMaybeAddress(),
-            transferInitiator: s.loadBoolean() ? loadCellRef<c.Address>(s,
-                (s) => s.loadAddress()
-            ) : null,
             version: s.loadUintBig(32),
-            admission: s.loadBoolean() ? loadCellRef<TokenPool_AdmissionBudget>(s, TokenPool_AdmissionBudget.fromSlice) : null,
+            poolInfo: s.loadBoolean() ? loadCellRef<TokenAdminRegistry_PoolInfo>(s, TokenAdminRegistry_PoolInfo.fromSlice) : null,
         }
     },
     store(self: TokenAdminRegistry_TokenInfo, b: c.Builder): void {
@@ -793,19 +783,56 @@ export const TokenAdminRegistry_TokenInfo = {
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.token);
         b.storeAddress(self.minterAddress);
-        b.storeAddress(self.tokenPool);
-        storeTolkNullable<c.Address>(self.transferInitiator, b,
-            (v,b) => { storeCellRef<c.Address>(v, b,
-                (v,b) => b.storeAddress(v)
-            ); }
-        );
         b.storeUint(self.version, 32);
-        storeTolkNullable<TokenPool_AdmissionBudget>(self.admission, b,
-            (v,b) => storeCellRef<TokenPool_AdmissionBudget>(v, b, TokenPool_AdmissionBudget.store)
+        storeTolkNullable<TokenAdminRegistry_PoolInfo>(self.poolInfo, b,
+            (v,b) => storeCellRef<TokenAdminRegistry_PoolInfo>(v, b, TokenAdminRegistry_PoolInfo.store)
         );
     },
     toCell(self: TokenAdminRegistry_TokenInfo): c.Cell {
         return makeCellFrom<TokenAdminRegistry_TokenInfo>(self, TokenAdminRegistry_TokenInfo.store);
+    }
+}
+
+/**
+ > struct TokenAdminRegistry_PoolInfo {
+ >     tokenPool: address
+ >     transferInitiator: address?
+ >     admission: Cell<TokenPool_AdmissionBudget>
+ > }
+ */
+export interface TokenAdminRegistry_PoolInfo {
+    readonly $: 'TokenAdminRegistry_PoolInfo'
+    tokenPool: c.Address
+    transferInitiator: c.Address | null
+    admission: TokenPool_AdmissionBudget
+}
+
+export const TokenAdminRegistry_PoolInfo = {
+    create(args: {
+        tokenPool: c.Address
+        transferInitiator: c.Address | null
+        admission: TokenPool_AdmissionBudget
+    }): TokenAdminRegistry_PoolInfo {
+        return {
+            $: 'TokenAdminRegistry_PoolInfo',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenAdminRegistry_PoolInfo {
+        return {
+            $: 'TokenAdminRegistry_PoolInfo',
+            tokenPool: s.loadAddress(),
+            transferInitiator: s.loadMaybeAddress(),
+            admission: loadCellRef<TokenPool_AdmissionBudget>(s, TokenPool_AdmissionBudget.fromSlice),
+        }
+    },
+    store(self: TokenAdminRegistry_PoolInfo, b: c.Builder): void {
+        b.storeAddress(self.tokenPool);
+        b.storeAddress(self.transferInitiator);
+        storeCellRef<TokenPool_AdmissionBudget>(self.admission, b, TokenPool_AdmissionBudget.store);
+    },
+    toCell(self: TokenAdminRegistry_PoolInfo): c.Cell {
+        return makeCellFrom<TokenAdminRegistry_PoolInfo>(self, TokenAdminRegistry_PoolInfo.store);
     }
 }
 
@@ -1203,76 +1230,6 @@ export const DepositAccount_ForwardNotification = {
     },
     toCell(self: DepositAccount_ForwardNotification): c.Cell {
         return makeCellFrom<DepositAccount_ForwardNotification>(self, DepositAccount_ForwardNotification.store);
-    }
-}
-
-/**
- > type ForwardPayloadRemainder = RemainingBitsAndRefs
- */
-export type ForwardPayloadRemainder = RemainingBitsAndRefs
-
-export const ForwardPayloadRemainder = {
-    fromSlice(s: c.Slice): ForwardPayloadRemainder {
-        return loadTolkRemaining(s);
-    },
-    store(self: ForwardPayloadRemainder, b: c.Builder): void {
-        storeTolkRemaining(self, b);
-    },
-    toCell(self: ForwardPayloadRemainder): c.Cell {
-        return makeCellFrom<ForwardPayloadRemainder>(self, ForwardPayloadRemainder.store);
-    }
-}
-
-/**
- > struct (0x7362d09c) TransferNotificationForRecipient {
- >     queryId: uint64
- >     jettonAmount: coins
- >     transferInitiator: address?
- >     forwardPayload: ForwardPayloadRemainder
- > }
- */
-export interface TransferNotificationForRecipient {
-    readonly $: 'TransferNotificationForRecipient'
-    queryId: uint64
-    jettonAmount: coins
-    transferInitiator: c.Address | null
-    forwardPayload: ForwardPayloadRemainder
-}
-
-export const TransferNotificationForRecipient = {
-    PREFIX: 0x7362d09c,
-
-    create(args: {
-        queryId?: uint64
-        jettonAmount: coins
-        transferInitiator: c.Address | null
-        forwardPayload: ForwardPayloadRemainder
-    }): TransferNotificationForRecipient {
-        return {
-            $: 'TransferNotificationForRecipient',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TransferNotificationForRecipient {
-        loadAndCheckPrefix32(s, 0x7362d09c, 'TransferNotificationForRecipient');
-        return {
-            $: 'TransferNotificationForRecipient',
-            queryId: s.loadUintBig(64),
-            jettonAmount: s.loadCoins(),
-            transferInitiator: s.loadMaybeAddress(),
-            forwardPayload: ForwardPayloadRemainder.fromSlice(s),
-        }
-    },
-    store(self: TransferNotificationForRecipient, b: c.Builder): void {
-        b.storeUint(0x7362d09c, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeCoins(self.jettonAmount);
-        b.storeAddress(self.transferInitiator);
-        ForwardPayloadRemainder.store(self.forwardPayload, b);
-    },
-    toCell(self: TransferNotificationForRecipient): c.Cell {
-        return makeCellFrom<TransferNotificationForRecipient>(self, TransferNotificationForRecipient.store);
     }
 }
 
@@ -2200,7 +2157,7 @@ export const ReceiveExecutor_MessageExecutionState = {
 }
 
 /**
- > enum ReceiveExecutor_Error { 9 variants }
+ > enum ReceiveExecutor_Error { 10 variants }
  */
 export type ReceiveExecutor_Error = bigint
 
@@ -2214,6 +2171,7 @@ export const ReceiveExecutor_Error = {
     TokenAdminRegistryUnexpectedResponse: 37606n,
     TokenPoolUnexpectedResponse: 37607n,
     TokenNotEnabledInTokenRegistry: 37608n,
+    TokenAdmissionNotMet: 37609n,
 
     fromSlice(s: c.Slice): ReceiveExecutor_Error {
         return s.loadUintBig(16);
@@ -2264,6 +2222,76 @@ export const TokenPool_AdmissionBudget = {
     }
 }
 
+/**
+ > type ForwardPayloadRemainder = RemainingBitsAndRefs
+ */
+export type ForwardPayloadRemainder = RemainingBitsAndRefs
+
+export const ForwardPayloadRemainder = {
+    fromSlice(s: c.Slice): ForwardPayloadRemainder {
+        return loadTolkRemaining(s);
+    },
+    store(self: ForwardPayloadRemainder, b: c.Builder): void {
+        storeTolkRemaining(self, b);
+    },
+    toCell(self: ForwardPayloadRemainder): c.Cell {
+        return makeCellFrom<ForwardPayloadRemainder>(self, ForwardPayloadRemainder.store);
+    }
+}
+
+/**
+ > struct (0x7362d09c) TransferNotificationForRecipient {
+ >     queryId: uint64
+ >     jettonAmount: coins
+ >     transferInitiator: address?
+ >     forwardPayload: ForwardPayloadRemainder
+ > }
+ */
+export interface TransferNotificationForRecipient {
+    readonly $: 'TransferNotificationForRecipient'
+    queryId: uint64
+    jettonAmount: coins
+    transferInitiator: c.Address | null
+    forwardPayload: ForwardPayloadRemainder
+}
+
+export const TransferNotificationForRecipient = {
+    PREFIX: 0x7362d09c,
+
+    create(args: {
+        queryId?: uint64
+        jettonAmount: coins
+        transferInitiator: c.Address | null
+        forwardPayload: ForwardPayloadRemainder
+    }): TransferNotificationForRecipient {
+        return {
+            $: 'TransferNotificationForRecipient',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TransferNotificationForRecipient {
+        loadAndCheckPrefix32(s, 0x7362d09c, 'TransferNotificationForRecipient');
+        return {
+            $: 'TransferNotificationForRecipient',
+            queryId: s.loadUintBig(64),
+            jettonAmount: s.loadCoins(),
+            transferInitiator: s.loadMaybeAddress(),
+            forwardPayload: ForwardPayloadRemainder.fromSlice(s),
+        }
+    },
+    store(self: TransferNotificationForRecipient, b: c.Builder): void {
+        b.storeUint(0x7362d09c, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeCoins(self.jettonAmount);
+        b.storeAddress(self.transferInitiator);
+        ForwardPayloadRemainder.store(self.forwardPayload, b);
+    },
+    toCell(self: TransferNotificationForRecipient): c.Cell {
+        return makeCellFrom<TransferNotificationForRecipient>(self, TransferNotificationForRecipient.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class ReceiveExecutor
 //
@@ -2303,7 +2331,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class ReceiveExecutor implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,
@@ -2317,6 +2345,7 @@ export class ReceiveExecutor implements c.Contract {
         'ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse': 37606,
         'ReceiveExecutor_Error.TokenPoolUnexpectedResponse': 37607,
         'ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry': 37608,
+        'ReceiveExecutor_Error.TokenAdmissionNotMet': 37609,
     }
 
     readonly address: c.Address
@@ -2374,10 +2403,8 @@ export class ReceiveExecutor implements c.Contract {
         queryId?: uint64
         token: c.Address
         minterAddress: c.Address
-        tokenPool: c.Address | null
-        transferInitiator: c.Address | null
         version: uint32
-        admission?: TokenPool_AdmissionBudget | null /* = null */
+        poolInfo?: TokenAdminRegistry_PoolInfo | null /* = null */
     }) {
         return TokenAdminRegistry_TokenInfo.toCell(TokenAdminRegistry_TokenInfo.create(body));
     }
@@ -2467,10 +2494,8 @@ export class ReceiveExecutor implements c.Contract {
         queryId?: uint64
         token: c.Address
         minterAddress: c.Address
-        tokenPool: c.Address | null
-        transferInitiator: c.Address | null
         version: uint32
-        admission?: TokenPool_AdmissionBudget | null /* = null */
+        poolInfo?: TokenAdminRegistry_PoolInfo | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

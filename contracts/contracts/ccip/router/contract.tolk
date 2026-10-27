@@ -546,7 +546,7 @@ fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: a
 fun failWithdrawToTokenPool(request: DepositAccount_Withdraw, exitCode: int32) {
     val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromCell(request.ask.forwardPayload!);
     val lockOrBurn = lazy fwdp.requestMsg.load();
-    sendLockOrBurnRelayFailure(lockOrBurn.replyTo!, lockOrBurn.queryId, request.ask.transferRecipient, exitCode);
+    sendLockOrBurnRelayFailure(lockOrBurn.replyTo, lockOrBurn.queryId, request.ask.transferRecipient, exitCode);
 }
 
 /// Returns accidentally transferred jettons to the transfer initiator. The Router's own jetton
@@ -1059,8 +1059,7 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
             requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
             tokenArgs: null, // TBD?
             replyTo: msg.executorAddress,
-            // TODO: rename as finalizationValue to match the LockOrBurn context field
-            finalizationValue: msg.failureValue,
+            finalizationValue: msg.finalizationValue,
             // Keep the pool's deposit-auth namespace cache in sync
             onRampNamespaces,
         }

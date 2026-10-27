@@ -12,6 +12,7 @@ import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/funding/jetton_withdrawable"
 import "../../../lib/budget/min_value"
+import "../../../lib/budget/gas"
 
 
 import "../../common/types"
@@ -176,7 +177,7 @@ fun onLockOrBurnTransferContinue(
     // minval:check-fail gate=S LockReleaseLockboxTokenPool.TransferNotificationForRecipient
     // `S` is the last custody phase's budget; it must cover the reference transfer plus the
     // finalization it may have to fund after custody moves.
-    val minValue = JettonWalletFees.Reference.transferValue(0, fwdFee)
+    val minValue = JettonFees.Reference.transferValue(0, fwdFee)
         + TokenPool_Costs.finalization(); // T + max(F0, F1) = T + F
     assertMinValue(safety, minValue, TokenPool_Error.InsufficientMessageValue);
 
@@ -330,7 +331,7 @@ fun onLockboxTransferBounced(
 fun onReleaseOrMintContinue(
     ctx: Storage?,
     sender: address,
-    _msgValue: coins,
+    msgValue: coins,
     msg: TokenPool_ReleaseOrMint,
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
@@ -384,17 +385,20 @@ fun onReleaseOrMintContinue(
         },
     };
 
-    val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
+    val sendMode = SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
     val fwdFee = createMessage(withdrawOpts).estimateFeeWithoutSending(sendMode);
 
     // minval:check-bounce gate=S LockReleaseLockboxTokenPool.TokenPool_ReleaseOrMint
     // Size the LR safety: one custody transfer plus the pool's finalization. The hop itself is
     // funded by the inbound admission; `S` must still cover its share after custody moves.
     val safety = st.TokenPool().budget().releaseOrMint.safety;
-    val minValue = JettonWalletFees.Reference.transferValue(0, fwdFee)
+    val minValue = JettonFees.Reference.transferValue(0, fwdFee)
         + TokenPool_Costs.finalization(); // T + max(F0, F1) = T + F
     assertMinValue(safety, minValue, TokenPool_Error.InsufficientMessageValue);
 
+    // The ReleaseOrMint entry emitted an inbound-rate-limit event. Reserve the pre-message balance
+    // so the event and this hop are paid from the inbound admission, not the pool balance.
+    reserveBalanceBeforeInMessage(msgValue);
     val withdraw = createMessage(withdrawOpts);
     withdraw.send(sendMode);
 

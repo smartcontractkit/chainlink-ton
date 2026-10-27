@@ -41,12 +41,16 @@ get fun get_jettonWalletMinStorageFee(): coins { return calculateJettonWalletMin
 /// config the budget functions use (no duplicated gas-price constant in TS).
 get fun get_calculateGasFee(gasUsed: int): coins { return calculateGasFee(MY_WORKCHAIN, gasUsed); }
 
-/* === Jetton wallet fee model (pools/lib/token_pool/jetton_fees) === */
+/* === Jetton wallet fee model (pools/lib/token_pool/types; clients use pinned constants) === */
 
 get fun get_jettonTransferFee(fwdFee: coins, hasForward: bool, generic: bool): coins {
-    val fees = generic ? JettonWalletFees.Generic : JettonWalletFees.Reference;
-    return fees.transferFee(fwdFee, hasForward);
+    return generic
+        ? JettonFees.Generic.transferFee(fwdFee, hasForward)
+        : JettonFees.Reference.transferFee(fwdFee, hasForward);
 }
+
+get fun get_jettonWalletFeeMargin(): coins { return JETTON_FEE_MARGIN; }
+get fun get_jettonGenericWalletFeeMultiplier(): int { return JETTON_FEE_GENERIC_MULTIPLIER; }
 
 /* === BurnMint mint budget (pools/burn_mint/types) === */
 

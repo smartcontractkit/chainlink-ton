@@ -210,6 +210,19 @@ fun sendUpgrade(dest: address, queryId: uint64, value: coins, mode: int) {
 
 fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
     val tokenInfo = msg.tokenInfo.load();
+
+    // `tokenPool` and `admission` are written together by `onPoolConfig`. If either is missing
+    // (delisted, or still waiting for the probe), publish no pool info; a non-null pool without
+    // an admission is treated as not enabled instead of inventing a zero budget.
+    var poolInfo: Cell<TokenAdminRegistry_PoolInfo>? = null;
+    if (tokenInfo.tokenPool != null && tokenInfo.admission != null) {
+        poolInfo = TokenAdminRegistry_PoolInfo {
+            tokenPool: tokenInfo.tokenPool!,
+            transferInitiator: tokenInfo.transferInitiator,
+            admission: tokenInfo.admission!,
+        }.toCell();
+    }
+
     createMessage({
         bounce: false,
         value: 0,
@@ -218,10 +231,8 @@ fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
             queryId: msg.queryId,
             token: msg.token,
             minterAddress: tokenInfo.minterAddress,
-            tokenPool: tokenInfo.tokenPool,
-            transferInitiator: tokenInfo.transferInitiator == null ? null : tokenInfo.transferInitiator!.toCell(),
             version: tokenInfo.version,
-            admission: tokenInfo.admission,
+            poolInfo,
         },
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }

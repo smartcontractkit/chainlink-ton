@@ -110,10 +110,11 @@ runTokenPoolGasCalibration({
       pool: blockchain.openContract(TokenPool.fromAddress(burnMintPool.address)),
       localToken: cctMinter.address,
       getWalletAddress: (owner: Address) => cctMinterRuntime.getWalletAddress(owner),
-      readBudget: async () => ({
-        admissionGasUnits: Number(await harness.getCcipAdmissionGasUnits()),
-        minValueGasUnits: Number(await harness.getCcipMinValueGasUnits()),
-      }),
+      readBudget: () => burnMintPool.getBudget(),
+      trackedAccounts: [
+        { label: 'pool', address: burnMintPool.address },
+        { label: 'minter', address: cctMinter.address },
+      ],
       assertTokenBudget: async (kind, result) => {
         if (kind === 'lock') {
           // The user funds the inbound wallet hop; the reference fee model must still cover it.

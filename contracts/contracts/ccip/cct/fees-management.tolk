@@ -27,11 +27,11 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600  // 5 years
 // they must be absolutely equal to consumed gas; if not, tests fail;
 // actual consumed gas (desired value of these constants) are printed to console after tests run
 
-const GAS_CONSUMPTION_JettonTransfer    = 6218
+const GAS_CONSUMPTION_JettonTransfer    = 6182
 const GAS_CONSUMPTION_JettonReceive     = 7481
 const GAS_CONSUMPTION_BurnRequest       = 4882
 const GAS_CONSUMPTION_BurnNotification  = 3915
-const GAS_CONSUMPTION_Mint              = 6218
+const GAS_CONSUMPTION_Mint              = 6182
 
 
 fun calculateJettonWalletMinStorageFee() {
@@ -42,41 +42,57 @@ fun forwardInitStateOverhead() {
     return calculateForwardFeeWithoutLumpPrice(MY_WORKCHAIN, STORAGE_SIZE_InitStateWallet_bits, STORAGE_SIZE_InitStateWallet_cells);
 }
 
-fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: int) {
+/// The fee a transfer must cover, excluding `forwardTonAmount`. `usePrecompiledGas` must be true
+/// only when called by the wallet itself; clients (pools) must pass false so they use the pinned
+/// constants instead of their own precompiled gas.
+fun calculateTransferFee(forwardTonAmount: int, fwdFee: int, usePrecompiledGas: bool = true): coins {
     var fwdCount = forwardTonAmount != 0 ? 2 : 1; // second sending (forward) will be cheaper that first
 
-    var jettonWalletGasConsumption = getPrecompiledGasConsumption();
-    var sendTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonTransfer : jettonWalletGasConsumption;
-    var receiveTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonReceive : jettonWalletGasConsumption;
+    var jettonWalletGasConsumption: int? = null;
+    if (usePrecompiledGas) {
+        jettonWalletGasConsumption = getPrecompiledGasConsumption();
+    }
+    var sendTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonTransfer : jettonWalletGasConsumption!;
+    var receiveTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonReceive : jettonWalletGasConsumption!;
 
-    assert (msgValue >
-        forwardTonAmount +
+    return
         // 3 messages: wal1->wal2,  wal2->owner, wal2->response
         // but last one is optional (it is ok if it fails)
         fwdCount * fwdFee +
         forwardInitStateOverhead() + // additional fwd fees related to initstate in iternal_transfer
         calculateGasFee(MY_WORKCHAIN, sendTransferGasConsumption) +
         calculateGasFee(MY_WORKCHAIN, receiveTransferGasConsumption) +
-        calculateJettonWalletMinStorageFee()
+        calculateJettonWalletMinStorageFee();
+}
+
+fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: int, usePrecompiledGas: bool = true) {
+    assert (msgValue >
+        forwardTonAmount + calculateTransferFee(forwardTonAmount, fwdFee, usePrecompiledGas)
     ) throw ERROR_NOT_ENOUGH_GAS;
 }
 
-/// Funds the whole burn: the wallet, the minter's notification and, when `hasExcesses`, the
-/// minter's `ReturnExcessesBack`. Both outgoing messages carry the request's `forwardPayload`, so
-/// the incoming forward fee (plus the burn initiator address the notification adds) bounds each
-/// of them, as in `checkAmountIsEnoughToTransfer`. An underfunded burn is rejected here, before
-/// supply changes, instead of committing and dropping the excess that completes the operation.
-fun checkAmountIsEnoughToBurn(msgValue: int, fwdFee: int, hasExcesses: bool) {
-    var jettonWalletGasConsumption = getPrecompiledGasConsumption();
-    var sendBurnGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_BurnRequest : jettonWalletGasConsumption;
+/// The value a burn must carry to fund the wallet, the minter's notification and, when
+/// `hasExcesses`, the minter's `ReturnExcessesBack`. Both outgoing messages carry the request's
+/// `forwardPayload`, so the incoming forward fee (plus the burn initiator address the notification
+/// adds) bounds each of them, as in `checkAmountIsEnoughToTransfer`.
+fun calculateBurnRequiredValue(fwdFee: int, hasExcesses: bool, usePrecompiledGas: bool = true): coins {
+    var jettonWalletGasConsumption: int? = null;
+    if (usePrecompiledGas) {
+        jettonWalletGasConsumption = getPrecompiledGasConsumption();
+    }
+    var sendBurnGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_BurnRequest : jettonWalletGasConsumption!;
 
     val payloadFee = fwdFee + calculateForwardFeeWithoutLumpPrice(MY_WORKCHAIN, MESSAGE_SIZE_Address_bits, 0);
     val messageFee = max(payloadFee, calculateForwardFee(MY_WORKCHAIN, MESSAGE_SIZE_BurnNotification_bits, MESSAGE_SIZE_BurnNotification_cells));
     val fwdCount = hasExcesses ? 2 : 1;
 
-    assert (msgValue >
-        fwdCount * messageFee +
+    return fwdCount * messageFee +
         calculateGasFee(MY_WORKCHAIN, sendBurnGasConsumption) +
-        calculateGasFee(MY_WORKCHAIN, GAS_CONSUMPTION_BurnNotification)
-    ) throw ERROR_NOT_ENOUGH_GAS;
+        calculateGasFee(MY_WORKCHAIN, GAS_CONSUMPTION_BurnNotification);
+}
+
+/// An underfunded burn is rejected here, before supply changes, instead of committing and dropping
+/// the excess that completes the operation.
+fun checkAmountIsEnoughToBurn(msgValue: int, fwdFee: int, hasExcesses: bool, usePrecompiledGas: bool = true) {
+    assert (msgValue > calculateBurnRequiredValue(fwdFee, hasExcesses, usePrecompiledGas)) throw ERROR_NOT_ENOUGH_GAS;
 }

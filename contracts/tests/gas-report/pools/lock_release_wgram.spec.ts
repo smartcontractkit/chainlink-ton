@@ -149,10 +149,11 @@ runTokenPoolGasCalibration({
       pool: blockchain.openContract(TokenPool.fromAddress(lockReleasePool.address)),
       localToken: jettonMinter.address,
       getWalletAddress: (owner: Address) => jettonMinter.getWalletAddress(owner),
-      readBudget: async () => ({
-        admissionGasUnits: Number(await harness.getCcipAdmissionGasUnits()),
-        minValueGasUnits: Number(await harness.getCcipMinValueGasUnits()),
-      }),
+      readBudget: () => lockReleasePool.getBudget(),
+      trackedAccounts: [
+        { label: 'pool', address: lockReleasePool.address },
+        { label: 'lockbox', address: jettonLockBox.address },
+      ],
       // Fund lockbox custody so the release withdraw can transfer to the recipient account.
       fundForRelease: () => mintWgram(jettonLockBox.address, toNano('5')).then(() => undefined),
       assertTokenBudget: async (_kind, result) => {

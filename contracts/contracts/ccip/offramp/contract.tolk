@@ -563,7 +563,8 @@ fun onTokenPoolReleaseOrMintFailed(msg: Router_TokenPoolReleaseOrMintFailed) {
 // Router_TokenPoolReleaseOrMintFailed.
 fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMint) {
     if (msg.destGasAmount < st.config.load().dynamicConfig.load().minTTGasLimit) {
-        return mintOrReleaseFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, NotEnoughDestGasAmountForTokenTransfer {});
+        val receiveExecutor = getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress();
+        return mintOrReleaseFailed(receiveExecutor, msg.queryId, NotEnoughDestGasAmountForTokenTransfer {});
     }
 
     val relayMsg = createMessage({

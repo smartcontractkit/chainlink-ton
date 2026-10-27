@@ -2,6 +2,7 @@
 import "../../../../lib/utils"
 import "../../../common/types"
 import "../../../rmn_remote/lib"
+import "../../../cct/fees-management"
 
 import "../rate_limiter"
 

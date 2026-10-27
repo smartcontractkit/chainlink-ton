@@ -73,10 +73,12 @@ describe('TokenAdminRegistry - Get Token Info', () => {
         queryId: 106n,
         token: fx.token,
         minterAddress: fx.token,
-        tokenPool: fx.pool,
-        transferInitiator: null,
         version: 1n,
-        admission: POOL_ADMISSION,
+        poolInfo: tar.TokenAdminRegistry_PoolInfo.create({
+          tokenPool: fx.pool,
+          transferInitiator: null,
+          admission: POOL_ADMISSION,
+        }),
       }),
     )
   })
@@ -106,7 +108,7 @@ describe('TokenAdminRegistry - Get Token Info', () => {
     await setPool(fx, fx.administrator, null)
 
     const result = await getTokenInfo()
-    expect(returnedTokenInfo(fx, result, fx.other.address).tokenPool).toBeNull()
+    expect(returnedTokenInfo(fx, result, fx.other.address).poolInfo).toBeNull()
   })
 
   it('returns no pool while a pool update awaits the probe answer', async () => {
@@ -114,11 +116,11 @@ describe('TokenAdminRegistry - Get Token Info', () => {
     await requestSetPool(fx, fx.administrator, fx.replacementPool)
 
     const pending = await getTokenInfo()
-    expect(returnedTokenInfo(fx, pending, fx.other.address).tokenPool).toBeNull()
+    expect(returnedTokenInfo(fx, pending, fx.other.address).poolInfo).toBeNull()
 
     await answerPoolProbe(fx, { from: fx.replacementPool })
     const answered = await getTokenInfo()
-    expect(returnedTokenInfo(fx, answered, fx.other.address).tokenPool).toEqualAddress(
+    expect(returnedTokenInfo(fx, answered, fx.other.address).poolInfo?.tokenPool).toEqualAddress(
       fx.replacementPool,
     )
   })
@@ -129,7 +131,7 @@ describe('TokenAdminRegistry - Get Token Info', () => {
     await requestSetPool(fx, fx.administrator, fx.registry.address)
 
     const result = await getTokenInfo()
-    expect(returnedTokenInfo(fx, result, fx.other.address).tokenPool).toBeNull()
+    expect(returnedTokenInfo(fx, result, fx.other.address).poolInfo).toBeNull()
   })
 
   it('returns the transfer initiator reported by the pool', async () => {
@@ -138,7 +140,7 @@ describe('TokenAdminRegistry - Get Token Info', () => {
     await setPool(fx, fx.administrator, fx.pool, 0n, undefined, initiator)
 
     const result = await getTokenInfo()
-    const info = returnedTokenInfo(fx, result, fx.other.address)
+    const info = returnedTokenInfo(fx, result, fx.other.address).poolInfo!
     expect(info.tokenPool).toEqualAddress(fx.pool)
     expect(info.transferInitiator).toEqualAddress(initiator)
   })
@@ -149,9 +151,7 @@ describe('TokenAdminRegistry - Get Token Info', () => {
     await setPool(fx, fx.administrator, null)
 
     const result = await getTokenInfo()
-    const info = returnedTokenInfo(fx, result, fx.other.address)
-    expect(info.tokenPool).toBeNull()
-    expect(info.transferInitiator).toBeNull()
+    expect(returnedTokenInfo(fx, result, fx.other.address).poolInfo).toBeNull()
   })
 
   it('relays resolved token info from the deterministic entry', async () => {
@@ -165,10 +165,12 @@ describe('TokenAdminRegistry - Get Token Info', () => {
         queryId: 3n,
         token: fx.token,
         minterAddress: fx.token,
-        tokenPool: fx.pool,
-        transferInitiator: null,
         version: 1n,
-        admission: POOL_ADMISSION,
+        poolInfo: tar.TokenAdminRegistry_PoolInfo.create({
+          tokenPool: fx.pool,
+          transferInitiator: null,
+          admission: POOL_ADMISSION,
+        }),
       }),
     )
   })

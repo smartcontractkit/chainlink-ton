@@ -336,7 +336,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     // This check is an estimate and an early guard; the actual jetton wallet checks its own
     // transfer cost and bounces back if not enough value is provided.
     val w = contract.getAddress().getWorkchain();
-    val minValue = JettonWalletFees.Reference.transferValue(forwardTonAmount, fwdFee)
+    val minValue = JettonFees.Reference.transferValue(forwardTonAmount, fwdFee)
         + calculateGasFee(w, JettonLockBox_WITHDRAW_GAS_UNITS);
     assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
 

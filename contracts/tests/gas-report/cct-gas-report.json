@@ -1,7 +1,7 @@
 [
   {
     "label": "current",
-    "createdAt": "2026-10-26T12:59:27.910Z",
+    "createdAt": "2026-10-27T11:41:26.367Z",
     "result": {
       "JettonMinter": {
         "sendDeploy": {
@@ -15,7 +15,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "13146"
+            "value": "13130"
           }
         },
         "send": {
@@ -29,7 +29,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "13146"
+            "value": "13130"
           }
         },
         "notSupported": {
@@ -43,7 +43,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "13146"
+            "value": "13130"
           }
         }
       },

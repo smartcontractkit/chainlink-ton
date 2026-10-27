@@ -98,21 +98,13 @@ struct (0xfa7da444) TokenPool_LockOrBurn {
 
     replyTo: address;
 
-    /// On admission, we get at least A + F, where A is the admission budget and F is the finalization budget.
-    /// A = P + S, where P is the processing budget (e.g., hooks budget).
-    /// A = P + R + F, where R is the return of custody budget and F is the finalization budget.
-
-    /// CCIP post-custody failure budget, forwarded to the initiator on rejection.
+    /// A: admission budget. Checked at the entrypoint; covers pre-custody processing, the
+    /// withdraw relay, and two custody phases (`A >= 3S`).
+    /// S: safety budget for one custody phase. Covers the return and success/failure finalization.
+    /// F: finalization/continuation supplied by the caller.
     ///
-    /// S = R + F, where R is the return of custody budget, and F = max(F0, F1) is the finalization budget.
-    ///
-    /// 1. Before calling burn/deposit/lock we need at least S = R + max(F0, F1),
-    ///     - On success, we need at least F1 for the success budget.
-    ///     - On failure, we need at least R to cover the return of custody, and F0 for the failure budget.
-    ///
-    /// 2. Before calling mint/release we need at least S = R + max(F0, F1),
-    ///     - On success, we need at least F1 for the success budget.
-    ///     - On failure, we need R=0 custody, and F0 for the failure budget.
+    /// The entry checks `msgValue >= A + F`. The custody transfer carries `2S + F`; the last
+    /// custody hop (burn or lockbox deposit) and its finalization are funded from that forward.
 
     /// Finalization value the caller asks the lock/burn flow to forward on success/failure.
     finalizationValue: coins;
@@ -135,7 +127,6 @@ struct (0x351f77e3) TokenPool_ReleaseOrMint {
     requestedFinalityConfig: uint32;
 
     // Continuation info
-    // TODO: post-PR925 merge, propagate non-optional replyTo throughout the system.
     replyTo: address;
     delivery: Cell<TokenPool_ReleaseOrMintDelivery>;
 }
