@@ -65,7 +65,8 @@ fun OnRamp_ExecutorRequestsLockOrBurn.cost(poolValue: coins): int {
         + grams("0.0065") // SendExecutor TokenPool_LockOrBurnWithdraw
         + grams("0.005") // OnRamp ExecutorRequestsWithdraw relay
         + grams("0.004") // Router_WithdrawToTokenPool relay
-        + grams("0.003") // DepositAccount_Withdraw
+        + grams("0.0045") // DepositAccount_Withdraw
+        + grams("0.0015") // jetton excess returned to the OnRamp
         + poolValue
         ;
 }

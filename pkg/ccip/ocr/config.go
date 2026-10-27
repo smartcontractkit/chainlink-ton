@@ -21,10 +21,10 @@ type Config struct {
 // price updates, a price-only commit, a tokenless execution on top of its gasLimit, and the extra
 // per token transfer on top of its destGasAmount.
 var DefaultConfigSet = Config{
-	CommitPriceUpdateOnlyCostTON: 0.045,
-	CommitPriceAndRootCostTON:    0.0655,
-	ExecuteCostTON:               0.1155,
-	ExecuteCostTONTokenTransfer:  0.119,
+	CommitPriceUpdateOnlyCostTON: 0.05,
+	CommitPriceAndRootCostTON:    0.0605,
+	ExecuteCostTON:               0.1215,
+	ExecuteCostTONTokenTransfer:  0.0795,
 }
 
 func (c *Config) ApplyDefaults() {

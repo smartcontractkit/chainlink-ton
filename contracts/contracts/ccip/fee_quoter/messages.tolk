@@ -78,7 +78,7 @@ struct FeeQuoter_Costs {}
 // message, whose reply echoes it.
 fun FeeQuoter_Costs.GetValidatedFee(): int {
     return
-        + grams("0.025") // computeFee
+        + grams("0.11") // computeFee (canonical snake walk of MAX_DATA_CELLS)
         + grams("0.1") // MessageValidated | MessageValidationFailed fwdFee
         ;
 }
@@ -86,5 +86,5 @@ fun FeeQuoter_Costs.GetValidatedFee(): int {
 /// 5x the cost measured for 8 token and 1 gas price updates; a larger report is not rejected,
 /// the FeeQuoter just needs more.
 fun FeeQuoter_Costs.updatePrices(): int {
-    return grams("0.027");
+    return grams("0.03");
 }

@@ -80,7 +80,7 @@ const RECEIVE_EXECUTOR_COSTS_CONFIRMED_OR_BOUNCED_FEE = grams("0.003");
 const RECEIVE_EXECUTOR_COSTS_INIT_EXEC_FEE = grams("0.0095");
 const RECEIVE_EXECUTOR_COSTS_TOKEN_INFO_FEE = grams("0.005");
 // DepositAccount_ForwardNotification: the delivery notice and the dispatch carrying the message.
-const RECEIVE_EXECUTOR_COSTS_FORWARD_NOTIFICATION_FEE = grams("0.013");
+const RECEIVE_EXECUTOR_COSTS_FORWARD_NOTIFICATION_FEE = grams("0.0135");
 
 struct ReceiveExecutor_Costs{}
 

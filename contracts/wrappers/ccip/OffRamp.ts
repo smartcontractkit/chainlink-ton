@@ -24,7 +24,7 @@ export const DEFAULT_MIN_TT_GASLIMIT = toNano('0.2')
  * 2000-byte message. */
 export const Costs = (() => {
   const executorDeployment = toNano('0.01')
-  const merkleRootDeployment = toNano('0.02')
+  const merkleRootDeployment = toNano('0.01')
   const markState = toNano('0.0035')
   const notify = toNano('0.0035') + markState
   const confirmedOrBounced = toNano('0.003') + notify
@@ -39,7 +39,7 @@ export const Costs = (() => {
     RegistryCosts.getTokenInfo +
     toNano('0.005') +
     releaseOrMint +
-    toNano('0.013') +
+    toNano('0.0135') +
     tokenTransferDelivered
   const initExec = (hasTokens: boolean) =>
     toNano('0.0095') + (hasTokens ? tokenTransfer : 0n) + dispatchValidated
@@ -47,8 +47,8 @@ export const Costs = (() => {
     toNano('0.0305') + executorDeployment + initExec(hasTokens)
   const validate = (hasTokens: boolean) => toNano('0.011') + executeValidated(hasTokens)
   /** CCIP-owned part of an execution; add the message's gasLimit and destGasAmount. */
-  const execute = (hasTokens: boolean) => toNano('0.02') + validate(hasTokens)
-  const updatePrices = toNano('0.027')
+  const execute = (hasTokens: boolean) => toNano('0.026') + validate(hasTokens)
+  const updatePrices = toNano('0.03')
   return {
     executorDeployment,
     merkleRootDeployment,
@@ -74,7 +74,7 @@ export const Costs = (() => {
       (hasTokens ? RegistryCosts.getTokenInfo + depositAccount : 0n),
     updatePrices,
     commit: (hasRoots: boolean, hasPriceUpdates: boolean) =>
-      toNano('0.018') +
+      toNano('0.02') +
       (hasRoots ? toNano('0.0005') + merkleRootDeployment : 0n) +
       (hasPriceUpdates ? updatePrices : 0n),
   }

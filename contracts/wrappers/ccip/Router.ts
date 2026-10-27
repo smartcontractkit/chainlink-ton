@@ -124,7 +124,7 @@ export const opcodes = {
  * FeeQuoter_Costs): 5x the cost measured by the gas report for a MAX_DATA_CELLS message. */
 export const Costs = (() => {
   const max = (a: bigint, b: bigint) => (a > b ? a : b)
-  const feeQuoterGetValidatedFee = toNano('0.025') + toNano('0.1')
+  const feeQuoterGetValidatedFee = toNano('0.11') + toNano('0.1')
   const messageSent = toNano('0.0025')
   const messageRejected = toNano('0.0025')
   const executorFinishedSuccessfully = toNano('0.105') + messageSent
@@ -133,7 +133,7 @@ export const Costs = (() => {
     toNano('0.1') + max(executorFinishedSuccessfully, executorFinishedWithError)
   const executorReserveFee = toNano('0.0025')
   const executorDeploy = toNano('0.1')
-  const executorExecute = toNano('0.1') + feeQuoterGetValidatedFee + toNano('0.004')
+  const executorExecute = toNano('0.1') + feeQuoterGetValidatedFee + toNano('0.0045')
   const lockOrBurnValue = toNano('1')
   const lockOrBurnRelay =
     toNano('0.0035') +
@@ -141,20 +141,21 @@ export const Costs = (() => {
     toNano('0.0065') +
     toNano('0.005') +
     toNano('0.004') +
-    toNano('0.003')
+    toNano('0.0045') +
+    toNano('0.0015')
   const executorRequestsLockOrBurn = lockOrBurnRelay + lockOrBurnValue
   const executorTokenTransfer =
     RegistryCosts.getTokenInfo + toNano('0.005') + executorRequestsLockOrBurn
   const executorReserve = (hasTokens: boolean) =>
     executorReserveFee +
-    toNano('0.004') +
+    toNano('0.0045') +
     (hasTokens ? executorTokenTransfer : 0n) +
     executorFinalize
   const onRampSend = (hasTokens: boolean) =>
     toNano('0.12') + executorDeploy + executorExecute + executorReserve(hasTokens)
   const ccipSend = (hasTokens: boolean) => toNano('0.1') + onRampSend(hasTokens)
   const onRampGetValidatedFee = toNano('0.1') + feeQuoterGetValidatedFee + toNano('0.1')
-  const depositAccountReserve = toNano('0.05')
+  const depositAccountReserve = toNano('0.01')
   const depositAccountInit = toNano('0.008')
   const depositAccountWalletQuery = toNano('0.005')
   return {

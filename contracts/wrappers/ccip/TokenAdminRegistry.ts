@@ -31,7 +31,7 @@ export const Costs = (() => {
   const registrationInitializedBase = toNano('0.004')
   const registrationInitialized =
     registrationInitializedBase + walletQuery + poolProbe + 2n * relayEvent
-  const entryStorageReserve = toNano('0.04')
+  const entryStorageReserve = toNano('0.01')
   const deployBase = toNano('0.011')
   const deploy = entryStorageReserve + deployBase + registrationInitialized
   const registerTokenBase = toNano('0.003')

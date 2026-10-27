@@ -1,3 +1,4 @@
+import "../../lib/deployable/types"
 import "types"
 import "../../lib/versioning/upgradeable"
 import "../../lib/jetton/messages"
@@ -79,7 +80,7 @@ fun TokenAdminRegistryEntry_relayEventCost(): coins {
 /// initialization, the RegistrationInitialized self-message, and a 0.04 TON
 /// storage fee reserve that stays on the entry.
 fun TokenAdminRegistryEntry_deployCost(): coins {
-    return grams("0.04")
+    return DEPLOYABLE_INIT_VALUE
         + grams("0.011")
         + TokenAdminRegistryEntry_RegistrationInitialized.cost();
 }

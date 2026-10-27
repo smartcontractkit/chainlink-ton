@@ -667,7 +667,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
         // initialize MerkleRoot subcontract
         val initMsg = createMessage({
             bounce: BounceMode.RichBounce,
-            value: AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT,
+            value: DEPLOYABLE_INIT_VALUE,
             dest: getMerkleRootDeployAddress(st, root.merkleRoot),
             body: Deployable_Initialize {
                 stateInit: {
@@ -683,7 +683,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
                 }
             },
         });
-        initMsg.send(SEND_MODE_REGULAR);
+        initMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
     }
 
     // Update token/gas prices if there are any updates.
@@ -984,7 +984,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
     if (msg.executionState == ExecutionState.Untouched) {
         val deployMsg = createMessage({
             bounce: BounceMode.RichBounce,
-            value: AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT,
+            value: DEPLOYABLE_INIT_VALUE,
             dest: executorAddress,
             body: Deployable_Initialize {
                 stateInit: {
@@ -1037,7 +1037,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         dest: executorAddress,
         body: initExecuteMsg
     });
-    // SAFETY: We use reserveToncoinsOnBalance so we only send the value exceeding from the deployment (AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT)
+    // SAFETY: We use reserveToncoinsOnBalance so we only send the value exceeding from the deployment (DEPLOYABLE_INIT_VALUE)
     initExecMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 

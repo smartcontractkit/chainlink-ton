@@ -170,7 +170,7 @@ struct OffRamp_Costs{}
 
 fun OffRamp_Costs.executeValidated(hasTokens: bool): int {
     val baseFee = OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE;
-    return baseFee + AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT + ReceiveExecutor_Costs.initExec(hasTokens);
+    return baseFee + DEPLOYABLE_INIT_VALUE + ReceiveExecutor_Costs.initExec(hasTokens);
 }
 
 fun OffRamp_Costs.dispatchValidated(): int {
@@ -197,7 +197,7 @@ fun OffRamp_Costs.notify(): int {
 fun OffRamp_Costs.commit(hasRoots: bool, hasPriceUpdates: bool): int {
     return
         + OFFRAMP_COSTS_COMMIT_FEE
-        + (hasRoots ? (OFFRAMP_COSTS_MERKLE_ROOT_INIT_FEE + AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT) as int : 0)
+        + (hasRoots ? (OFFRAMP_COSTS_MERKLE_ROOT_INIT_FEE + DEPLOYABLE_INIT_VALUE) as int : 0)
         + (hasPriceUpdates ? FeeQuoter_Costs.updatePrices() : 0)
         ;
 }
@@ -211,7 +211,7 @@ fun OffRamp_Costs.execute(hasTokens: bool): int {
 
 // OffRamp_Execute: hashing a 2000-byte message, a 6-sibling proof (64-message commit) and the
 // Validate fwdFee.
-const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.02");
+const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.026");
 // OffRamp_ExecuteValidated: event and InitExecute fwdFee carrying the message, executor deploy.
 const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = grams("0.0305");
 const OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE = grams("0.01");
@@ -223,5 +223,5 @@ const OFFRAMP_COSTS_TOKEN_TRANSFER_DELIVERED_FEE = grams("0.012");
 const OFFRAMP_COSTS_NOTIFY_FEE = grams("0.0035");
 const OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE = grams("0.0035");
 // OffRamp_Commit with a root and price updates, signature verification included.
-const OFFRAMP_COSTS_COMMIT_FEE = grams("0.018");
+const OFFRAMP_COSTS_COMMIT_FEE = grams("0.02");
 const OFFRAMP_COSTS_MERKLE_ROOT_INIT_FEE = grams("0.0005");

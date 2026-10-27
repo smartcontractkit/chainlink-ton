@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 /// Kept on the balance to pay for storage fees.
-const DepositAccount_MIN_GRAM_TO_RESERVE: int = grams("0.05");
+import "../../../lib/deployable/types"
+const DepositAccount_MIN_GRAM_TO_RESERVE: int = DEPLOYABLE_INIT_VALUE;
 /// Init compute, the Initialized reply and its handling by the Router, 5x the measured cost.
 const DepositAccount_MIN_GRAM_TO_INIT: int = grams("0.008")
 /// Attached to the TEP-89 wallet query; the token's response returns the unspent part.

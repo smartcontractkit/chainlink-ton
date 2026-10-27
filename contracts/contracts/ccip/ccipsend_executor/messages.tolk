@@ -53,7 +53,7 @@ fun SendExecutor_Costs.Execute(): int {
 fun SendExecutor_Costs.Reserve(hasTokens: bool): int {
     return
         + OnRamp_Costs.ExecutorReserveFee()
-        + grams("0.004") // OnRamp_ExecutorFeeReserved computeFee
+        + grams("0.0045") // OnRamp_ExecutorFeeReserved computeFee
         + (hasTokens ? SendExecutor_Costs.TokenTransfer() : 0)
         + SendExecutor_Costs.Finalize()
         ;
@@ -81,12 +81,12 @@ fun SendExecutor_Costs.Finalize(): int {
 
 @inline
 fun SendExecutor_Costs.MessageValidated(): int {
-    return grams("0.004"); // computeFee + ExecutorReserveFee fwdFee
+    return grams("0.0045"); // computeFee + ExecutorReserveFee fwdFee
 }
 
 @inline
 fun SendExecutor_Costs.MessageValidationFailed(): int {
-    return grams("0.004"); // computeFee + ExecutorFinishedWithError fwdFee
+    return grams("0.0045"); // computeFee + ExecutorFinishedWithError fwdFee
 }
 
 type CCIPSendExecutor_BouncedMessage =

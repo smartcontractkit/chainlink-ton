@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+import "../../lib/deployable/types"
 import "@stdlib/lisp-lists"
 import "../../lib/utils"
 import "../common/types"
@@ -243,10 +244,6 @@ enum ExecutionState: uint8 {
     Success = 2
     Failure = 3
 }
-
-/// Storage reserves kept by the subcontracts; returned when they are drained.
-const AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT = grams("0.02");
-const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = grams("0.01");
 
 /// Shape every source lane is configured to send (FeeQuoter `maxDataBytes` for TON); the receive
 /// cost functions are calibrated for it and the OffRamp rejects anything larger.

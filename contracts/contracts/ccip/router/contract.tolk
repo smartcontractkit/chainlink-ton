@@ -38,8 +38,6 @@ tolk 1.4.2
 
 const CONTRACT_VERSION = "1.7.0".literalSlice();
 const RESERVE = grams("1");
-/// Forward fee of the deposit account deploy (code and state), 5x measured.
-const ROUTER_DEPOSIT_ACCOUNT_DEPLOY_FWD_FEE = grams("0.006");
 /// Forwarded with released/minted tokens so the deposit account gets a transfer notification.
 const ROUTER_DELIVERY_FORWARD_TON_AMOUNT = grams("0.01");
 contract Router {
@@ -456,7 +454,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
     // account this bounces (unrecognized opcode) — the init below still re-confirms the account.
     val deploy = createMessage({
         bounce: BounceMode.NoBounce,
-        value: DepositAccount_MIN_GRAM_TO_RESERVE,
+        value: DEPLOYABLE_INIT_VALUE,
         dest: account,
         body: Deployable_Initialize {
             stateInit: ContractState {
@@ -470,7 +468,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
             },
         },
     });
-    deploy.send(SEND_MODE_REGULAR + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    deploy.send(SEND_MODE_PAY_FEES_SEPARATELY + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     // The remaining value should be at least DepositAccount_MIN_GRAM_TO_INIT
     reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
@@ -1082,7 +1080,7 @@ fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
     beneficiaries.set(details.receiver, ());
     val deploy = createMessage({
         bounce: BounceMode.RichBounce,
-        value: DepositAccount_MIN_GRAM_TO_RESERVE + ROUTER_DEPOSIT_ACCOUNT_DEPLOY_FWD_FEE,
+        value: DEPLOYABLE_INIT_VALUE,
         dest: account,
         body: Deployable_Initialize {
             stateInit: ContractState {
@@ -1096,7 +1094,7 @@ fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
             },
         },
     });
-    deploy.send(SEND_MODE_REGULAR + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    deploy.send(SEND_MODE_PAY_FEES_SEPARATELY + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     // The rest of the inbound value funds the init and the relay that follows it.
     reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
