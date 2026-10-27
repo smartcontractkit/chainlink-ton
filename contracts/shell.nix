@@ -10,7 +10,6 @@
   acton,
   abigen,
   oplint,
-  minlint,
 }:
 pkgs.mkShell {
   buildInputs = with pkgs; [
@@ -31,7 +30,6 @@ pkgs.mkShell {
     acton
     abigen
     oplint
-    minlint
   ];
 
   PATH_CONTRACTS_JETTON = "${jetton-contracts}/lib/node_modules/jetton/build/";

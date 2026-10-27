@@ -748,8 +748,7 @@ fun Timelock<T>.init(
     // Check that the contract is not already initialized
     assert(!self.isInitialized()) throw Timelock_Error.ContractAlreadyInitialized;
 
-    // minval:check-admission gate=A/static Timelock_Init
-    // must cover the init cost and rent reserve; rejects on shortfall
+    // must cover the init cost and rent reserve
     assertMinValue(value, Timelock_Costs.init(), Timelock_Error.InsufficientFee);
 
     var rbac = self.hookTrait__AccessControl();
@@ -855,8 +854,6 @@ fun Timelock<T>.scheduleBatch(
         index += 1;
     }
 
-    // minval:check-admission gate=A/dynamic Timelock_ScheduleBatch
-    // size-scaled (per-call event fees + reply); rejects on shortfall
     assertMinValue(value, Timelock_Costs.scheduleBatch(index), Timelock_Error.InsufficientFee);
 
     val reply = createMessage({
@@ -887,8 +884,7 @@ fun Timelock<T>.cancel(mutate self, sender: address, _value: coins, queryId: uin
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     self.onlyRoleOrAdminRole(CANCELLER_ROLE, sender);
 
-    // minval:best-effort gate=none Timelock_Cancel
-    // the caller's dispatch owns funding; TODO: check-bounce
+    // the caller owns funding; TODO: check min value
 
     assert(self.isOperationPending(id)) throw Timelock_Error.OperationCanNotBeCancelled;
 
@@ -967,8 +963,6 @@ fun Timelock<T>.executeBatch(
         index += 1;
     }
 
-    // minval:check-admission gate=A/dynamic Timelock_ExecuteBatch
-    // size-scaled (per-call event fees + reply); rejects on shortfall
     assertMinValue(value, Timelock_Costs.executeBatch(index), Timelock_Error.InsufficientFee);
 
     self.afterCall(id);
@@ -1038,8 +1032,7 @@ fun Timelock<T>.updateDelay(
 ): void {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
 
-    // minval:best-effort gate=none Timelock_UpdateDelay
-    // the caller's dispatch owns funding; TODO: check-bounce
+    // the caller owns funding; TODO: check min value
 
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
@@ -1071,8 +1064,7 @@ fun Timelock<T>.updateOpFinalizationTimeout(
 ): void {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
 
-    // minval:best-effort gate=none Timelock_UpdateOpFinalizationTimeout
-    // the caller's dispatch owns funding; TODO: check-bounce
+    // the caller owns funding; TODO: check min value
 
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
@@ -1117,8 +1109,7 @@ fun Timelock<T>.blockFunctionSelector(
 ): bool {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
 
-    // minval:best-effort gate=none Timelock_BlockFunctionSelector
-    // the caller's dispatch owns funding; TODO: check-bounce
+    // the caller owns funding; TODO: check min value
 
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
@@ -1156,8 +1147,7 @@ fun Timelock<T>.unblockFunctionSelector(
 ): bool {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
 
-    // minval:best-effort gate=none Timelock_UnblockFunctionSelector
-    // the caller's dispatch owns funding; TODO: check-bounce
+    // the caller owns funding; TODO: check min value
 
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
@@ -1226,8 +1216,6 @@ fun Timelock<T>.bypasserExecuteBatch(
         index += 1;
     }
 
-    // minval:check-admission gate=A/dynamic Timelock_BypasserExecuteBatch
-    // size-scaled (per-call fees + reply); rejects on shortfall
     assertMinValue(value, Timelock_Costs.bypasserExecuteBatch(index), Timelock_Error.InsufficientFee);
 
     val reply = createMessage({
@@ -1251,8 +1239,7 @@ fun Timelock<T>.updateExecutorRoleCheck(
 ): void {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
 
-    // minval:best-effort gate=none Timelock_UpdateExecutorRoleCheck
-    // the caller's dispatch owns funding; TODO: check-bounce
+    // the caller owns funding; TODO: check min value
 
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
@@ -1283,8 +1270,6 @@ fun Timelock<T>.submitErrorReport(
 ) {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
 
-    // minval:check-admission gate=A/static Timelock_SubmitErrorReport
-    // must cover the error-report cost; rejects on shortfall
     assertMinValue(value, Timelock_Costs.submitErrorReport(), Timelock_Error.InsufficientFee);
 
     // Only the oracle can submit error reports

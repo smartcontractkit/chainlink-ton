@@ -186,7 +186,6 @@ fun onLockOrBurnTransferContinue(
     val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
     val fwdFee = createMessage(burnOpts).estimateFeeWithoutSending(sendMode);
 
-    // minval:check-fail gate=S BurnMintTokenPool.TransferNotificationForRecipient
     // Check safety budget min size as reference burn/transfer plus LVL3_HIGH finalization costs.
     val safety = st.TokenPool().budget().lockOrBurn.safety;
     val minValue = max(
@@ -270,7 +269,6 @@ fun onReleaseOrMintContinue(
     mintOpts.body.tonAmount = tonAmount;
     mintOpts.value = cctMintOpBudget(walletDeployFee) + tonAmount;
 
-    // minval:check-fail gate=S BurnMintTokenPool.TokenPool_ReleaseOrMint
     // Last check before custody moves. The mint carries an explicit value, so this transaction
     // must afford it; otherwise unwind locally rather than fail the send.
     val w = contract.getAddress().getWorkchain();
@@ -292,8 +290,6 @@ fun onClaimMinterAdmin(
     msgValue: coins,
     queryId: uint64,
 ) {
-    // minval:check-bounce gate=S BurnMintTokenPool_ClaimMinterAdmin
-    // owner-only minter admin claim
     assertMinValue(msgValue, TokenPool_Costs.admin(), TokenPool_Error.InsufficientMessageValue);
 
     st.poolData.load().adminConfig.load().ownable.load().requireOwner(sender);
@@ -318,7 +314,6 @@ fun onCCTReturnExcessesBack(
     msgValue: coins,
     msg: CCT_ReturnExcessesBack,
 ) {
-    // minval:non-reject gate=none CCT_ReturnExcessesBack
     // burn committed; authenticate and complete, no reversal exists;
 
     // Context-less signals are pure excess returns (mint/transfer paths) — nothing to finalize.

@@ -736,9 +736,6 @@ fun MCMS<T>.setRoot(
     metadataProof: SnakedCell<uint256>,
     signatures: SnakedCell<Signature>,
 ) {
-    // Verify value covers the fee
-    // minval:check-admission gate=A/static MCMS_SetRoot
-    // must cover the set-root cost; rejects on shortfall
     assertMinValue(value, MCMS_Costs.setRoot(), MCMS_Error.InsufficientFee);
 
     if (validUntil < blockchain.now()) {
@@ -967,7 +964,6 @@ fun MCMS<T>.execute(
     proof: SnakedCell<uint256>,
 ) {
     // Verify value covers the fee
-    // minval:check-admission gate=A/dynamic MCMS_Execute
     // covers the execute cost and the op.value floor; fans out to the target
     assertMinValue(value, MCMS_Costs.execute(), MCMS_Error.InsufficientFee);
 
@@ -1091,9 +1087,6 @@ fun MCMS<T>.setConfig(
 ) {
     self.data.ownable.requireOwner(sender);
 
-    // Verify value covers the fee
-    // minval:check-admission gate=A/static MCMS_SetConfig
-    // must cover the set-config cost; rejects on shortfall
     assertMinValue(value, MCMS_Costs.setConfig(), MCMS_Error.InsufficientFee);
 
     // Validate input lengths
@@ -1282,8 +1275,7 @@ fun MCMS<T>.updateOpFinalizationTimeout(
     queryId: uint64,
     newOpFinalizationTimeout: uint32
 ): void {
-    // minval:best-effort gate=none MCMS_UpdateOpFinalizationTimeout
-    // the caller's dispatch owns funding; TODO: check-bounce
+    // the caller owns funding; TODO: check min value
 
     self.data.ownable.requireOwner(sender);
 
@@ -1332,8 +1324,6 @@ fun MCMS<T>.submitErrorReport(
         throw MCMS_Error.UnauthorizedOracle;
     }
 
-    // minval:check-admission gate=A/static MCMS_SubmitErrorReport
-    // must cover the error-report cost; rejects on shortfall
     assertMinValue(value, MCMS_Costs.submitErrorReport(), MCMS_Error.InsufficientFee);
 
     // Check if right environment via chainId
@@ -1407,8 +1397,7 @@ fun MCMS<T>.transferOracleRole(
     queryId: uint64,
     newOracle: address
 ) {
-    // minval:best-effort gate=none MCMS_TransferOracleRole
-    // the caller's dispatch owns funding; TODO: check-bounce
+    // the caller owns funding; TODO: check min value
     
     self.data.ownable.requireOwner(sender);
 
@@ -1434,7 +1423,6 @@ fun MCMS<T>.cleanExpiredRoots(
     queryId: uint64,
     roots: SnakedCell<RootDescriptor>,
 ) {
-    // minval:best-effort gate=none MCMS_CleanExpiredRoots
     // TODO: no value gate; loops over roots; add a safety check
 
     self.data.ownable.requireOwner(sender);
@@ -1562,13 +1550,13 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
         }
         // noop handlers (expected replies for ownable ops when owning self)
         MCMS_OracleRoleTransferred => {
-            // minval:non-reject gate=none MCMS_OracleRoleTransferred
+            // noop
         }
         MCMS_ConfigSet => {
-            // minval:non-reject gate=none MCMS_ConfigSet
+            // noop
         },
         MCMS_ExpiredRootsCleaned => {
-            // minval:non-reject gate=none MCMS_ExpiredRootsCleaned
+            // noop
         }
         else => {
             val _msgHandled = 0

@@ -92,7 +92,6 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
     st.minterAddress = msg.minterAddress;
     st.walletAddress = msg.walletAddress;
 
-    // minval:check-admission gate=A/static JettonLockBox_Init
     // Require enough value to cover the rent reserve plus the init replies
     assert(contract.getOriginalBalance() >= MIN_GRAM_TO_RESERVE + MIN_GRAM_TO_INIT, JettonLockBox_Error.NotEnoughValue);
 
@@ -175,7 +174,6 @@ fun onDepositWithTransferNotification(
         assert(deposit!.token == st.minterAddress, JettonLockBox_Error.UnsupportedToken);
         assert(deposit!.amount == msg.jettonAmount, JettonLockBox_Error.MissingOrMalformedForwardPayload);
 
-        // minval:non-reject gate=none JettonLockBox.TransferNotificationForRecipient
         // Custody has arrived; finalize optimistically without rejecting.
         // The operator funds the confirmation when it sends the deposit.
 
@@ -331,7 +329,6 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     val sendMode = SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
     val fwdFee = createMessage(transferOpts).estimateFeeWithoutSending(sendMode);
 
-    // minval:check-bounce gate=A/dynamic JettonLockBox_Withdraw
     // Before custody moves; check budget for transfer/forward and withdrawal relay/failure
     // This check is an estimate and an early guard; the actual jetton wallet checks its own
     // transfer cost and bounces back if not enough value is provided.

@@ -431,8 +431,6 @@ fun TokenPool<T>.setDynamicConfig(
     rateLimitAdmin: address?,
     feeAdmin: address?,
 ) {
-    // minval:check-bounce gate=S TokenPool_SetDynamicConfig
-    // owner-only dynamic config
     self.requireMinValue(msgValue);
 
     var adminConfig = self.data.adminConfig.load();
@@ -467,8 +465,6 @@ fun TokenPool<T>.setDynamicConfig(
 /// Sets the finality config according to the FinalityCodec library encoding.
 /// @param allowedFinality The finality settings allowed in this pool, according to the FinalityCodec encoding.  
 fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, msgValue: coins, queryId: uint64, allowedFinalityConfig: uint32) {
-    // minval:check-bounce gate=S TokenPool_SetAllowedFinalityConfig
-    // owner-only finality config
     self.requireMinValue(msgValue);
 
     var adminConfig = self.data.adminConfig.load();
@@ -497,8 +493,6 @@ fun TokenPool<T>.setAdvancedPoolHooks(
     queryId: uint64,
     advancedPoolHooks: address?,
 ) {
-    // minval:check-bounce gate=S TokenPool_SetAdvancedPoolHooks
-    // owner-only hooks config
     self.requireMinValue(msgValue);
 
     var adminConfig = self.data.adminConfig.load();
@@ -532,8 +526,6 @@ fun TokenPool<T>.addRemotePool(
     remoteChainSelector: uint64,
     remotePoolAddress: Cell<CrossChainAddress>,
 ) {
-    // minval:check-bounce gate=S TokenPool_AddRemotePool
-    // owner-only remote pool config
     self.requireMinValue(msgValue);
 
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
@@ -569,8 +561,6 @@ fun TokenPool<T>.removeRemotePool(
     remoteChainSelector: uint64,
     remotePoolAddress: Cell<CrossChainAddress>,
 ) {
-    // minval:check-bounce gate=S TokenPool_RemoveRemotePool
-    // owner-only remote pool config
     self.requireMinValue(msgValue);
 
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
@@ -614,8 +604,6 @@ fun TokenPool<T>.applyChainUpdates(
     remoteChainSelectorsToRemove: SnakedCell<uint64>,
     chainsToAdd: SnakedCell<TokenPool_ChainUpdate>,
 ) {
-    // minval:check-bounce gate=S TokenPool_ApplyChainUpdates
-    // owner-only chain/rate-limit config
     // TODO: A/dynamic - loops removals/additions/remote pools; a static S does not bound large inputs
     self.requireMinValue(msgValue);
 
@@ -687,9 +675,6 @@ fun TokenPool<T>.applyChainUpdates(
 /// Curses `subjects` in the pool-local `CursePolicy`. Sender must hold
 /// `CURSE_ROLE` or be the policy admin, which is not the pool owner.
 fun TokenPool<T>.curse(mutate self, sender: address, msgValue: coins, subjects: SnakedCell<uint128>) {
-    // minval:best-effort gate=none TokenPool_Curse
-    // RMN admin operation
-
     var localPolicy = self.data.localPolicy.load();
     localPolicy.cursePolicy.requireCurseRole(sender);
     localPolicy.cursePolicy.curseAll(subjects);
@@ -699,9 +684,6 @@ fun TokenPool<T>.curse(mutate self, sender: address, msgValue: coins, subjects: 
 /// Uncurses `subjects` in the pool-local `CursePolicy`. Sender must hold
 /// `UNCURSE_ROLE` or be the policy admin.
 fun TokenPool<T>.uncurse(mutate self, sender: address, msgValue: coins, subjects: SnakedCell<uint128>) {
-    // minval:best-effort gate=none TokenPool_Uncurse
-    // RMN admin operation
-
     var localPolicy = self.data.localPolicy.load();
     localPolicy.cursePolicy.requireUncurseRole(sender);
     localPolicy.cursePolicy.uncurseAll(subjects);
@@ -709,8 +691,6 @@ fun TokenPool<T>.uncurse(mutate self, sender: address, msgValue: coins, subjects
 }
 
 fun TokenPool<T>.onCursePolicyAccessControlMessage(mutate self, sender: address, msgValue: coins, body: slice) {
-    // minval:check-bounce gate=S TokenPool_RMNAccessControlMessage
-    // RMN access-control admin
     self.requireMinValue(msgValue);
 
     var policy = self.data.localPolicy.load();
@@ -721,8 +701,6 @@ fun TokenPool<T>.onCursePolicyAccessControlMessage(mutate self, sender: address,
 /// Two-step transfer of the pool's curse administrator. Wrapped in its own
 /// message because the pool's `Ownable2Step` already claims the bare opcodes.
 fun TokenPool<T>.onCursePolicyOwnableMessage(mutate self, sender: address, msgValue: coins, body: slice) {
-    // minval:check-bounce gate=S TokenPool_RMNOwnableMessage
-    // RMN ownership admin
     self.requireMinValue(msgValue);
 
     var policy = self.data.localPolicy.load();
@@ -895,7 +873,6 @@ fun TokenPool<T>.onPreflightCheckFinished(
     var prepared = lazy fwdp.prepared.load();
 
     try {
-        // minval:check-fail gate=S TokenPool_PreflightCheckFinished
         // The hook must return enough for the pre-withdraw gate (`3S + F`): one `S` funds this
         // withdraw relay, `2S + F` is forwarded to the deposit account.
         val custodyMoves = LB_CUSTODY_MOVES_BEFORE_WITHDRAW;
@@ -915,9 +892,6 @@ fun TokenPool<T>.onPreflightCheckFailed(
     msgValue: coins,
     msg: TokenPool_PreflightCheckFailed,
 ): void {
-    // minval:recovery gate=none TokenPool_PreflightCheckFailed
-    // async preflight failure; unwinds the flow
-
     self.onlyAdvancedPoolHooks(sender);
     val fwdp = msg.forwardPayload.load();
     self.recoverLockOrBurnFailure(fwdp, TokenPool_Error.PreflightCheckFailed as int32, msgValue);
@@ -933,8 +907,6 @@ fun TokenPool<T>.onLockOrBurnWithdrawFailed(
     msg: TokenPool_LockOrBurnWithdrawFailed,
     msgValue: coins,
 ): void {
-    // minval:recovery gate=none TokenPool_LockOrBurnWithdrawFailed
-    // authenticated failure callback; recover locally, no gate
     self.onlyRouter(sender);
     // TBD do we need a hook here?
     val fwdp = lazy msg.forwardPayload.load();
@@ -959,7 +931,6 @@ fun TokenPool<T>.onPostflightCheckFinished(
     val prepared = lazy fwdp.prepared.load();
 
     try {
-        // minval:check-fail gate=S TokenPool_PostflightCheckFinished
         // The reply carries the rest of the flow; it must still cover the delivery and finalization.
         val minValue = self.releaseOrMintForward(requestMsg.finalizationValue());
         assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
@@ -976,9 +947,6 @@ fun TokenPool<T>.onPostflightCheckFailed(
     msgValue: coins,
     msg: TokenPool_PostflightCheckFailed,
 ): void {
-    // minval:recovery gate=none TokenPool_PostflightCheckFailed
-    // async postflight failure; unwinds the flow
-
     self.onlyAdvancedPoolHooks(sender);
     val fwdp = msg.forwardPayload.load();
     self.recoverReleaseOrMintFailure(fwdp, TokenPool_Error.PostflightCheckFailed as int32, msgValue);
@@ -1116,7 +1084,6 @@ fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
     updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>,
     disableChainSelectors: SnakedCell<uint64>,
 ) {
-    // minval:check-bounce gate=S TokenPool_ApplyTokenTransferFeeConfigUpdates
     // TODO: A/dynamic - consider adding a cost function for this operation
     self.requireMinValue(msgValue);
 
@@ -1348,8 +1315,6 @@ fun TokenPool<T>.onGetCCVs(
     msg: TokenPool_GetCCVs,
     fees: cell?,
 ): void {
-    // minval:check-bounce gate=S TokenPool_GetCCVs
-    // read-only CCV query; no custody
     self.requireMinValue(msgValue);
 
     self.validateGetCCVsRequest(msg.localToken, msg.remoteChainSelector, msg.requestedFinalityConfig);
@@ -1398,8 +1363,6 @@ fun TokenPool<T>.onGetCCVsAndFees(
     msgValue: coins,
     msg: TokenPool_GetCCVsAndFees,
 ): void {
-    // minval:check-bounce gate=S TokenPool_GetCCVsAndFees
-    // read-only CCV+fees query; no custody
     self.requireMinValue(msgValue);
 
     self.validateGetCCVsRequest(msg.localToken, msg.remoteChainSelector, msg.requestedFinalityConfig);
@@ -1578,9 +1541,8 @@ fun TokenPool<T>.onLockOrBurn(
     msgValue: coins,
     msg: TokenPool_LockOrBurn,
 ): void {
-    // The inbound value must cover the TP admission plus the caller-provided finalization value.
-    // The client adds a relay buffer so the pool receives the full `A + F`.; `budget()` clamps
-    // `A` to at least `3S`, so this is also the pre-withdraw `3S + F` gate.
+    // The inbound value must cover the TP admission plus the caller-provided finalization value
+    // `budget()` clamps `A` to at least `3S`, so this is also the pre-withdraw `3S + F` gate.
     // This gate runs before the operation hook, so an override cannot skip admission.
     assertMinValue(
         msgValue,
@@ -1588,8 +1550,7 @@ fun TokenPool<T>.onLockOrBurn(
         TokenPool_Error.InsufficientMessageValue,
     );
 
-    // minval:check-bounce gate=A/static TokenPool_LockOrBurn
-    // The caller's success/failure continuation completes the flow, so it must carry value.
+    // The caller's success/failure continuation completes the flow, so it must carry (minimum) value.
     assertMinValue(
         msg.finalizationValue,
         TokenPool_Costs.callerFinalization(),
@@ -1732,7 +1693,6 @@ fun TokenPool<T>.processLockOrBurnTransfer(
     self.assertAuthorizedDepositInitiator(msg.transferInitiator, withdrawalInitiator, details.originalSender);
 
     try {
-        // minval:check-fail gate=S LockReleaseLockboxTokenPool.TransferNotificationForRecipient
         // Ensure the message value covers the expected custody moves + finalization
         // We expect a budget of two custody moves before lock/burn (`2S + F`).
         val custodyMoves = LB_CUSTODY_MOVES_BEFORE_LOCK_BURN;
@@ -1992,10 +1952,8 @@ fun TokenPool<T>.onReleaseOrMint(
         return; // Async hook was triggered; will resume via onPostflightCheckFinished/Failed.
     }
 
-    // minval:check-bounce gate=A/static TokenPool_ReleaseOrMint
     // Defense-in-depth: release admission is clamped to at least `S`, so the entry `A + D` gate
-    // already covers the pool's `S + D` delivery forward. Kept explicit, without a second
-    // minval marker.
+    // already covers the pool's `S + D` delivery forward.
     // TODO: should be V > 2 * S + F
     minValue = self.releaseOrMintForward(msg.finalizationValue());
     assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
@@ -2032,9 +1990,6 @@ fun TokenPool<T>.onReleaseOrMintDelivered(
 
     val transfer = lazy msg.transfer.load();
     assert(self.isSupportedToken(transfer.localToken), TokenPool_Error.InvalidToken);
-
-    // minval:non-reject gate=none TokenPool_ReleaseOrMintDelivered
-    // minval.detail: release committed; authenticate and complete, no reversal exists
 
     emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
         remoteChainSelector: transfer.remoteChainSelector,
@@ -2480,8 +2435,6 @@ fun TokenPool<T>.setRateLimitConfig(
     queryId: uint64,
     updates: SnakedCell<TokenPool_RateLimitConfigArgs>,
 ) {
-    // minval:check-bounce gate=S TokenPool_SetRateLimitConfig
-    // owner/rate-limit-admin config
     // TODO: A/dynamic - loops over updates; a static S does not bound large inputs
     self.requireMinValue(msgValue);
 
@@ -2552,7 +2505,6 @@ fun TokenPool<T>.onWithdrawFeeTokensDispatch(
         return;
     }
 
-    // minval:check-bounce gate=S JettonWithdrawable_Withdraw
     // owner/fee-admin fee relay; replacement hook owns its funding policy
     // TODO: A/dynamic - loops over the withdrawal list; a static S does not bound large inputs
     self.requireMinValue(msgValue);

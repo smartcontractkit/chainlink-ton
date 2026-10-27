@@ -425,8 +425,7 @@ fun AccessControl<T>.grantRole(
     account: address,
     returnExcess: bool = false
 ): bool {
-    // minval:best-effort gate=none AccessControl_GrantRole
-    // the caller's dispatch owns funding; TODO: check-bounce
+    // the caller owns funding; TODO: check min value
 
     self.requireRole(self.getRoleAdmin(role), sender);
     return self._grantRole(queryId, sender, role, account, returnExcess);
@@ -446,8 +445,7 @@ fun AccessControl<T>.revokeRole(
     account: address,
     returnExcess: bool = false
 ): bool {
-    // minval:best-effort gate=none AccessControl_RevokeRole
-    // the caller's dispatch owns funding; TODO: check-bounce
+    // the caller owns funding; TODO: check min value
 
     self.requireRole(self.getRoleAdmin(role), sender);
     return self._revokeRole(queryId, sender, role, account, returnExcess);
@@ -474,8 +472,7 @@ fun AccessControl<T>.renounceRole(
     callerConfirmation: address,
     returnExcess: bool = false
 ): bool {
-    // minval:best-effort gate=none AccessControl_RenounceRole
-    // the caller's dispatch owns funding; TODO: check-bounce
+    // the caller owns funding; TODO: check min value
 
     if (callerConfirmation != sender) {
         throw AccessControl_Error.BadConfirmation;

@@ -83,7 +83,6 @@ fun onInternalMessage(in: InMessage): void {
             st.store();
         }
         ReturnExcessesBack => {
-            // minval:best-effort gate=none ReturnExcessesBack
             // passive excess receipt; retain coins without advancing an operation or granting authority
         }
         else => {
@@ -174,7 +173,6 @@ fun onLockOrBurnTransferContinue(
     val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
     val fwdFee = createMessage(transferOpts).estimateFeeWithoutSending(sendMode);
 
-    // minval:check-fail gate=S LockReleaseLockboxTokenPool.TransferNotificationForRecipient
     // `S` is the last custody phase's budget; it must cover the reference transfer plus the
     // finalization it may have to fund after custody moves.
     val minValue = JettonFees.Reference.transferValue(0, fwdFee)
@@ -245,9 +243,6 @@ fun onDeposited(
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
 
-    // minval:non-reject gate=none JettonLockBox_Deposited
-    // lockbox owns custody; authenticate and complete, no reversal path exists
-
     var pool = st.TokenPool();
     val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.context!);
     pool.onLockOrBurnTransferFinalize(msgValue, context.forwardPayload.load());
@@ -281,15 +276,13 @@ fun onDepositFailed(
 ) {
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
 
-    // minval:recovery gate=none JettonLockBox_DepositFailed
-    // lock unwind when lockbox deposit is rejected
-    // TODO: the lockbox returns only the post-fee `destTokenAmount` to `returnAddress`, so the CCIP
-    //       fee is retained by the pool on rejection. Refund the fee (details.amount - destTokenAmount)
-    //       to the original sender to make the sender whole.
-
     if (msg.context == null) {
         return;
     }
+
+    // TODO: the lockbox returns only the post-fee `destTokenAmount` to `returnAddress`, so the CCIP
+    //       fee is retained by the pool on rejection. Refund the fee (details.amount - destTokenAmount)
+    //       to the original sender to make the sender whole.
 
     val operation = validateRejectedDeposit(st, msg);
     var pool = st.TokenPool();
@@ -388,7 +381,6 @@ fun onReleaseOrMintContinue(
     val sendMode = SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
     val fwdFee = createMessage(withdrawOpts).estimateFeeWithoutSending(sendMode);
 
-    // minval:check-bounce gate=S LockReleaseLockboxTokenPool.TokenPool_ReleaseOrMint
     // Size the LR safety: one custody transfer plus the pool's finalization. The hop itself is
     // funded by the inbound admission; `S` must still cover its share after custody moves.
     val safety = st.TokenPool().budget().releaseOrMint.safety;
@@ -416,7 +408,6 @@ fun onWithdrawFailed(
     assert(sender == st.lockbox, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
 
-    // minval:recovery gate=none JettonLockBox_WithdrawFailed
     // release unwind when lockbox withdraw fails
 
     val poolData = st.poolData.load();

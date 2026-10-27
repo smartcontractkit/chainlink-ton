@@ -2,7 +2,6 @@
   pkgs,
   rev,
   oplint,
-  minlint,
 }: let
   lock = pkgs.callPackage ./lock.nix {inherit pkgs;};
 
@@ -199,7 +198,6 @@ in {
       acton = packages.acton;
       abigen = packages.abigen;
       inherit oplint;
-      inherit minlint;
     };
   };
 

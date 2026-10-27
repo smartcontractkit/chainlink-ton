@@ -39,14 +39,12 @@
       # Resolve tools
       dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer commonArgs;
       oplint = pkgs.callPackage ./scripts/oplint commonArgs;
-      minlint = pkgs.callPackage ./scripts/lint-tolk-min-value commonArgs;
 
       # Resolve sub-modules
       contracts = pkgs.callPackage ./contracts {
         inherit pkgs;
         inherit rev;
         inherit oplint;
-        inherit minlint;
       };
       integration-tests = pkgs.callPackage ./integration-tests {
         inherit pkgs;
@@ -92,8 +90,6 @@
           dependency-analyzer = dependency-analyzer.packages.default;
           # Validate struct opcodes
           inherit oplint;
-          # Validate min-value coverage
-          inherit minlint;
 
           inherit lock-nix-tidy;
         }

@@ -278,8 +278,6 @@ fun onInternalMessage(in: InMessage) {
         // Accidental transfers to the Router are returned to the transfer
         // initiator in a best-effort manner (throwing here would burn the tokens).
         TransferNotificationForRecipient => {
-            // minval:best-effort gate=none Router.TransferNotificationForRecipient
-            // accidental transfer; best-effort return, no admission gate
             returnAccidentalTransfer(in.senderAddress, msg);
         }
         else => {
