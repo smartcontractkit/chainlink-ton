@@ -35,7 +35,7 @@ import { gasReportConfig, gasReportNetwork, isInternal, op, storageFee, txFee } 
 // balance. GAS_REPORT_NETWORK: mainnet (default), testnet or `default` (bundled config).
 const NETWORK = gasReportNetwork()
 const SNAPSHOT = path.join(__dirname, 'snapshots', `token-admin-registry-flows.${NETWORK}.json`)
-const SAFETY_FACTOR = 5n
+const SAFETY_FACTOR = 3n
 
 type LegName = 'walletQuery' | 'poolProbe' | 'relayEvent'
 type PoolName = 'BurnMint' | 'LockReleaseLockbox'

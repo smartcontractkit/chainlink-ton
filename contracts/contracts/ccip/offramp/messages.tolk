@@ -165,7 +165,7 @@ fun OffRamp_ReleaseOrMint.cost(): coins {
         ;
 }
 
-// Constants are 5x the measured compute and 2x the measured forward fees (tests/gas-report/ccip) for a 2000-byte message.
+// Constants are 3x the measured compute and 2x the measured forward fees (tests/gas-report/ccip) for a 2000-byte message.
 struct OffRamp_Costs{}
 
 fun OffRamp_Costs.executeValidated(hasTokens: bool): int {
@@ -211,17 +211,17 @@ fun OffRamp_Costs.execute(hasTokens: bool): int {
 
 // OffRamp_Execute: hashing a 2000-byte message, a 6-sibling proof (64-message commit) and the
 // Validate fwdFee.
-const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.021");
+const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.014");
 // OffRamp_ExecuteValidated: event and InitExecute fwdFee carrying the message, executor deploy.
-const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = grams("0.018");
-const OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE = grams("0.006");
-const OFFRAMP_COSTS_RELEASE_OR_MINT_FEE = grams("0.0035");
-const ROUTER_COSTS_RELAY_RELEASE_OR_MINT_FEE = grams("0.0075");
+const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = grams("0.0145");
+const OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE = grams("0.005");
+const OFFRAMP_COSTS_RELEASE_OR_MINT_FEE = grams("0.0025");
+const ROUTER_COSTS_RELAY_RELEASE_OR_MINT_FEE = grams("0.006");
 // Deposit account deploy, init, wallet response and Initialized reply (or the bounce when it exists).
-const OFFRAMP_COSTS_DEPOSIT_ACCOUNT_FEE = grams("0.0095");
-const OFFRAMP_COSTS_TOKEN_TRANSFER_DELIVERED_FEE = grams("0.0105");
-const OFFRAMP_COSTS_NOTIFY_FEE = grams("0.0045");
-const OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE = grams("0.003");
+const OFFRAMP_COSTS_DEPOSIT_ACCOUNT_FEE = grams("0.0065");
+const OFFRAMP_COSTS_TOKEN_TRANSFER_DELIVERED_FEE = grams("0.007");
+const OFFRAMP_COSTS_NOTIFY_FEE = grams("0.003");
+const OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE = grams("0.002");
 // OffRamp_Commit with a root and price updates, signature verification included.
-const OFFRAMP_COSTS_COMMIT_FEE = grams("0.0145");
+const OFFRAMP_COSTS_COMMIT_FEE = grams("0.01");
 const OFFRAMP_COSTS_MERKLE_ROOT_INIT_FEE = grams("0.0005");

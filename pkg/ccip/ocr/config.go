@@ -17,14 +17,14 @@ type Config struct {
 }
 
 // Defaults mirror the OffRamp min values (OffRamp_Costs.commit / execute in
-// contracts/contracts/ccip/offramp/messages.tolk, 5x the measured compute and 2x the forward fees):
+// contracts/contracts/ccip/offramp/messages.tolk, 3x the measured compute and 2x the forward fees):
 // a commit with a root and price updates, a price-only commit, a tokenless execution on top of its
 // gasLimit, and the extra per token transfer on top of its destGasAmount.
 var DefaultConfigSet = Config{
-	CommitPriceUpdateOnlyCostTON: 0.04,
-	CommitPriceAndRootCostTON:    0.0505,
-	ExecuteCostTON:               0.0865,
-	ExecuteCostTONTokenTransfer:  0.067,
+	CommitPriceUpdateOnlyCostTON: 0.026,
+	CommitPriceAndRootCostTON:    0.0365,
+	ExecuteCostTON:               0.0675,
+	ExecuteCostTONTokenTransfer:  0.0545,
 }
 
 func (c *Config) ApplyDefaults() {

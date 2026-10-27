@@ -25,7 +25,7 @@ import { gasReportConfig, gasReportNetwork } from '../../utils'
 // and writes snapshots/jetton-wallet-query.<network>.json.
 const NETWORK = gasReportNetwork()
 const SNAPSHOT = path.join(__dirname, 'snapshots', `jetton-wallet-query.${NETWORK}.json`)
-const SAFETY_FACTOR = 5n
+const SAFETY_FACTOR = 3n
 
 type Minter = { address: Address; deploy: () => Promise<unknown> }
 

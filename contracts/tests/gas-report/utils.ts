@@ -16,8 +16,8 @@ import { opName } from './ccip/opNames'
 export type Owner = 'ccip' | 'registry' | 'token' | 'external'
 type HopOwner = Owner | 'unknown'
 
-/** Min values are 5x the measured compute (and storage) and 2x the measured forward fees. */
-export const SAFETY_FACTOR = 5n
+/** Min values are 3x the measured compute (and storage) and 2x the measured forward fees. */
+export const SAFETY_FACTOR = 3n
 export const SAFETY_FACTOR_FORWARD = 2n
 
 /** Min value a subtree must be given: compute and storage at SAFETY_FACTOR, forward fees at SAFETY_FACTOR_FORWARD. */

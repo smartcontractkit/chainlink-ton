@@ -332,30 +332,30 @@ struct (0xb980cb4e) Router_TokenPoolReleaseOrMintFailed {
 // Costs associated with Router operations
 struct Router_Costs {}
 
-// Constants are 5x the measured compute and 2x the measured forward fees (tests/gas-report/ccip) for a MAX_DATA_CELLS message.
+// Constants are 3x the measured compute and 2x the measured forward fees (tests/gas-report/ccip) for a MAX_DATA_CELLS message.
 
 // Minimum value for calling Router_CCIPSend, on top of the validated fee.
 fun Router_Costs.CCIPSend(hasTokens: bool): int {
     return
-        + grams("0.0415") // computeFee + OnRamp_Send fwdFee
+        + grams("0.0405") // computeFee + OnRamp_Send fwdFee
         + OnRamp_Costs.Send(hasTokens)
         ;
 }
 
 // Minimum value for calling Router_MessageSent
 fun Router_Costs.MessageSent(): int {
-    return grams("0.002"); // computeFee + CCIPSendACK fwdFee
+    return grams("0.0015"); // computeFee + CCIPSendACK fwdFee
 }
 
 // Minimum value for calling Router_MessageRejected
 fun Router_Costs.MessageRejected(): int {
-    return grams("0.002"); // computeFee + CCIPSendNACK fwdFee
+    return grams("0.0015"); // computeFee + CCIPSendNACK fwdFee
 }
 
 // Minimum value for calling Router_GetValidatedFee
 fun Router_Costs.GetValidatedFee(): int {
     return
-        + grams("0.041") // computeFee + GetValidatedFee fwdFee
+        + grams("0.04") // computeFee + GetValidatedFee fwdFee
         + OnRamp_Costs.GetValidatedFee()
         + max(
             Router_Costs.MessageValidated(),
@@ -365,17 +365,17 @@ fun Router_Costs.GetValidatedFee(): int {
 }
 
 fun Router_Costs.MessageValidated(): int {
-    return grams("0.0405"); // computeFee + MessageValidated fwdFee (echoes the message)
+    return grams("0.0395"); // computeFee + MessageValidated fwdFee (echoes the message)
 }
 
 fun Router_Costs.MessageValidationFailed(): int {
-    return grams("0.0405"); // computeFee + MessageValidationFailed fwdFee (echoes the message)
+    return grams("0.0395"); // computeFee + MessageValidationFailed fwdFee (echoes the message)
 }
 
 // Minimum value for calling Router_RouteMessage: the Router pays the receiver's forward fee
 // (2000-byte message) from this.
 fun Router_Costs.routeMessage(): int {
-    val baseFee = grams("0.0045");
+    val baseFee = grams("0.004");
     return baseFee + Router_Costs.receiveConfirm();
 }
 
@@ -390,7 +390,7 @@ fun Router_Costs.receiveConfirm(): int {
 // query) and the DepositAccount_Initialized -> Router_UseOnRampAccount round trip.
 fun Router_Costs.GetOnRampAccount(): int {
     return
-        + grams("0.007") // computeFee + Deployable_Initialize and DepositAccount_Init fwdFees
+        + grams("0.0055") // computeFee + Deployable_Initialize and DepositAccount_Init fwdFees
         + DepositAccount_MIN_GRAM_TO_RESERVE
         + DepositAccount_MIN_GRAM_TO_INIT
         + DepositAccount_WALLET_QUERY_VALUE
@@ -408,4 +408,4 @@ fun Router_Costs.forwardCursedSubjects(): int {
     return grams("0.05");
 }
 
-const ROUTER_RECEIVE_CONFIRM_FEE = grams("0.002");
+const ROUTER_RECEIVE_CONFIRM_FEE = grams("0.0015");

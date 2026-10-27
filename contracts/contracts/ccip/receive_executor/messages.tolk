@@ -74,13 +74,13 @@ enum ReceiveExecutor_FailedReason: uint8 {
     BouncedFromRouter,
 } 
 
-// Constants are 5x the measured compute and 2x the measured forward fees (tests/gas-report/ccip) for a 2000-byte message.
-const RECEIVE_EXECUTOR_COSTS_CONFIRMED_OR_BOUNCED_FEE = grams("0.0025");
+// Constants are 3x the measured compute and 2x the measured forward fees (tests/gas-report/ccip) for a 2000-byte message.
+const RECEIVE_EXECUTOR_COSTS_CONFIRMED_OR_BOUNCED_FEE = grams("0.002");
 // InitExecute dispatching the message straight to the OffRamp (no tokens) is the costlier case.
-const RECEIVE_EXECUTOR_COSTS_INIT_EXEC_FEE = grams("0.005");
-const RECEIVE_EXECUTOR_COSTS_TOKEN_INFO_FEE = grams("0.0045");
+const RECEIVE_EXECUTOR_COSTS_INIT_EXEC_FEE = grams("0.0045");
+const RECEIVE_EXECUTOR_COSTS_TOKEN_INFO_FEE = grams("0.003");
 // DepositAccount_ForwardNotification: the delivery notice and the dispatch carrying the message.
-const RECEIVE_EXECUTOR_COSTS_FORWARD_NOTIFICATION_FEE = grams("0.0085");
+const RECEIVE_EXECUTOR_COSTS_FORWARD_NOTIFICATION_FEE = grams("0.0065");
 
 struct ReceiveExecutor_Costs{}
 

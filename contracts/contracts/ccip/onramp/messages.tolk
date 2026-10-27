@@ -62,13 +62,13 @@ const TOKEN_POOL_DEFAULT_LOCK_OR_BURN_ADMISSION: coins = grams("0.105");
 /// admin registry, and the post-custody finalization the pool forwards back.
 fun OnRamp_ExecutorRequestsLockOrBurn.cost(poolAdmission: coins): coins {
     return
-        + grams("0.003") // OnRamp ExecutorRequestsLockOrBurn relay
-        + grams("0.0035") // Router_LockOrBurn relay
-        + grams("0.0055") // SendExecutor TokenPool_LockOrBurnWithdraw
-        + grams("0.004") // OnRamp ExecutorRequestsWithdraw relay
-        + grams("0.003") // Router_WithdrawToTokenPool relay
-        + grams("0.003") // DepositAccount_Withdraw
-        + grams("0.0015") // jetton excess returned to the OnRamp
+        + grams("0.002") // OnRamp ExecutorRequestsLockOrBurn relay
+        + grams("0.0025") // Router_LockOrBurn relay
+        + grams("0.004") // SendExecutor TokenPool_LockOrBurnWithdraw
+        + grams("0.003") // OnRamp ExecutorRequestsWithdraw relay
+        + grams("0.0025") // Router_WithdrawToTokenPool relay
+        + grams("0.0025") // DepositAccount_Withdraw
+        + grams("0.001") // jetton excess returned to the OnRamp
         + poolAdmission
         + OnRamp_Costs.TokenPoolFinalization()
         ;
@@ -157,13 +157,13 @@ struct (0x7052dc75) OnRamp_WithdrawFeeTokens {
 // Costs associated with OnRamp operations
 struct OnRamp_Costs {}
 
-// Constants are 5x the measured compute and 2x the measured forward fees (tests/gas-report/ccip) for a MAX_DATA_CELLS message.
+// Constants are 3x the measured compute and 2x the measured forward fees (tests/gas-report/ccip) for a MAX_DATA_CELLS message.
 
 // Minimum value for calling OnRamp_GetValidatedFee
 @inline
 fun OnRamp_Costs.GetValidatedFee(): int {
     return
-        + grams("0.04") // computeFee + GetValidatedFee fwdFee
+        + grams("0.0395") // computeFee + GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()
         + max(
             OnRamp_Costs.FeeQuoter_MessageValidated(),
@@ -175,20 +175,20 @@ fun OnRamp_Costs.GetValidatedFee(): int {
 // Minimum value for calling FeeQuoter_MessageValidated on OnRamp
 @inline
 fun OnRamp_Costs.FeeQuoter_MessageValidated(): int {
-    return grams("0.04"); // computeFee + MessageValidated fwdFee
+    return grams("0.0395"); // computeFee + MessageValidated fwdFee
 }
 
 // Minimum value for calling FeeQuoter_MessageValidationFailed on OnRamp
 @inline
 fun OnRamp_Costs.FeeQuoter_MessageValidationFailed(): int {
-    return grams("0.04"); // computeFee + MessageValidationFailed fwdFee
+    return grams("0.0395"); // computeFee + MessageValidationFailed fwdFee
 }
 
 // Minimum value for calling OnRamp_Send
 @inline
 fun OnRamp_Costs.Send(hasTokens: bool): int {
     return
-        + grams("0.0505") // computeFee + InitializeAndSend fwdFee (executor code and message)
+        + grams("0.0495") // computeFee + InitializeAndSend fwdFee (executor code and message)
         + SendExecutor_Costs.Deploy()
         + SendExecutor_Costs.Execute()
         + SendExecutor_Costs.Reserve(hasTokens)
@@ -199,7 +199,7 @@ fun OnRamp_Costs.Send(hasTokens: bool): int {
 @inline
 fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
     return
-        + grams("0.0445") // computeFee + CCIPMessageSent event + MessageSent fwdFee
+        + grams("0.0425") // computeFee + CCIPMessageSent event + MessageSent fwdFee
         + Router_Costs.MessageSent()
         ;
 }
@@ -208,7 +208,7 @@ fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
 // attached separately and is kept on the OnRamp by reserveGramsOnBalance.
 @inline
 fun OnRamp_Costs.ExecutorReserveFee(): int {
-    return grams("0.0025"); // computeFee + ExecutorFeeReserved fwdFee
+    return grams("0.0015"); // computeFee + ExecutorFeeReserved fwdFee
 }
 
 // Minimum value for calling OnRamp_ExecutorFinishedWithError. Sized like the success path, which
@@ -216,7 +216,7 @@ fun OnRamp_Costs.ExecutorReserveFee(): int {
 @inline
 fun OnRamp_Costs.ExecutorFinishedWithError(): int {
     return
-        + grams("0.0445") // computeFee + MessageRejected fwdFee
+        + grams("0.0425") // computeFee + MessageRejected fwdFee
         + Router_Costs.MessageRejected()
         ;
 }

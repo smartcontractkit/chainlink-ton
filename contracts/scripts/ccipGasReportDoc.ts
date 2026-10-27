@@ -18,7 +18,7 @@ const DEFAULT_OUT = path.join(
   'ccip',
   'gas-report.md',
 )
-const SAFETY_FACTOR = 5n
+const SAFETY_FACTOR = 3n
 const SAFETY_FACTOR_FORWARD = 2n
 const OWNERS: Owner[] = ['ccip', 'registry', 'token', 'external']
 
