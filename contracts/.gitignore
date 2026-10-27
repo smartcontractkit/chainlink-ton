@@ -7,7 +7,8 @@ temp/
 .coverage/
 gas-report.json
 ccip-gas-report.json
-tests/gas-report/ccip/snapshots/*.default.json
+tests/gas-report/ccip/snapshots/
+tests/gas-report/ccip/tokens/snapshots/
 contract.abi.json
 
 # Acton related files

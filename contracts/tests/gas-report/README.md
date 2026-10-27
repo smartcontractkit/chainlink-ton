@@ -68,7 +68,7 @@ yarn ccip-gas-report:md                            # merges the snapshots into d
 ```
 
 Run it inside `nix develop .#contracts`. `GAS_REPORT_NETWORK` is `mainnet`, `testnet` or `default`;
-snapshots are written per network and the `default` ones are not committed.
+snapshots are written per network and are gitignored; the merged `gas-report.md` is the committed artifact.
 
 ## Adding New Test Cases
 
