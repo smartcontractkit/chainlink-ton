@@ -20,35 +20,35 @@ export const DEFAULT_MIN_GASLIMIT = toNano('0.025')
 export const DEFAULT_MIN_TT_GASLIMIT = toNano('0.2')
 
 /** Mirrors the receive-path cost functions in Tolk (OffRamp_Costs, MerkleRoot_Costs,
- * ReceiveExecutor_Costs, the Router receive costs): 5x the cost measured by the gas report for a
- * 2000-byte message. */
+ * ReceiveExecutor_Costs, the Router receive costs): 5x the compute and 2x the forward fees measured
+ * by the gas report for a 2000-byte message. */
 export const Costs = (() => {
   const executorDeployment = toNano('0.01')
   const merkleRootDeployment = toNano('0.01')
   const markState = toNano('0.0035')
-  const notify = toNano('0.0035') + markState
-  const confirmedOrBounced = toNano('0.003') + notify
-  const receiveConfirmOrDeny = toNano('0.0035') + confirmedOrBounced
-  const receiveConfirm = toNano('0.0025') + receiveConfirmOrDeny
-  const routeMessage = toNano('0.0085') + receiveConfirm
-  const dispatchValidated = toNano('0.01') + routeMessage
+  const notify = toNano('0.0045') + markState
+  const confirmedOrBounced = toNano('0.0025') + notify
+  const receiveConfirmOrDeny = toNano('0.003') + confirmedOrBounced
+  const receiveConfirm = toNano('0.002') + receiveConfirmOrDeny
+  const routeMessage = toNano('0.0045') + receiveConfirm
+  const dispatchValidated = toNano('0.006') + routeMessage
   const depositAccount = RouterCosts.depositAccountReserve + RouterCosts.depositAccountWalletQuery
-  const releaseOrMint = toNano('0.004') + toNano('0.012') + toNano('0.01') + depositAccount
-  const tokenTransferDelivered = toNano('0.012')
+  const releaseOrMint = toNano('0.0035') + toNano('0.0075') + toNano('0.0095') + depositAccount
+  const tokenTransferDelivered = toNano('0.0105')
   const tokenTransfer =
     RegistryCosts.getTokenInfo +
-    toNano('0.005') +
+    toNano('0.0045') +
     releaseOrMint +
-    toNano('0.0135') +
+    toNano('0.0085') +
     tokenTransferDelivered
   const initExec = (hasTokens: boolean) =>
-    toNano('0.0095') + (hasTokens ? tokenTransfer : 0n) + dispatchValidated
+    toNano('0.005') + (hasTokens ? tokenTransfer : 0n) + dispatchValidated
   const executeValidated = (hasTokens: boolean) =>
-    toNano('0.0305') + executorDeployment + initExec(hasTokens)
-  const validate = (hasTokens: boolean) => toNano('0.011') + executeValidated(hasTokens)
+    toNano('0.018') + executorDeployment + initExec(hasTokens)
+  const validate = (hasTokens: boolean) => toNano('0.0065') + executeValidated(hasTokens)
   /** CCIP-owned part of an execution; add the message's gasLimit and destGasAmount. */
-  const execute = (hasTokens: boolean) => toNano('0.026') + validate(hasTokens)
-  const updatePrices = toNano('0.03')
+  const execute = (hasTokens: boolean) => toNano('0.021') + validate(hasTokens)
+  const updatePrices = toNano('0.0255')
   return {
     executorDeployment,
     merkleRootDeployment,
@@ -74,7 +74,7 @@ export const Costs = (() => {
       (hasTokens ? RegistryCosts.getTokenInfo + depositAccount : 0n),
     updatePrices,
     commit: (hasRoots: boolean, hasPriceUpdates: boolean) =>
-      toNano('0.02') +
+      toNano('0.0145') +
       (hasRoots ? toNano('0.0005') + merkleRootDeployment : 0n) +
       (hasPriceUpdates ? updatePrices : 0n),
   }

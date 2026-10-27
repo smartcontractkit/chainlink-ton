@@ -121,40 +121,41 @@ export const opcodes = {
   },
 }
 /** Mirrors the CCIPSend-path cost functions in Tolk (Router_Costs, OnRamp_Costs, SendExecutor_Costs,
- * FeeQuoter_Costs): 5x the cost measured by the gas report for a MAX_DATA_CELLS message. */
+ * FeeQuoter_Costs): 5x the compute and 2x the forward fees measured by the gas report for a
+ * MAX_DATA_CELLS message. */
 export const Costs = (() => {
   const max = (a: bigint, b: bigint) => (a > b ? a : b)
-  const feeQuoterGetValidatedFee = toNano('0.11') + toNano('0.1')
-  const messageSent = toNano('0.0025')
-  const messageRejected = toNano('0.0025')
-  const executorFinishedSuccessfully = toNano('0.105') + messageSent
-  const executorFinishedWithError = toNano('0.105') + messageRejected
+  const feeQuoterGetValidatedFee = toNano('0.108') + toNano('0.039')
+  const messageSent = toNano('0.002')
+  const messageRejected = toNano('0.002')
+  const executorFinishedSuccessfully = toNano('0.0445') + messageSent
+  const executorFinishedWithError = toNano('0.0445') + messageRejected
   const executorFinalize =
-    toNano('0.1') + max(executorFinishedSuccessfully, executorFinishedWithError)
+    toNano('0.042') + max(executorFinishedSuccessfully, executorFinishedWithError)
   const executorReserveFee = toNano('0.0025')
-  const executorDeploy = toNano('0.1')
-  const executorExecute = toNano('0.1') + feeQuoterGetValidatedFee + toNano('0.0045')
+  const executorDeploy = toNano('0.04')
+  const executorExecute = toNano('0.041') + feeQuoterGetValidatedFee + toNano('0.004')
   const lockOrBurnValue = toNano('1')
   const lockOrBurnRelay =
+    toNano('0.003') +
     toNano('0.0035') +
+    toNano('0.0055') +
     toNano('0.004') +
-    toNano('0.0065') +
-    toNano('0.005') +
-    toNano('0.004') +
-    toNano('0.0045') +
+    toNano('0.003') +
+    toNano('0.003') +
     toNano('0.0015')
   const executorRequestsLockOrBurn = lockOrBurnRelay + lockOrBurnValue
   const executorTokenTransfer =
-    RegistryCosts.getTokenInfo + toNano('0.005') + executorRequestsLockOrBurn
+    RegistryCosts.getTokenInfo + toNano('0.0045') + executorRequestsLockOrBurn
   const executorReserve = (hasTokens: boolean) =>
     executorReserveFee +
-    toNano('0.0045') +
+    toNano('0.0035') +
     (hasTokens ? executorTokenTransfer : 0n) +
     executorFinalize
   const onRampSend = (hasTokens: boolean) =>
-    toNano('0.12') + executorDeploy + executorExecute + executorReserve(hasTokens)
-  const ccipSend = (hasTokens: boolean) => toNano('0.1') + onRampSend(hasTokens)
-  const onRampGetValidatedFee = toNano('0.1') + feeQuoterGetValidatedFee + toNano('0.1')
+    toNano('0.0505') + executorDeploy + executorExecute + executorReserve(hasTokens)
+  const ccipSend = (hasTokens: boolean) => toNano('0.0415') + onRampSend(hasTokens)
+  const onRampGetValidatedFee = toNano('0.04') + feeQuoterGetValidatedFee + toNano('0.04')
   const depositAccountReserve = toNano('0.01')
   const depositAccountInit = toNano('0.008')
   const depositAccountWalletQuery = toNano('0.005')
@@ -177,12 +178,12 @@ export const Costs = (() => {
     ccipSend: ccipSend(false),
     ccipSendWithTokens: ccipSend(true),
     onRampGetValidatedFee,
-    getValidatedFee: toNano('0.1') + onRampGetValidatedFee + toNano('0.1'),
+    getValidatedFee: toNano('0.041') + onRampGetValidatedFee + toNano('0.0405'),
     depositAccountReserve,
     depositAccountInit,
     depositAccountWalletQuery,
     getOnRampAccount:
-      toNano('0.0115') + depositAccountReserve + depositAccountInit + depositAccountWalletQuery,
+      toNano('0.007') + depositAccountReserve + depositAccountInit + depositAccountWalletQuery,
   }
 })()
 

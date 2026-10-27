@@ -29,19 +29,19 @@ struct (0xaf3c62b3) CCIPSendExecutor_Execute {
 // Costs associated with SendExecutor operations
 struct SendExecutor_Costs {}
 
-// Constants are 5x the cost measured by tests/gas-report/ccip for a MAX_DATA_CELLS message.
+// Constants are 5x the measured compute and 2x the measured forward fees (tests/gas-report/ccip) for a MAX_DATA_CELLS message.
 
 // Deployable.initializeAndSend: computeFee + the self message fwdFee (carries the message)
 @inline
 fun SendExecutor_Costs.Deploy(): int {
-    return grams("0.1");
+    return grams("0.04");
 }
 
 // Minimum value for calling CCIPSendExecutor_Execute: the fee validation round trip.
 @inline
 fun SendExecutor_Costs.Execute(): int {
     return
-        + grams("0.1") // computeFee + GetValidatedFee fwdFee
+        + grams("0.041") // computeFee + GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()
         + max(SendExecutor_Costs.MessageValidated(), SendExecutor_Costs.MessageValidationFailed())
         ;
@@ -53,7 +53,7 @@ fun SendExecutor_Costs.Execute(): int {
 fun SendExecutor_Costs.Reserve(hasTokens: bool): int {
     return
         + OnRamp_Costs.ExecutorReserveFee()
-        + grams("0.0045") // OnRamp_ExecutorFeeReserved computeFee
+        + grams("0.0035") // OnRamp_ExecutorFeeReserved computeFee
         + (hasTokens ? SendExecutor_Costs.TokenTransfer() : 0)
         + SendExecutor_Costs.Finalize()
         ;
@@ -64,7 +64,7 @@ fun SendExecutor_Costs.Reserve(hasTokens: bool): int {
 fun SendExecutor_Costs.TokenTransfer(): int {
     return
         + TokenAdminRegistry_GetTokenInfo.cost()
-        + grams("0.005") // TokenAdminRegistry_TokenInfo computeFee + ExecutorRequestsLockOrBurn fwdFee
+        + grams("0.0045") // TokenAdminRegistry_TokenInfo computeFee + ExecutorRequestsLockOrBurn fwdFee
         + OnRamp_ExecutorRequestsLockOrBurn.cost(TOKEN_POOL_LOCK_OR_BURN_VALUE)
         ;
 }
@@ -74,19 +74,19 @@ fun SendExecutor_Costs.TokenTransfer(): int {
 @inline
 fun SendExecutor_Costs.Finalize(): int {
     return
-        + grams("0.1") // computeFee + ExecutorFinishedSuccessfully fwdFee
+        + grams("0.042") // computeFee + ExecutorFinishedSuccessfully fwdFee
         + max(OnRamp_Costs.ExecutorFinishedSuccessfully(), OnRamp_Costs.ExecutorFinishedWithError())
         ;
 }
 
 @inline
 fun SendExecutor_Costs.MessageValidated(): int {
-    return grams("0.0045"); // computeFee + ExecutorReserveFee fwdFee
+    return grams("0.004"); // computeFee + ExecutorReserveFee fwdFee
 }
 
 @inline
 fun SendExecutor_Costs.MessageValidationFailed(): int {
-    return grams("0.0045"); // computeFee + ExecutorFinishedWithError fwdFee
+    return grams("0.004"); // computeFee + ExecutorFinishedWithError fwdFee
 }
 
 type CCIPSendExecutor_BouncedMessage =

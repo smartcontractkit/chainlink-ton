@@ -19,6 +19,7 @@ const DEFAULT_OUT = path.join(
   'gas-report.md',
 )
 const SAFETY_FACTOR = 5n
+const SAFETY_FACTOR_FORWARD = 2n
 const OWNERS: Owner[] = ['ccip', 'registry', 'token', 'external']
 
 type Snapshot = { network: string; gasPrice: bigint; flows: FlowSummary[] }
@@ -130,7 +131,9 @@ function render(network: string, snapshots: Map<string, Snapshot>): string {
     "Each hop of a flow is attributed to the owner of the receiving contract: `ccip` (Router, ramps, executors, deposit accounts, MerkleRoot, FeeQuoter), `registry` (TokenAdminRegistry and entries), `token` (pools, lockboxes, minters, jetton wallets) or `external` (users, receivers, transmitters). A hop's cost is its storage and compute fees plus the full forward fees of the messages it sends. Registry and token hops are budgeted by their own contracts; only the `ccip` part is what the CCIP entrypoints have to cover.",
   )
   out.push('')
-  out.push(`Gas price: ${nanoPerGas} nanotons per gas unit. Safety factor: ${SAFETY_FACTOR}x.`)
+  out.push(
+    `Gas price: ${nanoPerGas} nanotons per gas unit. Min value basis: ${SAFETY_FACTOR}x compute and storage, ${SAFETY_FACTOR_FORWARD}x forward fees.`,
+  )
   out.push('')
   out.push(
     'See [value-flow.md](./value-flow.md) for how each handler currently funds the next hop.',
@@ -156,7 +159,7 @@ function render(network: string, snapshots: Map<string, Snapshot>): string {
         'Token',
         'Total',
         'CCIP gas eq.',
-        `CCIP x${SAFETY_FACTOR}`,
+        'Min value basis',
         'Worst flow',
       ],
       worstCases(snapshots).map((w) => [
@@ -170,7 +173,10 @@ function render(network: string, snapshots: Map<string, Snapshot>): string {
         ton(w.cost.token),
         ton(sum(w.cost)),
         gasEq(w.cost.ccip),
-        ton(w.cost.ccip * SAFETY_FACTOR),
+        ton(
+          (w.ccip.compute + w.ccip.storage) * SAFETY_FACTOR +
+            w.ccip.forward * SAFETY_FACTOR_FORWARD,
+        ),
         `${w.spec}: ${w.flow}`,
       ]),
     ),

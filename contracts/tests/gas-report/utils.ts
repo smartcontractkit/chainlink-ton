@@ -16,7 +16,24 @@ import { opName } from './ccip/opNames'
 export type Owner = 'ccip' | 'registry' | 'token' | 'external'
 type HopOwner = Owner | 'unknown'
 
+/** Min values are 5x the measured compute (and storage) and 2x the measured forward fees. */
 export const SAFETY_FACTOR = 5n
+export const SAFETY_FACTOR_FORWARD = 2n
+
+/** Min value a subtree must be given: compute and storage at SAFETY_FACTOR, forward fees at SAFETY_FACTOR_FORWARD. */
+export function minValueBasis(hops: HopSummary[], root: number, owner: Owner = 'ccip'): bigint {
+  let out = 0n
+  const visit = (i: number) => {
+    const hop = hops[i]
+    if (hop.owner === owner) {
+      out +=
+        (hop.computeFee + hop.storageFee) * SAFETY_FACTOR + hop.forwardFee * SAFETY_FACTOR_FORWARD
+    }
+    hop.children.forEach(visit)
+  }
+  visit(root)
+  return out
+}
 
 export type Network = 'mainnet' | 'testnet' | 'default'
 
@@ -422,7 +439,7 @@ export interface FlowSpec {
   discover?: (result: SendMessageResult, book: AddressBook) => void | Promise<void>
   /** Hops expected to abort, as `From->To`. */
   aborts?: string[]
-  /** Value the entrypoint was sent; when set, the CCIP subtree cost must fit SAFETY_FACTOR times. */
+  /** CCIP part of the value the entrypoint was sent; when set, the CCIP subtree's min value basis must fit in it. */
   budget?: bigint
 }
 
@@ -501,11 +518,12 @@ export class GasReport {
     expect({ losses }).toEqual({ losses: {} })
 
     if (spec.budget !== undefined) {
-      const ccipCost = flow.entrypoints[0].cost.ccip
+      const basis = minValueBasis(flow.hops, flow.entrypoints[0].hop)
       expect({
-        ccipCost: fromNano(ccipCost),
+        ccipCost: fromNano(flow.entrypoints[0].cost.ccip),
+        minValueBasis: fromNano(basis),
         budget: fromNano(spec.budget),
-        fits: ccipCost * SAFETY_FACTOR <= spec.budget,
+        fits: basis <= spec.budget,
       }).toMatchObject({ fits: true })
     }
     return { result, flow }

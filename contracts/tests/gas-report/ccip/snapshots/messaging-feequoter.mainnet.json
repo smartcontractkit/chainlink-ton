@@ -24,8 +24,8 @@
           "totalFee": "25771329",
           "cost": "19327604",
           "valueIn": "0",
-          "valueOut": "610000000",
-          "retained": "-648570406"
+          "valueOut": "308500000",
+          "retained": "-347070406"
         },
         {
           "index": 1,
@@ -45,8 +45,8 @@
           "actionFee": "6410547",
           "totalFee": "6838481",
           "cost": "19659869",
-          "valueIn": "610000000",
-          "valueOut": "590340131",
+          "valueIn": "308500000",
+          "valueOut": "288840131",
           "retained": "0"
         },
         {
@@ -67,8 +67,8 @@
           "actionFee": "6418725",
           "totalFee": "6686326",
           "cost": "19524070",
-          "valueIn": "590340131",
-          "valueOut": "570816061",
+          "valueIn": "288840131",
+          "valueOut": "269316061",
           "retained": "0"
         },
         {
@@ -89,8 +89,8 @@
           "actionFee": "6421680",
           "totalFee": "26625350",
           "cost": "39469005",
-          "valueIn": "570816061",
-          "valueOut": "531347057",
+          "valueIn": "269316061",
+          "valueOut": "229847057",
           "retained": "-1"
         },
         {
@@ -111,8 +111,8 @@
           "actionFee": "6410636",
           "totalFee": "6683504",
           "cost": "19505070",
-          "valueIn": "531347057",
-          "valueOut": "511841987",
+          "valueIn": "229847057",
+          "valueOut": "210341987",
           "retained": "0"
         },
         {
@@ -133,8 +133,8 @@
           "actionFee": "6402436",
           "totalFee": "6753170",
           "cost": "19558336",
-          "valueIn": "511841987",
-          "valueOut": "492283651",
+          "valueIn": "210341987",
+          "valueOut": "190783651",
           "retained": "0"
         },
         {
@@ -155,9 +155,9 @@
           "actionFee": "0",
           "totalFee": "20601",
           "cost": "20601",
-          "valueIn": "492283651",
+          "valueIn": "190783651",
           "valueOut": "0",
-          "retained": "492263050"
+          "retained": "190763050"
         }
       ],
       "totals": {
@@ -183,7 +183,7 @@
             "token": "0",
             "external": "20601"
           },
-          "retained": "492263049"
+          "retained": "190763049"
         },
         {
           "hop": 2,
@@ -195,7 +195,7 @@
             "token": "0",
             "external": "20601"
           },
-          "retained": "492263049"
+          "retained": "190763049"
         },
         {
           "hop": 3,
@@ -207,7 +207,7 @@
             "token": "0",
             "external": "20601"
           },
-          "retained": "492263049"
+          "retained": "190763049"
         },
         {
           "hop": 4,
@@ -219,7 +219,7 @@
             "token": "0",
             "external": "20601"
           },
-          "retained": "492263050"
+          "retained": "190763050"
         },
         {
           "hop": 5,
@@ -231,7 +231,7 @@
             "token": "0",
             "external": "20601"
           },
-          "retained": "492263050"
+          "retained": "190763050"
         }
       ]
     }

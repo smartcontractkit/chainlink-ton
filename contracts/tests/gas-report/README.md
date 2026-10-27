@@ -102,7 +102,9 @@ It is followed by the cost per owner and by the entrypoint table: for every hop 
 contract, the cost of that hop plus everything downstream of it (using the sandbox transaction
 tree), split by owner. The `CCIP` column of an entrypoint is the cost its min value has to cover;
 the `Registry` and `Token` columns are covered by those contracts' own budgets. `Gas eq` converts
-the total to gas units at the config's gas price.
+the total to gas units at the config's gas price. A min value is set to 5x the measured compute
+and storage plus 2x the measured forward fees of the CCIP subtree (`minValueBasis` in `utils.ts`);
+`measure` asserts this when a `budget` is given.
 
 The TokenAdminRegistry specs use the receiver-attributed `txFee` helper (incoming forward fee plus
 own fees) instead; both attributions add up to the same flow total.

@@ -33,6 +33,6 @@ fun MerkleRoot_Costs.markState(): int {
     return MERKLE_ROOT_COSTS_MARK_STATE_FEE;
 }
 
-// 5x the cost measured by tests/gas-report/ccip for a 2000-byte message.
+// Constants are 5x the measured compute and 2x the measured forward fees (tests/gas-report/ccip) for a 2000-byte message.
 const MERKLE_ROOT_COSTS_MARK_STATE_FEE = grams("0.0035");
-const MERKLE_ROOT_COSTS_VALIDATE_FEE = grams("0.011");
+const MERKLE_ROOT_COSTS_VALIDATE_FEE = grams("0.0065");
