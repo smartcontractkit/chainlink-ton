@@ -51,12 +51,15 @@ export async function gasReportConfig(): Promise<Cell | undefined> {
   const network = gasReportNetwork()
   if (network === 'default') return undefined
   const file = path.join(CONFIG_DIR, `${network}.base64`)
-  if (!fs.existsSync(file)) {
-    const config = await fetchConfig(network)
-    fs.mkdirSync(CONFIG_DIR, { recursive: true })
-    fs.writeFileSync(file, config.toBoc().toString('base64') + '\n')
+  try {
+    return Cell.fromBase64(fs.readFileSync(file, 'utf8').trim())
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e
   }
-  return Cell.fromBase64(fs.readFileSync(file, 'utf8').trim())
+  const config = await fetchConfig(network)
+  fs.mkdirSync(CONFIG_DIR, { recursive: true })
+  fs.writeFileSync(file, config.toBoc().toString('base64') + '\n')
+  return config
 }
 
 // Receiver-attributed fees used by the TokenAdminRegistry specs: a transaction pays the forward
