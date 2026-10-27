@@ -14,6 +14,7 @@ import * as rt from '../../../../wrappers/gen/ccip/Router'
 import { Costs } from '../../../../wrappers/ccip/Router'
 import { Costs as RegistryCosts } from '../../../../wrappers/ccip/TokenAdminRegistry'
 import * as tar from '../../../../wrappers/gen/ccip/TokenAdminRegistry'
+import * as tp from '../../../../wrappers/gen/ccip/pools/TokenPool'
 import { JettonWallet } from '../../../../wrappers/gen/ccip/cct/JettonWallet'
 import { setup } from '../../../ccip/router/Router.Setup'
 import { ChainFamilySelectors, ChainSelectors } from '../../../utils/Selectors'
@@ -217,13 +218,13 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
     return result
   }
 
-  async function ccipSend(token: TokenWithPool, data: Cell) {
+  async function ccipSend(token: TokenWithPool, data: Cell, amount = TOKEN_AMOUNT) {
     const msg = rt.Router_CCIPSend.create({
       queryID: 1n,
       destChainSelector: DEST_CHAIN_SELECTOR,
       receiver: EVM_ADDRESS,
       data,
-      tokenAmounts: [rt.TokenAmount.create({ amount: TOKEN_AMOUNT, token: token.minter.address })],
+      tokenAmounts: [rt.TokenAmount.create({ amount, token: token.minter.address })],
       feeToken: NATIVE_GRAM,
       extraArgs: rt.GenericExtraArgsV2.fromSlice(createExtraArgs().beginParse()),
     })
@@ -237,6 +238,32 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       to: sender.address,
       op: rt.Router_CCIPSendACK.PREFIX,
     })
+  }
+
+  function expectNACK(result: SendMessageResult) {
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.Router_CCIPSendNACK.PREFIX,
+    })
+    expect(result.transactions).not.toHaveTransaction({ op: rt.Router_CCIPSendACK.PREFIX })
+  }
+
+  function setOutboundCapacity(token: TokenWithPool, capacity: bigint) {
+    const limit = (cap: bigint) =>
+      tp.RateLimiter_Config.create({ isEnabled: true, capacity: cap, rate: cap })
+    return blockchain
+      .openContract(tp.TokenPool.fromAddress(token.pool))
+      .sendTokenPoolSetRateLimitConfig(deployer.getSender(), toNano('0.2'), {
+        updates: [
+          tp.TokenPool_RateLimitConfigArgs.create({
+            remoteChainSelector: DEST_CHAIN_SELECTOR,
+            fastFinality: false,
+            outboundRateLimiterConfig: limit(capacity),
+            inboundRateLimiterConfig: limit(toNano('1000000')),
+          }),
+        ],
+      })
   }
 
   function nameExecutor(result: SendMessageResult, book: AddressBook) {
@@ -331,6 +358,44 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
         )
         expectACK(result)
       }
+    })
+
+    // The rate limit makes the pool throw, so the relay bounces back to the Router.
+    it(`should measure a token transfer with ${HARD_MAX_DATA_BYTES} bytes of data rejected by the pool`, async () => {
+      await deposit(token, onRampAccount)
+      await setOutboundCapacity(token, 1n)
+      const { result } = await report.measure(
+        `${kind}: CCIPSend Token Transfer + Max Payload rejected by pool`,
+        {
+          ...sendFlow(createPayload(HARD_MAX_DATA_BYTES)),
+          aborts: [`Router->${kind}Pool`],
+        },
+      )
+      await setOutboundCapacity(token, toNano('1000000'))
+      expect(result.transactions).toHaveTransaction({
+        from: router.address,
+        op: rt.Router_TokenPoolLockOrBurnFailed.PREFIX,
+        success: true,
+      })
+      expectNACK(result)
+    })
+
+    // The account holds fewer jettons than the transfer, so the withdraw bounces after admission.
+    it(`should measure a token transfer with ${HARD_MAX_DATA_BYTES} bytes of data whose withdraw fails`, async () => {
+      const { result } = await report.measure(
+        `${kind}: CCIPSend Token Transfer + Max Payload withdraw failed`,
+        {
+          ...sendFlow(createPayload(HARD_MAX_DATA_BYTES)),
+          run: () => ccipSend(token, createPayload(HARD_MAX_DATA_BYTES), TOKEN_AMOUNT * 1000n),
+          aborts: ['OnRampAccount->OnRampAccountWallet'],
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        to: router.address,
+        op: rt.DepositAccount_WithdrawFailed.PREFIX,
+        success: true,
+      })
+      expectNACK(result)
     })
   })
 })

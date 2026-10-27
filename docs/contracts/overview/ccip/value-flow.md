@@ -37,12 +37,18 @@ Rules the tuning phase applies:
 | `OnRamp.ExecutorRequestsWithdraw`     | none                                        | `Router_WithdrawToTokenPool` `m64`                                                             |                                                                                  |
 | `Router.WithdrawToTokenPool`          | none                                        | `DepositAccount_Withdraw` `m64`, jetton `forwardTonAmount` from the pool, excesses to OnRamp    |                                                                                  |
 | `DepositAccount.Withdraw`             | none                                        | `AskToTransfer` `m64 \| bounce on action fail`                                                 | bounce replies `WithdrawFailed` `m64`                                            |
+| `Router.DepositAccountWithdrawFailed` | none                                        | emit `TokenPoolWithdrawBounced`, `R0`, `Router_TokenPoolLockOrBurnFailed` to the executor `m128` | event plus one message; the pool is not told, so its outbound rate limit stays consumed |
 | `OnRamp` jetton excesses              | none                                        | drops with exit 65535                                                                          | non-bounceable, so the TON stays on the OnRamp                                   |
 | `SendExecutor.LockOrBurnFinished`     | none                                        | `OnRamp_ExecutorFinishedSuccessfully` `m128`                                                   | drains the executor                                                              |
 | `OnRamp.ExecutorFinishedSuccessfully` | none                                        | emit `CCIPMessageSent`, `R0`, `Router_MessageSent` `m128`                                      | event plus one message                                                           |
 | `Router.MessageSent`                  | none                                        | `Router_CCIPSendACK` `m64`                                                                     | the user gets the leftover here                                                  |
 | `SendExecutor` error exit             | none                                        | `OnRamp_ExecutorFinishedWithError` `m128`                                                      | OnRamp refunds the reserved fee with `m64`                                       |
 | `Router.GetOnRampAccount`             | `GetOnRampAccount()` 0.03                   | `Deployable_Initialize` 0.01 `m1`, `R0`, `DepositAccount_Init` `m128`                          | two messages                                                                     |
+
+Measured failure paths (`tests/gas-report/ccip`, the "rejected" flows) all cost less than the success
+path of the same entrypoint: FeeQuoter rejection, pool rejection of the LockOrBurn relay and a failed
+on-ramp account withdraw on the send side; pool rejection of the ReleaseOrMint relay and a receiver
+bounce on the receive side. The failure constants in the cost functions stay equal to the success ones.
 
 ## Receive
 

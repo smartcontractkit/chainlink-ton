@@ -139,17 +139,30 @@ describe('CCIP OnRamp Gas Estimation', () => {
     })
   })
 
-  async function ccipSend(data: Cell) {
-    const msg = rt.Router_CCIPSend.create({
+  function ccipSendMessage(data: Cell, gasLimit?: bigint) {
+    const extraArgs = rt.GenericExtraArgsV2.fromSlice(createExtraArgs().beginParse())
+    if (gasLimit !== undefined) extraArgs.gasLimit = gasLimit
+    return rt.Router_CCIPSend.create({
       queryID: 1n,
       destChainSelector: ChainSelectors.testnet.evm,
       receiver: EVM_ADDRESS,
       data,
       tokenAmounts: [],
       feeToken: NATIVE_GRAM,
-      extraArgs: rt.GenericExtraArgsV2.fromSlice(createExtraArgs().beginParse()),
+      extraArgs,
     })
+  }
+
+  async function ccipSend(data: Cell) {
+    const msg = ccipSendMessage(data)
     const fee = await getValidatedFee(blockchain, router.address, msg)
+    return router.sendRouterCCIPSend(sender.getSender(), fee + Costs.ccipSend, msg)
+  }
+
+  // gasLimit over maxPerMsgGasLimit; sent with the value a valid message would get.
+  async function ccipSendRejectedByFeeQuoter(data: Cell) {
+    const fee = await getValidatedFee(blockchain, router.address, ccipSendMessage(data))
+    const msg = ccipSendMessage(data, 200_000n)
     return router.sendRouterCCIPSend(sender.getSender(), fee + Costs.ccipSend, msg)
   }
 
@@ -185,6 +198,25 @@ describe('CCIP OnRamp Gas Estimation', () => {
       budget: Costs.ccipSend,
     })
     expectACK(result)
+  })
+
+  it(`should measure a message with ${HARD_MAX_DATA_BYTES} bytes of data rejected by the FeeQuoter`, async () => {
+    const { result } = await report.measure('CCIPSend + Max Payload rejected by FeeQuoter', {
+      run: () => ccipSendRejectedByFeeQuoter(createPayload(HARD_MAX_DATA_BYTES)),
+      book,
+      discover: nameExecutor,
+      budget: Costs.ccipSend,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: feeQuoter.address,
+      op: fq.FeeQuoter_MessageValidationFailed.PREFIX,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.Router_CCIPSendNACK.PREFIX,
+    })
   })
 
   it('should measure how the message cost scales with data size', async () => {

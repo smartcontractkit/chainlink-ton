@@ -4,6 +4,7 @@ import '@ton/test-utils'
 
 import * as of from '../../../../wrappers/gen/ccip/OffRamp'
 import * as rt from '../../../../wrappers/gen/ccip/Router'
+import * as tr from '../../../../wrappers/gen/ccip/TestReceiver'
 import * as deployable from '../../../../wrappers/libraries/Deployable'
 import generateMessageID from '../../../../src/offramp/generateMessageID'
 import {
@@ -251,6 +252,48 @@ describe('CCIP OffRamp Gas Estimation', () => {
     expect(result.transactions).toHaveTransaction({
       from: setup.offRamp.address,
       to: setup.feeQuoter.address,
+      success: true,
+    })
+  })
+
+  it(`should measure execute of a message with ${LANE_MAX_DATA_BYTES} bytes of data rejected by the receiver`, async () => {
+    const seq = 67n
+    const message = setup.createTestMessage(
+      seq,
+      seq,
+      setup.receiver.address,
+      createPayload(LANE_MAX_DATA_BYTES),
+    )
+    const root = setup.createMerkleRoot(
+      seq,
+      seq,
+      generateMessageID(message, getDefaultMetadataHash(setup.SOURCE_CHAIN_SELECTOR)),
+    )
+    book.set('MerkleRoot', setup.merkleRootAddress(root), 'ccip')
+    await setup.commitReport([root], Costs.commit(true, false), 7)
+
+    const setBehavior = (behavior: tr.TestReceiver_Behavior) =>
+      setup.receiver.sendTestReceiverUpdateBehavior(setup.deployer.getSender(), toNano('0.05'), {
+        behavior,
+      })
+    await setBehavior(tr.TestReceiver_Behavior.RejectAll)
+    const { result } = await report.measure('OffRamp Execute + Max Payload rejected by receiver', {
+      run: () => setup.executeReport(setup.createExecuteReport([message]), 8),
+      book,
+      discover: nameReceiveExecutor,
+      aborts: ['Router->Receiver'],
+      budget: Costs.executeBudget(false),
+    })
+    await setBehavior(tr.TestReceiver_Behavior.Accept)
+    expect(result.transactions).toHaveTransaction({
+      from: setup.router.address,
+      to: setup.offRamp.address,
+      op: of.OffRamp_CCIPReceiveBounced.PREFIX,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      to: setup.offRamp.address,
+      op: of.OffRamp_NotifyFailure.PREFIX,
       success: true,
     })
   })

@@ -535,15 +535,17 @@ fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: a
         queryId: msg.queryId,
         exitCode: 0,
     });
-    failWithdrawToTokenPool(request, Router_Error.OnRampAccountWithdrawFailed as int32);
+    // The event's forward fee comes out of the inbound value, not the Router's balance.
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    failWithdrawToTokenPool(request, Router_Error.OnRampAccountWithdrawFailed as int32, SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 /// Fails the CCIPSend whose withdraw from the sender's on-ramp account did not go through. `ask`
 /// was built by `onWithdrawToTokenPool`, which checked that its forward payload names the executor.
-fun failWithdrawToTokenPool(request: DepositAccount_Withdraw, exitCode: int32) {
+fun failWithdrawToTokenPool(request: DepositAccount_Withdraw, exitCode: int32, mode: int = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE) {
     val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromCell(request.ask.forwardPayload!);
     val lockOrBurn = lazy fwdp.requestMsg.load();
-    sendLockOrBurnRelayFailure(lockOrBurn.replyTo, lockOrBurn.queryId, request.ask.transferRecipient, exitCode);
+    sendLockOrBurnRelayFailure(lockOrBurn.replyTo, lockOrBurn.queryId, request.ask.transferRecipient, exitCode, mode);
 }
 
 /// Returns accidentally transferred jettons to the transfer initiator. The Router's own jetton
@@ -1261,6 +1263,7 @@ fun sendLockOrBurnRelayFailure(
     queryID: uint64,
     tokenPool: address,
     exitCode: int32,
+    mode: int = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
 ) {
     val failed = createMessage({
         bounce: BounceMode.NoBounce,
@@ -1268,7 +1271,7 @@ fun sendLockOrBurnRelayFailure(
         dest: executor,
         body: Router_TokenPoolLockOrBurnFailed { queryID, tokenPool, exitCode },
     });
-    failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    failed.send(mode);
 }
 
 /// Reports an inbound release/mint failure to the OffRamp that owns the lane.

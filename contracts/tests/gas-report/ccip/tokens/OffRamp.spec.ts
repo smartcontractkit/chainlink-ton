@@ -88,7 +88,7 @@ describe('CCIP OffRamp Token Transfer Gas Estimation', () => {
     label: string,
     token: TokenWithPool,
     book: AddressBook,
-    opts: { data?: Cell; gasLimit?: bigint; aborts?: string[] } = {},
+    opts: { data?: Cell; gasLimit?: bigint; aborts?: string[]; poolRejects?: boolean } = {},
   ) {
     const message = setup.createTestMessageWithToken({
       token: token.minter.address,
@@ -117,6 +117,20 @@ describe('CCIP OffRamp Token Transfer Gas Estimation', () => {
       aborts: opts.aborts,
       budget: Costs.executeBudget(true),
     })
+    if (opts.poolRejects) {
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.offRamp.address,
+        op: rt.Router_TokenPoolReleaseOrMintFailed.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        to: setup.offRamp.address,
+        op: of.OffRamp_NotifyFailure.PREFIX,
+        success: true,
+      })
+      return result
+    }
     expect(result.transactions).toHaveTransaction({
       from: setup.router.address,
       to: token.pool,
@@ -129,6 +143,23 @@ describe('CCIP OffRamp Token Transfer Gas Estimation', () => {
       success: true,
     })
     return result
+  }
+
+  function setInboundCapacity(token: TokenWithPool, capacity: bigint) {
+    const limit = (cap: bigint) =>
+      tp.RateLimiter_Config.create({ isEnabled: true, capacity: cap, rate: cap })
+    return blockchain
+      .openContract(tp.TokenPool.fromAddress(token.pool))
+      .sendTokenPoolSetRateLimitConfig(setup.deployer.getSender(), toNano('0.2'), {
+        updates: [
+          tp.TokenPool_RateLimitConfigArgs.create({
+            remoteChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+            fastFinality: false,
+            outboundRateLimiterConfig: limit(toNano('1000000')),
+            inboundRateLimiterConfig: limit(capacity),
+          }),
+        ],
+      })
   }
 
   describe.each(POOL_KINDS)('%s pool', (kind) => {
@@ -187,6 +218,26 @@ describe('CCIP OffRamp Token Transfer Gas Estimation', () => {
         to: setup.receiver.address,
         op: rt.Receiver_CCIPReceiveV2.PREFIX,
         success: true,
+      })
+    })
+
+    // The rate limit makes the pool throw, so the relay bounces back to the Router.
+    it(`should measure token transfer with ${LANE_MAX_DATA_BYTES} bytes of data rejected by the pool`, async () => {
+      await setInboundCapacity(token, 1n)
+      const result = await commitAndExecute(
+        `${kind}: Execute Token Transfer + Max Payload rejected by pool`,
+        token,
+        book,
+        {
+          data: createPayload(LANE_MAX_DATA_BYTES),
+          aborts: [...existingAccount.aborts, `Router->${kind}Pool`],
+          poolRejects: true,
+        },
+      )
+      await setInboundCapacity(token, toNano('1000000'))
+      expect(result.transactions).not.toHaveTransaction({
+        from: setup.router.address,
+        to: setup.receiver.address,
       })
     })
   })

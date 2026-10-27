@@ -15,25 +15,29 @@ Cost of the entrypoint transaction and everything downstream of it, taken from t
 | Contract | Entrypoint | CCIP | compute | forward | storage | Registry | Token | Total | CCIP gas eq. | Min value basis | Worst flow |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | FeeQuoter | `FeeQuoter_GetValidatedFee` | 0.090245838 | 0.02968675 | 0.060559084 | 0.000000004 | 0.001553942 | 0.010754088 | 0.10257447 | 1353687 | 0.269551938 | tokens-onramp: BurnMint: CCIPSend Token Transfer + Max Payload |
-| FeeQuoter | `FeeQuoter_UpdatePrices` | 0.005545542 | 0.004522868 | 0.001022673 | 0.000000001 | 0 | 0 | 0.005566144 | 83183 | 0.024659691 | messaging-offramp: OffRamp Commit + root + price updates |
+| FeeQuoter | `FeeQuoter_UpdatePrices` | 0.005545541 | 0.004522868 | 0.001022673 | 0 | 0 | 0 | 0.005566142 | 83183 | 0.024659686 | messaging-offramp: OffRamp Commit + root + price updates |
 | MerkleRoot | `Deployable.initialize` | 0.000089468 | 0.000089468 | 0 | 0 | 0 | 0 | 0.000089468 | 1342 | 0.00044734 | messaging-offramp: OffRamp Commit (1 merkle root) |
-| MerkleRoot | `MerkleRoot_MarkState` | 0.000680537 | 0.000607202 | 0.000073334 | 0.000000001 | 0 | 0 | 0.000680537 | 10208 | 0.003182683 | tokens-offramp: BurnMint: Execute Token Transfer |
-| MerkleRoot | `MerkleRoot_Validate` | 0.026511782 | 0.012494826 | 0.014016956 | 0 | 0.001589274 | 0.010211547 | 0.040091607 | 397676 | 0.090508042 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
+| MerkleRoot | `MerkleRoot_MarkState` | 0.000680537 | 0.000607202 | 0.000073334 | 0.000000001 | 0 | 0 | 0.000680537 | 10208 | 0.003182683 | messaging-offramp: OffRamp Execute + Max Payload |
+| MerkleRoot | `MerkleRoot_Validate` | 0.026517249 | 0.012500293 | 0.014016956 | 0 | 0.001589274 | 0.010211547 | 0.040097074 | 397758 | 0.090535377 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
 | OffRamp | `empty` | 0.000264934 | 0.000264934 | 0 | 0 | 0 | 0 | 0.000264934 | 3974 | 0.00132467 | messaging-offramp: OffRamp Execute + Max Payload |
-| OffRamp | `OffRamp_CCIPReceiveConfirm` | 0.00256041 | 0.001891538 | 0.000668871 | 0.000000001 | 0 | 0 | 0.00256041 | 38406 | 0.010795437 | tokens-offramp: BurnMint: Execute Token Transfer |
-| OffRamp | `OffRamp_Commit` | 0.009508148 | 0.00678927 | 0.002718877 | 0.000000001 | 0 | 0 | 0.00952875 | 142622 | 0.039384109 | messaging-offramp: OffRamp Commit + root + price updates |
-| OffRamp | `OffRamp_DispatchValidated` | 0.006625083 | 0.003186475 | 0.003438607 | 0.000000001 | 0 | 0 | 0.008404087 | 99376 | 0.022809594 | tokens-offramp: BurnMint: Execute Token Transfer + Max Payload |
-| OffRamp | `OffRamp_Execute` | 0.031145251 | 0.01545536 | 0.015689891 | 0 | 0.001589274 | 0.010211547 | 0.044725076 | 467178 | 0.108656582 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
-| OffRamp | `OffRamp_ExecuteValidated` | 0.024403113 | 0.011829958 | 0.012573155 | 0 | 0.001589274 | 0.010211547 | 0.037982938 | 366046 | 0.0842961 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
+| OffRamp | `OffRamp_CCIPReceiveBounced` | 0.00220241 | 0.001606404 | 0.000596003 | 0.000000003 | 0 | 0 | 0.00220241 | 33036 | 0.009224041 | messaging-offramp: OffRamp Execute + Max Payload rejected by receiver |
+| OffRamp | `OffRamp_CCIPReceiveConfirm` | 0.00256041 | 0.001891538 | 0.000668871 | 0.000000001 | 0 | 0 | 0.00256041 | 38406 | 0.010795437 | messaging-offramp: OffRamp Execute + Max Payload |
+| OffRamp | `OffRamp_Commit` | 0.009508147 | 0.00678927 | 0.002718877 | 0 | 0 | 0 | 0.009528748 | 142622 | 0.039384104 | messaging-offramp: OffRamp Commit + root + price updates |
+| OffRamp | `OffRamp_DispatchValidated` | 0.006625082 | 0.003186475 | 0.003438607 | 0 | 0 | 0 | 0.008404086 | 99376 | 0.022809589 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
+| OffRamp | `OffRamp_Execute` | 0.031150718 | 0.015460827 | 0.015689891 | 0 | 0.001589274 | 0.010211547 | 0.044730543 | 467260 | 0.108683917 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
+| OffRamp | `OffRamp_ExecuteValidated` | 0.02440858 | 0.011835425 | 0.012573155 | 0 | 0.001589274 | 0.010211547 | 0.037988405 | 366128 | 0.084323435 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
+| OffRamp | `OffRamp_NotifyFailure` | 0.000885405 | 0.000719269 | 0.000166135 | 0.000000001 | 0 | 0 | 0.000885405 | 13281 | 0.00392862 | messaging-offramp: OffRamp Execute + Max Payload rejected by receiver |
 | OffRamp | `OffRamp_NotifySuccess` | 0.002343743 | 0.001792472 | 0.000551271 | 0 | 0 | 0.001064536 | 0.003408279 | 35156 | 0.010064902 | tokens-offramp: LockRelease: Execute Token Transfer (gasLimit 0) |
-| OffRamp | `OffRamp_ReleaseOrMint` | 0.01644897 | 0.008420821 | 0.008028149 | 0 | 0 | 0.010211547 | 0.028439521 | 246734 | 0.058160403 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
-| OffRamp | `OffRamp_TokenTransferDelivered` | 0.00129234 | 0.000980537 | 0.000311802 | 0.000000001 | 0 | 0.001024736 | 0.002317076 | 19385 | 0.005526294 | tokens-offramp: BurnMint: Execute Token Transfer |
+| OffRamp | `OffRamp_ReleaseOrMint` | 0.016454437 | 0.008426288 | 0.008028149 | 0 | 0 | 0.010211547 | 0.028444988 | 246816 | 0.058187738 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
+| OffRamp | `OffRamp_TokenTransferDelivered` | 0.001292339 | 0.000980537 | 0.000311802 | 0 | 0 | 0.001064536 | 0.002356875 | 19385 | 0.005526289 | tokens-offramp: LockRelease: Execute Token Transfer (new receiver account) |
+| OffRamp | `Router_TokenPoolReleaseOrMintFailed` | 0.002022674 | 0.001638737 | 0.000383936 | 0.000000001 | 0 | 0 | 0.002022674 | 30340 | 0.008961562 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload rejected by pool |
 | OnRamp | `FeeQuoter_MessageValidated` | 0.039063406 | 0.000623602 | 0.038439804 | 0 | 0 | 0 | 0.039084007 | 585951 | 0.079997618 | messaging-feequoter: Fee Validation + Max Payload |
 | OnRamp | `OnRamp_ExecutorFinishedSuccessfully` | 0.020945606 | 0.001378535 | 0.019567071 | 0 | 0 | 0 | 0.020966207 | 314184 | 0.046026817 | tokens-onramp: LockRelease: CCIPSend Token Transfer + Max Payload |
+| OnRamp | `OnRamp_ExecutorFinishedWithError` | 0.001092671 | 0.000877002 | 0.000215669 | 0 | 0 | 0 | 0.001113272 | 16390 | 0.004816348 | messaging-onramp: CCIPSend + Max Payload rejected by FeeQuoter |
 | OnRamp | `OnRamp_ExecutorRequestsLockOrBurn` | 0.046470225 | 0.005582743 | 0.04088748 | 0.000000002 | 0 | 0.013824025 | 0.060335453 | 697053 | 0.109688685 | tokens-onramp: LockRelease: CCIPSend Token Transfer + Max Payload |
 | OnRamp | `OnRamp_ExecutorRequestsWithdraw` | 0.043708018 | 0.003620207 | 0.04008781 | 0.000000001 | 0 | 0.010323422 | 0.054072643 | 655620 | 0.09827666 | tokens-onramp: LockRelease: CCIPSend Token Transfer + Max Payload |
 | OnRamp | `OnRamp_ExecutorReserveFee` | 0.048754098 | 0.007516213 | 0.041237882 | 0.000000003 | 0.001589276 | 0.013824025 | 0.064208602 | 731311 | 0.120056844 | tokens-onramp: LockRelease: CCIPSend Token Transfer + Max Payload |
-| OnRamp | `OnRamp_GetValidatedFee` | 0.09805648 | 0.021094872 | 0.076961608 | 0 | 0 | 0 | 0.098077081 | 1470847 | 0.259397576 | messaging-feequoter: Fee Validation + Max Payload |
+| OnRamp | `OnRamp_GetValidatedFee` | 0.098056481 | 0.021094872 | 0.076961608 | 0.000000001 | 0 | 0 | 0.098077082 | 1470847 | 0.259397581 | messaging-feequoter: Fee Validation + Max Payload |
 | OnRamp | `OnRamp_Send` | 0.153593448 | 0.031082687 | 0.122510757 | 0.000000004 | 0.001553942 | 0.010754088 | 0.16592208 | 2303901 | 0.400434969 | tokens-onramp: BurnMint: CCIPSend Token Transfer + Max Payload |
 | OnRamp | `ReturnExcessesBack` | 0.000220001 | 0.000220001 | 0 | 0 | 0 | 0 | 0.000220001 | 3300 | 0.001100005 | tokens-onramp: LockRelease: CCIPSend Token Transfer |
 | OnRampAccount | `Deployable.initialize` | 0.000089468 | 0.000089468 | 0 | 0 | 0 | 0 | 0.000089468 | 1342 | 0.00044734 | tokens-onramp: LockRelease: Get OnRamp Account |
@@ -42,31 +46,37 @@ Cost of the entrypoint transaction and everything downstream of it, taken from t
 | OnRampAccount | `ResponseWalletAddress` | 0.00109807 | 0.000871668 | 0.000226402 | 0 | 0 | 0 | 0.001118671 | 16471 | 0.004811144 | tokens-onramp: LockRelease: Get OnRamp Account |
 | ReceiveExecutor | `Deployable.initialize` | 0.000089468 | 0.000089468 | 0 | 0 | 0 | 0 | 0.000089468 | 1342 | 0.00044734 | messaging-offramp: OffRamp Execute + Max Payload |
 | ReceiveExecutor | `DepositAccount_ForwardNotification` | 0.010512757 | 0.005190013 | 0.005322744 | 0 | 0 | 0.001064536 | 0.013356297 | 157691 | 0.036595553 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
-| ReceiveExecutor | `ReceiveExecutor_CCIPReceiveConfirm` | 0.001881608 | 0.001490937 | 0.00039067 | 0.000000001 | 0 | 0 | 0.001881608 | 28224 | 0.00823603 | tokens-offramp: BurnMint: Execute Token Transfer |
-| ReceiveExecutor | `ReceiveExecutor_InitExecute` | 0.018193707 | 0.009834756 | 0.008358951 | 0 | 0.001589274 | 0.010211547 | 0.031773532 | 272905 | 0.065891682 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
-| ReceiveExecutor | `TokenAdminRegistry_TokenInfo` | 0.017522239 | 0.009260822 | 0.008261417 | 0 | 0 | 0.010211547 | 0.02951279 | 262833 | 0.062826944 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
+| ReceiveExecutor | `ReceiveExecutor_CCIPReceiveConfirm` | 0.001881608 | 0.001490937 | 0.00039067 | 0.000000001 | 0 | 0 | 0.001881608 | 28224 | 0.00823603 | messaging-offramp: OffRamp Execute + Max Payload |
+| ReceiveExecutor | `ReceiveExecutor_CCIPReceiveFailed` | 0.001484674 | 0.001167403 | 0.000317269 | 0.000000002 | 0 | 0 | 0.001484674 | 22270 | 0.006471563 | messaging-offramp: OffRamp Execute + Max Payload rejected by receiver |
+| ReceiveExecutor | `ReceiveExecutor_InitExecute` | 0.018199174 | 0.009840223 | 0.008358951 | 0 | 0.001589274 | 0.010211547 | 0.031778999 | 272987 | 0.065919017 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
+| ReceiveExecutor | `ReceiveExecutor_ReleaseOrMintFailed` | 0.001611073 | 0.001293803 | 0.000317269 | 0.000000001 | 0 | 0 | 0.001611073 | 24166 | 0.007103558 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload rejected by pool |
+| ReceiveExecutor | `TokenAdminRegistry_TokenInfo` | 0.017527706 | 0.009266289 | 0.008261417 | 0 | 0 | 0.010211547 | 0.029518257 | 262915 | 0.062854279 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
 | ReceiveExecutor | `TokenPool_ReleaseOrMintFinalized` | 0.000096601 | 0.000096601 | 0 | 0 | 0 | 0 | 0.000096601 | 1449 | 0.000483005 | tokens-offramp: LockRelease: Execute Token Transfer (new receiver account) |
-| ReceiverAccount | `Deployable.initialize` | 0.000244537 | 0.000244535 | 0 | 0.000000002 | 0 | 0 | 0.000244537 | 3668 | 0.001222685 | tokens-offramp: BurnMint: Execute Token Transfer |
+| ReceiverAccount | `Deployable.initialize` | 0.000250003 | 0.000250002 | 0 | 0.000000001 | 0 | 0 | 0.000250003 | 3750 | 0.001250015 | tokens-offramp: LockRelease: Execute Token Transfer (gasLimit 0) |
 | ReceiverAccount | `DepositAccount_Init` | 0.013061898 | 0.006738751 | 0.006323147 | 0 | 0 | 0.010211547 | 0.025052449 | 195928 | 0.046340049 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
 | ReceiverAccount | `ResponseWalletAddress` | 0.009668899 | 0.006845751 | 0.002823148 | 0 | 0 | 0.010226883 | 0.020508119 | 145033 | 0.039875051 | tokens-offramp: LockRelease: Execute Token Transfer (new receiver account) |
 | ReceiverAccount | `TransferNotificationForRecipient` | 0.011445426 | 0.005633481 | 0.005811945 | 0 | 0 | 0.001064536 | 0.014288966 | 171681 | 0.039791295 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
 | Router | `DepositAccount_Initialized` | 0.012544763 | 0.00646175 | 0.006083013 | 0 | 0 | 0.010211547 | 0.024535314 | 188171 | 0.044474776 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
+| Router | `DepositAccount_WithdrawFailed` | 0.002799076 | 0.002227604 | 0.000571472 | 0 | 0 | 0 | 0.002819678 | 41986 | 0.012280964 | tokens-onramp: LockRelease: CCIPSend Token Transfer + Max Payload withdraw failed |
 | Router | `OnRamp_MessageValidated` | 0.019558336 | 0.000350734 | 0.019207602 | 0 | 0 | 0 | 0.019578937 | 293375 | 0.040168874 | messaging-feequoter: Fee Validation + Max Payload |
-| Router | `ReturnExcessesBack` | 0.000241469 | 0.000241468 | 0 | 0.000000001 | 0 | 0 | 0.000241469 | 3622 | 0.001207345 | tokens-offramp: BurnMint: Execute Token Transfer + Max Payload |
-| Router | `Router_CCIPReceiveConfirm` | 0.002991412 | 0.002212206 | 0.000779205 | 0.000000001 | 0 | 0 | 0.002991412 | 44871 | 0.012619445 | tokens-offramp: BurnMint: Execute Token Transfer |
+| Router | `ReturnExcessesBack` | 0.000241468 | 0.000241468 | 0 | 0 | 0 | 0 | 0.000241468 | 3622 | 0.00120734 | tokens-offramp: LockRelease: Execute Token Transfer (new receiver account) |
+| Router | `Router_CCIPReceiveConfirm` | 0.002991412 | 0.002212206 | 0.000779205 | 0.000000001 | 0 | 0 | 0.002991412 | 44871 | 0.012619445 | messaging-offramp: OffRamp Execute + Max Payload |
 | Router | `Router_CCIPSend` | 0.173349918 | 0.031590955 | 0.141758959 | 0.000000004 | 0.001553942 | 0.010754088 | 0.18567855 | 2600248 | 0.441472713 | tokens-onramp: BurnMint: CCIPSend Token Transfer + Max Payload |
-| Router | `Router_GetOnRampAccount` | 0.003846545 | 0.002155205 | 0.001691339 | 0.000000001 | 0 | 0.000317469 | 0.004184615 | 57698 | 0.014158708 | tokens-onramp: LockRelease: Get OnRamp Account |
-| Router | `Router_GetValidatedFee` | 0.117716349 | 0.021522806 | 0.096193543 | 0 | 0 | 0 | 0.11773695 | 1765745 | 0.300001116 | messaging-feequoter: Fee Validation + Max Payload |
+| Router | `Router_GetOnRampAccount` | 0.003846611 | 0.002155205 | 0.001691405 | 0.000000001 | 0 | 0.000317469 | 0.004184681 | 57699 | 0.01415884 | tokens-onramp: LockRelease: Get OnRamp Account |
+| Router | `Router_GetValidatedFee` | 0.11771635 | 0.021522806 | 0.096193543 | 0.000000001 | 0 | 0 | 0.117736951 | 1765745 | 0.300001121 | messaging-feequoter: Fee Validation + Max Payload |
 | Router | `Router_LockOrBurn` | 0.045775623 | 0.005103342 | 0.040672279 | 0.000000002 | 0 | 0.013824025 | 0.059640851 | 686634 | 0.106861278 | tokens-onramp: LockRelease: CCIPSend Token Transfer + Max Payload |
+| Router | `Router_MessageRejected` | 0.000441269 | 0.000344468 | 0.000096801 | 0 | 0 | 0 | 0.00046187 | 6619 | 0.001915942 | messaging-onramp: CCIPSend + Max Payload rejected by FeeQuoter |
 | Router | `Router_MessageSent` | 0.000430936 | 0.000334134 | 0.000096801 | 0.000000001 | 0 | 0 | 0.000451538 | 6464 | 0.001864277 | messaging-onramp: CCIPSend + Max Payload |
-| Router | `Router_RelayReleaseOrMint` | 0.015684635 | 0.00789662 | 0.007788015 | 0 | 0 | 0.010211547 | 0.027675186 | 235269 | 0.05505913 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
-| Router | `Router_RouteMessage` | 0.004656681 | 0.002570807 | 0.002085873 | 0.000000001 | 0 | 0 | 0.006435685 | 69850 | 0.017025786 | tokens-offramp: BurnMint: Execute Token Transfer + Max Payload |
+| Router | `Router_RelayReleaseOrMint` | 0.015690102 | 0.007902087 | 0.007788015 | 0 | 0 | 0.010211547 | 0.027680653 | 235351 | 0.055086465 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
+| Router | `Router_RouteMessage` | 0.00465668 | 0.002570807 | 0.002085873 | 0 | 0 | 0 | 0.006435684 | 69850 | 0.017025781 | tokens-offramp: LockRelease: Execute Token Transfer + Max Payload |
 | Router | `Router_TokenTransferDelivered` | 0.00064067 | 0.000493669 | 0.000147001 | 0 | 0 | 0.001064536 | 0.001705206 | 9610 | 0.002762347 | tokens-offramp: LockRelease: Execute Token Transfer (new receiver account) |
 | Router | `Router_WithdrawToTokenPool` | 0.042707082 | 0.002993339 | 0.039713742 | 0.000000001 | 0 | 0.010323422 | 0.053071707 | 640606 | 0.094394184 | tokens-onramp: LockRelease: CCIPSend Token Transfer + Max Payload |
 | SendExecutor | `CCIPSendExecutor_Execute` | 0.109931775 | 0.030144618 | 0.079787153 | 0.000000004 | 0.001553942 | 0.010754088 | 0.122260407 | 1648976 | 0.310297416 | tokens-onramp: BurnMint: CCIPSend Token Transfer + Max Payload |
 | SendExecutor | `Deployable.initializeAndSend` | 0.129425445 | 0.030327886 | 0.099097555 | 0.000000004 | 0.001553942 | 0.010754088 | 0.141754077 | 1941381 | 0.34983456 | tokens-onramp: BurnMint: CCIPSend Token Transfer + Max Payload |
-| SendExecutor | `FeeQuoter_MessageValidated` | 0.049538833 | 0.008234281 | 0.041304549 | 0.000000003 | 0.001589276 | 0.013824025 | 0.064993337 | 743082 | 0.123780518 | tokens-onramp: LockRelease: CCIPSend Token Transfer + Max Payload |
+| SendExecutor | `FeeQuoter_MessageValidated` | 0.049538834 | 0.008234281 | 0.041304549 | 0.000000004 | 0.001553942 | 0.010754088 | 0.061867466 | 743082 | 0.123780523 | tokens-onramp: BurnMint: CCIPSend Token Transfer + Max Payload |
+| SendExecutor | `FeeQuoter_MessageValidationFailed` | 0.00172034 | 0.00136387 | 0.00035647 | 0 | 0 | 0 | 0.001740941 | 25805 | 0.00753229 | messaging-onramp: CCIPSend + Max Payload rejected by FeeQuoter |
 | SendExecutor | `OnRamp_ExecutorFeeReserved` | 0.048311629 | 0.007140412 | 0.041171215 | 0.000000002 | 0.001589276 | 0.013824025 | 0.063766133 | 724674 | 0.1180445 | tokens-onramp: LockRelease: CCIPSend Token Transfer + Max Payload |
+| SendExecutor | `Router_TokenPoolLockOrBurnFailed` | 0.00189154 | 0.00153507 | 0.00035647 | 0 | 0 | 0 | 0.001912142 | 28373 | 0.00838829 | tokens-onramp: LockRelease: CCIPSend Token Transfer + Max Payload withdraw failed |
 | SendExecutor | `TokenAdminRegistry_TokenInfo` | 0.047497894 | 0.006424211 | 0.041073681 | 0.000000002 | 0 | 0.013824025 | 0.061363122 | 712468 | 0.114268427 | tokens-onramp: LockRelease: CCIPSend Token Transfer + Max Payload |
 | SendExecutor | `TokenPool_LockOrBurnFinished` | 0.040892543 | 0.001950603 | 0.03894194 | 0 | 0 | 0 | 0.040913144 | 613388 | 0.087636895 | tokens-onramp: LockRelease: CCIPSend Token Transfer + Max Payload |
 | SendExecutor | `TokenPool_LockOrBurnWithdraw` | 0.045001287 | 0.004538008 | 0.040463278 | 0.000000001 | 0 | 0.010323422 | 0.055365912 | 675019 | 0.103616601 | tokens-onramp: LockRelease: CCIPSend Token Transfer + Max Payload |
@@ -75,29 +85,37 @@ Cost of the entrypoint transaction and everything downstream of it, taken from t
 
 | Spec | Flow | Hops | CCIP | Registry | Token | External | Total |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| messaging-feequoter | Fee Validation + Max Payload | 7 | 0.117716349 | 0 | 0 | 0.019348205 | 0.137064554 |
-| messaging-offramp | OffRamp Commit (1 merkle root) | 3 | 0.002983006 | 0 | 0 | 0.000406536 | 0.003389542 |
-| messaging-offramp | OffRamp Execute + Max Payload | 15 | 0.020146962 | 0 | 0 | 0.003281539 | 0.023428501 |
-| messaging-offramp | OffRamp Execute + Max Payload (64-message commit) | 14 | 0.02060136 | 0 | 0 | 0.003397271 | 0.023998631 |
-| messaging-offramp | OffRamp Commit + price updates (8 tokens, 1 gas) | 4 | 0.007376612 | 0 | 0 | 0.000707136 | 0.008083748 |
-| messaging-offramp | OffRamp Commit + root + price updates | 5 | 0.009508148 | 0 | 0 | 0.000748204 | 0.010256352 |
-| messaging-onramp | CCIPSend + Max Payload | 12 | 0.164030166 | 0 | 0 | 0.019348206 | 0.183378372 |
-| tokens-offramp | LockRelease: Execute Token Transfer (new receiver account) | 37 | 0.023769721 | 0.001589276 | 0.010544353 | 0.001032672 | 0.036936022 |
-| tokens-offramp | LockRelease: Execute Token Transfer | 36 | 0.023364185 | 0.001589274 | 0.010211547 | 0.001032671 | 0.036197677 |
-| tokens-offramp | LockRelease: Execute Token Transfer (gasLimit 0) | 29 | 0.019735039 | 0.001589276 | 0.010226884 | 0.000418202 | 0.031969401 |
-| tokens-offramp | LockRelease: Execute Token Transfer + Max Payload | 36 | 0.031145251 | 0.001589274 | 0.010211547 | 0.003372672 | 0.046318744 |
-| tokens-offramp | BurnMint: Execute Token Transfer (new receiver account) | 36 | 0.02358612 | 0.00155394 | 0.007921346 | 0.001032672 | 0.034094078 |
-| tokens-offramp | BurnMint: Execute Token Transfer | 35 | 0.023180589 | 0.00155394 | 0.007619213 | 0.001032672 | 0.033386414 |
-| tokens-offramp | BurnMint: Execute Token Transfer (gasLimit 0) | 28 | 0.019551437 | 0.001553942 | 0.007603877 | 0.000418202 | 0.029127458 |
-| tokens-offramp | BurnMint: Execute Token Transfer + Max Payload | 35 | 0.030961655 | 0.00155394 | 0.00760388 | 0.003372672 | 0.043492147 |
-| tokens-onramp | LockRelease: Get OnRamp Account | 8 | 0.003846545 | 0 | 0.000317469 | 0.00024727 | 0.004411284 |
+| messaging-feequoter | Fee Validation + Max Payload | 7 | 0.11771635 | 0 | 0 | 0.019348205 | 0.137064555 |
+| messaging-offramp | OffRamp Commit (1 merkle root) | 3 | 0.002983005 | 0 | 0 | 0.000406536 | 0.003389541 |
+| messaging-offramp | OffRamp Execute + Max Payload | 15 | 0.020146964 | 0 | 0 | 0.003281539 | 0.023428503 |
+| messaging-offramp | OffRamp Execute + Max Payload (64-message commit) | 14 | 0.02060256 | 0 | 0 | 0.003397271 | 0.023999831 |
+| messaging-offramp | OffRamp Commit + price updates (8 tokens, 1 gas) | 4 | 0.007496612 | 0 | 0 | 0.000707136 | 0.008203748 |
+| messaging-offramp | OffRamp Commit + root + price updates | 5 | 0.009508147 | 0 | 0 | 0.000748203 | 0.01025635 |
+| messaging-offramp | OffRamp Execute + Max Payload rejected by receiver | 14 | 0.019733297 | 0 | 0 | 0.00164287 | 0.021376167 |
+| messaging-onramp | CCIPSend + Max Payload | 12 | 0.164030165 | 0 | 0 | 0.019348206 | 0.183378371 |
+| messaging-onramp | CCIPSend + Max Payload rejected by FeeQuoter | 10 | 0.122714091 | 0 | 0 | 0.019348204 | 0.142062295 |
+| tokens-offramp | LockRelease: Execute Token Transfer (new receiver account) | 37 | 0.023769722 | 0.001589276 | 0.010544353 | 0.001032673 | 0.036936024 |
+| tokens-offramp | LockRelease: Execute Token Transfer | 36 | 0.023369652 | 0.001589274 | 0.010211547 | 0.001032671 | 0.036203144 |
+| tokens-offramp | LockRelease: Execute Token Transfer (gasLimit 0) | 29 | 0.019740508 | 0.001589276 | 0.010226884 | 0.000418203 | 0.031974871 |
+| tokens-offramp | LockRelease: Execute Token Transfer + Max Payload | 36 | 0.031150718 | 0.001589274 | 0.010211547 | 0.003372672 | 0.046324211 |
+| tokens-offramp | LockRelease: Execute Token Transfer + Max Payload rejected by pool | 22 | 0.021979236 | 0.001589276 | 0.001641735 | 0.001593668 | 0.026803915 |
+| tokens-offramp | BurnMint: Execute Token Transfer (new receiver account) | 36 | 0.023586119 | 0.00155394 | 0.007921346 | 0.001032672 | 0.034094077 |
+| tokens-offramp | BurnMint: Execute Token Transfer | 35 | 0.023186053 | 0.001553942 | 0.007619213 | 0.001032672 | 0.03339188 |
+| tokens-offramp | BurnMint: Execute Token Transfer (gasLimit 0) | 28 | 0.019556904 | 0.00155394 | 0.007603877 | 0.000418202 | 0.029132923 |
+| tokens-offramp | BurnMint: Execute Token Transfer + Max Payload | 35 | 0.03096712 | 0.001553942 | 0.007619213 | 0.003372673 | 0.043512948 |
+| tokens-offramp | BurnMint: Execute Token Transfer + Max Payload rejected by pool | 22 | 0.021944165 | 0.00155394 | 0.001578601 | 0.001593668 | 0.026670374 |
+| tokens-onramp | LockRelease: Get OnRamp Account | 8 | 0.003846611 | 0 | 0.000317469 | 0.00024727 | 0.00441135 |
 | tokens-onramp | LockRelease: Token Deposit | 4 | 0 | 0 | 0.001493805 | 0.000268403 | 0.001762208 |
-| tokens-onramp | LockRelease: CCIPSend Token Transfer | 33 | 0.022302106 | 0.001589274 | 0.013808688 | 0.000349804 | 0.038049872 |
-| tokens-onramp | LockRelease: CCIPSend Token Transfer + Max Payload | 33 | 0.173341585 | 0.001589276 | 0.013824025 | 0.019389539 | 0.208144425 |
-| tokens-onramp | BurnMint: Get OnRamp Account | 8 | 0.003846545 | 0 | 0.000317469 | 0.00024727 | 0.004411284 |
+| tokens-onramp | LockRelease: CCIPSend Token Transfer | 33 | 0.022302106 | 0.001589274 | 0.013824021 | 0.000349804 | 0.038065205 |
+| tokens-onramp | LockRelease: CCIPSend Token Transfer + Max Payload | 33 | 0.173341586 | 0.001589276 | 0.013824025 | 0.019389539 | 0.208144426 |
+| tokens-onramp | LockRelease: CCIPSend Token Transfer + Max Payload rejected by pool | 21 | 0.130567374 | 0.001589276 | 0.001468202 | 0.019368938 | 0.15299379 |
+| tokens-onramp | LockRelease: CCIPSend Token Transfer + Max Payload withdraw failed | 27 | 0.135735186 | 0.001589276 | 0.003666873 | 0.019369471 | 0.160360806 |
+| tokens-onramp | BurnMint: Get OnRamp Account | 8 | 0.003846611 | 0 | 0.00031747 | 0.00024727 | 0.004411351 |
 | tokens-onramp | BurnMint: Token Deposit | 4 | 0 | 0 | 0.001493805 | 0.000268403 | 0.001762208 |
-| tokens-onramp | BurnMint: CCIPSend Token Transfer | 31 | 0.02231044 | 0.00155394 | 0.01073875 | 0.000329203 | 0.034932333 |
+| tokens-onramp | BurnMint: CCIPSend Token Transfer | 31 | 0.02231044 | 0.00155394 | 0.010754085 | 0.000329203 | 0.034947668 |
 | tokens-onramp | BurnMint: CCIPSend Token Transfer + Max Payload | 31 | 0.173349918 | 0.001553942 | 0.010754088 | 0.019368938 | 0.205026886 |
+| tokens-onramp | BurnMint: CCIPSend Token Transfer + Max Payload rejected by pool | 21 | 0.130575707 | 0.001553942 | 0.001417069 | 0.019368938 | 0.152915656 |
+| tokens-onramp | BurnMint: CCIPSend Token Transfer + Max Payload withdraw failed | 27 | 0.13574352 | 0.001553942 | 0.003558807 | 0.019369471 | 0.16022574 |
 
 ## Balance changes
 
@@ -105,60 +123,69 @@ Value a contract keeps (positive) or spends from its own balance (negative) duri
 
 | Spec | Flow | Contract | Owner | Change |
 | --- | --- | --- | --- | --- |
-| messaging-offramp | OffRamp Commit (1 merkle root) | OffRamp | ccip | 0.012106462 |
+| messaging-offramp | OffRamp Commit (1 merkle root) | OffRamp | ccip | 0.012106463 |
 | messaging-offramp | OffRamp Commit (1 merkle root) | MerkleRoot | ccip | 0.009910532 |
-| messaging-offramp | OffRamp Execute + Max Payload | OffRamp | ccip | 0.087475171 |
+| messaging-offramp | OffRamp Execute + Max Payload | OffRamp | ccip | 0.087475169 |
 | messaging-offramp | OffRamp Execute + Max Payload | MerkleRoot | ccip | -0.009910532 |
 | messaging-offramp | OffRamp Execute + Max Payload | Router | ccip | 0.017036796 |
-| messaging-offramp | OffRamp Execute + Max Payload (64-message commit) | OffRamp | ccip | 0.073868708 |
+| messaging-offramp | OffRamp Execute + Max Payload (64-message commit) | OffRamp | ccip | 0.073867508 |
 | messaging-offramp | OffRamp Execute + Max Payload (64-message commit) | MerkleRoot | ccip | 0.003241532 |
 | messaging-offramp | OffRamp Execute + Max Payload (64-message commit) | Router | ccip | 0.017036797 |
 | messaging-offramp | OffRamp Commit + price updates (8 tokens, 1 gas) | OffRamp | ccip | 0.01210893 |
 | messaging-offramp | OffRamp Commit + root + price updates | OffRamp | ccip | 0.011126862 |
 | messaging-offramp | OffRamp Commit + root + price updates | MerkleRoot | ccip | 0.009910532 |
-| tokens-offramp | LockRelease: Execute Token Transfer (new receiver account) | OffRamp | ccip | 0.151968418 |
+| messaging-offramp | OffRamp Execute + Max Payload rejected by receiver | OffRamp | ccip | 0.060257177 |
+| messaging-offramp | OffRamp Execute + Max Payload rejected by receiver | MerkleRoot | ccip | 0.003241998 |
+| messaging-offramp | OffRamp Execute + Max Payload rejected by receiver | Router | ccip | 0.033087927 |
+| tokens-offramp | LockRelease: Execute Token Transfer (new receiver account) | OffRamp | ccip | 0.151968417 |
 | tokens-offramp | LockRelease: Execute Token Transfer (new receiver account) | MerkleRoot | ccip | -0.009910532 |
 | tokens-offramp | LockRelease: Execute Token Transfer (new receiver account) | Router | ccip | 0.193952001 |
 | tokens-offramp | LockRelease: Execute Token Transfer (new receiver account) | ReceiverAccount | ccip | 0.01 |
 | tokens-offramp | LockRelease: Execute Token Transfer (new receiver account) | ReceiverAccountWallet | token | 0.000974433 |
 | tokens-offramp | LockRelease: Execute Token Transfer | OffRamp | ccip | 0.151968418 |
 | tokens-offramp | LockRelease: Execute Token Transfer | MerkleRoot | ccip | -0.009910532 |
-| tokens-offramp | LockRelease: Execute Token Transfer | Router | ccip | 0.204621504 |
-| tokens-offramp | LockRelease: Execute Token Transfer (gasLimit 0) | OffRamp | ccip | 0.009063861 |
+| tokens-offramp | LockRelease: Execute Token Transfer | Router | ccip | 0.204616037 |
+| tokens-offramp | LockRelease: Execute Token Transfer (gasLimit 0) | OffRamp | ccip | 0.009063859 |
 | tokens-offramp | LockRelease: Execute Token Transfer (gasLimit 0) | MerkleRoot | ccip | -0.009910532 |
 | tokens-offramp | LockRelease: Execute Token Transfer (gasLimit 0) | ReceiveExecutor | ccip | 0.136461371 |
-| tokens-offramp | LockRelease: Execute Token Transfer (gasLimit 0) | Router | ccip | 0.185290838 |
+| tokens-offramp | LockRelease: Execute Token Transfer (gasLimit 0) | Router | ccip | 0.185285371 |
 | tokens-offramp | LockRelease: Execute Token Transfer + Max Payload | OffRamp | ccip | 0.145354018 |
 | tokens-offramp | LockRelease: Execute Token Transfer + Max Payload | MerkleRoot | ccip | -0.009910532 |
-| tokens-offramp | LockRelease: Execute Token Transfer + Max Payload | Router | ccip | 0.202288171 |
+| tokens-offramp | LockRelease: Execute Token Transfer + Max Payload | Router | ccip | 0.202282704 |
+| tokens-offramp | LockRelease: Execute Token Transfer + Max Payload rejected by pool | OffRamp | ccip | 0.34501116 |
+| tokens-offramp | LockRelease: Execute Token Transfer + Max Payload rejected by pool | MerkleRoot | ccip | 0.003241998 |
+| tokens-offramp | LockRelease: Execute Token Transfer + Max Payload rejected by pool | Router | ccip | 0.008706729 |
 | tokens-offramp | BurnMint: Execute Token Transfer (new receiver account) | OffRamp | ccip | 0.147227152 |
 | tokens-offramp | BurnMint: Execute Token Transfer (new receiver account) | MerkleRoot | ccip | -0.009910532 |
-| tokens-offramp | BurnMint: Execute Token Transfer (new receiver account) | Router | ccip | 0.020004195 |
+| tokens-offramp | BurnMint: Execute Token Transfer (new receiver account) | Router | ccip | 0.020004196 |
 | tokens-offramp | BurnMint: Execute Token Transfer (new receiver account) | ReceiverAccount | ccip | 0.01 |
 | tokens-offramp | BurnMint: Execute Token Transfer (new receiver account) | BurnMintPool | token | 0.18153101 |
 | tokens-offramp | BurnMint: Execute Token Transfer (new receiver account) | ReceiverAccountWallet | token | 0.000974433 |
-| tokens-offramp | BurnMint: Execute Token Transfer | OffRamp | ccip | 0.147227149 |
+| tokens-offramp | BurnMint: Execute Token Transfer | OffRamp | ccip | 0.147227152 |
 | tokens-offramp | BurnMint: Execute Token Transfer | MerkleRoot | ccip | -0.009910532 |
-| tokens-offramp | BurnMint: Execute Token Transfer | Router | ccip | 0.029690824 |
+| tokens-offramp | BurnMint: Execute Token Transfer | Router | ccip | 0.029685357 |
 | tokens-offramp | BurnMint: Execute Token Transfer | BurnMintPool | token | 0.182483214 |
 | tokens-offramp | BurnMint: Execute Token Transfer (gasLimit 0) | OffRamp | ccip | 0.009063861 |
 | tokens-offramp | BurnMint: Execute Token Transfer (gasLimit 0) | MerkleRoot | ccip | -0.009910532 |
 | tokens-offramp | BurnMint: Execute Token Transfer (gasLimit 0) | ReceiveExecutor | ccip | 0.131720104 |
-| tokens-offramp | BurnMint: Execute Token Transfer (gasLimit 0) | Router | ccip | 0.010375496 |
+| tokens-offramp | BurnMint: Execute Token Transfer (gasLimit 0) | Router | ccip | 0.010370029 |
 | tokens-offramp | BurnMint: Execute Token Transfer (gasLimit 0) | BurnMintPool | token | 0.182498549 |
-| tokens-offramp | BurnMint: Execute Token Transfer + Max Payload | OffRamp | ccip | 0.140612749 |
+| tokens-offramp | BurnMint: Execute Token Transfer + Max Payload | OffRamp | ccip | 0.140612751 |
 | tokens-offramp | BurnMint: Execute Token Transfer + Max Payload | MerkleRoot | ccip | -0.009910532 |
-| tokens-offramp | BurnMint: Execute Token Transfer + Max Payload | Router | ccip | 0.027357491 |
-| tokens-offramp | BurnMint: Execute Token Transfer + Max Payload | BurnMintPool | token | 0.182498548 |
+| tokens-offramp | BurnMint: Execute Token Transfer + Max Payload | Router | ccip | 0.027352024 |
+| tokens-offramp | BurnMint: Execute Token Transfer + Max Payload | BurnMintPool | token | 0.182483214 |
+| tokens-offramp | BurnMint: Execute Token Transfer + Max Payload rejected by pool | OffRamp | ccip | 0.345144696 |
+| tokens-offramp | BurnMint: Execute Token Transfer + Max Payload rejected by pool | MerkleRoot | ccip | 0.003241999 |
+| tokens-offramp | BurnMint: Execute Token Transfer + Max Payload rejected by pool | Router | ccip | 0.00870673 |
 | tokens-onramp | LockRelease: Get OnRamp Account | OnRampAccount | ccip | 0.01 |
 | tokens-onramp | LockRelease: Token Deposit | OnRampAccountWallet | token | 0.000974433 |
-| tokens-onramp | LockRelease: CCIPSend Token Transfer | OnRamp | ccip | 0.046115483 |
+| tokens-onramp | LockRelease: CCIPSend Token Transfer | OnRamp | ccip | 0.04610015 |
 | tokens-onramp | LockRelease: CCIPSend Token Transfer | PoolWallet | token | 0.000974433 |
 | tokens-onramp | LockRelease: CCIPSend Token Transfer | LockBoxWallet | token | 0.000974433 |
 | tokens-onramp | LockRelease: CCIPSend Token Transfer + Max Payload | OnRamp | ccip | 0.047074582 |
 | tokens-onramp | BurnMint: Get OnRamp Account | OnRampAccount | ccip | 0.01 |
 | tokens-onramp | BurnMint: Token Deposit | OnRampAccountWallet | token | 0.000974433 |
-| tokens-onramp | BurnMint: CCIPSend Token Transfer | OnRamp | ccip | 0.04622355 |
+| tokens-onramp | BurnMint: CCIPSend Token Transfer | OnRamp | ccip | 0.046208216 |
 | tokens-onramp | BurnMint: CCIPSend Token Transfer | PoolWallet | token | 0.000974433 |
 | tokens-onramp | BurnMint: CCIPSend Token Transfer + Max Payload | OnRamp | ccip | 0.047182648 |
 
@@ -168,19 +195,19 @@ Send-side flows repeated with growing `data`. The FeeQuoter rejects data over 12
 
 | Spec | Flow | Bytes | CCIP | Total |
 | --- | --- | --- | --- | --- |
-| messaging-onramp | CCIPSend + 0 bytes | 0 | 0.012948887 | 0.01325069 |
-| messaging-onramp | CCIPSend + 2000 bytes | 2000 | 0.022214688 | 0.023689824 |
+| messaging-onramp | CCIPSend + 0 bytes | 0 | 0.012948889 | 0.013250693 |
+| messaging-onramp | CCIPSend + 2000 bytes | 2000 | 0.022214689 | 0.023689825 |
 | messaging-onramp | CCIPSend + 8000 bytes | 8000 | 0.050079221 | 0.05506769 |
-| messaging-onramp | CCIPSend + 16256 bytes | 16256 | 0.088458963 | 0.098283967 |
-| messaging-onramp | CCIPSend + 32512 bytes | 32512 | 0.164030162 | 0.183378366 |
-| tokens-onramp | LockRelease: CCIPSend Token Transfer + 0 bytes | 0 | 0.022302109 | 0.03804988 |
-| tokens-onramp | LockRelease: CCIPSend Token Transfer + 2000 bytes | 2000 | 0.031526107 | 0.048455873 |
-| tokens-onramp | LockRelease: CCIPSend Token Transfer + 8000 bytes | 8000 | 0.059390645 | 0.079818416 |
-| tokens-onramp | LockRelease: CCIPSend Token Transfer + 16256 bytes | 16256 | 0.097770379 | 0.123050013 |
+| messaging-onramp | CCIPSend + 16256 bytes | 16256 | 0.088458961 | 0.098283965 |
+| messaging-onramp | CCIPSend + 32512 bytes | 32512 | 0.164030163 | 0.183378367 |
+| tokens-onramp | LockRelease: CCIPSend Token Transfer + 0 bytes | 0 | 0.022302108 | 0.038049878 |
+| tokens-onramp | LockRelease: CCIPSend Token Transfer + 2000 bytes | 2000 | 0.031526108 | 0.048455874 |
+| tokens-onramp | LockRelease: CCIPSend Token Transfer + 8000 bytes | 8000 | 0.059390644 | 0.079818414 |
+| tokens-onramp | LockRelease: CCIPSend Token Transfer + 16256 bytes | 16256 | 0.09777038 | 0.123050014 |
 | tokens-onramp | LockRelease: CCIPSend Token Transfer + 32512 bytes | 32512 | 0.173341585 | 0.208144425 |
-| tokens-onramp | BurnMint: CCIPSend Token Transfer + 0 bytes | 0 | 0.022310442 | 0.034932339 |
-| tokens-onramp | BurnMint: CCIPSend Token Transfer + 2000 bytes | 2000 | 0.031534441 | 0.045338336 |
-| tokens-onramp | BurnMint: CCIPSend Token Transfer + 8000 bytes | 8000 | 0.059398977 | 0.076700874 |
-| tokens-onramp | BurnMint: CCIPSend Token Transfer + 16256 bytes | 16256 | 0.097778713 | 0.119932476 |
-| tokens-onramp | BurnMint: CCIPSend Token Transfer + 32512 bytes | 32512 | 0.173349918 | 0.205026886 |
+| tokens-onramp | BurnMint: CCIPSend Token Transfer + 0 bytes | 0 | 0.02231044 | 0.034932333 |
+| tokens-onramp | BurnMint: CCIPSend Token Transfer + 2000 bytes | 2000 | 0.031534443 | 0.045338343 |
+| tokens-onramp | BurnMint: CCIPSend Token Transfer + 8000 bytes | 8000 | 0.059398974 | 0.076700867 |
+| tokens-onramp | BurnMint: CCIPSend Token Transfer + 16256 bytes | 16256 | 0.097778715 | 0.119932481 |
+| tokens-onramp | BurnMint: CCIPSend Token Transfer + 32512 bytes | 32512 | 0.173349919 | 0.205026887 |
 

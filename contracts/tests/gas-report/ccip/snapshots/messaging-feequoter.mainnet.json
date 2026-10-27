@@ -84,14 +84,14 @@
           "actionResultCode": 0,
           "gasUsed": "303055",
           "computeFee": "20203669",
-          "storageFee": "0",
+          "storageFee": "1",
           "forwardFee": "19265335",
           "actionFee": "6421680",
-          "totalFee": "26625349",
-          "cost": "39469004",
+          "totalFee": "26625350",
+          "cost": "39469005",
           "valueIn": "269316061",
           "valueOut": "229847057",
-          "retained": "0"
+          "retained": "-1"
         },
         {
           "index": 4,
@@ -161,7 +161,7 @@
         }
       ],
       "totals": {
-        "ccip": "117716349",
+        "ccip": "117716350",
         "registry": "0",
         "token": "0",
         "external": "19348205"
@@ -170,7 +170,7 @@
         "Sender": "-156307356",
         "Router": "0",
         "OnRamp": "0",
-        "FeeQuoter": "0"
+        "FeeQuoter": "-1"
       },
       "entrypoints": [
         {
@@ -178,36 +178,36 @@
           "contract": "Router",
           "op": "Router_GetValidatedFee",
           "cost": {
-            "ccip": "117716349",
+            "ccip": "117716350",
             "registry": "0",
             "token": "0",
             "external": "20601"
           },
-          "retained": "190763050"
+          "retained": "190763049"
         },
         {
           "hop": 2,
           "contract": "OnRamp",
           "op": "OnRamp_GetValidatedFee",
           "cost": {
-            "ccip": "98056480",
+            "ccip": "98056481",
             "registry": "0",
             "token": "0",
             "external": "20601"
           },
-          "retained": "190763050"
+          "retained": "190763049"
         },
         {
           "hop": 3,
           "contract": "FeeQuoter",
           "op": "FeeQuoter_GetValidatedFee",
           "cost": {
-            "ccip": "78532410",
+            "ccip": "78532411",
             "registry": "0",
             "token": "0",
             "external": "20601"
           },
-          "retained": "190763050"
+          "retained": "190763049"
         },
         {
           "hop": 4,

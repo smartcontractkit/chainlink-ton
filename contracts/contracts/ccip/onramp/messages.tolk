@@ -211,8 +211,8 @@ fun OnRamp_Costs.ExecutorReserveFee(): int {
     return grams("0.0025"); // computeFee + ExecutorFeeReserved fwdFee
 }
 
-// Minimum value for calling OnRamp_ExecutorFinishedWithError. Not measured yet; sized like the
-// success path, which carries more.
+// Minimum value for calling OnRamp_ExecutorFinishedWithError. Sized like the success path, which
+// measures higher (tests/gas-report/ccip, the rejected flows).
 @inline
 fun OnRamp_Costs.ExecutorFinishedWithError(): int {
     return
