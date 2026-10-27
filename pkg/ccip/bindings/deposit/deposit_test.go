@@ -10,6 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 )
 
 // newTestAddress builds a deterministic valid TON address to avoid base64 checksum issues in tests.
@@ -72,7 +73,8 @@ func TestMessages_EncodingAndDecoding(t *testing.T) {
 	require.Equal(t, initMsg.QueryID, decodedInit.QueryID)
 	require.NotNil(t, decodedInit.Context)
 
-	ask := WithdrawAskToTransfer{
+	ask := wallet.AskToTransfer{
+		QueryID:           7,
 		JettonAmount:      tlb.FromNanoTONU(1_000_000_000),
 		TransferRecipient: addr,
 		SendExcessesTo:    addr,
@@ -88,6 +90,7 @@ func TestMessages_EncodingAndDecoding(t *testing.T) {
 	var decodedWithdraw Withdraw
 	require.NoError(t, tlb.Parse(&decodedWithdraw, c))
 	require.Equal(t, withdraw.QueryID, decodedWithdraw.QueryID)
+	require.Equal(t, ask.QueryID, decodedWithdraw.Ask.QueryID)
 	require.Equal(t, ask.JettonAmount, decodedWithdraw.Ask.JettonAmount)
 	require.Equal(t, ask.TransferRecipient, decodedWithdraw.Ask.TransferRecipient)
 	require.Equal(t, ask.SendExcessesTo, decodedWithdraw.Ask.SendExcessesTo)

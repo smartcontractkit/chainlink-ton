@@ -419,29 +419,18 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool, o
             Router_Error.WithdrawExecutorMismatch as int32,
         );
     }
-    // The notification carries what the pool asked for; the wallet rejects an underfunded transfer
-    // before custody moves. The deposit account requires the excess to return to the Router.
-    // val ask = AskToTransfer {
-    //     queryId: msg.queryID,
-    //     jettonAmount: withdrawRequest.amount,
-    //     transferRecipient: withdrawRequest.tokenPool,
-    //     sendExcessesTo: contract.getAddress(),
-    //     customPayload: null,
-    //     forwardTonAmount: withdrawRequest.forwardTonAmount,
-    //     forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
-    // };
 
-    // TODO: use standard `AskToTransfer` above,
-    // remove the unnecessary custom `DepositAccount_WithdrawAskToTransfer` msg
-    val ask = DepositAccount_WithdrawAskToTransfer {
+    // The notification carries what the pool asked for
+    val ask = AskToTransfer {
+        queryId: msg.queryID,
         jettonAmount: withdrawRequest.amount,
         transferRecipient: withdrawRequest.tokenPool,
         // TODO: this excess should be returned to user
-        // @notice we want the OnRamp to keep any excess funds, so we set sendExcessesTo to the sender (OnRamp).
+        // Keep excess on the OnRamp account path until excess routing is configurable.
         sendExcessesTo: onramp,
         customPayload: null,
         forwardTonAmount: withdrawRequest.forwardTonAmount,
-        forwardPayload: withdrawRequest.forwardPayload,
+        forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
     };
 
     val withdraw = createMessage({
@@ -541,7 +530,8 @@ fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: a
 /// Fails the CCIPSend whose withdraw from the sender's on-ramp account did not go through. `ask`
 /// was built by `onWithdrawToTokenPool`, which checked that its forward payload names the executor.
 fun failWithdrawToTokenPool(request: DepositAccount_Withdraw, exitCode: int32) {
-    val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromCell(request.ask.forwardPayload!);
+    val fwpCell = loadForwardPayloadAsCell(request.ask.forwardPayload)!;
+    val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromCell(fwpCell);
     val lockOrBurn = lazy fwdp.requestMsg.load();
     sendLockOrBurnRelayFailure(lockOrBurn.replyTo, lockOrBurn.queryId, request.ask.transferRecipient, exitCode);
 }

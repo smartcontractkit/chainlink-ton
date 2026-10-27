@@ -1412,20 +1412,25 @@ describe('LockReleaseLockboxTokenPool', () => {
         toNano('2'),
         {
           queryId: 305n,
-          ask: da.DepositAccount_WithdrawAskToTransfer.create({
+          ask: da.AskToTransfer.create({
             jettonAmount: toNano('5'),
             transferRecipient: lockReleaseLockboxPool.address,
             sendExcessesTo: attacker.address,
             customPayload: null,
             forwardTonAmount: toNano('0.2'),
-            forwardPayload: da.Jetton_ForwardPayloadWrap.toCell(
-              da.Jetton_ForwardPayloadWrap.create({
-                // FORGED: claims the Router requested this withdraw.
-                initiator: deployer.address,
-                context: null,
-                forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
-              }),
-            ),
+            forwardPayload: beginCell()
+              .storeMaybeRef(
+                da.Jetton_ForwardPayloadWrap.toCell(
+                  da.Jetton_ForwardPayloadWrap.create({
+                    // FORGED: claims the Router requested this withdraw.
+                    initiator: deployer.address,
+                    context: null,
+                    forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
+                  }),
+                ),
+              )
+              .endCell()
+              .beginParse(),
           }),
         },
       )

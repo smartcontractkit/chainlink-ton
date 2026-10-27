@@ -121,19 +121,24 @@ describe('DepositAccount', () => {
     return { deployable, depositAccount, deployRes, res }
   }
 
+  const toForwardPayload = (payload: Cell | null) =>
+    payload
+      ? beginCell().storeMaybeRef(payload).endCell().beginParse()
+      : beginCell().storeMaybeRef(null).asSlice()
+
   const buildAskToTransfer = (
     amount: bigint,
     to: Address,
     requester: Address | null = null,
     forwardPayload: Cell | null = null,
   ) =>
-    da.DepositAccount_WithdrawAskToTransfer.create({
+    da.AskToTransfer.create({
       jettonAmount: amount,
       transferRecipient: to,
       sendExcessesTo: requester,
       customPayload: null,
       forwardTonAmount: 0n,
-      forwardPayload,
+      forwardPayload: toForwardPayload(forwardPayload),
     })
 
   // Build a boxed Jetton `TransferNotificationForRecipient` body as a real wallet would send it

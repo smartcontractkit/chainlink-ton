@@ -169,15 +169,18 @@ describe('Router.withdrawToTokenPool', () => {
   const buildWithdraw = (tokenPool: Address): deposit.DepositAccount_Withdraw =>
     deposit.DepositAccount_Withdraw.create({
       queryId: 0n,
-      ask: deposit.DepositAccount_WithdrawAskToTransfer.create({
+      ask: deposit.AskToTransfer.create({
         jettonAmount: toNano('5'),
         transferRecipient: tokenPool,
         sendExcessesTo: onRamp.address,
         customPayload: null,
         forwardTonAmount: 0n,
-        forwardPayload: rt.TokenPool_LockOrBurnForwardPayload.toCell(
-          buildLockOrBurnForwardPayload(),
-        ),
+        forwardPayload: beginCell()
+          .storeMaybeRef(
+            rt.TokenPool_LockOrBurnForwardPayload.toCell(buildLockOrBurnForwardPayload()),
+          )
+          .endCell()
+          .beginParse(),
       }),
     })
 
