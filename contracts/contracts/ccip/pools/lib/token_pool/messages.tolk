@@ -109,6 +109,10 @@ struct (0xfa7da444) TokenPool_LockOrBurn {
     /// Finalization value the caller asks the lock/burn flow to forward on success/failure.
     finalizationValue: coins;
     onRampNamespaces: map<uint32, ()> = [];
+
+    /// Where jetton wallets return unused TON (success excess). The caller chooses it; the
+    /// source flow defaults to the transfer's original sender.
+    sendExcessesTo: address? = null;
 }
 
 struct TokenPool_LockOrBurnForwardPayload {
@@ -129,6 +133,10 @@ struct (0x351f77e3) TokenPool_ReleaseOrMint {
     // Continuation info
     replyTo: address;
     delivery: Cell<TokenPool_ReleaseOrMintDelivery>;
+
+    /// Where jetton wallets return unused TON (success excess). The caller chooses it; the
+    /// destination flow defaults to the request sender.
+    sendExcessesTo: address? = null;
 }
 
 /// Finalization value the caller asks the release/mint delivery to forward (zero without delivery).

@@ -153,9 +153,11 @@ fun onLockOrBurnTransferContinue(
 
     // Get the actual transfer original sender (initiator) from the transfer details.
     val requestMsg = lazy fwdPayload.requestMsg.load();
-    // Return the wallet's unused value to the original sender; it paid the source-side budget.
-    val sendExcessesTo = requestMsg.request.load()
-        .transfer.details.load().originalSender;
+    // Return the wallet's unused value to the caller-selected recipient; default to the original
+    // sender, which paid the source-side budget.
+    val sendExcessesTo = requestMsg.sendExcessesTo != null
+        ? requestMsg.sendExcessesTo!
+        : requestMsg.request.load().transfer.details.load().originalSender;
 
     val safety = st.TokenPool().budget().lockOrBurn.safety;
     val forwardTonAmount = safety + requestMsg.finalizationValue;
@@ -331,8 +333,8 @@ fun onReleaseOrMintContinue(
     var st = ctx!;
     assert(st.lockbox != createAddressNone(), LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
 
-    // TODO: sendExcessesTo should be configurable (original sender, oracle transmitter)
-    val sendExcessesTo = sender;
+    // Caller-selected excess recipient; default to the request sender.
+    val sendExcessesTo = msg.sendExcessesTo != null ? msg.sendExcessesTo! : sender;
     val forwardTonAmount = st.TokenPool().releaseOrMintForward(msg.finalizationValue());
 
     val request = lazy msg.request.load();

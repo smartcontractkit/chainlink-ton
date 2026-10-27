@@ -172,7 +172,7 @@ describe('Router.withdrawToTokenPool', () => {
       ask: deposit.AskToTransfer.create({
         jettonAmount: toNano('5'),
         transferRecipient: tokenPool,
-        sendExcessesTo: onRamp.address,
+        sendExcessesTo: sender.address,
         customPayload: null,
         forwardTonAmount: 0n,
         forwardPayload: beginCell()
@@ -227,7 +227,7 @@ describe('Router.withdrawToTokenPool', () => {
     })
 
     // ...and forwarded it to the deposit account as DepositAccount_Withdraw, building the ask
-    // from the request's fields. Excess TON goes to the OnRamp (the withdraw requester).
+    // from the request's fields. Excess TON goes to the original sender, who paid the budget.
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: accountAddress,
@@ -240,7 +240,7 @@ describe('Router.withdrawToTokenPool', () => {
           ask.jettonAmount === withdrawRequest.amount &&
           ask.transferRecipient.equals(tokenPool.address) &&
           ask.sendExcessesTo != null &&
-          ask.sendExcessesTo.equals(onRamp.address)
+          ask.sendExcessesTo.equals(sender.address)
         )
       },
     })

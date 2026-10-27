@@ -1539,6 +1539,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           replyTo: deployer.address,
           onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
           finalizationValue: toNano('0.01'),
+          sendExcessesTo: recipient.address,
         })
 
         const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
@@ -1631,7 +1632,10 @@ describe('LockReleaseLockboxTokenPool', () => {
           body(body) {
             if (!body) return false
             const transfer = AskToTransfer.fromSlice(body.beginParse())
-            return transfer.forwardTonAmount === safety + lockOrBurn.finalizationValue
+            return (
+              transfer.forwardTonAmount === safety + lockOrBurn.finalizationValue &&
+              transfer.sendExcessesTo?.equals(recipient.address) === true
+            )
           },
         })
 

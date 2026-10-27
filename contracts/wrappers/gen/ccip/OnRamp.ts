@@ -3492,6 +3492,7 @@ export const OnRamp_WithdrawFeeTokens = {
  >     replyTo: address
  >     finalizationValue: coins
  >     onRampNamespaces: map<uint32, ()>
+ >     sendExcessesTo: address?
  > }
  */
 export interface TokenPool_LockOrBurn {
@@ -3503,6 +3504,7 @@ export interface TokenPool_LockOrBurn {
     replyTo: c.Address
     finalizationValue: coins
     onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
+    sendExcessesTo: c.Address | null /* = null */
 }
 
 export const TokenPool_LockOrBurn = {
@@ -3516,9 +3518,11 @@ export const TokenPool_LockOrBurn = {
         replyTo: c.Address
         finalizationValue: coins
         onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
+        sendExcessesTo?: c.Address | null /* = null */
     }): TokenPool_LockOrBurn {
         return {
             $: 'TokenPool_LockOrBurn',
+            sendExcessesTo: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -3537,6 +3541,7 @@ export const TokenPool_LockOrBurn = {
                             (s) => [],
                             (v,b) => { {} }
                         ), s)),
+            sendExcessesTo: s.loadMaybeAddress(),
         }
     },
     store(self: TokenPool_LockOrBurn, b: c.Builder): void {
@@ -3556,6 +3561,7 @@ export const TokenPool_LockOrBurn = {
             (s) => [],
             (v,b) => { {} }
         ));
+        b.storeAddress(self.sendExcessesTo);
     },
     toCell(self: TokenPool_LockOrBurn): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurn>(self, TokenPool_LockOrBurn.store);

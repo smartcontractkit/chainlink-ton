@@ -133,7 +133,8 @@ describe('Router.relayReleaseOrMint', () => {
         return (
           msg.queryId === queryID &&
           msg.delivery?.recipient.equals(account) === true &&
-          msg.replyTo?.equals(executor.address) === true
+          msg.replyTo?.equals(executor.address) === true &&
+          msg.sendExcessesTo?.equals(executor.address) === true
         )
       },
     })

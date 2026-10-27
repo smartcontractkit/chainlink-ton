@@ -1785,11 +1785,14 @@ fun TokenPool<T>.onLockOrBurnTransferContinue(
 fun TokenPool<T>.createCustodyReturn(forwardPayload: TokenPool_LockOrBurnForwardPayload): AskToTransfer {
     val requestMsg = lazy forwardPayload.requestMsg.load();
     val details = lazy requestMsg.request.load().transfer.details.load();
+    val sendExcessesTo = requestMsg.sendExcessesTo != null
+        ? requestMsg.sendExcessesTo!
+        : details.originalSender;
     return AskToTransfer {
         queryId: requestMsg.queryId,
         jettonAmount: details.amount,
         transferRecipient: details.originalSender,
-        sendExcessesTo: details.originalSender,
+        sendExcessesTo,
         customPayload: null,
         forwardTonAmount: 0,
         forwardPayload: beginCell().storeMaybeRef(null).endCell().beginParse(),

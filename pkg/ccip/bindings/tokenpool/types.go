@@ -411,6 +411,8 @@ type LockOrBurn struct {
 	// FailureValue is the CCIP post-custody failure budget.
 	FailureValue     tlb.Coins                    `tlb:"."`
 	OnRampNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
+	// SendExcessesTo is where jetton wallets return unused TON; nil keeps the pool default.
+	SendExcessesTo *address.Address `tlb:"addr"`
 }
 
 // ReleaseOrMint releases or mints tokens on the destination chain. ReplyTo must be non-nil.
@@ -421,6 +423,8 @@ type ReleaseOrMint struct {
 	RequestedFinalityConfig uint32                 `tlb:"## 32"`
 	ReplyTo                 *address.Address       `tlb:"addr required"`
 	Delivery                *ReleaseOrMintDelivery `tlb:"maybe ^"`
+	// SendExcessesTo is where jetton wallets return unused TON; nil keeps the pool default.
+	SendExcessesTo *address.Address `tlb:"addr"`
 }
 
 // GetConfig asks a pool for the configuration CCIP caches in the token admin registry.

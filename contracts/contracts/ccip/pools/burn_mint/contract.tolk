@@ -228,8 +228,8 @@ fun onReleaseOrMintContinue(
     val jettonClient = st.poolData.load().jettonClient();
     val forwardTonAmount = st.TokenPool().releaseOrMintForward(msg.finalizationValue());
 
-    // TODO: sendExcessesTo should be configurable (original sender, oracle transmitter)
-    val sendExcessesTo = sender;
+    // Caller-selected excess recipient; default to the request sender.
+    val sendExcessesTo = msg.sendExcessesTo != null ? msg.sendExcessesTo! : sender;
 
     // The recipient's notification carries the pool's finalization safety plus the caller's
     // continuation. The minter gets the exact cost of the mint, so it keeps nothing; the wallet

@@ -237,8 +237,8 @@ Severity: 🔴 fund-safety/correctness · 🟠 protocol completeness · 🟡 par
 - **TON-TP/7 — ContextExecutor / sharded storage not implemented.**
   Pending-op maps live in contract storage (`burn_mint/storage.tolk`,
   `lock_release_lockbox/storage.tolk` — see their TODOs) → unbounded growth / dict limits.
-  `sendExcessesTo` is hardcoded to `self` across pools; design routes it through a
-  per-message ContextExecutor.
+  Excess routing is explicit per operation via `TokenPool_LockOrBurn.sendExcessesTo` and
+  `TokenPool_ReleaseOrMint.sendExcessesTo`; ContextExecutor remains the storage design.
 - **TON-TP/8 — msg.value validation missing across flows.**
   "Check message value is enough to cover full flow" is TODO in
   `token_pool.tolk:823`, lockbox, and the concrete pools. Underfunded ops can strand

@@ -116,7 +116,7 @@ fun onInternalMessage(in: InMessage) {
         Router_WithdrawToTokenPool => {
             var st = lazy Storage.load();
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
-            onWithdrawToTokenPool(mutate st, msg, in.senderAddress);
+            onWithdrawToTokenPool(mutate st, msg);
         }
         // Sender must be OnRamp
         Router_WithdrawToTokenPoolFailed => {
@@ -270,8 +270,7 @@ fun onInternalMessage(in: InMessage) {
             assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
             onTokenTransferDelivered(msg);
         }
-        // Excess of the on-ramp account withdraws, whose `sendExcessesTo` must be the Router. It
-        // stays with the Router, which the owner can withdraw.
+        // Passive excess returns are retained; no operation advances or authority is granted.
         ReturnExcessesBack => {}
         // Sender must be a Jetton Wallet owned by the Router.
         // Accidental transfers to the Router are returned to the transfer
@@ -407,7 +406,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
 /// Asks the sender's on-ramp account to transfer the jettons to the pool. A rejected or bounced
 /// transfer fails the CCIPSend through `failWithdrawToTokenPool`, which finds the executor in the
 /// transfer's forward payload, so that payload must name the executor requesting the withdraw.
-fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool, onramp: address) {
+fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
     val fwdp = lazy withdrawRequest.forwardPayload.load();
     val request = lazy fwdp.requestMsg.load();
@@ -420,14 +419,17 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool, o
         );
     }
 
-    // The notification carries what the pool asked for
+    // The notification carries what the pool asked for; the wallet rejects an underfunded transfer
+    // before custody moves. Use the canonical jetton ask so the deposit account can forward it
+    // without a parallel message type. The source sender paid the source-side budget, so the
+    // wallet's unused value returns to it rather than accumulating in the OnRamp.
     val ask = AskToTransfer {
         queryId: msg.queryID,
         jettonAmount: withdrawRequest.amount,
         transferRecipient: withdrawRequest.tokenPool,
-        // TODO: this excess should be returned to user
-        // Keep excess on the OnRamp account path until excess routing is configurable.
-        sendExcessesTo: onramp,
+        sendExcessesTo: request.sendExcessesTo != null
+            ? request.sendExcessesTo!
+            : request.request.load().transfer.details.load().originalSender,
         customPayload: null,
         forwardTonAmount: withdrawRequest.forwardTonAmount,
         forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
@@ -1036,6 +1038,7 @@ withdraw path should go through the executor - so the TP needs to withdraw -> ex
 fun onLockOrBurn(msg: Router_LockOrBurn) {
     var onRampNamespaces: map<uint32, ()> = [];
     onRampNamespaces.set(DeployableNamespace_OnRampAccount, ());
+    val details = lazy msg.request.load().transfer.details.load();
     val tokenPoolLockOrBurn = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
@@ -1049,6 +1052,8 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
             finalizationValue: msg.finalizationValue,
             // Keep the pool's deposit-auth namespace cache in sync
             onRampNamespaces,
+            // The source sender paid the source-side budget; return unused TON to it.
+            sendExcessesTo: details.originalSender,
         }
     });
     tokenPoolLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -1152,6 +1157,8 @@ fun onReceiverAccountReady(relay: Router_RelayReleaseOrMint, sender: address) {
                 // The account routes the transfer notification to the ReceiveExecutor.
                 forwardPayload: DepositAccount_Notify { notify: relay.replyTo }.toCell(),
             }.toCell(),
+            // The ReceiveExecutor paid the destination-side budget; return unused TON to it.
+            sendExcessesTo: relay.replyTo,
         },
     });
     tokenPoolReleaseOrMint.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
