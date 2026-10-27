@@ -58,19 +58,6 @@ fun snakedBytesLen(data: cell): int {
     return totalBits / 8;
 }
 
-/// The default message forwarding budget fee for messages (replies, notifications, sends)
-/// in gas units. The expectation is this is enough to cover the basic transaction costs
-/// for the recipient, at least validation and bounces, to avoid out of gas errors (no bounces).
-///
-/// TL;DR: Today (Q3/25), a basic transaction costs about 0.0025 TON.
-/// Current settings in basechain are as follows: 1 unit of gas costs 400 nanotons.
-/// Source: https://docs.ton.org/v3/documentation/smart-contracts/transaction-fees/fees
-///
-/// For comparison, the Jetton contract requires at least 21k gas units + fwd_fee + storage_fee
-/// to cover the token transaction costs.
-///
-const DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS = 30000;  // 0.012 TON at 400 nanotons/unit
-
 /// Maximum size of a bounced message
 ///
 /// Notice: documentation for in.bouncedBody is off, as it states the bounced body
@@ -99,10 +86,6 @@ fun extractBouncedBody(body: slice): uint256 {
         : body.loadUint(BOUNCE_MSG_SIZE_MAX);
 }
 
-const FEE_SIZE_SMALL = 1;
-const FEE_SIZE_DEFAULT = 2;
-const FEE_SIZE_LARGE = 3;
-
 /// The zero internal (standard) address: workchain 0 with an all-zero 256-bit hash.
 /// This is the TON analog of EVM's `address(0)`.
 const ZERO_ADDRESS = address("0:0000000000000000000000000000000000000000000000000000000000000000");
@@ -111,29 +94,6 @@ const ZERO_ADDRESS = address("0:000000000000000000000000000000000000000000000000
 @pure
 fun isZeroAddress(addr: address): bool {
     return addr == ZERO_ADDRESS;
-}
-
-/// Calculates the gas fee for the current workchain and DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS.
-fun calculateGasFeeDefault(): coins {
-    val workchain = contract.getAddress().getWorkchain();
-    return calculateGasFee(workchain, DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS);
-}
-
-/// Calculates the gas fee for the given size (small, default, large).
-fun calculateGasFeeFor(size: int): coins {
-    if (size == FEE_SIZE_SMALL) {
-        return calculateGasFeeDefault() / 2
-    } else if (size == FEE_SIZE_LARGE) {
-        return calculateGasFeeDefault() * 2;
-    }
-    return calculateGasFeeDefault();
-}
-
-/// Reserves the pre-message balance and storage due so subsequent actions use inbound value.
-fun reserveBalanceBeforeInMessage(msgValue: coins): void {
-    val originalBalance = contract.getOriginalBalance();
-    val balanceBeforeMessage = originalBalance > msgValue ? originalBalance - msgValue : 0 as coins;
-    reserveGramsOnBalance(balanceBeforeMessage + contract.getStorageDuePayment(), RESERVE_MODE_AT_MOST);
 }
 
 /// Computes the Keccak-256 hash of the given data.

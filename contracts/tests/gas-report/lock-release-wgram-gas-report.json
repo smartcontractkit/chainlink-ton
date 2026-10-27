@@ -1,0 +1,480 @@
+[
+  {
+    "label": "current",
+    "createdAt": "2026-10-27T11:41:35.629Z",
+    "result": {
+      "JettonMinter": {
+        "sendTopUpTons": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "33"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "13870"
+          }
+        },
+        "0xd372158c": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "594"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "33"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "13870"
+          }
+        },
+        "sendMint": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "33"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "13870"
+          }
+        },
+        "0x15": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "7306"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "33"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "13870"
+          }
+        },
+        "0x178d4519": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "4648"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "33"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "13870"
+          }
+        },
+        "0xd53276db": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "33"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "13870"
+          }
+        }
+      },
+      "JettonLockBox": {
+        "sendDeploy": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "82"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "28129"
+          }
+        },
+        "send": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "4643"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "82"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "28129"
+          }
+        },
+        "sendJettonLockBoxInit": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "82"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "28129"
+          }
+        },
+        "0xffa6eeb9": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "26463"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "82"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "28129"
+          }
+        },
+        "0xbd7e8bce": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "82"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "28129"
+          }
+        },
+        "0xcf3ca837": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "82"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "28129"
+          }
+        },
+        "0xe9f4e311": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "82"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "28129"
+          }
+        }
+      },
+      "LockReleaseLockboxTokenPool": {
+        "sendDeploy": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "403"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "186514"
+          }
+        },
+        "send": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "10201"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "403"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "186514"
+          }
+        }
+      },
+      "TokenPool": {
+        "sendTokenPoolApplyChainUpdates": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "411"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "187873"
+          }
+        },
+        "0x56f73d37": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "30679"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "411"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "187873"
+          }
+        },
+        "0xad7833d7": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "411"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "187873"
+          }
+        },
+        "sendTokenPoolLockOrBurn": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "413"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "188330"
+          }
+        },
+        "0xfa7da444": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "46377"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "413"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "188330"
+          }
+        },
+        "0xe7a35041": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "413"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "188330"
+          }
+        },
+        "sendTokenPoolReleaseOrMint": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "412"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "188290"
+          }
+        },
+        "0x351f77e3": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "58640"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "412"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "188290"
+          }
+        },
+        "0xd065c306": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "18689"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "412"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "188290"
+          }
+        },
+        "0xf8a7ea5": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "6922"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "412"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "188290"
+          }
+        },
+        "0x178d4519": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "7566"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "412"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "188290"
+          }
+        },
+        "0x7362d09c": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "412"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "188290"
+          }
+        },
+        "0xd53276db": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "412"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "188290"
+          }
+        }
+      },
+      "JettonWallet": {
+        "sendTransfer": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "17"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7693"
+          }
+        },
+        "0xf8a7ea5": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "6922"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "17"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7693"
+          }
+        },
+        "0x178d4519": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "5606"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "17"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7693"
+          }
+        },
+        "0x7362d09c": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "13338"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "17"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7693"
+          }
+        },
+        "0xd53276db": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "17"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7693"
+          }
+        }
+      }
+    }
+  }
+]

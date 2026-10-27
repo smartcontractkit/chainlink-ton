@@ -30,8 +30,11 @@
     "fmt-typescript:check": "prettier --check .",
     "fmt-typescript": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "ccip-gas-report": "blueprint test --gas-report -- --config ccip-gas-report.config.ts",
-    "wgram-gas-report": "blueprint test --gas-report -- --config wgram-gas-report.config.ts",
+    "ccip-gas-report": "blueprint test --gas-report -- --config tests/gas-report/ccip-gas-report.config.ts",
+    "wgram-gas-report": "blueprint test --gas-report -- --config tests/gas-report/wgram-gas-report.config.ts",
+    "cct-gas-report": "blueprint test --gas-report -- --config tests/gas-report/cct-gas-report.config.ts",
+    "burn-mint-cct-gas-report": "blueprint test --gas-report -- --config tests/gas-report/burn-mint-cct-gas-report.config.ts",
+    "lock-release-wgram-gas-report": "blueprint test --gas-report -- --config tests/gas-report/lock-release-wgram-gas-report.config.ts",
     "get-key-pair": "ts-node scripts/getKeyPair.ts",
     "check-overflows": "ts-node scripts/overflowCheck.ts"
   },

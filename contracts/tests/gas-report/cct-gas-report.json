@@ -1,0 +1,166 @@
+[
+  {
+    "label": "current",
+    "createdAt": "2026-10-27T11:41:26.367Z",
+    "result": {
+      "JettonMinter": {
+        "sendDeploy": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "32"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "13130"
+          }
+        },
+        "send": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1386"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "32"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "13130"
+          }
+        },
+        "notSupported": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "32"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "13130"
+          }
+        }
+      },
+      "JettonWallet": {
+        "sendTransfer": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "14"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "6256"
+          }
+        },
+        "0xf8a7ea5": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "6153"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "14"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "6256"
+          }
+        },
+        "0x178d4519": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "7481"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "14"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "6256"
+          }
+        },
+        "0x7362d09c": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "14"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "6256"
+          }
+        },
+        "0xd53276db": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "14"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "6256"
+          }
+        },
+        "sendCCTAskToBurn": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "14"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "6256"
+          }
+        },
+        "0x595f07bc": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "4882"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "14"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "6256"
+          }
+        },
+        "0x7bdd97de": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "3915"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "14"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "6256"
+          }
+        }
+      }
+    }
+  }
+]

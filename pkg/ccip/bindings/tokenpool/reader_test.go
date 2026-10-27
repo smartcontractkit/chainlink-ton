@@ -113,3 +113,16 @@ func TestGetTokenTransferFeeConfig_WideNullable(t *testing.T) {
 		require.False(t, got.IsFound)
 	})
 }
+
+// Verifies the flattened TokenPool_Budget stack (lockOrBurn admission and safety, then
+// releaseOrMint admission and safety).
+func TestGetBudget_DecodesBudget(t *testing.T) {
+	result := ton.NewExecutionResult([]any{big.NewInt(1), big.NewInt(2), big.NewInt(3), big.NewInt(4)})
+
+	got, err := GetBudget.Decoder.Decode(result)
+	require.NoError(t, err)
+	require.Equal(t, Budget{
+		LockOrBurn:    LockOrBurnBudget{Admission: tlb.FromNanoTONU(1), Safety: tlb.FromNanoTONU(2)},
+		ReleaseOrMint: ReleaseOrMintBudget{Admission: tlb.FromNanoTONU(3), Safety: tlb.FromNanoTONU(4)},
+	}, got)
+}

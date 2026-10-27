@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+
 import "../../../../lib/utils"
 import "../../../../lib/access/access_control"
 import "../../../../lib/jetton/messages"
@@ -8,6 +9,7 @@ import "../../../common/types"
 import "../../../rmn_remote/lib"
 
 import "types"
+import "budget"
 
 struct (0x56f73d37) TokenPool_ApplyChainUpdates {
     queryId: uint64;
@@ -91,7 +93,21 @@ struct (0xfa7da444) TokenPool_LockOrBurn {
     request: Cell<TokenPool_LockOrBurnInV1>; // TODO: consider renaming
     requestedFinalityConfig: uint32;
     tokenArgs: cell?;
+
+    // Continuation info
+
     replyTo: address;
+
+    /// A: admission budget. Checked at the entrypoint; covers pre-custody processing, the
+    /// withdraw relay, and two custody phases (`A >= 3S`).
+    /// S: safety budget for one custody phase. Covers the return and success/failure finalization.
+    /// F: finalization/continuation supplied by the caller.
+    ///
+    /// The entry checks `msgValue >= A + F`. The custody transfer carries `2S + F`; the last
+    /// custody hop (burn or lockbox deposit) and its finalization are funded from that forward.
+
+    /// Finalization value the caller asks the lock/burn flow to forward on success/failure.
+    finalizationValue: coins;
     onRampNamespaces: map<uint32, ()> = [];
 }
 
@@ -111,9 +127,13 @@ struct (0x351f77e3) TokenPool_ReleaseOrMint {
     requestedFinalityConfig: uint32;
 
     // Continuation info
-    // TODO: post-PR925 merge, propagate non-optional replyTo throughout the system.
     replyTo: address;
-    delivery: Cell<TokenPool_ReleaseOrMintDelivery>? = null;
+    delivery: Cell<TokenPool_ReleaseOrMintDelivery>;
+}
+
+/// Finalization value the caller asks the release/mint delivery to forward (zero without delivery).
+fun TokenPool_ReleaseOrMint.finalizationValue(self): coins {
+    return self.delivery.load().forwardTonAmount;
 }
 
 /// Jetton transfer the pool performs to deliver released/minted tokens.
@@ -296,6 +316,8 @@ type TokenPool_InMessage =
     | TokenPool_SetAdvancedPoolHooks
     | TokenPool_SetRateLimitConfig
     | TokenPool_ApplyTokenTransferFeeConfigUpdates
+    | TokenPool_SetBudget
+    | TokenPool_GetConfig
     | TokenPool_Curse
     | TokenPool_Uncurse
     | TokenPool_RMNOwnableMessage
@@ -304,6 +326,10 @@ type TokenPool_InMessage =
 
 struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
     queryId: uint64;
+    /// TON the custody notification must carry to the pool (`TokenPool.custodyForward`). The
+    /// sender's wallet forwards exactly this and rejects an underfunded transfer before custody
+    /// moves.
+    forwardTonAmount: coins;
     forwardPayload: TokenPool_LockOrBurnForwardPayload;
 }
 
@@ -403,7 +429,9 @@ type TokenPool_OutMessage =
     | TokenPool_RateLimitConfiguredNotification
     | TokenPool_AdvancedPoolHooksSet
     | TokenPool_ChainUpdatesApplied
-    | TokenPool_FeeConfigApplied;
+    | TokenPool_FeeConfigApplied
+    | TokenPool_BudgetSet
+    | TokenPool_Config;
 
 type TokenPool_BouncedMessage =
     | TokenPool_LockOrBurnWithdraw
@@ -411,14 +439,29 @@ type TokenPool_BouncedMessage =
     | TokenPool_PreflightCheck
     | TokenPool_PostflightCheck;
 
-/// Asks a pool which address initiates the jetton transfers delivering its releases/mints. Sent
-/// by the token admin registry when a pool is set or refreshed.
-struct (0x500b10e4) TokenPool_GetTransferInitiator {
+/// Asks a pool for the configuration the token admin registry caches: the initiator of its
+/// release/mint deliveries and its admission budgets. Sent when a pool is set or refreshed, e.g.
+/// after the pool owner changed its budget or hooks.
+struct (0x480060f1) TokenPool_GetConfig {
     queryId: uint64;
 }
 
-/// Answer to `TokenPool_GetTransferInitiator`. A null initiator means the pool delivers by minting.
-struct (0x904443b3) TokenPool_TransferInitiator {
+/// Answer to `TokenPool_GetConfig`. A null initiator means the pool delivers by minting.
+struct (0x1c8a40b8) TokenPool_Config {
     queryId: uint64;
     transferInitiator: address?;
+    admission: TokenPool_AdmissionBudget;
+}
+
+/// Sets the pool's per-instance budget. Values only raise the pool-type defaults; zero keeps the
+/// default. Owner-only. Refresh the registry afterwards so CCIP funds the new admission budget.
+struct (0x1e54ab8b) TokenPool_SetBudget {
+    queryId: uint64;
+    budget: TokenPool_Budget;
+}
+
+/// Replied on `TokenPool_SetBudget` with the resulting effective budget.
+struct (0xfa704988) TokenPool_BudgetSet {
+    queryId: uint64;
+    budget: TokenPool_Budget;
 }

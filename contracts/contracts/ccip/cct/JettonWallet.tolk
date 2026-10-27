@@ -110,7 +110,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         CCT_AskToBurn => {
-            checkAmountIsEnoughToBurn(in.valueCoins);
+            checkAmountIsEnoughToBurn(in.valueCoins, in.originalForwardFee, msg.sendExcessesTo != null);
 
             var storage = lazy WalletStorage.load();
             assert (in.senderAddress == storage.ownerAddress) throw ERROR_NOT_OWNER;

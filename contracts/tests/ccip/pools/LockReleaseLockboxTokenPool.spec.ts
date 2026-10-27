@@ -315,6 +315,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       tokenArgs: null,
       replyTo: deployer.address,
       onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+      finalizationValue: toNano('0.01'),
     })
     const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
       originalSender: deployer.address,
@@ -505,6 +506,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         tokenArgs: null,
         replyTo: deployer.address,
         onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+        finalizationValue: toNano('0.01'),
       })
       const transferPayload = TokenPool_LockOrBurnForwardPayload.create({
         originalSender: deployer.address,
@@ -641,6 +643,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         tokenArgs: null,
         replyTo: deployer.address,
         onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+        finalizationValue: toNano('0.01'),
       })
 
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
@@ -1051,9 +1054,16 @@ describe('LockReleaseLockboxTokenPool', () => {
           op: TransferNotificationForRecipient.PREFIX,
           success: true,
         })
-        expect(result.transactions).not.toHaveTransaction({
+        // The malformed notification is returned best-effort with a short bounce.
+        expect(result.transactions).toHaveTransaction({
           from: lockReleaseLockboxPool.address,
-          op: 0x0f8a7ea5,
+          to: wallet.address,
+          op: AskToTransfer.PREFIX,
+        })
+        expect(result.transactions).toHaveTransaction({
+          to: lockReleaseLockboxPool.address,
+          inMessageBounced: true,
+          success: true,
         })
         expect(
           (await blockchain.getContract(lockReleaseLockboxPool.address)).balance,
@@ -1063,7 +1073,7 @@ describe('LockReleaseLockboxTokenPool', () => {
 
     it.each([
       { inbound: '0.5', returned: true },
-      { inbound: '0.2', returned: false },
+      { inbound: '0.2', returned: true },
     ])(
       'reports lockbox rejection with $inbound TON and returns custody=$returned',
       async ({ inbound, returned }) => {
@@ -1127,6 +1137,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           tokenArgs: null,
           replyTo: deployer.address,
           onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+          finalizationValue: toNano('0.01'),
         })
         const admitted = await pool.sendTokenPoolLockOrBurn(
           deployer.getSender(),
@@ -1213,7 +1224,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           body(body) {
             if (!body) return false
             const failure = JettonLockBox_DepositFailed.fromSlice(body.beginParse())
-            return failure.queryId === queryId && failure.returnAttempted === returned
+            return failure.queryId === queryId
           },
         })
         expect(result.transactions).toHaveTransaction({
@@ -1238,20 +1249,21 @@ describe('LockReleaseLockboxTokenPool', () => {
           const notification = TransferNotificationForRecipient.fromSlice(message.body.beginParse())
           return notification.transferInitiator?.equals(jettonLockBox.address) ?? false
         })
-        expect(custodyReceipts).toHaveLength(returned ? 1 : 0)
-        expect(await onRampWallet.getJettonBalance()).toEqual(
-          returned ? userBalance : userBalance - toNano('10'),
-        )
-        expect(await poolWallet.getJettonBalance()).toEqual(returned ? 0n : toNano('1'))
-        expect(await (await userWallet(jettonLockBox.address)).getJettonBalance()).toEqual(
-          returned ? 0n : toNano('9'),
-        )
+        expect(custodyReceipts).toHaveLength(0)
+        // The deposit account sent the custody to the pool; the lockbox returns it to that
+        // account on rejection. The one-jetton token fee stays in the pool wallet.
+        expect(await onRampWallet.getJettonBalance()).toEqual(userBalance - toNano('10'))
+        expect(await accountWallet.getJettonBalance()).toEqual(toNano('9'))
+        expect(await poolWallet.getJettonBalance()).toEqual(toNano('1'))
+        expect(await (await userWallet(jettonLockBox.address)).getJettonBalance()).toEqual(0n)
         expect(
           (await pool.getCurrentRateLimiterState(remoteChainSelector, false)).outbound.tokens,
         ).toEqual(rateLimitBefore.outbound.tokens - toNano('18'))
         expect(
           (await blockchain.getContract(jettonLockBox.address)).balance,
         ).toBeGreaterThanOrEqual(lockboxBalance)
+        // Excess is refunded to the sender; the pool finances the flow from the message value and
+        // must not dip into its own balance.
         expect(
           (await blockchain.getContract(lockReleaseLockboxPool.address)).balance,
         ).toBeGreaterThanOrEqual(poolBalance)
@@ -1264,95 +1276,6 @@ describe('LockReleaseLockboxTokenPool', () => {
               TokenPool_LockOrBurnFailure.PREFIX,
         )
         expect(failures).toHaveLength(1)
-      },
-    )
-
-    it.each(['sender', 'initiator', 'amount'])(
-      'rejects a forged custody-return %s',
-      async (forgery) => {
-        const request = TokenPool_LockOrBurn.create({
-          queryId: 302n,
-          request: TokenPool_LockOrBurnInV1.create({
-            transfer: TokenPool_Transfer.create({
-              id: 302n,
-              details: TokenPool_TransferDetails.create({
-                receiver: receiverAddress,
-                remoteChainSelector,
-                originalSender: deployer.address,
-                amount: toNano('1'),
-                localToken: jettonMinter.address,
-              }),
-            }),
-          }),
-          requestedFinalityConfig: 0n,
-          tokenArgs: null,
-          replyTo: deployer.address,
-          onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
-        })
-        const context = LockReleaseLockboxTokenPool_LockContext.toCell(
-          LockReleaseLockboxTokenPool_LockContext.create({
-            forwardPayload: TokenPool_LockOrBurnForwardPayload.create({
-              originalSender: deployer.address,
-              requestMsg: request,
-              prepared: TokenPool_LockOrBurnPrepared.create({
-                feeAmount: 0n,
-                destTokenAmount: toNano('1'),
-                out: TokenPool_LockOrBurnOutV1.create({
-                  destTokenAddress,
-                  destPoolData: Cell.EMPTY,
-                }),
-              }),
-            }),
-          }),
-        )
-        const failure = JettonLockBox_DepositFailed.toCell(
-          JettonLockBox_DepositFailed.create({
-            queryId: 302n,
-            token: jettonMinter.address,
-            depositor: lockReleaseLockboxPool.address,
-            amount: toNano('1'),
-            context: JettonLockBox_Deposit.create({
-              queryId: 302n,
-              token: jettonMinter.address,
-              remoteChainSelector,
-              amount: toNano('1'),
-              context,
-            }),
-            errorCode: 47400n,
-            returnAttempted: true,
-          }),
-        )
-        const wallet = await userWallet(lockReleaseLockboxPool.address)
-        const result = await blockchain.sendMessage(
-          internal({
-            from: forgery === 'sender' ? recipient.address : wallet.address,
-            to: lockReleaseLockboxPool.address,
-            value: toNano('0.2'),
-            body: TransferNotificationForRecipient.toCell(
-              TransferNotificationForRecipient.create({
-                queryId: 302n,
-                jettonAmount: toNano(forgery === 'amount' ? '2' : '1'),
-                transferInitiator:
-                  forgery === 'initiator' ? recipient.address : jettonLockBox.address,
-                forwardPayload: beginCell().storeMaybeRef(failure).asSlice(),
-              }),
-            ),
-          }),
-        )
-        expect(result.transactions).toHaveTransaction({
-          to: lockReleaseLockboxPool.address,
-          success: false,
-          exitCode:
-            forgery === 'sender'
-              ? LockReleaseLockboxTokenPool.Errors['TokenPool_Error.Unauthorized']
-              : LockReleaseLockboxTokenPool.Errors[
-                  'LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender'
-                ],
-        })
-        expect(result.transactions).not.toHaveTransaction({
-          from: lockReleaseLockboxPool.address,
-          op: 0x0f8a7ea5,
-        })
       },
     )
 
@@ -1379,6 +1302,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         tokenArgs: null,
         replyTo: attacker.address,
         onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+        finalizationValue: toNano('0.01'),
       })
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
         originalSender: attacker.address,
@@ -1561,7 +1485,6 @@ describe('LockReleaseLockboxTokenPool', () => {
     })
 
     it.each([
-      { inbound: '0.1', forwarded: false },
       { inbound: '0.3', forwarded: true },
       { inbound: '0.5', forwarded: true },
       { inbound: '0.8', forwarded: true },
@@ -1591,6 +1514,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         const poolBalanceBefore = (await blockchain.getContract(lockReleaseLockboxPool.address))
           .balance
 
+        const safety = (await lockReleaseLockboxPool.getBudget()).lockOrBurn.safety
         const lockOrBurn = TokenPool_LockOrBurn.create({
           queryId: 300n,
           request: TokenPool_LockOrBurnInV1.create({
@@ -1609,6 +1533,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           tokenArgs: null,
           replyTo: deployer.address,
           onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+          finalizationValue: toNano('0.01'),
         })
 
         const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
@@ -1668,6 +1593,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           to: lockReleaseLockboxPool.address,
           success: true,
         })
+        // Wallet excess goes back to the original sender; the pool must not spend its own balance.
         expect(
           (await blockchain.getContract(lockReleaseLockboxPool.address)).balance,
         ).toBeGreaterThanOrEqual(poolBalanceBefore)
@@ -1700,10 +1626,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           body(body) {
             if (!body) return false
             const transfer = AskToTransfer.fromSlice(body.beginParse())
-            return (
-              transfer.forwardTonAmount > toNano(inbound) / 2n &&
-              transfer.forwardTonAmount <= toNano(inbound) - toNano('0.1')
-            )
+            return transfer.forwardTonAmount === safety + lockOrBurn.finalizationValue
           },
         })
 

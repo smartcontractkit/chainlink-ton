@@ -3,6 +3,22 @@
 
 type ForwardPayloadRemainder = RemainingBitsAndRefs
 
+/// Detects a cheap (`Only256BitsOfBody`) bounce of a return `AskToTransfer`.
+/// Such bounces are used only for best-effort custody returns, where the extra value is
+/// accepted by the sender and the truncated body is intentionally not parsed.
+@inline
+fun isShortAskToTransferBounce(bouncedBody: slice): bool {
+    if (bouncedBody.remainingBitsCount() < 64) {
+        return false;
+    }
+    if (bouncedBody.preloadUint(32) != 0xffffffff) {
+        return false;
+    }
+    val originalBody = bouncedBody.skipBouncedPrefix();
+    return originalBody.remainingBitsCount() >= 32
+        && originalBody.preloadUint(32) == 0x0f8a7ea5;
+}
+
 // nolint:opcode
 struct (0x0f8a7ea5) AskToTransfer {
     queryId: uint64

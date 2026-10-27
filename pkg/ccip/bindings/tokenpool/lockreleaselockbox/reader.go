@@ -50,6 +50,7 @@ var (
 	GetVerifyNotCursed         = tokenpool.GetVerifyNotCursed
 	GetDynamicConfig           = tokenpool.GetDynamicConfig
 	GetAllowedFinalityConfig   = tokenpool.GetAllowedFinalityConfig
+	GetBudget                  = tokenpool.GetBudget
 	GetAdvancedPoolHooks       = tokenpool.GetAdvancedPoolHooks
 	GetIsRemotePool            = tokenpool.GetIsRemotePool
 	GetRemoteToken             = tokenpool.GetRemoteToken

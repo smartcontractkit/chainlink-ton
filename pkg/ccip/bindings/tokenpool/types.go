@@ -263,6 +263,34 @@ type AdminConfig struct {
 	AdvancedPoolHooks        *address.Address             `tlb:"addr"`
 }
 
+// LockOrBurnBudget is the pool's LockOrBurn budget. Admission is checked at the entrypoint and
+// published to CCIP; Safety is forwarded with the pool's last custody move and pays finalization.
+// A zero stored value means "use the pool-type default".
+type LockOrBurnBudget struct {
+	Admission tlb.Coins `tlb:"."`
+	Safety    tlb.Coins `tlb:"."`
+}
+
+// ReleaseOrMintBudget is the pool's ReleaseOrMint budget. Admission is checked at the entrypoint
+// and is the remote chain's per-token destGasOverhead. Safety funds post-delivery finalization and
+// is forwarded with the delivery.
+type ReleaseOrMintBudget struct {
+	Admission tlb.Coins `tlb:"."`
+	Safety    tlb.Coins `tlb:"."`
+}
+
+// Budget is the per-instance pool budget. Configured values can only raise the defaults.
+type Budget struct {
+	LockOrBurn    LockOrBurnBudget    `tlb:"."`
+	ReleaseOrMint ReleaseOrMintBudget `tlb:"."`
+}
+
+// AdmissionBudget is the admission budget the pool publishes to CCIP.
+type AdmissionBudget struct {
+	LockOrBurn    tlb.Coins `tlb:"."`
+	ReleaseOrMint tlb.Coins `tlb:"."`
+}
+
 // Storage represents the TokenPool_Data storage layout shared by every TokenPool
 // implementation (BurnMint, LockRelease, ...), each of which wraps it as
 // `poolData: Cell<TokenPool_Data>` alongside its own pool-specific fields.
@@ -272,6 +300,7 @@ type Storage struct {
 	TokenDecimals           uint8            `tlb:"## 8"`
 	RemoteChainConfigs      *cell.Dictionary `tlb:"dict 64"`
 	TokenTransferFeeConfigs *cell.Dictionary `tlb:"dict 64"`
+	Budget                  Budget           `tlb:"."`
 }
 
 // --- Messages - incoming ---
@@ -372,13 +401,16 @@ type RMNAccessControlMessage[T rbac.InMessage | any] struct {
 // OnRampNamespaces carries the Router's accepted deposit-account namespaces, relayed on
 // every request so the pool can refresh its deposit-auth cache (see DynamicConfig).
 type LockOrBurn struct {
-	_                       tlb.Magic                    `tlb:"#fa7da444" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID                 uint64                       `tlb:"## 64"`
-	Request                 LockOrBurnInV1               `tlb:"^"`
-	RequestedFinalityConfig uint32                       `tlb:"## 32"`
-	TokenArgs               *cell.Cell                   `tlb:"maybe ^"`
-	ReplyTo                 *address.Address             `tlb:"addr required"`
-	OnRampNamespaces        *tlbe.Dict[uint32, struct{}] `tlb:"."`
+	_                       tlb.Magic        `tlb:"#fa7da444" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID                 uint64           `tlb:"## 64"`
+	Request                 LockOrBurnInV1   `tlb:"^"`
+	RequestedFinalityConfig uint32           `tlb:"## 32"`
+	TokenArgs               *cell.Cell       `tlb:"maybe ^"`
+	ReplyTo                 *address.Address `tlb:"addr required"`
+
+	// FailureValue is the CCIP post-custody failure budget.
+	FailureValue     tlb.Coins                    `tlb:"."`
+	OnRampNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
 }
 
 // ReleaseOrMint releases or mints tokens on the destination chain. ReplyTo must be non-nil.
@@ -391,17 +423,32 @@ type ReleaseOrMint struct {
 	Delivery                *ReleaseOrMintDelivery `tlb:"maybe ^"`
 }
 
-// GetTransferInitiator asks a pool which address initiates its release/mint deliveries.
-type GetTransferInitiator struct {
-	_       tlb.Magic `tlb:"#500b10e4" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+// GetConfig asks a pool for the configuration CCIP caches in the token admin registry.
+type GetConfig struct {
+	_       tlb.Magic `tlb:"#480060f1" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
-// TransferInitiator answers GetTransferInitiator; nil means the pool delivers by minting.
-type TransferInitiator struct {
-	_                 tlb.Magic        `tlb:"#904443b3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+// Config answers GetConfig. A nil TransferInitiator means the pool delivers by minting.
+type Config struct {
+	_                 tlb.Magic        `tlb:"#1c8a40b8" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID           uint64           `tlb:"## 64"`
 	TransferInitiator *address.Address `tlb:"addr"`
+	Admission         AdmissionBudget  `tlb:"."`
+}
+
+// SetBudget sets the pool's per-instance budget (owner only).
+type SetBudget struct {
+	_       tlb.Magic `tlb:"#1e54ab8b" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64    `tlb:"## 64"`
+	Budget  Budget    `tlb:"."`
+}
+
+// BudgetSet answers SetBudget with the effective budget.
+type BudgetSet struct {
+	_       tlb.Magic `tlb:"#fa704988" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64    `tlb:"## 64"`
+	Budget  Budget    `tlb:"."`
 }
 
 // ReleaseOrMintDelivery is the jetton transfer the pool performs to deliver released/minted tokens.
@@ -569,9 +616,11 @@ type QueryCCVsReply struct {
 
 // LockOrBurnWithdraw requests token withdrawal from the on-ramp.
 type LockOrBurnWithdraw struct {
-	_              tlb.Magic                `tlb:"#e7a35041" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64                   `tlb:"## 64"`
-	ForwardPayload LockOrBurnForwardPayload `tlb:"."`
+	_       tlb.Magic `tlb:"#e7a35041" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64    `tlb:"## 64"`
+	// ForwardTonAmount is the TON the custody notification carries to the pool: its LockOrBurn safety budget.
+	ForwardTonAmount tlb.Coins                `tlb:"."`
+	ForwardPayload   LockOrBurnForwardPayload `tlb:"."`
 }
 
 // LockOrBurnFinished notifies that a lock/burn operation finished.
@@ -818,6 +867,9 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	GetCCVs{},
 	GetCCVsAndFees{},
 	QueryCCVsReply{},
+	// Config + budget
+	GetConfig{},
+	SetBudget{},
 	// Outgoing
 	LockOrBurnWithdraw{},
 	LockOrBurnFinished{},
@@ -836,6 +888,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	rbac.RoleRevoked{},
 	rbac.RoleAdminChanged{},
 	AdvancedPoolHooksSet{},
+	Config{},
+	BudgetSet{},
 	ChainUpdatesApplied{},
 	FeeConfigApplied{},
 	// AdvancedPoolHooks outgoing (sent from TokenPool to hooks contract)
