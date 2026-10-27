@@ -24,6 +24,10 @@ fun getErrorCode(crc32Key: int, local: uint16): uint16 {
     return code
 }
 
+/// Largest variable-size payload (CCIP message data, address lists) the contracts walk;
+/// the CCIP min values are calibrated for a message of this size.
+const MAX_DATA_CELLS = 256;
+
 /// Returns the number of bytes encoded in a snake cell chain, matching how the Go
 /// bindings encode/decode snake data (cciplib `common.SnakeBytes`/`common.SnakedCell`,
 /// see packByteArrayToCell/unloadCellToByteArray): a strict linear chain of cells,
@@ -33,9 +37,9 @@ fun getErrorCode(crc32Key: int, local: uint16): uint16 {
 /// - any cell has more than one ref (the chain branches),
 /// - any cell holds a non-whole number of bytes (the Go decoder pads partial
 ///   bytes per cell, so the count would not match),
-/// - the chain is deeper than 128 cells (same gas bound as Iterator.countBytes).
+/// - the chain is deeper than MAX_DATA_CELLS.
 fun snakedBytesLen(data: cell): int {
-    val maxCells = 128;
+    val maxCells = MAX_DATA_CELLS;
     var s = data.beginParse();
     var totalBits = 0;
     var cellsCount = 0;
@@ -201,7 +205,7 @@ fun Iterator<T>.next(mutate self): T {
 // Unsafe: throws exit code 8 if it exceeds maxCells
 @inline
 fun Iterator<T>.countBytes(self): int {
-    val maxCells = 128;
+    val maxCells = MAX_DATA_CELLS;
     val (_cellsCount, dataBitsSize, _cellRefs) = self.data.calculateSizeStrict(maxCells);
     assert(dataBitsSize % 8 == 0, Utils_Error.InvalidData);
     return dataBitsSize / 8;
@@ -285,7 +289,7 @@ fun Bitmap256.has(self, index: int): bool {
 // For address snake data
 @inline
 fun countAddresses(data: cell): int {
-    val maxCells = 128;
+    val maxCells = MAX_DATA_CELLS;
     val (_cellsCount, dataBitsSize, _cellRefs) = data.calculateSizeStrict(maxCells);
     assert(dataBitsSize % ADDR_KEY_LEN == 0, Utils_Error.InvalidData);
     return dataBitsSize / ADDR_KEY_LEN;

@@ -1,13 +1,13 @@
 import { Blockchain, SandboxContract, TreasuryContract, BlockchainTransaction } from '@ton/sandbox'
 import { toNano, Cell, Address } from '@ton/core'
 import * as rt from '../../../../wrappers/gen/ccip/Router'
-import { createCursePolicy } from '../../../../wrappers/ccip/Router'
+import { Costs, createCursePolicy } from '../../../../wrappers/ccip/Router'
 import * as or from '../../../../wrappers/gen/ccip/OnRamp'
 import * as fq from '../../../../wrappers/gen/ccip/FeeQuoter'
 import '@ton/test-utils'
 import { NATIVE_GRAM } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
-import { createExtraArgs, createPayload, HARD_MAX_DATA_BYTES, LANE_MAX_DATA_BYTES } from './config'
+import { createExtraArgs, createPayload, HARD_MAX_DATA_BYTES } from './config'
 import { AddressBook, formatRow, GasReport, gasReportConfig } from '../../utils'
 import { contractCode } from '../../../../wrappers/codeLoader'
 import { ChainFamilySelectors, ChainSelectors } from '../../../utils/Selectors'
@@ -47,7 +47,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
           destChainConfig: fq.FeeQuoterDestChainConfig.create({
             isEnabled: true,
             maxNumberOfTokensPerMsg: 0n,
-            maxDataBytes: 20000n,
+            maxDataBytes: 40000n,
             maxPerMsgGasLimit: 100000n,
             destGasOverhead: 0n,
             destGasPerPayloadByteBase: 0n,
@@ -124,13 +124,13 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
     })
   })
 
-  it(`should measure fee validation with ${LANE_MAX_DATA_BYTES} bytes of data`, async () => {
+  it(`should measure fee validation with ${HARD_MAX_DATA_BYTES} bytes of data`, async () => {
     await report.measure('Fee Validation + Max Payload', {
       run: () =>
         measureGetValidatedFee(
           router,
           sender,
-          createPayload(LANE_MAX_DATA_BYTES),
+          createPayload(HARD_MAX_DATA_BYTES),
           onRamp,
           feeQuoter,
         ),
@@ -140,12 +140,13 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
         OnRamp: [onRamp, 'ccip'],
         FeeQuoter: [feeQuoter, 'ccip'],
       }),
+      budget: Costs.getValidatedFee,
     })
   })
 
   it('should compare the FeeQuoter gas cost of different payload sizes', async () => {
     const payloadSizes: number[] = []
-    for (let size = 0; size <= HARD_MAX_DATA_BYTES; size += 127 * 8) {
+    for (let size = 0; size <= HARD_MAX_DATA_BYTES; size += 127 * 16) {
       payloadSizes.push(size)
     }
     payloadSizes.push(HARD_MAX_DATA_BYTES)
@@ -198,7 +199,7 @@ async function measureGetValidatedFee(
 ) {
   const result = await router.sendRouterGetValidatedFee(
     sender.getSender(),
-    toNano('1'),
+    Costs.getValidatedFee,
     rt.Router_GetValidatedFee.create({
       ccipSend: rt.Router_CCIPSend.create({
         queryID: 1n,

@@ -70,7 +70,7 @@ fun onInternalMessage(in: InMessage) {
         }
         // Permissionless
         Router_CCIPSend => {
-            val minValue = Router_Costs.CCIPSend();
+            val minValue = Router_Costs.CCIPSend(!msg.tokenAmounts.empty());
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
             onCCIPSend(msg, in.senderAddress, in.valueCoins);
         }

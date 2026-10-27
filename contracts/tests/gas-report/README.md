@@ -12,12 +12,12 @@ tests/gas-report/
 │   ├── opNames.ts        # Opcode -> message name map built from the generated wrappers
 │   ├── snapshots/        # Per-spec JSON written by GasReport (<spec>.<network>.json)
 │   ├── messaging/        # Arbitrary messaging flows (no tokens)
-│   │   ├── OnRamp.spec.ts    # CCIPSend with the lane max payload, plus a data size sweep
+│   │   ├── OnRamp.spec.ts    # CCIPSend at its min value with a MAX_DATA_CELLS payload, plus a data size sweep
 │   │   ├── OffRamp.spec.ts   # Commit and execute of a max payload message
-│   │   ├── FeeQuoter.spec.ts # Fee validation, FeeQuoter gas by payload size
+│   │   ├── FeeQuoter.spec.ts # Fee validation at its min value, FeeQuoter gas by payload size
 │   │   └── config.ts         # Payload sizes and builders
 │   └── tokens/           # Token transfer flows, per pool type (LockRelease, BurnMint)
-│       ├── OnRamp.spec.ts    # OnRamp account deployment, deposit, CCIPSend with tokens, data size sweep
+│       ├── OnRamp.spec.ts    # OnRamp account deployment, deposit, CCIPSend with tokens at its min value, data size sweep
 │       ├── OffRamp.spec.ts   # Execute of token transfers (new/existing receiver account, gasLimit 0, max payload)
 │       ├── pools.ts          # CCT jetton + token pool fixture
 │       ├── TokenAdminRegistryFlows.spec.ts, TokenInfoQuery.spec.ts, JettonWalletQuery.spec.ts

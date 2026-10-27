@@ -320,38 +320,30 @@ struct (0xb980cb4e) Router_TokenPoolReleaseOrMintFailed {
 // Costs associated with Router operations
 struct Router_Costs {}
 
-// Minimum value for calling Router_CCIPSend
-fun Router_Costs.CCIPSend(): int {
+// Constants are 5x the cost measured by tests/gas-report/ccip for a MAX_DATA_CELLS message.
+
+// Minimum value for calling Router_CCIPSend, on top of the validated fee.
+fun Router_Costs.CCIPSend(hasTokens: bool): int {
     return
-        + grams("0.001") // computeFee
-        + grams("0.019") // CCIPSend fwdFee
-        + OnRamp_Costs.Send()
-        // TODO add TokenTransfer costs
+        + grams("0.1") // computeFee + OnRamp_Send fwdFee
+        + OnRamp_Costs.Send(hasTokens)
         ;
 }
 
 // Minimum value for calling Router_MessageSent
 fun Router_Costs.MessageSent(): int {
-    return
-        + grams("0.002") // computeFee
-        + grams("0.019") // CCIPSendACK fwdFee
-        ;
-
+    return grams("0.0025"); // computeFee + CCIPSendACK fwdFee
 }
 
 // Minimum value for calling Router_MessageRejected
 fun Router_Costs.MessageRejected(): int {
-    return
-        + grams("0.002") // computeFee
-        + grams("0.019") // CCIPSendNACK fwdFee
-        ;
+    return grams("0.0025"); // computeFee + CCIPSendNACK fwdFee
 }
 
 // Minimum value for calling Router_GetValidatedFee
 fun Router_Costs.GetValidatedFee(): int {
     return
-        grams("0.002") // computeFee
-        + grams("0.019") // GetValidatedFee fwdFee
+        + grams("0.1") // computeFee + GetValidatedFee fwdFee
         + OnRamp_Costs.GetValidatedFee()
         + max(
             Router_Costs.MessageValidated(),
@@ -361,17 +353,11 @@ fun Router_Costs.GetValidatedFee(): int {
 }
 
 fun Router_Costs.MessageValidated(): int {
-    return
-        + grams("0.002") // computeFee
-        + grams("0.019") // MessageValidated fwdFee
-        ;
+    return grams("0.1"); // computeFee + MessageValidated fwdFee (echoes the message)
 }
 
 fun Router_Costs.MessageValidationFailed(): int {
-    return
-        + grams("0.002") // computeFee
-        + grams("0.019") // MessageValidationFailed fwdFee
-        ;
+    return grams("0.1"); // computeFee + MessageValidationFailed fwdFee (echoes the message)
 }
 
 // Minimum value for calling Router_RouteMessage
@@ -386,12 +372,16 @@ fun Router_Costs.receiveConfirm(): int {
     return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
 }
 
-// Minimum value for calling Router_GetOnRampAccount: covers the Router's own compute,
-// the Deployable_Initialize + DepositAccount_Init messages, the account's init compute and
-// storage, the account's TEP-89 wallet query, and the DepositAccount_Initialized ->
-// Router_UseOnRampAccount round-trip.
+// Minimum value for calling Router_GetOnRampAccount: the Router's own compute and the two
+// deployment messages, the account's storage reserve, its init (including the TEP-89 wallet
+// query) and the DepositAccount_Initialized -> Router_UseOnRampAccount round trip.
 fun Router_Costs.GetOnRampAccount(): int {
-    return DepositAccount_MIN_GRAM_TO_RESERVE + DepositAccount_MIN_GRAM_TO_INIT + DepositAccount_WALLET_QUERY_VALUE + grams("0.01"); // TODO re-estimate fee of messages processed by the Router
+    return
+        + grams("0.0115") // computeFee + Deployable_Initialize and DepositAccount_Init fwdFees
+        + DepositAccount_MIN_GRAM_TO_RESERVE
+        + DepositAccount_MIN_GRAM_TO_INIT
+        + DepositAccount_WALLET_QUERY_VALUE
+        ;
 }
 
 const ROUTER_RECEIVE_CONFIRM_FEE = grams("0.002");

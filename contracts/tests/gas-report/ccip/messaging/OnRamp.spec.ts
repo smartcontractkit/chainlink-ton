@@ -2,13 +2,13 @@ import { Blockchain, SandboxContract, SendMessageResult, TreasuryContract } from
 import { toNano, Address, Cell } from '@ton/core'
 import * as or from '../../../../wrappers/gen/ccip/OnRamp'
 import * as rt from '../../../../wrappers/gen/ccip/Router'
-import { createCursePolicy } from '../../../../wrappers/ccip/Router'
+import { Costs, createCursePolicy } from '../../../../wrappers/ccip/Router'
 import * as fq from '../../../../wrappers/gen/ccip/FeeQuoter'
 import * as deployable from '../../../../wrappers/libraries/Deployable'
 import '@ton/test-utils'
 import { NATIVE_GRAM } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
-import { createExtraArgs, createPayload, LANE_MAX_DATA_BYTES, SEND_DATA_SIZE_SWEEP } from './config'
+import { createExtraArgs, createPayload, HARD_MAX_DATA_BYTES, SEND_DATA_SIZE_SWEEP } from './config'
 import { AddressBook, GasReport, gasReportConfig } from '../../utils'
 import { getValidatedFee } from '../../../../src/ccipSend/fee'
 import { contractCode } from '../../../../wrappers/codeLoader'
@@ -51,7 +51,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
           destChainConfig: fq.FeeQuoterDestChainConfig.create({
             isEnabled: true,
             maxNumberOfTokensPerMsg: 0n,
-            maxDataBytes: 20000n,
+            maxDataBytes: 40000n,
             maxPerMsgGasLimit: 100000n,
             destGasOverhead: 0n,
             destGasPerPayloadByteBase: 0n,
@@ -150,7 +150,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
       extraArgs: rt.GenericExtraArgsV2.fromSlice(createExtraArgs().beginParse()),
     })
     const fee = await getValidatedFee(blockchain, router.address, msg)
-    return router.sendRouterCCIPSend(sender.getSender(), fee + toNano('1'), msg)
+    return router.sendRouterCCIPSend(sender.getSender(), fee + Costs.ccipSend, msg)
   }
 
   function nameExecutor(result: SendMessageResult) {
@@ -177,11 +177,12 @@ describe('CCIP OnRamp Gas Estimation', () => {
     })
   }
 
-  it(`should measure message passing with ${LANE_MAX_DATA_BYTES} bytes of data`, async () => {
+  it(`should measure message passing with ${HARD_MAX_DATA_BYTES} bytes of data`, async () => {
     const { result } = await report.measure('CCIPSend + Max Payload', {
-      run: () => ccipSend(createPayload(LANE_MAX_DATA_BYTES)),
+      run: () => ccipSend(createPayload(HARD_MAX_DATA_BYTES)),
       book,
       discover: nameExecutor,
+      budget: Costs.ccipSend,
     })
     expectACK(result)
   })
@@ -192,6 +193,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
         run: () => ccipSend(createPayload(size)),
         book,
         discover: nameExecutor,
+        budget: Costs.ccipSend,
       })
       expectACK(result)
     }

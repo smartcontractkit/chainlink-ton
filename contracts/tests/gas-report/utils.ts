@@ -61,7 +61,7 @@ export const ownFee = (tx: BlockchainTransaction) =>
 export const txFee = (tx: BlockchainTransaction) => inForwardFee(tx) + ownFee(tx)
 
 export const storageFee = (tx: BlockchainTransaction) =>
-  tx.description.type === 'generic' ? tx.description.storagePhase?.storageFeesCollected ?? 0n : 0n
+  tx.description.type === 'generic' ? (tx.description.storagePhase?.storageFeesCollected ?? 0n) : 0n
 
 export const op = (tx: BlockchainTransaction) => {
   const body = tx.inMessage!.body.beginParse()
@@ -212,7 +212,7 @@ function summarizeHop(
 
   return {
     index,
-    parent: tx.parent ? indexOf.get(tx.parent) ?? null : null,
+    parent: tx.parent ? (indexOf.get(tx.parent) ?? null) : null,
     children: tx.children
       .map((child) => indexOf.get(child))
       .filter((i): i is number => i !== undefined),
@@ -442,7 +442,10 @@ export class GasReport {
   readonly gasPrice: bigint
   readonly flows: FlowSummary[] = []
 
-  constructor(readonly name: string, readonly blockchain: Blockchain) {
+  constructor(
+    readonly name: string,
+    readonly blockchain: Blockchain,
+  ) {
     this.gasPrice = gasPrice(blockchain)
   }
 

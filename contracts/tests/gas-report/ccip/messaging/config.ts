@@ -5,14 +5,15 @@ import { asSnakedCell } from '../../../../src/utils'
 // `MaxDataBytes` of the FeeQuoter dest chain config TON lanes are deployed with
 // (deployment/ccip/1_6_0/sequences/connect_chains.go).
 export const LANE_MAX_DATA_BYTES = 2000
-// FeeQuoter rejects data over 128 cells; 127 bytes fit in a cell.
-export const HARD_MAX_DATA_BYTES = 128 * 127
-export const SEND_DATA_SIZE_SWEEP = [0, LANE_MAX_DATA_BYTES, 8000, HARD_MAX_DATA_BYTES]
+// The contracts reject data over MAX_DATA_CELLS (lib/utils.tolk); 127 bytes fit in a cell. The
+// CCIP min values are calibrated for a message of this size.
+export const HARD_MAX_DATA_BYTES = 256 * 127
+export const SEND_DATA_SIZE_SWEEP = [0, LANE_MAX_DATA_BYTES, 8000, 16256, HARD_MAX_DATA_BYTES]
 export const MAX_EXTRA_ARGS_SIZE = 500 // bytes
 export const MESSAGE_COUNT_IN_COMMIT = 10 // messages per commit report
 
 export function createMaxPayload(): Cell {
-  return createPayload(LANE_MAX_DATA_BYTES)
+  return createPayload(HARD_MAX_DATA_BYTES)
 }
 
 // Snake of 127-byte cells filled with 0xff.

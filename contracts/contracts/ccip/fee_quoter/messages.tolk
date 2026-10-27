@@ -74,11 +74,12 @@ struct (0x5DFBB1BC) FeeQuoter_RemovePriceUpdater {
 // Costs associated with FeeQuoter operations
 struct FeeQuoter_Costs {}
 
-// Minimum value for calling FeeQuoter_GetValidatedFee
+// Minimum value for calling FeeQuoter_GetValidatedFee: 5x the measured cost for a MAX_DATA_CELLS
+// message, whose reply echoes it.
 fun FeeQuoter_Costs.GetValidatedFee(): int {
-    return 
-        + grams("0.05") // computeFee
-        + grams("0.019") // MessageValidated | MessageValidationFailed fwdFee
+    return
+        + grams("0.025") // computeFee
+        + grams("0.1") // MessageValidated | MessageValidationFailed fwdFee
         ;
 }
 

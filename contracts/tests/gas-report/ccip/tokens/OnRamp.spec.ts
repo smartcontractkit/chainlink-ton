@@ -11,6 +11,8 @@ import * as deployable from '../../../../wrappers/libraries/Deployable'
 import * as fq from '../../../../wrappers/gen/ccip/FeeQuoter'
 import * as or from '../../../../wrappers/gen/ccip/OnRamp'
 import * as rt from '../../../../wrappers/gen/ccip/Router'
+import { Costs } from '../../../../wrappers/ccip/Router'
+import { Costs as RegistryCosts } from '../../../../wrappers/ccip/TokenAdminRegistry'
 import * as tar from '../../../../wrappers/gen/ccip/TokenAdminRegistry'
 import { JettonWallet } from '../../../../wrappers/gen/ccip/cct/JettonWallet'
 import { setup } from '../../../ccip/router/Router.Setup'
@@ -20,16 +22,13 @@ import { AddressBook, GasReport, gasReportConfig } from '../../utils'
 import {
   createExtraArgs,
   createPayload,
-  LANE_MAX_DATA_BYTES,
+  HARD_MAX_DATA_BYTES,
   SEND_DATA_SIZE_SWEEP,
 } from '../messaging/config'
 import { deployTokenWithPool, POOL_KINDS, TokenWithPool } from './pools'
 
 const DEST_CHAIN_SELECTOR = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 const TOKEN_AMOUNT = toNano('5')
-// Covers the fixed values the contracts attach to each hop (1 TON for LockOrBurn, 0.5 TON
-// forwarded with the withdraw); the unused part is refunded with the ACK.
-const CCIP_SEND_EXECUTION_VALUE = toNano('3')
 
 const jestConsole = console
 
@@ -84,7 +83,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
             destChainConfig: fq.FeeQuoterDestChainConfig.create({
               isEnabled: true,
               maxNumberOfTokensPerMsg: 1n,
-              maxDataBytes: 20000n,
+              maxDataBytes: 40000n,
               maxPerMsgGasLimit: 100000n,
               destGasOverhead: 0n,
               destGasPerPayloadByteBase: 0n,
@@ -229,7 +228,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       extraArgs: rt.GenericExtraArgsV2.fromSlice(createExtraArgs().beginParse()),
     })
     const fee = await getValidatedFee(blockchain, router.address, msg)
-    return router.sendRouterCCIPSend(sender.getSender(), fee + CCIP_SEND_EXECUTION_VALUE, msg)
+    return router.sendRouterCCIPSend(sender.getSender(), fee + Costs.ccipSendWithTokens, msg)
   }
 
   function expectACK(result: SendMessageResult) {
@@ -268,20 +267,25 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
 
     // The pool's jetton wallet returns the jetton excesses to the Router, which has no handler for
     // them (exit 65535, non-bounceable), so the Router keeps that TON on every token send.
+    // The registry query and the pool value are budgeted by their own contracts.
+    const ccipSendBudget =
+      Costs.ccipSendWithTokens - RegistryCosts.getTokenInfo - Costs.lockOrBurnValue
     const sendFlow = (data: Cell) => ({
       run: () => ccipSend(token, data),
       book,
       discover: nameExecutor,
       aborts: ['PoolWallet->Router'],
+      budget: ccipSendBudget,
     })
 
     it('should measure OnRamp account deployment', async () => {
       const { result } = await report.measure(`${kind}: Get OnRamp Account`, {
         run: () =>
-          router.sendRouterGetOnRampAccount(sender.getSender(), toNano('0.5'), {
+          router.sendRouterGetOnRampAccount(sender.getSender(), Costs.getOnRampAccount, {
             token: token.minter.address,
           }),
         book,
+        budget: Costs.getOnRampAccount - Costs.depositAccountReserve,
       })
       expect(result.transactions).toHaveTransaction({
         from: router.address,
@@ -306,11 +310,11 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       expectACK(result)
     })
 
-    it(`should measure token transfer with ${LANE_MAX_DATA_BYTES} bytes of data`, async () => {
+    it(`should measure token transfer with ${HARD_MAX_DATA_BYTES} bytes of data`, async () => {
       await deposit(token, onRampAccount)
       const { result } = await report.measure(
         `${kind}: CCIPSend Token Transfer + Max Payload`,
-        sendFlow(createPayload(LANE_MAX_DATA_BYTES)),
+        sendFlow(createPayload(HARD_MAX_DATA_BYTES)),
       )
       expectACK(result)
     })

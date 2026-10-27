@@ -1226,11 +1226,11 @@ describe('FeeQuoter GetValidatedFee', () => {
       )
     })
 
-    it('should throw InvalidMsgData error for snake data over 128 cells', async () => {
-      // create a cell chain longer than 128 cells
+    it('should throw InvalidMsgData error for snake data over 256 cells', async () => {
+      // create a cell chain longer than MAX_DATA_CELLS
       let invalidSnakeCell: Cell = Cell.EMPTY
-      for (let i = 0; i <= 129; i++) {
-        const newCell = beginCell().storeUint(i, 8).endCell()
+      for (let i = 0; i <= 257; i++) {
+        const newCell = beginCell().storeUint(i, 16).endCell()
         if (i === 0) {
           invalidSnakeCell = newCell
         } else {

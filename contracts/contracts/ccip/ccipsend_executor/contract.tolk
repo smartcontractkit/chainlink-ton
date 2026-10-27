@@ -197,7 +197,8 @@ fun senderOnRampAccount(sender: address, token: address, router: address): addre
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated) {
-    if (msg.fee.feeTokenAmount + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
+    val hasTokens = !self.onrampSend.msg.load().tokenAmounts.empty();
+    if (msg.fee.feeTokenAmount + Router_Costs.CCIPSend(hasTokens) > self.onrampSend.metadata.value) {
         self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds, NO_FEE_CHARGED);
         return;
     }
@@ -308,7 +309,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
     val addresses = lazy self.addresses.load();
     val requestLockOrBurn = createMessage({
         bounce: true,
-        value: OnRamp_ExecutorRequestsLockOrBurn.cost(),
+        value: OnRamp_ExecutorRequestsLockOrBurn.cost(TOKEN_POOL_LOCK_OR_BURN_VALUE),
         dest: addresses.onramp,
         body: OnRamp_ExecutorRequestsLockOrBurn {
             queryID: ccipSend.queryID,

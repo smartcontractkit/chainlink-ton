@@ -6,7 +6,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { assertLog } from '../../Logs'
 import { NATIVE_GRAM, generateRandomTonAddress } from '../../../src/utils'
-import { createEmptyCursePolicy } from '../../../wrappers/ccip/Router'
+import { Costs, createEmptyCursePolicy } from '../../../wrappers/ccip/Router'
 
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
@@ -24,6 +24,7 @@ import { JettonLockBox } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
 
 import { setup } from '../router/Router.Setup'
+import { getValidatedFee } from '../../../src/ccipSend/fee'
 import { buildJettonLockBox, grantLockBoxOperatorRole, initJettonLockBox } from '../helpers/lockbox'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
@@ -402,7 +403,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       })
     }
 
-    const result = await router.sendRouterCCIPSend(sender.getSender(), toNano('2'), {
+    const ccipSend = rt.Router_CCIPSend.create({
       queryID: 1n,
       destChainSelector: DestChainSelector,
       receiver: EVM_ADDRESS,
@@ -414,6 +415,12 @@ describe('CCIPSend with token transfer (e2e)', () => {
         allowOutOfOrderExecution: true,
       }),
     })
+    const fee = await getValidatedFee(blockchain, router.address, ccipSend)
+    const result = await router.sendRouterCCIPSend(
+      sender.getSender(),
+      fee + Costs.ccipSendWithTokens,
+      ccipSend,
+    )
 
     // Discover the deployed CCIPSendExecutor (first message emitted by the OnRamp).
     const executorAddress = ((): Address => {

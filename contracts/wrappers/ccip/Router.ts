@@ -4,6 +4,7 @@ import { crc32 } from 'zlib'
 import { errorCode, facilityId } from '../utils'
 import { contractCode } from '../codeLoader'
 import * as rt from '../gen/ccip/Router'
+import { Costs as RegistryCosts } from './TokenAdminRegistry'
 
 export const ARTIFACT_NAME = 'Router'
 
@@ -119,4 +120,70 @@ export const opcodes = {
     rmnRemoteVerifyNotCursedResponse: 0x22ba83b3,
   },
 }
-export const ccipSendCost = toNano('3') // TODO this should be calculated based on the message size and gas limit, but for now we use a fixed value
+/** Mirrors the CCIPSend-path cost functions in Tolk (Router_Costs, OnRamp_Costs, SendExecutor_Costs,
+ * FeeQuoter_Costs): 5x the cost measured by the gas report for a MAX_DATA_CELLS message. */
+export const Costs = (() => {
+  const max = (a: bigint, b: bigint) => (a > b ? a : b)
+  const feeQuoterGetValidatedFee = toNano('0.025') + toNano('0.1')
+  const messageSent = toNano('0.0025')
+  const messageRejected = toNano('0.0025')
+  const executorFinishedSuccessfully = toNano('0.105') + messageSent
+  const executorFinishedWithError = toNano('0.105') + messageRejected
+  const executorFinalize =
+    toNano('0.1') + max(executorFinishedSuccessfully, executorFinishedWithError)
+  const executorReserveFee = toNano('0.0025')
+  const executorDeploy = toNano('0.1')
+  const executorExecute = toNano('0.1') + feeQuoterGetValidatedFee + toNano('0.004')
+  const lockOrBurnValue = toNano('1')
+  const lockOrBurnRelay =
+    toNano('0.0035') +
+    toNano('0.004') +
+    toNano('0.0065') +
+    toNano('0.005') +
+    toNano('0.004') +
+    toNano('0.003')
+  const executorRequestsLockOrBurn = lockOrBurnRelay + lockOrBurnValue
+  const executorTokenTransfer =
+    RegistryCosts.getTokenInfo + toNano('0.005') + executorRequestsLockOrBurn
+  const executorReserve = (hasTokens: boolean) =>
+    executorReserveFee +
+    toNano('0.004') +
+    (hasTokens ? executorTokenTransfer : 0n) +
+    executorFinalize
+  const onRampSend = (hasTokens: boolean) =>
+    toNano('0.12') + executorDeploy + executorExecute + executorReserve(hasTokens)
+  const ccipSend = (hasTokens: boolean) => toNano('0.1') + onRampSend(hasTokens)
+  const onRampGetValidatedFee = toNano('0.1') + feeQuoterGetValidatedFee + toNano('0.1')
+  const depositAccountReserve = toNano('0.05')
+  const depositAccountInit = toNano('0.008')
+  const depositAccountWalletQuery = toNano('0.005')
+  return {
+    feeQuoterGetValidatedFee,
+    messageSent,
+    messageRejected,
+    executorFinishedSuccessfully,
+    executorFinishedWithError,
+    executorReserveFee,
+    executorDeploy,
+    executorExecute,
+    executorReserve: executorReserve(false),
+    executorReserveWithTokens: executorReserve(true),
+    lockOrBurnValue,
+    lockOrBurnRelay,
+    executorRequestsLockOrBurn,
+    onRampSend: onRampSend(false),
+    onRampSendWithTokens: onRampSend(true),
+    ccipSend: ccipSend(false),
+    ccipSendWithTokens: ccipSend(true),
+    onRampGetValidatedFee,
+    getValidatedFee: toNano('0.1') + onRampGetValidatedFee + toNano('0.1'),
+    depositAccountReserve,
+    depositAccountInit,
+    depositAccountWalletQuery,
+    getOnRampAccount:
+      toNano('0.0115') + depositAccountReserve + depositAccountInit + depositAccountWalletQuery,
+  }
+})()
+
+/** Min value of a CCIPSend without tokens, on top of the validated fee. */
+export const ccipSendCost = Costs.ccipSend

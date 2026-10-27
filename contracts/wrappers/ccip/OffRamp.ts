@@ -2,6 +2,7 @@ import { Cell, toNano } from '@ton/core'
 import { contractCode } from '../codeLoader'
 import { crc32 } from 'zlib'
 import { errorCode, facilityId } from '../utils'
+import { Costs } from './Router'
 
 export const ARTIFACT_NAME = 'OffRamp'
 export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<Cell>> = {
@@ -17,6 +18,7 @@ export const EXECUTE_COST = toNano('0.5') // TODO
 export const DEFAULT_MIN_GASLIMIT = toNano('0.025')
 // LockRelease_LockBox needs LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE
 export const DEFAULT_MIN_TT_GASLIMIT = toNano('0.2')
-export const OFFRAMP_RELEASE_OR_MINT_COST = toNano('0.07') + toNano('0.02') // TODO; 0.02 is DepositAccount_WALLET_QUERY_VALUE
+/** Mirrors OffRamp_ReleaseOrMint.cost(): the OffRamp relay plus the deposit account wallet query. */
+export const OFFRAMP_RELEASE_OR_MINT_COST = toNano('0.07') + Costs.depositAccountWalletQuery
 /** Mirrors OffRamp_Costs.notify(): OffRamp notify fee plus MerkleRoot_Costs.markState(). */
 export const OFFRAMP_NOTIFY_COST = toNano('0.004') + toNano('0.005')
