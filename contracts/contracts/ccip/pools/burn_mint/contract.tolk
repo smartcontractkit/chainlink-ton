@@ -13,7 +13,6 @@ import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/funding/jetton_withdrawable"
-import "../../../lib/budget/min_value"
 
 import "../../common/types"
 import "../../cct/messages"
@@ -192,7 +191,7 @@ fun onLockOrBurnTransferContinue(
         JettonFees.Reference.transferValue(0, fwdFee),
         JettonFees.Reference.burnValue(fwdFee, true)
     ) + TokenPool_Costs.finalization();
-    assertMinValue(safety, minValue, TokenPool_Error.InsufficientMessageValue);
+    assert(safety >= minValue, TokenPool_Error.InsufficientMessageValue);
 
     val burn = createMessage(burnOpts);
     burn.send(sendMode);
@@ -274,7 +273,7 @@ fun onReleaseOrMintContinue(
     val w = contract.getAddress().getWorkchain();
     val gasFee = calculateGasFee(w, getGasConsumedAtTheMoment() + BurnMintTokenPool_MINT_SEND_GAS_UNITS);
     val minValue = mintOpts.value + fwdFee + gasFee;
-    assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
+    assert(msgValue >= minValue, TokenPool_Error.InsufficientMessageValue);
 
     val mint = createMessage(mintOpts);
     mint.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
@@ -290,7 +289,7 @@ fun onClaimMinterAdmin(
     msgValue: coins,
     queryId: uint64,
 ) {
-    assertMinValue(msgValue, TokenPool_Costs.admin(), TokenPool_Error.InsufficientMessageValue);
+    assert(msgValue >= TokenPool_Costs.admin(), TokenPool_Error.InsufficientMessageValue);
 
     st.poolData.load().adminConfig.load().ownable.load().requireOwner(sender);
 

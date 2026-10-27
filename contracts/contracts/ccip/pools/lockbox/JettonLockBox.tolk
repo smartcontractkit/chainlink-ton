@@ -9,8 +9,7 @@ import "../../../lib/access/access_control"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/forward_payload_wrap"
-import "../../../lib/budget/gas"
-import "../../../lib/budget/min_value"
+import "../../../lib/gas"
 
 import "../lib/token_pool/jetton_fees"
 
@@ -335,7 +334,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     val w = contract.getAddress().getWorkchain();
     val minValue = JettonFees.Reference.transferValue(forwardTonAmount, fwdFee)
         + calculateGasFee(w, JettonLockBox_WITHDRAW_GAS_UNITS);
-    assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
+    assert(msgValue >= minValue, JettonLockBox_Error.NotEnoughValue);
 
     val transfer = createMessage(transferOpts);
     transfer.send(sendMode);

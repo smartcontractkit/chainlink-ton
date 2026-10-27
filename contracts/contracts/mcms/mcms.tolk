@@ -2,8 +2,7 @@
 tolk 1.4.2
 
 import "../lib/utils";
-import "../lib/budget/gas";
-import "../lib/budget/min_value";
+import "../lib/gas";
 import "../lib/secp256k1";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/crypto/merkle_proof.tolk";
@@ -736,7 +735,7 @@ fun MCMS<T>.setRoot(
     metadataProof: SnakedCell<uint256>,
     signatures: SnakedCell<Signature>,
 ) {
-    assertMinValue(value, MCMS_Costs.setRoot(), MCMS_Error.InsufficientFee);
+    assert(value >= MCMS_Costs.setRoot(), MCMS_Error.InsufficientFee);
 
     if (validUntil < blockchain.now()) {
         throw MCMS_Error.ValidUntilHasAlreadyPassed;
@@ -963,9 +962,7 @@ fun MCMS<T>.execute(
     op: Op,
     proof: SnakedCell<uint256>,
 ) {
-    // Verify value covers the fee
-    // covers the execute cost and the op.value floor; fans out to the target
-    assertMinValue(value, MCMS_Costs.execute(), MCMS_Error.InsufficientFee);
+    assert(value >= MCMS_Costs.execute(), MCMS_Error.InsufficientFee);
 
     // Unpack the root info from the contract data
     val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
@@ -1000,7 +997,7 @@ fun MCMS<T>.execute(
 
     // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
     // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-    assertMinValue(op.value, calculateGasFeeDefault(), MCMS_Error.InsufficientValue);
+    assert(op.value >= calculateGasFeeDefault(), MCMS_Error.InsufficientValue);
 
     // verify that the op exists in the merkle tree
     // @dev we use the standard sha256 hash function to hash the leaf.
@@ -1087,7 +1084,7 @@ fun MCMS<T>.setConfig(
 ) {
     self.data.ownable.requireOwner(sender);
 
-    assertMinValue(value, MCMS_Costs.setConfig(), MCMS_Error.InsufficientFee);
+    assert(value >= MCMS_Costs.setConfig(), MCMS_Error.InsufficientFee);
 
     // Validate input lengths
     var signerAddrsIterator = signerAddresses.iter();
@@ -1324,7 +1321,7 @@ fun MCMS<T>.submitErrorReport(
         throw MCMS_Error.UnauthorizedOracle;
     }
 
-    assertMinValue(value, MCMS_Costs.submitErrorReport(), MCMS_Error.InsufficientFee);
+    assert(value >= MCMS_Costs.submitErrorReport(), MCMS_Error.InsufficientFee);
 
     // Check if right environment via chainId
     if (op.chainId != globalId() as int256) {

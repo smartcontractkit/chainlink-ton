@@ -2,8 +2,7 @@
 tolk 1.4.2
 
 import "../lib/utils";
-import "../lib/budget/gas";
-import "../lib/budget/min_value";
+import "../lib/gas";
 import "../lib/access/access_control";
 
 const Timelock_FACILITY_NAME = "link.chain.ton.mcms.Timelock";
@@ -748,8 +747,7 @@ fun Timelock<T>.init(
     // Check that the contract is not already initialized
     assert(!self.isInitialized()) throw Timelock_Error.ContractAlreadyInitialized;
 
-    // must cover the init cost and rent reserve
-    assertMinValue(value, Timelock_Costs.init(), Timelock_Error.InsufficientFee);
+    assert(value >= Timelock_Costs.init(), Timelock_Error.InsufficientFee);
 
     var rbac = self.hookTrait__AccessControl();
 
@@ -838,7 +836,7 @@ fun Timelock<T>.scheduleBatch(
 
         // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
         // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-        assertMinValue(call.value, calculateGasFeeDefault(), Timelock_Error.InsufficientValue);
+        assert(call.value >= calculateGasFeeDefault(), Timelock_Error.InsufficientValue);
 
         val body = Timelock_CallScheduled{
             queryId,
@@ -854,7 +852,7 @@ fun Timelock<T>.scheduleBatch(
         index += 1;
     }
 
-    assertMinValue(value, Timelock_Costs.scheduleBatch(index), Timelock_Error.InsufficientFee);
+    assert(value >= Timelock_Costs.scheduleBatch(index), Timelock_Error.InsufficientFee);
 
     val reply = createMessage({
         bounce: false,
@@ -963,7 +961,7 @@ fun Timelock<T>.executeBatch(
         index += 1;
     }
 
-    assertMinValue(value, Timelock_Costs.executeBatch(index), Timelock_Error.InsufficientFee);
+    assert(value >= Timelock_Costs.executeBatch(index), Timelock_Error.InsufficientFee);
 
     self.afterCall(id);
 
@@ -1216,7 +1214,7 @@ fun Timelock<T>.bypasserExecuteBatch(
         index += 1;
     }
 
-    assertMinValue(value, Timelock_Costs.bypasserExecuteBatch(index), Timelock_Error.InsufficientFee);
+    assert(value >= Timelock_Costs.bypasserExecuteBatch(index), Timelock_Error.InsufficientFee);
 
     val reply = createMessage({
         bounce: false,
@@ -1270,7 +1268,7 @@ fun Timelock<T>.submitErrorReport(
 ) {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
 
-    assertMinValue(value, Timelock_Costs.submitErrorReport(), Timelock_Error.InsufficientFee);
+    assert(value >= Timelock_Costs.submitErrorReport(), Timelock_Error.InsufficientFee);
 
     // Only the oracle can submit error reports
     val rbac = self.hookTrait__AccessControl();

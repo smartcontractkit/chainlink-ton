@@ -11,8 +11,7 @@ import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/funding/jetton_withdrawable"
-import "../../../lib/budget/min_value"
-import "../../../lib/budget/gas"
+import "../../../lib/gas"
 
 
 import "../../common/types"
@@ -173,11 +172,11 @@ fun onLockOrBurnTransferContinue(
     val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
     val fwdFee = createMessage(transferOpts).estimateFeeWithoutSending(sendMode);
 
-    // `S` is the last custody phase's budget; it must cover the reference transfer plus the
+    // `S` is the custody phase's budget; it must cover the reference transfer plus the
     // finalization it may have to fund after custody moves.
     val minValue = JettonFees.Reference.transferValue(0, fwdFee)
         + TokenPool_Costs.finalization(); // T + max(F0, F1) = T + F
-    assertMinValue(safety, minValue, TokenPool_Error.InsufficientMessageValue);
+    assert(safety >= minValue, TokenPool_Error.InsufficientMessageValue);
 
     val transfer = createMessage(transferOpts);
     transfer.send(sendMode);
@@ -386,7 +385,7 @@ fun onReleaseOrMintContinue(
     val safety = st.TokenPool().budget().releaseOrMint.safety;
     val minValue = JettonFees.Reference.transferValue(0, fwdFee)
         + TokenPool_Costs.finalization(); // T + max(F0, F1) = T + F
-    assertMinValue(safety, minValue, TokenPool_Error.InsufficientMessageValue);
+    assert(safety >= minValue, TokenPool_Error.InsufficientMessageValue);
 
     // The ReleaseOrMint entry emitted an inbound-rate-limit event. Reserve the pre-message balance
     // so the event and this hop are paid from the inbound admission, not the pool balance.

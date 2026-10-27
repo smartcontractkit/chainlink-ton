@@ -5,7 +5,6 @@ import "../../../gen/Deployable.code"
 import "../../../gen/DepositAccount.code"
 
 import "../../lib/utils"
-import "../../lib/budget/min_value"
 import "../../lib/funding/withdrawable"
 import "../../lib/access/ownable_2step"
 import "../../lib/access/access_control"
