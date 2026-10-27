@@ -84,13 +84,12 @@ export async function deployTokenWithPool(opts: {
         router: opts.router,
         rateLimitAdmin: deployer.address,
         feeAdmin: deployer.address,
-        allowedDepositNamespaces: opts.allowedDepositNamespaces ?? new Set(),
       }),
+      allowedDepositNamespaces: opts.allowedDepositNamespaces ?? new Set(),
       jettonClient: tp.JettonClient.create({
         masterAddress: minter.address,
         jettonWalletCode: walletCode,
       }),
-      deployableCode: await contractCode.ccip.local('Deployable'),
     }),
     localPolicy: tp.TokenPool_LocalPolicy.create({
       cursePolicy: createEmptyCursePolicy(deployer.address),

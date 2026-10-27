@@ -112,8 +112,8 @@ describe('TokenAdminRegistry flow fees', () => {
           router: fx.owner.address,
           rateLimitAdmin: null,
           feeAdmin: null,
-          allowedDepositNamespaces: new Set(),
         }),
+        allowedDepositNamespaces: new Set(),
         jettonClient: JettonClient.create({
           masterAddress: minter.address,
           jettonWalletCode: walletCode,

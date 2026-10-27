@@ -99,6 +99,7 @@ export const contractCode = {
     release_1_6_0: createContractCodeLoaderFromEnvDirectory('PATH_CONTRACTS_1_6'),
     release_1_6_1: createContractCodeLoaderFromEnvDirectory('PATH_CONTRACTS_1_6_1'),
     release_1_6_2: createContractCodeLoaderFromEnvDirectory('PATH_CONTRACTS_1_6_2'),
+    release_1_6_3: createContractCodeLoaderFromEnvDirectory('PATH_CONTRACTS_1_6_3'),
   },
 }
 

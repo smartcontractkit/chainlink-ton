@@ -419,6 +419,57 @@ export const ResponseWalletAddress = {
 }
 
 /**
+ > struct (0x2d61600c) Jetton_ForwardPayloadWrap {
+ >     initiator: address
+ >     context: cell?
+ >     forwardPayload: cell?
+ > }
+ */
+export interface Jetton_ForwardPayloadWrap {
+    readonly $: 'Jetton_ForwardPayloadWrap'
+    initiator: c.Address
+    context: c.Cell | null
+    forwardPayload: c.Cell | null
+}
+
+export const Jetton_ForwardPayloadWrap = {
+    PREFIX: 0x2d61600c,
+
+    create(args: {
+        initiator: c.Address
+        context: c.Cell | null
+        forwardPayload: c.Cell | null
+    }): Jetton_ForwardPayloadWrap {
+        return {
+            $: 'Jetton_ForwardPayloadWrap',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Jetton_ForwardPayloadWrap {
+        loadAndCheckPrefix32(s, 0x2d61600c, 'Jetton_ForwardPayloadWrap');
+        return {
+            $: 'Jetton_ForwardPayloadWrap',
+            initiator: s.loadAddress(),
+            context: s.loadBoolean() ? s.loadRef() : null,
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: Jetton_ForwardPayloadWrap, b: c.Builder): void {
+        b.storeUint(0x2d61600c, 32);
+        b.storeAddress(self.initiator);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: Jetton_ForwardPayloadWrap): c.Cell {
+        return makeCellFrom<Jetton_ForwardPayloadWrap>(self, Jetton_ForwardPayloadWrap.store);
+    }
+}
+
+/**
  > struct DepositAccount_Data {
  >     owner: address
  >     user: address
@@ -711,13 +762,13 @@ export const DepositAccount_ForwardNotification = {
 /**
  > struct (0x1936d112) DepositAccount_Withdraw {
  >     queryId: uint64
- >     ask: Cell<AskToTransfer>
+ >     ask: DepositAccount_WithdrawAskToTransfer
  > }
  */
 export interface DepositAccount_Withdraw {
     readonly $: 'DepositAccount_Withdraw'
     queryId: uint64
-    ask: AskToTransfer
+    ask: DepositAccount_WithdrawAskToTransfer
 }
 
 export const DepositAccount_Withdraw = {
@@ -725,7 +776,7 @@ export const DepositAccount_Withdraw = {
 
     create(args: {
         queryId?: uint64
-        ask: AskToTransfer
+        ask: DepositAccount_WithdrawAskToTransfer
     }): DepositAccount_Withdraw {
         return {
             $: 'DepositAccount_Withdraw',
@@ -738,16 +789,78 @@ export const DepositAccount_Withdraw = {
         return {
             $: 'DepositAccount_Withdraw',
             queryId: s.loadUintBig(64),
-            ask: loadCellRef<AskToTransfer>(s, AskToTransfer.fromSlice),
+            ask: DepositAccount_WithdrawAskToTransfer.fromSlice(s),
         }
     },
     store(self: DepositAccount_Withdraw, b: c.Builder): void {
         b.storeUint(0x1936d112, 32);
         b.storeUint(self.queryId, 64);
-        storeCellRef<AskToTransfer>(self.ask, b, AskToTransfer.store);
+        DepositAccount_WithdrawAskToTransfer.store(self.ask, b);
     },
     toCell(self: DepositAccount_Withdraw): c.Cell {
         return makeCellFrom<DepositAccount_Withdraw>(self, DepositAccount_Withdraw.store);
+    }
+}
+
+/**
+ > struct DepositAccount_WithdrawAskToTransfer {
+ >     jettonAmount: coins
+ >     transferRecipient: address
+ >     sendExcessesTo: address?
+ >     customPayload: cell?
+ >     forwardTonAmount: coins
+ >     forwardPayload: cell?
+ > }
+ */
+export interface DepositAccount_WithdrawAskToTransfer {
+    readonly $: 'DepositAccount_WithdrawAskToTransfer'
+    jettonAmount: coins
+    transferRecipient: c.Address
+    sendExcessesTo: c.Address | null
+    customPayload: c.Cell | null
+    forwardTonAmount: coins
+    forwardPayload: c.Cell | null
+}
+
+export const DepositAccount_WithdrawAskToTransfer = {
+    create(args: {
+        jettonAmount: coins
+        transferRecipient: c.Address
+        sendExcessesTo: c.Address | null
+        customPayload: c.Cell | null
+        forwardTonAmount: coins
+        forwardPayload: c.Cell | null
+    }): DepositAccount_WithdrawAskToTransfer {
+        return {
+            $: 'DepositAccount_WithdrawAskToTransfer',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): DepositAccount_WithdrawAskToTransfer {
+        return {
+            $: 'DepositAccount_WithdrawAskToTransfer',
+            jettonAmount: s.loadCoins(),
+            transferRecipient: s.loadAddress(),
+            sendExcessesTo: s.loadMaybeAddress(),
+            customPayload: s.loadBoolean() ? s.loadRef() : null,
+            forwardTonAmount: s.loadCoins(),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: DepositAccount_WithdrawAskToTransfer, b: c.Builder): void {
+        b.storeCoins(self.jettonAmount);
+        b.storeAddress(self.transferRecipient);
+        b.storeAddress(self.sendExcessesTo);
+        storeTolkNullable<c.Cell>(self.customPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+        b.storeCoins(self.forwardTonAmount);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: DepositAccount_WithdrawAskToTransfer): c.Cell {
+        return makeCellFrom<DepositAccount_WithdrawAskToTransfer>(self, DepositAccount_WithdrawAskToTransfer.store);
     }
 }
 
@@ -757,7 +870,7 @@ export const DepositAccount_Withdraw = {
  >     user: address
  >     token: address
  >     walletAddress: address
- >     ask: Cell<AskToTransfer>
+ >     request: Cell<DepositAccount_Withdraw>
  > }
  */
 export interface DepositAccount_WithdrawFailed {
@@ -766,7 +879,7 @@ export interface DepositAccount_WithdrawFailed {
     user: c.Address
     token: c.Address
     walletAddress: c.Address
-    ask: AskToTransfer
+    request: DepositAccount_Withdraw
 }
 
 export const DepositAccount_WithdrawFailed = {
@@ -777,7 +890,7 @@ export const DepositAccount_WithdrawFailed = {
         user: c.Address
         token: c.Address
         walletAddress: c.Address
-        ask: AskToTransfer
+        request: DepositAccount_Withdraw
     }): DepositAccount_WithdrawFailed {
         return {
             $: 'DepositAccount_WithdrawFailed',
@@ -793,7 +906,7 @@ export const DepositAccount_WithdrawFailed = {
             user: s.loadAddress(),
             token: s.loadAddress(),
             walletAddress: s.loadAddress(),
-            ask: loadCellRef<AskToTransfer>(s, AskToTransfer.fromSlice),
+            request: loadCellRef<DepositAccount_Withdraw>(s, DepositAccount_Withdraw.fromSlice),
         }
     },
     store(self: DepositAccount_WithdrawFailed, b: c.Builder): void {
@@ -802,7 +915,7 @@ export const DepositAccount_WithdrawFailed = {
         b.storeAddress(self.user);
         b.storeAddress(self.token);
         b.storeAddress(self.walletAddress);
-        storeCellRef<AskToTransfer>(self.ask, b, AskToTransfer.store);
+        storeCellRef<DepositAccount_Withdraw>(self.request, b, DepositAccount_Withdraw.store);
     },
     toCell(self: DepositAccount_WithdrawFailed): c.Cell {
         return makeCellFrom<DepositAccount_WithdrawFailed>(self, DepositAccount_WithdrawFailed.store);
@@ -848,17 +961,17 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class DepositAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECIQEABNcAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASATFAIBIAYHAgFIEBEEZ0+JHjAiDXLCNEhRAsnDHTP/QF+JL4l1rwA+DXLCDJtoiU4wLXLCObFoTk4wLXLCaLmqAEgICQoLAfde1E0PpI+kj6SPQE9AT0BNGCAM0UU6bHBfL0IW6CCHoSACGCCExLQHDjBKCCAM0a+CdvEIIK+vCAI6C+lAu7wwCTMTpw4hry9AiOJV8FMoIK+vCAcPsCyM+FCBP6UoIQeE2Y6c8LjhLLP/QAyYMG+wDhOIIAzRcHbhfy9IDwH61ywn////9PK/10zQ1ywgfFP1LI5d0z/6APpI+lD0BPoA+JLtRND6SDH6SPpIMMjPkD4p+pYqzws/UAn6Ahf6UlJQ+lQU9ABY+gLOycjPkpRtsuoWyz8T+lIT+lL6UhLMycjPhQgS+lJxzwtuzMmAQPsA4NcsIWO1y5wx4wIMAPAx0z8x10z4ku1E0PpIMfpIMfpIMfQE9AUiggDNFQOBAQv0Cm+hMRLy9IIAzRshbrPy9CLQ1ywgfFP1LPK/0z8x+gAx+kgx+lAwggDNFiFus5UDxwXDAJMxMnDiEvL00PpI0cjPhYj6Us+EEHP6AnHPC2XMyYBQ+wAAqNM/MfoAMfpQMfiS7UTQ+kgx+kj6SDH0AfQFIG6zmdD6SNESxwXDAJMwMXDilgHxgATaIZIxbeIB8AUByM7JyM+FCBL6UoIQtP5cDM8LjszJgED7AAL+jv0x0z8x+lAw+JLtRND6SPpI+kj0BPQE9ATRggDNGFF0xwUX8vSCAM0ZJm6z8vQmbpYwJcj6UsnfBm6zBdDTP/QE0W2CCvrwgHD7AgeOG8jPhQhSYPpSghCSk9aOzwuOEss/9ADJgwb7AOMNA8j6UhL6UvpS9AAS9AD0AMntVA0OAKrtRND6SPpI+kj0BPQE9ATRIG6SXwaOPdDTP/QE0W2CCvrwgHD7AsjPhQhSgPpSghCSk9aOzwuOE8s/9ADJgwb7AAXI+lIU+lIS+lL0APQA9ADJ7VTiADbIz4UIUmD6UoIQeE2Y6c8LjhLLP/QAyYMG+wAAEuAwhA8BxwDy9ACOJMjLPxT0AMkCyPpS+lJSIPpSFPQAFPQAEvQAye1UgghMS0D4KMjPhYgU+lIB+gLPgXP6AoIQLHa5c88Lhcs/+lLPgclx+wABKztou37lVtt2zEw7eO6iu1B7fEB8v+ASAA0IW6RMeAwgAN4g9AQhbpgxIMcAkjBt4JLR0OIgbrOTyM7JkjBt4gH0BCFumDEgxwCSMG3gktHQ4iBulTBtbW1wjhfXLCFrCwBkmfpI9AT0BYEAhOAwbW1tcOJsIpExkTDiIG6UMG3bMeDQ1ywkRwd59PK/+kjR2zECASAVFgIBIBscAgEgFxgCAUgZGgBttivxoVNjS3NZcxtDC0txc6N7cXMbG0uBcwsbG3urc6FyIyuDe5tLogsbG3urc6QRamBcYlxhEAAbtcUQQBmilAQQgfd+UJAAC7GhYECDYAAhs0I7UTQ+kgx+kgx+kgx9AWAAEbjontRND6SDCAIBIB0eAgHLHyAAO7YKPaiaH0kGP0kGP0kGPoA+gKQN0kYNspofSRo8UAAbuF7UTQ+kgx+kgx+kgwgAFb6+1E0PpIMfpIMI');
+    static CodeCell = c.Cell.fromBase64('te6ccgECIwEABRoAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASAVFgIBIAYHAgFIEhMC90+JGO9dcsJ/////Tyv9dM0NcsIHxT9SzjAtcsIWO1y5wxjlXtRND6SPpI+kj0BPQE9ATRIG6SXwaOPdDTP/QE0W2CCvrwgHD7AsjPhQhSgPpSghCSk9aOzwuOE8s/9ADJgwb7AAXI+lIU+lIS+lL0APQA9ADJ7VTi4OAggICQH3XtRND6SPpI+kj0BPQE9ATRggDNFFOmxwXy9CFuggh6EgAhgghMS0Bw4wSgggDNGvgnbxCCCvrwgCOgvpQLu8MAkzE6cOIa8vQIjiVfBTKCCvrwgHD7AsjPhQgT+lKCEHhNmOnPC44Syz/0AMmDBvsA4TiCAM0XB24X8vSBEB/tM/+gAx+kgx+lAx9AQx+gAx+JLtRNAC9AQhbpgxIMcAkjBt4JLR0OIgbpUwbW1tcI4X1ywhawsAZJn6SPQE9AWBAITgMG1tbXDiMZaCAM0c8vDhggDNHCFus/L0A/pIMfpI+kgwyM+SlG2y6hbLP/pSFPpS+lLMycjPhQgS+lIKA/6J1yecMdM/9AX4kviXWvAD4NcsIMm2iJTjAtcsI5sWhOSOVNM/MfoAMfpQMfiS7UTQ+kgx+kj6SDH0AfQFIG6zmdD6SNESxwXDAJMwMXDilgHxgATaIZIxbeIB8AUByM7JyM+FCBL6UoIQtP5cDM8LjszJgED7AODXLCaLmqAECwwNABRxzwtuzMmAQPsAAAhokKIFAfzTP/oA+kj6UPQE+gD0BfiSCMjOye1E0PpIMfpIMfpIMfQE9AUqggDNFQOBAQv0Cm+hMRLy9IIAzRshbrPy9ND6SNHIz5C1hYAyGvpS9AD0AMnI9ADPUMjPkD4p+pYXyz9QBfoCE/pS+lT0AAH6As7JyM+FiBL6Us+EEHP6AnEOAv6O/THTPzH6UDD4ku1E0PpI+kj6SPQE9AT0BNGCAM0YUXTHBRfy9IIAzRkmbrPy9CZuljAlyPpSyd8GbrMF0NM/9ATRbYIK+vCAcPsCB44byM+FCFJg+lKCEJKT1o7PC44Syz/0AMmDBvsA4w0DyPpSEvpS+lL0ABL0APQAye1UDxAAEs8LZczJgFD7AAA2yM+FCFJg+lKCEHhNmOnPC44Syz/0AMmDBvsAABLgMIQPAccA8vQAjiTIyz8U9ADJAsj6UvpSUiD6UhT0ABT0ABL0AMntVIIITEtA+CjIz4WIFPpSAfoCz4Fz+gKCECx2uXPPC4XLP/pSz4HJcfsAASs7aLt+5VbbdsxMO3juortQe3xAfL/gFAANCFukTHgMIADeIPQEIW6YMSDHAJIwbeCS0dDiIG6zk8jOyZIwbeIB9AQhbpgxIMcAkjBt4JLR0OIgbpUwbW1tcI4X1ywhawsAZJn6SPQE9AWBAITgMG1tbXDibCKRMZEw4iBulDBt2zHg0NcsJEcHefTyv/pI0dsxAgEgFxgCASAdHgIBIBkaAgFIGxwAbbYr8aFTY0tzWXMbQwtLcXOje3FzGxtLgXMLGxt7q3OhciMrg3ubS6ILGxt7q3OkEWpgXGJcYRAAG7XFEEAZopQEEIH3flCQAAuxoWBAg2AAIbNCO1E0PpIMfpIMfpIMfQFgABG46J7UTQ+kgwgCASAfIAIByyEiADu2Cj2omh9JBj9JBj9JBj6APoCkDdJGDbKaH0kaPFAAG7he1E0PpIMfpIMfpIMIABW+vtRND6SDH6SDCA==');
 
     static Errors = {
         'DepositAccount_Error.OnlyOwner': 52500,
         'DepositAccount_Error.OnlyBeneficiary': 52501,
-        'DepositAccount_Error.OnlySendExcessesToSender': 52502,
         'DepositAccount_Error.InitPending': 52503,
         'DepositAccount_Error.OnlyToken': 52504,
         'DepositAccount_Error.NoPendingInit': 52505,
         'DepositAccount_Error.NotEnoughValue': 52506,
         'DepositAccount_Error.WalletUnknown': 52507,
+        'DepositAccount_Error.InvalidForwardPayload': 52508,
     }
 
     readonly address: c.Address
@@ -898,7 +1011,7 @@ export class DepositAccount implements c.Contract {
 
     static createCellOfDepositAccountWithdraw(body: {
         queryId?: uint64
-        ask: AskToTransfer
+        ask: DepositAccount_WithdrawAskToTransfer
     }) {
         return DepositAccount_Withdraw.toCell(DepositAccount_Withdraw.create(body));
     }
@@ -949,7 +1062,7 @@ export class DepositAccount implements c.Contract {
 
     async sendDepositAccountWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        ask: AskToTransfer
+        ask: DepositAccount_WithdrawAskToTransfer
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

@@ -54,4 +54,6 @@ enum DepositAccount_Error {
     NotEnoughValue
     /// Thrown when a withdraw arrives before the account learned its jetton wallet.
     WalletUnknown
+    /// Thrown when the forward payload in a transfer notification is invalid.
+    InvalidForwardPayload
 }

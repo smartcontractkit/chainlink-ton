@@ -140,6 +140,25 @@ type CCIPSend struct {
 	ExtraArgs         *cell.Cell                     `tlb:"^"`
 }
 
+type GetOnRampAccount struct {
+	_       tlb.Magic        `tlb:"#0e24d5ba" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64           `tlb:"## 64"`
+	Token   *address.Address `tlb:"addr"`
+}
+
+type UseOnRampAccount struct {
+	_       tlb.Magic        `tlb:"#f28658e0" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64           `tlb:"## 64"`
+	Account *address.Address `tlb:"addr"`
+	Token   *address.Address `tlb:"addr"`
+}
+
+type OnRampAccountFailed struct {
+	_       tlb.Magic `tlb:"#2c734db9" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64    `tlb:"## 64"`
+	Error   *big.Int  `tlb:"## 256"`
+}
+
 type RouteMessage struct {
 	_        tlb.Magic              `tlb:"#fc69c50b" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID  uint64                 `tlb:"## 64"`
@@ -199,6 +218,12 @@ type RMNRemoteUncurse struct {
 	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
 
+// RMNRemoteSyncOffRamps re-sends the current cursed subjects to every registered OffRamp.
+type RMNRemoteSyncOffRamps struct {
+	_       tlb.Magic `tlb:"#0fdd7b0f" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64    `tlb:"## 64"`
+}
+
 type RMNOwnableMessage[T ownable2step.InMessage | any] struct {
 	_       tlb.Magic                 `tlb:"#af7a9ac6" json:"-"` //nolint:revive // Ignore opcode tag
 	Content *codec.MessageEnvelope[T] `tlb:"."`
@@ -215,6 +240,9 @@ type RMNAccessControlMessage[T rbac.InMessage | any] struct {
 var TLBs = tvm.MustNewTLBMap([]any{
 	ApplyRampUpdates{},
 	CCIPSend{},
+	GetOnRampAccount{},
+	UseOnRampAccount{},
+	OnRampAccountFailed{},
 	RouteMessage{},
 	CCIPReceiveConfirm{},
 	CCIPSendACK{},
@@ -223,6 +251,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	MessageRejected{},
 	RMNRemoteCurse{},
 	RMNRemoteUncurse{},
+	RMNRemoteSyncOffRamps{},
 	// Notice: T as any to register once for all generic instances of RMNOwnableMessage
 	RMNOwnableMessage[any]{Content: nil},
 	// Notice: T as any to register once for all generic instances of RMNAccessControlMessage

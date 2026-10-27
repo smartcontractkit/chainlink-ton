@@ -64,6 +64,7 @@ export async function deployOffRampContract(
   opts?: {
     feeQuoter?: Address
     tokenAdminRegistry?: Address
+    rmnRouter?: Address
   },
 ): Promise<SandboxContract<of.OffRamp>> {
   const storage = of.Storage.create({
@@ -73,7 +74,7 @@ export async function deployOffRampContract(
     }),
     config: of.OffRamp_StorageConfig.create({
       staticConfig: of.OffRamp_StaticConfig.create({
-        rmnRouter: owner.address, // used to determine who can send RMN updates
+        rmnRouter: opts?.rmnRouter ?? owner.address, // used to determine who can send RMN updates
         tokenAdminRegistry: opts?.tokenAdminRegistry ?? owner.address,
         chainSelector: ChainSelectors.testnet.ton,
       }),
@@ -992,8 +993,8 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
                 router: this.router.address,
                 rateLimitAdmin: this.deployer.address,
                 feeAdmin: this.deployer.address,
-                allowedDepositNamespaces: new Set(),
               }),
+              allowedDepositNamespaces: new Set(),
               jettonClient: tp.JettonClient.create({
                 masterAddress: token,
                 jettonWalletCode,

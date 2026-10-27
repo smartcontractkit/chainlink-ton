@@ -31,8 +31,8 @@ type OffRamp_InMessage =
     | Router_TokenPoolReleaseOrMintFailed
     | OffRamp_NotifyFailure
     | OffRamp_NotifySuccess
-    | OffRamp_TokenTransferDelivered
     | OffRamp_UpdateCursedSubjects
+    | OffRamp_TokenTransferDelivered
     | OffRamp_SetDynamicConfig
     | OCR3Base_SetOCR3Config
     | Upgradeable_Upgrade
@@ -222,5 +222,6 @@ const OFFRAMP_COSTS_DEPOSIT_ACCOUNT_FEE = grams("0.01");
 const OFFRAMP_COSTS_TOKEN_TRANSFER_DELIVERED_FEE = grams("0.012");
 const OFFRAMP_COSTS_NOTIFY_FEE = grams("0.0035");
 const OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE = grams("0.0035");
-const OFFRAMP_COSTS_COMMIT_FEE = grams("0.0135");
+// OffRamp_Commit with a root and price updates, signature verification included.
+const OFFRAMP_COSTS_COMMIT_FEE = grams("0.018");
 const OFFRAMP_COSTS_MERKLE_ROOT_INIT_FEE = grams("0.0005");

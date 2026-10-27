@@ -48,7 +48,7 @@ export const Costs = (() => {
   const validate = (hasTokens: boolean) => toNano('0.011') + executeValidated(hasTokens)
   /** CCIP-owned part of an execution; add the message's gasLimit and destGasAmount. */
   const execute = (hasTokens: boolean) => toNano('0.02') + validate(hasTokens)
-  const updatePrices = toNano('0.025')
+  const updatePrices = toNano('0.027')
   return {
     executorDeployment,
     merkleRootDeployment,
@@ -74,7 +74,7 @@ export const Costs = (() => {
       (hasTokens ? RegistryCosts.getTokenInfo + depositAccount : 0n),
     updatePrices,
     commit: (hasRoots: boolean, hasPriceUpdates: boolean) =>
-      toNano('0.0135') +
+      toNano('0.018') +
       (hasRoots ? toNano('0.0005') + merkleRootDeployment : 0n) +
       (hasPriceUpdates ? updatePrices : 0n),
   }

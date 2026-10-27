@@ -142,9 +142,12 @@ export const FeeQuoter_MessageValidationFailed = {
 }
 
 export const ARTIFACT_NAME = 'FeeQuoter'
-export const FEE_QUOTER_SUPPORTED_PREV_VERSIONS = ['1.6.2'] as const
+export const FEE_QUOTER_SUPPORTED_PREV_VERSIONS = ['1.6.0', '1.6.1', '1.6.2', '1.6.3'] as const
 export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<c.Cell>> = {
+  '1.6.0': () => contractCode.ccip.release_1_6_0(ARTIFACT_NAME),
+  '1.6.1': () => contractCode.ccip.release_1_6_1(ARTIFACT_NAME),
   '1.6.2': () => contractCode.ccip.release_1_6_2(ARTIFACT_NAME),
+  '1.6.3': () => contractCode.ccip.release_1_6_3(ARTIFACT_NAME),
 }
 export const FEE_QUOTER_CONTRACT_VERSION = '1.7.0'
 

@@ -94,6 +94,35 @@ describe('OffRamp - Commit and OCR3 validations', () => {
       await setup.commitReport([root], OffRampCosts.commit(true, false), 0x01)
     })
 
+    it('requires the price update value only when the report carries prices', async () => {
+      await setup.setupOCRConfig()
+      const priceUpdates = of.PriceUpdates.create({
+        tokenPriceUpdates: [
+          of.TokenPriceUpdate.create({ sourceToken: generateMockTonAddress(), usdPerToken: 1n }),
+        ],
+        gasPriceUpdates: [],
+      })
+      await setup.commitReport(
+        [],
+        OffRampCosts.commit(false, true) - 1n,
+        0x01,
+        priceUpdates,
+        false,
+        of.OffRamp.Errors['OffRamp_Error.InsufficientFee'],
+      )
+      const result = await setup.commitReport(
+        [],
+        OffRampCosts.commit(false, true),
+        0x02,
+        priceUpdates,
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.feeQuoter.address,
+        success: true,
+      })
+    })
+
     it('should fail when source chain is cursed', async () => {
       const message = setup.createTestMessage()
       const metadataHash = s.getDefaultMetadataHash(

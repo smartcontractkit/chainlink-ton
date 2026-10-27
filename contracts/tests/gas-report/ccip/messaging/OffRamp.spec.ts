@@ -193,4 +193,65 @@ describe('CCIP OffRamp Gas Estimation', () => {
       success: true,
     })
   })
+
+  it('should measure a commit with a root and price updates', async () => {
+    const seq = 66n
+    const message = setup.createTestMessage(seq, seq, setup.receiver.address)
+    const root = setup.createMerkleRoot(
+      seq,
+      seq,
+      generateMessageID(message, getDefaultMetadataHash(setup.SOURCE_CHAIN_SELECTOR)),
+    )
+    book.set('MerkleRoot', setup.merkleRootAddress(root), 'ccip')
+    const priceUpdates = of.PriceUpdates.create({
+      tokenPriceUpdates: Array.from({ length: 8 }, () =>
+        of.TokenPriceUpdate.create({ sourceToken: generateMockTonAddress(), usdPerToken: 1n }),
+      ),
+      gasPriceUpdates: [
+        of.GasPriceUpdate.create({
+          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          executionGasPrice: 1n,
+          dataAvailabilityGasPrice: 1n,
+        }),
+      ],
+    })
+    const commitReport = of.CommitReport.create({ priceUpdates, merkleRoots: [root] })
+    const sequenceBytes = 6
+    const signatures = createSignatures(
+      setup.signers.slice(0, 2),
+      ocr.hashReport(of.CommitReport.toCell(commitReport), {
+        configDigest: setup.configDigest,
+        padding: 0n,
+        sequenceBytes,
+      }),
+    )
+    const { result } = await report.measure('OffRamp Commit + root + price updates', {
+      run: () =>
+        setup.offRamp.sendOffRampCommit(
+          setup.transmitters[0].getSender(),
+          Costs.commit(true, true),
+          {
+            reportContext: of.ReportContext.create({
+              configDigest: setup.configDigest,
+              sequenceBytes: BigInt(sequenceBytes),
+            }),
+            report: commitReport,
+            signatures,
+          },
+        ),
+      book,
+      budget: Costs.commit(true, true) - Costs.merkleRootDeployment,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: setup.offRamp.address,
+      to: setup.merkleRootAddress(root),
+      deploy: true,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: setup.offRamp.address,
+      to: setup.feeQuoter.address,
+      success: true,
+    })
+  })
 })
