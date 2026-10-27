@@ -52,13 +52,15 @@ struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
     originalSender: address,
 }
 
-/// Placeholder for the lock/burn value the TokenAdminRegistry will report per pool. Must stay
-/// above the Router's 0.5 TON jetton forward plus the wallet fees until that forward is removed.
-const TOKEN_POOL_LOCK_OR_BURN_VALUE: coins = grams("1");
+/// Pool-type default LockOrBurn admission (BurnMint and LockRelease, 1_575_000 gas at mainnet
+/// price). The registry reports the real one per pool; this bounds the Router's entry check,
+/// and the executor re-checks against the reported admission once it has it.
+const TOKEN_POOL_DEFAULT_LOCK_OR_BURN_ADMISSION: coins = grams("0.105");
 
 /// Value the executor attaches to a lock/burn request: the CCIP relays to and from the pool
-/// (OnRamp, Router, deposit account withdraw) plus what the pool itself requires.
-fun OnRamp_ExecutorRequestsLockOrBurn.cost(poolValue: coins): int {
+/// (OnRamp, Router, deposit account withdraw), the pool's admission as reported by the token
+/// admin registry, and the post-custody finalization the pool forwards back.
+fun OnRamp_ExecutorRequestsLockOrBurn.cost(poolAdmission: coins): coins {
     return
         + grams("0.003") // OnRamp ExecutorRequestsLockOrBurn relay
         + grams("0.0035") // Router_LockOrBurn relay
@@ -67,7 +69,8 @@ fun OnRamp_ExecutorRequestsLockOrBurn.cost(poolValue: coins): int {
         + grams("0.003") // Router_WithdrawToTokenPool relay
         + grams("0.003") // DepositAccount_Withdraw
         + grams("0.0015") // jetton excess returned to the OnRamp
-        + poolValue
+        + poolAdmission
+        + OnRamp_Costs.TokenPoolFinalization()
         ;
 }
 
@@ -216,6 +219,11 @@ fun OnRamp_Costs.ExecutorFinishedWithError(): int {
         + grams("0.0445") // computeFee + MessageRejected fwdFee
         + Router_Costs.MessageRejected()
         ;
+}
+
+/// TON the pool forwards to the executor as the caller-provided finalization/continuation.
+fun OnRamp_Costs.TokenPoolFinalization(): coins {
+    return grams("0.02");
 }
 
 // Minimum value for calling OnRamp_WithdrawFeeTokens

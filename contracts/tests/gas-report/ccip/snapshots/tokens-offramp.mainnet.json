@@ -85,12 +85,12 @@
           "gasUsed": "28586",
           "computeFee": "1905734",
           "storageFee": "0",
-          "forwardFee": "2979537",
-          "actionFee": "1059476",
-          "totalFee": "2965210",
-          "cost": "4885271",
+          "forwardFee": "3047537",
+          "actionFee": "1082142",
+          "totalFee": "2987876",
+          "cost": "4953271",
           "valueIn": "379874529",
-          "valueOut": "374989258",
+          "valueOut": "374921258",
           "retained": "0"
         },
         {
@@ -133,9 +133,9 @@
           "actionFee": "32510",
           "totalFee": "606444",
           "cost": "671468",
-          "valueIn": "364989258",
+          "valueIn": "364921258",
           "valueOut": "8000000",
-          "retained": "356317790"
+          "retained": "356249790"
         },
         {
           "index": 6,
@@ -150,14 +150,14 @@
           "actionResultCode": 0,
           "gasUsed": "5560",
           "computeFee": "370668",
-          "storageFee": "0",
+          "storageFee": "1",
           "forwardFee": "111068",
           "actionFee": "37022",
-          "totalFee": "407690",
-          "cost": "481736",
+          "totalFee": "407691",
+          "cost": "481737",
           "valueIn": "8000000",
           "valueOut": "7518264",
-          "retained": "0"
+          "retained": "-1"
         },
         {
           "index": 7,
@@ -170,16 +170,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "5147",
-          "computeFee": "343134",
-          "storageFee": "0",
-          "forwardFee": "177534",
-          "actionFee": "59177",
-          "totalFee": "402311",
-          "cost": "520668",
+          "gasUsed": "4906",
+          "computeFee": "327068",
+          "storageFee": "1",
+          "forwardFee": "189068",
+          "actionFee": "63021",
+          "totalFee": "390090",
+          "cost": "516137",
           "valueIn": "7518264",
-          "valueOut": "6997596",
-          "retained": "0"
+          "valueOut": "7002128",
+          "retained": "-1"
         },
         {
           "index": 8,
@@ -192,15 +192,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "6011",
-          "computeFee": "400734",
+          "gasUsed": "6302",
+          "computeFee": "420134",
           "storageFee": "0",
-          "forwardFee": "159801",
-          "actionFee": "53266",
-          "totalFee": "454000",
-          "cost": "560535",
-          "valueIn": "6997596",
-          "valueOut": "6437061",
+          "forwardFee": "171268",
+          "actionFee": "57088",
+          "totalFee": "477222",
+          "cost": "591402",
+          "valueIn": "7002128",
+          "valueOut": "6410726",
           "retained": "0"
         },
         {
@@ -214,16 +214,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "11136",
-          "computeFee": "742401",
+          "gasUsed": "12600",
+          "computeFee": "840001",
           "storageFee": "0",
           "forwardFee": "233268",
           "actionFee": "77754",
-          "totalFee": "820155",
-          "cost": "975669",
-          "valueIn": "6437061",
+          "totalFee": "917755",
+          "cost": "1073269",
+          "valueIn": "6410726",
           "valueOut": "235500000",
-          "retained": "-230038608"
+          "retained": "-230162543"
         },
         {
           "index": 10,
@@ -326,14 +326,14 @@
           "actionResultCode": 0,
           "gasUsed": "3298",
           "computeFee": "219868",
-          "storageFee": "0",
+          "storageFee": "1",
           "forwardFee": "97601",
           "actionFee": "32533",
-          "totalFee": "252401",
-          "cost": "317469",
+          "totalFee": "252402",
+          "cost": "317470",
           "valueIn": "5000000",
           "valueOut": "4682531",
-          "retained": "0"
+          "retained": "-1"
         },
         {
           "index": 15,
@@ -368,15 +368,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "8810",
-          "computeFee": "587334",
+          "gasUsed": "8802",
+          "computeFee": "586801",
           "storageFee": "0",
-          "forwardFee": "271134",
-          "actionFee": "90376",
-          "totalFee": "677710",
-          "cost": "858468",
+          "forwardFee": "271068",
+          "actionFee": "90354",
+          "totalFee": "677155",
+          "cost": "857869",
           "valueIn": "220872789",
-          "valueOut": "220014321",
+          "valueOut": "220014920",
           "retained": "0"
         },
         {
@@ -390,16 +390,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "44604",
-          "computeFee": "2973601",
-          "storageFee": "0",
-          "forwardFee": "526468",
-          "actionFee": "241043",
-          "totalFee": "3214644",
-          "cost": "3500069",
-          "valueIn": "220014321",
-          "valueOut": "216612586",
-          "retained": "-98334"
+          "gasUsed": "58970",
+          "computeFee": "3931334",
+          "storageFee": "1",
+          "forwardFee": "526935",
+          "actionFee": "241198",
+          "totalFee": "4172533",
+          "cost": "4458270",
+          "valueIn": "220014920",
+          "valueOut": "215556651",
+          "retained": "-1"
         },
         {
           "index": 18,
@@ -412,16 +412,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "13354",
-          "computeFee": "890268",
+          "gasUsed": "18789",
+          "computeFee": "1252601",
           "storageFee": "1",
-          "forwardFee": "936602",
-          "actionFee": "597620",
-          "totalFee": "1487889",
-          "cost": "1826871",
-          "valueIn": "216612586",
-          "valueOut": "215213850",
-          "retained": "-428135"
+          "forwardFee": "938069",
+          "actionFee": "598421",
+          "totalFee": "1851023",
+          "cost": "2190671",
+          "valueIn": "215556651",
+          "valueOut": "213365981",
+          "retained": "-1"
         },
         {
           "index": 19,
@@ -437,12 +437,12 @@
           "gasUsed": "6153",
           "computeFee": "410201",
           "storageFee": "1",
-          "forwardFee": "996668",
-          "actionFee": "332217",
-          "totalFee": "742419",
-          "cost": "1406870",
-          "valueIn": "215213850",
-          "valueOut": "213806981",
+          "forwardFee": "1017668",
+          "actionFee": "339217",
+          "totalFee": "749419",
+          "cost": "1427870",
+          "valueIn": "213365981",
+          "valueOut": "211938112",
           "retained": "-1"
         },
         {
@@ -459,12 +459,12 @@
           "gasUsed": "7481",
           "computeFee": "498734",
           "storageFee": "0",
-          "forwardFee": "586335",
-          "actionFee": "195441",
-          "totalFee": "694175",
-          "cost": "1085069",
-          "valueIn": "213806981",
-          "valueOut": "211747479",
+          "forwardFee": "586802",
+          "actionFee": "195597",
+          "totalFee": "694331",
+          "cost": "1085536",
+          "valueIn": "211938112",
+          "valueOut": "209878143",
           "retained": "974433"
         },
         {
@@ -481,12 +481,12 @@
           "gasUsed": "6652",
           "computeFee": "443468",
           "storageFee": "0",
-          "forwardFee": "488734",
-          "actionFee": "162908",
-          "totalFee": "606376",
-          "cost": "932202",
-          "valueIn": "10000000",
-          "valueOut": "9067798",
+          "forwardFee": "489201",
+          "actionFee": "163064",
+          "totalFee": "606532",
+          "cost": "932669",
+          "valueIn": "35000003",
+          "valueOut": "34067334",
           "retained": "0"
         },
         {
@@ -494,22 +494,22 @@
           "parent": 20,
           "children": [],
           "from": "ReceiverAccountWallet",
-          "to": "LockReleasePool",
-          "owner": "token",
-          "op": "CCT_ReturnExcessesBack",
+          "to": "Router",
+          "owner": "ccip",
+          "op": "ReturnExcessesBack",
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "9539",
-          "computeFee": "635934",
+          "gasUsed": "3622",
+          "computeFee": "241468",
           "storageFee": "0",
           "forwardFee": "0",
           "actionFee": "0",
-          "totalFee": "635934",
-          "cost": "635934",
-          "valueIn": "201747479",
+          "totalFee": "241468",
+          "cost": "241468",
+          "valueIn": "174878140",
           "valueOut": "0",
-          "retained": "201111545"
+          "retained": "174636672"
         },
         {
           "index": 23,
@@ -522,16 +522,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "15446",
-          "computeFee": "1029734",
+          "gasUsed": "15379",
+          "computeFee": "1025268",
           "storageFee": "0",
           "forwardFee": "405669",
           "actionFee": "135220",
-          "totalFee": "1164954",
-          "cost": "1435403",
-          "valueIn": "9067798",
-          "valueOut": "66500000",
-          "retained": "-58867605"
+          "totalFee": "1160488",
+          "cost": "1430937",
+          "valueIn": "34067334",
+          "valueOut": "88901465",
+          "retained": "-56265068"
         },
         {
           "index": 24,
@@ -551,8 +551,8 @@
           "actionFee": "54932",
           "totalFee": "541800",
           "cost": "651669",
-          "valueIn": "10500000",
-          "valueOut": "9848331",
+          "valueIn": "32901465",
+          "valueOut": "32249796",
           "retained": "0"
         },
         {
@@ -595,8 +595,8 @@
           "actionFee": "48999",
           "totalFee": "446067",
           "cost": "544069",
-          "valueIn": "9848331",
-          "valueOut": "9304262",
+          "valueIn": "32249796",
+          "valueOut": "31705727",
           "retained": "0"
         },
         {
@@ -632,16 +632,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "12788",
-          "computeFee": "852534",
+          "gasUsed": "12779",
+          "computeFee": "851934",
           "storageFee": "0",
           "forwardFee": "212602",
           "actionFee": "161756",
-          "totalFee": "1014290",
-          "cost": "1065136",
-          "valueIn": "9304262",
-          "valueOut": "8375460",
-          "retained": "-136334"
+          "totalFee": "1013690",
+          "cost": "1064536",
+          "valueIn": "31705727",
+          "valueOut": "30641191",
+          "retained": "0"
         },
         {
           "index": 29,
@@ -683,9 +683,9 @@
           "actionFee": "0",
           "totalFee": "96601",
           "cost": "96601",
-          "valueIn": "8375460",
+          "valueIn": "30641191",
           "valueOut": "0",
-          "retained": "8278859"
+          "retained": "30544590"
         },
         {
           "index": 31,
@@ -750,8 +750,8 @@
           "totalFee": "445600",
           "cost": "546402",
           "valueIn": "28277860",
-          "valueOut": "113332426",
-          "retained": "-85600968"
+          "valueOut": "138008759",
+          "retained": "-110277301"
         },
         {
           "index": 34,
@@ -771,9 +771,9 @@
           "actionFee": "121689",
           "totalFee": "610223",
           "cost": "654669",
-          "valueIn": "113332426",
+          "valueIn": "138008759",
           "valueOut": "3500000",
-          "retained": "109177757"
+          "retained": "133854090"
         },
         {
           "index": 35,
@@ -821,23 +821,23 @@
         }
       ],
       "totals": {
-        "ccip": "23367251",
-        "registry": "1562939",
-        "token": "9837418",
+        "ccip": "23769721",
+        "registry": "1589276",
+        "token": "10544353",
         "external": "1032672"
       },
       "retained": {
         "Transmitter": "-384253669",
-        "OffRamp": "127292085",
+        "OffRamp": "151968418",
         "MerkleRoot": "-9910532",
         "ReceiveExecutor": "0",
-        "TokenAdminRegistry": "0",
-        "TokenAdminRegistryEntry": "0",
-        "Router": "19315329",
+        "TokenAdminRegistry": "-1",
+        "TokenAdminRegistryEntry": "-1",
+        "Router": "193952001",
         "ReceiverAccount": "10000000",
-        "Minter": "0",
-        "LockReleasePool": "200876877",
-        "LockBox": "-428135",
+        "Minter": "-1",
+        "LockReleasePool": "-1",
+        "LockBox": "-1",
         "LockBoxWallet": "-1",
         "ReceiverAccountWallet": "974433",
         "Receiver": "-1"
@@ -848,36 +848,36 @@
           "contract": "OffRamp",
           "op": "OffRamp_Execute",
           "cost": {
-            "ccip": "23367251",
-            "registry": "1562939",
-            "token": "9837418",
+            "ccip": "23769721",
+            "registry": "1589276",
+            "token": "10544353",
             "external": "612337"
           },
-          "retained": "348120055"
+          "retained": "346984313"
         },
         {
           "hop": 2,
           "contract": "MerkleRoot",
           "op": "MerkleRoot_Validate",
           "cost": {
-            "ccip": "20677116",
-            "registry": "1562939",
-            "token": "9837418",
+            "ccip": "21079586",
+            "registry": "1589276",
+            "token": "10544353",
             "external": "612337"
           },
-          "retained": "348120055"
+          "retained": "346984313"
         },
         {
           "hop": 3,
           "contract": "OffRamp",
           "op": "OffRamp_ExecuteValidated",
           "cost": {
-            "ccip": "19741780",
-            "registry": "1562939",
-            "token": "9837418",
+            "ccip": "20144250",
+            "registry": "1589276",
+            "token": "10544353",
             "external": "612337"
           },
-          "retained": "348120055"
+          "retained": "346984313"
         },
         {
           "hop": 4,
@@ -896,48 +896,48 @@
           "contract": "ReceiveExecutor",
           "op": "ReceiveExecutor_InitExecute",
           "cost": {
-            "ccip": "14767041",
-            "registry": "1562939",
-            "token": "9837418",
+            "ccip": "15101511",
+            "registry": "1589276",
+            "token": "10544353",
             "external": "612337"
           },
-          "retained": "338209523"
+          "retained": "337073781"
         },
         {
           "hop": 9,
           "contract": "ReceiveExecutor",
           "op": "TokenAdminRegistry_TokenInfo",
           "cost": {
-            "ccip": "14095573",
+            "ccip": "14430043",
             "registry": "0",
-            "token": "9837418",
+            "token": "10544353",
             "external": "612337"
           },
-          "retained": "-18108267"
+          "retained": "-19176007"
         },
         {
           "hop": 10,
           "contract": "OffRamp",
           "op": "OffRamp_ReleaseOrMint",
           "cost": {
-            "ccip": "13119904",
+            "ccip": "13356774",
             "registry": "0",
-            "token": "9837418",
+            "token": "10544353",
             "external": "612337"
           },
-          "retained": "211930341"
+          "retained": "210986536"
         },
         {
           "hop": 11,
           "contract": "Router",
           "op": "Router_RelayReleaseOrMint",
           "cost": {
-            "ccip": "12355569",
+            "ccip": "12592439",
             "registry": "0",
-            "token": "9837418",
+            "token": "10544353",
             "external": "612337"
           },
-          "retained": "211930341"
+          "retained": "210986536"
         },
         {
           "hop": 12,
@@ -956,60 +956,72 @@
           "contract": "ReceiverAccount",
           "op": "DepositAccount_Init",
           "cost": {
-            "ccip": "9887898",
+            "ccip": "10124768",
             "registry": "0",
-            "token": "9837418",
+            "token": "10544353",
             "external": "612337"
           },
-          "retained": "202019810"
+          "retained": "201076005"
         },
         {
           "hop": 15,
           "contract": "ReceiverAccount",
           "op": "ResponseWalletAddress",
           "cost": {
-            "ccip": "9432029",
+            "ccip": "9668899",
             "registry": "0",
-            "token": "9519949",
+            "token": "10226883",
             "external": "612337"
           },
-          "retained": "-14881784"
+          "retained": "-15825588"
         },
         {
           "hop": 16,
           "contract": "Router",
           "op": "DepositAccount_Initialized",
           "cost": {
-            "ccip": "8810161",
+            "ccip": "9047031",
             "registry": "0",
-            "token": "9519949",
+            "token": "10226883",
             "external": "612337"
           },
-          "retained": "201930342"
+          "retained": "200986538"
         },
         {
           "hop": 21,
           "contract": "ReceiverAccount",
           "op": "TransferNotificationForRecipient",
           "cost": {
-            "ccip": "7951693",
+            "ccip": "7947694",
             "registry": "0",
-            "token": "1065136",
+            "token": "1064536",
             "external": "612337"
           },
-          "retained": "370834"
+          "retained": "25375436"
+        },
+        {
+          "hop": 22,
+          "contract": "Router",
+          "op": "ReturnExcessesBack",
+          "cost": {
+            "ccip": "241468",
+            "registry": "0",
+            "token": "0",
+            "external": "0"
+          },
+          "retained": "174636672"
         },
         {
           "hop": 23,
           "contract": "ReceiveExecutor",
           "op": "DepositAccount_ForwardNotification",
           "cost": {
-            "ccip": "7019491",
+            "ccip": "7015025",
             "registry": "0",
-            "token": "1065136",
+            "token": "1064536",
             "external": "612337"
           },
-          "retained": "370834"
+          "retained": "25375436"
         },
         {
           "hop": 24,
@@ -1018,10 +1030,10 @@
           "cost": {
             "ccip": "1292339",
             "registry": "0",
-            "token": "1065136",
+            "token": "1064536",
             "external": "0"
           },
-          "retained": "8142525"
+          "retained": "30544590"
         },
         {
           "hop": 25,
@@ -1042,10 +1054,10 @@
           "cost": {
             "ccip": "640670",
             "registry": "0",
-            "token": "1065136",
+            "token": "1064536",
             "external": "0"
           },
-          "retained": "8142525"
+          "retained": "30544590"
         },
         {
           "hop": 27,
@@ -1069,7 +1081,7 @@
             "token": "0",
             "external": "0"
           },
-          "retained": "8278859"
+          "retained": "30544590"
         },
         {
           "hop": 31,
@@ -1117,7 +1129,7 @@
             "token": "0",
             "external": "0"
           },
-          "retained": "111997221"
+          "retained": "136673554"
         },
         {
           "hop": 35,
@@ -1228,12 +1240,12 @@
           "gasUsed": "28586",
           "computeFee": "1905734",
           "storageFee": "0",
-          "forwardFee": "2979537",
-          "actionFee": "1059476",
-          "totalFee": "2965210",
-          "cost": "4885271",
+          "forwardFee": "3047537",
+          "actionFee": "1082142",
+          "totalFee": "2987876",
+          "cost": "4953271",
           "valueIn": "379874529",
-          "valueOut": "374989258",
+          "valueOut": "374921258",
           "retained": "0"
         },
         {
@@ -1276,9 +1288,9 @@
           "actionFee": "32510",
           "totalFee": "606444",
           "cost": "671468",
-          "valueIn": "364989258",
+          "valueIn": "364921258",
           "valueOut": "8000000",
-          "retained": "356317790"
+          "retained": "356249790"
         },
         {
           "index": 6,
@@ -1313,15 +1325,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "5147",
-          "computeFee": "343134",
+          "gasUsed": "4906",
+          "computeFee": "327068",
           "storageFee": "0",
-          "forwardFee": "177534",
-          "actionFee": "59177",
-          "totalFee": "402311",
-          "cost": "520668",
+          "forwardFee": "189068",
+          "actionFee": "63021",
+          "totalFee": "390089",
+          "cost": "516136",
           "valueIn": "7518264",
-          "valueOut": "6997596",
+          "valueOut": "7002128",
           "retained": "0"
         },
         {
@@ -1335,15 +1347,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "6011",
-          "computeFee": "400734",
+          "gasUsed": "6302",
+          "computeFee": "420134",
           "storageFee": "0",
-          "forwardFee": "159801",
-          "actionFee": "53266",
-          "totalFee": "454000",
-          "cost": "560535",
-          "valueIn": "6997596",
-          "valueOut": "6437061",
+          "forwardFee": "171268",
+          "actionFee": "57088",
+          "totalFee": "477222",
+          "cost": "591402",
+          "valueIn": "7002128",
+          "valueOut": "6410726",
           "retained": "0"
         },
         {
@@ -1357,16 +1369,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "11136",
-          "computeFee": "742401",
+          "gasUsed": "12600",
+          "computeFee": "840001",
           "storageFee": "0",
           "forwardFee": "233268",
           "actionFee": "77754",
-          "totalFee": "820155",
-          "cost": "975669",
-          "valueIn": "6437061",
+          "totalFee": "917755",
+          "cost": "1073269",
+          "valueIn": "6410726",
           "valueOut": "235500000",
-          "retained": "-230038608"
+          "retained": "-230162543"
         },
         {
           "index": 10,
@@ -1489,15 +1501,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "8810",
-          "computeFee": "587334",
+          "gasUsed": "8802",
+          "computeFee": "586801",
           "storageFee": "0",
-          "forwardFee": "271134",
-          "actionFee": "90376",
-          "totalFee": "677710",
-          "cost": "858468",
+          "forwardFee": "271068",
+          "actionFee": "90354",
+          "totalFee": "677155",
+          "cost": "857869",
           "valueIn": "221840328",
-          "valueOut": "220981860",
+          "valueOut": "220982459",
           "retained": "0"
         },
         {
@@ -1511,16 +1523,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "44374",
-          "computeFee": "2958268",
+          "gasUsed": "58740",
+          "computeFee": "3916001",
           "storageFee": "0",
-          "forwardFee": "526468",
-          "actionFee": "241043",
-          "totalFee": "3199311",
-          "cost": "3484736",
-          "valueIn": "220981860",
-          "valueOut": "217595458",
-          "retained": "-98334"
+          "forwardFee": "526935",
+          "actionFee": "241198",
+          "totalFee": "4157199",
+          "cost": "4442936",
+          "valueIn": "220982459",
+          "valueOut": "216539523",
+          "retained": "0"
         },
         {
           "index": 17,
@@ -1533,16 +1545,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "13354",
-          "computeFee": "890268",
+          "gasUsed": "18789",
+          "computeFee": "1252601",
           "storageFee": "0",
-          "forwardFee": "936602",
-          "actionFee": "597620",
-          "totalFee": "1487888",
-          "cost": "1826870",
-          "valueIn": "217595458",
-          "valueOut": "216196722",
-          "retained": "-428134"
+          "forwardFee": "938069",
+          "actionFee": "598421",
+          "totalFee": "1851022",
+          "cost": "2190670",
+          "valueIn": "216539523",
+          "valueOut": "214348853",
+          "retained": "0"
         },
         {
           "index": 18,
@@ -1558,12 +1570,12 @@
           "gasUsed": "6153",
           "computeFee": "410201",
           "storageFee": "0",
-          "forwardFee": "996668",
-          "actionFee": "332217",
-          "totalFee": "742418",
-          "cost": "1406869",
-          "valueIn": "216196722",
-          "valueOut": "214789853",
+          "forwardFee": "1017668",
+          "actionFee": "339217",
+          "totalFee": "749418",
+          "cost": "1427869",
+          "valueIn": "214348853",
+          "valueOut": "212920984",
           "retained": "0"
         },
         {
@@ -1580,12 +1592,12 @@
           "gasUsed": "7481",
           "computeFee": "498734",
           "storageFee": "0",
-          "forwardFee": "586335",
-          "actionFee": "195441",
-          "totalFee": "694175",
-          "cost": "1085069",
-          "valueIn": "214789853",
-          "valueOut": "213704784",
+          "forwardFee": "586802",
+          "actionFee": "195597",
+          "totalFee": "694331",
+          "cost": "1085536",
+          "valueIn": "212920984",
+          "valueOut": "211835448",
           "retained": "0"
         },
         {
@@ -1602,12 +1614,12 @@
           "gasUsed": "6652",
           "computeFee": "443468",
           "storageFee": "0",
-          "forwardFee": "488734",
-          "actionFee": "162908",
-          "totalFee": "606376",
-          "cost": "932202",
-          "valueIn": "10000000",
-          "valueOut": "9067798",
+          "forwardFee": "489201",
+          "actionFee": "163064",
+          "totalFee": "606532",
+          "cost": "932669",
+          "valueIn": "35000003",
+          "valueOut": "34067334",
           "retained": "0"
         },
         {
@@ -1615,22 +1627,22 @@
           "parent": 19,
           "children": [],
           "from": "ReceiverAccountWallet",
-          "to": "LockReleasePool",
-          "owner": "token",
-          "op": "CCT_ReturnExcessesBack",
+          "to": "Router",
+          "owner": "ccip",
+          "op": "ReturnExcessesBack",
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "9539",
-          "computeFee": "635934",
+          "gasUsed": "3622",
+          "computeFee": "241468",
           "storageFee": "0",
           "forwardFee": "0",
           "actionFee": "0",
-          "totalFee": "635934",
-          "cost": "635934",
-          "valueIn": "203704784",
+          "totalFee": "241468",
+          "cost": "241468",
+          "valueIn": "176835445",
           "valueOut": "0",
-          "retained": "203068850"
+          "retained": "176593977"
         },
         {
           "index": 22,
@@ -1643,16 +1655,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "15446",
-          "computeFee": "1029734",
+          "gasUsed": "15379",
+          "computeFee": "1025268",
           "storageFee": "0",
           "forwardFee": "405669",
           "actionFee": "135220",
-          "totalFee": "1164954",
-          "cost": "1435403",
-          "valueIn": "9067798",
-          "valueOut": "66500000",
-          "retained": "-58867605"
+          "totalFee": "1160488",
+          "cost": "1430937",
+          "valueIn": "34067334",
+          "valueOut": "88901465",
+          "retained": "-56265068"
         },
         {
           "index": 23,
@@ -1672,8 +1684,8 @@
           "actionFee": "54932",
           "totalFee": "541800",
           "cost": "651669",
-          "valueIn": "10500000",
-          "valueOut": "9848331",
+          "valueIn": "32901465",
+          "valueOut": "32249796",
           "retained": "0"
         },
         {
@@ -1716,8 +1728,8 @@
           "actionFee": "48999",
           "totalFee": "446067",
           "cost": "544069",
-          "valueIn": "9848331",
-          "valueOut": "9304262",
+          "valueIn": "32249796",
+          "valueOut": "31705727",
           "retained": "0"
         },
         {
@@ -1753,16 +1765,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "12788",
-          "computeFee": "852534",
-          "storageFee": "1",
+          "gasUsed": "12779",
+          "computeFee": "851934",
+          "storageFee": "0",
           "forwardFee": "212602",
           "actionFee": "161756",
-          "totalFee": "1014291",
-          "cost": "1065137",
-          "valueIn": "9304262",
-          "valueOut": "8375460",
-          "retained": "-136335"
+          "totalFee": "1013690",
+          "cost": "1064536",
+          "valueIn": "31705727",
+          "valueOut": "30641191",
+          "retained": "0"
         },
         {
           "index": 28,
@@ -1777,14 +1789,14 @@
           "actionResultCode": 0,
           "gasUsed": "6085",
           "computeFee": "405668",
-          "storageFee": "1",
+          "storageFee": "0",
           "forwardFee": "206668",
           "actionFee": "162222",
-          "totalFee": "567891",
-          "cost": "612337",
+          "totalFee": "567890",
+          "cost": "612336",
           "valueIn": "30000000",
           "valueOut": "29387664",
-          "retained": "-1"
+          "retained": "0"
         },
         {
           "index": 29,
@@ -1799,14 +1811,14 @@
           "actionResultCode": 0,
           "gasUsed": "1449",
           "computeFee": "96601",
-          "storageFee": "1",
+          "storageFee": "0",
           "forwardFee": "0",
           "actionFee": "0",
-          "totalFee": "96602",
-          "cost": "96602",
-          "valueIn": "8375460",
+          "totalFee": "96601",
+          "cost": "96601",
+          "valueIn": "30641191",
           "valueOut": "0",
-          "retained": "8278858"
+          "retained": "30544590"
         },
         {
           "index": 30,
@@ -1821,14 +1833,14 @@
           "actionResultCode": 0,
           "gasUsed": "4810",
           "computeFee": "320668",
-          "storageFee": "1",
+          "storageFee": "0",
           "forwardFee": "110334",
           "actionFee": "36777",
-          "totalFee": "357446",
-          "cost": "431003",
+          "totalFee": "357445",
+          "cost": "431002",
           "valueIn": "29387664",
           "valueOut": "28956662",
-          "retained": "-1"
+          "retained": "0"
         },
         {
           "index": 31,
@@ -1843,14 +1855,14 @@
           "actionResultCode": 0,
           "gasUsed": "6009",
           "computeFee": "400601",
-          "storageFee": "1",
+          "storageFee": "0",
           "forwardFee": "278201",
           "actionFee": "92732",
-          "totalFee": "493334",
-          "cost": "678803",
+          "totalFee": "493333",
+          "cost": "678802",
           "valueIn": "28956662",
           "valueOut": "28277860",
-          "retained": "-1"
+          "retained": "0"
         },
         {
           "index": 32,
@@ -1871,8 +1883,8 @@
           "totalFee": "445600",
           "cost": "546402",
           "valueIn": "28277860",
-          "valueOut": "113332425",
-          "retained": "-85600967"
+          "valueOut": "138008759",
+          "retained": "-110277301"
         },
         {
           "index": 33,
@@ -1892,9 +1904,9 @@
           "actionFee": "121689",
           "totalFee": "610223",
           "cost": "654669",
-          "valueIn": "113332425",
+          "valueIn": "138008759",
           "valueOut": "3500000",
-          "retained": "109177756"
+          "retained": "133854090"
         },
         {
           "index": 34,
@@ -1909,13 +1921,13 @@
           "actionResultCode": 0,
           "gasUsed": "5134",
           "computeFee": "342268",
-          "storageFee": "1",
+          "storageFee": "0",
           "forwardFee": "73334",
           "actionFee": "24444",
-          "totalFee": "366713",
-          "cost": "415603",
+          "totalFee": "366712",
+          "cost": "415602",
           "valueIn": "3500000",
-          "valueOut": "12994929",
+          "valueOut": "12994930",
           "retained": "-9910532"
         },
         {
@@ -1936,31 +1948,31 @@
           "actionFee": "0",
           "totalFee": "264934",
           "cost": "264934",
-          "valueIn": "12994929",
+          "valueIn": "12994930",
           "valueOut": "0",
-          "retained": "12729995"
+          "retained": "12729996"
         }
       ],
       "totals": {
-        "ccip": "22961719",
-        "registry": "1562939",
-        "token": "9504615",
-        "external": "1032672"
+        "ccip": "23364185",
+        "registry": "1589274",
+        "token": "10211547",
+        "external": "1032671"
       },
       "retained": {
         "Transmitter": "-384253669",
-        "OffRamp": "127292082",
+        "OffRamp": "151968418",
         "MerkleRoot": "-9910532",
         "ReceiveExecutor": "0",
         "TokenAdminRegistry": "0",
         "TokenAdminRegistryEntry": "0",
-        "Router": "28027526",
+        "Router": "204621504",
         "ReceiverAccount": "0",
-        "LockReleasePool": "202834181",
-        "LockBox": "-428134",
+        "LockReleasePool": "0",
+        "LockBox": "0",
         "LockBoxWallet": "0",
         "ReceiverAccountWallet": "0",
-        "Receiver": "-1"
+        "Receiver": "0"
       },
       "entrypoints": [
         {
@@ -1968,36 +1980,36 @@
           "contract": "OffRamp",
           "op": "OffRamp_Execute",
           "cost": {
-            "ccip": "22961719",
-            "registry": "1562939",
-            "token": "9504615",
-            "external": "612337"
+            "ccip": "23364185",
+            "registry": "1589274",
+            "token": "10211547",
+            "external": "612336"
           },
-          "retained": "347815122"
+          "retained": "346679390"
         },
         {
           "hop": 2,
           "contract": "MerkleRoot",
           "op": "MerkleRoot_Validate",
           "cost": {
-            "ccip": "20271584",
-            "registry": "1562939",
-            "token": "9504615",
-            "external": "612337"
+            "ccip": "20674050",
+            "registry": "1589274",
+            "token": "10211547",
+            "external": "612336"
           },
-          "retained": "347815122"
+          "retained": "346679390"
         },
         {
           "hop": 3,
           "contract": "OffRamp",
           "op": "OffRamp_ExecuteValidated",
           "cost": {
-            "ccip": "19336248",
-            "registry": "1562939",
-            "token": "9504615",
-            "external": "612337"
+            "ccip": "19738714",
+            "registry": "1589274",
+            "token": "10211547",
+            "external": "612336"
           },
-          "retained": "347815122"
+          "retained": "346679390"
         },
         {
           "hop": 4,
@@ -2016,48 +2028,48 @@
           "contract": "ReceiveExecutor",
           "op": "ReceiveExecutor_InitExecute",
           "cost": {
-            "ccip": "14361509",
-            "registry": "1562939",
-            "token": "9504615",
-            "external": "612337"
+            "ccip": "14695975",
+            "registry": "1589274",
+            "token": "10211547",
+            "external": "612336"
           },
-          "retained": "337904590"
+          "retained": "336768858"
         },
         {
           "hop": 9,
           "contract": "ReceiveExecutor",
           "op": "TokenAdminRegistry_TokenInfo",
           "cost": {
-            "ccip": "13690041",
+            "ccip": "14024507",
             "registry": "0",
-            "token": "9504615",
-            "external": "612337"
+            "token": "10211547",
+            "external": "612336"
           },
-          "retained": "-18413200"
+          "retained": "-19480932"
         },
         {
           "hop": 10,
           "contract": "OffRamp",
           "op": "OffRamp_ReleaseOrMint",
           "cost": {
-            "ccip": "12714372",
+            "ccip": "12951238",
             "registry": "0",
-            "token": "9504615",
-            "external": "612337"
+            "token": "10211547",
+            "external": "612336"
           },
-          "retained": "211625408"
+          "retained": "210681611"
         },
         {
           "hop": 11,
           "contract": "Router",
           "op": "Router_RelayReleaseOrMint",
           "cost": {
-            "ccip": "11950037",
+            "ccip": "12186903",
             "registry": "0",
-            "token": "9504615",
-            "external": "612337"
+            "token": "10211547",
+            "external": "612336"
           },
-          "retained": "211625408"
+          "retained": "210681611"
         },
         {
           "hop": 12,
@@ -2076,168 +2088,180 @@
           "contract": "ReceiverAccount",
           "op": "DepositAccount_Init",
           "cost": {
-            "ccip": "9327300",
+            "ccip": "9564166",
             "registry": "0",
-            "token": "9504615",
-            "external": "612337"
+            "token": "10211547",
+            "external": "612336"
           },
-          "retained": "202913211"
+          "retained": "201969414"
         },
         {
           "hop": 15,
           "contract": "Router",
           "op": "DepositAccount_Initialized",
           "cost": {
-            "ccip": "8810165",
+            "ccip": "9047031",
             "registry": "0",
-            "token": "9504615",
-            "external": "612337"
+            "token": "10211547",
+            "external": "612336"
           },
-          "retained": "202913211"
+          "retained": "201969414"
         },
         {
           "hop": 20,
           "contract": "ReceiverAccount",
           "op": "TransferNotificationForRecipient",
           "cost": {
-            "ccip": "7951697",
+            "ccip": "7947694",
             "registry": "0",
-            "token": "1065137",
-            "external": "612337"
+            "token": "1064536",
+            "external": "612336"
           },
-          "retained": "370829"
+          "retained": "25375437"
+        },
+        {
+          "hop": 21,
+          "contract": "Router",
+          "op": "ReturnExcessesBack",
+          "cost": {
+            "ccip": "241468",
+            "registry": "0",
+            "token": "0",
+            "external": "0"
+          },
+          "retained": "176593977"
         },
         {
           "hop": 22,
           "contract": "ReceiveExecutor",
           "op": "DepositAccount_ForwardNotification",
           "cost": {
-            "ccip": "7019495",
+            "ccip": "7015025",
             "registry": "0",
-            "token": "1065137",
-            "external": "612337"
+            "token": "1064536",
+            "external": "612336"
           },
-          "retained": "370829"
+          "retained": "25375437"
         },
         {
           "hop": 23,
           "contract": "OffRamp",
           "op": "OffRamp_TokenTransferDelivered",
           "cost": {
-            "ccip": "1292340",
+            "ccip": "1292339",
             "registry": "0",
-            "token": "1065137",
+            "token": "1064536",
             "external": "0"
           },
-          "retained": "8142523"
+          "retained": "30544590"
         },
         {
           "hop": 24,
           "contract": "OffRamp",
           "op": "OffRamp_DispatchValidated",
           "cost": {
-            "ccip": "4291752",
+            "ccip": "4291749",
             "registry": "0",
             "token": "0",
-            "external": "612337"
+            "external": "612336"
           },
-          "retained": "51095911"
+          "retained": "51095915"
         },
         {
           "hop": 25,
           "contract": "Router",
           "op": "Router_TokenTransferDelivered",
           "cost": {
-            "ccip": "640671",
+            "ccip": "640670",
             "registry": "0",
-            "token": "1065137",
+            "token": "1064536",
             "external": "0"
           },
-          "retained": "8142523"
+          "retained": "30544590"
         },
         {
           "hop": 26,
           "contract": "Router",
           "op": "Router_RouteMessage",
           "cost": {
-            "ccip": "3490016",
+            "ccip": "3490013",
             "registry": "0",
             "token": "0",
-            "external": "612337"
+            "external": "612336"
           },
-          "retained": "45711579"
+          "retained": "45711583"
         },
         {
           "hop": 29,
           "contract": "ReceiveExecutor",
           "op": "TokenPool_ReleaseOrMintFinalized",
           "cost": {
-            "ccip": "96602",
+            "ccip": "96601",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "8278858"
+          "retained": "30544590"
         },
         {
           "hop": 30,
           "contract": "Router",
           "op": "Router_CCIPReceiveConfirm",
           "cost": {
-            "ccip": "2991414",
+            "ccip": "2991411",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "26396250"
+          "retained": "26396253"
         },
         {
           "hop": 31,
           "contract": "OffRamp",
           "op": "OffRamp_CCIPReceiveConfirm",
           "cost": {
-            "ccip": "2560411",
+            "ccip": "2560409",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "26396251"
+          "retained": "26396253"
         },
         {
           "hop": 32,
           "contract": "ReceiveExecutor",
           "op": "ReceiveExecutor_CCIPReceiveConfirm",
           "cost": {
-            "ccip": "1881608",
+            "ccip": "1881607",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "26396252"
+          "retained": "26396253"
         },
         {
           "hop": 33,
           "contract": "OffRamp",
           "op": "OffRamp_NotifySuccess",
           "cost": {
-            "ccip": "1335206",
+            "ccip": "1335205",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "111997219"
+          "retained": "136673554"
         },
         {
           "hop": 34,
           "contract": "MerkleRoot",
           "op": "MerkleRoot_MarkState",
           "cost": {
-            "ccip": "680537",
+            "ccip": "680536",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "2819463"
+          "retained": "2819464"
         },
         {
           "hop": 35,
@@ -2249,7 +2273,7 @@
             "token": "0",
             "external": "0"
           },
-          "retained": "12729995"
+          "retained": "12729996"
         }
       ]
     },
@@ -2336,12 +2360,12 @@
           "gasUsed": "28586",
           "computeFee": "1905734",
           "storageFee": "0",
-          "forwardFee": "2975270",
-          "actionFee": "1058053",
-          "totalFee": "2963787",
-          "cost": "4881004",
+          "forwardFee": "3043270",
+          "actionFee": "1080719",
+          "totalFee": "2986453",
+          "cost": "4949004",
           "valueIn": "349878796",
-          "valueOut": "344997792",
+          "valueOut": "344929792",
           "retained": "0"
         },
         {
@@ -2384,9 +2408,9 @@
           "actionFee": "32510",
           "totalFee": "606444",
           "cost": "671468",
-          "valueIn": "334997792",
+          "valueIn": "334929792",
           "valueOut": "8000000",
-          "retained": "326326324"
+          "retained": "326258324"
         },
         {
           "index": 6,
@@ -2421,15 +2445,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "5147",
-          "computeFee": "343134",
+          "gasUsed": "4906",
+          "computeFee": "327068",
           "storageFee": "1",
-          "forwardFee": "177534",
-          "actionFee": "59177",
-          "totalFee": "402312",
-          "cost": "520669",
+          "forwardFee": "189068",
+          "actionFee": "63021",
+          "totalFee": "390090",
+          "cost": "516137",
           "valueIn": "7518264",
-          "valueOut": "6997596",
+          "valueOut": "7002128",
           "retained": "-1"
         },
         {
@@ -2443,15 +2467,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "6011",
-          "computeFee": "400734",
+          "gasUsed": "6302",
+          "computeFee": "420134",
           "storageFee": "0",
-          "forwardFee": "159801",
-          "actionFee": "53266",
-          "totalFee": "454000",
-          "cost": "560535",
-          "valueIn": "6997596",
-          "valueOut": "6437061",
+          "forwardFee": "171268",
+          "actionFee": "57088",
+          "totalFee": "477222",
+          "cost": "591402",
+          "valueIn": "7002128",
+          "valueOut": "6410726",
           "retained": "0"
         },
         {
@@ -2465,16 +2489,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "11136",
-          "computeFee": "742401",
+          "gasUsed": "12600",
+          "computeFee": "840001",
           "storageFee": "0",
           "forwardFee": "233268",
           "actionFee": "77754",
-          "totalFee": "820155",
-          "cost": "975669",
-          "valueIn": "6437061",
+          "totalFee": "917755",
+          "cost": "1073269",
+          "valueIn": "6410726",
           "valueOut": "235500000",
-          "retained": "-230038608"
+          "retained": "-230162543"
         },
         {
           "index": 10,
@@ -2511,14 +2535,14 @@
           "actionResultCode": 0,
           "gasUsed": "13700",
           "computeFee": "913334",
-          "storageFee": "0",
+          "storageFee": "1",
           "forwardFee": "1464868",
           "actionFee": "488281",
-          "totalFee": "1401615",
-          "cost": "2378202",
+          "totalFee": "1401616",
+          "cost": "2378203",
           "valueIn": "234735665",
           "valueOut": "232357463",
-          "retained": "0"
+          "retained": "-1"
         },
         {
           "index": 12,
@@ -2597,15 +2621,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "8810",
-          "computeFee": "587334",
+          "gasUsed": "8802",
+          "computeFee": "586801",
           "storageFee": "0",
-          "forwardFee": "271134",
-          "actionFee": "90376",
-          "totalFee": "677710",
-          "cost": "858468",
+          "forwardFee": "271068",
+          "actionFee": "90354",
+          "totalFee": "677155",
+          "cost": "857869",
           "valueIn": "221840327",
-          "valueOut": "220981859",
+          "valueOut": "220982458",
           "retained": "0"
         },
         {
@@ -2619,16 +2643,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "44604",
-          "computeFee": "2973601",
-          "storageFee": "0",
-          "forwardFee": "526468",
-          "actionFee": "241043",
-          "totalFee": "3214644",
-          "cost": "3500069",
-          "valueIn": "220981859",
-          "valueOut": "217580124",
-          "retained": "-98334"
+          "gasUsed": "58970",
+          "computeFee": "3931334",
+          "storageFee": "1",
+          "forwardFee": "526935",
+          "actionFee": "241198",
+          "totalFee": "4172533",
+          "cost": "4458270",
+          "valueIn": "220982458",
+          "valueOut": "216524189",
+          "retained": "-1"
         },
         {
           "index": 17,
@@ -2641,16 +2665,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "13354",
-          "computeFee": "890268",
+          "gasUsed": "18789",
+          "computeFee": "1252601",
           "storageFee": "1",
-          "forwardFee": "936602",
-          "actionFee": "597620",
-          "totalFee": "1487889",
-          "cost": "1826871",
-          "valueIn": "217580124",
-          "valueOut": "216181388",
-          "retained": "-428135"
+          "forwardFee": "938069",
+          "actionFee": "598421",
+          "totalFee": "1851023",
+          "cost": "2190671",
+          "valueIn": "216524189",
+          "valueOut": "214333519",
+          "retained": "-1"
         },
         {
           "index": 18,
@@ -2666,12 +2690,12 @@
           "gasUsed": "6153",
           "computeFee": "410201",
           "storageFee": "1",
-          "forwardFee": "996668",
-          "actionFee": "332217",
-          "totalFee": "742419",
-          "cost": "1406870",
-          "valueIn": "216181388",
-          "valueOut": "214774519",
+          "forwardFee": "1017668",
+          "actionFee": "339217",
+          "totalFee": "749419",
+          "cost": "1427870",
+          "valueIn": "214333519",
+          "valueOut": "212905650",
           "retained": "-1"
         },
         {
@@ -2688,12 +2712,12 @@
           "gasUsed": "7481",
           "computeFee": "498734",
           "storageFee": "1",
-          "forwardFee": "586335",
-          "actionFee": "195441",
-          "totalFee": "694176",
-          "cost": "1085070",
-          "valueIn": "214774519",
-          "valueOut": "213689449",
+          "forwardFee": "586802",
+          "actionFee": "195597",
+          "totalFee": "694332",
+          "cost": "1085537",
+          "valueIn": "212905650",
+          "valueOut": "211820113",
           "retained": "0"
         },
         {
@@ -2710,12 +2734,12 @@
           "gasUsed": "6652",
           "computeFee": "443468",
           "storageFee": "0",
-          "forwardFee": "488734",
-          "actionFee": "162908",
-          "totalFee": "606376",
-          "cost": "932202",
-          "valueIn": "10000000",
-          "valueOut": "9067798",
+          "forwardFee": "489201",
+          "actionFee": "163064",
+          "totalFee": "606532",
+          "cost": "932669",
+          "valueIn": "35000003",
+          "valueOut": "34067334",
           "retained": "0"
         },
         {
@@ -2723,22 +2747,22 @@
           "parent": 19,
           "children": [],
           "from": "ReceiverAccountWallet",
-          "to": "LockReleasePool",
-          "owner": "token",
-          "op": "CCT_ReturnExcessesBack",
+          "to": "Router",
+          "owner": "ccip",
+          "op": "ReturnExcessesBack",
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "9539",
-          "computeFee": "635934",
+          "gasUsed": "3622",
+          "computeFee": "241468",
           "storageFee": "0",
           "forwardFee": "0",
           "actionFee": "0",
-          "totalFee": "635934",
-          "cost": "635934",
-          "valueIn": "203689449",
+          "totalFee": "241468",
+          "cost": "241468",
+          "valueIn": "176820110",
           "valueOut": "0",
-          "retained": "203053515"
+          "retained": "176578642"
         },
         {
           "index": 22,
@@ -2758,9 +2782,9 @@
           "actionFee": "75043",
           "totalFee": "900577",
           "cost": "1050668",
-          "valueIn": "9067798",
-          "valueOut": "114215378",
-          "retained": "-106198248"
+          "valueIn": "34067334",
+          "valueOut": "139022979",
+          "retained": "-106006313"
         },
         {
           "index": 23,
@@ -2773,16 +2797,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "10451",
-          "computeFee": "696734",
+          "gasUsed": "10374",
+          "computeFee": "691601",
           "storageFee": "0",
           "forwardFee": "330936",
           "actionFee": "176621",
-          "totalFee": "873355",
-          "cost": "1027670",
-          "valueIn": "114215378",
-          "valueOut": "14000000",
-          "retained": "99187708"
+          "totalFee": "868222",
+          "cost": "1022537",
+          "valueIn": "139022979",
+          "valueOut": "141666577",
+          "retained": "-3666135"
         },
         {
           "index": 24,
@@ -2802,8 +2826,8 @@
           "actionFee": "48999",
           "totalFee": "446067",
           "cost": "544069",
-          "valueIn": "10500000",
-          "valueOut": "9955931",
+          "valueIn": "138166577",
+          "valueOut": "137622508",
           "retained": "0"
         },
         {
@@ -2839,16 +2863,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "12788",
-          "computeFee": "852534",
+          "gasUsed": "12779",
+          "computeFee": "851934",
           "storageFee": "0",
           "forwardFee": "212602",
           "actionFee": "161756",
-          "totalFee": "1014290",
-          "cost": "1065136",
-          "valueIn": "9955931",
-          "valueOut": "9027129",
-          "retained": "-136334"
+          "totalFee": "1013690",
+          "cost": "1064536",
+          "valueIn": "137622508",
+          "valueOut": "136557972",
+          "retained": "0"
         },
         {
           "index": 27,
@@ -2890,28 +2914,28 @@
           "actionFee": "0",
           "totalFee": "96601",
           "cost": "96601",
-          "valueIn": "9027129",
+          "valueIn": "136557972",
           "valueOut": "0",
-          "retained": "8930528"
+          "retained": "136461371"
         }
       ],
       "totals": {
-        "ccip": "19333235",
-        "registry": "1562941",
-        "token": "9519950",
+        "ccip": "19735039",
+        "registry": "1589276",
+        "token": "10226884",
         "external": "418202"
       },
       "retained": {
         "Transmitter": "-354249403",
-        "OffRamp": "111917704",
+        "OffRamp": "9063861",
         "MerkleRoot": "-9910532",
-        "ReceiveExecutor": "8930528",
+        "ReceiveExecutor": "136461371",
         "TokenAdminRegistry": "-1",
         "TokenAdminRegistryEntry": "-1",
-        "Router": "8712197",
+        "Router": "185290838",
         "ReceiverAccount": "0",
-        "LockReleasePool": "202818847",
-        "LockBox": "-428135",
+        "LockReleasePool": "-1",
+        "LockBox": "-1",
         "LockBoxWallet": "-1",
         "ReceiverAccountWallet": "0"
       },
@@ -2921,36 +2945,36 @@
           "contract": "OffRamp",
           "op": "OffRamp_Execute",
           "cost": {
-            "ccip": "19333235",
-            "registry": "1562941",
-            "token": "9519950",
+            "ccip": "19735039",
+            "registry": "1589276",
+            "token": "10226884",
             "external": "0"
           },
-          "retained": "322040606"
+          "retained": "320905533"
         },
         {
           "hop": 2,
           "contract": "MerkleRoot",
           "op": "MerkleRoot_Validate",
           "cost": {
-            "ccip": "16645233",
-            "registry": "1562941",
-            "token": "9519950",
+            "ccip": "17047037",
+            "registry": "1589276",
+            "token": "10226884",
             "external": "0"
           },
-          "retained": "322040606"
+          "retained": "320905533"
         },
         {
           "hop": 3,
           "contract": "OffRamp",
           "op": "OffRamp_ExecuteValidated",
           "cost": {
-            "ccip": "15712031",
-            "registry": "1562941",
-            "token": "9519950",
+            "ccip": "16113835",
+            "registry": "1589276",
+            "token": "10226884",
             "external": "0"
           },
-          "retained": "322040606"
+          "retained": "320905533"
         },
         {
           "hop": 4,
@@ -2969,48 +2993,48 @@
           "contract": "ReceiveExecutor",
           "op": "ReceiveExecutor_InitExecute",
           "cost": {
-            "ccip": "10741559",
-            "registry": "1562941",
-            "token": "9519950",
+            "ccip": "11075363",
+            "registry": "1589276",
+            "token": "10226884",
             "external": "0"
           },
-          "retained": "312130074"
+          "retained": "310995001"
         },
         {
           "hop": 9,
           "contract": "ReceiveExecutor",
           "op": "TokenAdminRegistry_TokenInfo",
           "cost": {
-            "ccip": "10070091",
+            "ccip": "10403895",
             "registry": "0",
-            "token": "9519950",
+            "token": "10226884",
             "external": "0"
           },
-          "retained": "-14196248"
+          "retained": "-15263321"
         },
         {
           "hop": 10,
           "contract": "OffRamp",
           "op": "OffRamp_ReleaseOrMint",
           "cost": {
-            "ccip": "9094422",
+            "ccip": "9330626",
             "registry": "0",
-            "token": "9519950",
+            "token": "10226884",
             "external": "0"
           },
-          "retained": "215842360"
+          "retained": "214899222"
         },
         {
           "hop": 11,
           "contract": "Router",
           "op": "Router_RelayReleaseOrMint",
           "cost": {
-            "ccip": "8330087",
+            "ccip": "8566291",
             "registry": "0",
-            "token": "9519950",
+            "token": "10226884",
             "external": "0"
           },
-          "retained": "215842360"
+          "retained": "214899222"
         },
         {
           "hop": 12,
@@ -3029,60 +3053,72 @@
           "contract": "ReceiverAccount",
           "op": "DepositAccount_Init",
           "cost": {
-            "ccip": "5707349",
+            "ccip": "5943552",
             "registry": "0",
-            "token": "9519950",
+            "token": "10226884",
             "external": "0"
           },
-          "retained": "207130164"
+          "retained": "206187027"
         },
         {
           "hop": 15,
           "contract": "Router",
           "op": "DepositAccount_Initialized",
           "cost": {
-            "ccip": "5190214",
+            "ccip": "5426417",
             "registry": "0",
-            "token": "9519950",
+            "token": "10226884",
             "external": "0"
           },
-          "retained": "207130163"
+          "retained": "206187026"
         },
         {
           "hop": 20,
           "contract": "ReceiverAccount",
           "op": "TransferNotificationForRecipient",
           "cost": {
-            "ccip": "4331746",
+            "ccip": "4327080",
             "registry": "0",
-            "token": "1065136",
+            "token": "1064536",
             "external": "0"
           },
-          "retained": "4603118"
+          "retained": "29608387"
+        },
+        {
+          "hop": 21,
+          "contract": "Router",
+          "op": "ReturnExcessesBack",
+          "cost": {
+            "ccip": "241468",
+            "registry": "0",
+            "token": "0",
+            "external": "0"
+          },
+          "retained": "176578642"
         },
         {
           "hop": 22,
           "contract": "ReceiveExecutor",
           "op": "DepositAccount_ForwardNotification",
           "cost": {
-            "ccip": "3399544",
+            "ccip": "3394411",
             "registry": "0",
-            "token": "1065136",
+            "token": "1064536",
             "external": "0"
           },
-          "retained": "4603118"
+          "retained": "29608387"
         },
         {
           "hop": 23,
           "contract": "OffRamp",
           "op": "OffRamp_NotifySuccess",
           "cost": {
-            "ccip": "2348876",
+            "ccip": "2343743",
             "registry": "0",
-            "token": "1065136",
+            "token": "1064536",
             "external": "0"
           },
-          "retained": "110801366"
+          "retained": "135614700"
         },
         {
           "hop": 24,
@@ -3091,10 +3127,10 @@
           "cost": {
             "ccip": "640670",
             "registry": "0",
-            "token": "1065136",
+            "token": "1064536",
             "external": "0"
           },
-          "retained": "8794194"
+          "retained": "136461371"
         },
         {
           "hop": 25,
@@ -3130,7 +3166,7 @@
             "token": "0",
             "external": "0"
           },
-          "retained": "8930528"
+          "retained": "136461371"
         }
       ]
     },
@@ -3217,12 +3253,12 @@
           "gasUsed": "28586",
           "computeFee": "1905734",
           "storageFee": "0",
-          "forwardFee": "4146204",
-          "actionFee": "1448359",
-          "totalFee": "3354093",
-          "cost": "6051938",
+          "forwardFee": "4214204",
+          "actionFee": "1471025",
+          "totalFee": "3376759",
+          "cost": "6119938",
           "valueIn": "376757862",
-          "valueOut": "370705924",
+          "valueOut": "370637924",
           "retained": "0"
         },
         {
@@ -3265,9 +3301,9 @@
           "actionFee": "32510",
           "totalFee": "606444",
           "cost": "671468",
-          "valueIn": "360705924",
+          "valueIn": "360637924",
           "valueOut": "8000000",
-          "retained": "352034456"
+          "retained": "351966456"
         },
         {
           "index": 6,
@@ -3302,15 +3338,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "5147",
-          "computeFee": "343134",
+          "gasUsed": "4906",
+          "computeFee": "327068",
           "storageFee": "0",
-          "forwardFee": "177534",
-          "actionFee": "59177",
-          "totalFee": "402311",
-          "cost": "520668",
+          "forwardFee": "189068",
+          "actionFee": "63021",
+          "totalFee": "390089",
+          "cost": "516136",
           "valueIn": "7518264",
-          "valueOut": "6997596",
+          "valueOut": "7002128",
           "retained": "0"
         },
         {
@@ -3324,15 +3360,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "6011",
-          "computeFee": "400734",
+          "gasUsed": "6302",
+          "computeFee": "420134",
           "storageFee": "0",
-          "forwardFee": "159801",
-          "actionFee": "53266",
-          "totalFee": "454000",
-          "cost": "560535",
-          "valueIn": "6997596",
-          "valueOut": "6437061",
+          "forwardFee": "171268",
+          "actionFee": "57088",
+          "totalFee": "477222",
+          "cost": "591402",
+          "valueIn": "7002128",
+          "valueOut": "6410726",
           "retained": "0"
         },
         {
@@ -3346,16 +3382,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "11136",
-          "computeFee": "742401",
+          "gasUsed": "12600",
+          "computeFee": "840001",
           "storageFee": "0",
           "forwardFee": "233268",
           "actionFee": "77754",
-          "totalFee": "820155",
-          "cost": "975669",
-          "valueIn": "6437061",
+          "totalFee": "917755",
+          "cost": "1073269",
+          "valueIn": "6410726",
           "valueOut": "235500000",
-          "retained": "-230038608"
+          "retained": "-230162543"
         },
         {
           "index": 10,
@@ -3478,15 +3514,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "8810",
-          "computeFee": "587334",
+          "gasUsed": "8802",
+          "computeFee": "586801",
           "storageFee": "0",
-          "forwardFee": "271134",
-          "actionFee": "90376",
-          "totalFee": "677710",
-          "cost": "858468",
+          "forwardFee": "271068",
+          "actionFee": "90354",
+          "totalFee": "677155",
+          "cost": "857869",
           "valueIn": "221840328",
-          "valueOut": "220981860",
+          "valueOut": "220982459",
           "retained": "0"
         },
         {
@@ -3500,16 +3536,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "44374",
-          "computeFee": "2958268",
+          "gasUsed": "58740",
+          "computeFee": "3916001",
           "storageFee": "0",
-          "forwardFee": "526468",
-          "actionFee": "241043",
-          "totalFee": "3199311",
-          "cost": "3484736",
-          "valueIn": "220981860",
-          "valueOut": "217595458",
-          "retained": "-98334"
+          "forwardFee": "526935",
+          "actionFee": "241198",
+          "totalFee": "4157199",
+          "cost": "4442936",
+          "valueIn": "220982459",
+          "valueOut": "216539523",
+          "retained": "0"
         },
         {
           "index": 17,
@@ -3522,16 +3558,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "13354",
-          "computeFee": "890268",
+          "gasUsed": "18789",
+          "computeFee": "1252601",
           "storageFee": "0",
-          "forwardFee": "936602",
-          "actionFee": "597620",
-          "totalFee": "1487888",
-          "cost": "1826870",
-          "valueIn": "217595458",
-          "valueOut": "216196722",
-          "retained": "-428134"
+          "forwardFee": "938069",
+          "actionFee": "598421",
+          "totalFee": "1851022",
+          "cost": "2190670",
+          "valueIn": "216539523",
+          "valueOut": "214348853",
+          "retained": "0"
         },
         {
           "index": 18,
@@ -3547,12 +3583,12 @@
           "gasUsed": "6153",
           "computeFee": "410201",
           "storageFee": "0",
-          "forwardFee": "996668",
-          "actionFee": "332217",
-          "totalFee": "742418",
-          "cost": "1406869",
-          "valueIn": "216196722",
-          "valueOut": "214789853",
+          "forwardFee": "1017668",
+          "actionFee": "339217",
+          "totalFee": "749418",
+          "cost": "1427869",
+          "valueIn": "214348853",
+          "valueOut": "212920984",
           "retained": "0"
         },
         {
@@ -3569,12 +3605,12 @@
           "gasUsed": "7481",
           "computeFee": "498734",
           "storageFee": "0",
-          "forwardFee": "586335",
-          "actionFee": "195441",
-          "totalFee": "694175",
-          "cost": "1085069",
-          "valueIn": "214789853",
-          "valueOut": "213704784",
+          "forwardFee": "586802",
+          "actionFee": "195597",
+          "totalFee": "694331",
+          "cost": "1085536",
+          "valueIn": "212920984",
+          "valueOut": "211835448",
           "retained": "0"
         },
         {
@@ -3591,12 +3627,12 @@
           "gasUsed": "6652",
           "computeFee": "443468",
           "storageFee": "0",
-          "forwardFee": "488734",
-          "actionFee": "162908",
-          "totalFee": "606376",
-          "cost": "932202",
-          "valueIn": "10000000",
-          "valueOut": "9067798",
+          "forwardFee": "489201",
+          "actionFee": "163064",
+          "totalFee": "606532",
+          "cost": "932669",
+          "valueIn": "35000003",
+          "valueOut": "34067334",
           "retained": "0"
         },
         {
@@ -3604,22 +3640,22 @@
           "parent": 19,
           "children": [],
           "from": "ReceiverAccountWallet",
-          "to": "LockReleasePool",
-          "owner": "token",
-          "op": "CCT_ReturnExcessesBack",
+          "to": "Router",
+          "owner": "ccip",
+          "op": "ReturnExcessesBack",
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "9539",
-          "computeFee": "635934",
+          "gasUsed": "3622",
+          "computeFee": "241468",
           "storageFee": "0",
           "forwardFee": "0",
           "actionFee": "0",
-          "totalFee": "635934",
-          "cost": "635934",
-          "valueIn": "203704784",
+          "totalFee": "241468",
+          "cost": "241468",
+          "valueIn": "176835445",
           "valueOut": "0",
-          "retained": "203068850"
+          "retained": "176593977"
         },
         {
           "index": 22,
@@ -3632,16 +3668,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "15412",
-          "computeFee": "1027468",
+          "gasUsed": "15345",
+          "computeFee": "1023001",
           "storageFee": "0",
           "forwardFee": "1572335",
           "actionFee": "524103",
-          "totalFee": "1551571",
-          "cost": "2599803",
-          "valueIn": "9067798",
-          "valueOut": "66500000",
-          "retained": "-60032005"
+          "totalFee": "1547104",
+          "cost": "2595336",
+          "valueIn": "34067334",
+          "valueOut": "88903732",
+          "retained": "-57431734"
         },
         {
           "index": 23,
@@ -3661,8 +3697,8 @@
           "actionFee": "54932",
           "totalFee": "541800",
           "cost": "651669",
-          "valueIn": "10500000",
-          "valueOut": "9848331",
+          "valueIn": "32903732",
+          "valueOut": "32252063",
           "retained": "0"
         },
         {
@@ -3705,8 +3741,8 @@
           "actionFee": "48999",
           "totalFee": "446067",
           "cost": "544069",
-          "valueIn": "9848331",
-          "valueOut": "9304262",
+          "valueIn": "32252063",
+          "valueOut": "31707994",
           "retained": "0"
         },
         {
@@ -3742,16 +3778,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "12788",
-          "computeFee": "852534",
-          "storageFee": "1",
+          "gasUsed": "12779",
+          "computeFee": "851934",
+          "storageFee": "0",
           "forwardFee": "212602",
           "actionFee": "161756",
-          "totalFee": "1014291",
-          "cost": "1065137",
-          "valueIn": "9304262",
-          "valueOut": "8375460",
-          "retained": "-136335"
+          "totalFee": "1013690",
+          "cost": "1064536",
+          "valueIn": "31707994",
+          "valueOut": "30643458",
+          "retained": "0"
         },
         {
           "index": 28,
@@ -3788,14 +3824,14 @@
           "actionResultCode": 0,
           "gasUsed": "1449",
           "computeFee": "96601",
-          "storageFee": "1",
+          "storageFee": "0",
           "forwardFee": "0",
           "actionFee": "0",
-          "totalFee": "96602",
-          "cost": "96602",
-          "valueIn": "8375460",
+          "totalFee": "96601",
+          "cost": "96601",
+          "valueIn": "30643458",
           "valueOut": "0",
-          "retained": "8278858"
+          "retained": "30546857"
         },
         {
           "index": 30,
@@ -3810,14 +3846,14 @@
           "actionResultCode": 0,
           "gasUsed": "4810",
           "computeFee": "320668",
-          "storageFee": "1",
+          "storageFee": "0",
           "forwardFee": "110334",
           "actionFee": "36777",
-          "totalFee": "357446",
-          "cost": "431003",
+          "totalFee": "357445",
+          "cost": "431002",
           "valueIn": "28220997",
           "valueOut": "27789995",
-          "retained": "-1"
+          "retained": "0"
         },
         {
           "index": 31,
@@ -3832,14 +3868,14 @@
           "actionResultCode": 0,
           "gasUsed": "6009",
           "computeFee": "400601",
-          "storageFee": "1",
+          "storageFee": "0",
           "forwardFee": "278201",
           "actionFee": "92732",
-          "totalFee": "493334",
-          "cost": "678803",
+          "totalFee": "493333",
+          "cost": "678802",
           "valueIn": "27789995",
           "valueOut": "27111193",
-          "retained": "-1"
+          "retained": "0"
         },
         {
           "index": 32,
@@ -3860,8 +3896,8 @@
           "totalFee": "445600",
           "cost": "546402",
           "valueIn": "27111193",
-          "valueOut": "106718024",
-          "retained": "-80153233"
+          "valueOut": "131394359",
+          "retained": "-104829568"
         },
         {
           "index": 33,
@@ -3881,9 +3917,9 @@
           "actionFee": "121689",
           "totalFee": "610223",
           "cost": "654669",
-          "valueIn": "106718024",
+          "valueIn": "131394359",
           "valueOut": "3500000",
-          "retained": "102563355"
+          "retained": "127239690"
         },
         {
           "index": 34,
@@ -3898,13 +3934,13 @@
           "actionResultCode": 0,
           "gasUsed": "5134",
           "computeFee": "342268",
-          "storageFee": "1",
+          "storageFee": "0",
           "forwardFee": "73334",
           "actionFee": "24444",
-          "totalFee": "366713",
-          "cost": "415603",
+          "totalFee": "366712",
+          "cost": "415602",
           "valueIn": "3500000",
-          "valueOut": "12994929",
+          "valueOut": "12994930",
           "retained": "-9910532"
         },
         {
@@ -3925,28 +3961,28 @@
           "actionFee": "0",
           "totalFee": "264934",
           "cost": "264934",
-          "valueIn": "12994929",
+          "valueIn": "12994930",
           "valueOut": "0",
-          "retained": "12729995"
+          "retained": "12729996"
         }
       ],
       "totals": {
-        "ccip": "30742786",
-        "registry": "1562939",
-        "token": "9504615",
+        "ccip": "31145251",
+        "registry": "1589274",
+        "token": "10211547",
         "external": "3372672"
       },
       "retained": {
         "Transmitter": "-386600336",
-        "OffRamp": "120677681",
+        "OffRamp": "145354018",
         "MerkleRoot": "-9910532",
         "ReceiveExecutor": "0",
         "TokenAdminRegistry": "0",
         "TokenAdminRegistryEntry": "0",
-        "Router": "25694193",
+        "Router": "202288171",
         "ReceiverAccount": "0",
-        "LockReleasePool": "202834181",
-        "LockBox": "-428134",
+        "LockReleasePool": "0",
+        "LockBox": "0",
         "LockBoxWallet": "0",
         "ReceiverAccountWallet": "0",
         "Receiver": "-1"
@@ -3957,36 +3993,36 @@
           "contract": "OffRamp",
           "op": "OffRamp_Execute",
           "cost": {
-            "ccip": "30742786",
-            "registry": "1562939",
-            "token": "9504615",
+            "ccip": "31145251",
+            "registry": "1589274",
+            "token": "10211547",
             "external": "1779004"
           },
-          "retained": "338867388"
+          "retained": "337731656"
         },
         {
           "hop": 2,
           "contract": "MerkleRoot",
           "op": "MerkleRoot_Validate",
           "cost": {
-            "ccip": "26109317",
-            "registry": "1562939",
-            "token": "9504615",
+            "ccip": "26511782",
+            "registry": "1589274",
+            "token": "10211547",
             "external": "1779004"
           },
-          "retained": "338867388"
+          "retained": "337731656"
         },
         {
           "hop": 3,
           "contract": "OffRamp",
           "op": "OffRamp_ExecuteValidated",
           "cost": {
-            "ccip": "24000648",
-            "registry": "1562939",
-            "token": "9504615",
+            "ccip": "24403113",
+            "registry": "1589274",
+            "token": "10211547",
             "external": "1779004"
           },
-          "retained": "338867388"
+          "retained": "337731656"
         },
         {
           "hop": 4,
@@ -4005,48 +4041,48 @@
           "contract": "ReceiveExecutor",
           "op": "ReceiveExecutor_InitExecute",
           "cost": {
-            "ccip": "17859242",
-            "registry": "1562939",
-            "token": "9504615",
+            "ccip": "18193707",
+            "registry": "1589274",
+            "token": "10211547",
             "external": "1779004"
           },
-          "retained": "328956856"
+          "retained": "327821124"
         },
         {
           "hop": 9,
           "contract": "ReceiveExecutor",
           "op": "TokenAdminRegistry_TokenInfo",
           "cost": {
-            "ccip": "17187774",
+            "ccip": "17522239",
             "registry": "0",
-            "token": "9504615",
+            "token": "10211547",
             "external": "1779004"
           },
-          "retained": "-23077600"
+          "retained": "-24145332"
         },
         {
           "hop": 10,
           "contract": "OffRamp",
           "op": "OffRamp_ReleaseOrMint",
           "cost": {
-            "ccip": "16212105",
+            "ccip": "16448970",
             "registry": "0",
-            "token": "9504615",
+            "token": "10211547",
             "external": "1779004"
           },
-          "retained": "206961008"
+          "retained": "206017211"
         },
         {
           "hop": 11,
           "contract": "Router",
           "op": "Router_RelayReleaseOrMint",
           "cost": {
-            "ccip": "15447770",
+            "ccip": "15684635",
             "registry": "0",
-            "token": "9504615",
+            "token": "10211547",
             "external": "1779004"
           },
-          "retained": "206961008"
+          "retained": "206017211"
         },
         {
           "hop": 12,
@@ -4065,168 +4101,180 @@
           "contract": "ReceiverAccount",
           "op": "DepositAccount_Init",
           "cost": {
-            "ccip": "12825033",
+            "ccip": "13061898",
             "registry": "0",
-            "token": "9504615",
+            "token": "10211547",
             "external": "1779004"
           },
-          "retained": "198248811"
+          "retained": "197305014"
         },
         {
           "hop": 15,
           "contract": "Router",
           "op": "DepositAccount_Initialized",
           "cost": {
-            "ccip": "12307898",
+            "ccip": "12544763",
             "registry": "0",
-            "token": "9504615",
+            "token": "10211547",
             "external": "1779004"
           },
-          "retained": "198248811"
+          "retained": "197305014"
         },
         {
           "hop": 20,
           "contract": "ReceiverAccount",
           "op": "TransferNotificationForRecipient",
           "cost": {
-            "ccip": "11449430",
+            "ccip": "11445426",
             "registry": "0",
-            "token": "1065137",
+            "token": "1064536",
             "external": "1779004"
           },
-          "retained": "-4293571"
+          "retained": "20711037"
+        },
+        {
+          "hop": 21,
+          "contract": "Router",
+          "op": "ReturnExcessesBack",
+          "cost": {
+            "ccip": "241468",
+            "registry": "0",
+            "token": "0",
+            "external": "0"
+          },
+          "retained": "176593977"
         },
         {
           "hop": 22,
           "contract": "ReceiveExecutor",
           "op": "DepositAccount_ForwardNotification",
           "cost": {
-            "ccip": "10517228",
+            "ccip": "10512757",
             "registry": "0",
-            "token": "1065137",
+            "token": "1064536",
             "external": "1779004"
           },
-          "retained": "-4293571"
+          "retained": "20711037"
         },
         {
           "hop": 23,
           "contract": "OffRamp",
           "op": "OffRamp_TokenTransferDelivered",
           "cost": {
-            "ccip": "1292340",
+            "ccip": "1292339",
             "registry": "0",
-            "token": "1065137",
+            "token": "1064536",
             "external": "0"
           },
-          "retained": "8142523"
+          "retained": "30546857"
         },
         {
           "hop": 24,
           "contract": "OffRamp",
           "op": "OffRamp_DispatchValidated",
           "cost": {
-            "ccip": "6625085",
+            "ccip": "6625082",
             "registry": "0",
             "token": "0",
             "external": "1779004"
           },
-          "retained": "47595911"
+          "retained": "47595914"
         },
         {
           "hop": 25,
           "contract": "Router",
           "op": "Router_TokenTransferDelivered",
           "cost": {
-            "ccip": "640671",
+            "ccip": "640670",
             "registry": "0",
-            "token": "1065137",
+            "token": "1064536",
             "external": "0"
           },
-          "retained": "8142523"
+          "retained": "30546857"
         },
         {
           "hop": 26,
           "contract": "Router",
           "op": "Router_RouteMessage",
           "cost": {
-            "ccip": "4656683",
+            "ccip": "4656680",
             "registry": "0",
             "token": "0",
             "external": "1779004"
           },
-          "retained": "42211579"
+          "retained": "42211582"
         },
         {
           "hop": 29,
           "contract": "ReceiveExecutor",
           "op": "TokenPool_ReleaseOrMintFinalized",
           "cost": {
-            "ccip": "96602",
+            "ccip": "96601",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "8278858"
+          "retained": "30546857"
         },
         {
           "hop": 30,
           "contract": "Router",
           "op": "Router_CCIPReceiveConfirm",
           "cost": {
-            "ccip": "2991414",
+            "ccip": "2991411",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "25229583"
+          "retained": "25229586"
         },
         {
           "hop": 31,
           "contract": "OffRamp",
           "op": "OffRamp_CCIPReceiveConfirm",
           "cost": {
-            "ccip": "2560411",
+            "ccip": "2560409",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "25229584"
+          "retained": "25229586"
         },
         {
           "hop": 32,
           "contract": "ReceiveExecutor",
           "op": "ReceiveExecutor_CCIPReceiveConfirm",
           "cost": {
-            "ccip": "1881608",
+            "ccip": "1881607",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "25229585"
+          "retained": "25229586"
         },
         {
           "hop": 33,
           "contract": "OffRamp",
           "op": "OffRamp_NotifySuccess",
           "cost": {
-            "ccip": "1335206",
+            "ccip": "1335205",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "105382818"
+          "retained": "130059154"
         },
         {
           "hop": 34,
           "contract": "MerkleRoot",
           "op": "MerkleRoot_MarkState",
           "cost": {
-            "ccip": "680537",
+            "ccip": "680536",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "2819463"
+          "retained": "2819464"
         },
         {
           "hop": 35,
@@ -4238,7 +4286,7 @@
             "token": "0",
             "external": "0"
           },
-          "retained": "12729995"
+          "retained": "12729996"
         }
       ]
     },
@@ -4325,12 +4373,12 @@
           "gasUsed": "28586",
           "computeFee": "1905734",
           "storageFee": "0",
-          "forwardFee": "2979537",
-          "actionFee": "1059476",
-          "totalFee": "2965210",
-          "cost": "4885271",
+          "forwardFee": "3047537",
+          "actionFee": "1082142",
+          "totalFee": "2987876",
+          "cost": "4953271",
           "valueIn": "379874529",
-          "valueOut": "374989258",
+          "valueOut": "374921258",
           "retained": "0"
         },
         {
@@ -4373,9 +4421,9 @@
           "actionFee": "32510",
           "totalFee": "606444",
           "cost": "671468",
-          "valueIn": "364989258",
+          "valueIn": "364921258",
           "valueOut": "8000000",
-          "retained": "356317790"
+          "retained": "356249790"
         },
         {
           "index": 6,
@@ -4410,15 +4458,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "5147",
-          "computeFee": "343134",
+          "gasUsed": "4906",
+          "computeFee": "327068",
           "storageFee": "0",
-          "forwardFee": "159868",
-          "actionFee": "53288",
-          "totalFee": "396422",
-          "cost": "503002",
+          "forwardFee": "171401",
+          "actionFee": "57132",
+          "totalFee": "384200",
+          "cost": "498469",
           "valueIn": "7518264",
-          "valueOut": "7015262",
+          "valueOut": "7019795",
           "retained": "0"
         },
         {
@@ -4432,15 +4480,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "5467",
-          "computeFee": "364468",
+          "gasUsed": "6302",
+          "computeFee": "420134",
           "storageFee": "0",
-          "forwardFee": "135334",
-          "actionFee": "45110",
-          "totalFee": "409578",
-          "cost": "499802",
-          "valueIn": "7015262",
-          "valueOut": "6515460",
+          "forwardFee": "153601",
+          "actionFee": "51199",
+          "totalFee": "471333",
+          "cost": "573735",
+          "valueIn": "7019795",
+          "valueOut": "6446060",
           "retained": "0"
         },
         {
@@ -4454,16 +4502,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "11136",
-          "computeFee": "742401",
+          "gasUsed": "12074",
+          "computeFee": "804934",
           "storageFee": "0",
           "forwardFee": "233268",
           "actionFee": "77754",
-          "totalFee": "820155",
-          "cost": "975669",
-          "valueIn": "6515460",
+          "totalFee": "882688",
+          "cost": "1038202",
+          "valueIn": "6446060",
           "valueOut": "235500000",
-          "retained": "-229960209"
+          "retained": "-230092142"
         },
         {
           "index": 10,
@@ -4500,14 +4548,14 @@
           "actionResultCode": 0,
           "gasUsed": "13700",
           "computeFee": "913334",
-          "storageFee": "0",
+          "storageFee": "1",
           "forwardFee": "1464868",
           "actionFee": "488281",
-          "totalFee": "1401615",
-          "cost": "2378202",
+          "totalFee": "1401616",
+          "cost": "2378203",
           "valueIn": "234735665",
           "valueOut": "232357463",
-          "retained": "0"
+          "retained": "-1"
         },
         {
           "index": 12,
@@ -4608,15 +4656,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "8810",
-          "computeFee": "587334",
+          "gasUsed": "8802",
+          "computeFee": "586801",
           "storageFee": "0",
-          "forwardFee": "271134",
-          "actionFee": "90376",
-          "totalFee": "677710",
-          "cost": "858468",
+          "forwardFee": "271068",
+          "actionFee": "90354",
+          "totalFee": "677155",
+          "cost": "857869",
           "valueIn": "220872789",
-          "valueOut": "220014321",
+          "valueOut": "220014920",
           "retained": "0"
         },
         {
@@ -4630,16 +4678,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "40047",
-          "computeFee": "2669801",
+          "gasUsed": "58027",
+          "computeFee": "3868468",
           "storageFee": "0",
-          "forwardFee": "513268",
-          "actionFee": "236643",
-          "totalFee": "2906444",
-          "cost": "3183069",
-          "valueIn": "220014321",
-          "valueOut": "100000000",
-          "retained": "116831252"
+          "forwardFee": "513735",
+          "actionFee": "236798",
+          "totalFee": "4105266",
+          "cost": "4382203",
+          "valueIn": "220014920",
+          "valueOut": "34101707",
+          "retained": "181531010"
         },
         {
           "index": 18,
@@ -4652,16 +4700,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "6218",
-          "computeFee": "414534",
+          "gasUsed": "6182",
+          "computeFee": "412134",
           "storageFee": "0",
-          "forwardFee": "869934",
-          "actionFee": "289973",
-          "totalFee": "704507",
-          "cost": "1284468",
-          "valueIn": "100000000",
-          "valueOut": "100000000",
-          "retained": "-1284468"
+          "forwardFee": "890401",
+          "actionFee": "296795",
+          "totalFee": "708929",
+          "cost": "1302535",
+          "valueIn": "34101707",
+          "valueOut": "32799172",
+          "retained": "0"
         },
         {
           "index": 19,
@@ -4677,12 +4725,12 @@
           "gasUsed": "6523",
           "computeFee": "434868",
           "storageFee": "0",
-          "forwardFee": "459602",
-          "actionFee": "153198",
-          "totalFee": "588066",
-          "cost": "894470",
-          "valueIn": "100000000",
-          "valueOut": "98131097",
+          "forwardFee": "459535",
+          "actionFee": "153175",
+          "totalFee": "588043",
+          "cost": "894403",
+          "valueIn": "32799172",
+          "valueOut": "30930336",
           "retained": "974433"
         },
         {
@@ -4699,12 +4747,12 @@
           "gasUsed": "6652",
           "computeFee": "443468",
           "storageFee": "0",
-          "forwardFee": "362001",
-          "actionFee": "120665",
-          "totalFee": "564133",
-          "cost": "805469",
-          "valueIn": "10000000",
-          "valueOut": "9194531",
+          "forwardFee": "361934",
+          "actionFee": "120642",
+          "totalFee": "564110",
+          "cost": "805402",
+          "valueIn": "30000002",
+          "valueOut": "29194600",
           "retained": "0"
         },
         {
@@ -4712,22 +4760,22 @@
           "parent": 19,
           "children": [],
           "from": "ReceiverAccountWallet",
-          "to": "BurnMintPool",
-          "owner": "token",
-          "op": "CCT_ReturnExcessesBack",
+          "to": "Router",
+          "owner": "ccip",
+          "op": "ReturnExcessesBack",
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "8931",
-          "computeFee": "595401",
+          "gasUsed": "3622",
+          "computeFee": "241468",
           "storageFee": "0",
           "forwardFee": "0",
           "actionFee": "0",
-          "totalFee": "595401",
-          "cost": "595401",
-          "valueIn": "88131097",
+          "totalFee": "241468",
+          "cost": "241468",
+          "valueIn": "930334",
           "valueOut": "0",
-          "retained": "87535696"
+          "retained": "688866"
         },
         {
           "index": 22,
@@ -4740,16 +4788,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "15127",
-          "computeFee": "1008468",
+          "gasUsed": "15060",
+          "computeFee": "1004001",
           "storageFee": "0",
           "forwardFee": "405669",
           "actionFee": "135220",
-          "totalFee": "1143688",
-          "cost": "1414137",
-          "valueIn": "9194531",
-          "valueOut": "66500000",
-          "retained": "-58719606"
+          "totalFee": "1139221",
+          "cost": "1409670",
+          "valueIn": "29194600",
+          "valueOut": "84049998",
+          "retained": "-56265068"
         },
         {
           "index": 23,
@@ -4769,8 +4817,8 @@
           "actionFee": "54932",
           "totalFee": "541800",
           "cost": "651669",
-          "valueIn": "10500000",
-          "valueOut": "9848331",
+          "valueIn": "28049998",
+          "valueOut": "27398329",
           "retained": "0"
         },
         {
@@ -4813,8 +4861,8 @@
           "actionFee": "48999",
           "totalFee": "446067",
           "cost": "544069",
-          "valueIn": "9848331",
-          "valueOut": "9304262",
+          "valueIn": "27398329",
+          "valueOut": "26854260",
           "retained": "0"
         },
         {
@@ -4850,16 +4898,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "10831",
-          "computeFee": "722068",
+          "gasUsed": "12182",
+          "computeFee": "812134",
           "storageFee": "0",
           "forwardFee": "212602",
           "actionFee": "161756",
-          "totalFee": "883824",
-          "cost": "934670",
-          "valueIn": "9304262",
-          "valueOut": "8505926",
-          "retained": "-136334"
+          "totalFee": "973890",
+          "cost": "1024736",
+          "valueIn": "26854260",
+          "valueOut": "25829524",
+          "retained": "0"
         },
         {
           "index": 28,
@@ -4874,14 +4922,14 @@
           "actionResultCode": 0,
           "gasUsed": "6085",
           "computeFee": "405668",
-          "storageFee": "0",
+          "storageFee": "1",
           "forwardFee": "206668",
           "actionFee": "162222",
-          "totalFee": "567890",
-          "cost": "612336",
+          "totalFee": "567891",
+          "cost": "612337",
           "valueIn": "30000000",
           "valueOut": "29387664",
-          "retained": "0"
+          "retained": "-1"
         },
         {
           "index": 29,
@@ -4901,9 +4949,9 @@
           "actionFee": "0",
           "totalFee": "96601",
           "cost": "96601",
-          "valueIn": "8505926",
+          "valueIn": "25829524",
           "valueOut": "0",
-          "retained": "8409325"
+          "retained": "25732923"
         },
         {
           "index": 30,
@@ -4968,8 +5016,8 @@
           "totalFee": "445600",
           "cost": "546402",
           "valueIn": "28277860",
-          "valueOut": "113689290",
-          "retained": "-85957832"
+          "valueOut": "133267493",
+          "retained": "-105536035"
         },
         {
           "index": 33,
@@ -4989,9 +5037,9 @@
           "actionFee": "121689",
           "totalFee": "610223",
           "cost": "654669",
-          "valueIn": "113689290",
+          "valueIn": "133267493",
           "valueOut": "3500000",
-          "retained": "109534621"
+          "retained": "129112824"
         },
         {
           "index": 34,
@@ -5039,24 +5087,24 @@
         }
       ],
       "totals": {
-        "ccip": "23219251",
-        "registry": "1484540",
-        "token": "7209547",
-        "external": "1032671"
+        "ccip": "23586120",
+        "registry": "1553940",
+        "token": "7921346",
+        "external": "1032672"
       },
       "retained": {
         "Transmitter": "-384253669",
-        "OffRamp": "127648949",
+        "OffRamp": "147227152",
         "MerkleRoot": "-9910532",
         "ReceiveExecutor": "0",
         "TokenAdminRegistry": "0",
         "TokenAdminRegistryEntry": "0",
-        "Router": "19315330",
+        "Router": "20004195",
         "ReceiverAccount": "10000000",
-        "Minter": "-1284468",
-        "BurnMintPool": "204230614",
+        "Minter": "0",
+        "BurnMintPool": "181531010",
         "ReceiverAccountWallet": "974433",
-        "Receiver": "0"
+        "Receiver": "-1"
       },
       "entrypoints": [
         {
@@ -5064,36 +5112,36 @@
           "contract": "OffRamp",
           "op": "OffRamp_Execute",
           "cost": {
-            "ccip": "23219251",
-            "registry": "1484540",
-            "token": "7209547",
-            "external": "612336"
+            "ccip": "23586120",
+            "registry": "1553940",
+            "token": "7921346",
+            "external": "612337"
           },
-          "retained": "350974326"
+          "retained": "349826257"
         },
         {
           "hop": 2,
           "contract": "MerkleRoot",
           "op": "MerkleRoot_Validate",
           "cost": {
-            "ccip": "20529116",
-            "registry": "1484540",
-            "token": "7209547",
-            "external": "612336"
+            "ccip": "20895985",
+            "registry": "1553940",
+            "token": "7921346",
+            "external": "612337"
           },
-          "retained": "350974326"
+          "retained": "349826257"
         },
         {
           "hop": 3,
           "contract": "OffRamp",
           "op": "OffRamp_ExecuteValidated",
           "cost": {
-            "ccip": "19593780",
-            "registry": "1484540",
-            "token": "7209547",
-            "external": "612336"
+            "ccip": "19960649",
+            "registry": "1553940",
+            "token": "7921346",
+            "external": "612337"
           },
-          "retained": "350974326"
+          "retained": "349826257"
         },
         {
           "hop": 4,
@@ -5112,48 +5160,48 @@
           "contract": "ReceiveExecutor",
           "op": "ReceiveExecutor_InitExecute",
           "cost": {
-            "ccip": "14619041",
-            "registry": "1484540",
-            "token": "7209547",
-            "external": "612336"
+            "ccip": "14917910",
+            "registry": "1553940",
+            "token": "7921346",
+            "external": "612337"
           },
-          "retained": "341063794"
+          "retained": "339915725"
         },
         {
           "hop": 9,
           "contract": "ReceiveExecutor",
           "op": "TokenAdminRegistry_TokenInfo",
           "cost": {
-            "ccip": "13947573",
+            "ccip": "14246442",
             "registry": "0",
-            "token": "7209547",
-            "external": "612336"
+            "token": "7921346",
+            "external": "612337"
           },
-          "retained": "-15253996"
+          "retained": "-16334065"
         },
         {
           "hop": 10,
           "contract": "OffRamp",
           "op": "OffRamp_ReleaseOrMint",
           "cost": {
-            "ccip": "12971904",
+            "ccip": "13208240",
             "registry": "0",
-            "token": "7209547",
-            "external": "612336"
+            "token": "7921346",
+            "external": "612337"
           },
-          "retained": "214706213"
+          "retained": "213758077"
         },
         {
           "hop": 11,
           "contract": "Router",
           "op": "Router_RelayReleaseOrMint",
           "cost": {
-            "ccip": "12207569",
+            "ccip": "12443905",
             "registry": "0",
-            "token": "7209547",
-            "external": "612336"
+            "token": "7921346",
+            "external": "612337"
           },
-          "retained": "214706213"
+          "retained": "213758077"
         },
         {
           "hop": 12,
@@ -5172,60 +5220,72 @@
           "contract": "ReceiverAccount",
           "op": "DepositAccount_Init",
           "cost": {
-            "ccip": "9739899",
+            "ccip": "9976234",
             "registry": "0",
-            "token": "7209547",
-            "external": "612336"
+            "token": "7921346",
+            "external": "612337"
           },
-          "retained": "204795681"
+          "retained": "203847546"
         },
         {
           "hop": 15,
           "contract": "ReceiverAccount",
           "op": "ResponseWalletAddress",
           "cost": {
-            "ccip": "9284030",
+            "ccip": "9520365",
             "registry": "0",
-            "token": "6892078",
-            "external": "612336"
+            "token": "7603877",
+            "external": "612337"
           },
-          "retained": "-12105913"
+          "retained": "-13054048"
         },
         {
           "hop": 16,
           "contract": "Router",
           "op": "DepositAccount_Initialized",
           "cost": {
-            "ccip": "8662162",
+            "ccip": "8898497",
             "registry": "0",
-            "token": "6892078",
-            "external": "612336"
+            "token": "7603877",
+            "external": "612337"
           },
-          "retained": "204706213"
+          "retained": "203758078"
         },
         {
           "hop": 20,
           "contract": "ReceiverAccount",
           "op": "TransferNotificationForRecipient",
           "cost": {
-            "ccip": "7803694",
+            "ccip": "7799160",
             "registry": "0",
-            "token": "934670",
-            "external": "612336"
+            "token": "1024736",
+            "external": "612337"
           },
-          "retained": "649300"
+          "retained": "20563769"
+        },
+        {
+          "hop": 21,
+          "contract": "Router",
+          "op": "ReturnExcessesBack",
+          "cost": {
+            "ccip": "241468",
+            "registry": "0",
+            "token": "0",
+            "external": "0"
+          },
+          "retained": "688866"
         },
         {
           "hop": 22,
           "contract": "ReceiveExecutor",
           "op": "DepositAccount_ForwardNotification",
           "cost": {
-            "ccip": "6998225",
+            "ccip": "6993758",
             "registry": "0",
-            "token": "934670",
-            "external": "612336"
+            "token": "1024736",
+            "external": "612337"
           },
-          "retained": "649300"
+          "retained": "20563769"
         },
         {
           "hop": 23,
@@ -5234,10 +5294,10 @@
           "cost": {
             "ccip": "1292339",
             "registry": "0",
-            "token": "934670",
+            "token": "1024736",
             "external": "0"
           },
-          "retained": "8272991"
+          "retained": "25732923"
         },
         {
           "hop": 24,
@@ -5247,9 +5307,9 @@
             "ccip": "4291749",
             "registry": "0",
             "token": "0",
-            "external": "612336"
+            "external": "612337"
           },
-          "retained": "51095915"
+          "retained": "51095914"
         },
         {
           "hop": 25,
@@ -5258,10 +5318,10 @@
           "cost": {
             "ccip": "640670",
             "registry": "0",
-            "token": "934670",
+            "token": "1024736",
             "external": "0"
           },
-          "retained": "8272991"
+          "retained": "25732923"
         },
         {
           "hop": 26,
@@ -5271,9 +5331,9 @@
             "ccip": "3490013",
             "registry": "0",
             "token": "0",
-            "external": "612336"
+            "external": "612337"
           },
-          "retained": "45711583"
+          "retained": "45711582"
         },
         {
           "hop": 29,
@@ -5285,7 +5345,7 @@
             "token": "0",
             "external": "0"
           },
-          "retained": "8409325"
+          "retained": "25732923"
         },
         {
           "hop": 30,
@@ -5333,7 +5393,7 @@
             "token": "0",
             "external": "0"
           },
-          "retained": "112354085"
+          "retained": "131932288"
         },
         {
           "hop": 34,
@@ -5399,14 +5459,14 @@
           "actionResultCode": 0,
           "gasUsed": "32858",
           "computeFee": "2190534",
-          "storageFee": "1",
+          "storageFee": "0",
           "forwardFee": "499601",
           "actionFee": "210976",
-          "totalFee": "2401511",
-          "cost": "2690136",
+          "totalFee": "2401510",
+          "cost": "2690135",
           "valueIn": "383500000",
           "valueOut": "380809865",
-          "retained": "-1"
+          "retained": "0"
         },
         {
           "index": 2,
@@ -5421,14 +5481,14 @@
           "actionResultCode": 0,
           "gasUsed": "9973",
           "computeFee": "664868",
-          "storageFee": "1",
+          "storageFee": "0",
           "forwardFee": "270468",
           "actionFee": "90154",
-          "totalFee": "755023",
-          "cost": "935337",
+          "totalFee": "755022",
+          "cost": "935336",
           "valueIn": "380809865",
           "valueOut": "379874529",
-          "retained": "-1"
+          "retained": "0"
         },
         {
           "index": 3,
@@ -5444,12 +5504,12 @@
           "gasUsed": "28586",
           "computeFee": "1905734",
           "storageFee": "0",
-          "forwardFee": "2979537",
-          "actionFee": "1059476",
-          "totalFee": "2965210",
-          "cost": "4885271",
+          "forwardFee": "3047537",
+          "actionFee": "1082142",
+          "totalFee": "2987876",
+          "cost": "4953271",
           "valueIn": "379874529",
-          "valueOut": "374989258",
+          "valueOut": "374921258",
           "retained": "0"
         },
         {
@@ -5492,9 +5552,9 @@
           "actionFee": "32510",
           "totalFee": "606444",
           "cost": "671468",
-          "valueIn": "364989258",
+          "valueIn": "364921258",
           "valueOut": "8000000",
-          "retained": "356317790"
+          "retained": "356249790"
         },
         {
           "index": 6,
@@ -5509,14 +5569,14 @@
           "actionResultCode": 0,
           "gasUsed": "5560",
           "computeFee": "370668",
-          "storageFee": "1",
+          "storageFee": "0",
           "forwardFee": "111068",
           "actionFee": "37022",
-          "totalFee": "407691",
-          "cost": "481737",
+          "totalFee": "407690",
+          "cost": "481736",
           "valueIn": "8000000",
           "valueOut": "7518264",
-          "retained": "-1"
+          "retained": "0"
         },
         {
           "index": 7,
@@ -5529,16 +5589,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "5147",
-          "computeFee": "343134",
-          "storageFee": "1",
-          "forwardFee": "159868",
-          "actionFee": "53288",
-          "totalFee": "396423",
-          "cost": "503003",
+          "gasUsed": "4906",
+          "computeFee": "327068",
+          "storageFee": "0",
+          "forwardFee": "171401",
+          "actionFee": "57132",
+          "totalFee": "384200",
+          "cost": "498469",
           "valueIn": "7518264",
-          "valueOut": "7015262",
-          "retained": "-1"
+          "valueOut": "7019795",
+          "retained": "0"
         },
         {
           "index": 8,
@@ -5551,15 +5611,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "5467",
-          "computeFee": "364468",
+          "gasUsed": "6302",
+          "computeFee": "420134",
           "storageFee": "0",
-          "forwardFee": "135334",
-          "actionFee": "45110",
-          "totalFee": "409578",
-          "cost": "499802",
-          "valueIn": "7015262",
-          "valueOut": "6515460",
+          "forwardFee": "153601",
+          "actionFee": "51199",
+          "totalFee": "471333",
+          "cost": "573735",
+          "valueIn": "7019795",
+          "valueOut": "6446060",
           "retained": "0"
         },
         {
@@ -5573,16 +5633,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "11136",
-          "computeFee": "742401",
+          "gasUsed": "12074",
+          "computeFee": "804934",
           "storageFee": "0",
           "forwardFee": "233268",
           "actionFee": "77754",
-          "totalFee": "820155",
-          "cost": "975669",
-          "valueIn": "6515460",
+          "totalFee": "882688",
+          "cost": "1038202",
+          "valueIn": "6446060",
           "valueOut": "235500000",
-          "retained": "-229960209"
+          "retained": "-230092142"
         },
         {
           "index": 10,
@@ -5619,14 +5679,14 @@
           "actionResultCode": 0,
           "gasUsed": "13700",
           "computeFee": "913334",
-          "storageFee": "1",
+          "storageFee": "0",
           "forwardFee": "1464868",
           "actionFee": "488281",
-          "totalFee": "1401616",
-          "cost": "2378203",
+          "totalFee": "1401615",
+          "cost": "2378202",
           "valueIn": "234735665",
           "valueOut": "232357463",
-          "retained": "-1"
+          "retained": "0"
         },
         {
           "index": 12,
@@ -5685,14 +5745,14 @@
           "actionResultCode": 0,
           "gasUsed": "2213",
           "computeFee": "147534",
-          "storageFee": "0",
+          "storageFee": "1",
           "forwardFee": "0",
           "actionFee": "0",
-          "totalFee": "147534",
-          "cost": "147534",
+          "totalFee": "147535",
+          "cost": "147535",
           "valueIn": "8859731",
           "valueOut": "0",
-          "retained": "8712197"
+          "retained": "8712196"
         },
         {
           "index": 15,
@@ -5705,15 +5765,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "8810",
-          "computeFee": "587334",
+          "gasUsed": "8802",
+          "computeFee": "586801",
           "storageFee": "0",
-          "forwardFee": "271134",
-          "actionFee": "90376",
-          "totalFee": "677710",
-          "cost": "858468",
+          "forwardFee": "271068",
+          "actionFee": "90354",
+          "totalFee": "677155",
+          "cost": "857869",
           "valueIn": "221840327",
-          "valueOut": "220981859",
+          "valueOut": "220982458",
           "retained": "0"
         },
         {
@@ -5727,16 +5787,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "40277",
-          "computeFee": "2685134",
+          "gasUsed": "58257",
+          "computeFee": "3883801",
           "storageFee": "1",
-          "forwardFee": "513268",
-          "actionFee": "236643",
-          "totalFee": "2921778",
-          "cost": "3198403",
-          "valueIn": "220981859",
-          "valueOut": "100000000",
-          "retained": "117783456"
+          "forwardFee": "513735",
+          "actionFee": "236798",
+          "totalFee": "4120600",
+          "cost": "4397537",
+          "valueIn": "220982458",
+          "valueOut": "34101707",
+          "retained": "182483214"
         },
         {
           "index": 17,
@@ -5749,16 +5809,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "6218",
-          "computeFee": "414534",
+          "gasUsed": "6182",
+          "computeFee": "412134",
           "storageFee": "1",
-          "forwardFee": "869934",
-          "actionFee": "289973",
-          "totalFee": "704508",
-          "cost": "1284469",
-          "valueIn": "100000000",
-          "valueOut": "100000000",
-          "retained": "-1284469"
+          "forwardFee": "890401",
+          "actionFee": "296795",
+          "totalFee": "708930",
+          "cost": "1302536",
+          "valueIn": "34101707",
+          "valueOut": "32799172",
+          "retained": "-1"
         },
         {
           "index": 18,
@@ -5774,12 +5834,12 @@
           "gasUsed": "6523",
           "computeFee": "434868",
           "storageFee": "1",
-          "forwardFee": "459602",
-          "actionFee": "153198",
-          "totalFee": "588067",
-          "cost": "894471",
-          "valueIn": "100000000",
-          "valueOut": "99105529",
+          "forwardFee": "459535",
+          "actionFee": "153175",
+          "totalFee": "588044",
+          "cost": "894404",
+          "valueIn": "32799172",
+          "valueOut": "31904768",
           "retained": "0"
         },
         {
@@ -5796,12 +5856,12 @@
           "gasUsed": "6652",
           "computeFee": "443468",
           "storageFee": "0",
-          "forwardFee": "362001",
-          "actionFee": "120665",
-          "totalFee": "564133",
-          "cost": "805469",
-          "valueIn": "10000000",
-          "valueOut": "9194531",
+          "forwardFee": "361934",
+          "actionFee": "120642",
+          "totalFee": "564110",
+          "cost": "805402",
+          "valueIn": "30000002",
+          "valueOut": "29194600",
           "retained": "0"
         },
         {
@@ -5809,22 +5869,22 @@
           "parent": 18,
           "children": [],
           "from": "ReceiverAccountWallet",
-          "to": "BurnMintPool",
-          "owner": "token",
-          "op": "CCT_ReturnExcessesBack",
+          "to": "Router",
+          "owner": "ccip",
+          "op": "ReturnExcessesBack",
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "8931",
-          "computeFee": "595401",
+          "gasUsed": "3622",
+          "computeFee": "241468",
           "storageFee": "0",
           "forwardFee": "0",
           "actionFee": "0",
-          "totalFee": "595401",
-          "cost": "595401",
-          "valueIn": "89105529",
+          "totalFee": "241468",
+          "cost": "241468",
+          "valueIn": "1904766",
           "valueOut": "0",
-          "retained": "88510128"
+          "retained": "1663298"
         },
         {
           "index": 21,
@@ -5837,16 +5897,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "15127",
-          "computeFee": "1008468",
-          "storageFee": "0",
+          "gasUsed": "15060",
+          "computeFee": "1004001",
+          "storageFee": "1",
           "forwardFee": "405669",
           "actionFee": "135220",
-          "totalFee": "1143688",
-          "cost": "1414137",
-          "valueIn": "9194531",
-          "valueOut": "66500000",
-          "retained": "-58719606"
+          "totalFee": "1139222",
+          "cost": "1409671",
+          "valueIn": "29194600",
+          "valueOut": "84049998",
+          "retained": "-56265069"
         },
         {
           "index": 22,
@@ -5861,14 +5921,14 @@
           "actionResultCode": 0,
           "gasUsed": "7303",
           "computeFee": "486868",
-          "storageFee": "0",
+          "storageFee": "1",
           "forwardFee": "164801",
           "actionFee": "54932",
-          "totalFee": "541800",
-          "cost": "651669",
-          "valueIn": "10500000",
-          "valueOut": "9848331",
-          "retained": "0"
+          "totalFee": "541801",
+          "cost": "651670",
+          "valueIn": "28049998",
+          "valueOut": "27398329",
+          "retained": "-1"
         },
         {
           "index": 23,
@@ -5910,8 +5970,8 @@
           "actionFee": "48999",
           "totalFee": "446067",
           "cost": "544069",
-          "valueIn": "9848331",
-          "valueOut": "9304262",
+          "valueIn": "27398329",
+          "valueOut": "26854260",
           "retained": "0"
         },
         {
@@ -5947,16 +6007,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "10831",
-          "computeFee": "722068",
+          "gasUsed": "12182",
+          "computeFee": "812134",
           "storageFee": "0",
           "forwardFee": "212602",
           "actionFee": "161756",
-          "totalFee": "883824",
-          "cost": "934670",
-          "valueIn": "9304262",
-          "valueOut": "8505926",
-          "retained": "-136334"
+          "totalFee": "973890",
+          "cost": "1024736",
+          "valueIn": "26854260",
+          "valueOut": "25829524",
+          "retained": "0"
         },
         {
           "index": 27,
@@ -5998,9 +6058,9 @@
           "actionFee": "0",
           "totalFee": "96601",
           "cost": "96601",
-          "valueIn": "8505926",
+          "valueIn": "25829524",
           "valueOut": "0",
-          "retained": "8409325"
+          "retained": "25732923"
         },
         {
           "index": 29,
@@ -6065,8 +6125,8 @@
           "totalFee": "445600",
           "cost": "546402",
           "valueIn": "28277860",
-          "valueOut": "113689290",
-          "retained": "-85957832"
+          "valueOut": "133267492",
+          "retained": "-105536034"
         },
         {
           "index": 32,
@@ -6086,9 +6146,9 @@
           "actionFee": "121689",
           "totalFee": "610223",
           "cost": "654669",
-          "valueIn": "113689290",
+          "valueIn": "133267492",
           "valueOut": "3500000",
-          "retained": "109534621"
+          "retained": "129112823"
         },
         {
           "index": 33,
@@ -6103,14 +6163,14 @@
           "actionResultCode": 0,
           "gasUsed": "5134",
           "computeFee": "342268",
-          "storageFee": "0",
+          "storageFee": "1",
           "forwardFee": "73334",
           "actionFee": "24444",
-          "totalFee": "366712",
-          "cost": "415602",
+          "totalFee": "366713",
+          "cost": "415603",
           "valueIn": "3500000",
           "valueOut": "12994929",
-          "retained": "-9910531"
+          "retained": "-9910532"
         },
         {
           "index": 34,
@@ -6136,22 +6196,22 @@
         }
       ],
       "totals": {
-        "ccip": "22813720",
-        "registry": "1484542",
-        "token": "6907414",
+        "ccip": "23180589",
+        "registry": "1553940",
+        "token": "7619213",
         "external": "1032672"
       },
       "retained": {
         "Transmitter": "-384253669",
-        "OffRamp": "127648947",
+        "OffRamp": "147227149",
         "MerkleRoot": "-9910532",
         "ReceiveExecutor": "0",
-        "TokenAdminRegistry": "-1",
-        "TokenAdminRegistryEntry": "-1",
-        "Router": "28027526",
+        "TokenAdminRegistry": "0",
+        "TokenAdminRegistryEntry": "0",
+        "Router": "29690824",
         "ReceiverAccount": "0",
-        "BurnMintPool": "206157250",
-        "Minter": "-1284469",
+        "BurnMintPool": "182483214",
+        "Minter": "-1",
         "ReceiverAccountWallet": "0",
         "Receiver": "-1"
       },
@@ -6161,36 +6221,36 @@
           "contract": "OffRamp",
           "op": "OffRamp_Execute",
           "cost": {
-            "ccip": "22813720",
-            "registry": "1484542",
-            "token": "6907414",
+            "ccip": "23180589",
+            "registry": "1553940",
+            "token": "7619213",
             "external": "612337"
           },
-          "retained": "350638719"
+          "retained": "349490653"
         },
         {
           "hop": 2,
           "contract": "MerkleRoot",
           "op": "MerkleRoot_Validate",
           "cost": {
-            "ccip": "20123584",
-            "registry": "1484542",
-            "token": "6907414",
+            "ccip": "20490454",
+            "registry": "1553940",
+            "token": "7619213",
             "external": "612337"
           },
-          "retained": "350638720"
+          "retained": "349490653"
         },
         {
           "hop": 3,
           "contract": "OffRamp",
           "op": "OffRamp_ExecuteValidated",
           "cost": {
-            "ccip": "19188247",
-            "registry": "1484542",
-            "token": "6907414",
+            "ccip": "19555118",
+            "registry": "1553940",
+            "token": "7619213",
             "external": "612337"
           },
-          "retained": "350638721"
+          "retained": "349490653"
         },
         {
           "hop": 4,
@@ -6209,132 +6269,144 @@
           "contract": "ReceiveExecutor",
           "op": "ReceiveExecutor_InitExecute",
           "cost": {
-            "ccip": "14213508",
-            "registry": "1484542",
-            "token": "6907414",
+            "ccip": "14512379",
+            "registry": "1553940",
+            "token": "7619213",
             "external": "612337"
           },
-          "retained": "340728189"
+          "retained": "339580121"
         },
         {
           "hop": 9,
           "contract": "ReceiveExecutor",
           "op": "TokenAdminRegistry_TokenInfo",
           "cost": {
-            "ccip": "13542040",
+            "ccip": "13840911",
             "registry": "0",
-            "token": "6907414",
+            "token": "7619213",
             "external": "612337"
           },
-          "retained": "-15589599"
+          "retained": "-16669669"
         },
         {
           "hop": 10,
           "contract": "OffRamp",
           "op": "OffRamp_ReleaseOrMint",
           "cost": {
-            "ccip": "12566371",
+            "ccip": "12802709",
             "registry": "0",
-            "token": "6907414",
+            "token": "7619213",
             "external": "612337"
           },
-          "retained": "214370610"
+          "retained": "213422473"
         },
         {
           "hop": 11,
           "contract": "Router",
           "op": "Router_RelayReleaseOrMint",
           "cost": {
-            "ccip": "11802036",
+            "ccip": "12038374",
             "registry": "0",
-            "token": "6907414",
+            "token": "7619213",
             "external": "612337"
           },
-          "retained": "214370610"
+          "retained": "213422473"
         },
         {
           "hop": 12,
           "contract": "ReceiverAccount",
           "op": "Deployable.initialize",
           "cost": {
-            "ccip": "244536",
+            "ccip": "244537",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "8712196"
+          "retained": "8712195"
         },
         {
           "hop": 13,
           "contract": "ReceiverAccount",
           "op": "DepositAccount_Init",
           "cost": {
-            "ccip": "9179297",
+            "ccip": "9415635",
             "registry": "0",
-            "token": "6907414",
+            "token": "7619213",
             "external": "612337"
           },
-          "retained": "205658415"
+          "retained": "204710278"
         },
         {
           "hop": 15,
           "contract": "Router",
           "op": "DepositAccount_Initialized",
           "cost": {
-            "ccip": "8662162",
+            "ccip": "8898500",
             "registry": "0",
-            "token": "6907414",
+            "token": "7619213",
             "external": "612337"
           },
-          "retained": "205658414"
+          "retained": "204710277"
         },
         {
           "hop": 19,
           "contract": "ReceiverAccount",
           "op": "TransferNotificationForRecipient",
           "cost": {
-            "ccip": "7803694",
+            "ccip": "7799163",
             "registry": "0",
-            "token": "934670",
+            "token": "1024736",
             "external": "612337"
           },
-          "retained": "649299"
+          "retained": "20563766"
+        },
+        {
+          "hop": 20,
+          "contract": "Router",
+          "op": "ReturnExcessesBack",
+          "cost": {
+            "ccip": "241468",
+            "registry": "0",
+            "token": "0",
+            "external": "0"
+          },
+          "retained": "1663298"
         },
         {
           "hop": 21,
           "contract": "ReceiveExecutor",
           "op": "DepositAccount_ForwardNotification",
           "cost": {
-            "ccip": "6998225",
+            "ccip": "6993761",
             "registry": "0",
-            "token": "934670",
+            "token": "1024736",
             "external": "612337"
           },
-          "retained": "649299"
+          "retained": "20563766"
         },
         {
           "hop": 22,
           "contract": "OffRamp",
           "op": "OffRamp_TokenTransferDelivered",
           "cost": {
-            "ccip": "1292339",
+            "ccip": "1292340",
             "registry": "0",
-            "token": "934670",
+            "token": "1024736",
             "external": "0"
           },
-          "retained": "8272991"
+          "retained": "25732922"
         },
         {
           "hop": 23,
           "contract": "OffRamp",
           "op": "OffRamp_DispatchValidated",
           "cost": {
-            "ccip": "4291749",
+            "ccip": "4291750",
             "registry": "0",
             "token": "0",
             "external": "612337"
           },
-          "retained": "51095914"
+          "retained": "51095913"
         },
         {
           "hop": 24,
@@ -6343,22 +6415,22 @@
           "cost": {
             "ccip": "640670",
             "registry": "0",
-            "token": "934670",
+            "token": "1024736",
             "external": "0"
           },
-          "retained": "8272991"
+          "retained": "25732923"
         },
         {
           "hop": 25,
           "contract": "Router",
           "op": "Router_RouteMessage",
           "cost": {
-            "ccip": "3490013",
+            "ccip": "3490014",
             "registry": "0",
             "token": "0",
             "external": "612337"
           },
-          "retained": "45711582"
+          "retained": "45711581"
         },
         {
           "hop": 28,
@@ -6370,67 +6442,67 @@
             "token": "0",
             "external": "0"
           },
-          "retained": "8409325"
+          "retained": "25732923"
         },
         {
           "hop": 29,
           "contract": "Router",
           "op": "Router_CCIPReceiveConfirm",
           "cost": {
-            "ccip": "2991411",
+            "ccip": "2991412",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "26396253"
+          "retained": "26396252"
         },
         {
           "hop": 30,
           "contract": "OffRamp",
           "op": "OffRamp_CCIPReceiveConfirm",
           "cost": {
-            "ccip": "2560409",
+            "ccip": "2560410",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "26396253"
+          "retained": "26396252"
         },
         {
           "hop": 31,
           "contract": "ReceiveExecutor",
           "op": "ReceiveExecutor_CCIPReceiveConfirm",
           "cost": {
-            "ccip": "1881607",
+            "ccip": "1881608",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "26396253"
+          "retained": "26396252"
         },
         {
           "hop": 32,
           "contract": "OffRamp",
           "op": "OffRamp_NotifySuccess",
           "cost": {
-            "ccip": "1335205",
+            "ccip": "1335206",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "112354085"
+          "retained": "131932286"
         },
         {
           "hop": 33,
           "contract": "MerkleRoot",
           "op": "MerkleRoot_MarkState",
           "cost": {
-            "ccip": "680536",
+            "ccip": "680537",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "2819464"
+          "retained": "2819463"
         },
         {
           "hop": 34,
@@ -6529,12 +6601,12 @@
           "gasUsed": "28586",
           "computeFee": "1905734",
           "storageFee": "0",
-          "forwardFee": "2975270",
-          "actionFee": "1058053",
-          "totalFee": "2963787",
-          "cost": "4881004",
+          "forwardFee": "3043270",
+          "actionFee": "1080719",
+          "totalFee": "2986453",
+          "cost": "4949004",
           "valueIn": "349878796",
-          "valueOut": "344997792",
+          "valueOut": "344929792",
           "retained": "0"
         },
         {
@@ -6577,9 +6649,9 @@
           "actionFee": "32510",
           "totalFee": "606444",
           "cost": "671468",
-          "valueIn": "334997792",
+          "valueIn": "334929792",
           "valueOut": "8000000",
-          "retained": "326326324"
+          "retained": "326258324"
         },
         {
           "index": 6,
@@ -6594,14 +6666,14 @@
           "actionResultCode": 0,
           "gasUsed": "5560",
           "computeFee": "370668",
-          "storageFee": "0",
+          "storageFee": "1",
           "forwardFee": "111068",
           "actionFee": "37022",
-          "totalFee": "407690",
-          "cost": "481736",
+          "totalFee": "407691",
+          "cost": "481737",
           "valueIn": "8000000",
           "valueOut": "7518264",
-          "retained": "0"
+          "retained": "-1"
         },
         {
           "index": 7,
@@ -6614,16 +6686,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "5147",
-          "computeFee": "343134",
-          "storageFee": "0",
-          "forwardFee": "159868",
-          "actionFee": "53288",
-          "totalFee": "396422",
-          "cost": "503002",
+          "gasUsed": "4906",
+          "computeFee": "327068",
+          "storageFee": "1",
+          "forwardFee": "171401",
+          "actionFee": "57132",
+          "totalFee": "384201",
+          "cost": "498470",
           "valueIn": "7518264",
-          "valueOut": "7015262",
-          "retained": "0"
+          "valueOut": "7019795",
+          "retained": "-1"
         },
         {
           "index": 8,
@@ -6636,15 +6708,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "5467",
-          "computeFee": "364468",
+          "gasUsed": "6302",
+          "computeFee": "420134",
           "storageFee": "0",
-          "forwardFee": "135334",
-          "actionFee": "45110",
-          "totalFee": "409578",
-          "cost": "499802",
-          "valueIn": "7015262",
-          "valueOut": "6515460",
+          "forwardFee": "153601",
+          "actionFee": "51199",
+          "totalFee": "471333",
+          "cost": "573735",
+          "valueIn": "7019795",
+          "valueOut": "6446060",
           "retained": "0"
         },
         {
@@ -6658,16 +6730,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "11136",
-          "computeFee": "742401",
+          "gasUsed": "12074",
+          "computeFee": "804934",
           "storageFee": "0",
           "forwardFee": "233268",
           "actionFee": "77754",
-          "totalFee": "820155",
-          "cost": "975669",
-          "valueIn": "6515460",
+          "totalFee": "882688",
+          "cost": "1038202",
+          "valueIn": "6446060",
           "valueOut": "235500000",
-          "retained": "-229960209"
+          "retained": "-230092142"
         },
         {
           "index": 10,
@@ -6790,15 +6862,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "8810",
-          "computeFee": "587334",
+          "gasUsed": "8802",
+          "computeFee": "586801",
           "storageFee": "0",
-          "forwardFee": "271134",
-          "actionFee": "90376",
-          "totalFee": "677710",
-          "cost": "858468",
+          "forwardFee": "271068",
+          "actionFee": "90354",
+          "totalFee": "677155",
+          "cost": "857869",
           "valueIn": "221840328",
-          "valueOut": "220981860",
+          "valueOut": "220982459",
           "retained": "0"
         },
         {
@@ -6812,16 +6884,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "40047",
-          "computeFee": "2669801",
+          "gasUsed": "58027",
+          "computeFee": "3868468",
           "storageFee": "0",
-          "forwardFee": "513268",
-          "actionFee": "236643",
-          "totalFee": "2906444",
-          "cost": "3183069",
-          "valueIn": "220981860",
-          "valueOut": "100000000",
-          "retained": "117798791"
+          "forwardFee": "513735",
+          "actionFee": "236798",
+          "totalFee": "4105266",
+          "cost": "4382203",
+          "valueIn": "220982459",
+          "valueOut": "34101707",
+          "retained": "182498549"
         },
         {
           "index": 17,
@@ -6834,16 +6906,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "6218",
-          "computeFee": "414534",
+          "gasUsed": "6182",
+          "computeFee": "412134",
           "storageFee": "0",
-          "forwardFee": "869934",
-          "actionFee": "289973",
-          "totalFee": "704507",
-          "cost": "1284468",
-          "valueIn": "100000000",
-          "valueOut": "100000000",
-          "retained": "-1284468"
+          "forwardFee": "890401",
+          "actionFee": "296795",
+          "totalFee": "708929",
+          "cost": "1302535",
+          "valueIn": "34101707",
+          "valueOut": "32799172",
+          "retained": "0"
         },
         {
           "index": 18,
@@ -6859,12 +6931,12 @@
           "gasUsed": "6523",
           "computeFee": "434868",
           "storageFee": "0",
-          "forwardFee": "459602",
-          "actionFee": "153198",
-          "totalFee": "588066",
-          "cost": "894470",
-          "valueIn": "100000000",
-          "valueOut": "99105530",
+          "forwardFee": "459535",
+          "actionFee": "153175",
+          "totalFee": "588043",
+          "cost": "894403",
+          "valueIn": "32799172",
+          "valueOut": "31904769",
           "retained": "0"
         },
         {
@@ -6881,12 +6953,12 @@
           "gasUsed": "6652",
           "computeFee": "443468",
           "storageFee": "0",
-          "forwardFee": "362001",
-          "actionFee": "120665",
-          "totalFee": "564133",
-          "cost": "805469",
-          "valueIn": "10000000",
-          "valueOut": "9194531",
+          "forwardFee": "361934",
+          "actionFee": "120642",
+          "totalFee": "564110",
+          "cost": "805402",
+          "valueIn": "30000002",
+          "valueOut": "29194600",
           "retained": "0"
         },
         {
@@ -6894,22 +6966,22 @@
           "parent": 18,
           "children": [],
           "from": "ReceiverAccountWallet",
-          "to": "BurnMintPool",
-          "owner": "token",
-          "op": "CCT_ReturnExcessesBack",
+          "to": "Router",
+          "owner": "ccip",
+          "op": "ReturnExcessesBack",
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "8931",
-          "computeFee": "595401",
+          "gasUsed": "3622",
+          "computeFee": "241468",
           "storageFee": "0",
           "forwardFee": "0",
           "actionFee": "0",
-          "totalFee": "595401",
-          "cost": "595401",
-          "valueIn": "89105530",
+          "totalFee": "241468",
+          "cost": "241468",
+          "valueIn": "1904767",
           "valueOut": "0",
-          "retained": "88510129"
+          "retained": "1663299"
         },
         {
           "index": 21,
@@ -6929,9 +7001,9 @@
           "actionFee": "75043",
           "totalFee": "879311",
           "cost": "1029402",
-          "valueIn": "9194531",
-          "valueOut": "114441776",
-          "retained": "-106276647"
+          "valueIn": "29194600",
+          "valueOut": "134241912",
+          "retained": "-106076714"
         },
         {
           "index": 22,
@@ -6944,16 +7016,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "10451",
-          "computeFee": "696734",
+          "gasUsed": "10374",
+          "computeFee": "691601",
           "storageFee": "0",
           "forwardFee": "330936",
           "actionFee": "176621",
-          "totalFee": "873355",
-          "cost": "1027670",
-          "valueIn": "114441776",
-          "valueOut": "14000000",
-          "retained": "99414106"
+          "totalFee": "868222",
+          "cost": "1022537",
+          "valueIn": "134241912",
+          "valueOut": "136885510",
+          "retained": "-3666135"
         },
         {
           "index": 23,
@@ -6973,8 +7045,8 @@
           "actionFee": "48999",
           "totalFee": "446067",
           "cost": "544069",
-          "valueIn": "10500000",
-          "valueOut": "9955931",
+          "valueIn": "133385510",
+          "valueOut": "132841441",
           "retained": "0"
         },
         {
@@ -7010,16 +7082,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "10831",
-          "computeFee": "722068",
+          "gasUsed": "12182",
+          "computeFee": "812134",
           "storageFee": "0",
           "forwardFee": "212602",
           "actionFee": "161756",
-          "totalFee": "883824",
-          "cost": "934670",
-          "valueIn": "9955931",
-          "valueOut": "9157595",
-          "retained": "-136334"
+          "totalFee": "973890",
+          "cost": "1024736",
+          "valueIn": "132841441",
+          "valueOut": "131816705",
+          "retained": "0"
         },
         {
           "index": 26,
@@ -7061,28 +7133,28 @@
           "actionFee": "0",
           "totalFee": "96601",
           "cost": "96601",
-          "valueIn": "9157595",
+          "valueIn": "131816705",
           "valueOut": "0",
-          "retained": "9060994"
+          "retained": "131720104"
         }
       ],
       "totals": {
-        "ccip": "19185235",
-        "registry": "1484540",
-        "token": "6892078",
+        "ccip": "19551437",
+        "registry": "1553942",
+        "token": "7603877",
         "external": "418202"
       },
       "retained": {
         "Transmitter": "-354249403",
-        "OffRamp": "112144102",
+        "OffRamp": "9063861",
         "MerkleRoot": "-9910532",
-        "ReceiveExecutor": "9060994",
-        "TokenAdminRegistry": "0",
-        "TokenAdminRegistryEntry": "0",
-        "Router": "8712197",
+        "ReceiveExecutor": "131720104",
+        "TokenAdminRegistry": "-1",
+        "TokenAdminRegistryEntry": "-1",
+        "Router": "10375496",
         "ReceiverAccount": "0",
-        "BurnMintPool": "206172586",
-        "Minter": "-1284468",
+        "BurnMintPool": "182498549",
+        "Minter": "0",
         "ReceiverAccountWallet": "0"
       },
       "entrypoints": [
@@ -7091,36 +7163,36 @@
           "contract": "OffRamp",
           "op": "OffRamp_Execute",
           "cost": {
-            "ccip": "19185235",
-            "registry": "1484540",
-            "token": "6892078",
+            "ccip": "19551437",
+            "registry": "1553942",
+            "token": "7603877",
             "external": "0"
           },
-          "retained": "324894879"
+          "retained": "323747476"
         },
         {
           "hop": 2,
           "contract": "MerkleRoot",
           "op": "MerkleRoot_Validate",
           "cost": {
-            "ccip": "16497233",
-            "registry": "1484540",
-            "token": "6892078",
+            "ccip": "16863435",
+            "registry": "1553942",
+            "token": "7603877",
             "external": "0"
           },
-          "retained": "324894879"
+          "retained": "323747476"
         },
         {
           "hop": 3,
           "contract": "OffRamp",
           "op": "OffRamp_ExecuteValidated",
           "cost": {
-            "ccip": "15564031",
-            "registry": "1484540",
-            "token": "6892078",
+            "ccip": "15930233",
+            "registry": "1553942",
+            "token": "7603877",
             "external": "0"
           },
-          "retained": "324894879"
+          "retained": "323747476"
         },
         {
           "hop": 4,
@@ -7139,48 +7211,48 @@
           "contract": "ReceiveExecutor",
           "op": "ReceiveExecutor_InitExecute",
           "cost": {
-            "ccip": "10593559",
-            "registry": "1484540",
-            "token": "6892078",
+            "ccip": "10891761",
+            "registry": "1553942",
+            "token": "7603877",
             "external": "0"
           },
-          "retained": "314984347"
+          "retained": "313836944"
         },
         {
           "hop": 9,
           "contract": "ReceiveExecutor",
           "op": "TokenAdminRegistry_TokenInfo",
           "cost": {
-            "ccip": "9922091",
+            "ccip": "10220293",
             "registry": "0",
-            "token": "6892078",
+            "token": "7603877",
             "external": "0"
           },
-          "retained": "-11341977"
+          "retained": "-12421378"
         },
         {
           "hop": 10,
           "contract": "OffRamp",
           "op": "OffRamp_ReleaseOrMint",
           "cost": {
-            "ccip": "8946422",
+            "ccip": "9182091",
             "registry": "0",
-            "token": "6892078",
+            "token": "7603877",
             "external": "0"
           },
-          "retained": "218618232"
+          "retained": "217670764"
         },
         {
           "hop": 11,
           "contract": "Router",
           "op": "Router_RelayReleaseOrMint",
           "cost": {
-            "ccip": "8182087",
+            "ccip": "8417756",
             "registry": "0",
-            "token": "6892078",
+            "token": "7603877",
             "external": "0"
           },
-          "retained": "218618232"
+          "retained": "217670764"
         },
         {
           "hop": 12,
@@ -7199,60 +7271,72 @@
           "contract": "ReceiverAccount",
           "op": "DepositAccount_Init",
           "cost": {
-            "ccip": "5559350",
+            "ccip": "5795019",
             "registry": "0",
-            "token": "6892078",
+            "token": "7603877",
             "external": "0"
           },
-          "retained": "209906035"
+          "retained": "208958567"
         },
         {
           "hop": 15,
           "contract": "Router",
           "op": "DepositAccount_Initialized",
           "cost": {
-            "ccip": "5042215",
+            "ccip": "5277884",
             "registry": "0",
-            "token": "6892078",
+            "token": "7603877",
             "external": "0"
           },
-          "retained": "209906035"
+          "retained": "208958567"
         },
         {
           "hop": 19,
           "contract": "ReceiverAccount",
           "op": "TransferNotificationForRecipient",
           "cost": {
-            "ccip": "4183747",
+            "ccip": "4178547",
             "registry": "0",
-            "token": "934670",
+            "token": "1024736",
             "external": "0"
           },
-          "retained": "4881583"
+          "retained": "24796719"
+        },
+        {
+          "hop": 20,
+          "contract": "Router",
+          "op": "ReturnExcessesBack",
+          "cost": {
+            "ccip": "241468",
+            "registry": "0",
+            "token": "0",
+            "external": "0"
+          },
+          "retained": "1663299"
         },
         {
           "hop": 21,
           "contract": "ReceiveExecutor",
           "op": "DepositAccount_ForwardNotification",
           "cost": {
-            "ccip": "3378278",
+            "ccip": "3373145",
             "registry": "0",
-            "token": "934670",
+            "token": "1024736",
             "external": "0"
           },
-          "retained": "4881583"
+          "retained": "24796719"
         },
         {
           "hop": 22,
           "contract": "OffRamp",
           "op": "OffRamp_NotifySuccess",
           "cost": {
-            "ccip": "2348876",
+            "ccip": "2343743",
             "registry": "0",
-            "token": "934670",
+            "token": "1024736",
             "external": "0"
           },
-          "retained": "111158230"
+          "retained": "130873433"
         },
         {
           "hop": 23,
@@ -7261,10 +7345,10 @@
           "cost": {
             "ccip": "640670",
             "registry": "0",
-            "token": "934670",
+            "token": "1024736",
             "external": "0"
           },
-          "retained": "8924660"
+          "retained": "131720104"
         },
         {
           "hop": 24,
@@ -7300,7 +7384,7 @@
             "token": "0",
             "external": "0"
           },
-          "retained": "9060994"
+          "retained": "131720104"
         }
       ]
     },
@@ -7387,12 +7471,12 @@
           "gasUsed": "28586",
           "computeFee": "1905734",
           "storageFee": "0",
-          "forwardFee": "4146204",
-          "actionFee": "1448359",
-          "totalFee": "3354093",
-          "cost": "6051938",
+          "forwardFee": "4214204",
+          "actionFee": "1471025",
+          "totalFee": "3376759",
+          "cost": "6119938",
           "valueIn": "376757862",
-          "valueOut": "370705924",
+          "valueOut": "370637924",
           "retained": "0"
         },
         {
@@ -7435,9 +7519,9 @@
           "actionFee": "32510",
           "totalFee": "606444",
           "cost": "671468",
-          "valueIn": "360705924",
+          "valueIn": "360637924",
           "valueOut": "8000000",
-          "retained": "352034456"
+          "retained": "351966456"
         },
         {
           "index": 6,
@@ -7472,15 +7556,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "5147",
-          "computeFee": "343134",
+          "gasUsed": "4906",
+          "computeFee": "327068",
           "storageFee": "0",
-          "forwardFee": "159868",
-          "actionFee": "53288",
-          "totalFee": "396422",
-          "cost": "503002",
+          "forwardFee": "171401",
+          "actionFee": "57132",
+          "totalFee": "384200",
+          "cost": "498469",
           "valueIn": "7518264",
-          "valueOut": "7015262",
+          "valueOut": "7019795",
           "retained": "0"
         },
         {
@@ -7494,15 +7578,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "5467",
-          "computeFee": "364468",
+          "gasUsed": "6302",
+          "computeFee": "420134",
           "storageFee": "0",
-          "forwardFee": "135334",
-          "actionFee": "45110",
-          "totalFee": "409578",
-          "cost": "499802",
-          "valueIn": "7015262",
-          "valueOut": "6515460",
+          "forwardFee": "153601",
+          "actionFee": "51199",
+          "totalFee": "471333",
+          "cost": "573735",
+          "valueIn": "7019795",
+          "valueOut": "6446060",
           "retained": "0"
         },
         {
@@ -7516,16 +7600,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "11136",
-          "computeFee": "742401",
+          "gasUsed": "12074",
+          "computeFee": "804934",
           "storageFee": "0",
           "forwardFee": "233268",
           "actionFee": "77754",
-          "totalFee": "820155",
-          "cost": "975669",
-          "valueIn": "6515460",
+          "totalFee": "882688",
+          "cost": "1038202",
+          "valueIn": "6446060",
           "valueOut": "235500000",
-          "retained": "-229960209"
+          "retained": "-230092142"
         },
         {
           "index": 10,
@@ -7562,14 +7646,14 @@
           "actionResultCode": 0,
           "gasUsed": "13700",
           "computeFee": "913334",
-          "storageFee": "1",
+          "storageFee": "0",
           "forwardFee": "1464868",
           "actionFee": "488281",
-          "totalFee": "1401616",
-          "cost": "2378203",
+          "totalFee": "1401615",
+          "cost": "2378202",
           "valueIn": "234735665",
           "valueOut": "232357463",
-          "retained": "-1"
+          "retained": "0"
         },
         {
           "index": 12,
@@ -7584,14 +7668,14 @@
           "actionResultCode": null,
           "gasUsed": "1455",
           "computeFee": "97001",
-          "storageFee": "1",
+          "storageFee": "0",
           "forwardFee": "0",
           "actionFee": "0",
-          "totalFee": "444752",
-          "cost": "97002",
+          "totalFee": "444751",
+          "cost": "97001",
           "valueIn": "10000000",
           "valueOut": "8859731",
-          "retained": "-1"
+          "retained": "0"
         },
         {
           "index": 13,
@@ -7612,8 +7696,8 @@
           "totalFee": "357044",
           "cost": "517135",
           "valueIn": "222357463",
-          "valueOut": "221840327",
-          "retained": "1"
+          "valueOut": "221840328",
+          "retained": "0"
         },
         {
           "index": 14,
@@ -7648,15 +7732,15 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "8810",
-          "computeFee": "587334",
+          "gasUsed": "8802",
+          "computeFee": "586801",
           "storageFee": "0",
-          "forwardFee": "271134",
-          "actionFee": "90376",
-          "totalFee": "677710",
-          "cost": "858468",
-          "valueIn": "221840327",
-          "valueOut": "220981859",
+          "forwardFee": "271068",
+          "actionFee": "90354",
+          "totalFee": "677155",
+          "cost": "857869",
+          "valueIn": "221840328",
+          "valueOut": "220982459",
           "retained": "0"
         },
         {
@@ -7670,16 +7754,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "40277",
-          "computeFee": "2685134",
-          "storageFee": "1",
-          "forwardFee": "513268",
-          "actionFee": "236643",
-          "totalFee": "2921778",
-          "cost": "3198403",
-          "valueIn": "220981859",
-          "valueOut": "100000000",
-          "retained": "117783456"
+          "gasUsed": "58027",
+          "computeFee": "3868468",
+          "storageFee": "0",
+          "forwardFee": "513735",
+          "actionFee": "236798",
+          "totalFee": "4105266",
+          "cost": "4382203",
+          "valueIn": "220982459",
+          "valueOut": "34101707",
+          "retained": "182498549"
         },
         {
           "index": 17,
@@ -7692,16 +7776,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "6218",
-          "computeFee": "414534",
+          "gasUsed": "6182",
+          "computeFee": "412134",
           "storageFee": "1",
-          "forwardFee": "869934",
-          "actionFee": "289973",
-          "totalFee": "704508",
-          "cost": "1284469",
-          "valueIn": "100000000",
-          "valueOut": "100000000",
-          "retained": "-1284469"
+          "forwardFee": "890401",
+          "actionFee": "296795",
+          "totalFee": "708930",
+          "cost": "1302536",
+          "valueIn": "34101707",
+          "valueOut": "32799172",
+          "retained": "-1"
         },
         {
           "index": 18,
@@ -7717,12 +7801,12 @@
           "gasUsed": "6523",
           "computeFee": "434868",
           "storageFee": "1",
-          "forwardFee": "459602",
-          "actionFee": "153198",
-          "totalFee": "588067",
-          "cost": "894471",
-          "valueIn": "100000000",
-          "valueOut": "99105529",
+          "forwardFee": "459535",
+          "actionFee": "153175",
+          "totalFee": "588044",
+          "cost": "894404",
+          "valueIn": "32799172",
+          "valueOut": "31904768",
           "retained": "0"
         },
         {
@@ -7738,36 +7822,36 @@
           "actionResultCode": 0,
           "gasUsed": "6652",
           "computeFee": "443468",
-          "storageFee": "0",
-          "forwardFee": "362001",
-          "actionFee": "120665",
-          "totalFee": "564133",
-          "cost": "805469",
-          "valueIn": "10000000",
-          "valueOut": "9194531",
-          "retained": "0"
+          "storageFee": "1",
+          "forwardFee": "361934",
+          "actionFee": "120642",
+          "totalFee": "564111",
+          "cost": "805403",
+          "valueIn": "30000002",
+          "valueOut": "29194600",
+          "retained": "-1"
         },
         {
           "index": 20,
           "parent": 18,
           "children": [],
           "from": "ReceiverAccountWallet",
-          "to": "BurnMintPool",
-          "owner": "token",
-          "op": "CCT_ReturnExcessesBack",
+          "to": "Router",
+          "owner": "ccip",
+          "op": "ReturnExcessesBack",
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "8931",
-          "computeFee": "595401",
-          "storageFee": "0",
+          "gasUsed": "3622",
+          "computeFee": "241468",
+          "storageFee": "1",
           "forwardFee": "0",
           "actionFee": "0",
-          "totalFee": "595401",
-          "cost": "595401",
-          "valueIn": "89105529",
+          "totalFee": "241469",
+          "cost": "241469",
+          "valueIn": "1904766",
           "valueOut": "0",
-          "retained": "88510128"
+          "retained": "1663297"
         },
         {
           "index": 21,
@@ -7780,16 +7864,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "15093",
-          "computeFee": "1006201",
+          "gasUsed": "15026",
+          "computeFee": "1001734",
           "storageFee": "1",
           "forwardFee": "1572335",
           "actionFee": "524103",
-          "totalFee": "1530305",
-          "cost": "2578537",
-          "valueIn": "9194531",
-          "valueOut": "66500000",
-          "retained": "-59884006"
+          "totalFee": "1525838",
+          "cost": "2574070",
+          "valueIn": "29194600",
+          "valueOut": "84052265",
+          "retained": "-57431735"
         },
         {
           "index": 22,
@@ -7809,8 +7893,8 @@
           "actionFee": "54932",
           "totalFee": "541801",
           "cost": "651670",
-          "valueIn": "10500000",
-          "valueOut": "9848331",
+          "valueIn": "28052265",
+          "valueOut": "27400596",
           "retained": "-1"
         },
         {
@@ -7853,8 +7937,8 @@
           "actionFee": "48999",
           "totalFee": "446067",
           "cost": "544069",
-          "valueIn": "9848331",
-          "valueOut": "9304262",
+          "valueIn": "27400596",
+          "valueOut": "26856527",
           "retained": "0"
         },
         {
@@ -7890,16 +7974,16 @@
           "success": true,
           "exitCode": 0,
           "actionResultCode": 0,
-          "gasUsed": "10831",
-          "computeFee": "722068",
-          "storageFee": "0",
+          "gasUsed": "12182",
+          "computeFee": "812134",
+          "storageFee": "1",
           "forwardFee": "212602",
           "actionFee": "161756",
-          "totalFee": "883824",
-          "cost": "934670",
-          "valueIn": "9304262",
-          "valueOut": "8505926",
-          "retained": "-136334"
+          "totalFee": "973891",
+          "cost": "1024737",
+          "valueIn": "26856527",
+          "valueOut": "25831791",
+          "retained": "-1"
         },
         {
           "index": 27,
@@ -7941,9 +8025,9 @@
           "actionFee": "0",
           "totalFee": "96601",
           "cost": "96601",
-          "valueIn": "8505926",
+          "valueIn": "25831791",
           "valueOut": "0",
-          "retained": "8409325"
+          "retained": "25735190"
         },
         {
           "index": 29,
@@ -8008,8 +8092,8 @@
           "totalFee": "445600",
           "cost": "546402",
           "valueIn": "27111193",
-          "valueOut": "107074889",
-          "retained": "-80510098"
+          "valueOut": "126653092",
+          "retained": "-100088301"
         },
         {
           "index": 32,
@@ -8029,9 +8113,9 @@
           "actionFee": "121689",
           "totalFee": "610223",
           "cost": "654669",
-          "valueIn": "107074889",
+          "valueIn": "126653092",
           "valueOut": "3500000",
-          "retained": "102920220"
+          "retained": "122498423"
         },
         {
           "index": 33,
@@ -8079,22 +8163,22 @@
         }
       ],
       "totals": {
-        "ccip": "30594787",
-        "registry": "1484540",
-        "token": "6907414",
+        "ccip": "30961655",
+        "registry": "1553940",
+        "token": "7603880",
         "external": "3372672"
       },
       "retained": {
         "Transmitter": "-386600336",
-        "OffRamp": "121034546",
+        "OffRamp": "140612749",
         "MerkleRoot": "-9910532",
         "ReceiveExecutor": "0",
         "TokenAdminRegistry": "0",
         "TokenAdminRegistryEntry": "0",
-        "Router": "25694193",
-        "ReceiverAccount": "0",
-        "BurnMintPool": "206157250",
-        "Minter": "-1284469",
+        "Router": "27357491",
+        "ReceiverAccount": "-1",
+        "BurnMintPool": "182498548",
+        "Minter": "-1",
         "ReceiverAccountWallet": "0",
         "Receiver": "-1"
       },
@@ -8104,36 +8188,36 @@
           "contract": "OffRamp",
           "op": "OffRamp_Execute",
           "cost": {
-            "ccip": "30594787",
-            "registry": "1484540",
-            "token": "6907414",
+            "ccip": "30961655",
+            "registry": "1553940",
+            "token": "7603880",
             "external": "1779004"
           },
-          "retained": "341690987"
+          "retained": "340558253"
         },
         {
           "hop": 2,
           "contract": "MerkleRoot",
           "op": "MerkleRoot_Validate",
           "cost": {
-            "ccip": "25961318",
-            "registry": "1484540",
-            "token": "6907414",
+            "ccip": "26328186",
+            "registry": "1553940",
+            "token": "7603880",
             "external": "1779004"
           },
-          "retained": "341690987"
+          "retained": "340558253"
         },
         {
           "hop": 3,
           "contract": "OffRamp",
           "op": "OffRamp_ExecuteValidated",
           "cost": {
-            "ccip": "23852649",
-            "registry": "1484540",
-            "token": "6907414",
+            "ccip": "24219517",
+            "registry": "1553940",
+            "token": "7603880",
             "external": "1779004"
           },
-          "retained": "341690987"
+          "retained": "340558253"
         },
         {
           "hop": 4,
@@ -8152,108 +8236,120 @@
           "contract": "ReceiveExecutor",
           "op": "ReceiveExecutor_InitExecute",
           "cost": {
-            "ccip": "17711243",
-            "registry": "1484540",
-            "token": "6907414",
+            "ccip": "18010111",
+            "registry": "1553940",
+            "token": "7603880",
             "external": "1779004"
           },
-          "retained": "331780455"
+          "retained": "330647721"
         },
         {
           "hop": 9,
           "contract": "ReceiveExecutor",
           "op": "TokenAdminRegistry_TokenInfo",
           "cost": {
-            "ccip": "17039775",
+            "ccip": "17338643",
             "registry": "0",
-            "token": "6907414",
+            "token": "7603880",
             "external": "1779004"
           },
-          "retained": "-20254001"
+          "retained": "-21318735"
         },
         {
           "hop": 10,
           "contract": "OffRamp",
           "op": "OffRamp_ReleaseOrMint",
           "cost": {
-            "ccip": "16064106",
+            "ccip": "16300441",
             "registry": "0",
-            "token": "6907414",
+            "token": "7603880",
             "external": "1779004"
           },
-          "retained": "209706208"
+          "retained": "208773407"
         },
         {
           "hop": 11,
           "contract": "Router",
           "op": "Router_RelayReleaseOrMint",
           "cost": {
-            "ccip": "15299771",
+            "ccip": "15536106",
             "registry": "0",
-            "token": "6907414",
+            "token": "7603880",
             "external": "1779004"
           },
-          "retained": "209706208"
+          "retained": "208773407"
         },
         {
           "hop": 12,
           "contract": "ReceiverAccount",
           "op": "Deployable.initialize",
           "cost": {
-            "ccip": "244536",
+            "ccip": "244535",
             "registry": "0",
             "token": "0",
             "external": "0"
           },
-          "retained": "8712196"
+          "retained": "8712197"
         },
         {
           "hop": 13,
           "contract": "ReceiverAccount",
           "op": "DepositAccount_Init",
           "cost": {
-            "ccip": "12677032",
+            "ccip": "12913369",
             "registry": "0",
-            "token": "6907414",
+            "token": "7603880",
             "external": "1779004"
           },
-          "retained": "200994013"
+          "retained": "200061210"
         },
         {
           "hop": 15,
           "contract": "Router",
           "op": "DepositAccount_Initialized",
           "cost": {
-            "ccip": "12159897",
+            "ccip": "12396234",
             "registry": "0",
-            "token": "6907414",
+            "token": "7603880",
             "external": "1779004"
           },
-          "retained": "200994012"
+          "retained": "200061210"
         },
         {
           "hop": 19,
           "contract": "ReceiverAccount",
           "op": "TransferNotificationForRecipient",
           "cost": {
-            "ccip": "11301429",
+            "ccip": "11296896",
             "registry": "0",
-            "token": "934670",
+            "token": "1024737",
             "external": "1779004"
           },
-          "retained": "-4015103"
+          "retained": "15899365"
+        },
+        {
+          "hop": 20,
+          "contract": "Router",
+          "op": "ReturnExcessesBack",
+          "cost": {
+            "ccip": "241469",
+            "registry": "0",
+            "token": "0",
+            "external": "0"
+          },
+          "retained": "1663297"
         },
         {
           "hop": 21,
           "contract": "ReceiveExecutor",
           "op": "DepositAccount_ForwardNotification",
           "cost": {
-            "ccip": "10495960",
+            "ccip": "10491493",
             "registry": "0",
-            "token": "934670",
+            "token": "1024737",
             "external": "1779004"
           },
-          "retained": "-4015103"
+          "retained": "15899366"
         },
         {
           "hop": 22,
@@ -8262,10 +8358,10 @@
           "cost": {
             "ccip": "1292340",
             "registry": "0",
-            "token": "934670",
+            "token": "1024737",
             "external": "0"
           },
-          "retained": "8272990"
+          "retained": "25735188"
         },
         {
           "hop": 23,
@@ -8286,10 +8382,10 @@
           "cost": {
             "ccip": "640670",
             "registry": "0",
-            "token": "934670",
+            "token": "1024737",
             "external": "0"
           },
-          "retained": "8272991"
+          "retained": "25735189"
         },
         {
           "hop": 25,
@@ -8313,7 +8409,7 @@
             "token": "0",
             "external": "0"
           },
-          "retained": "8409325"
+          "retained": "25735190"
         },
         {
           "hop": 29,
@@ -8361,7 +8457,7 @@
             "token": "0",
             "external": "0"
           },
-          "retained": "105739683"
+          "retained": "125317886"
         },
         {
           "hop": 33,

@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/lisp-lists"
 
+import "../../../gen/Deployable.code"
+import "../../../gen/DepositAccount.code"
+
 import "../../lib/utils"
+import "../../lib/budget/min_value"
 import "../../lib/funding/withdrawable"
 import "../../lib/access/ownable_2step"
 import "../../lib/access/access_control"
@@ -29,9 +33,6 @@ import "messages"
 import "storage"
 import "errors"
 import "events"
-
-import "../../../gen/Deployable.code"
-import "../../../gen/DepositAccount.code"
 import "utils"
 
 tolk 1.4.2
@@ -269,6 +270,9 @@ fun onInternalMessage(in: InMessage) {
             assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
             onTokenTransferDelivered(msg);
         }
+        // Excess of the on-ramp account withdraws, whose `sendExcessesTo` must be the Router. It
+        // stays with the Router, which the owner can withdraw.
+        ReturnExcessesBack => {}
         // Sender must be a Jetton Wallet owned by the Router.
         // Accidental transfers to the Router are returned to the transfer
         // initiator in a best-effort manner (throwing here would burn the tokens).
@@ -304,32 +308,28 @@ fun onBouncedMessage(in: InMessageBounced) {
         val richMsg = lazy Router_RichBouncedMessage.fromCell(rich.originalBody);
         match (richMsg) {
             TokenPool_LockOrBurn => {
-                if (richMsg.replyTo != null) {
-                    sendLockOrBurnRelayFailure(
-                        richMsg.replyTo!,
-                        richMsg.queryId,
-                        in.senderAddress,
-                        rich.exitCode,
-                    );
-                }
+                sendLockOrBurnRelayFailure(
+                    richMsg.replyTo,
+                    richMsg.queryId,
+                    in.senderAddress,
+                    rich.exitCode,
+                );
             }
             TokenPool_ReleaseOrMint => {
-                if (richMsg.replyTo != null) {
-                    // Recover the lane from the request and route the failure
-                    // back through its OffRamp.
-                    val request = lazy richMsg.request.load();
-                    val details = lazy request.transfer.details.load();
-                    val st = lazy Storage.load();
-                    val offRamp = st.offRamps.mustGet(details.remoteChainSelector, Router_Error.SourceChainNotEnabled);
-                    sendReleaseOrMintRelayFailure(
-                        offRamp,
-                        details.remoteChainSelector,
-                        richMsg.replyTo!,
-                        richMsg.queryId,
-                        in.senderAddress,
-                        rich.exitCode,
-                    );
-                }
+                // Recover the lane from the request and route the failure
+                // back through its OffRamp.
+                val request = lazy richMsg.request.load();
+                val details = lazy request.transfer.details.load();
+                val st = lazy Storage.load();
+                val offRamp = st.offRamps.mustGet(details.remoteChainSelector, Router_Error.SourceChainNotEnabled);
+                sendReleaseOrMintRelayFailure(
+                    offRamp,
+                    details.remoteChainSelector,
+                    richMsg.replyTo,
+                    richMsg.queryId,
+                    in.senderAddress,
+                    rich.exitCode,
+                );
             }
             // Ignored: a retried deployment bounces off the already-initialized account, and a
             // failed fresh deployment is reported by the `DepositAccount_Init` bounce that follows.
@@ -411,7 +411,7 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool, o
     val withdrawRequest = lazy msg.withdrawRequest.load();
     val fwdp = lazy withdrawRequest.forwardPayload.load();
     val request = lazy fwdp.requestMsg.load();
-    if (request.replyTo == null || request.replyTo! != msg.executor) {
+    if (request.replyTo != msg.executor) {
         return sendLockOrBurnRelayFailure(
             msg.executor,
             msg.queryID,
@@ -419,22 +419,36 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool, o
             Router_Error.WithdrawExecutorMismatch as int32,
         );
     }
+    // The notification carries what the pool asked for; the wallet rejects an underfunded transfer
+    // before custody moves. The deposit account requires the excess to return to the Router.
+    // val ask = AskToTransfer {
+    //     queryId: msg.queryID,
+    //     jettonAmount: withdrawRequest.amount,
+    //     transferRecipient: withdrawRequest.tokenPool,
+    //     sendExcessesTo: contract.getAddress(),
+    //     customPayload: null,
+    //     forwardTonAmount: withdrawRequest.forwardTonAmount,
+    //     forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
+    // };
+
+    // TODO: use standard `AskToTransfer` above,
+    // remove the unnecessary custom `DepositAccount_WithdrawAskToTransfer` msg
+    val ask = DepositAccount_WithdrawAskToTransfer {
+        jettonAmount: withdrawRequest.amount,
+        transferRecipient: withdrawRequest.tokenPool,
+        // TODO: this excess should be returned to user
+        // @notice we want the OnRamp to keep any excess funds, so we set sendExcessesTo to the sender (OnRamp).
+        sendExcessesTo: onramp,
+        customPayload: null,
+        forwardTonAmount: withdrawRequest.forwardTonAmount,
+        forwardPayload: withdrawRequest.forwardPayload,
+    };
+
     val withdraw = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
         dest: withdrawRequest.depositAccount,
-        body: DepositAccount_Withdraw {
-            queryId: msg.queryID,
-            ask: DepositAccount_WithdrawAskToTransfer {
-                jettonAmount: withdrawRequest.amount,
-                transferRecipient: withdrawRequest.tokenPool,
-                // @notice we want the OnRamp to keep any excess funds, so we set sendExcessesTo to the sender (OnRamp).
-                sendExcessesTo: onramp,
-                customPayload: null,
-                forwardTonAmount: grams("0.5"),
-                forwardPayload: withdrawRequest.forwardPayload,
-            },
-        },
+        body: DepositAccount_Withdraw { queryId: msg.queryID, ask },
     });
     withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -529,7 +543,7 @@ fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: a
 fun failWithdrawToTokenPool(request: DepositAccount_Withdraw, exitCode: int32) {
     val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromCell(request.ask.forwardPayload!);
     val lockOrBurn = lazy fwdp.requestMsg.load();
-    sendLockOrBurnRelayFailure(lockOrBurn.replyTo!, lockOrBurn.queryId, request.ask.transferRecipient, exitCode);
+    sendLockOrBurnRelayFailure(lockOrBurn.replyTo, lockOrBurn.queryId, request.ask.transferRecipient, exitCode);
 }
 
 /// Returns accidentally transferred jettons to the transfer initiator. The Router's own jetton
@@ -1042,6 +1056,7 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
             requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
             tokenArgs: null, // TBD?
             replyTo: msg.executorAddress,
+            finalizationValue: msg.finalizationValue,
             // Keep the pool's deposit-auth namespace cache in sync
             onRampNamespaces,
         }

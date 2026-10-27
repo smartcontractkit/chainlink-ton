@@ -770,7 +770,7 @@ func waitForTokenAdminRegistryEntryDeployment(client ton.APIClientWrapped, entry
 		select {
 		case <-ctx.Done():
 			if deployed {
-				return fmt.Errorf("entry is disabled: the token did not answer its TEP-89 wallet query with a wallet, or the pool did not answer its transfer initiator probe, within 30s (retry with TokenAdminRegistry_VerifyToken / TokenAdminRegistry_RefreshTransferInitiator): %w", ctx.Err())
+				return fmt.Errorf("entry is disabled: the token did not answer its TEP-89 wallet query with a wallet, or the pool did not answer its transfer initiator probe, within 30s (retry with TokenAdminRegistry_VerifyToken / TokenAdminRegistry_RefreshPoolConfig): %w", ctx.Err())
 			}
 			return fmt.Errorf("entry did not become active with its expected code within 30s: %w", ctx.Err())
 		case <-ticker.C:

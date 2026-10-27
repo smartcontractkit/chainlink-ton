@@ -2,6 +2,38 @@
 
 This directory contains gas usage benchmarks for TON smart contracts using the `@ton/sandbox` Metrics API.
 
+## Token & token-pool calibration
+
+The token fee guards (`cct/fees-management.tolk`, `wgram/fees-management.tolk`) and the token-pool
+budgets (`pools/lib/token_pool/recovery.tolk`, `pools/burn_mint/types.tolk`) are **pinned to
+measured gas**. A covered-path change that moves gas fails these tests, so the funding assumptions
+cannot silently drift.
+
+- `token/gas.ts` — shared runner `runTokenGasCalibration`: deploys a token, does mint / transfer /
+  burn, asserts measured gas == the on-chain `GAS_CONSUMPTION_*` constants.
+- `token/cct.spec.ts`, `token/wgram.spec.ts` — the two token fixtures.
+- `pools/gas.ts` — shared runner `runTokenPoolGasCalibration`: deploys a pool, configures the lane,
+  drives a full `LockOrBurn` + `ReleaseOrMint`, asserts the admission/safety floors cover the pool
+  handlers and the on-chain token-hop budget covers the measured wallet hop (in TON).
+- `pools/burn_mint_cct.spec.ts`, `pools/lock_release_wgram.spec.ts` — the two pool fixtures.
+- `harness.ts` — deploys the test-only `CctCostHarness` / `WgramCostHarness` contracts, which expose
+  the on-chain constants/budget functions as getters. Tests read the on-chain values through these
+  instead of duplicating numbers or parsing Tolk source.
+
+Each suite writes an isolated report (the reporter groups by ABI name, and CCT/wGRAM share
+`JettonMinter`/`JettonWallet`, so they must run separately):
+
+```bash
+yarn cct-gas-report               # -> tests/gas-report/cct-gas-report.json
+yarn wgram-gas-report             # -> tests/gas-report/wgram-gas-report.json
+yarn burn-mint-cct-gas-report     # -> tests/gas-report/burn-mint-cct-gas-report.json
+yarn lock-release-wgram-gas-report
+```
+
+The harness smoke test lives in the normal suite: `tests/gas/harness.spec.ts`.
+
+## CCIP message-flow gas report
+
 ## Structure
 
 ```

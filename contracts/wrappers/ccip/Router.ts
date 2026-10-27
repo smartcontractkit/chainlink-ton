@@ -135,7 +135,10 @@ export const Costs = (() => {
   const executorReserveFee = toNano('0.0025')
   const executorDeploy = toNano('0.04')
   const executorExecute = toNano('0.041') + feeQuoterGetValidatedFee + toNano('0.004')
-  const lockOrBurnValue = toNano('1')
+  /** Pool-type default LockOrBurn admission (TOKEN_POOL_DEFAULT_LOCK_OR_BURN_ADMISSION). */
+  const poolLockOrBurnAdmission = toNano('0.105')
+  /** OnRamp_Costs.TokenPoolFinalization(): forwarded back to the executor by the pool. */
+  const tokenPoolFinalization = toNano('0.02')
   const lockOrBurnRelay =
     toNano('0.003') +
     toNano('0.0035') +
@@ -144,7 +147,8 @@ export const Costs = (() => {
     toNano('0.003') +
     toNano('0.003') +
     toNano('0.0015')
-  const executorRequestsLockOrBurn = lockOrBurnRelay + lockOrBurnValue
+  const executorRequestsLockOrBurn =
+    lockOrBurnRelay + poolLockOrBurnAdmission + tokenPoolFinalization
   const executorTokenTransfer =
     RegistryCosts.getTokenInfo + toNano('0.0045') + executorRequestsLockOrBurn
   const executorReserve = (hasTokens: boolean) =>
@@ -170,7 +174,8 @@ export const Costs = (() => {
     executorExecute,
     executorReserve: executorReserve(false),
     executorReserveWithTokens: executorReserve(true),
-    lockOrBurnValue,
+    poolLockOrBurnAdmission,
+    tokenPoolFinalization,
     lockOrBurnRelay,
     executorRequestsLockOrBurn,
     onRampSend: onRampSend(false),

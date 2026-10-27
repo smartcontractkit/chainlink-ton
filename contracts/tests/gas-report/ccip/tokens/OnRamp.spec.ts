@@ -269,7 +269,10 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
     // them (exit 65535, non-bounceable), so the Router keeps that TON on every token send.
     // The registry query and the pool value are budgeted by their own contracts.
     const ccipSendBudget =
-      Costs.ccipSendWithTokens - RegistryCosts.getTokenInfo - Costs.lockOrBurnValue
+      Costs.ccipSendWithTokens -
+      RegistryCosts.getTokenInfo -
+      Costs.poolLockOrBurnAdmission -
+      Costs.tokenPoolFinalization
     const sendFlow = (data: Cell) => ({
       run: () => ccipSend(token, data),
       book,

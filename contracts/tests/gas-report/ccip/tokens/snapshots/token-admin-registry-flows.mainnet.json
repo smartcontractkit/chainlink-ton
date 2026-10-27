@@ -5,27 +5,27 @@
         "from": "Initiator",
         "to": "Root",
         "op": "TokenAdminRegistry_RegisterToken",
-        "valueIn": "0.049",
+        "valueIn": "0.0505",
         "gasUsed": 6583,
-        "fee": "0.000438853",
+        "fee": "0.000438852",
         "success": true
       },
       {
         "from": "Root",
         "to": "Entry",
         "op": "Deployable_InitializeAndSend",
-        "valueIn": "0.044121799",
+        "valueIn": "0.045589199",
         "gasUsed": 2749,
-        "fee": "0.002061483",
+        "fee": "0.002094084",
         "success": true
       },
       {
         "from": "Entry",
         "to": "Entry",
         "op": "TokenAdminRegistryEntry_RegistrationInitialized",
-        "valueIn": "0.025",
-        "gasUsed": 9524,
-        "fee": "0.000714664",
+        "valueIn": "0.0265",
+        "gasUsed": 9407,
+        "fee": "0.000706864",
         "success": true
       },
       {
@@ -49,10 +49,10 @@
       {
         "from": "Entry",
         "to": "BurnMintPool",
-        "op": "TokenPool_GetTransferInitiator",
-        "valueIn": "0.008",
-        "gasUsed": 9107,
-        "fee": "0.000673801",
+        "op": "TokenPool_GetConfig",
+        "valueIn": "0.0095",
+        "gasUsed": 13973,
+        "fee": "0.000998202",
         "success": true
       },
       {
@@ -60,17 +60,17 @@
         "to": "Entry",
         "op": "ResponseWalletAddress",
         "valueIn": "0.004682531",
-        "gasUsed": 3411,
-        "fee": "0.000325003",
+        "gasUsed": 3057,
+        "fee": "0.000301403",
         "success": true
       },
       {
         "from": "BurnMintPool",
         "to": "Entry",
-        "op": "TokenPool_TransferInitiator",
-        "valueIn": "0.007326199",
-        "gasUsed": 7889,
-        "fee": "0.000592601",
+        "op": "TokenPool_Config",
+        "valueIn": "0.008483798",
+        "gasUsed": 8333,
+        "fee": "0.000640201",
         "success": true
       },
       {
@@ -83,18 +83,18 @@
         "success": true
       }
     ],
-    "value": "49000000",
+    "value": "50500000",
     "ownBudget": "18000000",
-    "totalFee": "6320017",
-    "ownFee": "3215000",
+    "totalFee": "6693218",
+    "ownFee": "3239800",
     "legs": [
       {
         "name": "walletQuery",
-        "fee": "642472"
+        "fee": "618872"
       },
       {
         "name": "poolProbe",
-        "fee": "1266402"
+        "fee": "1638403"
       },
       {
         "name": "relayEvent",
@@ -106,7 +106,7 @@
       }
     ],
     "rootDelta": "9595995",
-    "entryDelta": "33083988"
+    "entryDelta": "34210787"
   },
   "SetPool: BurnMint": {
     "rows": [
@@ -114,7 +114,7 @@
         "from": "Initiator",
         "to": "Root",
         "op": "TokenAdminRegistry_SetPool",
-        "valueIn": "0.018",
+        "valueIn": "0.0195",
         "gasUsed": 5612,
         "fee": "0.000374133",
         "success": true
@@ -123,27 +123,27 @@
         "from": "Root",
         "to": "Entry",
         "op": "TokenAdminRegistryEntry_MessageFromRoot",
-        "valueIn": "0.017514798",
-        "gasUsed": 6069,
-        "fee": "0.000515668",
+        "valueIn": "0.019014798",
+        "gasUsed": 5828,
+        "fee": "0.000499601",
         "success": true
       },
       {
         "from": "Entry",
         "to": "BurnMintPool",
-        "op": "TokenPool_GetTransferInitiator",
-        "valueIn": "0.008",
-        "gasUsed": 9107,
-        "fee": "0.000673801",
+        "op": "TokenPool_GetConfig",
+        "valueIn": "0.0095",
+        "gasUsed": 13973,
+        "fee": "0.000998202",
         "success": true
       },
       {
         "from": "BurnMintPool",
         "to": "Entry",
-        "op": "TokenPool_TransferInitiator",
-        "valueIn": "0.007326199",
-        "gasUsed": 7951,
-        "fee": "0.000596735",
+        "op": "TokenPool_Config",
+        "valueIn": "0.008483798",
+        "gasUsed": 8395,
+        "fee": "0.000644335",
         "success": true
       },
       {
@@ -156,14 +156,14 @@
         "success": true
       }
     ],
-    "value": "18000000",
+    "value": "19500000",
     "ownBudget": "6000000",
-    "totalFee": "2799342",
-    "ownFee": "889801",
+    "totalFee": "3155276",
+    "ownFee": "873734",
     "legs": [
       {
         "name": "poolProbe",
-        "fee": "1270536"
+        "fee": "1642537"
       },
       {
         "name": "relayEvent",
@@ -171,15 +171,15 @@
       }
     ],
     "rootDelta": "3494198",
-    "entryDelta": "11706460"
+    "entryDelta": "12850526"
   },
-  "RefreshTransferInitiator: BurnMint": {
+  "RefreshPoolConfig: BurnMint": {
     "rows": [
       {
         "from": "Initiator",
         "to": "Root",
-        "op": "TokenAdminRegistry_RefreshTransferInitiator",
-        "valueIn": "0.018",
+        "op": "TokenAdminRegistry_RefreshPoolConfig",
+        "valueIn": "0.0195",
         "gasUsed": 6559,
         "fee": "0.000437267",
         "success": true
@@ -188,42 +188,42 @@
         "from": "Root",
         "to": "Entry",
         "op": "TokenAdminRegistryEntry_MessageFromRoot",
-        "valueIn": "0.017487264",
-        "gasUsed": 5125,
-        "fee": "0.000417135",
+        "valueIn": "0.018987264",
+        "gasUsed": 4936,
+        "fee": "0.000404535",
         "success": true
       },
       {
         "from": "Entry",
         "to": "BurnMintPool",
-        "op": "TokenPool_GetTransferInitiator",
-        "valueIn": "0.008",
-        "gasUsed": 9107,
-        "fee": "0.000673801",
+        "op": "TokenPool_GetConfig",
+        "valueIn": "0.0095",
+        "gasUsed": 13973,
+        "fee": "0.000998202",
         "success": true
       },
       {
         "from": "BurnMintPool",
         "to": "Entry",
-        "op": "TokenPool_TransferInitiator",
-        "valueIn": "0.007326199",
-        "gasUsed": 5662,
-        "fee": "0.000444137",
+        "op": "TokenPool_Config",
+        "valueIn": "0.008483798",
+        "gasUsed": 6314,
+        "fee": "0.000505603",
         "success": true
       }
     ],
-    "value": "18000000",
+    "value": "19500000",
     "ownBudget": "6000000",
-    "totalFee": "1972340",
-    "ownFee": "854402",
+    "totalFee": "2345607",
+    "ownFee": "841802",
     "legs": [
       {
         "name": "poolProbe",
-        "fee": "1117938"
+        "fee": "1503805"
       }
     ],
     "rootDelta": "0",
-    "entryDelta": "16027660"
+    "entryDelta": "17154393"
   },
   "RegisterToken: LockReleaseLockbox": {
     "rows": [
@@ -231,27 +231,27 @@
         "from": "Initiator",
         "to": "Root",
         "op": "TokenAdminRegistry_RegisterToken",
-        "valueIn": "0.049",
+        "valueIn": "0.0505",
         "gasUsed": 6583,
-        "fee": "0.000438853",
+        "fee": "0.000438852",
         "success": true
       },
       {
         "from": "Root",
         "to": "Entry",
         "op": "Deployable_InitializeAndSend",
-        "valueIn": "0.044121799",
+        "valueIn": "0.045589199",
         "gasUsed": 2749,
-        "fee": "0.002061483",
+        "fee": "0.002094084",
         "success": true
       },
       {
         "from": "Entry",
         "to": "Entry",
         "op": "TokenAdminRegistryEntry_RegistrationInitialized",
-        "valueIn": "0.025",
-        "gasUsed": 9524,
-        "fee": "0.000714664",
+        "valueIn": "0.0265",
+        "gasUsed": 9407,
+        "fee": "0.000706864",
         "success": true
       },
       {
@@ -275,10 +275,10 @@
       {
         "from": "Entry",
         "to": "LockboxPool",
-        "op": "TokenPool_GetTransferInitiator",
-        "valueIn": "0.008",
-        "gasUsed": 11075,
-        "fee": "0.000805001",
+        "op": "TokenPool_GetConfig",
+        "valueIn": "0.0095",
+        "gasUsed": 16013,
+        "fee": "0.001134201",
         "success": true
       },
       {
@@ -286,17 +286,17 @@
         "to": "Entry",
         "op": "ResponseWalletAddress",
         "valueIn": "0.004682531",
-        "gasUsed": 3411,
-        "fee": "0.000325003",
+        "gasUsed": 3057,
+        "fee": "0.000301403",
         "success": true
       },
       {
         "from": "LockboxPool",
         "to": "Entry",
-        "op": "TokenPool_TransferInitiator",
-        "valueIn": "0.007164132",
-        "gasUsed": 8433,
-        "fee": "0.000659736",
+        "op": "TokenPool_Config",
+        "valueIn": "0.008330132",
+        "gasUsed": 8877,
+        "fee": "0.000694136",
         "success": true
       },
       {
@@ -309,18 +309,18 @@
         "success": true
       }
     ],
-    "value": "49000000",
+    "value": "50500000",
     "ownBudget": "18000000",
-    "totalFee": "6567285",
-    "ownFee": "3215000",
+    "totalFee": "6932085",
+    "ownFee": "3239800",
     "legs": [
       {
         "name": "walletQuery",
-        "fee": "642472"
+        "fee": "618872"
       },
       {
         "name": "poolProbe",
-        "fee": "1464737"
+        "fee": "1828337"
       },
       {
         "name": "relayEvent",
@@ -332,7 +332,7 @@
       }
     ],
     "rootDelta": "9571528",
-    "entryDelta": "32861187"
+    "entryDelta": "33996387"
   },
   "SetPool: LockReleaseLockbox": {
     "rows": [
@@ -340,7 +340,7 @@
         "from": "Initiator",
         "to": "Root",
         "op": "TokenAdminRegistry_SetPool",
-        "valueIn": "0.018",
+        "valueIn": "0.0195",
         "gasUsed": 5612,
         "fee": "0.000374133",
         "success": true
@@ -349,27 +349,27 @@
         "from": "Root",
         "to": "Entry",
         "op": "TokenAdminRegistryEntry_MessageFromRoot",
-        "valueIn": "0.017514798",
-        "gasUsed": 6069,
-        "fee": "0.000515668",
+        "valueIn": "0.019014798",
+        "gasUsed": 5828,
+        "fee": "0.000499601",
         "success": true
       },
       {
         "from": "Entry",
         "to": "LockboxPool",
-        "op": "TokenPool_GetTransferInitiator",
-        "valueIn": "0.008",
-        "gasUsed": 11075,
-        "fee": "0.000805001",
+        "op": "TokenPool_GetConfig",
+        "valueIn": "0.0095",
+        "gasUsed": 16013,
+        "fee": "0.001134201",
         "success": true
       },
       {
         "from": "LockboxPool",
         "to": "Entry",
-        "op": "TokenPool_TransferInitiator",
-        "valueIn": "0.007164132",
-        "gasUsed": 8495,
-        "fee": "0.000663869",
+        "op": "TokenPool_Config",
+        "valueIn": "0.008330132",
+        "gasUsed": 8939,
+        "fee": "0.000698269",
         "success": true
       },
       {
@@ -382,14 +382,14 @@
         "success": true
       }
     ],
-    "value": "18000000",
+    "value": "19500000",
     "ownBudget": "6000000",
-    "totalFee": "3046609",
-    "ownFee": "889801",
+    "totalFee": "3394142",
+    "ownFee": "873734",
     "legs": [
       {
         "name": "poolProbe",
-        "fee": "1468870"
+        "fee": "1832470"
       },
       {
         "name": "relayEvent",
@@ -397,15 +397,15 @@
       }
     ],
     "rootDelta": "3469731",
-    "entryDelta": "11483660"
+    "entryDelta": "12636127"
   },
-  "RefreshTransferInitiator: LockReleaseLockbox": {
+  "RefreshPoolConfig: LockReleaseLockbox": {
     "rows": [
       {
         "from": "Initiator",
         "to": "Root",
-        "op": "TokenAdminRegistry_RefreshTransferInitiator",
-        "valueIn": "0.018",
+        "op": "TokenAdminRegistry_RefreshPoolConfig",
+        "valueIn": "0.0195",
         "gasUsed": 6559,
         "fee": "0.000437267",
         "success": true
@@ -414,42 +414,42 @@
         "from": "Root",
         "to": "Entry",
         "op": "TokenAdminRegistryEntry_MessageFromRoot",
-        "valueIn": "0.017487264",
-        "gasUsed": 5125,
-        "fee": "0.000417135",
+        "valueIn": "0.018987264",
+        "gasUsed": 4936,
+        "fee": "0.000404535",
         "success": true
       },
       {
         "from": "Entry",
         "to": "LockboxPool",
-        "op": "TokenPool_GetTransferInitiator",
-        "valueIn": "0.008",
-        "gasUsed": 11075,
-        "fee": "0.000805001",
+        "op": "TokenPool_GetConfig",
+        "valueIn": "0.0095",
+        "gasUsed": 16013,
+        "fee": "0.001134201",
         "success": true
       },
       {
         "from": "LockboxPool",
         "to": "Entry",
-        "op": "TokenPool_TransferInitiator",
-        "valueIn": "0.007164132",
-        "gasUsed": 5724,
-        "fee": "0.000479137",
+        "op": "TokenPool_Config",
+        "valueIn": "0.008330132",
+        "gasUsed": 6376,
+        "fee": "0.000527404",
         "success": true
       }
     ],
-    "value": "18000000",
+    "value": "19500000",
     "ownBudget": "6000000",
-    "totalFee": "2138540",
-    "ownFee": "854402",
+    "totalFee": "2503407",
+    "ownFee": "841802",
     "legs": [
       {
         "name": "poolProbe",
-        "fee": "1284138"
+        "fee": "1661605"
       }
     ],
     "rootDelta": "0",
-    "entryDelta": "15861460"
+    "entryDelta": "16996593"
   },
   "SetPool: delist": {
     "rows": [
@@ -457,7 +457,7 @@
         "from": "Initiator",
         "to": "Root",
         "op": "TokenAdminRegistry_SetPool",
-        "valueIn": "0.018",
+        "valueIn": "0.0195",
         "gasUsed": 5612,
         "fee": "0.000374133",
         "success": true
@@ -466,9 +466,9 @@
         "from": "Root",
         "to": "Entry",
         "op": "TokenAdminRegistryEntry_MessageFromRoot",
-        "valueIn": "0.017532465",
-        "gasUsed": 8833,
-        "fee": "0.000682268",
+        "valueIn": "0.019032465",
+        "gasUsed": 8680,
+        "fee": "0.000672068",
         "success": true
       },
       {
@@ -481,10 +481,10 @@
         "success": true
       }
     ],
-    "value": "18000000",
+    "value": "19500000",
     "ownBudget": "6000000",
-    "totalFee": "1660072",
-    "ownFee": "1056401",
+    "totalFee": "1649872",
+    "ownFee": "1046201",
     "legs": [
       {
         "name": "relayEvent",
@@ -492,7 +492,7 @@
       }
     ],
     "rootDelta": "3511865",
-    "entryDelta": "12828063"
+    "entryDelta": "14338263"
   },
   "VerifyToken": {
     "rows": [
@@ -510,8 +510,8 @@
         "to": "Entry",
         "op": "TokenAdminRegistryEntry_MessageFromRoot",
         "valueIn": "0.014491064",
-        "gasUsed": 4511,
-        "fee": "0.000376202",
+        "gasUsed": 4270,
+        "fee": "0.000360136",
         "success": true
       },
       {
@@ -528,23 +528,23 @@
         "to": "Entry",
         "op": "ResponseWalletAddress",
         "valueIn": "0.004682531",
-        "gasUsed": 3411,
-        "fee": "0.000325003",
+        "gasUsed": 3057,
+        "fee": "0.000301403",
         "success": true
       }
     ],
     "value": "15000000",
     "ownBudget": "6000000",
-    "totalFee": "1452141",
-    "ownFee": "809669",
+    "totalFee": "1412475",
+    "ownFee": "793603",
     "legs": [
       {
         "name": "walletQuery",
-        "fee": "642472"
+        "fee": "618872"
       }
     ],
     "rootDelta": "0",
-    "entryDelta": "13547859"
+    "entryDelta": "13587525"
   },
   "GetTokenInfo": {
     "rows": [
@@ -562,33 +562,33 @@
         "to": "Entry",
         "op": "TokenAdminRegistryEntry_MessageFromRoot",
         "valueIn": "0.007518264",
-        "gasUsed": 5147,
-        "fee": "0.000454201",
+        "gasUsed": 4906,
+        "fee": "0.000438135",
         "success": true
       },
       {
         "from": "Entry",
         "to": "Root",
         "op": "TokenAdminRegistryEntry_TokenInfo",
-        "valueIn": "0.007015262",
-        "gasUsed": 5467,
-        "fee": "0.000524336",
+        "valueIn": "0.007019795",
+        "gasUsed": 6302,
+        "fee": "0.000591535",
         "success": true
       },
       {
         "from": "Root",
         "to": "Initiator",
         "op": "TokenAdminRegistry_TokenInfo",
-        "valueIn": "0.00651546",
+        "valueIn": "0.00644606",
         "gasUsed": 309,
-        "fee": "0.000155937",
+        "fee": "0.000174204",
         "success": true
       }
     ],
     "value": "8000000",
     "ownBudget": "8000000",
-    "totalFee": "1505141",
-    "ownFee": "1505141",
+    "totalFee": "1574541",
+    "ownFee": "1574541",
     "legs": [],
     "rootDelta": "0",
     "entryDelta": "0"
@@ -656,8 +656,8 @@
         "to": "Entry",
         "op": "TokenAdminRegistryEntry_MessageFromRoot",
         "valueIn": "0.009542664",
-        "gasUsed": 7261,
-        "fee": "0.000577336",
+        "gasUsed": 7020,
+        "fee": "0.000561269",
         "success": true
       },
       {
@@ -672,8 +672,8 @@
     ],
     "value": "10000000",
     "ownBudget": "6000000",
-    "totalFee": "1533874",
-    "ownFee": "941402",
+    "totalFee": "1517807",
+    "ownFee": "925335",
     "legs": [
       {
         "name": "relayEvent",
@@ -681,7 +681,7 @@
       }
     ],
     "rootDelta": "3522998",
-    "entryDelta": "4943128"
+    "entryDelta": "4959195"
   },
   "AcceptAdminRole": {
     "rows": [
@@ -699,8 +699,8 @@
         "to": "Entry",
         "op": "TokenAdminRegistryEntry_MessageFromRoot",
         "valueIn": "0.009561398",
-        "gasUsed": 7606,
-        "fee": "0.000600337",
+        "gasUsed": 7365,
+        "fee": "0.00058427",
         "success": true
       },
       {
@@ -715,8 +715,8 @@
     ],
     "value": "10000000",
     "ownBudget": "6000000",
-    "totalFee": "1538206",
-    "ownFee": "945669",
+    "totalFee": "1522139",
+    "ownFee": "929602",
     "legs": [
       {
         "name": "relayEvent",
@@ -724,7 +724,7 @@
       }
     ],
     "rootDelta": "3522798",
-    "entryDelta": "4938996"
+    "entryDelta": "4955063"
   },
   "TransferAdminRole": {
     "rows": [
@@ -742,8 +742,8 @@
         "to": "Entry",
         "op": "TokenAdminRegistryEntry_MessageFromRoot",
         "valueIn": "0.009545798",
-        "gasUsed": 7627,
-        "fee": "0.000619536",
+        "gasUsed": 7386,
+        "fee": "0.000603469",
         "success": true
       },
       {
@@ -758,8 +758,8 @@
     ],
     "value": "10000000",
     "ownBudget": "6000000",
-    "totalFee": "1590472",
-    "ownFee": "962669",
+    "totalFee": "1574405",
+    "ownFee": "946602",
     "legs": [
       {
         "name": "relayEvent",
@@ -767,7 +767,7 @@
       }
     ],
     "rootDelta": "3505332",
-    "entryDelta": "4904196"
+    "entryDelta": "4920263"
   },
   "UpgradeEntry": {
     "rows": [
@@ -784,18 +784,18 @@
         "from": "Root",
         "to": "Entry",
         "op": "Upgradeable_Upgrade",
-        "valueIn": "0.010165131",
-        "gasUsed": 2189,
-        "fee": "0.001709615",
+        "valueIn": "0.010144065",
+        "gasUsed": 1948,
+        "fee": "0.001714615",
         "success": true
       }
     ],
     "value": "12000000",
     "ownBudget": "12000000",
-    "totalFee": "1980803",
-    "ownFee": "1980803",
+    "totalFee": "1985803",
+    "ownFee": "1985803",
     "legs": [],
     "rootDelta": "0",
-    "entryDelta": "10019197"
+    "entryDelta": "10014197"
   }
 }

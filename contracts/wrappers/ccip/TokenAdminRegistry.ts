@@ -27,7 +27,7 @@ export const EventTopics = {
 export const Costs = (() => {
   const relayEvent = toNano('0.004')
   const walletQuery = toNano('0.005')
-  const poolProbe = toNano('0.008')
+  const poolProbe = toNano('0.0095')
   const registrationInitializedBase = toNano('0.004')
   const registrationInitialized =
     registrationInitializedBase + walletQuery + poolProbe + 2n * relayEvent
@@ -52,7 +52,7 @@ export const Costs = (() => {
     forwardBase,
     forward,
     setPool: forward + poolProbe,
-    refreshTransferInitiator: forward + poolProbe,
+    refreshPoolConfig: forward + poolProbe,
     verifyToken: forward + walletQuery,
     upgrade: toNano('0.012'),
   }

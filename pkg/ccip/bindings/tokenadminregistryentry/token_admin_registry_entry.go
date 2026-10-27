@@ -10,6 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/versioning/upgradeable"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 )
 
@@ -27,7 +28,7 @@ type Storage struct {
 	AdminConfig  AdminConfig      `tlb:"^"`
 	// TokenVerified is set once the token answers a TEP-89 query with a wallet.
 	TokenVerified bool `tlb:"bool"`
-	// PendingPool has not answered the transfer initiator probe yet.
+	// PendingPool has not answered the pool config probe yet.
 	PendingPool *address.Address `tlb:"addr"`
 }
 
@@ -37,6 +38,8 @@ type TokenInfo struct {
 	TransferInitiator *address.Address `tlb:"addr"`
 	MinterAddress     *address.Address `tlb:"addr"`
 	Version           uint32           `tlb:"## 32"`
+	// Admission budgets reported by the pool; nil until it answers the config probe.
+	Admission *tokenpool.AdmissionBudget `tlb:"maybe ^"`
 }
 
 type AdminConfig struct {
@@ -53,7 +56,7 @@ type RootMessage interface {
 		AcceptAdminRole |
 		SetPool |
 		VerifyToken |
-		RefreshTransferInitiator
+		RefreshPoolConfig
 }
 
 // crc32('TokenAdminRegistryEntry_MessageFromRoot')
@@ -122,9 +125,9 @@ type VerifyToken struct {
 	_ tlb.Magic `tlb:"#a14b0288" json:"-"` //nolint:revive // used by tlb reflection for encoding
 }
 
-// crc32('TokenAdminRegistryEntry_RefreshTransferInitiator')
-type RefreshTransferInitiator struct {
-	_ tlb.Magic `tlb:"#91f8fb81" json:"-"` //nolint:revive // used by tlb reflection for encoding
+// crc32('TokenAdminRegistryEntry_RefreshPoolConfig')
+type RefreshPoolConfig struct {
+	_ tlb.Magic `tlb:"#ecf005ba" json:"-"` //nolint:revive // used by tlb reflection for encoding
 }
 
 // crc32('TokenAdminRegistryEntry_Resume')

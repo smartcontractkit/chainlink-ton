@@ -2878,6 +2878,90 @@ describe('OffRamp - Execute', () => {
       expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
     })
 
+    it('retries the same executor with a token gas override after the pool admission check fails', async () => {
+      const message = setup.createTestMessageWithToken()
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+      const executorAddress = setup.receiveExecutorAddress(message)
+
+      // Raise the pool's release admission above the message's source destGasAmount (0.2 TON).
+      await setup.tokenPool.sendTokenPoolSetBudget(setup.deployer.getSender(), toNano('0.1'), {
+        queryId: 900n,
+        budget: tp.TokenPool_Budget.create({
+          lockOrBurn: tp.TokenPool_LockOrBurnBudget.create({ admission: 0n, safety: 0n }),
+          releaseOrMint: tp.TokenPool_ReleaseOrMintBudget.create({
+            admission: toNano('0.5'),
+            safety: toNano('0.025'),
+          }),
+        }),
+      })
+      await setup.registry.sendTokenAdminRegistryRefreshPoolConfig(
+        setup.deployer.getSender(),
+        toNano('0.1'),
+        { queryId: 901n, tokenAddress: setup.token },
+      )
+      expect((await setup.tokenRegistry.getTokenInfo()).admission?.releaseOrMint).toEqual(
+        toNano('0.5'),
+      )
+
+      // 1. Normal execution: 0.2 TON destGasAmount is below the 0.5 TON pool admission. The
+      // ReceiveExecutor must fail before calling the pool, leaving the executor in Failure.
+      const first = await setup.executeReport(report)
+      expect(first.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: executorAddress,
+        deploy: true,
+        success: true,
+      })
+      expect(first.transactions).not.toHaveTransaction({
+        from: setup.router.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMintDelivered.PREFIX,
+      })
+      assertLog(
+        first.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+
+      warpTime(Number(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS) + 1)
+
+      // 2. Manual execution raises the token gas override to the admission. The OffRamp applies
+      // it to the transfer before InitExecute, and the same executor retries and releases.
+      const manual = await setup.manualExecuteReport(report, {
+        tokenGasOverrides: [toNano('0.5')],
+      })
+      expect(manual.transactions).toHaveTransaction({
+        to: executorAddress,
+        op: rx.ReceiveExecutor_InitExecute.PREFIX,
+        success: true,
+      })
+      expect(manual.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMintDelivered.PREFIX,
+        success: true,
+      })
+      assertLog(
+        manual.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+      expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+    })
+
     // --- gasOverride validation ---
 
     it('fails manual execute when token gas override count does not match token transfers', async () => {

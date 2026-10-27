@@ -120,6 +120,7 @@ describe('Router.withdrawToTokenPool', () => {
       depositAccount: opts.depositAccount,
       amount: opts.amount,
       tokenPool: opts.tokenPool,
+      forwardTonAmount: toNano('0.05'),
       forwardPayload: buildLockOrBurnForwardPayload(
         opts.replyTo === undefined ? executor.address : opts.replyTo,
       ),
@@ -150,6 +151,7 @@ describe('Router.withdrawToTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo,
+        finalizationValue: toNano('0.01'),
         onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
       }),
       prepared: rt.TokenPool_LockOrBurnPrepared.create({

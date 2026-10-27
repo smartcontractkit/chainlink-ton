@@ -198,11 +198,7 @@ describe('TokenAdminRegistry flow fees', () => {
       }
     }
     roundTrip('walletQuery', tare.RequestWalletAddress.PREFIX, tare.ResponseWalletAddress.PREFIX)
-    roundTrip(
-      'poolProbe',
-      tare.TokenPool_GetTransferInitiator.PREFIX,
-      tare.TokenPool_TransferInitiator.PREFIX,
-    )
+    roundTrip('poolProbe', tare.TokenPool_GetConfig.PREFIX, tare.TokenPool_Config.PREFIX)
     const events: (number | undefined)[] = [
       tar.TokenAdminRegistry_AdministratorTransferRequested.PREFIX,
       tar.TokenAdminRegistry_AdministratorTransferred.PREFIX,
@@ -380,14 +376,14 @@ describe('TokenAdminRegistry flow fees', () => {
       })
     })
 
-    it(`RefreshTransferInitiator: ${poolName}`, async () => {
+    it(`RefreshPoolConfig: ${poolName}`, async () => {
       await register(pools[poolName])
-      await measure(`RefreshTransferInitiator: ${poolName}`, {
+      await measure(`RefreshPoolConfig: ${poolName}`, {
         initiator: fx.other.address,
-        value: Costs.refreshTransferInitiator,
+        value: Costs.refreshPoolConfig,
         ownBudget: Costs.forwardBase,
         run: (via, value) =>
-          fx.registry.sendTokenAdminRegistryRefreshTransferInitiator(via, value, {
+          fx.registry.sendTokenAdminRegistryRefreshPoolConfig(via, value, {
             queryId: 0n,
             tokenAddress: fx.token,
           }),
@@ -395,7 +391,7 @@ describe('TokenAdminRegistry flow fees', () => {
           expect(result.transactions).toHaveTransaction({
             from: pools[poolName],
             to: entryAddress(fx),
-            op: tare.TokenPool_TransferInitiator.PREFIX,
+            op: tare.TokenPool_Config.PREFIX,
             success: true,
           })
           await expectPool(pools[poolName])

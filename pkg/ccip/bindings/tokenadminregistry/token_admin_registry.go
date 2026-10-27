@@ -12,6 +12,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/versioning/upgradeable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistryentry"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 )
 
 var (
@@ -74,10 +75,10 @@ type SetPool struct {
 	TokenPool *address.Address `tlb:"addr"`
 }
 
-// crc32('TokenAdminRegistry_RefreshTransferInitiator')
-// Permissionless: the entry re-probes its pool's transfer initiator.
-type RefreshTransferInitiator struct {
-	_            tlb.Magic        `tlb:"#2fb10afd" json:"-"` //nolint:revive // used by tlb reflection for encoding
+// crc32('TokenAdminRegistry_RefreshPoolConfig')
+// Permissionless: the entry re-probes its pool's config.
+type RefreshPoolConfig struct {
+	_            tlb.Magic        `tlb:"#bb82eda5" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	QueryID      uint64           `tlb:"## 64"`
 	TokenAddress *address.Address `tlb:"addr"`
 }
@@ -96,10 +97,19 @@ type TokenInfo struct {
 	QueryID       uint64           `tlb:"## 64"`
 	Token         *address.Address `tlb:"addr"`
 	MinterAddress *address.Address `tlb:"addr"`
-	TokenPool     *address.Address `tlb:"addr"`
+	Version       uint32           `tlb:"## 32"`
+	// PoolInfo is nil when the token is not enabled (delisted or awaiting the pool probe).
+	PoolInfo *PoolInfo `tlb:"maybe ^"`
+}
+
+// PoolInfo is present only when the token's pool is enabled. Keeping the pool, its transfer
+// initiator, and its admission budgets together guarantees that an enabled pool always has an
+// admission.
+type PoolInfo struct {
+	TokenPool *address.Address `tlb:"addr"`
 	// TransferInitiator reported by the pool; nil when the pool delivers by minting.
-	TransferInitiator *address.Address `tlb:"maybe ^ addr"`
-	Version           uint32           `tlb:"## 32"`
+	TransferInitiator *address.Address          `tlb:"maybe ^ addr"`
+	Admission         tokenpool.AdmissionBudget `tlb:"^"`
 }
 
 // crc32('TokenAdminRegistry_GetTokenInfoFailed')

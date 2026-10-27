@@ -1,4 +1,5 @@
 import "../../lib/deployable/namespace"
+import "../pools/lib/token_pool/budget"
 
 // A TokenAdminRegistryEntry is the deterministic, per-token shard managed by
 // TokenAdminRegistry.
@@ -12,6 +13,8 @@ struct TokenRegistry_TokenInfo {
     /// Pool interface version. It is currently carried but ignored, so a
     /// future pool-interface upgrade can select the correct protocol.
     version: uint32 = 1
+    /// Admission budgets reported by the pool; null until it answers the config probe.
+    admission: Cell<TokenPool_AdmissionBudget>? = null
 }
 
 struct TokenAdminRegistryEntry {}
@@ -30,8 +33,8 @@ fun TokenAdminRegistryEntry.deriveAddress(deployableCode: cell, tokenAddress: ad
     }
 }
 
-/// Attached to the `TokenPool_GetTransferInitiator` probe; the pool's answer returns the unspent part.
-const TokenAdminRegistryEntry_POOL_PROBE_VALUE: int = grams("0.008");
+/// Attached to the `TokenPool_GetConfig` probe; the pool's answer returns the unspent part.
+const TokenAdminRegistryEntry_POOL_PROBE_VALUE: int = grams("0.0095");
 
 /// Attached to the TEP-89 query sent at registration; the token's response returns the unspent part.
 const TokenAdminRegistryEntry_WALLET_QUERY_VALUE: int = grams("0.005");

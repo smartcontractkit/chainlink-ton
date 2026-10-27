@@ -8,10 +8,10 @@ import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
-import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
-import { setup } from './OnRamp.Setup'
-import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 import { FromBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
+import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
+import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
+import { setup } from './OnRamp.Setup'
 import { findTransactionRequired } from '@ton/test-utils'
 
 // Valid EVM destination token address: 32-byte abi-encoded, <= uint160, >= precompile space.
@@ -49,6 +49,7 @@ function buildWithdrawRequest(opts: {
     requestedFinalityConfig: 0n,
     tokenArgs: null,
     replyTo: opts.originalSender,
+    finalizationValue: toNano('0.01'),
     onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
   })
 
@@ -65,6 +66,7 @@ function buildWithdrawRequest(opts: {
     depositAccount: opts.depositAccount,
     amount: 1n,
     tokenPool: opts.tokenPool,
+    forwardTonAmount: 0n,
     forwardPayload: tp.TokenPool_LockOrBurnForwardPayload.create({
       originalSender: opts.originalSender,
       requestMsg,

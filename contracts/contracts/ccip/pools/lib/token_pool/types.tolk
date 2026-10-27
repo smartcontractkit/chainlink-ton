@@ -2,6 +2,7 @@
 import "../../../../lib/utils"
 import "../../../common/types"
 import "../../../rmn_remote/lib"
+import "../../../cct/fees-management"
 
 import "../rate_limiter"
 
@@ -18,6 +19,11 @@ const CCIP_POOL_V1_RET_BYTES = 32;
 // This data can be used to send information to the destination chain token pool. Can be overwritten
 // in the TokenTransferFeeConfig.destBytesOverhead if more data is required.
 const CCIP_LOCK_OR_BURN_V1_RET_BYTES = 32;
+
+// Includes withdraw, lock/burn, and return custody moves for pre-withdraw operations.
+const LB_CUSTODY_MOVES_BEFORE_WITHDRAW: int = 3;
+// Includes lock/burn and return custody moves for pre-lock/burn operations.
+const LB_CUSTODY_MOVES_BEFORE_LOCK_BURN: int = 2;
 
 struct TokenPool_DynamicConfig {
     router: address;

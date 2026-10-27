@@ -13,12 +13,12 @@
         "from": "Minter",
         "to": "Entry",
         "op": "ResponseWalletAddress",
-        "gasUsed": 3411,
-        "computeFee": "0.000227401",
+        "gasUsed": 3057,
+        "computeFee": "0.000203801",
         "fwdFee": "0.000065068"
       }
     ],
-    "fee": "839338"
+    "fee": "815738"
   },
   "VerifyToken: reference jetton": {
     "rows": [
@@ -34,12 +34,12 @@
         "from": "Minter",
         "to": "Entry",
         "op": "ResponseWalletAddress",
-        "gasUsed": 3411,
-        "computeFee": "0.000227401",
+        "gasUsed": 3057,
+        "computeFee": "0.000203801",
         "fwdFee": "0.000065068"
       }
     ],
-    "fee": "839338"
+    "fee": "815738"
   },
   "RegisterToken: wGRAM": {
     "rows": [
@@ -55,12 +55,12 @@
         "from": "Minter",
         "to": "Entry",
         "op": "ResponseWalletAddress",
-        "gasUsed": 3411,
-        "computeFee": "0.000227401",
+        "gasUsed": 3057,
+        "computeFee": "0.000203801",
         "fwdFee": "0.000065068"
       }
     ],
-    "fee": "642472"
+    "fee": "618872"
   },
   "VerifyToken: wGRAM": {
     "rows": [
@@ -76,12 +76,12 @@
         "from": "Minter",
         "to": "Entry",
         "op": "ResponseWalletAddress",
-        "gasUsed": 3411,
-        "computeFee": "0.000227401",
+        "gasUsed": 3057,
+        "computeFee": "0.000203801",
         "fwdFee": "0.000065068"
       }
     ],
-    "fee": "642472"
+    "fee": "618872"
   },
   "RegisterToken: CCT": {
     "rows": [
@@ -97,12 +97,12 @@
         "from": "Minter",
         "to": "Entry",
         "op": "ResponseWalletAddress",
-        "gasUsed": 3411,
-        "computeFee": "0.000227401",
+        "gasUsed": 3057,
+        "computeFee": "0.000203801",
         "fwdFee": "0.000065068"
       }
     ],
-    "fee": "642472"
+    "fee": "618872"
   },
   "VerifyToken: CCT": {
     "rows": [
@@ -118,11 +118,11 @@
         "from": "Minter",
         "to": "Entry",
         "op": "ResponseWalletAddress",
-        "gasUsed": 3411,
-        "computeFee": "0.000227401",
+        "gasUsed": 3057,
+        "computeFee": "0.000203801",
         "fwdFee": "0.000065068"
       }
     ],
-    "fee": "642472"
+    "fee": "618872"
   }
 }

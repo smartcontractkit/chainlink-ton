@@ -106,9 +106,9 @@ fun onInternalMessage(in: InMessage) {
             assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_WALLET_QUERY_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
             forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_VerifyToken {});
         }
-        TokenAdminRegistry_RefreshTransferInitiator => {
+        TokenAdminRegistry_RefreshPoolConfig => {
             assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_POOL_PROBE_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
-            forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_RefreshTransferInitiator {});
+            forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_RefreshPoolConfig {});
         }
         else => {
             var st = lazy TokenAdminRegistry_Storage.load();
@@ -212,6 +212,19 @@ fun sendUpgrade(dest: address, queryId: uint64, value: coins, mode: int) {
 
 fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
     val tokenInfo = msg.tokenInfo.load();
+
+    // `tokenPool` and `admission` are written together by `onPoolConfig`. If either is missing
+    // (delisted, or still waiting for the probe), publish no pool info; a non-null pool without
+    // an admission is treated as not enabled instead of inventing a zero budget.
+    var poolInfo: Cell<TokenAdminRegistry_PoolInfo>? = null;
+    if (tokenInfo.tokenPool != null && tokenInfo.admission != null) {
+        poolInfo = TokenAdminRegistry_PoolInfo {
+            tokenPool: tokenInfo.tokenPool!,
+            transferInitiator: tokenInfo.transferInitiator,
+            admission: tokenInfo.admission!,
+        }.toCell();
+    }
+
     createMessage({
         bounce: false,
         value: 0,
@@ -220,9 +233,8 @@ fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
             queryId: msg.queryId,
             token: msg.token,
             minterAddress: tokenInfo.minterAddress,
-            tokenPool: tokenInfo.tokenPool,
-            transferInitiator: tokenInfo.transferInitiator == null ? null : tokenInfo.transferInitiator!.toCell(),
             version: tokenInfo.version,
+            poolInfo,
         },
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }

@@ -115,8 +115,14 @@ export async function coverageConfig(): Promise<ContractCoverageConfig[]> {
   ]
 }
 
+/** Entry token info once `tokenPool` answered the probe with `POOL_ADMISSION`. */
 export const tokenInfo = (fx: Fixture, tokenPool: Address | null = fx.pool, token = fx.token) =>
-  tar.TokenRegistry_TokenInfo.create({ tokenPool, minterAddress: token, version: 1n })
+  tar.TokenRegistry_TokenInfo.create({
+    tokenPool,
+    minterAddress: token,
+    version: 1n,
+    admission: tokenPool ? POOL_ADMISSION : null,
+  })
 
 export const entryAddress = (fx: Fixture, token = fx.token) =>
   namespace.deriveAddress(
@@ -185,21 +191,32 @@ export async function registerToken(
   return result
 }
 
-/** Sends the `TokenPool_TransferInitiator` answer to the entry's probe, as the pool by default. */
+/** Sends the `TokenPool_Config` answer to the entry's probe, as the pool by default. */
 export const answerPoolProbe = (
   fx: Fixture,
   opt: {
     token?: Address
     from?: Address
     transferInitiator?: Address | null
+    admission?: tare.TokenPool_AdmissionBudget
     queryId?: bigint
   } = {},
 ) =>
-  entryFor(fx, opt.token ?? fx.token).sendTokenPoolTransferInitiator(
+  entryFor(fx, opt.token ?? fx.token).sendTokenPoolConfig(
     fx.blockchain.sender(opt.from ?? fx.pool),
     toNano('0.02'),
-    { queryId: opt.queryId ?? 0n, transferInitiator: opt.transferInitiator ?? null },
+    {
+      queryId: opt.queryId ?? 0n,
+      transferInitiator: opt.transferInitiator ?? null,
+      admission: opt.admission ?? POOL_ADMISSION,
+    },
   )
+
+/** Admission budgets the fixture pool reports. */
+export const POOL_ADMISSION = tare.TokenPool_AdmissionBudget.create({
+  lockOrBurn: toNano('0.1'),
+  releaseOrMint: toNano('0.2'),
+})
 
 /** Sends the TEP-89 answer to the entry's registration query, as the token by default. */
 export const answerWalletQuery = (

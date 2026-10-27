@@ -2,13 +2,13 @@
 import "@stdlib/gas-payments"
 
 import "../../lib/utils"
+
 import "../offramp/types"
 import "../offramp/messages"
 import "../token_admin_registry/messages"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
 import "../accounts/deposit/messages"
-import "../../lib/jetton/messages"
 import "../common/types"
 
 import "storage"
@@ -191,17 +191,31 @@ fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
 }
 
 fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenAdminRegistry_TokenInfo, ttInfo: ReceiveExecutor_TokenTransferInfo) {
-    if (msg.tokenPool == null) {
+    if (msg.poolInfo == null) {
         return onTokenNotEnabled(mutate st, ttInfo);
     }
-    releaseOrMint(mutate st, ttInfo, msg.tokenPool!, msg.transferInitiator);
+
+    val poolInfo = msg.poolInfo!.load();
+    // The source's destGasAmount must fund the pool's release admission.
+    if (ttInfo.transfer.load().destGasAmount < poolInfo.admission.load().releaseOrMint) {
+        return onTARQueryFailed(mutate st, ttInfo, ReceiveExecutor_Error.TokenAdmissionNotMet);
+    }
+
+    val transferInitiator = poolInfo.transferInitiator == null
+        ? null
+        : poolInfo.transferInitiator!.toCell();
+    releaseOrMint(mutate st, ttInfo, poolInfo.tokenPool, transferInitiator);
 }
 
-fun onTokenNotEnabled(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo) {
+fun onTARQueryFailed(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, errorCode: uint16) {
     val rampMsg = lazy st.message.load();
     ttInfo.state = ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {};
     st.state.tokenTransfer = ttInfo.toCell();
-    endExecutionWithFailure(mutate st, rampMsg.header, ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry);
+    endExecutionWithFailure(mutate st, rampMsg.header, errorCode);
+}
+
+fun onTokenNotEnabled(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo) {
+    onTARQueryFailed(mutate st, ttInfo, ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry);
 }
 
 fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address, transferInitiator: Cell<address>?) {
@@ -296,7 +310,7 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
 // Returns all balance to the OffRamp; a manual execution funds the retry again.
 // TODO add reason
 fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, _errorCode: uint16 = 0) {
-    // TODO send error reason
+    // TODO: propagate `_errorCode` through `OffRamp_NotifyFailure` so the reason is observable.
     val notifyFailure = createMessage({
         bounce: true,
         value: 0,
@@ -336,6 +350,7 @@ fun onDepositAccountNotification(sender: address, msg: DepositAccount_ForwardNot
         return;
     }
 
+    // Authentication passed: let the funded executor finish delivery and execution.
     setGasLimitToMaximum();
     onTokenTransferDelivered(mutate st, ttInfo, ttInfo.state.tokenPool, notification.jettonAmount);
     st.store();
@@ -361,9 +376,11 @@ fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: Receive
     }
 
     // The receiver may never confirm, so the delivery is reported independently of execution.
+    // The only mode-64 send: it carries the inbound remainder after gas and its forward fee.
+    // `execute` below pays its fixed value from the balance.
     val deliveredMsg = createMessage({
         bounce: false,
-        value: OffRamp_Costs.tokenTransferDelivered(),
+        value: 0,
         dest: st.owner,
         body: OffRamp_TokenTransferDelivered {
             queryId: st.state.queryId,
@@ -371,7 +388,7 @@ fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: Receive
             delivered: delivered.toCell(),
         },
     });
-    deliveredMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    deliveredMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     execute(mutate st)
 }
 

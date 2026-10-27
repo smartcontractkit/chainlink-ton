@@ -389,7 +389,9 @@ fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifySuccess
 fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: address) {
     if (msg.delivered != null) {
-        relayTokenTransferDelivered(st, msg.queryId, msg.execId, receiveExecutor, msg.delivered!, false);
+        // The only mode-64 send: it carries the inbound remainder after gas and its forward fee.
+        // The root update below is paid from the balance.
+        relayTokenTransferDelivered(st, msg.queryId, msg.execId, receiveExecutor, msg.delivered!, true);
     }
 
     val messageHeader = lazy msg.header.load();
@@ -561,7 +563,8 @@ fun onTokenPoolReleaseOrMintFailed(msg: Router_TokenPoolReleaseOrMintFailed) {
 // Router_TokenPoolReleaseOrMintFailed.
 fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMint) {
     if (msg.destGasAmount < st.config.load().dynamicConfig.load().minTTGasLimit) {
-        return mintOrReleaseFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, NotEnoughDestGasAmountForTokenTransfer {});
+        val receiveExecutor = getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress();
+        return mintOrReleaseFailed(receiveExecutor, msg.queryId, NotEnoughDestGasAmountForTokenTransfer {});
     }
 
     val relayMsg = createMessage({

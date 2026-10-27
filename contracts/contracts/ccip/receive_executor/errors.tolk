@@ -11,4 +11,6 @@ enum ReceiveExecutor_Error {
     TokenAdminRegistryUnexpectedResponse
     TokenPoolUnexpectedResponse
     TokenNotEnabledInTokenRegistry
+    /// The source's destGasAmount is below the pool's release admission.
+    TokenAdmissionNotMet
 }

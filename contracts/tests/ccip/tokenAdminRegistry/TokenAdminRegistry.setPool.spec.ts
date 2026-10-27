@@ -95,7 +95,7 @@ describe('TokenAdminRegistry - Set Pool', () => {
     expect(result.transactions).toHaveTransaction({
       from: entryAddress(fx),
       to: fx.replacementPool,
-      op: tare.TokenPool_GetTransferInitiator.PREFIX,
+      op: tare.TokenPool_GetConfig.PREFIX,
     })
     expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx))
     expect(rootEvents(fx, result, EventTopics.PoolSet)).toHaveLength(0)
@@ -136,7 +136,7 @@ describe('TokenAdminRegistry - Set Pool', () => {
 
   it('lets anyone refresh the transfer initiator reported by the current pool', async () => {
     await registerAndAccept(fx)
-    const refresh = await fx.registry.sendTokenAdminRegistryRefreshTransferInitiator(
+    const refresh = await fx.registry.sendTokenAdminRegistryRefreshPoolConfig(
       fx.other.getSender(),
       OPERATION_VALUE,
       { queryId: 111n, tokenAddress: fx.token },
@@ -144,7 +144,7 @@ describe('TokenAdminRegistry - Set Pool', () => {
     expect(refresh.transactions).toHaveTransaction({
       from: entryAddress(fx),
       to: fx.pool,
-      op: tare.TokenPool_GetTransferInitiator.PREFIX,
+      op: tare.TokenPool_GetConfig.PREFIX,
     })
 
     const answer = await answerPoolProbe(fx, {
@@ -168,7 +168,7 @@ describe('TokenAdminRegistry - Set Pool', () => {
   it('re-probes a pending pool that has not answered on refresh', async () => {
     await registerAndAccept(fx)
     await requestSetPool(fx, fx.administrator, fx.replacementPool)
-    const refresh = await fx.registry.sendTokenAdminRegistryRefreshTransferInitiator(
+    const refresh = await fx.registry.sendTokenAdminRegistryRefreshPoolConfig(
       fx.other.getSender(),
       OPERATION_VALUE,
       { queryId: 113n, tokenAddress: fx.token },
@@ -176,12 +176,12 @@ describe('TokenAdminRegistry - Set Pool', () => {
     expect(refresh.transactions).toHaveTransaction({
       from: entryAddress(fx),
       to: fx.replacementPool,
-      op: tare.TokenPool_GetTransferInitiator.PREFIX,
+      op: tare.TokenPool_GetConfig.PREFIX,
     })
     expect(refresh.transactions).not.toHaveTransaction({
       from: entryAddress(fx),
       to: fx.pool,
-      op: tare.TokenPool_GetTransferInitiator.PREFIX,
+      op: tare.TokenPool_GetConfig.PREFIX,
     })
   })
 
@@ -190,7 +190,7 @@ describe('TokenAdminRegistry - Set Pool', () => {
     expect(result.transactions).toHaveTransaction({
       from: entryAddress(fx),
       to: fx.pool,
-      op: tare.TokenPool_GetTransferInitiator.PREFIX,
+      op: tare.TokenPool_GetConfig.PREFIX,
     })
     expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx, null))
   })

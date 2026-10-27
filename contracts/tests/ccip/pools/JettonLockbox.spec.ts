@@ -20,6 +20,7 @@ import { ContractClient as AccessControlClient } from '../../../wrappers/lib/acc
 import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { AskToTransfer } from '../../../wrappers/gen/ccip/pools/LockReleaseLockboxTokenPool'
 import { contractCode } from '../../../wrappers/codeLoader'
+import { MIN_VALUE } from '../../utils/minValue'
 
 // Role constants
 const OPERATOR_ROLE_VALUE = BigInt('0x' + crc32('OPERATOR_ROLE').toString(16).padStart(8, '0'))
@@ -177,7 +178,47 @@ describe('JettonLockBox', () => {
   })
 
   describe('deposit', () => {
-    it('notifies rejected deposits without subsidizing repeated underfunded returns', async () => {
+    it('confirms an authenticated deposit with little value, without a value check', async () => {
+      const forwardTonAmount = toNano('0.005')
+      const payload = JettonLockBox_Deposit.toCell(
+        JettonLockBox_Deposit.create({
+          queryId: 220n,
+          token: jettonMinter.address,
+          remoteChainSelector,
+          amount: 1n,
+          context: null,
+          returnAddress: null,
+          failureValue: toNano('0.01'),
+        }),
+      )
+      const result = await operatorWallet.sendTransfer(operator.getSender(), {
+        value: toNano('0.2'),
+        message: {
+          queryId: 220,
+          jettonAmount: 1n,
+          destination: lockbox.address,
+          responseDestination: operator.address,
+          customPayload: null,
+          // Custody has arrived: confirming is cheaper than returning it.
+          forwardTonAmount,
+          forwardPayload: payload,
+        },
+      })
+      // The confirmation is funded by the deposit's own value, not the lockbox balance.
+      expect(result.transactions).toHaveTransaction({
+        from: lockbox.address,
+        to: operator.address,
+        op: JettonLockBox_Deposited.PREFIX,
+        value: (value) => value !== undefined && value < forwardTonAmount,
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        from: lockbox.address,
+        op: JettonLockBox_DepositFailed.PREFIX,
+      })
+      expect(await lockboxWallet.getJettonBalance()).toEqual(1n)
+    })
+
+    it('returns rejected deposits without a failure report when failureValue is zero', async () => {
       const balanceBefore = (await blockchain.getContract(lockbox.address)).balance
       const jettonsBefore = await operatorWallet.getJettonBalance()
       for (const queryId of [221, 222, 223]) {
@@ -189,36 +230,26 @@ describe('JettonLockBox', () => {
             destination: lockbox.address,
             responseDestination: operator.address,
             customPayload: null,
-            forwardTonAmount: toNano('0.05'),
+            forwardTonAmount: toNano('0.005'),
             forwardPayload: Cell.EMPTY,
           },
         })
-        expect(result.transactions).not.toHaveTransaction({
+        expect(result.transactions).toHaveTransaction({
           from: lockbox.address,
           to: lockboxWallet.address,
           op: AskToTransfer.PREFIX,
         })
-        expect(result.transactions).toHaveTransaction({
+        expect(result.transactions).not.toHaveTransaction({
           from: lockbox.address,
           to: operator.address,
           op: JettonLockBox_DepositFailed.PREFIX,
-          body(body) {
-            if (!body) return false
-            const failure = JettonLockBox_DepositFailed.fromSlice(body.beginParse())
-            return (
-              failure.amount === 1n &&
-              failure.depositor.equals(operator.address) &&
-              !failure.returnAttempted &&
-              failure.context === null
-            )
-          },
         })
         expect((await blockchain.getContract(lockbox.address)).balance).toBeGreaterThanOrEqual(
           balanceBefore,
         )
       }
-      expect(await operatorWallet.getJettonBalance()).toEqual(jettonsBefore - 3n)
-      expect(await lockboxWallet.getJettonBalance()).toEqual(3n)
+      expect(await operatorWallet.getJettonBalance()).toEqual(jettonsBefore)
+      expect(await lockboxWallet.getJettonBalance()).toEqual(0n)
     })
 
     it('should accept deposit via jetton transfer → TransferNotificationForRecipient', async () => {
@@ -233,6 +264,8 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount,
           context: null,
+          returnAddress: null,
+          failureValue: toNano('0.01'),
         }),
       )
 
@@ -243,14 +276,14 @@ describe('JettonLockBox', () => {
       // 2. operatorWallet sends InternalTransfer to lockboxWallet
       // 3. lockboxWallet sends TransferNotificationForRecipient to lockbox
       const result = await operatorWallet.sendTransfer(operator.getSender(), {
-        value: toNano('0.2'),
+        value: MIN_VALUE.ccip + toNano('0.1'),
         message: {
           queryId: Number(queryId),
           jettonAmount: amount,
           destination: lockbox.address,
           responseDestination: operator.address,
           customPayload: null,
-          forwardTonAmount: toNano('0.05'),
+          forwardTonAmount: MIN_VALUE.ccip,
           forwardPayload: depositPayload,
         },
       })
@@ -291,6 +324,8 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount: 0n,
           context: callerContext,
+          returnAddress: null,
+          failureValue: toNano('0.01'),
         }),
       )
 
@@ -416,6 +451,8 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount: toNano('3'),
           context: null,
+          returnAddress: null,
+          failureValue: toNano('0.01'),
         }),
       )
 
@@ -474,6 +511,8 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount,
           context: null,
+          returnAddress: null,
+          failureValue: toNano('0.01'),
         }),
       )
 
@@ -524,7 +563,7 @@ describe('JettonLockBox', () => {
         body(body) {
           if (!body) return false
           const failure = JettonLockBox_DepositFailed.fromSlice(body.beginParse())
-          return failure.queryId === queryId && failure.returnAttempted
+          return failure.queryId === queryId
         },
       })
     })
@@ -564,6 +603,8 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount: depositAmount,
           context: null,
+          returnAddress: null,
+          failureValue: toNano('0.01'),
         }),
       )
 
@@ -1052,6 +1093,8 @@ describe('JettonLockBox', () => {
               remoteChainSelector,
               amount: depositAmount,
               context: null,
+              returnAddress: null,
+              failureValue: toNano('0.01'),
             }),
           ),
         },
@@ -1154,6 +1197,44 @@ describe('JettonLockBox', () => {
             )
           )
         },
+      })
+    })
+
+    it('accepts a short Only256 bounce from a failed best-effort return', async () => {
+      const ask = AskToTransfer.create({
+        queryId: 313n,
+        jettonAmount: toNano('5'),
+        transferRecipient: recipient.address,
+        sendExcessesTo: operator.address,
+        customPayload: null,
+        forwardTonAmount: 0n,
+        forwardPayload: beginCell().endCell().beginParse(),
+      })
+      const originalBody = AskToTransfer.toCell(ask)
+      const shortBody = beginCell()
+        .storeUint(0xffffffff, 32)
+        .storeBits(originalBody.beginParse().loadBits(256))
+        .endCell()
+
+      const result = await blockchain.sendMessage(
+        internal({
+          from: lockboxWallet.address,
+          to: lockbox.address,
+          value: toNano('0.2'),
+          bounced: true,
+          body: shortBody,
+        }),
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: lockboxWallet.address,
+        to: lockbox.address,
+        success: true,
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        from: lockbox.address,
+        to: operator.address,
+        op: JettonLockBox_WithdrawFailed.PREFIX,
       })
     })
 

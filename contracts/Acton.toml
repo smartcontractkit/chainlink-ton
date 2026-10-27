@@ -281,6 +281,21 @@ src = "contracts/test/examples/lisp_list.tolk"
 domain = "test"
 depends = []
 
+# Gas calibration harnesses (test-only): expose on-chain cost model constants/functions as getters
+# so off-chain gas-report tests compare measured gas against the exact on-chain estimates.
+
+[contracts.CctCostHarness]
+display-name = "link.chain.ton.test.gas.CctCostHarness"
+src = "contracts/test/gas/cct_cost_harness.tolk"
+domain = "test/gas"
+depends = []
+
+[contracts.WgramCostHarness]
+display-name = "link.chain.ton.test.gas.WgramCostHarness"
+src = "contracts/test/gas/wgram_cost_harness.tolk"
+domain = "test/gas"
+depends = []
+
 # fmt is not very mature yet
 [fmt]
 width = 100
