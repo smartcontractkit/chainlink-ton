@@ -153,16 +153,24 @@ struct (0x7deaf076) OffRamp_ReleaseOrMint {
     request: Cell<TokenPool_ReleaseOrMintInV1>
 }
 
+/// Relays between the executor and the pool, on top of `destGasAmount`: the OffRamp and Router
+/// hops, the receiver's deposit account (deploy, init, wallet query, reply) and its storage reserve.
 fun OffRamp_ReleaseOrMint.cost(): coins {
-    return grams("0.07") // TODO
-        + DepositAccount_WALLET_QUERY_VALUE;
+    return
+        + OFFRAMP_COSTS_RELEASE_OR_MINT_FEE
+        + ROUTER_COSTS_RELAY_RELEASE_OR_MINT_FEE
+        + OFFRAMP_COSTS_DEPOSIT_ACCOUNT_FEE
+        + DepositAccount_MIN_GRAM_TO_RESERVE
+        + DepositAccount_WALLET_QUERY_VALUE
+        ;
 }
 
+// Constants are 5x the cost measured by tests/gas-report/ccip for a 2000-byte message.
 struct OffRamp_Costs{}
 
-fun OffRamp_Costs.executeValidated(): int {
+fun OffRamp_Costs.executeValidated(hasTokens: bool): int {
     val baseFee = OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE;
-    return baseFee + AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT + ReceiveExecutor_Costs.initExec();
+    return baseFee + AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT + ReceiveExecutor_Costs.initExec(hasTokens);
 }
 
 fun OffRamp_Costs.dispatchValidated(): int {
@@ -175,8 +183,10 @@ fun OffRamp_Costs.receiveConfirmOrDeny(): int {
     return baseFee + ReceiveExecutor_Costs.confirmedOrBounced();
 }
 
+/// OffRamp and Router relays of the delivery notice, the pool's `ReleaseOrMintDelivered` and its
+/// `ReleaseOrMintFinalized` reply to the executor.
 fun OffRamp_Costs.tokenTransferDelivered(): int {
-    return grams("0.02"); // TODO
+    return OFFRAMP_COSTS_TOKEN_TRANSFER_DELIVERED_FEE;
 }
 
 fun OffRamp_Costs.notify(): int {
@@ -184,24 +194,33 @@ fun OffRamp_Costs.notify(): int {
     return baseFee + MerkleRoot_Costs.markState();
 }
 
-fun OffRamp_Costs.commit(priceUpdatesOnlyReport: bool): int {
-    val baseFee = OFFRAMP_COSTS_COMMIT_FEE;
-    if (priceUpdatesOnlyReport) {
-        return baseFee + FeeQuoter_Costs.updatePrices();
-    } else {
-        val totalAmountForRoot = AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT;
-        return baseFee + FeeQuoter_Costs.updatePrices() + totalAmountForRoot;
-    }
+fun OffRamp_Costs.commit(hasRoots: bool, hasPriceUpdates: bool): int {
+    return
+        + OFFRAMP_COSTS_COMMIT_FEE
+        + (hasRoots ? (OFFRAMP_COSTS_MERKLE_ROOT_INIT_FEE + AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT) as int : 0)
+        + (hasPriceUpdates ? FeeQuoter_Costs.updatePrices() : 0)
+        ;
 }
 
-fun OffRamp_Costs.execute(): int {
+/// CCIP-owned cost of executing one message; the receiver's `gasLimit` and the pool's
+/// `destGasAmount` are added by the caller.
+fun OffRamp_Costs.execute(hasTokens: bool): int {
     val baseFee = OFFRAMP_COSTS_EXECUTE_FEE;
-    return baseFee + MerkleRoot_Costs.validate();
+    return baseFee + MerkleRoot_Costs.validate(hasTokens);
 }
 
-const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = grams("0.012");
-const OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE = grams("0.005");
-const OFFRAMP_COSTS_NOTIFY_FEE = grams("0.004");
-const OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE = grams("0.004");
-const OFFRAMP_COSTS_COMMIT_FEE = grams("0.015");
-const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.0125");
+// OffRamp_Execute: hashing a 2000-byte message, a 6-sibling proof (64-message commit) and the
+// Validate fwdFee.
+const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.02");
+// OffRamp_ExecuteValidated: event and InitExecute fwdFee carrying the message, executor deploy.
+const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = grams("0.0305");
+const OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE = grams("0.01");
+const OFFRAMP_COSTS_RELEASE_OR_MINT_FEE = grams("0.004");
+const ROUTER_COSTS_RELAY_RELEASE_OR_MINT_FEE = grams("0.012");
+// Deposit account deploy, init, wallet response and Initialized reply (or the bounce when it exists).
+const OFFRAMP_COSTS_DEPOSIT_ACCOUNT_FEE = grams("0.01");
+const OFFRAMP_COSTS_TOKEN_TRANSFER_DELIVERED_FEE = grams("0.012");
+const OFFRAMP_COSTS_NOTIFY_FEE = grams("0.0035");
+const OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE = grams("0.0035");
+const OFFRAMP_COSTS_COMMIT_FEE = grams("0.0135");
+const OFFRAMP_COSTS_MERKLE_ROOT_INIT_FEE = grams("0.0005");

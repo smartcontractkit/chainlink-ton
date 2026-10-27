@@ -633,12 +633,12 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
         assert(iter.empty(), OffRamp_Error.BatchingNotSupported);
     }
 
-    // Non-empty Commit reports will always have price updates
-    val priceUpdatesOnlyReport = !hasRoots;
-
-    // check that the amount attached is enough to cover message execution and delivery of outgoing messages
-    // required amount is lower for reports with only price updates
-    assert(value >= OffRamp_Costs.commit(priceUpdatesOnlyReport), OffRamp_Error.InsufficientFee);
+    var hasPriceUpdates = false;
+    if (report.priceUpdates != null) {
+        val priceUpdates = report.priceUpdates!.load();
+        hasPriceUpdates = !(priceUpdates.tokenPriceUpdates.empty() && priceUpdates.gasPriceUpdates.empty());
+    }
+    assert(value >= OffRamp_Costs.commit(hasRoots, hasPriceUpdates), OffRamp_Error.InsufficientFee);
 
     if (root != null) {
         // validate lane is enabled and not cursed
@@ -786,7 +786,6 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
 //     Wallet  ->> OffRamp:    OffRamp_Execute/ManuallyExecute
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
 fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, value: coins, queryId: uint64) {
-    assert(value >= (OffRamp_Costs.execute() + AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT /* TBD + ReleaseOrMint.cost()? */), OffRamp_Error.InsufficientFee);
     var st = Storage.load();
 
     // check if chain was cursed by RMNRemote
@@ -806,9 +805,32 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     // Both are accepted for backwards compatibility with older encoders.
     var offchainTokenData = report.offchainTokenData;
     val hasTokens = message.tokenAmounts != null && !message.tokenAmounts.empty();
+    // The token count and the gas overrides are validated later, where a bad message is marked
+    // Failure instead of rejecting the report; here only the shape the cost functions assume.
+    var destGasAmount: coins = 0;
     if (hasTokens) {
-        val offchainTokenDataForTTOfMessage = offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
+        var offchainTokenDataForTTOfMessage = offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
         assert(!offchainTokenDataForTTOfMessage.isEmpty(), OffRamp_Error.UnexpectedTokenData);
+        // Offchain token data is not supported yet: every entry must be an empty cell.
+        while (!offchainTokenDataForTTOfMessage.isEmpty()) {
+            assert(offchainTokenDataForTTOfMessage.popHead() == createEmptyCell(), OffRamp_Error.UnexpectedTokenData);
+        }
+        var transfers = message.tokenAmounts!.iter();
+        while (!transfers.empty()) {
+            val tokenTransfer = transfers.next();
+            // At most the source pool's encoded decimals.
+            if (tokenTransfer.extraData != null) {
+                val extraData = tokenTransfer.extraData!.beginParse();
+                assert(extraData.remainingRefsCount() == 0 && extraData.remainingBitsCount() <= OFFRAMP_MAX_EXTRA_DATA_BITS, OffRamp_Error.UnexpectedExtraData);
+            }
+            destGasAmount += tokenTransfer.destGasAmount;
+        }
+        if (gasOverride != null && gasOverride.tokenGasOverrides != null) {
+            var overrides = gasOverride.tokenGasOverrides!.iter();
+            if (!overrides.empty()) {
+                destGasAmount = max(destGasAmount, overrides.next());
+            }
+        }
     } else {
         // Tokenless: accept `[]` (empty outer list) and `[[]]` (one empty inner list).
         // Reject any non-empty inner list or more than one outer entry.
@@ -817,6 +839,13 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
             assert(offchainTokenDataForTTOfMessage.isEmpty(), OffRamp_Error.UnexpectedTokenData);
         }
     }
+
+    assert(snakedBytesLen(message.data) <= OFFRAMP_MAX_DATA_BYTES, OffRamp_Error.MsgDataTooLarge);
+    var effectiveGasLimit = message.gasLimit;
+    if (gasOverride != null && gasOverride.receiverExecutionGasLimit != null) {
+        effectiveGasLimit = max(effectiveGasLimit, gasOverride.receiverExecutionGasLimit!);
+    }
+    assert(value >= OffRamp_Costs.execute(hasTokens) + effectiveGasLimit + destGasAmount, OffRamp_Error.InsufficientFee);
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert(sourceChainConfigResult.isFound, OffRamp_Error.SourceChainNotEnabled);

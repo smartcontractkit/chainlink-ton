@@ -83,7 +83,8 @@ fun FeeQuoter_Costs.GetValidatedFee(): int {
         ;
 }
 
+/// 5x the cost measured for 8 token and 1 gas price updates; a larger report is not rejected,
+/// the FeeQuoter just needs more.
 fun FeeQuoter_Costs.updatePrices(): int {
-    // when we support token transfers the message value amount should depend on the quantity of supported tokens
-    return grams("0.01");
+    return grams("0.025");
 }

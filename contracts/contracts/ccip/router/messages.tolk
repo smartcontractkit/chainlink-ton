@@ -360,9 +360,10 @@ fun Router_Costs.MessageValidationFailed(): int {
     return grams("0.1"); // computeFee + MessageValidationFailed fwdFee (echoes the message)
 }
 
-// Minimum value for calling Router_RouteMessage
+// Minimum value for calling Router_RouteMessage: the Router pays the receiver's forward fee
+// (2000-byte message) from this.
 fun Router_Costs.routeMessage(): int {
-    val baseFee = grams("0.004");
+    val baseFee = grams("0.0085");
     return baseFee + Router_Costs.receiveConfirm();
 }
 
@@ -384,4 +385,4 @@ fun Router_Costs.GetOnRampAccount(): int {
         ;
 }
 
-const ROUTER_RECEIVE_CONFIRM_FEE = grams("0.002");
+const ROUTER_RECEIVE_CONFIRM_FEE = grams("0.0025");

@@ -38,7 +38,8 @@ tolk 1.4.2
 
 const CONTRACT_VERSION = "1.7.0".literalSlice();
 const RESERVE = grams("1");
-const ROUTER_DEPOSIT_ACCOUNT_DEPLOY_FWD_FEE = grams("0.02"); // TODO
+/// Forward fee of the deposit account deploy (code and state), 5x measured.
+const ROUTER_DEPOSIT_ACCOUNT_DEPLOY_FWD_FEE = grams("0.006");
 /// Forwarded with released/minted tokens so the deposit account gets a transfer notification.
 const ROUTER_DELIVERY_FORWARD_TON_AMOUNT = grams("0.01");
 contract Router {

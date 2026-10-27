@@ -106,14 +106,14 @@
           "actionResultCode": 0,
           "gasUsed": "4093",
           "computeFee": "272868",
-          "storageFee": "0",
+          "storageFee": "1",
           "forwardFee": "19232202",
           "actionFee": "6410636",
-          "totalFee": "6683504",
-          "cost": "19505070",
+          "totalFee": "6683505",
+          "cost": "19505071",
           "valueIn": "462750925",
           "valueOut": "443245855",
-          "retained": "0"
+          "retained": "-1"
         },
         {
           "index": 5,
@@ -161,7 +161,7 @@
         }
       ],
       "totals": {
-        "ccip": "101312482",
+        "ccip": "101312483",
         "registry": "0",
         "token": "0",
         "external": "19348205"
@@ -169,7 +169,7 @@
       "retained": {
         "Sender": "-139903488",
         "Router": "-1",
-        "OnRamp": "0",
+        "OnRamp": "-1",
         "FeeQuoter": "0"
       },
       "entrypoints": [
@@ -178,48 +178,48 @@
           "contract": "Router",
           "op": "Router_GetValidatedFee",
           "cost": {
-            "ccip": "101312482",
+            "ccip": "101312483",
             "registry": "0",
             "token": "0",
             "external": "20602"
           },
-          "retained": "423666916"
+          "retained": "423666915"
         },
         {
           "hop": 2,
           "contract": "OnRamp",
           "op": "OnRamp_GetValidatedFee",
           "cost": {
-            "ccip": "81652613",
+            "ccip": "81652614",
             "registry": "0",
             "token": "0",
             "external": "20602"
           },
-          "retained": "423666916"
+          "retained": "423666915"
         },
         {
           "hop": 3,
           "contract": "FeeQuoter",
           "op": "FeeQuoter_GetValidatedFee",
           "cost": {
-            "ccip": "62128543",
+            "ccip": "62128544",
             "registry": "0",
             "token": "0",
             "external": "20602"
           },
-          "retained": "423666916"
+          "retained": "423666915"
         },
         {
           "hop": 4,
           "contract": "OnRamp",
           "op": "FeeQuoter_MessageValidated",
           "cost": {
-            "ccip": "39063407",
+            "ccip": "39063408",
             "registry": "0",
             "token": "0",
             "external": "20602"
           },
-          "retained": "423666916"
+          "retained": "423666915"
         },
         {
           "hop": 5,

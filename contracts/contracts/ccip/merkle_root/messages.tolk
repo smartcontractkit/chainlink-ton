@@ -23,14 +23,16 @@ struct (0x019f4cd2) MerkleRoot_MarkState {
 
 struct MerkleRoot_Costs{}
 
-fun MerkleRoot_Costs.validate(): int {
-    val baseFee = MERKLE_ROOT_COSTS_VALIDATE_FEE; // validateFees
-    return baseFee + OffRamp_Costs.executeValidated();
+fun MerkleRoot_Costs.validate(hasTokens: bool): int {
+    val baseFee = MERKLE_ROOT_COSTS_VALIDATE_FEE;
+    return baseFee + OffRamp_Costs.executeValidated(hasTokens);
 }
 
+/// State update and the empty reply that returns the unspent value.
 fun MerkleRoot_Costs.markState(): int {
     return MERKLE_ROOT_COSTS_MARK_STATE_FEE;
 }
 
-const MERKLE_ROOT_COSTS_MARK_STATE_FEE = grams("0.005");
-const MERKLE_ROOT_COSTS_VALIDATE_FEE = grams("0.012");
+// 5x the cost measured by tests/gas-report/ccip for a 2000-byte message.
+const MERKLE_ROOT_COSTS_MARK_STATE_FEE = grams("0.0035");
+const MERKLE_ROOT_COSTS_VALIDATE_FEE = grams("0.011");

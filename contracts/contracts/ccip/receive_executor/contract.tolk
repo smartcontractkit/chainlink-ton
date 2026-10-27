@@ -142,7 +142,7 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
 
     st.state.queryId = msg.queryId;
     st.state.effectiveGasLimit = msg.effectiveGasLimit;
-    if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec()) {
+    if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec(false)) {
         return endExecutionWithFailure(mutate st, message.header, 0);
     }
 
@@ -150,7 +150,7 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
         val tokenTransfer = lazy msg.tokenTransfer.load();
         var ttInfo = st.state.tokenTransfer.loadOpt();
         val transfer = lazy tokenTransfer.transfer.load();
-        if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec() + transfer.destGasAmount + ReceiveExecutor_Costs.tokenTransfer()) {
+        if (value < st.state.effectiveGasLimit + transfer.destGasAmount + ReceiveExecutor_Costs.initExec(true)) {
             return endExecutionWithFailure(mutate st, message.header, 0);
         }
         ttInfo = ttInfo.init(tokenTransfer.transfer, tokenTransfer.tokenAdminRegistry, tokenTransfer.receiverAccount, tokenTransfer.offchainTokenData);

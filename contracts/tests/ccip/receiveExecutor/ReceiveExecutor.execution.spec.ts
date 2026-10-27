@@ -16,7 +16,11 @@ import {
   createTestMessageWithToken,
   setupTestReceiveExecutor,
 } from './ReceiveExecutor.Setup'
-import { OFFRAMP_NOTIFY_COST, OFFRAMP_RELEASE_OR_MINT_COST } from '../../../wrappers/ccip/OffRamp'
+import {
+  Costs as OffRampCosts,
+  OFFRAMP_NOTIFY_COST,
+  OFFRAMP_RELEASE_OR_MINT_COST,
+} from '../../../wrappers/ccip/OffRamp'
 import { Costs as RegistryCosts } from '../../../wrappers/ccip/TokenAdminRegistry'
 
 // What a registry reply carries back: the query value minus the registry's fees.
@@ -102,7 +106,7 @@ describe('ReceiveExecutor - Execution', () => {
     it('should execute InitExecute with effectiveGasLimit', async () => {
       const result = await receiveExecutor.sendReceiveExecutorInitExecute(
         deployer.getSender(),
-        toNano('0.05'),
+        OffRampCosts.initExec(false) + toNano('0.01'),
         {
           ...defaultInitExecute,
           root: deployer.address,

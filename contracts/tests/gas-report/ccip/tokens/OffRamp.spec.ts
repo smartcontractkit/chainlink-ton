@@ -3,6 +3,7 @@ import { Address, Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
 
 import * as of from '../../../../wrappers/gen/ccip/OffRamp'
+import { Costs } from '../../../../wrappers/ccip/OffRamp'
 import * as rt from '../../../../wrappers/gen/ccip/Router'
 import * as tp from '../../../../wrappers/gen/ccip/pools/TokenPool'
 import generateMessageID from '../../../../src/offramp/generateMessageID'
@@ -104,7 +105,7 @@ describe('CCIP OffRamp Token Transfer Gas Estimation', () => {
       message.header.sequenceNumber,
       generateMessageID(message, getDefaultMetadataHash(setup.SOURCE_CHAIN_SELECTOR)),
     )
-    await setup.commitReport([root], toNano('0.5'), reportSequence++)
+    await setup.commitReport([root], Costs.commit(true, false), reportSequence++)
 
     book
       .set('MerkleRoot', setup.merkleRootAddress(root), 'ccip')
@@ -114,6 +115,7 @@ describe('CCIP OffRamp Token Transfer Gas Estimation', () => {
       run: () => setup.executeReport(setup.createExecuteReport([message]), reportSequence++),
       book,
       aborts: opts.aborts,
+      budget: Costs.executeBudget(true),
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.router.address,
