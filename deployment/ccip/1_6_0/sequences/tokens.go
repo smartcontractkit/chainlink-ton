@@ -355,7 +355,6 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 					bindings.TypeLockReleaseLockboxTokenPool,
 					typeJettonLockBox,
 					bindings.TypeJettonWallet,
-					bindings.TypeDeployable,
 				},
 			})
 			if err != nil {
@@ -386,11 +385,6 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 					bindings.TypeJettonWallet,
 				)
 			}
-			compiledDeployable, ok := compiledContracts[bindings.TypeDeployable]
-			if !ok {
-				return sequences.OnChainOutput{}, errors.New("failed to load Deployable code")
-			}
-
 			// The owner and RMN proxy are both set to the deployer wallet; RMN is not yet
 			// wired up on TON, so this is a placeholder like the productive pool wrappers use.
 			owner := chain.Wallet.WalletAddress()
@@ -430,18 +424,17 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 						PendingOwner: nil,
 					},
 					DynamicConfig: tokenpool.DynamicConfig{
-						Router:                   &routerAddr,
-						RateLimitAdmin:           rateLimitAdmin,
-						FeeAdmin:                 feeAdmin,
-						AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}](),
+						Router:         &routerAddr,
+						RateLimitAdmin: rateLimitAdmin,
+						FeeAdmin:       feeAdmin,
 					},
+					AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}](),
 					JettonClient: tokenpool.JettonClient{
 						MasterAddress:    tokenAddr,
 						JettonWalletCode: compiledWallet.Code,
 					},
 					AllowedFinalityConfig: allowedFinality,
 					AdvancedPoolHooks:     nil,
-					DeployableCode:        compiledDeployable.Code,
 				},
 				LocalPolicy: tokenpool.LocalPolicy{
 					CursePolicy: tokenpool.CursePolicy{
@@ -777,7 +770,7 @@ func waitForTokenAdminRegistryEntryDeployment(client ton.APIClientWrapped, entry
 		select {
 		case <-ctx.Done():
 			if deployed {
-				return fmt.Errorf("entry is disabled: the token did not answer its TEP-89 wallet query with a wallet, or the pool did not answer its transfer initiator probe, within 30s (retry with TokenAdminRegistry_VerifyToken / TokenAdminRegistry_RefreshTransferInitiator): %w", ctx.Err())
+				return fmt.Errorf("entry is disabled: the token did not answer its TEP-89 wallet query with a wallet, or the pool did not answer its transfer initiator probe, within 30s (retry with TokenAdminRegistry_VerifyToken / TokenAdminRegistry_RefreshPoolConfig): %w", ctx.Err())
 			}
 			return fmt.Errorf("entry did not become active with its expected code within 30s: %w", ctx.Err())
 		case <-ticker.C:

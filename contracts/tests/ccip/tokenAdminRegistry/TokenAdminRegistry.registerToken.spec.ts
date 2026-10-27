@@ -223,8 +223,7 @@ describe('TokenAdminRegistry - Register Token', () => {
         { queryId: 1n, token: fx.token },
       )
       const info = returnedTokenInfo(fx, result, fx.other.address)
-      expect(info.tokenPool).toBeNull()
-      expect(info.transferInitiator).toBeNull()
+      expect(info.poolInfo).toBeNull()
       expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx))
     })
 

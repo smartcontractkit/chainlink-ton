@@ -7,6 +7,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/parser"
@@ -84,3 +85,46 @@ var GetVerifyNotCursed = tvm.Getter[*big.Int, bool]{
 		return notCursed.Cmp(big.NewInt(0)) != 0, nil
 	}),
 }
+
+// GetRMNUpdateCursedSubjectsFee gets the minimum value (nanoGRAM) that curse,
+// uncurse and sync messages must carry to propagate to every OffRamp.
+var GetRMNUpdateCursedSubjectsFee = tvm.NewNoArgsGetter(tvm.NoArgsOpts[*big.Int]{
+	Name: "rmn_updateCursedSubjectsFee",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*big.Int, error) {
+		v, err := r.Int(0)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse rmn_updateCursedSubjectsFee result: %w", err)
+		}
+		return v, nil
+	}),
+})
+
+type AccountAddressArgs struct {
+	User  *address.Address
+	Token *address.Address
+}
+
+func makeAccountAddressGetter(name string) tvm.Getter[AccountAddressArgs, *address.Address] {
+	return tvm.Getter[AccountAddressArgs, *address.Address]{
+		Name: name,
+		Encoder: tvm.NewArgsEncoder(func(args AccountAddressArgs) ([]any, error) {
+			return []any{
+				cell.BeginCell().MustStoreAddr(args.User).EndCell().MustBeginParse(),
+				cell.BeginCell().MustStoreAddr(args.Token).EndCell().MustBeginParse(),
+			}, nil
+		}),
+		Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {
+			s, err := r.Slice(0)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse %s result: %w", name, err)
+			}
+			return s.LoadAddr()
+		}),
+	}
+}
+
+// GetOnRampAccountAddress returns the deposit account escrowing Token sent by User for on-ramp transfers.
+var GetOnRampAccountAddress = makeAccountAddressGetter("onRampAccountAddress")
+
+// GetOffRampAccountAddress returns the deposit account where off-ramped Token for User (the receiver) is delivered.
+var GetOffRampAccountAddress = makeAccountAddressGetter("offRampAccountAddress")

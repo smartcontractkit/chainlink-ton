@@ -103,7 +103,7 @@ depends = []
 display-name = "link.chain.ton.ccip.pool.TokenPool"
 src = "contracts/ccip/pools/TokenPool.tolk"
 domain = "ccip/pools"
-depends = []
+depends = ["Deployable"]
 
 [contracts.JettonLockBox]
 display-name = "link.chain.ton.ccip.pool.JettonLockBox"
@@ -115,19 +115,19 @@ depends = []
 display-name = "link.chain.ton.ccip.pool.BurnMintTokenPool"
 src = "contracts/ccip/pools/burn_mint/contract.tolk"
 domain = "ccip/pools"
-depends = []
+depends = ["Deployable"]
 
 [contracts.LockReleaseLockboxTokenPool]
 display-name = "link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool"
 src = "contracts/ccip/pools/lock_release_lockbox/contract.tolk"
 domain = "ccip/pools"
-depends = []
+depends = ["Deployable"]
 
 [contracts.MockAdvancedPoolHooks]
 display-name = "link.chain.ton.ccip.test.MockAdvancedPoolHooks"
 src = "contracts/ccip/test/mock_advanced_pool_hooks.tolk"
 domain = "ccip/test"
-depends = []
+depends = ["Deployable"]
 
 [contracts.TokenAdminRegistry]
 display-name = "link.chain.ton.ccip.TokenAdminRegistry"
@@ -279,6 +279,21 @@ depends = []
 display-name = "link.chain.ton.test.examples.LispList"
 src = "contracts/test/examples/lisp_list.tolk"
 domain = "test"
+depends = []
+
+# Gas calibration harnesses (test-only): expose on-chain cost model constants/functions as getters
+# so off-chain gas-report tests compare measured gas against the exact on-chain estimates.
+
+[contracts.CctCostHarness]
+display-name = "link.chain.ton.test.gas.CctCostHarness"
+src = "contracts/test/gas/cct_cost_harness.tolk"
+domain = "test/gas"
+depends = []
+
+[contracts.WgramCostHarness]
+display-name = "link.chain.ton.test.gas.WgramCostHarness"
+src = "contracts/test/gas/wgram_cost_harness.tolk"
+domain = "test/gas"
 depends = []
 
 # fmt is not very mature yet

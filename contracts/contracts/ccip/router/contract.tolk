@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/lisp-lists"
 
+import "../../../gen/Deployable.code"
+import "../../../gen/DepositAccount.code"
+
 import "../../lib/utils"
+import "../../lib/budget/min_value"
 import "../../lib/funding/withdrawable"
 import "../../lib/access/ownable_2step"
 import "../../lib/access/access_control"
@@ -29,9 +33,6 @@ import "messages"
 import "storage"
 import "errors"
 import "events"
-
-import "../../../gen/Deployable.code"
-import "../../../gen/DepositAccount.code"
 import "utils"
 
 tolk 1.4.2
@@ -116,7 +117,7 @@ fun onInternalMessage(in: InMessage) {
         Router_WithdrawToTokenPool => {
             var st = lazy Storage.load();
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
-            onWithdrawToTokenPool(mutate st, msg);
+            onWithdrawToTokenPool(mutate st, msg, in.senderAddress);
         }
         // Sender must be OnRamp
         Router_WithdrawToTokenPoolFailed => {
@@ -136,6 +137,7 @@ fun onInternalMessage(in: InMessage) {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
             requireRMNCurseAdmin(rmn, in.senderAddress);
+            rmn.requireUpdateCursedSubjectsFee(in.valueCoins);
             onRMNRemoteCurse(st, rmn, msg);
         }
         // Sender must hold the RMN uncurse role.
@@ -143,7 +145,15 @@ fun onInternalMessage(in: InMessage) {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
             requireRMNUncurseAdmin(rmn, in.senderAddress);
+            rmn.requireUpdateCursedSubjectsFee(in.valueCoins);
             onRMNRemoteUncurse(st, rmn, msg);
+        }
+        // Permissionless: only re-sends the Router's own state, funded by the caller.
+        Router_RMNRemoteSyncOffRamps => {
+            val st = lazy Storage.load();
+            val rmn = st.rmnRemote.load();
+            rmn.requireUpdateCursedSubjectsFee(in.valueCoins);
+            rmn.forwardCursedSubjects();
         }
         Router_RMNRemoteVerifyNotCursed => {
             val result = verifyNotCursed(msg.subject);
@@ -261,6 +271,9 @@ fun onInternalMessage(in: InMessage) {
             assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
             onTokenTransferDelivered(msg);
         }
+        // Excess of the on-ramp account withdraws, whose `sendExcessesTo` must be the Router. It
+        // stays with the Router, which the owner can withdraw.
+        ReturnExcessesBack => {}
         // Sender must be a Jetton Wallet owned by the Router.
         // Accidental transfers to the Router are returned to the transfer
         // initiator in a best-effort manner (throwing here would burn the tokens).
@@ -296,32 +309,28 @@ fun onBouncedMessage(in: InMessageBounced) {
         val richMsg = lazy Router_RichBouncedMessage.fromCell(rich.originalBody);
         match (richMsg) {
             TokenPool_LockOrBurn => {
-                if (richMsg.replyTo != null) {
-                    sendLockOrBurnRelayFailure(
-                        richMsg.replyTo!,
-                        richMsg.queryId,
-                        in.senderAddress,
-                        rich.exitCode,
-                    );
-                }
+                sendLockOrBurnRelayFailure(
+                    richMsg.replyTo,
+                    richMsg.queryId,
+                    in.senderAddress,
+                    rich.exitCode,
+                );
             }
             TokenPool_ReleaseOrMint => {
-                if (richMsg.replyTo != null) {
-                    // Recover the lane from the request and route the failure
-                    // back through its OffRamp.
-                    val request = lazy richMsg.request.load();
-                    val details = lazy request.transfer.details.load();
-                    val st = lazy Storage.load();
-                    val offRamp = st.offRamps.mustGet(details.remoteChainSelector, Router_Error.SourceChainNotEnabled);
-                    sendReleaseOrMintRelayFailure(
-                        offRamp,
-                        details.remoteChainSelector,
-                        richMsg.replyTo!,
-                        richMsg.queryId,
-                        in.senderAddress,
-                        rich.exitCode,
-                    );
-                }
+                // Recover the lane from the request and route the failure
+                // back through its OffRamp.
+                val request = lazy richMsg.request.load();
+                val details = lazy request.transfer.details.load();
+                val st = lazy Storage.load();
+                val offRamp = st.offRamps.mustGet(details.remoteChainSelector, Router_Error.SourceChainNotEnabled);
+                sendReleaseOrMintRelayFailure(
+                    offRamp,
+                    details.remoteChainSelector,
+                    richMsg.replyTo,
+                    richMsg.queryId,
+                    in.senderAddress,
+                    rich.exitCode,
+                );
             }
             // Ignored: a retried deployment bounces off the already-initialized account, and a
             // failed fresh deployment is reported by the `DepositAccount_Init` bounce that follows.
@@ -342,7 +351,7 @@ fun onBouncedMessage(in: InMessageBounced) {
             }
             // The on-ramp account rejected the withdraw (e.g. it doesn't know its wallet yet).
             DepositAccount_Withdraw => {
-                failWithdrawToTokenPool(richMsg.ask.load(), rich.exitCode);
+                failWithdrawToTokenPool(richMsg, rich.exitCode);
             }
         }
         return;
@@ -399,11 +408,11 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
 /// Asks the sender's on-ramp account to transfer the jettons to the pool. A rejected or bounced
 /// transfer fails the CCIPSend through `failWithdrawToTokenPool`, which finds the executor in the
 /// transfer's forward payload, so that payload must name the executor requesting the withdraw.
-fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
+fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool, onramp: address) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
     val fwdp = lazy withdrawRequest.forwardPayload.load();
     val request = lazy fwdp.requestMsg.load();
-    if (request.replyTo == null || request.replyTo! != msg.executor) {
+    if (request.replyTo != msg.executor) {
         return sendLockOrBurnRelayFailure(
             msg.executor,
             msg.queryID,
@@ -411,23 +420,36 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
             Router_Error.WithdrawExecutorMismatch as int32,
         );
     }
+    // The notification carries what the pool asked for; the wallet rejects an underfunded transfer
+    // before custody moves. The deposit account requires the excess to return to the Router.
+    // val ask = AskToTransfer {
+    //     queryId: msg.queryID,
+    //     jettonAmount: withdrawRequest.amount,
+    //     transferRecipient: withdrawRequest.tokenPool,
+    //     sendExcessesTo: contract.getAddress(),
+    //     customPayload: null,
+    //     forwardTonAmount: withdrawRequest.forwardTonAmount,
+    //     forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
+    // };
+
+    // TODO: use standard `AskToTransfer` above,
+    // remove the unnecessary custom `DepositAccount_WithdrawAskToTransfer` msg
+    val ask = DepositAccount_WithdrawAskToTransfer {
+        jettonAmount: withdrawRequest.amount,
+        transferRecipient: withdrawRequest.tokenPool,
+        // TODO: this excess should be returned to user
+        // @notice we want the OnRamp to keep any excess funds, so we set sendExcessesTo to the sender (OnRamp).
+        sendExcessesTo: onramp,
+        customPayload: null,
+        forwardTonAmount: withdrawRequest.forwardTonAmount,
+        forwardPayload: withdrawRequest.forwardPayload,
+    };
+
     val withdraw = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
         dest: withdrawRequest.depositAccount,
-        body: DepositAccount_Withdraw {
-            queryId: msg.queryID,
-            ask: AskToTransfer {
-                queryId: msg.queryID,
-                jettonAmount: withdrawRequest.amount,
-                transferRecipient: withdrawRequest.tokenPool,
-                // TBD the Depossit account only allows sendExcessesTo to point to sender (Router). This will result in the Router slowly accumulating excess funds over time.
-                sendExcessesTo: contract.getAddress(),
-                customPayload: null,
-                forwardTonAmount: grams("0.5"),
-                forwardPayload: withdrawRequest.forwardPayload.toForwardPayload(),
-            }.toCell(),
-        },
+        body: DepositAccount_Withdraw { queryId: msg.queryID, ask },
     });
     withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -507,22 +529,22 @@ fun onOnRampAccountReady(context: Router_OnRampAccountContext, msg: DepositAccou
 ///      Off-ramp accounts never report here: only their receiver can withdraw from them.
 fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: address) {
     assert(sender == onRampAccountAddress(msg.user, msg.token), Router_Error.SenderIsNotOnRampAccount);
-    val ask = lazy msg.ask.load();
+    val request = lazy msg.request.load();
     emit(TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC, TokenPoolWithdrawBounced {
         wallet: msg.walletAddress,
-        tokenPool: ask.transferRecipient,
+        tokenPool: request.ask.transferRecipient,
         queryId: msg.queryId,
         exitCode: 0,
     });
-    failWithdrawToTokenPool(ask, Router_Error.OnRampAccountWithdrawFailed as int32);
+    failWithdrawToTokenPool(request, Router_Error.OnRampAccountWithdrawFailed as int32);
 }
 
 /// Fails the CCIPSend whose withdraw from the sender's on-ramp account did not go through. `ask`
 /// was built by `onWithdrawToTokenPool`, which checked that its forward payload names the executor.
-fun failWithdrawToTokenPool(ask: AskToTransfer, exitCode: int32) {
-    val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromSlice(loadForwardPayloadAsSlice(ask.forwardPayload)!);
-    val request = lazy fwdp.requestMsg.load();
-    sendLockOrBurnRelayFailure(request.replyTo!, ask.queryId, ask.transferRecipient!, exitCode);
+fun failWithdrawToTokenPool(request: DepositAccount_Withdraw, exitCode: int32) {
+    val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromCell(request.ask.forwardPayload!);
+    val lockOrBurn = lazy fwdp.requestMsg.load();
+    sendLockOrBurnRelayFailure(lockOrBurn.replyTo, lockOrBurn.queryId, request.ask.transferRecipient, exitCode);
 }
 
 /// Returns accidentally transferred jettons to the transfer initiator. The Router's own jetton
@@ -904,19 +926,7 @@ fun onRMNRemoteCurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteCurse) {
     st.rmnRemote = rmn.toCell();
     st.store();
 
-    // propagate update to caches
-    var entry = rmn.forwardUpdates.findFirst();
-    while (entry.isFound) {
-        val destination = entry.getKey();
-        val sendMsg = createMessage({
-            bounce: false,
-            value: grams("0.05"),
-            dest: destination,
-            body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.policy.cursedSubjects },
-        });
-        sendMsg.send(SEND_MODE_IGNORE_ERRORS);
-        entry = rmn.forwardUpdates.iterateNext(entry);
-    }
+    rmn.forwardCursedSubjects();
 }
 
 fun requireRMNCurseAdmin(rmn: RMNRemote, sender: address) {
@@ -936,18 +946,36 @@ fun onRMNRemoteUncurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteUncurse
     st.rmnRemote = rmn.toCell();
     st.store();
 
-    // propagate update to caches
-    var entry = rmn.forwardUpdates.findFirst();
+    rmn.forwardCursedSubjects();
+}
+
+fun RMNRemote.updateCursedSubjectsFee(self): coins {
+    var offRampCount = 0;
+    var entry = self.forwardUpdates.findFirst();
     while (entry.isFound) {
-        val destination = entry.getKey();
+        offRampCount += 1;
+        entry = self.forwardUpdates.iterateNext(entry);
+    }
+    return Router_Costs.updateCursedSubjects(offRampCount);
+}
+
+fun RMNRemote.requireUpdateCursedSubjectsFee(self, value: coins) {
+    assert(value >= self.updateCursedSubjectsFee()) throw Router_Error.InsufficientFee;
+}
+
+// Errors are not ignored: if any update cannot be sent, the whole transaction
+// (including the curse change) is rolled back and must be retried with more value.
+fun RMNRemote.forwardCursedSubjects(self) {
+    var entry = self.forwardUpdates.findFirst();
+    while (entry.isFound) {
         val sendMsg = createMessage({
-            bounce: false,
-            value: grams("0.05"),
-            dest: destination,
-            body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.policy.cursedSubjects },
+            bounce: BounceMode.RichBounce,
+            value: Router_Costs.forwardCursedSubjects(),
+            dest: entry.getKey(),
+            body: OffRamp_UpdateCursedSubjects { cursedSubjects: self.policy.cursedSubjects },
         });
-        sendMsg.send(SEND_MODE_IGNORE_ERRORS);
-        entry = rmn.forwardUpdates.iterateNext(entry);
+        sendMsg.send(SEND_MODE_REGULAR + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+        entry = self.forwardUpdates.iterateNext(entry);
     }
 }
 
@@ -1017,6 +1045,8 @@ We don't want to move funds then return if any of those fail, but ideally we do 
 withdraw path should go through the executor - so the TP needs to withdraw -> executor, which can verify the token amounts and will withdraw -> on-ramp, which can verify the executor. Finally the on-ramp withdraws from the Router - the TP accepts only transfers from the Router JettonWallet.
 */
 fun onLockOrBurn(msg: Router_LockOrBurn) {
+    var onRampNamespaces: map<uint32, ()> = [];
+    onRampNamespaces.set(DeployableNamespace_OnRampAccount, ());
     val tokenPoolLockOrBurn = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
@@ -1027,6 +1057,9 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
             requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
             tokenArgs: null, // TBD?
             replyTo: msg.executorAddress,
+            finalizationValue: msg.finalizationValue,
+            // Keep the pool's deposit-auth namespace cache in sync
+            onRampNamespaces,
         }
     });
     tokenPoolLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -1319,6 +1352,11 @@ get fun cursedSubjects(): lisp_list<uint128> {
     val st = lazy Storage.load();
     val rmn = st.rmnRemote.load();
     return keysLispList(rmn.policy.cursedSubjects.data)!;
+}
+
+/// Minimum value to attach to curse, uncurse and sync messages.
+get fun rmn_updateCursedSubjectsFee(): coins {
+    return Storage.load().rmnRemote.load().updateCursedSubjectsFee();
 }
 
 /// Gets the current owner of the contract.

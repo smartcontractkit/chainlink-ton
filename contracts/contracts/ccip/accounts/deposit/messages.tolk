@@ -45,8 +45,16 @@ struct (0x88e0ef3e) DepositAccount_Notify {
 /// Sent by a beneficiary to transfer jettons out of the account's jetton wallet.
 struct (0x1936d112) DepositAccount_Withdraw {
     queryId: uint64;
-    /// `ask.sendExcessesTo` must be the requester: a bounced withdraw is reported back to it.
-    ask: Cell<AskToTransfer>;
+    ask: DepositAccount_WithdrawAskToTransfer;
+}
+
+struct DepositAccount_WithdrawAskToTransfer {
+    jettonAmount: coins
+    transferRecipient: address
+    sendExcessesTo: address?
+    customPayload: cell?
+    forwardTonAmount: coins
+    forwardPayload: cell?
 }
 
 /// Sent to the withdraw requester when its `AskToTransfer` bounced and the jettons stayed in the
@@ -60,7 +68,7 @@ struct (0xa51b6cba) DepositAccount_WithdrawFailed {
     token: address;
     /// Jetton wallet the failed `ask` was sent to.
     walletAddress: address;
-    ask: Cell<AskToTransfer>;
+    request: Cell<DepositAccount_Withdraw>;
 }
 
 /// Outgoing messages that can bounce back into the account.

@@ -16,9 +16,7 @@ requires the pool's `OPERATOR_ROLE`, and validates the deposit token and amount.
 ## Rejected Deposits
 
 `JettonLockBox_DepositFailed` (`0x5e28ebd8`) reports the query ID, token, depositor,
-actual amount, decoded deposit context, error code, and `returnAttempted` flag.
-The flag means that a best-effort return was queued, not that the wallet accepted
-it or custody arrived. Malformed deposits can have a null context.
+actual amount, decoded deposit context, and error code.
 
 The pool authenticates the direct rejection from its configured lockbox, validates
 the correlated context, refunds rate-limit capacity, and notifies the requester.

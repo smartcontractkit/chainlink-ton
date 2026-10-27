@@ -9,6 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockbox"
 )
@@ -29,29 +30,24 @@ func TestLockboxDepositFailed_WireFormat(t *testing.T) {
 	}
 	contextCell, err := tlb.ToCell(context)
 	require.NoError(t, err)
-	for name, attempted := range map[string]bool{"skipped": false, "queued": true} {
-		t.Run(name, func(t *testing.T) {
-			message := lockbox.DepositFailed{
-				QueryID: 301, Token: token, Depositor: token, Amount: tlb.MustFromTON("9"),
-				Context: context, ErrorCode: 47400, ReturnAttempted: attempted,
-			}
-			encoded, err := tlb.ToCell(message)
-			require.NoError(t, err)
-			expected := cell.BeginCell().MustStoreUInt(0x5e28ebd8, 32).MustStoreUInt(301, 64).
-				MustStoreAddr(token).MustStoreAddr(token).MustStoreCoins(9000000000).
-				MustStoreMaybeRef(contextCell).MustStoreUInt(47400, 32).MustStoreBoolBit(attempted).EndCell()
-			require.Equal(t, expected.Hash(), encoded.Hash())
-			var decoded lockbox.DepositFailed
-			require.NoError(t, tlb.LoadFromCell(&decoded, encoded.MustBeginParse()))
-			require.Equal(t, message.QueryID, decoded.QueryID)
-			require.Equal(t, message.ErrorCode, decoded.ErrorCode)
-			require.Equal(t, attempted, decoded.ReturnAttempted)
-			decodedContext, err := tlb.ToCell(decoded.Context)
-			require.NoError(t, err)
-			require.Equal(t, contextCell.Hash(), decodedContext.Hash())
-			require.Equal(t, payload.Hash(), decoded.Context.Context.Hash())
-		})
+	message := lockbox.DepositFailed{
+		QueryID: 301, Token: token, Depositor: token, Amount: tlb.MustFromTON("9"),
+		Context: context, ErrorCode: 47400,
 	}
+	encoded, err := tlb.ToCell(message)
+	require.NoError(t, err)
+	expected := cell.BeginCell().MustStoreUInt(0x5e28ebd8, 32).MustStoreUInt(301, 64).
+		MustStoreAddr(token).MustStoreAddr(token).MustStoreCoins(9000000000).
+		MustStoreMaybeRef(contextCell).MustStoreUInt(47400, 32).EndCell()
+	require.Equal(t, expected.Hash(), encoded.Hash())
+	var decoded lockbox.DepositFailed
+	require.NoError(t, tlb.LoadFromCell(&decoded, encoded.MustBeginParse()))
+	require.Equal(t, message.QueryID, decoded.QueryID)
+	require.Equal(t, message.ErrorCode, decoded.ErrorCode)
+	decodedContext, err := tlb.ToCell(decoded.Context)
+	require.NoError(t, err)
+	require.Equal(t, contextCell.Hash(), decodedContext.Hash())
+	require.Equal(t, payload.Hash(), decoded.Context.Context.Hash())
 }
 
 func TestLockboxWithdrawFailed_WireFormat(test *testing.T) {
@@ -88,21 +84,25 @@ func TestLockboxWithdrawFailed_WireFormat(test *testing.T) {
 	}
 }
 
-// TestDynamicConfig_AllowedDepositNamespaces_WireFormat verifies that modelling
+// TestAdminConfig_AllowedDepositNamespaces_WireFormat verifies that modelling
 // AllowedDepositNamespaces as *tlbe.Dict[uint32, struct{}] (tlb:".") produces
 // exactly the same wire form as a raw *cell.Dictionary serialized through the
 // "dict 32" tag: a map<uint32,()> whose unit values are 0-bit inline leaves.
-func TestDynamicConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
+func TestAdminConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
 	namespaces := tlbe.NewDict[uint32, struct{}](map[uint32]struct{}{
 		1:  {},
 		42: {},
 	})
 
 	router := address.NewAddress(0, 0, make([]byte, 32))
+	tokenData := make([]byte, 32)
+	tokenData[0] = 1
+	token := address.NewAddress(0, 0, tokenData)
 
-	cfg := DynamicConfig{
-		Router:                   router,
+	cfg := AdminConfig{
+		DynamicConfig:            DynamicConfig{Router: router},
 		AllowedDepositNamespaces: namespaces,
+		JettonClient:             JettonClient{MasterAddress: token, JettonWalletCode: cell.BeginCell().EndCell()},
 	}
 
 	cfgCell, err := tlb.ToCell(cfg)
@@ -118,11 +118,31 @@ func TestDynamicConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
 	}
 
 	rawStruct := struct {
-		Router                   *address.Address `tlb:"addr"`
-		RateLimitAdmin           *address.Address `tlb:"addr"`
-		FeeAdmin                 *address.Address `tlb:"addr"`
+		Ownable       ownable2step.Storage `tlb:"^"`
+		DynamicConfig struct {
+			Router         *address.Address `tlb:"addr"`
+			RateLimitAdmin *address.Address `tlb:"addr"`
+			FeeAdmin       *address.Address `tlb:"addr"`
+		} `tlb:"^"`
 		AllowedDepositNamespaces *cell.Dictionary `tlb:"dict 32"`
-	}{Router: router, AllowedDepositNamespaces: rawDict}
+		JettonClient             struct {
+			MasterAddress    *address.Address `tlb:"addr required"`
+			JettonWalletCode *cell.Cell       `tlb:"^"`
+		} `tlb:"."`
+		AllowedFinalityConfig uint32           `tlb:"## 32"`
+		AdvancedPoolHooks     *address.Address `tlb:"addr"`
+	}{
+		DynamicConfig: struct {
+			Router         *address.Address `tlb:"addr"`
+			RateLimitAdmin *address.Address `tlb:"addr"`
+			FeeAdmin       *address.Address `tlb:"addr"`
+		}{Router: router},
+		AllowedDepositNamespaces: rawDict,
+		JettonClient: struct {
+			MasterAddress    *address.Address `tlb:"addr required"`
+			JettonWalletCode *cell.Cell       `tlb:"^"`
+		}{MasterAddress: token, JettonWalletCode: cell.BeginCell().EndCell()},
+	}
 	rawCell, err := tlb.ToCell(rawStruct)
 	require.NoError(t, err)
 
@@ -135,7 +155,7 @@ func TestDynamicConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
 // raw *cell.Dictionary serialized through the "dict 128" tag: a map<uint128,()>
 // with 0-bit unit values, inlined into the enclosing cell.
 func TestCursedSubjects_WireFormat(t *testing.T) {
-	subjects := tlbe.NewDict[tlbe.Uint128, struct{}](map[tlbe.Uint128]struct{}{
+	subjects := tlbe.NewDict(map[tlbe.Uint128]struct{}{
 		*tlbe.NewUint128(big.NewInt(1)):  {},
 		*tlbe.NewUint128(big.NewInt(42)): {},
 	})
@@ -161,7 +181,7 @@ func TestCursedSubjects_WireFormat(t *testing.T) {
 
 // TestCursedSubjects_RoundTrip verifies encode/decode via the tlb:"." marshaller.
 func TestCursedSubjects_RoundTrip(t *testing.T) {
-	subjects := tlbe.NewDict[tlbe.Uint128, struct{}](map[tlbe.Uint128]struct{}{
+	subjects := tlbe.NewDict(map[tlbe.Uint128]struct{}{
 		*tlbe.NewUint128(big.NewInt(7)): {},
 	})
 
@@ -186,7 +206,7 @@ func TestRemoteChainConfig_RemotePools_Decode(t *testing.T) {
 	}
 
 	cfg := remotePoolsHolder{
-		RemotePools: tlbe.NewDict[tlbe.Uint256, uint64](map[tlbe.Uint256]uint64{
+		RemotePools: tlbe.NewDict(map[tlbe.Uint256]uint64{
 			*tlbe.NewUint256(big.NewInt(5)): 123,
 		}),
 	}
@@ -203,20 +223,27 @@ func TestRemoteChainConfig_RemotePools_Decode(t *testing.T) {
 	require.Equal(t, uint64(123), got)
 }
 
-// TestDynamicConfig_AllowedDepositNamespaces_RoundTrip verifies encode/decode
+// TestAdminConfig_AllowedDepositNamespaces_RoundTrip verifies encode/decode
 // through tonutils-go's tlb loader (using the tlb:"." marshaller path).
-func TestDynamicConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
-	namespaces := tlbe.NewDict[uint32, struct{}](map[uint32]struct{}{
+func TestAdminConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
+	namespaces := tlbe.NewDict(map[uint32]struct{}{
 		7:  {},
 		13: {},
 	})
 
-	cfg := DynamicConfig{Router: address.NewAddress(0, 0, make([]byte, 32)), AllowedDepositNamespaces: namespaces}
+	tokenData := make([]byte, 32)
+	tokenData[0] = 1
+	token := address.NewAddress(0, 0, tokenData)
+	cfg := AdminConfig{
+		DynamicConfig:            DynamicConfig{Router: address.NewAddress(0, 0, make([]byte, 32))},
+		AllowedDepositNamespaces: namespaces,
+		JettonClient:             JettonClient{MasterAddress: token, JettonWalletCode: cell.BeginCell().EndCell()},
+	}
 
 	c, err := tlb.ToCell(cfg)
 	require.NoError(t, err)
 
-	var decoded DynamicConfig
+	var decoded AdminConfig
 	require.NoError(t, tlb.LoadFromCell(&decoded, c.MustBeginParse()))
 	require.Len(t, decoded.AllowedDepositNamespaces.AsMap(), 2)
 	_, ok := decoded.AllowedDepositNamespaces.Get(7)
@@ -225,11 +252,42 @@ func TestDynamicConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
 	require.True(t, ok)
 
 	// Empty set round-trips as an empty map.
-	empty := DynamicConfig{Router: address.NewAddress(0, 0, make([]byte, 32)), AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}]()}
+	empty := AdminConfig{
+		DynamicConfig:            DynamicConfig{Router: address.NewAddress(0, 0, make([]byte, 32))},
+		AllowedDepositNamespaces: tlbe.NewEmptyDict[uint32, struct{}](),
+		JettonClient:             JettonClient{MasterAddress: token, JettonWalletCode: cell.BeginCell().EndCell()},
+	}
 	emptyCell, err := tlb.ToCell(empty)
 	require.NoError(t, err)
 
-	var decodedEmpty DynamicConfig
+	var decodedEmpty AdminConfig
 	require.NoError(t, tlb.LoadFromCell(&decodedEmpty, emptyCell.MustBeginParse()))
 	require.Empty(t, decodedEmpty.AllowedDepositNamespaces.AsMap())
+}
+
+// TestConfig_WireFormat pins TokenPool_Config: opcode, query id, transfer initiator, then the
+// admission budget inline (lockOrBurn, releaseOrMint).
+func TestConfig_WireFormat(t *testing.T) {
+	msg := Config{
+		QueryID:           7,
+		TransferInitiator: address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"),
+		Admission: AdmissionBudget{
+			LockOrBurn:    tlb.MustFromTON("0.1"),
+			ReleaseOrMint: tlb.MustFromTON("0.2"),
+		},
+	}
+	c, err := tlb.ToCell(msg)
+	require.NoError(t, err)
+
+	s := c.MustBeginParse()
+	require.Equal(t, uint64(0x1c8a40b8), s.MustLoadUInt(32))
+	require.Equal(t, uint64(7), s.MustLoadUInt(64))
+	require.Equal(t, msg.TransferInitiator.String(), s.MustLoadAddr().String())
+	require.Equal(t, tlb.MustFromTON("0.1").Nano(), s.MustLoadBigCoins())
+	require.Equal(t, tlb.MustFromTON("0.2").Nano(), s.MustLoadBigCoins())
+	require.Zero(t, s.BitsLeft())
+
+	var decoded Config
+	require.NoError(t, tlb.LoadFromCell(&decoded, c.MustBeginParse()))
+	require.Equal(t, msg.Admission, decoded.Admission)
 }

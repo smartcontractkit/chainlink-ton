@@ -397,7 +397,7 @@ func (a *TonCurseAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.O
 					{
 						Bounce:  true,
 						DstAddr: &routerAddr,
-						Amount:  tlb.MustFromTON("0.1"), // TON amount for gas
+						Amount:  tlb.MustFromTON("0.5"), // covers Router_Costs.updateCursedSubjects; excess stays in the Router
 						Body:    codec.MustWrapMessage[any](contractType, body),
 					},
 				},
@@ -480,7 +480,7 @@ func (a *TonCurseAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences
 					{
 						Bounce:  true,
 						DstAddr: &routerAddr,
-						Amount:  tlb.MustFromTON("0.1"), // TON amount for gas
+						Amount:  tlb.MustFromTON("0.5"), // covers Router_Costs.updateCursedSubjects; excess stays in the Router
 						Body:    codec.MustWrapMessage[any](contractType, body),
 					},
 				},

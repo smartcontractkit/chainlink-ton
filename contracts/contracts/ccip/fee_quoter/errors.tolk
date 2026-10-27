@@ -7,10 +7,13 @@ enum FeeQuoter_Error {
     ExtraArgOutOfOrderExecutionMustBeTrue
     InvalidExtraArgsData
     UnsupportedNumberOfTokens
+    InvalidTokenAmountsData
     InvalidSuiReceiverAddress
     InvalidSVMReceiverAddress
     InvalidTokenReceiver
     TooManySuiExtraArgsReceiverObjectIds
+    TooManySVMExtraArgsAccounts
+    InvalidSVMExtraArgsWritableBitmap
     MsgDataTooLarge
     StaleGasPrice
     DestChainNotEnabled
@@ -31,5 +34,4 @@ enum FeeQuoter_Error {
     MessageFeeTooHigh
     TokenTransferConfigMustBeEnabled
     InvalidDestBytesOverhead
-    InvalidSVMExtraArgsWritableBitmap
 }

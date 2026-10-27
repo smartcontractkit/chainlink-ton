@@ -36,6 +36,7 @@ type Router_InMsg =
     | Router_RMNRemoteUncurse
     | Router_RMNAccessControlMessage
     | Router_RMNRemoteVerifyNotCursed
+    | Router_RMNRemoteSyncOffRamps
     | Router_MessageSent
     | Router_MessageRejected
     | Router_LockOrBurn
@@ -46,7 +47,8 @@ type Router_InMsg =
     | DepositAccount_Initialized
     | DepositAccount_WalletUnavailable
     | DepositAccount_WithdrawFailed
-    | TransferNotificationForRecipient;
+    | TransferNotificationForRecipient
+    | ReturnExcessesBack;
 
 type Router_BouncedMessage = 
     | Receiver_CCIPReceiveV2
@@ -100,6 +102,8 @@ struct Router_WithdrawRequest {
     depositAccount: address;
     amount: coins;
     tokenPool: address;
+    /// TON the pool's custody notification carries (`TokenPool_LockOrBurnWithdraw.forwardTonAmount`).
+    forwardTonAmount: coins;
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
@@ -166,6 +170,12 @@ struct (0x22ba83b3) Router_RMNRemoteVerifyNotCursedResponse {
     result: bool
 }
 
+/// Re-sends the current cursed subjects to every registered OffRamp, e.g. after
+/// adding a new OffRamp.
+struct (0x0fdd7b0f) Router_RMNRemoteSyncOffRamps {
+    queryId: uint64
+}
+
 struct (0x6513f8e1) Router_MessageSent {
     queryID: uint64;
     messageId: uint256;
@@ -218,6 +228,8 @@ struct (0x6f2d00df) Router_LockOrBurn {
     tokenPool: address,
     request: Cell<TokenPool_LockOrBurnInV1>,
     executorAddress: address,
+    /// CCIP post-custody failure budget forwarded to the pool.
+    finalizationValue: coins,
 }
 
 /// Relays an inbound token operation from the registered OffRamp to the pool.
@@ -392,6 +404,17 @@ fun Router_Costs.receiveConfirm(): int {
 // Router_UseOnRampAccount round-trip.
 fun Router_Costs.GetOnRampAccount(): int {
     return DepositAccount_MIN_GRAM_TO_RESERVE + DepositAccount_MIN_GRAM_TO_INIT + DepositAccount_WALLET_QUERY_VALUE + grams("0.01"); // TODO re-estimate fee of messages processed by the Router
+}
+
+// Minimum value for calling Router_RMNRemoteCurse, Router_RMNRemoteUncurse and
+// Router_RMNRemoteSyncOffRamps, which forward the cursed subjects to every OffRamp.
+fun Router_Costs.updateCursedSubjects(offRampCount: int): int {
+    return grams("0.05") // computeFee
+        + offRampCount * Router_Costs.forwardCursedSubjects();
+}
+
+fun Router_Costs.forwardCursedSubjects(): int {
+    return grams("0.05");
 }
 
 const ROUTER_RECEIVE_CONFIRM_FEE = grams("0.002");

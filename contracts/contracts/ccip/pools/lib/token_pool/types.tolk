@@ -2,6 +2,7 @@
 import "../../../../lib/utils"
 import "../../../common/types"
 import "../../../rmn_remote/lib"
+import "../../../cct/fees-management"
 
 import "../rate_limiter"
 
@@ -19,18 +20,15 @@ const CCIP_POOL_V1_RET_BYTES = 32;
 // in the TokenTransferFeeConfig.destBytesOverhead if more data is required.
 const CCIP_LOCK_OR_BURN_V1_RET_BYTES = 32;
 
+// Includes withdraw, lock/burn, and return custody moves for pre-withdraw operations.
+const LB_CUSTODY_MOVES_BEFORE_WITHDRAW: int = 3;
+// Includes lock/burn and return custody moves for pre-lock/burn operations.
+const LB_CUSTODY_MOVES_BEFORE_LOCK_BURN: int = 2;
+
 struct TokenPool_DynamicConfig {
     router: address;
     rateLimitAdmin: address? = null;
     feeAdmin: address?; // TODO this is not being used?
-    /// Allowed Deployables namespaces for source-chain deposit accounts. When a
-    /// `TransferNotificationForRecipient` is not authorised directly by the Router's own jetton
-    /// wallet, the pool authenticates it as coming from a Deployables-derived per-user account
-    /// (e.g. an OnRampAccount) whose namespace is present here.
-    /// @dev This field is part of dynamic config so it can be updated without redeploying the
-    ///      pool. Only namespaces whose deployable code is registered (see `TokenPool_AdminConfig`)
-    ///      are meaningful.
-    allowedDepositNamespaces: map<uint32, ()> = [];
 }
 
 struct TokenPool_LocalPolicy {

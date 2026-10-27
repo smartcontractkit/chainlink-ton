@@ -18,6 +18,12 @@ import {
 } from './ReceiveExecutor.Setup'
 import { OFFRAMP_RELEASE_OR_MINT_COST } from '../../../wrappers/ccip/OffRamp'
 
+/** A realistic admission below the 0.2 TON test destGasAmount, so the check is exercised. */
+const TEST_ADMISSION = rx.TokenPool_AdmissionBudget.create({
+  lockOrBurn: toNano('0.1'),
+  releaseOrMint: toNano('0.1'),
+})
+
 describe('ReceiveExecutor - Execution', () => {
   // Here we can test backwards compatibility with new message format by running the same tests with different versions of the code
   let blockchain: Blockchain
@@ -352,9 +358,12 @@ describe('ReceiveExecutor - Execution', () => {
         {
           token: messageWithTT.tokenAmounts![0].token,
           minterAddress: deployer.address,
-          tokenPool: pool,
-          transferInitiator,
           version: 1n,
+          poolInfo: rx.TokenAdminRegistry_PoolInfo.create({
+            tokenPool: pool,
+            transferInitiator,
+            admission: TEST_ADMISSION,
+          }),
         },
       )
       expect(result.transactions).toHaveTransaction({
@@ -488,6 +497,37 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
+      it('should send NotifyFailure when destGasAmount is below the pool release admission', async () => {
+        await initExecuteQueriesRegistry(receiveExecutorWithToken)
+        const result = await receiveExecutorWithToken.sendTokenAdminRegistryTokenInfo(
+          tokenAdminRegistry.getSender(),
+          toNano('0.05'),
+          {
+            token: messageWithTT.tokenAmounts![0].token,
+            minterAddress: deployer.address,
+            version: 1n,
+            poolInfo: rx.TokenAdminRegistry_PoolInfo.create({
+              tokenPool: tokenPool.address,
+              transferInitiator: tokenPool.address,
+              admission: rx.TokenPool_AdmissionBudget.create({
+                lockOrBurn: 0n,
+                releaseOrMint: toNano('1'),
+              }),
+            }),
+          },
+        )
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          to: deployer.address,
+          op: of.OffRamp_NotifyFailure.PREFIX,
+        })
+        expect(result.transactions).not.toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          to: deployer.address,
+          op: of.OffRamp_ReleaseOrMint.PREFIX,
+        })
+      })
+
       it('should send NotifyFailure when TokenAdminRegistry returns no token pool', async () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
         const result = await receiveExecutorWithToken.sendTokenAdminRegistryTokenInfo(
@@ -496,9 +536,8 @@ describe('ReceiveExecutor - Execution', () => {
           {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
-            tokenPool: null,
-            transferInitiator: null,
             version: 1n,
+            poolInfo: null,
           },
         )
         expect(result.transactions).toHaveTransaction({
@@ -559,9 +598,12 @@ describe('ReceiveExecutor - Execution', () => {
           {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
-            tokenPool: tokenPool.address,
-            transferInitiator: tokenPool.address,
             version: 1n,
+            poolInfo: rx.TokenAdminRegistry_PoolInfo.create({
+              tokenPool: tokenPool.address,
+              transferInitiator: tokenPool.address,
+              admission: TEST_ADMISSION,
+            }),
           },
         )
         expectFailedTransaction(
@@ -579,9 +621,12 @@ describe('ReceiveExecutor - Execution', () => {
           {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
-            tokenPool: tokenPool.address,
-            transferInitiator: tokenPool.address,
             version: 1n,
+            poolInfo: rx.TokenAdminRegistry_PoolInfo.create({
+              tokenPool: tokenPool.address,
+              transferInitiator: tokenPool.address,
+              admission: TEST_ADMISSION,
+            }),
           },
         )
         expectFailedTransaction(
@@ -944,9 +989,8 @@ describe('ReceiveExecutor - Execution', () => {
           {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
-            tokenPool: null,
-            transferInitiator: null,
             version: 1n,
+            poolInfo: null,
           },
         )
 
@@ -984,9 +1028,9 @@ describe('ReceiveExecutor - Execution', () => {
       it('should use tokenGasOverride for releaseOrMint when greater than destGasAmount', async () => {
         messageWithTT = createTestMessageWithToken({
           receiver: deployer.address,
-          destGasAmount: toNano('0.001'),
+          destGasAmount: toNano('0.1'),
         })
-        // Deploy a ReceiveExecutor with a token transfer that has a low destGasAmount.
+        // Deploy a ReceiveExecutor with a token transfer that has a realistic destGasAmount.
         const receiveExecutorLowGas = await setupTestReceiveExecutor(
           blockchain,
           deployer,
@@ -1028,7 +1072,7 @@ describe('ReceiveExecutor - Execution', () => {
       })
 
       it('should use destGasAmount for releaseOrMint when tokenGasOverride is lower', async () => {
-        const destGasAmount = toNano('0.01')
+        const destGasAmount = toNano('0.1')
         messageWithTT = createTestMessageWithToken({ receiver: deployer.address, destGasAmount })
         const receiveExecutorHighGas = await setupTestReceiveExecutor(
           blockchain,
@@ -1292,9 +1336,8 @@ describe('ReceiveExecutor - Execution', () => {
           {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
-            tokenPool: null,
-            transferInitiator: null,
             version: 1n,
+            poolInfo: null,
           },
         )
 

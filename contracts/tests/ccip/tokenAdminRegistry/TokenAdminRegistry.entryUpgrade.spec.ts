@@ -143,7 +143,9 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
 
     // The entry already runs the root entry code, so it skips the reinstall.
     expect(entryEmittedExternal(result)).toBe(false)
-    expect(returnedTokenInfo(fx, result, fx.other.address).tokenPool).toEqualAddress(fx.pool)
+    expect(returnedTokenInfo(fx, result, fx.other.address).poolInfo?.tokenPool).toEqualAddress(
+      fx.pool,
+    )
     expect(await accountState(fx)).toEqual(before)
     // The Upgrade is funded from the request's value, not from the root balance.
     expect((await blockchain.getContract(fx.registry.address)).balance).toBe(rootBalanceBefore)

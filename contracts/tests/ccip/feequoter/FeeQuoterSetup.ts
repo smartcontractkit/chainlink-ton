@@ -1,5 +1,6 @@
 import '@ton/test-utils'
 
+import { flattenTransaction } from '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano, beginCell, Address } from '@ton/core'
 
@@ -637,6 +638,48 @@ export class FeeQuoterSetup {
       )
     }
   }
+
+  /**
+   * Same as `assertGetFeeValidationError`, but sends a raw (already serialized)
+   * body so malformed on-chain inputs — exotic (library-reference) cells,
+   * branched snakes, etc. — can be exercised. The failure reply is decoded with a
+   * raw body parse because the echoed message may itself contain cells (exotic
+   * token amounts) that the typed body loader cannot parse.
+   */
+  async assertGetFeeValidationErrorRaw(body: Cell, expectedError: number): Promise<void> {
+    const result = await this.bind.feeQuoter.send(
+      this.acc.externalCaller.getSender(),
+      toNano('1'),
+      body,
+    )
+
+    let actualError: bigint | undefined
+    let sawValidationFailed = false
+    for (const tx of result.transactions.map((tx) => flattenTransaction(tx))) {
+      if (!tx.body) continue
+      let parsed
+      try {
+        parsed = tx.body.beginParse()
+      } catch {
+        continue
+      }
+      if (parsed.remainingBits < 32) continue
+      if (parsed.loadUint(32) === sx.FeeQuoter_MessageValidationFailed.PREFIX) {
+        sawValidationFailed = true
+        actualError = parsed.loadUintBig(256)
+        break
+      }
+    }
+
+    if (!sawValidationFailed) {
+      throw new Error('Expected messageValidationFailed reply, but none was found')
+    }
+    if (actualError !== BigInt(expectedError)) {
+      throw new Error(
+        `Expected error code ${expectedError} (${printErrorName(expectedError)}), but got ${actualError} (${printErrorName(Number(actualError))})`,
+      )
+    }
+  }
 }
 
 /**
@@ -719,6 +762,10 @@ function printErrorName(error: number): string {
       return 'InvalidDestBytesOverhead'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidSVMExtraArgsWritableBitmap']:
       return 'InvalidSVMExtraArgsWritableBitmap'
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.TooManySVMExtraArgsAccounts']:
+      return 'TooManySVMExtraArgsAccounts'
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.InvalidTokenAmountsData']:
+      return 'InvalidTokenAmountsData'
     default:
       throw new Error(`Unknown error code: ${error.toString()}`)
   }

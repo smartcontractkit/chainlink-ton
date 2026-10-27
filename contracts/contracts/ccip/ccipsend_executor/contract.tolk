@@ -202,6 +202,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         return;
     }
 
+    self.onrampSend.msg = msg.msg;
+
     // The FeeQuoter only reports destOverheads for token-transfer messages; a tokenless
     // message legitimately carries null there, so the single-overhead requirement below
     // applies to the token path only. It must hold BEFORE the fee is locked: a malformed
@@ -296,25 +298,30 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onFeeReserved
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoReceived(mutate self, msg: TokenAdminRegistry_TokenInfo) {
     val state = self.state.load();
-    if (msg.tokenPool == null) {
+    if (msg.poolInfo == null) {
         self.exitWithError(CCIPSendExecutor_Error.TokenNotEnabled, state.chargedFee.feeTokenAmount);
+
         return;
     }
+
     if (msg.minterAddress != state.token) {
-        return self.exitWithError(CCIPSendExecutor_Error.TokenMinterMismatch as uint256, state.chargedFee.feeTokenAmount);
+        self.exitWithError(CCIPSendExecutor_Error.TokenMinterMismatch as uint256, state.chargedFee.feeTokenAmount);
+
+        return;
     }
 
+    val poolInfo = msg.poolInfo!.load();
     val ccipSend = lazy self.onrampSend.msg.load();
     val tokenAmount = ccipSend.tokenAmounts.iter().next();
     val addresses = lazy self.addresses.load();
     val requestLockOrBurn = createMessage({
         bounce: true,
-        value: OnRamp_ExecutorRequestsLockOrBurn.cost(),
+        value: OnRamp_ExecutorRequestsLockOrBurn.cost(poolInfo.admission.load().lockOrBurn),
         dest: addresses.onramp,
         body: OnRamp_ExecutorRequestsLockOrBurn {
             queryID: ccipSend.queryID,
             tokenAmount: tokenAmount.toCell(),
-            tokenPool: msg.tokenPool!,
+            tokenPool: poolInfo.tokenPool,
             destChainSelector: ccipSend.destChainSelector,
             executorID: self.id,
             receiver: ccipSend.receiver.toCell(),
@@ -330,7 +337,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
             chargedFee: state.chargedFee,
             destOverhead: state.destOverhead,
             chainFamilySelector: state.chainFamilySelector,
-            tokenPool: msg.tokenPool!,
+            tokenPool: poolInfo.tokenPool,
         }.toCell(),
     };
     newState.store();
@@ -374,6 +381,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
                 depositAccount: senderOnRampAccount(self.onrampSend.metadata.sender, tokenAmount.token, self.addresses.load().router),
                 amount: tokenAmount.amount,
                 tokenPool: state.tokenPool,
+                forwardTonAmount: msg.forwardTonAmount,
                 forwardPayload: msg.forwardPayload.toCell(),
             }.toCell()
         },
