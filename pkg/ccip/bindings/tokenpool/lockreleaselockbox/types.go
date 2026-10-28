@@ -5,6 +5,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 )
 
@@ -34,15 +35,6 @@ type LockContext struct {
 type ReleaseContext struct {
 	_              tlb.Magic                             `tlb:"#90230477" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	ForwardPayload tokenpool.ReleaseOrMintForwardPayload `tlb:"^"`
-}
-
-// --- Messages (incoming) ---
-
-// ReturnExcessesBack is sent by the jetton wallet after a transfer operation.
-// TODO: move to shared jetton bindings package, shared opcode 0xd53276db
-type ReturnExcessesBack struct {
-	_       tlb.Magic `tlb:"#d53276db" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID uint64    `tlb:"## 64"`
 }
 
 // --- Storage ---
@@ -80,7 +72,7 @@ func (e ExitCode) New() tvm.ExitCode {
 
 var TLBs = tvm.MustNewTLBMap([]any{
 	// Incoming
-	ReturnExcessesBack{},
+	jetton.ReturnExcessesBack{},
 	// Context types
 	LockContext{},
 	ReleaseContext{},
