@@ -242,6 +242,7 @@ struct (0xb19862a3) Router_RelayReleaseOrMint {
     request: Cell<TokenPool_ReleaseOrMintInV1>;
     requestedFinalityConfig: uint32;
     replyTo: address;
+    sendExcessesTo: address;
 }
 
 /// Sent by the OffRamp once a ReceiveExecutor confirmed the released/minted tokens reached the

@@ -1164,8 +1164,7 @@ fun onReceiverAccountReady(relay: Router_RelayReleaseOrMint, sender: address) {
                 // The account routes the transfer notification to the ReceiveExecutor.
                 forwardPayload: DepositAccount_Notify { notify: relay.replyTo }.toCell(),
             }.toCell(),
-            // The ReceiveExecutor paid the destination-side budget; return unused TON to it.
-            sendExcessesTo: relay.replyTo,
+            sendExcessesTo: relay.sendExcessesTo,
         },
     });
     tokenPoolReleaseOrMint.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

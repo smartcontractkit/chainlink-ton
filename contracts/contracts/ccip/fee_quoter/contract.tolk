@@ -398,6 +398,7 @@ fun validateTokenTransfers(destChainConfig: DestChainConfig, tokenAmounts: Snake
             val tokenAmount = tokenAmountsIter.next();
             tokenCount += 1;
             assert (tokenCount <= destChainConfig.config.maxNumberOfTokensPerMsg) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
+            assert (tokenAmount.amount > 0) throw FeeQuoter_Error.CannotSendZeroTokens;
 
             val config = getEnabledTokenTransferFeeConfig(destChainConfig, tokenAmount.token);
             val tokenBytesOverhead = config != null ? config!.destBytesOverhead as int : CCIP_LOCK_OR_BURN_V1_RET_BYTES;

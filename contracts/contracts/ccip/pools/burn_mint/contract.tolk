@@ -473,6 +473,22 @@ get fun getTokenTransferFeeConfig(destChainSelector: uint64): TokenPool_TokenTra
     return Storage.load().TokenPool().getTokenTransferFeeConfig(destChainSelector);
 }
 
+/// Returns the pool-local cursed subjects.
+get fun cursedSubjects(): lisp_list<uint128> {
+    return keysLispList(Storage.load().poolData.load().localPolicy.load().cursePolicy.cursedSubjects.data)!;
+}
+
+/// Returns the pool's admin configuration.
+get fun getAdminConfig(): TokenPool_AdminConfig {
+    return Storage.load().poolData.load().adminConfig.load();
+}
+
+/// Returns the remote chain configuration for the given selector, or null if unknown.
+get fun getRemoteChainConfig(remoteChainSelector: uint64): TokenPool_RemoteChainConfig? {
+    val entry = Storage.load().poolData.load().remoteChainConfigs.get(remoteChainSelector);
+    return entry.isFound ? entry.loadValue() : null;
+}
+
 /// Returns the fee parameters that will apply to a transfer to the given destination chain.
 /// @param localToken The local token address.
 /// @param destChainSelector The destination chain selector.

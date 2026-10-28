@@ -2268,7 +2268,11 @@ fun TokenPool<T>.consumeInboundRateLimit(mutate self, remoteChainSelector: uint6
 /// @dev Fast-finality refunds require the requested finality to be recovered from the
 /// pending operation; deferred until FTF is enabled (see TON-TP/16).
 fun TokenPool<T>.releaseOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
-    var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
+    val configEntry = self.data.remoteChainConfigs.get(remoteChainSelector);
+    if (!configEntry.isFound) {
+        return; // chain removed mid-flight; nothing to refund, keep the failure rail alive
+    }
+    var config = configEntry.loadValue();
     var rateLimiters = config.rateLimiters.load();
     var bucket = rateLimiters.outbound.load();
     bucket.refund(amount as uint256);
@@ -2288,7 +2292,11 @@ fun TokenPool<T>.releaseOutboundRateLimit(mutate self, remoteChainSelector: uint
 /// @dev Fast-finality refunds require the requested finality to be recovered from the
 /// pending operation; deferred until FTF is enabled (see TON-TP/16).
 fun TokenPool<T>.releaseInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
-    var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
+    val configEntry = self.data.remoteChainConfigs.get(remoteChainSelector);
+    if (!configEntry.isFound) {
+        return; // chain removed mid-flight; nothing to refund, keep the failure rail alive
+    }
+    var config = configEntry.loadValue();
     var rateLimiters = config.rateLimiters.load();
     var bucket = rateLimiters.inbound.load();
     bucket.refund(amount as uint256);
@@ -2306,7 +2314,11 @@ fun TokenPool<T>.releaseInboundRateLimit(mutate self, remoteChainSelector: uint6
 /// Returns previously consumed fast-finality outbound capacity to the bucket.
 /// Mirrors `consumeFastFinalityOutboundRateLimit` (falls back to default bucket if FTF is disabled).
 fun TokenPool<T>.releaseFastFinalityOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
-    var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
+    val configEntry = self.data.remoteChainConfigs.get(remoteChainSelector);
+    if (!configEntry.isFound) {
+        return; // chain removed mid-flight; nothing to refund, keep the failure rail alive
+    }
+    var config = configEntry.loadValue();
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.outbound.load();
     if (!fastBucket.isEnabled) {
@@ -2332,7 +2344,11 @@ fun TokenPool<T>.releaseFastFinalityOutboundRateLimit(mutate self, remoteChainSe
 /// Returns previously consumed fast-finality inbound capacity to the bucket.
 /// Mirrors `consumeFastFinalityInboundRateLimit` (falls back to default bucket if FTF is disabled).
 fun TokenPool<T>.releaseFastFinalityInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
-    var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
+    val configEntry = self.data.remoteChainConfigs.get(remoteChainSelector);
+    if (!configEntry.isFound) {
+        return; // chain removed mid-flight; nothing to refund, keep the failure rail alive
+    }
+    var config = configEntry.loadValue();
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.inbound.load();
     if (!fastBucket.isEnabled) {

@@ -10,6 +10,7 @@ import "../../lib/crypto/merkle_multi_proof"
 import "../../lib/ocr/multi_ocr3_base"
 import "../../lib/ocr/types"
 import "../../lib/utils"
+import "../../lib/jetton/messages"
 import "../../lib/receiver/types"
 import "../pools/lib/token_pool/messages"
 
@@ -137,6 +138,8 @@ fun onInternalMessage(in:InMessage) {
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
             onNotifyFailure(msg);
         }
+        // Passive excess return from a release/mint jetton transfer; retain it in the off-ramp.
+        ReturnExcessesBack => {}
         // Sender must be owner
         OffRamp_SetDynamicConfig => {
             val st = lazy Storage.load();
@@ -578,6 +581,8 @@ fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMi
             request: msg.request,
             requestedFinalityConfig: msg.requestedFinalityConfig,
             replyTo: sendExecutor,
+            // TODO: consider routing to the original transmitter
+            sendExcessesTo: contract.getAddress(),
         }
     });
     relayMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

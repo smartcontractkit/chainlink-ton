@@ -114,8 +114,7 @@ struct (0xfa7da444) TokenPool_LockOrBurn {
     extra: Cell<TokenPool_LockOrBurnExtra>? = null;
 }
 
-/// Optional value-routing overrides for a lock/burn operation. Kept in a ref so the main
-/// message stays within one cell even with many deposit namespaces.
+/// Optional value-routing overrides for a lock/burn operation.
 struct TokenPool_LockOrBurnExtra {
     /// Where jetton wallets return unused TON (success excess). Defaults to the original sender.
     sendExcessesTo: address? = null;
