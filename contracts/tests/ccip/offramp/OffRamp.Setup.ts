@@ -36,6 +36,7 @@ import * as lrp from '../../../wrappers/gen/ccip/pools/LockReleaseLockboxTokenPo
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
 import * as trg from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
+import { Costs } from '../../../wrappers/ccip/TokenAdminRegistry'
 import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 import * as cct from '../../../wrappers/gen/ccip/cct/JettonMinter'
 import { JettonWallet } from '../../../wrappers/gen/ccip/cct/JettonWallet'
@@ -50,7 +51,8 @@ import generateMessageID, { getMetadataHash } from '../../../src/offramp/generat
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../../Logs'
 import {
-  EXECUTE_COST,
+  executeValue,
+  Costs as OffRampCosts,
   DEFAULT_MIN_GASLIMIT,
   DEFAULT_MIN_TT_GASLIMIT,
 } from '../../../wrappers/ccip/OffRamp'
@@ -592,13 +594,19 @@ export class OffRampTestSetup {
   }
 
   // Helper to test execute report flow
-  async executeReport(report: of.ExecutionReport, sequenceBytes = 0x02, expectSuccess = true) {
-    let totalGas = EXECUTE_COST
-    try {
-      const msg = of.Any2TVMRampMessage.fromSlice(report.messages.asSlice())
-      totalGas += msg.gasLimit
-    } catch {
-      // Probably an empty report
+  async executeReport(
+    report: of.ExecutionReport,
+    sequenceBytes = 0x02,
+    expectSuccess = true,
+    value?: bigint,
+  ) {
+    let totalGas = value ?? executeValue({ gasLimit: 0n, tokenAmounts: null })
+    if (value === undefined) {
+      try {
+        totalGas = executeValue(of.Any2TVMRampMessage.fromSlice(report.messages.asSlice()))
+      } catch {
+        // Probably an empty report
+      }
     }
     const result = await this.offRamp.sendOffRampExecute(
       this.transmitters[0].getSender(),
@@ -642,7 +650,7 @@ export class OffRampTestSetup {
     }
     const result = await this.offRamp.sendOffRampManuallyExecute(
       this.transmitters[0].getSender(),
-      totalGas + EXECUTE_COST,
+      totalGas + OffRampCosts.execute(msg.tokenAmounts != null && msg.tokenAmounts.length > 0),
       {
         report,
         gasOverride: gasOverride_,
@@ -922,7 +930,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   ): Promise<SandboxContract<trg.TokenAdminRegistryEntry>> {
     await this.registry.sendTokenAdminRegistryRegisterToken(
       this.deployer.getSender(),
-      toNano('0.1'),
+      Costs.registerToken,
       {
         tokenAddress: token,
         tokenInfo: tar.TokenRegistry_TokenInfo.create({

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+import "../../lib/deployable/types"
 import "@stdlib/lisp-lists"
 import "../../lib/utils"
 import "../common/types"
@@ -244,5 +245,8 @@ enum ExecutionState: uint8 {
     Failure = 3
 }
 
-const AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT = grams("0.02");
-const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = grams("0.01");
+/// Shape every source lane is configured to send (FeeQuoter `maxDataBytes` for TON); the receive
+/// cost functions are calibrated for it and the OffRamp rejects anything larger.
+const OFFRAMP_MAX_DATA_BYTES = 2000;
+/// `extraData` of a token transfer carries at most the source pool's encoded decimals.
+const OFFRAMP_MAX_EXTRA_DATA_BITS = 256;

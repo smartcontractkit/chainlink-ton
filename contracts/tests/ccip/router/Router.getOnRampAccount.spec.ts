@@ -8,11 +8,10 @@ import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as deposit from '../../../wrappers/gen/ccip/DepositAccount'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
+import { Costs } from '../../../wrappers/ccip/Router'
 import { setup, contractsCoverageConfig } from './Router.Setup'
 
-// Value covering Router_Costs.GetOnRampAccount() plus the account's init compute/storage and
-// the reply round-trip (the Router carries all remaining value forward on each leg).
-const getOnRampAccountValue = toNano('1')
+const getOnRampAccountValue = Costs.getOnRampAccount
 
 describe('Router.getOnRampAccount', () => {
   let blockchain: Blockchain
@@ -317,6 +316,20 @@ describe('Router.getOnRampAccount', () => {
         return failed.queryId === queryId && failed.error === BigInt(error)
       },
     })
+
+  it('rejects a request below Router_Costs.GetOnRampAccount', async () => {
+    const result = await router.sendRouterGetOnRampAccount(
+      sender.getSender(),
+      Costs.getOnRampAccount - 1n,
+      { token },
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: sender.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.InsufficientFee'],
+    })
+  })
 
   it('notifies the user when the token cannot report the account wallet', async () => {
     await router.sendRouterGetOnRampAccount(sender.getSender(), getOnRampAccountValue, {

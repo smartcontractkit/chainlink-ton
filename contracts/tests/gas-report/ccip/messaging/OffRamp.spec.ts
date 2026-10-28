@@ -1,78 +1,32 @@
-import {
-  Blockchain,
-  SandboxContract,
-  TreasuryContract,
-  printTransactionFees,
-  createMetricStore,
-  makeSnapshotMetric,
-  ContractDatabase,
-  resetMetricStore,
-} from '@ton/sandbox'
-import { toNano, Cell, Address, beginCell } from '@ton/core'
-import * as rt from '../../../../wrappers/gen/ccip/Router'
-import { createCursePolicy } from '../../../../wrappers/ccip/Router'
-import * as or from '../../../../wrappers/gen/ccip/OnRamp'
-import { FeeQuoter } from '../../../../wrappers/gen/ccip/FeeQuoter'
-import * as of from '../../../../wrappers/gen/ccip/OffRamp'
+import { Blockchain, SendMessageResult } from '@ton/sandbox'
+import { Address, toNano } from '@ton/core'
 import '@ton/test-utils'
-import {
-  generateMockTonAddress,
-  uint8ArrayToBigInt,
-  generateEd25519KeyPair,
-  NATIVE_GRAM,
-} from '../../../../src/utils'
-import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
+
+import * as of from '../../../../wrappers/gen/ccip/OffRamp'
+import * as rt from '../../../../wrappers/gen/ccip/Router'
 import * as tr from '../../../../wrappers/gen/ccip/TestReceiver'
+import * as deployable from '../../../../wrappers/libraries/Deployable'
+import generateMessageID from '../../../../src/offramp/generateMessageID'
 import {
-  hashReport,
-  OCR3_PLUGIN_TYPE_COMMIT,
-  OCR3_PLUGIN_TYPE_EXECUTE,
-  ReportContext,
-} from '../../../../wrappers/libraries/ocr/MultiOCR3Base'
-import { KeyPair } from '@ton/crypto'
-import { EVM_SENDER_ADDRESS_TEST, EVM_ONRAMP_ADDRESS_TEST } from '../../constants'
-import { createMaxPayload } from './config'
+  createSignatures,
+  getDefaultMetadataHash,
+  OffRampTestSetup,
+} from '../../../ccip/offramp/OffRamp.Setup'
+import * as ocr from '../../../../wrappers/libraries/ocr/MultiOCR3Base'
+import { Costs } from '../../../../wrappers/ccip/OffRamp'
 import { MerkleHelper } from '../../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
-import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
-import * as path from 'path'
-import * as fs from 'fs'
-import { opMapFunc } from './opMapFunc'
-import { asSnakedCell } from '../../../../src/utils'
-import { contractCode } from '../../../../wrappers/codeLoader'
+import { generateMockTonAddress } from '../../../../src/utils'
 import { ChainSelectors } from '../../../utils/Selectors'
-import generateMessageID, { getMetadataHash } from '../../../../src/offramp/generateMessageID'
-import { createSignatures } from '../../../ccip/offramp/OffRamp.Setup'
-import { DEFAULT_MIN_GASLIMIT, DEFAULT_MIN_TT_GASLIMIT } from '../../../../wrappers/ccip/OffRamp'
+import { AddressBook, GasReport, gasReportConfig } from '../../utils'
+import { createPayload, LANE_MAX_DATA_BYTES } from './config'
 
-const ROUTER_ADDRESS_TEST = generateMockTonAddress()
-
-// Override console to remove Jest's "console.log" prefixes
 const jestConsole = console
-
-// Load contract database for metric analysis
-const contractDatabasePath = path.join(__dirname, '../../../../contract.abi.json')
-const contractDatabaseData = fs.existsSync(contractDatabasePath)
-  ? JSON.parse(fs.readFileSync(contractDatabasePath, 'utf8'))
-  : {}
-const contractDatabase = ContractDatabase.from(contractDatabaseData)
-
-// Initialize metric store
-const store = createMetricStore()
 
 describe('CCIP OffRamp Gas Estimation', () => {
   let blockchain: Blockchain
-  let deployer: SandboxContract<TreasuryContract>
-  let sender: SandboxContract<TreasuryContract>
-  let router: SandboxContract<rt.Router>
-  let feeQuoter: SandboxContract<FeeQuoter>
-  let onRamp: SandboxContract<or.OnRamp>
-  let offRamp: SandboxContract<of.OffRamp>
-  let receiver: SandboxContract<tr.TestReceiver>
-  let transmitters: SandboxContract<TreasuryContract>[]
-  let signers: KeyPair[]
-  let signersPublicKeys: bigint[]
-
-  const configDigest: bigint = 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcden
+  let report: GasReport
+  let setup: OffRampTestSetup
+  let book: AddressBook
 
   beforeEach(() => {
     global.console = require('console')
@@ -80,452 +34,267 @@ describe('CCIP OffRamp Gas Estimation', () => {
   afterEach(() => {
     global.console = jestConsole
   })
+  afterAll(() => report.finish())
 
   beforeAll(async () => {
-    // Use default config (mainnet) to avoid rate limiting
-    blockchain = await Blockchain.create()
-    deployer = await blockchain.treasury('deployer')
-    sender = await blockchain.treasury('sender')
-
-    // Setup transmitters and signers for OCR
-    transmitters = [
-      await blockchain.treasury('transmitter1'),
-      await blockchain.treasury('transmitter2'),
-      await blockchain.treasury('transmitter3'),
-      await blockchain.treasury('transmitter4'),
-    ]
-
-    signers = await Promise.all([
-      generateEd25519KeyPair(),
-      generateEd25519KeyPair(),
-      generateEd25519KeyPair(),
-      generateEd25519KeyPair(),
-    ])
-
-    signersPublicKeys = signers.map((s) => uint8ArrayToBigInt(s.publicKey))
-
-    // Deploy Router
-    {
-      let routerCode = await contractCode.ccip.local('Router')
-      let data = rt.Storage.create({
-        id: 0n,
-        ownable: rt.Ownable2Step.create({
-          owner: deployer.address,
-        }),
-        onRamps: new Map(),
-        offRamps: new Map(),
-        rmnRemote: rt.RMNRemote.create({
-          policy: createCursePolicy(deployer.address),
-          forwardUpdates: new Set(),
-        }),
-      })
-      router = blockchain.openContract(
-        rt.Router.fromStorage(data, { overrideContractCode: routerCode }),
-      )
-      const result = await router.sendDeploy(deployer.getSender(), toNano('1'))
-      expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: router.address,
-        deploy: true,
-        success: true,
-      })
-    }
-
-    // Deploy FeeQuoter
-    feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
-
-    // Deploy OnRamp
-    {
-      const onRampData = or.OnRamp_Storage.create({
-        id: 0n,
-        ownable: or.Ownable2Step.create({
-          owner: deployer.address,
-        }),
-        staticConfig: or.OnRamp_StaticConfig.create({
-          chainSelector: ChainSelectors.testnet.ton,
-          tokenAdminRegistry: deployer.address,
-        }),
-        config: or.OnRamp_DynamicConfig.create({
-          feeQuoter: feeQuoter.address,
-          feeAggregator: deployer.address,
-          allowlistAdmin: deployer.address,
-          reserve: toNano('1'),
-        }),
-        destChainConfigs: new Map(),
-      })
-      onRamp = blockchain.openContract(
-        or.OnRamp.fromStorage(onRampData, {
-          overrideContractCode: await contractCode.ccip.local('OnRamp'),
-        }),
-      )
-      const result = await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
-      expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: onRamp.address,
-        deploy: true,
-        success: true,
-      })
-
-      // Add onRamp to router
-      const addResult = await router.sendRouterApplyRampUpdates(deployer.getSender(), toNano('1'), {
-        queryId: 0n,
-        onRampUpdates: rt.OnRamps.create({
-          destChainSelectors: [ChainSelectors.testnet.evm],
-          onRamp: onRamp.address,
-        }),
-      })
-      expect(addResult.transactions).toHaveTransaction({
-        to: router.address,
-        success: true,
-      })
-
-      // Add destChainConfig to OnRamp
-      const configResult = await onRamp.sendOnRampUpdateDestChainConfigs(
-        deployer.getSender(),
-        toNano('1'),
-        {
-          updates: [
-            or.OnRampUpdateDestChainConfig.create({
-              destChainSelector: ChainSelectors.testnet.evm,
-              router: router.address,
-              allowlistEnabled: false,
-            }),
-          ],
-        },
-      )
-      expect(configResult.transactions).toHaveTransaction({
-        to: onRamp.address,
-        success: true,
-      })
-    }
-
-    // Deploy OffRamp
-    {
-      let code = await contractCode.ccip.local('OffRamp')
-
-      let data = of.Storage.create({
-        id: 0n,
-        ownable: of.Ownable2Step.create({
-          owner: deployer.address,
-        }),
-        config: of.OffRamp_StorageConfig.create({
-          staticConfig: of.OffRamp_StaticConfig.create({
-            rmnRouter: deployer.address,
-            tokenAdminRegistry: deployer.address,
-            chainSelector: ChainSelectors.testnet.ton,
-          }),
-          dynamicConfig: of.OffRamp_DynamicConfig.create({
-            feeQuoter: feeQuoter.address,
-            permissionlessExecutionThresholdSeconds: 60n,
-            minGasLimit: DEFAULT_MIN_GASLIMIT,
-            minTTGasLimit: DEFAULT_MIN_TT_GASLIMIT,
-          }),
-        }),
-        ocr3Base: of.OCR3Base.create({
-          chainId: 1n,
-          commit: null,
-          execute: null,
-        }),
-        cursedSubjects: of.CursedSubjects.create({
-          data: new Set(),
-        }),
-        sourceChainConfigs: new Map(),
-        latestPriceSequenceNumber: 0n,
-      })
-      offRamp = blockchain.openContract(
-        of.OffRamp.fromStorage(data, { overrideContractCode: code }),
-      )
-      const result = await offRamp.sendDeploy(deployer.getSender(), toNano('10000'))
-      expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: offRamp.address,
-        deploy: true,
-        success: true,
-      })
-
-      // Setup OCR configs
-      const commitConfigResult = await offRamp.sendOCR3BaseSetOCR3Config(
-        deployer.getSender(),
-        toNano('100'),
-        {
-          configDigest,
-          ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
-          bigF: 1n,
-          isSignatureVerificationEnabled: true,
-          signers: signersPublicKeys,
-          transmitters: transmitters.map((t) => t.address),
-        },
-      )
-      expect(commitConfigResult.transactions).toHaveTransaction({
-        to: offRamp.address,
-        success: true,
-      })
-
-      const executeConfigResult = await offRamp.sendOCR3BaseSetOCR3Config(
-        deployer.getSender(),
-        toNano('100'),
-        {
-          configDigest,
-          ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE,
-          bigF: 1n,
-          isSignatureVerificationEnabled: false,
-          signers: [],
-          transmitters: transmitters.map((t) => t.address),
-        },
-      )
-      expect(executeConfigResult.transactions).toHaveTransaction({
-        to: offRamp.address,
-        success: true,
-      })
-
-      // Setup source chain config
-      const sourceChainConfigResult = await offRamp.sendOffRampUpdateSourceChainConfigs(
-        deployer.getSender(),
-        toNano('0.5'),
-        {
-          configs: [
-            of.SourceChainConfigUpdate.create({
-              sourceChainSelector: ChainSelectors.testnet.evm,
-              config: of.SourceChainConfig.create({
-                router: ROUTER_ADDRESS_TEST,
-                isEnabled: true,
-                minSeqNr: 1n,
-                isRMNVerificationDisabled: false,
-                onRamp: EVM_ONRAMP_ADDRESS_TEST,
-              }),
-            }),
-          ],
-        },
-      )
-      expect(sourceChainConfigResult.transactions).toHaveTransaction({
-        to: offRamp.address,
-        success: true,
-      })
-    }
-
-    // Deploy ExampleReceiver
-    {
-      const receiverCode = await contractCode.ccip.local('ccip.test.receiver')
-      receiver = blockchain.openContract(
-        tr.TestReceiver.fromStorage(
-          {
-            id: 0n,
-            ownable: tr.Ownable2Step.create({ owner: deployer.address }),
-            authorizedCaller: router.address,
-            behavior: tr.TestReceiver_Behavior.Accept,
-          },
-          { overrideContractCode: receiverCode },
-        ),
-      )
-      const result = await receiver.sendDeploy(deployer.getSender(), toNano('1'))
-      expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: receiver.address,
-        deploy: true,
-        success: true,
-      })
-    }
+    blockchain = await Blockchain.create({ config: await gasReportConfig() })
+    report = new GasReport('messaging-offramp', blockchain)
+    setup = await OffRampTestSetup.Init(blockchain)
+    await setup.SetupContracts()
+    await setup.setupOCRConfigs()
+    book = new AddressBook({
+      Transmitter: [setup.transmitters[0], 'external'],
+      Receiver: [setup.receiver, 'external'],
+      OffRamp: [setup.offRamp, 'ccip'],
+      Router: [setup.router, 'ccip'],
+      FeeQuoter: [setup.feeQuoter, 'ccip'],
+    })
   })
 
-  it('should measure commit and execute flow (1 merkle root)', async () => {
-    const maxPayload = createMaxPayload()
+  function nameReceiveExecutor(result: SendMessageResult) {
+    const executor = result.transactions.find(
+      (tx) =>
+        tx.inMessage?.info.type === 'internal' &&
+        tx.inMessage.info.src instanceof Address &&
+        tx.inMessage.info.src.equals(setup.offRamp.address) &&
+        tx.inMessage.body.beginParse().preloadUint(32) === deployable.opcodes.in.initialize,
+    )?.inMessage?.info.dest
+    if (!(executor instanceof Address)) throw new Error('ReceiveExecutor not found')
+    book.set('ReceiveExecutor', executor, 'ccip')
+  }
 
-    // Step 1: Create test message
-    const testMessage: of.Any2TVMRampMessage = of.Any2TVMRampMessage.create({
-      header: of.RampMessageHeader.create({
-        messageId: 1n,
-        sourceChainSelector: ChainSelectors.testnet.evm,
-        destChainSelector: ChainSelectors.testnet.ton,
-        sequenceNumber: 1n,
-        nonce: 0n,
-      }),
-      gasLimit: 500000n,
-      sender: EVM_SENDER_ADDRESS_TEST,
-      data: maxPayload,
-      receiver: receiver.address,
-      tokenAmounts: null,
+  it(`should measure commit and execute of a message with ${LANE_MAX_DATA_BYTES} bytes of data`, async () => {
+    const message = setup.createTestMessage(
+      1n,
+      1n,
+      setup.receiver.address,
+      createPayload(LANE_MAX_DATA_BYTES),
+    )
+    const root = setup.createMerkleRoot(
+      1n,
+      1n,
+      generateMessageID(message, getDefaultMetadataHash(setup.SOURCE_CHAIN_SELECTOR)),
+    )
+    book.set('MerkleRoot', setup.merkleRootAddress(root), 'ccip')
+
+    const commit = await report.measure('OffRamp Commit (1 merkle root)', {
+      run: () => setup.commitReport([root], Costs.commit(true, false), 1),
+      book,
+      budget: Costs.commit(true, false) - Costs.merkleRootDeployment,
     })
-
-    const metadataHash = getMetadataHash(
-      ChainSelectors.testnet.evm,
-      ChainSelectors.testnet.ton,
-      EVM_ONRAMP_ADDRESS_TEST,
-    )
-    const messageIdForProof = generateMessageID(testMessage, metadataHash)
-
-    // Step 2: Create merkle roots
-    const merkleRoots: of.MerkleRoot[] = []
-    merkleRoots.push(
-      of.MerkleRoot.create({
-        sourceChainSelector: ChainSelectors.testnet.evm,
-        onRampAddress: EVM_ONRAMP_ADDRESS_TEST,
-        minSeqNr: 1n,
-        maxSeqNr: 10n,
-        merkleRoot: messageIdForProof + 0n,
-      }),
-    )
-
-    const commitReport: of.CommitReport = of.CommitReport.create({
-      merkleRoots,
-      priceUpdates: null,
-    })
-
-    const reportContext: ReportContext = {
-      configDigest,
-      padding: 0n,
-      sequenceBytes: 0x01,
-    }
-
-    const signatures = createSignatures(
-      [signers[0], signers[1]],
-      hashReport(of.CommitReport.toCell(commitReport), reportContext),
-    )
-
-    // Step 3: Commit phase
-    resetMetricStore()
-
-    const commitResult = await offRamp.sendOffRampCommit(
-      transmitters[0].getSender(),
-      toNano('0.2'),
-      {
-        reportContext: of.ReportContext.create({
-          configDigest,
-          sequenceBytes: BigInt(reportContext.sequenceBytes),
-        }),
-        report: commitReport,
-        signatures,
-      },
-    )
-
-    expect(commitResult.transactions).toHaveTransaction({
-      from: transmitters[0].address,
-      to: offRamp.address,
+    expect(commit.result.transactions).toHaveTransaction({
+      from: setup.offRamp.address,
+      to: setup.merkleRootAddress(root),
+      deploy: true,
       success: true,
     })
 
-    const merkleRootDeployments = commitResult.transactions.filter((tx) => {
-      return (
-        tx.inMessage?.info.type === 'internal' &&
-        tx.inMessage.info.src instanceof Address &&
-        tx.inMessage.info.src.equals(offRamp.address) &&
-        tx.inMessage.info.dest instanceof Address &&
-        !tx.inMessage.info.dest.equals(feeQuoter.address)
-      )
+    const execute = await report.measure('OffRamp Execute + Max Payload', {
+      run: () => setup.executeReport(setup.createExecuteReport([message]), 2),
+      book,
+      discover: nameReceiveExecutor,
+      budget: Costs.executeBudget(false),
     })
-
-    expect(merkleRootDeployments.length).toBe(1)
-
-    merkleRootDeployments.forEach((tx) => {
-      expect(tx.description.type).toBe('generic')
-      if (tx.description.type === 'generic') {
-        expect(tx.description.aborted).toBe(false)
-      }
+    expect(execute.result.transactions).toHaveTransaction({
+      from: setup.router.address,
+      to: setup.receiver.address,
+      op: rt.Receiver_CCIPReceiveV2.PREFIX,
+      success: true,
     })
-
-    const commitSnapshot = makeSnapshotMetric(store, {
-      contractDatabase,
-      label: `OffRamp Commit Phase`,
+    expect(execute.result.transactions).toHaveTransaction({
+      to: setup.offRamp.address,
+      op: of.OffRamp_NotifySuccess.PREFIX,
+      success: true,
     })
+  })
 
-    // Create address to name mapping
-    const addressMap: Record<string, string> = {
-      [transmitters[0].address.toString()]: 'Transmitter',
-      [offRamp.address.toString()]: 'OffRamp',
-      [feeQuoter.address.toString()]: 'FeeQuoter',
-    }
+  // Commits are capped at 64 messages per root (OffRamp_Error.TooManyMessagesInReport), so a proof
+  // has at most 6 siblings. The last leaf of a full root is the costliest to verify.
+  it('should measure execute of a message from a 64-message commit', async () => {
+    const first = 2n
+    const messages = Array.from({ length: 64 }, (_, i) =>
+      setup.createTestMessage(
+        first + BigInt(i),
+        first + BigInt(i),
+        setup.receiver.address,
+        createPayload(LANE_MAX_DATA_BYTES),
+      ),
+    )
+    const metadataHash = getDefaultMetadataHash(setup.SOURCE_CHAIN_SELECTOR)
+    const tree = new MerkleHelper().createTree(
+      messages.map((m) => generateMessageID(m, metadataHash)),
+    )
+    const root = setup.createMerkleRoot(first, first + 63n, tree.getRoot())
+    book.set('MerkleRoot', setup.merkleRootAddress(root), 'ccip')
+    await setup.commitReport([root], Costs.commit(true, false), 3)
 
-    // Add MerkleRoot addresses
-    merkleRootDeployments.forEach((tx, idx) => {
-      if (tx.inMessage?.info.type === 'internal' && tx.inMessage.info.dest instanceof Address) {
-        addressMap[tx.inMessage.info.dest.toString()] = `MerkleRoot-${idx + 1}`
-      }
-    })
-
-    const commitFlowAnalysis = analyzeSnapshot(commitSnapshot, addressMap, commitResult)
-    printFlowAnalysis(commitFlowAnalysis)
-
-    console.log('\n=== COMMIT RAW TRANSACTION FEES (for debugging) ===')
-    printTransactionFees(commitResult.transactions, opMapFunc())
-
-    // Step 4: Execute phase
-    const merkleHelper = new MerkleHelper()
-
-    const { proof, root: proofRoot } = merkleHelper.createTreeAndProve([messageIdForProof], [0])
-
-    let proofFlagBits = 0n
-    for (let i = 0; i < proof.sourceFlags.length; i++) {
-      if (proof.sourceFlags[i]) {
-        proofFlagBits |= 1n << BigInt(i)
-      }
-    }
-
-    const executeReport: of.ExecutionReport = of.ExecutionReport.create({
-      sourceChainSelector: ChainSelectors.testnet.evm,
-      messages: asSnakedCell([testMessage], (msg) => {
-        const b = beginCell()
-        of.Any2TVMRampMessage.store(msg, b)
-        return b
-      }),
-      offchainTokenData: [[]],
+    const proof = tree.prove([63])
+    const executionReport = {
+      ...setup.createExecuteReport([messages[63]]),
       proofs: proof.hashes,
-      proofFlagBits,
-    })
-
-    const executeReportContext: ReportContext = {
-      configDigest,
-      padding: 0n,
-      sequenceBytes: 0x02,
+      proofFlagBits: new MerkleHelper().packBools(proof.sourceFlags),
     }
-
-    resetMetricStore()
-
-    const executeResult = await offRamp.sendOffRampExecute(
-      transmitters[0].getSender(),
-      toNano('0.2'),
-      {
-        reportContext: of.ReportContext.create({
-          configDigest,
-          sequenceBytes: BigInt(executeReportContext.sequenceBytes),
-        }),
-        report: executeReport,
-      },
-    )
-
-    expect(executeResult.transactions).toHaveTransaction({
-      from: transmitters[0].address,
-      to: offRamp.address,
+    const { result } = await report.measure('OffRamp Execute + Max Payload (64-message commit)', {
+      run: () => setup.executeReport(executionReport, 4),
+      book,
+      discover: nameReceiveExecutor,
+      budget: Costs.executeBudget(false),
+    })
+    expect(result.transactions).toHaveTransaction({
+      to: setup.offRamp.address,
+      op: of.OffRamp_NotifySuccess.PREFIX,
       success: true,
     })
+  })
 
-    const merkleRootValidation = executeResult.transactions.find((tx) => {
-      return (
-        tx.inMessage?.info.type === 'internal' &&
-        tx.inMessage.info.src instanceof Address &&
-        tx.inMessage.info.src.equals(offRamp.address) &&
-        tx.inMessage.info.dest instanceof Address &&
-        !tx.inMessage.info.dest.equals(feeQuoter.address) &&
-        !tx.inMessage.info.dest.equals(receiver.address)
-      )
+  it('should measure a commit with price updates', async () => {
+    const priceUpdates = of.PriceUpdates.create({
+      tokenPriceUpdates: Array.from({ length: 8 }, () =>
+        of.TokenPriceUpdate.create({ sourceToken: generateMockTonAddress(), usdPerToken: 1n }),
+      ),
+      gasPriceUpdates: [
+        of.GasPriceUpdate.create({
+          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          executionGasPrice: 1n,
+          dataAvailabilityGasPrice: 1n,
+        }),
+      ],
     })
-
-    expect(merkleRootValidation).toBeDefined()
-    expect(merkleRootValidation?.description.type).toBe('generic')
-    if (merkleRootValidation?.description.type === 'generic') {
-      expect(merkleRootValidation.description.aborted).toBe(false)
-    }
-
-    const executeSnapshot = makeSnapshotMetric(store, {
-      contractDatabase,
-      label: `OffRamp Execute Phase`,
+    // Sent directly: the setup's log assertion cannot decode a multi-cell price list.
+    const commitReport = of.CommitReport.create({ priceUpdates, merkleRoots: [] })
+    const sequenceBytes = 5
+    const signatures = createSignatures(
+      setup.signers.slice(0, 2),
+      ocr.hashReport(of.CommitReport.toCell(commitReport), {
+        configDigest: setup.configDigest,
+        padding: 0n,
+        sequenceBytes,
+      }),
+    )
+    const { result } = await report.measure('OffRamp Commit + price updates (8 tokens, 1 gas)', {
+      run: () =>
+        setup.offRamp.sendOffRampCommit(
+          setup.transmitters[0].getSender(),
+          Costs.commit(false, true),
+          {
+            reportContext: of.ReportContext.create({
+              configDigest: setup.configDigest,
+              sequenceBytes: BigInt(sequenceBytes),
+            }),
+            report: commitReport,
+            signatures,
+          },
+        ),
+      book,
+      budget: Costs.commit(false, true),
     })
+    expect(result.transactions).toHaveTransaction({
+      from: setup.offRamp.address,
+      to: setup.feeQuoter.address,
+      success: true,
+    })
+  })
 
-    // Reuse address map (add receiver if needed)
-    addressMap[receiver.address.toString()] = 'Receiver'
+  it('should measure a commit with a root and price updates', async () => {
+    const seq = 66n
+    const message = setup.createTestMessage(seq, seq, setup.receiver.address)
+    const root = setup.createMerkleRoot(
+      seq,
+      seq,
+      generateMessageID(message, getDefaultMetadataHash(setup.SOURCE_CHAIN_SELECTOR)),
+    )
+    book.set('MerkleRoot', setup.merkleRootAddress(root), 'ccip')
+    const priceUpdates = of.PriceUpdates.create({
+      tokenPriceUpdates: Array.from({ length: 8 }, () =>
+        of.TokenPriceUpdate.create({ sourceToken: generateMockTonAddress(), usdPerToken: 1n }),
+      ),
+      gasPriceUpdates: [
+        of.GasPriceUpdate.create({
+          destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          executionGasPrice: 1n,
+          dataAvailabilityGasPrice: 1n,
+        }),
+      ],
+    })
+    const commitReport = of.CommitReport.create({ priceUpdates, merkleRoots: [root] })
+    const sequenceBytes = 6
+    const signatures = createSignatures(
+      setup.signers.slice(0, 2),
+      ocr.hashReport(of.CommitReport.toCell(commitReport), {
+        configDigest: setup.configDigest,
+        padding: 0n,
+        sequenceBytes,
+      }),
+    )
+    const { result } = await report.measure('OffRamp Commit + root + price updates', {
+      run: () =>
+        setup.offRamp.sendOffRampCommit(
+          setup.transmitters[0].getSender(),
+          Costs.commit(true, true),
+          {
+            reportContext: of.ReportContext.create({
+              configDigest: setup.configDigest,
+              sequenceBytes: BigInt(sequenceBytes),
+            }),
+            report: commitReport,
+            signatures,
+          },
+        ),
+      book,
+      budget: Costs.commit(true, true) - Costs.merkleRootDeployment,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: setup.offRamp.address,
+      to: setup.merkleRootAddress(root),
+      deploy: true,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: setup.offRamp.address,
+      to: setup.feeQuoter.address,
+      success: true,
+    })
+  })
 
-    const executeFlowAnalysis = analyzeSnapshot(executeSnapshot, addressMap, executeResult)
-    printFlowAnalysis(executeFlowAnalysis)
+  it(`should measure execute of a message with ${LANE_MAX_DATA_BYTES} bytes of data rejected by the receiver`, async () => {
+    const seq = 67n
+    const message = setup.createTestMessage(
+      seq,
+      seq,
+      setup.receiver.address,
+      createPayload(LANE_MAX_DATA_BYTES),
+    )
+    const root = setup.createMerkleRoot(
+      seq,
+      seq,
+      generateMessageID(message, getDefaultMetadataHash(setup.SOURCE_CHAIN_SELECTOR)),
+    )
+    book.set('MerkleRoot', setup.merkleRootAddress(root), 'ccip')
+    await setup.commitReport([root], Costs.commit(true, false), 7)
 
-    console.log('\n=== EXECUTE RAW TRANSACTION FEES (for debugging) ===')
-    printTransactionFees(executeResult.transactions, opMapFunc())
+    const setBehavior = (behavior: tr.TestReceiver_Behavior) =>
+      setup.receiver.sendTestReceiverUpdateBehavior(setup.deployer.getSender(), toNano('0.05'), {
+        behavior,
+      })
+    await setBehavior(tr.TestReceiver_Behavior.RejectAll)
+    const { result } = await report.measure('OffRamp Execute + Max Payload rejected by receiver', {
+      run: () => setup.executeReport(setup.createExecuteReport([message]), 8),
+      book,
+      discover: nameReceiveExecutor,
+      aborts: ['Router->Receiver'],
+      budget: Costs.executeBudget(false),
+    })
+    await setBehavior(tr.TestReceiver_Behavior.Accept)
+    expect(result.transactions).toHaveTransaction({
+      from: setup.router.address,
+      to: setup.offRamp.address,
+      op: of.OffRamp_CCIPReceiveBounced.PREFIX,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      to: setup.offRamp.address,
+      op: of.OffRamp_NotifyFailure.PREFIX,
+      success: true,
+    })
   })
 })

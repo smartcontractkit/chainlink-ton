@@ -23,6 +23,11 @@ type Deployable_InMessage =
     ;
 
 // Message for Initializing the Deployable contract. It sets the code and data of the contract.
+/// Value every Deployable instance is deployed with, sent with PAY_FEES_SEPARATELY so it lands in
+/// full: covers `initialize` and leaves a storage reserve. Ephemeral instances return it when they
+/// are drained.
+const DEPLOYABLE_INIT_VALUE: coins = grams("0.01");
+
 struct (0xba466447) Deployable_Initialize {
     stateInit: ContractState;
 }

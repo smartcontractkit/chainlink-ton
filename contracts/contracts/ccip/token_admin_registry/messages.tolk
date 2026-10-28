@@ -33,6 +33,10 @@ struct (0xbe8621a2) TokenAdminRegistry_RegisterToken {
     administrator: address;
 }
 
+fun TokenAdminRegistry_RegisterToken.cost(): coins {
+    return grams("0.003") + TokenAdminRegistryEntry_deployCost();
+}
+
 // Replaces a proposal only while the entry has no active administrator.
 // crc32('TokenAdminRegistry_OverridePendingAdministrator')
 struct (0xfddaa034) TokenAdminRegistry_OverridePendingAdministrator {
@@ -95,10 +99,9 @@ struct (0xec5f855e) TokenAdminRegistry_GetTokenInfo {
     token: address;
 }
 
-/// Covers root -> entry -> root -> requester, a possible upgrade of a stale
-/// entry on the way, and the requester's handling of the reply.
-fun TokenAdminRegistry_GetTokenInfo.cost(responseHandlerCost: coins): coins {
-    return grams("0.01") + TokenAdminRegistryEntry_upgradeRoundTripCost() + responseHandlerCost;
+/// The unspent value is returned with the reply.
+fun TokenAdminRegistry_GetTokenInfo.cost(): coins {
+    return grams("0.008");
 }
 
 // crc32('TokenAdminRegistry_TokenInfo')
@@ -146,10 +149,11 @@ struct (0x4d52f09d) TokenAdminRegistry_UpgradeEntry {
     tokenAddress: address;
 }
 
-/// Minimum value for requests the root forwards to an entry. Covers the entry
-/// operation and a possible upgrade of a stale entry on the way.
+/// Root and entry execution and the event relay; probes and wallet queries are
+/// added at the entrypoint. Unspent value stays on the entry. Excludes the
+/// stale-entry upgrade round trip: add it when a new entry version ships.
 fun TokenAdminRegistry_forwardCost(): coins {
-    return grams("0.015") + TokenAdminRegistryEntry_upgradeRoundTripCost();
+    return grams("0.006") + TokenAdminRegistryEntry_relayEventCost();
 }
 
 /// Sent by a deterministic entry to the root and emitted by the root after the

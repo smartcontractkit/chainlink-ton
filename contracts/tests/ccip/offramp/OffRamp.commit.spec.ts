@@ -13,6 +13,7 @@ import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
 
 import * as s from './OffRamp.Setup'
+import { Costs as OffRampCosts } from '../../../wrappers/ccip/OffRamp'
 
 export const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = BigInt(60)
 describe('OffRamp - Commit and OCR3 validations', () => {
@@ -71,6 +72,55 @@ describe('OffRamp - Commit and OCR3 validations', () => {
         setup.offRamp.address,
         of.OffRamp.Errors['OffRamp_Error.EmptyCommitReport'],
       )
+    })
+
+    it('rejects a commit one nanoton below OffRamp_Costs.commit', async () => {
+      const message = setup.createTestMessage()
+      const metadataHash = s.getDefaultMetadataHash(
+        ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      )
+      const root = setup.createMerkleRoot(1n, 1n, generateMessageID(message, metadataHash))
+      await setup.setupOCRConfig()
+      await setup.setupSourceChainConfig()
+
+      await setup.commitReport(
+        [root],
+        OffRampCosts.commit(true, false) - 1n,
+        0x01,
+        null,
+        false,
+        of.OffRamp.Errors['OffRamp_Error.InsufficientFee'],
+      )
+      await setup.commitReport([root], OffRampCosts.commit(true, false), 0x01)
+    })
+
+    it('requires the price update value only when the report carries prices', async () => {
+      await setup.setupOCRConfig()
+      const priceUpdates = of.PriceUpdates.create({
+        tokenPriceUpdates: [
+          of.TokenPriceUpdate.create({ sourceToken: generateMockTonAddress(), usdPerToken: 1n }),
+        ],
+        gasPriceUpdates: [],
+      })
+      await setup.commitReport(
+        [],
+        OffRampCosts.commit(false, true) - 1n,
+        0x01,
+        priceUpdates,
+        false,
+        of.OffRamp.Errors['OffRamp_Error.InsufficientFee'],
+      )
+      const result = await setup.commitReport(
+        [],
+        OffRampCosts.commit(false, true),
+        0x02,
+        priceUpdates,
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.feeQuoter.address,
+        success: true,
+      })
     })
 
     it('should fail when source chain is cursed', async () => {

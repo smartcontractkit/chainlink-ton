@@ -74,14 +74,21 @@ enum ReceiveExecutor_FailedReason: uint8 {
     BouncedFromRouter,
 } 
 
-const RECEIVE_EXECUTOR_COSTS_CONFIRMED_OR_BOUNCED_FEE = grams("0.005");
-const RECEIVE_EXECUTOR_COSTS_INIT_EXEC_FEE = grams("0.004");
+// Constants are 3x the measured compute and 2x the measured forward fees (tests/gas-report/ccip) for a 2000-byte message.
+const RECEIVE_EXECUTOR_COSTS_CONFIRMED_OR_BOUNCED_FEE = grams("0.002");
+// InitExecute dispatching the message straight to the OffRamp (no tokens) is the costlier case.
+const RECEIVE_EXECUTOR_COSTS_INIT_EXEC_FEE = grams("0.0045");
+const RECEIVE_EXECUTOR_COSTS_TOKEN_INFO_FEE = grams("0.003");
+// DepositAccount_ForwardNotification: the delivery notice and the dispatch carrying the message.
+const RECEIVE_EXECUTOR_COSTS_FORWARD_NOTIFICATION_FEE = grams("0.0065");
 
 struct ReceiveExecutor_Costs{}
 
-fun ReceiveExecutor_Costs.initExec(): int {
+/// Everything the executor pays from its balance, on top of the receiver's `gasLimit` and the
+/// pool's `destGasAmount`.
+fun ReceiveExecutor_Costs.initExec(hasTokens: bool): int {
     val baseFee = RECEIVE_EXECUTOR_COSTS_INIT_EXEC_FEE;
-    return baseFee + OffRamp_Costs.dispatchValidated();
+    return baseFee + (hasTokens ? ReceiveExecutor_Costs.tokenTransfer() : 0) + OffRamp_Costs.dispatchValidated();
 }
 
 fun ReceiveExecutor_Costs.confirmedOrBounced(): int {
@@ -89,7 +96,12 @@ fun ReceiveExecutor_Costs.confirmedOrBounced(): int {
     return baseFee + OffRamp_Costs.notify();
 }
 
+/// The token path kept on the executor's balance: registry query and reply, the release relays,
+/// the delivery notification and the delivery notice. `destGasAmount` is budgeted separately.
 fun ReceiveExecutor_Costs.tokenTransfer(): int {
-    return grams("0.02") // TODO
+    return TokenAdminRegistry_GetTokenInfo.cost()
+        + RECEIVE_EXECUTOR_COSTS_TOKEN_INFO_FEE
+        + OffRamp_ReleaseOrMint.cost()
+        + RECEIVE_EXECUTOR_COSTS_FORWARD_NOTIFICATION_FEE
         + OffRamp_Costs.tokenTransferDelivered();
 }

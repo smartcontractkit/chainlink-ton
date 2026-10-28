@@ -12,6 +12,7 @@ import { NATIVE_GRAM } from '../../../src/utils'
 import { setup as ccipSendExecutor, sendDeployOnBlockchain, setup } from './SendExecutor.Setup'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
+import { Costs } from '../../../wrappers/ccip/Router'
 import {
   FACILITY_NAME,
   CONTRACT_VERSION,
@@ -63,6 +64,7 @@ describe('SendExecutor - Opcodes', () => {
 
 // Value that is sent by the user and should be enough to pay for fees and gas
 const SentValue = toNano('5')
+// Pushes fee + Router_Costs.CCIPSend over SentValue so the executor exits with InsufficientFunds.
 const CCISendCost = toNano('3.0')
 const FeeTokenAmount = toNano('0.1')
 const AmountOfTokens = toNano('1')
@@ -184,7 +186,7 @@ describe('SendExecutor - Unit tests', () => {
   }> {
     const send = opts?.send ?? onrampSend
     const { sendExecutor, result } = await sendDeploy({
-      value: toNano('3'), // TODO temporarily raise value to cover for fixed cost of TokenPool. Entry point could check whether the user has to do a token transfer or not
+      value: Costs.executorExecute,
       body: sx.CCIPSendExecutor_Execute.toCell(
         sx.CCIPSendExecutor_Execute.create({
           onrampSend: send,
@@ -988,7 +990,7 @@ describe('SendExecutor - Unit tests', () => {
       deployer,
       deployable,
       {
-        value: toNano('3'),
+        value: Costs.executorExecute,
         body: sx.CCIPSendExecutor_Execute.toCell(
           sx.CCIPSendExecutor_Execute.create({
             onrampSend: tokenOnrampSend,

@@ -5,7 +5,7 @@ import { findTransaction } from '@ton/test-utils'
 import { generateMockTonAddress, asSnakedCell } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
-import { assertLog } from '../../Logs'
+import { assertLog, expectFailedTransaction } from '../../Logs'
 import { ChainSelectors } from '../../utils/Selectors'
 import generateMessageID from '../../../src/offramp/generateMessageID'
 import { sendMessageAsync, captureAccountChanges } from '../../utils/sendInternalMessage'
@@ -32,7 +32,14 @@ import {
   OffRampWithTokenPoolTestSetup,
   PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
 } from './OffRamp.Setup'
-import { EXECUTE_COST, DEFAULT_MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
+import { DEFAULT_MIN_TT_GASLIMIT, executeValue } from '../../../wrappers/ccip/OffRamp'
+
+// Snake of 127-byte cells, the encoding the OffRamp measures with snakedBytesLen.
+function snakeData(size: number): Cell {
+  const chunks: Buffer[] = []
+  for (let i = 0; i < size; i += 127) chunks.push(Buffer.alloc(Math.min(127, size - i), 0xff))
+  return asSnakedCell(chunks, (chunk: Buffer) => beginCell().storeBuffer(chunk))
+}
 import { codec } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 describe('OffRamp - Execute', () => {
@@ -604,7 +611,7 @@ describe('OffRamp - Execute', () => {
     })
 
     it('should emit ExecutionStateChanged: Success when receiver notifies success with non-empty data', async () => {
-      const data = beginCell().storeUint(1, 1).endCell() // receiver now accepts data
+      const data = beginCell().storeUint(1, 8).endCell() // receiver now accepts data
       const message = setup.createTestMessage(1n, 1n, setup.receiver.address, data)
 
       await setup.setupAndCommitMessage(message)
@@ -828,7 +835,7 @@ describe('OffRamp - Execute', () => {
 
       const txs = await sendMessageAsync(blockchain, setup.transmitters[0].address, {
         to: setup.offRamp.address,
-        value: EXECUTE_COST + message.gasLimit,
+        value: executeValue(message),
         body,
       })
 
@@ -2210,47 +2217,66 @@ describe('OffRamp - Execute', () => {
       })
     })
 
-    it('forwards a non-empty offchainTokenData cell to the token pool', async () => {
+    it('rejects a report with non-empty offchainTokenData', async () => {
       const message = setup.createTestMessageWithToken()
-      // Non-empty per-token offchain data blob. The OffRamp must forward it
-      // verbatim instead of collapsing it to null.
       const offchainTokenData = beginCell().storeUint(0xdeadbeef, 32).endCell()
 
       await setup.setupAndCommitMessage(message)
       const report = setup.createExecuteReport([message], setup.SOURCE_CHAIN_SELECTOR, [
         [offchainTokenData],
       ])
-      const result = await setup.executeReport(report)
-
-      // The transfer still completes end to end.
-      assertLog(
-        result.transactions,
-        setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.Success,
-        },
+      await setup.executeReportExpectingFailure(
+        report,
+        of.OffRamp.Errors['OffRamp_Error.UnexpectedTokenData'],
       )
-      expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+    })
 
-      // Router -> TokenPool: the offchain data must survive the whole
-      // OffRamp -> ReceiveExecutor -> OffRamp -> Router -> TokenPool hop.
-      const releaseOrMintTx = findTransaction(result.transactions, {
-        from: setup.router.address,
-        to: setup.tokenPool.address,
-        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+    it('rejects a report whose data exceeds OFFRAMP_MAX_DATA_BYTES', async () => {
+      const message = setup.createTestMessageWithToken({ data: snakeData(2001) })
+      await setup.setupAndCommitMessage(message)
+      await setup.executeReportExpectingFailure(
+        setup.createExecuteReport([message]),
+        of.OffRamp.Errors['OffRamp_Error.MsgDataTooLarge'],
+      )
+    })
+
+    it('accepts a report whose data is exactly OFFRAMP_MAX_DATA_BYTES', async () => {
+      const message = setup.createTestMessageWithToken({ data: snakeData(2000) })
+      await setup.setupAndCommitMessage(message)
+      const result = await setup.executeReport(setup.createExecuteReport([message]))
+      expect(result.transactions).toHaveTransaction({
+        to: setup.offRamp.address,
+        op: of.OffRamp_NotifySuccess.PREFIX,
         success: true,
       })
-      if (!releaseOrMintTx) throw new Error('TokenPool_ReleaseOrMint transaction not found')
+    })
 
-      const releaseOrMint = tp.TokenPool_ReleaseOrMint.fromSlice(
-        releaseOrMintTx.inMessage!.body!.beginParse(),
+    it('rejects a token transfer whose extraData is larger than the encoded decimals', async () => {
+      const message = setup.createTestMessageWithToken({
+        extraData: beginCell().storeUint(0, 256).storeUint(0, 1).endCell(),
+      })
+      await setup.setupAndCommitMessage(message)
+      await setup.executeReportExpectingFailure(
+        setup.createExecuteReport([message]),
+        of.OffRamp.Errors['OffRamp_Error.UnexpectedExtraData'],
       )
-      expect(releaseOrMint.request.offchainTokenData).not.toBeNull()
-      expect(releaseOrMint.request.offchainTokenData!.equals(offchainTokenData)).toBe(true)
+    })
+
+    it('rejects an execution one nanoton below the min value', async () => {
+      const message = setup.createTestMessageWithToken()
+      await setup.setupAndCommitMessage(message)
+      const result = await setup.executeReport(
+        setup.createExecuteReport([message]),
+        0x02,
+        false,
+        executeValue(message) - 1n,
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: setup.transmitters[0].address,
+        to: setup.offRamp.address,
+        success: false,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.InsufficientFee'],
+      })
     })
 
     it('executes a token transfer with gas limit > 0 to a non-contract receiver', async () => {
@@ -2517,7 +2543,7 @@ describe('OffRamp - Execute', () => {
       expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
     })
 
-    it('manual execute forwards the offchainTokenData supplied on retry', async () => {
+    it('manual execute rejects offchainTokenData supplied on retry', async () => {
       await setup.updateRateLimit(0n, 0n)
 
       const message = setup.createTestMessageWithToken()
@@ -2545,32 +2571,13 @@ describe('OffRamp - Execute', () => {
       const retryReport = setup.createExecuteReport([message], setup.SOURCE_CHAIN_SELECTOR, [
         [offchainTokenData],
       ])
-      const manualResult = await setup.manualExecuteReport(retryReport, undefined, true)
-      assertLog(
-        manualResult.transactions,
+      const manualResult = await setup.manualExecuteReport(retryReport, undefined, false)
+      expectFailedTransaction(
+        manualResult,
+        setup.transmitters[0].address,
         setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.Success,
-        },
+        of.OffRamp.Errors['OffRamp_Error.UnexpectedTokenData'],
       )
-
-      const releaseOrMintTx = findTransaction(manualResult.transactions, {
-        from: setup.router.address,
-        to: setup.tokenPool.address,
-        op: tp.TokenPool_ReleaseOrMint.PREFIX,
-        success: true,
-      })
-      if (!releaseOrMintTx) throw new Error('TokenPool_ReleaseOrMint transaction not found')
-
-      const releaseOrMint = tp.TokenPool_ReleaseOrMint.fromSlice(
-        releaseOrMintTx.inMessage!.body!.beginParse(),
-      )
-      expect(releaseOrMint.request.offchainTokenData).not.toBeNull()
-      expect(releaseOrMint.request.offchainTokenData!.equals(offchainTokenData)).toBe(true)
     })
 
     it('executes a PTT (token transfer + data) end to end', async () => {

@@ -39,134 +39,107 @@ The harness smoke test lives in the normal suite: `tests/gas/harness.spec.ts`.
 ```
 tests/gas-report/
 ├── constants.ts          # Common test constants (chain selectors, addresses)
-├── utils.ts              # Gas analysis and table formatting utilities
+├── utils.ts              # Flow analysis, owner attribution, balance checks, snapshots (GasReport)
 ├── ccip/
-│   └── messaging/        # CCIP message passing tests
-│       ├── OnRamp.spec.ts
-│       ├── OffRamp.spec.ts
-│       ├── config.ts      # Flow-specific configs
-│       └── helpers.ts     # Flow-specific helper functions
+│   ├── opNames.ts        # Opcode -> message name map built from the generated wrappers
+│   ├── snapshots/        # Per-spec JSON written by GasReport (<spec>.<network>.json)
+│   ├── messaging/        # Arbitrary messaging flows (no tokens)
+│   │   ├── OnRamp.spec.ts    # CCIPSend at its min value with a MAX_DATA_CELLS payload, plus a data size sweep
+│   │   ├── OffRamp.spec.ts   # Commit and execute of a max payload message
+│   │   ├── FeeQuoter.spec.ts # Fee validation at its min value, FeeQuoter gas by payload size
+│   │   └── config.ts         # Payload sizes and builders
+│   └── tokens/           # Token transfer flows, per pool type (LockRelease, BurnMint)
+│       ├── OnRamp.spec.ts    # OnRamp account deployment, deposit, CCIPSend with tokens at its min value, data size sweep
+│       ├── OffRamp.spec.ts   # Execute of token transfers (new/existing receiver account, gasLimit 0, max payload)
+│       ├── pools.ts          # CCT jetton + token pool fixture
+│       ├── TokenAdminRegistryFlows.spec.ts, TokenInfoQuery.spec.ts, JettonWalletQuery.spec.ts
+│       │                     # TokenAdminRegistry flows run at their min values (see Costs in wrappers/ccip/TokenAdminRegistry.ts)
+│       └── snapshots/        # Snapshots of the TokenAdminRegistry specs
 └── README.md
 ```
 
 ## How to Run
 
 ```bash
-yarn ccip-gas-report
+yarn build
+GAS_REPORT_NETWORK=default yarn ccip-gas-report   # bundled sandbox config, works offline
+yarn ccip-gas-report                               # mainnet config (default), fetched from the network
+yarn ccip-gas-report:md                            # merges the snapshots into docs/contracts/overview/ccip/gas-report.md
 ```
+
+Run it inside `nix develop .#contracts`. `GAS_REPORT_NETWORK` is `mainnet`, `testnet` or `default`;
+snapshots are written per network and are gitignored; the merged `gas-report.md` is the committed artifact.
 
 ## Adding New Test Cases
 
-To add a new gas benchmark test:
-
-1. Create a new directory under `tests/gas-report/ccip/` (e.g., `token-transfer/`)
-2. Create your test file with the following pattern:
+Create a `GasReport` once the blockchain exists, run each flow through `measure`, and call
+`finish()` in `afterAll` to write the snapshot and drop the setup transactions from
+`ccip-gas-report.json`:
 
 ```typescript
-import {
-  Blockchain,
-  fetchConfig,
-  printTransactionFees,
-  createMetricStore,
-  makeSnapshotMetric,
-  ContractDatabase,
-  resetMetricStore,
-} from '@ton/sandbox'
-import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
-import * as path from 'path'
-import * as fs from 'fs'
-
-// Load contract database for ABI mapping
-const contractDatabasePath = path.join(__dirname, '../../../../contract.abi.json')
-const contractDatabase = ContractDatabase.from(JSON.parse(fs.readFileSync(contractDatabasePath, 'utf8')))
-
-// Initialize metric store
-const store = createMetricStore()
+import { AddressBook, GasReport, gasReportConfig } from '../../utils'
 
 describe('Your Test Suite', () => {
-  let blockchain: Blockchain
+  let report: GasReport
+  afterAll(() => report.finish())
 
   beforeAll(async () => {
-    // Use testnet config for accurate fee calculation
-    const config = await fetchConfig('testnet')
-    blockchain = await Blockchain.create({ config })
-    // Setup contracts...
+    blockchain = await Blockchain.create({ config: await gasReportConfig() })
+    report = new GasReport('your-spec', blockchain)
   })
 
   it('should measure gas usage', async () => {
-    // Reset before measurement
-    resetMetricStore()
-
-    // Execute your transactions
-    const result = await contract.send(...)
-
-    // Analyze with metrics API (contract/method level)
-    const snapshot = makeSnapshotMetric(store, {
-      contractDatabase,
-      label: 'Your Flow',
+    const { result, flow } = await report.measure('Your Flow', {
+      run: () => router.sendRouterCCIPSend(sender.getSender(), value, msg),
+      book: new AddressBook({ Sender: [sender, 'external'], Router: [router, 'ccip'] }),
+      // Names addresses only known after the run, e.g. executors.
+      discover: (result, book) => book.set('Executor', findExecutor(result), 'ccip'),
+      // Hops expected to fail, as From->To.
+      aborts: [],
     })
-    const flowAnalysis = analyzeSnapshot(snapshot)
-    printFlowAnalysis(flowAnalysis)
-
-    // Optional: Print raw transaction fees for debugging
-    console.log('\n=== RAW TRANSACTION FEES (for debugging) ===')
-    printTransactionFees(result.transactions)
   })
 })
 ```
 
-3. The test will automatically be included in the gas report when running `yarn ccip-gas-report`
+Every address in a measured flow must be in the `AddressBook` with an owner: `ccip` (Router, ramps,
+executors, deposit accounts, MerkleRoot, FeeQuoter), `registry` (TokenAdminRegistry and entries),
+`token` (pools, lockboxes, minters, jetton wallets) or `external` (users, receivers, transmitters).
+`measure` fails on unknown addresses, on unexpected aborted hops, on a mismatch between the computed
+balance changes and the real ones, and when a `ccip` or `registry` contract ends the flow with less
+balance than it started with (storage fees aside), unless it was drained on purpose.
 
-## Gas Analysis with Metrics API
+Flows whose label starts with `sweep:` are reported in the data size section only and never count
+towards the worst case of an entrypoint.
 
-The Metrics API provides **contract/method-level** gas analysis, perfect for comparing with staging:
+## Flow Analysis
 
-### Example Output
+`measure` prints one row per transaction of the flow, in execution order:
 
-```
-=== ONRAMP FLOW ===
+| Column      | Description                                                                    |
+| ----------- | ------------------------------------------------------------------------------ |
+| `From`/`To` | Sender and receiver of the incoming message                                    |
+| `Owner`     | Owner of the receiving contract (see above)                                    |
+| `Op`        | Incoming message name (from the generated wrappers), `bounced`, `external`     |
+| `Gas`       | Gas used by the compute phase                                                  |
+| `Compute`   | Compute fee (TON)                                                              |
+| `Storage`   | Storage fee collected (TON)                                                    |
+| `Fwd (out)` | Full forward fees of the outgoing messages (TON)                               |
+| `Cost`      | Storage + compute + forward fees: what the hop costs the value flowing through |
+| `Value in`  | TON carried by the incoming message                                            |
+| `Value out` | TON carried by the outgoing messages                                           |
+| `Retained`  | Balance change of the receiving contract                                       |
+| `Exit`      | Compute exit code, or `FAIL <code>` / `FAIL action <code>` when aborted        |
 
-#    | Contract | Method       | Gas    | Compute (TON) | Forward (TON) | Action (TON) | Total (TON)
-1    | Router   | sendCcipSend | 1,937  | 0.000774800   | 0.004432400   | 0.000000001  | 0.005207201
-2    | Router   | Router_CCIP  | 4,101  | 0.001640400   | 0.004432400   | 0.000000001  | 0.006072801
-...
+It is followed by the cost per owner and by the entrypoint table: for every hop into a `ccip`
+contract, the cost of that hop plus everything downstream of it (using the sandbox transaction
+tree), split by owner. The `CCIP` column of an entrypoint is the cost its min value has to cover;
+the `Registry` and `Token` columns are covered by those contracts' own budgets. `Gas eq` converts
+the total to gas units at the config's gas price. A min value is set to 3x the measured compute
+and storage plus 2x the measured forward fees of the CCIP subtree (`minValueBasis` in `utils.ts`);
+`measure` asserts this when a `budget` is given.
 
-=== FLOW SUMMARY ===
-
-Total Transactions       : 7
-Total Gas Used           : 52,305 units  ← Compare with staging!
-Total Compute Fee        : 0.020922000 TON
-Total Forward Fee        : 0.035899200 TON
-Total Action Fee         : 0.000000007 TON
-Total Fee                : 0.056821207 TON (56,821,207 nanotons)
-```
-
-### Key Functions
-
-- **`analyzeSnapshot(snapshot)`** - Analyzes metrics and extracts gas usage per contract/method
-- **`printFlowAnalysis(flow)`** - Prints formatted table with gas breakdown
-- **`resetMetricStore()`** - Must call before measuring a flow to clear previous data
-
-## Raw Transaction Fees (Debugging)
-
-The `@ton/sandbox` also provides `printTransactionFees()` for raw transaction-level debugging:
-
-### What is Displayed
-
-| Column          | Description                                         |
-| --------------- | --------------------------------------------------- |
-| `op`            | Operation code (hex) or 'N/A' for external messages |
-| `valueIn`       | TON amount received in the transaction              |
-| `valueOut`      | TON amount sent out in the transaction              |
-| `totalFees`     | Total fees paid (compute + forward + action)        |
-| `inForwardFee`  | Forward fee paid for incoming message               |
-| `outForwardFee` | Sum of forward fees for outgoing messages           |
-| `outActions`    | Number of outgoing actions                          |
-| `computeFee`    | Gas used × gas_price (400 nanotons/unit)            |
-| `exitCode`      | VM exit code (0 = success)                          |
-| `actionCode`    | Action phase result code                            |
-
-**Key Column**: `inForwardFee` - The forward fee paid by the incoming message (useful for comparing with staging)
+The TokenAdminRegistry specs use the receiver-attributed `txFee` helper (incoming forward fee plus
+own fees) instead; both attributions add up to the same flow total.
 
 ## Gas Price Constants
 

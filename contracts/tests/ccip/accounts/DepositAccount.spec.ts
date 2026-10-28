@@ -348,8 +348,8 @@ describe('DepositAccount', () => {
   })
 
   it("low init message value can't drain balance", async () => {
-    const MIN_GRAM_TO_RESERVE = toNano('0.05')
-    const MIN_GRAM_TO_INIT = toNano('0.01')
+    const MIN_GRAM_TO_RESERVE = toNano('0.01')
+    const MIN_GRAM_TO_INIT = toNano('0.008')
     const { depositAccount, res } = await deployViaDeployable(null, recipient, {
       deploy: MIN_GRAM_TO_RESERVE,
       init: MIN_GRAM_TO_INIT,
@@ -375,8 +375,8 @@ describe('DepositAccount', () => {
   })
 
   it('init below MIN_GRAM_TO_INIT + MIN_GRAM_TO_RESERVE bounces instead of reserving', async () => {
-    const MIN_GRAM_TO_RESERVE = toNano('0.05')
-    const MIN_GRAM_TO_INIT = toNano('0.01')
+    const MIN_GRAM_TO_RESERVE = toNano('0.01')
+    const MIN_GRAM_TO_INIT = toNano('0.008')
 
     // Deploy with an init message below the minimum: the value check in `_onInit` catches it.
     // The account's balance at init time is (deploy value - deploy gas) + init value, which stays
