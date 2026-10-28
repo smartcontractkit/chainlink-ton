@@ -24,4 +24,6 @@ enum OffRamp_Error {
     ManualExecutionGasAmountCountMismatch
     InvalidManualExecutionGasLimit
     UnexpectedTokenData
+    MsgDataTooLarge
+    UnexpectedExtraData
 }

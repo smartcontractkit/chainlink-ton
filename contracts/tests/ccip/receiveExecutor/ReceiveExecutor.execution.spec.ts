@@ -16,7 +16,15 @@ import {
   createTestMessageWithToken,
   setupTestReceiveExecutor,
 } from './ReceiveExecutor.Setup'
-import { OFFRAMP_RELEASE_OR_MINT_COST } from '../../../wrappers/ccip/OffRamp'
+import {
+  Costs as OffRampCosts,
+  OFFRAMP_NOTIFY_COST,
+  OFFRAMP_RELEASE_OR_MINT_COST,
+} from '../../../wrappers/ccip/OffRamp'
+import { Costs as RegistryCosts } from '../../../wrappers/ccip/TokenAdminRegistry'
+
+// What a registry reply carries back: the query value minus the registry's fees.
+const REGISTRY_REPLY_VALUE = toNano('0.006')
 
 /** A realistic admission below the 0.2 TON test destGasAmount, so the check is exercised. */
 const TEST_ADMISSION = rx.TokenPool_AdmissionBudget.create({
@@ -104,7 +112,7 @@ describe('ReceiveExecutor - Execution', () => {
     it('should execute InitExecute with effectiveGasLimit', async () => {
       const result = await receiveExecutor.sendReceiveExecutorInitExecute(
         deployer.getSender(),
-        toNano('0.05'),
+        OffRampCosts.initExec(false) + toNano('0.01'),
         {
           ...defaultInitExecute,
           root: deployer.address,
@@ -342,6 +350,7 @@ describe('ReceiveExecutor - Execution', () => {
         to: tokenAdminRegistry.address,
         success: true,
         op: rx.TokenAdminRegistry_GetTokenInfo.PREFIX,
+        value: RegistryCosts.getTokenInfo,
       })
       return result
     }
@@ -354,7 +363,7 @@ describe('ReceiveExecutor - Execution', () => {
     ) {
       const result = await executor.sendTokenAdminRegistryTokenInfo(
         tokenAdminRegistry.getSender(),
-        toNano('1'),
+        REGISTRY_REPLY_VALUE,
         {
           token: messageWithTT.tokenAmounts![0].token,
           minterAddress: deployer.address,
@@ -532,7 +541,7 @@ describe('ReceiveExecutor - Execution', () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
         const result = await receiveExecutorWithToken.sendTokenAdminRegistryTokenInfo(
           tokenAdminRegistry.getSender(),
-          toNano('0.05'),
+          REGISTRY_REPLY_VALUE,
           {
             token: messageWithTT.tokenAmounts![0].token,
             minterAddress: deployer.address,
@@ -551,14 +560,16 @@ describe('ReceiveExecutor - Execution', () => {
           to: deployer.address,
           success: true,
           op: of.OffRamp_NotifyFailure.PREFIX,
+          value: (v) => v! >= OFFRAMP_NOTIFY_COST,
         })
+        expect((await blockchain.getContract(receiveExecutorWithToken.address)).balance).toBe(0n)
       })
 
       it('should send NotifyFailure when TokenAdminRegistry reports the token is not registered', async () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
         const result = await receiveExecutorWithToken.sendTokenAdminRegistryGetTokenInfoFailed(
           tokenAdminRegistry.getSender(),
-          toNano('0.05'),
+          REGISTRY_REPLY_VALUE,
           { token: messageWithTT.tokenAmounts![0].token },
         )
         expect(result.transactions).toHaveTransaction({
@@ -572,7 +583,9 @@ describe('ReceiveExecutor - Execution', () => {
           to: deployer.address,
           success: true,
           op: of.OffRamp_NotifyFailure.PREFIX,
+          value: (v) => v! >= OFFRAMP_NOTIFY_COST,
         })
+        expect((await blockchain.getContract(receiveExecutorWithToken.address)).balance).toBe(0n)
       })
 
       it('should reject GetTokenInfoFailed from non-tokenAdminRegistry', async () => {

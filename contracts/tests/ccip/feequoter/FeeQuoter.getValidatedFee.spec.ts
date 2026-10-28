@@ -1261,12 +1261,12 @@ describe('FeeQuoter GetValidatedFee', () => {
       )
     })
 
-    it('should throw InvalidMsgData error for snake data over 128 cells', async () => {
-      // create a cell chain longer than 128 cells; every non-terminal cell must
+    it('should throw InvalidMsgData error for snake data over 256 cells', async () => {
+      // create a cell chain longer than MAX_DATA_CELLS; every non-terminal cell must
       // be byte-full (127 bytes) for the canonical-snake check to reach the
       // cell-count limit rather than reject the shape first
       let invalidSnakeCell: Cell = Cell.EMPTY
-      for (let i = 0; i <= 129; i++) {
+      for (let i = 0; i <= 257; i++) {
         const newCell = beginCell().storeBuffer(Buffer.alloc(127, i)).endCell()
         if (i === 0) {
           invalidSnakeCell = newCell

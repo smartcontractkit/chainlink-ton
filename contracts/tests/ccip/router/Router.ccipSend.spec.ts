@@ -8,7 +8,7 @@ import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import { setup, contractsCoverageConfig } from './Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
-import { ccipSendCost } from '../../../wrappers/ccip/Router'
+import { ccipSendCost, Costs } from '../../../wrappers/ccip/Router'
 import { NATIVE_GRAM } from '../../../src/utils'
 import { FeeQuoterSetup } from '../feequoter/FeeQuoterSetup'
 
@@ -61,6 +61,45 @@ describe('Router.ccipSend', () => {
     })
 
     expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: onRamp.address,
+      success: true,
+      op: or.OnRamp_Send.PREFIX,
+    })
+  })
+
+  it('should reject a send below Router_Costs.CCIPSend', async () => {
+    const result = await router.sendRouterCCIPSend(sender.getSender(), Costs.ccipSend - 1n, msg)
+
+    expect(result.transactions).toHaveTransaction({
+      from: sender.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.InsufficientFee'],
+    })
+    expect(result.transactions).not.toHaveTransaction({ op: or.OnRamp_Send.PREFIX })
+  })
+
+  it('should require the token transfer min value for a send with tokens', async () => {
+    const tokenMsg = rt.Router_CCIPSend.create({
+      ...msg,
+      tokenAmounts: [rt.TokenAmount.create({ amount: 1n, token: sender.address })],
+    })
+
+    const rejected = await router.sendRouterCCIPSend(sender.getSender(), Costs.ccipSend, tokenMsg)
+    expect(rejected.transactions).toHaveTransaction({
+      from: sender.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.InsufficientFee'],
+    })
+
+    const accepted = await router.sendRouterCCIPSend(
+      sender.getSender(),
+      Costs.ccipSendWithTokens,
+      tokenMsg,
+    )
+    expect(accepted.transactions).toHaveTransaction({
       from: router.address,
       to: onRamp.address,
       success: true,

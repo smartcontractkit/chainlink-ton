@@ -1,10 +1,11 @@
-import { Cell, toNano } from '@ton/core'
+import { Cell } from '@ton/core'
 
 import { crc32 } from 'zlib'
 import { errorCode, facilityId } from '../utils'
 
 import { contractCode } from '../codeLoader'
 import * as fq from './FeeQuoter'
+import { Costs } from './Router'
 
 export const ARTIFACT_NAME = 'OnRamp'
 export const FACILITY_NAME = 'link.chain.ton.ccip.OnRamp'
@@ -16,7 +17,8 @@ export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<Cell>> = {
 }
 export const CONTRACT_VERSION = '1.7.0'
 
-export const onrampSendCost = toNano('4') // TODO this should be calculated based on the message size and gas limit, but for now we use a fixed value
+/** Value a Router forwards with an OnRamp_Send that may carry a token transfer. */
+export const onrampSendCost = Costs.onRampSendWithTokens
 
 export const opcodes = {
   in: {

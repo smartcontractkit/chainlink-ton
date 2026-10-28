@@ -52,6 +52,11 @@ struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
     originalSender: address,
 }
 
+/// Pool-type default LockOrBurn admission (BurnMint and LockRelease, 1_575_000 gas at mainnet
+/// price). The registry reports the real one per pool; this bounds the Router's entry check,
+/// and the executor re-checks against the reported admission once it has it.
+const TOKEN_POOL_DEFAULT_LOCK_OR_BURN_ADMISSION: coins = grams("0.105");
+
 struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {
     queryID: uint64,
     executorID: CCIPSendExecutor_ID,
@@ -135,12 +140,13 @@ struct (0x7052dc75) OnRamp_WithdrawFeeTokens {
 // Costs associated with OnRamp operations
 struct OnRamp_Costs {}
 
+// Constants are 3x the measured compute and 2x the measured forward fees (tests/gas-report/ccip) for a MAX_DATA_CELLS message.
+
 // Minimum value for calling OnRamp_GetValidatedFee
 @inline
 fun OnRamp_Costs.GetValidatedFee(): int {
     return
-        + grams("0.002") // computeFee
-        + grams("0.019") // GetValidatedFee fwdFee
+        + grams("0.0395") // computeFee + GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()
         + max(
             OnRamp_Costs.FeeQuoter_MessageValidated(),
@@ -149,45 +155,44 @@ fun OnRamp_Costs.GetValidatedFee(): int {
         ;
 }
 
-/// The pool's LockOrBurn admission budget (from the token admin registry), the post-custody
-/// continuation `F`, and a buffer for the OnRamp and Router relay fees in front of the pool.
-/// The buffer makes the pool receive the full `A + F` after the relays take their fees;
-/// any remainder returns as pool/custody excess.
+/// Value the executor attaches to a lock/burn request: the CCIP relays to and from the pool
+/// (OnRamp, Router, deposit account withdraw), the pool's admission as reported by the token
+/// admin registry, and the post-custody finalization the pool forwards back.
 @inline
 fun OnRamp_Costs.ExecutorRequestsLockOrBurn(poolAdmission: coins): coins {
     return
-        + OnRamp_Costs.TokenPoolFinalization()
+        + grams("0.002") // OnRamp ExecutorRequestsLockOrBurn relay
+        + grams("0.0025") // Router_LockOrBurn relay
+        + grams("0.004") // SendExecutor TokenPool_LockOrBurnWithdraw
+        + grams("0.003") // OnRamp ExecutorRequestsWithdraw relay
+        + grams("0.0025") // Router_WithdrawToTokenPool relay
+        + grams("0.0025") // DepositAccount_Withdraw
+        + grams("0.001") // jetton excess returned to the OnRamp
         + poolAdmission
-        + grams("0.05") // OnRamp + Router relay buffer
+        + OnRamp_Costs.TokenPoolFinalization()
         ;
 }
 
 // Minimum value for calling FeeQuoter_MessageValidated on OnRamp
 @inline
 fun OnRamp_Costs.FeeQuoter_MessageValidated(): int {
-    return
-        + grams("0.002") // computeFee
-        + grams("0.019") // MessageValidated fwdFee
-        ;
+    return grams("0.0395"); // computeFee + MessageValidated fwdFee
 }
 
 // Minimum value for calling FeeQuoter_MessageValidationFailed on OnRamp
 @inline
 fun OnRamp_Costs.FeeQuoter_MessageValidationFailed(): int {
-    return
-        + grams("0.002") // computeFee
-        + grams("0.019") // MessageValidationFailed fwdFee
-        ;
+    return grams("0.0395"); // computeFee + MessageValidationFailed fwdFee
 }
 
 // Minimum value for calling OnRamp_Send
 @inline
-fun OnRamp_Costs.Send(): int {
+fun OnRamp_Costs.Send(hasTokens: bool): int {
     return
-        + grams("0.002") // computeFee
+        + grams("0.0495") // computeFee + InitializeAndSend fwdFee (executor code and message)
         + SendExecutor_Costs.Deploy()
-        + grams("0.019") // Execute fwdFee
         + SendExecutor_Costs.Execute()
+        + SendExecutor_Costs.Reserve(hasTokens)
         ;
 }
 
@@ -195,10 +200,8 @@ fun OnRamp_Costs.Send(): int {
 @inline
 fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
     return
-        + grams("0.002") // computeFee
-        + grams("0.019") // emit CCIPMessageSent event
-        + grams("0.019") // MessageSent fwdFee
-        + Router_Costs.MessageSent() 
+        + grams("0.0425") // computeFee + CCIPMessageSent event + MessageSent fwdFee
+        + Router_Costs.MessageSent()
         ;
 }
 
@@ -206,19 +209,15 @@ fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
 // attached separately and is kept on the OnRamp by reserveGramsOnBalance.
 @inline
 fun OnRamp_Costs.ExecutorReserveFee(): int {
-    // TODO: Calculate the actual cost for reserving the executor's fee.
-    return
-        + grams("0.002") // computeFee
-        + grams("0.019") // ExecutorFeeReserved fwdFee
-        ;
+    return grams("0.0015"); // computeFee + ExecutorFeeReserved fwdFee
 }
 
-// Minimum value for calling OnRamp_ExecutorFinishedWithError
+// Minimum value for calling OnRamp_ExecutorFinishedWithError. Sized like the success path, which
+// measures higher (tests/gas-report/ccip, the rejected flows).
 @inline
 fun OnRamp_Costs.ExecutorFinishedWithError(): int {
     return
-        + grams("0.002") // computeFee
-        + grams("0.019") // MessageRejected fwdFee
+        + grams("0.0425") // computeFee + MessageRejected fwdFee
         + Router_Costs.MessageRejected()
         ;
 }
