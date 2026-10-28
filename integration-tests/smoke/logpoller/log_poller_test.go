@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"math/big"
 	"math/rand/v2"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -229,7 +230,7 @@ func Test_LogPoller(t *testing.T) {
 			Name:     "FilterC",
 			Address:  emitterA.ContractAddress(),
 			MsgType:  tlb.MsgTypeInternal,
-			EventSig: 0x41c92746, // opcode
+			EventSig: uint32(tvm.MustExtractMagic(reflect.TypeFor[counter.CountIncreasedMsg]())), //nolint:gosec // 32-bit opcode fits in uint32
 		}
 		_, fcerr := lp.RegisterFilter(t.Context(), filterC)
 		require.NoError(t, fcerr)
@@ -379,7 +380,7 @@ func Test_LogPoller(t *testing.T) {
 			// verify stored internal messages
 			replyLogs, _, _, rlerr := lp.NewQuery().
 				WithSource(emitterA.ContractAddress()).
-				WithEventSig(0x41c92746). //TODO: how can we get opcode directly from binding?
+				WithEventSig(uint32(tvm.MustExtractMagic(reflect.TypeFor[counter.CountIncreasedMsg]()))). //nolint:gosec // 32-bit opcode fits in uint32
 				WithBocBytes(
 					query.SkipBytes(4), // skip ID field to reach Counter field
 					query.MatchBytes(4,
