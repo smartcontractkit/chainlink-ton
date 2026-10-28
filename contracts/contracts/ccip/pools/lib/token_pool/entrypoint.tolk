@@ -959,23 +959,20 @@ fun TokenPool<T>.onPreflightCheckFailed(
     self.recoverLockOrBurnFailure(fwdp, TokenPool_Error.PreflightCheckFailed as int32, msgValue);
 }
 
-/// Handles a withdrawal rejection from the OnRamp (relayed by the Router): the lock/burn
-/// output failed the OnRamp's validation, so the transfer can never be emitted. Refunds the
-/// outbound rate limit consumed at admission and fails the send so the executor can settle.
+/// Handles a pre-custody withdraw failure relayed by the Router: custody never left the pool's
+/// wallet, so the only required action is to reinstate the outbound rate limit consumed at
+/// admission. The Router settles the executor directly; the pool must not be on the critical path
+/// for send settlement because token pools are third-party contracts.
 /// @dev Only the configured Router may relay this failure.
 fun TokenPool<T>.onLockOrBurnWithdrawFailed(
     mutate self,
     sender: address,
     msg: TokenPool_LockOrBurnWithdrawFailed,
-    msgValue: coins,
+    _msgValue: coins,
 ): void {
     self.onlyRouter(sender);
     val fwdp = lazy msg.forwardPayload.load();
-
-    // Custody never left the pool's wallet: reinstate the rate limit consumed at admission and
-    // fail the send so the executor can settle. `recoverLockOrBurnFailure` also refunds the limit,
-    // so it must not be refunded again here.
-    self.recoverLockOrBurnFailure(fwdp, msg.errorCode, msgValue);
+    self.refundLockOrBurnRateLimit(fwdp);
 }
 
 /// Resumes the ReleaseOrMint flow after the advanced hooks confirmed the postflight check

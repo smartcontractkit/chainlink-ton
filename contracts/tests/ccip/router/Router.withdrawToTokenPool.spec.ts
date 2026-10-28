@@ -183,20 +183,31 @@ describe('Router.withdrawToTokenPool', () => {
       }),
     })
 
-  const expectCCIPSendFailed = (
+  const expectPoolWithdrawFailed = (
     result: Awaited<ReturnType<typeof router.sendRouterWithdrawToTokenPool>>,
     tokenPool: Address,
-    error: string,
+  ) =>
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: tokenPool,
+      op: rt.TokenPool_LockOrBurnWithdrawFailed.PREFIX,
+    })
+
+  const expectExecutorFailed = (
+    result: Awaited<ReturnType<typeof router.sendRouterWithdrawToTokenPool>>,
+    tokenPool: Address,
+    error?: keyof typeof rt.Router.Errors,
   ) =>
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: executor.address,
-      op: rt.Router_TokenPoolLockOrBurnFailed.PREFIX,
+      op: rt.Router_LockOrBurnWithdrawFailed.PREFIX,
       body(body) {
         if (!body) return false
-        const failed = rt.Router_TokenPoolLockOrBurnFailed.fromSlice(body.beginParse())
+        const failed = rt.Router_LockOrBurnWithdrawFailed.fromSlice(body.beginParse())
         return (
-          failed.tokenPool.equals(tokenPool) && failed.errorCode === BigInt(rt.Router.Errors[error])
+          failed.tokenPool.equals(tokenPool) &&
+          (error === undefined || failed.errorCode === BigInt(rt.Router.Errors[error]))
         )
       },
     })
@@ -305,7 +316,8 @@ describe('Router.withdrawToTokenPool', () => {
       tokenPool: tokenPool.address,
       exitCode: 0n,
     })
-    expectCCIPSendFailed(result, tokenPool.address, 'Router_Error.SenderAccountWithdrawFailed')
+    expectPoolWithdrawFailed(result, tokenPool.address)
+    expectExecutorFailed(result, tokenPool.address, 'Router_Error.SenderAccountWithdrawFailed')
   })
 
   it('fails the CCIPSend when the account transfer to the pool bounces', async () => {
@@ -329,7 +341,8 @@ describe('Router.withdrawToTokenPool', () => {
       op: deposit.DepositAccount_WithdrawFailed.PREFIX,
       success: true,
     })
-    expectCCIPSendFailed(result, tokenPool.address, 'Router_Error.SenderAccountWithdrawFailed')
+    expectPoolWithdrawFailed(result, tokenPool.address)
+    expectExecutorFailed(result, tokenPool.address, 'Router_Error.SenderAccountWithdrawFailed')
   })
 
   it('fails the CCIPSend when the account rejects the withdraw', async () => {
@@ -346,17 +359,30 @@ describe('Router.withdrawToTokenPool', () => {
         tokenPool: tokenPool.address,
       }),
     })
+    expectPoolWithdrawFailed(result, tokenPool.address)
+    expectExecutorFailed(result, tokenPool.address)
+  })
+
+  it('settles the executor even when the pool refund notification fails', async () => {
+    // The Router rejects the refund notification (unknown opcode), so its action fails. The
+    // executor failure must still go out: settlement cannot depend on third-party pool behaviour.
+    const result = await router.sendRouterWithdrawToTokenPool(onRamp.getSender(), withdrawValue, {
+      destChainSelector,
+      executor: executor.address,
+      withdrawRequest: buildWithdrawRequest({
+        user: sender.address,
+        amount: toNano('5'),
+        tokenPool: router.address,
+      }),
+    })
+
     expect(result.transactions).toHaveTransaction({
       from: router.address,
-      to: executor.address,
-      op: rt.Router_TokenPoolLockOrBurnFailed.PREFIX,
-      body(body) {
-        if (!body) return false
-        return rt.Router_TokenPoolLockOrBurnFailed.fromSlice(body.beginParse()).tokenPool.equals(
-          tokenPool.address,
-        )
-      },
+      to: router.address,
+      op: rt.TokenPool_LockOrBurnWithdrawFailed.PREFIX,
+      success: false,
     })
+    expectExecutorFailed(result, router.address)
   })
 
   it('fails the CCIPSend without withdrawing when the payload names another executor', async () => {
@@ -378,7 +404,8 @@ describe('Router.withdrawToTokenPool', () => {
       to: accountAddress,
       op: deposit.DepositAccount_Withdraw.PREFIX,
     })
-    expectCCIPSendFailed(result, tokenPool.address, 'Router_Error.WithdrawExecutorMismatch')
+    expectPoolWithdrawFailed(result, tokenPool.address)
+    expectExecutorFailed(result, tokenPool.address, 'Router_Error.WithdrawExecutorMismatch')
   })
 
   it('rejects a DepositAccount_WithdrawFailed from an address that is not the claimed deposit account', async () => {

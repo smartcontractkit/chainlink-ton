@@ -335,9 +335,18 @@ struct (0xe32e5616) Router_MessageValidationFailed {
     context: cell?
 }
 
-/// Canonical Router failure returned when a LockOrBurn request bounced before
-/// the token pool admitted it.
-struct (0xb76e3a84) Router_TokenPoolLockOrBurnFailed {
+/// Sent by the Router or OnRamp when the lock/burn phase fails: curse policy,
+/// a pre-admission pool bounce, or a bounced `Router_LockOrBurn` request.
+struct (0x6b9cf345) Router_LockOrBurnFailed {
+    queryId: uint64;
+    tokenPool: address;
+    errorCode: int32;
+}
+
+/// Sent by the Router or OnRamp when the pre-custody withdraw phase fails:
+/// deposit-account withdraw, executor mismatch, OnRamp rejection, or a bounced
+/// `Router_WithdrawToTokenPool`.
+struct (0x7b2c2b80) Router_LockOrBurnWithdrawFailed {
     queryId: uint64;
     tokenPool: address;
     errorCode: int32;
@@ -412,6 +421,13 @@ fun Router_Costs.routeMessage(): int {
 fun Router_Costs.receiveConfirm(): int {
     val baseFee = ROUTER_RECEIVE_CONFIRM_FEE;
     return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
+}
+
+/// Value attached to the refund-only pool notification sent on a pre-custody withdraw failure.
+/// Covers the pool's compute and the best-effort rate-limit refund event; the executor is settled
+/// by the Router directly, so a non-cooperative pool cannot strand the send.
+fun Router_Costs.tokenPoolRefund(): int {
+    return grams("0.005");
 }
 
 // Minimum value for calling Router_GetSenderAccount: the Router's own compute and the two

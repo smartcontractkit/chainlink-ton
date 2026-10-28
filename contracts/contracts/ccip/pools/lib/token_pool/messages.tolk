@@ -347,6 +347,9 @@ struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
     forwardPayload: TokenPool_LockOrBurnForwardPayload;
 }
 
+/// Sent by the Router on a pre-custody withdraw failure. Refund-only: the pool reinstates the
+/// outbound rate limit but does not notify the executor, because the Router settles it directly.
+/// `queryId` and `errorCode` are retained for compatibility/observability.
 struct (0x9643c08d) TokenPool_LockOrBurnWithdrawFailed {
     queryId: uint64;
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;

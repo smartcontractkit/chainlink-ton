@@ -379,7 +379,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       await setOutboundCapacity(token, toNano('1000000'))
       expect(result.transactions).toHaveTransaction({
         from: router.address,
-        op: rt.Router_TokenPoolLockOrBurnFailed.PREFIX,
+        op: rt.Router_LockOrBurnFailed.PREFIX,
         success: true,
       })
       expectNACK(result)

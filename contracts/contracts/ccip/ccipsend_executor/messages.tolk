@@ -17,7 +17,8 @@ type CCIPSendExecutor_InMessage =
     | TokenPool_LockOrBurnWithdraw
     | TokenPool_LockOrBurnFinished
     | TokenPool_LockOrBurnFailure
-    | Router_TokenPoolLockOrBurnFailed
+    | Router_LockOrBurnFailed
+    | Router_LockOrBurnWithdrawFailed
     | OnRamp_LockOrBurnFailed;
 
 // crc32('CCIPSendExecutor_Execute')

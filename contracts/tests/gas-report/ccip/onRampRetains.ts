@@ -122,7 +122,7 @@ export const onRampRetains = (() => {
       ...upToTokenInfo,
       {
         contract: 'SendExecutor',
-        op: 'Router_TokenPoolLockOrBurnFailed',
+        op: 'Router_LockOrBurnFailed',
         kind: 'drain', // The executor exits returning all held balance to the OnRamp
       },
     ]
@@ -134,7 +134,7 @@ export const onRampRetains = (() => {
       ...upToTokenInfo,
       {
         contract: 'SendExecutor',
-        op: 'Router_TokenPoolLockOrBurnFailed',
+        op: 'Router_LockOrBurnWithdrawFailed',
         kind: 'drain', // The executor exits returning all held balance to the OnRamp
       },
     ]
