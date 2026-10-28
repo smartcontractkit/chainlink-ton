@@ -109,7 +109,7 @@ fun onBouncedMessage(in: InMessageBounced) {
         }
         CCT_AskToBurn => {
             assert(msg.forwardPayload != null) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
-            val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload!);
+            val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload);
             assert(in.senderAddress == context.wallet) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
 
             val operation = lazy context.forwardPayload.load();
@@ -125,8 +125,8 @@ fun onBouncedMessage(in: InMessageBounced) {
             assert(in.senderAddress == st.poolData.load().jettonClient().masterAddress) throw BurnMintTokenPool_Error.UnexpectedMintBounce;
             val internalTransfer = lazy msg.internalTransferMsg.load();
             val wrap = Jetton_ForwardPayloadWrap.from(internalTransfer.forwardPayload);
-            assert(wrap != null && wrap!.context != null) throw BurnMintTokenPool_Error.UnexpectedMintBounce;
-            val context = lazy BurnMintTokenPool_MintContext.fromCell(wrap!.context!);
+            assert(wrap != null && wrap.context != null) throw BurnMintTokenPool_Error.UnexpectedMintBounce;
+            val context = lazy BurnMintTokenPool_MintContext.fromCell(wrap.context);
 
             val operation = lazy context.forwardPayload.load();
             var pool = st.TokenPool();
@@ -155,6 +155,7 @@ fun onLockOrBurnTransferContinue(
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
     val requestMsg = lazy fwdPayload.requestMsg.load();
+
     val context = BurnMintTokenPool_BurnContext {
         wallet: sender, // own wallet
         forwardPayload: fwdPayload.toCell(),
@@ -207,7 +208,7 @@ fun onReleaseOrMintContinue(
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
-    var st = ctx!;
+    var st = ctx;
     val delivery = msg.delivery.load();
     val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
         originalSender: sender,
@@ -326,7 +327,7 @@ fun onCCTReturnExcessesBack(
     // The minter sets `initiator` to the burnInitiator, which is the pool's own wallet owner (pool).
     assert(msg.initiator == contract.getAddress(), TokenPool_Error.Unauthorized);
 
-    val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload!);
+    val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload);
     val operation = lazy context.forwardPayload.load();
 
     pool.onLockOrBurnTransferFinalize(msgValue, operation);

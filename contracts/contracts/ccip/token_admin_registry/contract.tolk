@@ -219,9 +219,9 @@ fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
     var poolInfo: Cell<TokenAdminRegistry_PoolInfo>? = null;
     if (tokenInfo.tokenPool != null && tokenInfo.admission != null) {
         poolInfo = TokenAdminRegistry_PoolInfo {
-            tokenPool: tokenInfo.tokenPool!,
+            tokenPool: tokenInfo.tokenPool,
             transferInitiator: tokenInfo.transferInitiator,
-            admission: tokenInfo.admission!,
+            admission: tokenInfo.admission,
         }.toCell();
     }
 

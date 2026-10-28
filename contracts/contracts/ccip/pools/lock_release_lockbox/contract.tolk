@@ -148,10 +148,12 @@ fun onLockOrBurnTransferContinue(
     msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
+    val transferInitiator = msg.transferInitiator!;  // already checked non-null
+
     // Resolve the caller's routing overrides, falling back to the authenticated source and the
     // original sender that paid the source-side budget.
     val requestMsg = lazy fwdPayload.requestMsg.load();
-    val transferInitiator = msg.transferInitiator!; // already checked non-null
+
     val extra = requestMsg.extra != null ? requestMsg.extra!.load() : null;
 
     val safety = st.TokenPool().budget().lockOrBurn.safety;
@@ -197,11 +199,11 @@ fun createLockboxTransfer(
     val jc = st.poolData.load().jettonClient();
 
     val returnTo = extra != null && extra.returnTo != null
-        ? extra.returnTo!
-        : transferInitiator;
+        ? extra.returnTo
+        : transferInitiator; // default
     val sendExcessesTo = extra != null && extra.sendExcessesTo != null
-        ? extra.sendExcessesTo!
-        : requestMsg.request.load().transfer.details.load().originalSender;
+        ? extra.sendExcessesTo
+        : requestMsg.request.load().transfer.details.load().originalSender; // default
 
     val context = LockReleaseLockboxTokenPool_LockContext {
         forwardPayload: fwdPayload.toCell(),
@@ -247,7 +249,7 @@ fun onDeposited(
     assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
 
     var pool = st.TokenPool();
-    val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.context!);
+    val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.context);
     pool.onLockOrBurnTransferFinalize(msgValue, context.forwardPayload.load());
 }
 
@@ -256,11 +258,11 @@ fun validateRejectedDeposit(st: Storage, msg: JettonLockBox_DepositFailed): Toke
     assert(msg.token == data.token() && msg.depositor == contract.getAddress(),
         LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
     assert(msg.context != null, LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
-    val deposit = msg.context!.load();
+    val deposit = msg.context.load();
     assert(deposit.queryId == msg.queryId && deposit.token == msg.token && deposit.amount == msg.amount
         && deposit.context != null,
         LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
-    val context = LockReleaseLockboxTokenPool_LockContext.fromCell(deposit.context!);
+    val context = LockReleaseLockboxTokenPool_LockContext.fromCell(deposit.context);
     val operation = context.forwardPayload.load();
     val request = lazy operation.requestMsg.load();
     val details = lazy request.request.load().transfer.details.load();
@@ -302,7 +304,7 @@ fun onLockboxTransferBounced(
     val jc = st.poolData.load().jettonClient();
     assert(jc.isWallet(sender)) throw LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce;
     assert(msg.customPayload != null) throw LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce;
-    val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.customPayload!);
+    val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.customPayload);
     val operation = lazy context.forwardPayload.load();
 
     var pool = st.TokenPool();
@@ -331,7 +333,7 @@ fun onReleaseOrMintContinue(
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
-    var st = ctx!;
+    var st = ctx;
     assert(st.lockbox != createAddressNone(), LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
 
     // Caller-selected excess recipient; default to the request sender.
@@ -413,7 +415,7 @@ fun onWithdrawFailed(
     // release unwind when lockbox withdraw fails
 
     val poolData = st.poolData.load();
-    val withdraw = msg.context!.load();
+    val withdraw = msg.context.load();
     val isValid = withdraw.queryId == msg.queryId
         && withdraw.token == msg.token
         && msg.token == poolData.token();
@@ -430,11 +432,11 @@ fun recoverReleaseFromLockboxWithdraw(
     msgValue: coins,
 ) {
     assert(withdraw.extra != null, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
-    val extra = withdraw.extra!.load();
+    val extra = withdraw.extra.load();
     assert(extra.forwardPayload != null, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
-    val wrap = lazy Jetton_ForwardPayloadWrap.fromCell(extra.forwardPayload!);
+    val wrap = lazy Jetton_ForwardPayloadWrap.fromCell(extra.forwardPayload);
     assert(wrap.context != null, LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed);
-    val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(wrap.context!);
+    val context = lazy LockReleaseLockboxTokenPool_ReleaseContext.fromCell(wrap.context);
     var pool = st.TokenPool();
     pool.recoverReleaseOrMintFailure(context.forwardPayload.load(),
         LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed as int32, msgValue);
@@ -450,7 +452,7 @@ fun defaultBudget(_ctx: Storage?): TokenPool_Budget {
 /// Releases are transferred out of the lockbox's wallet.
 fun transferInitiator(ctx: Storage?): address? {
     assert(ctx != null && ctx!.lockbox != createAddressNone(), LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
-    return ctx!.lockbox;
+    return ctx.lockbox;
 }
 
 fun Storage.TokenPool(self): TokenPool<Storage> {
