@@ -39,7 +39,6 @@ tolk 1.4.2
 
 const CONTRACT_VERSION = "1.7.0".literalSlice();
 const RESERVE = grams("1");
-const ROUTER_DEPOSIT_ACCOUNT_DEPLOY_FWD_FEE = grams("0.02"); // TODO
 /// Forwarded with released/minted tokens so the deposit account gets a transfer notification.
 const ROUTER_DELIVERY_FORWARD_TON_AMOUNT = grams("0.01");
 contract Router {
@@ -71,7 +70,7 @@ fun onInternalMessage(in: InMessage) {
         }
         // Permissionless
         Router_CCIPSend => {
-            val minValue = Router_Costs.CCIPSend();
+            val minValue = Router_Costs.CCIPSend(!msg.tokenAmounts.empty());
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
             onCCIPSend(msg, in.senderAddress, in.valueCoins);
         }
@@ -469,7 +468,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
     // account this bounces (unrecognized opcode) — the init below still re-confirms the account.
     val deploy = createMessage({
         bounce: BounceMode.NoBounce,
-        value: DepositAccount_MIN_GRAM_TO_RESERVE,
+        value: DEPLOYABLE_INIT_VALUE,
         dest: account,
         body: Deployable_Initialize {
             stateInit: ContractState {
@@ -483,7 +482,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
             },
         },
     });
-    deploy.send(SEND_MODE_REGULAR + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    deploy.send(SEND_MODE_PAY_FEES_SEPARATELY + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     // The remaining value should be at least DepositAccount_MIN_GRAM_TO_INIT
     reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
@@ -536,15 +535,17 @@ fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: a
         queryId: msg.queryId,
         exitCode: 0,
     });
-    failWithdrawToTokenPool(request, Router_Error.OnRampAccountWithdrawFailed as int32);
+    // The event's forward fee comes out of the inbound value, not the Router's balance.
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    failWithdrawToTokenPool(request, Router_Error.OnRampAccountWithdrawFailed as int32, SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 /// Fails the CCIPSend whose withdraw from the sender's on-ramp account did not go through. `ask`
 /// was built by `onWithdrawToTokenPool`, which checked that its forward payload names the executor.
-fun failWithdrawToTokenPool(request: DepositAccount_Withdraw, exitCode: int32) {
+fun failWithdrawToTokenPool(request: DepositAccount_Withdraw, exitCode: int32, mode: int = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE) {
     val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromCell(request.ask.forwardPayload!);
     val lockOrBurn = lazy fwdp.requestMsg.load();
-    sendLockOrBurnRelayFailure(lockOrBurn.replyTo, lockOrBurn.queryId, request.ask.transferRecipient, exitCode);
+    sendLockOrBurnRelayFailure(lockOrBurn.replyTo, lockOrBurn.queryId, request.ask.transferRecipient, exitCode, mode);
 }
 
 /// Returns accidentally transferred jettons to the transfer initiator. The Router's own jetton
@@ -1096,7 +1097,7 @@ fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
     beneficiaries.set(details.receiver, ());
     val deploy = createMessage({
         bounce: BounceMode.RichBounce,
-        value: DepositAccount_MIN_GRAM_TO_RESERVE + ROUTER_DEPOSIT_ACCOUNT_DEPLOY_FWD_FEE,
+        value: DEPLOYABLE_INIT_VALUE,
         dest: account,
         body: Deployable_Initialize {
             stateInit: ContractState {
@@ -1110,7 +1111,7 @@ fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
             },
         },
     });
-    deploy.send(SEND_MODE_REGULAR + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    deploy.send(SEND_MODE_PAY_FEES_SEPARATELY + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     // The rest of the inbound value funds the init and the relay that follows it.
     reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
@@ -1262,6 +1263,7 @@ fun sendLockOrBurnRelayFailure(
     queryID: uint64,
     tokenPool: address,
     exitCode: int32,
+    mode: int = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
 ) {
     val failed = createMessage({
         bounce: BounceMode.NoBounce,
@@ -1269,7 +1271,7 @@ fun sendLockOrBurnRelayFailure(
         dest: executor,
         body: Router_TokenPoolLockOrBurnFailed { queryID, tokenPool, exitCode },
     });
-    failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    failed.send(mode);
 }
 
 /// Reports an inbound release/mint failure to the OffRamp that owns the lane.

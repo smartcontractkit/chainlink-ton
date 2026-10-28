@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 /// Kept on the balance to pay for storage fees.
-const DepositAccount_MIN_GRAM_TO_RESERVE: int = grams("0.05");
-const DepositAccount_MIN_GRAM_TO_INIT: int = grams("0.01") // TODO update with real value
+import "../../../lib/deployable/types"
+const DepositAccount_MIN_GRAM_TO_RESERVE: int = DEPLOYABLE_INIT_VALUE;
+/// Init compute, the Initialized reply and its handling by the Router, 3x the measured cost.
+const DepositAccount_MIN_GRAM_TO_INIT: int = grams("0.005")
 /// Attached to the TEP-89 wallet query; the token's response returns the unspent part.
-const DepositAccount_WALLET_QUERY_VALUE: int = grams("0.02") // TODO update with real value
+const DepositAccount_WALLET_QUERY_VALUE: int = grams("0.005")
 
 /// A deposit account escrows a single jetton (`token`) for a single `user`. A fixed set of
 /// `beneficiaries` may withdraw it, and incoming jetton transfer notifications are forwarded to

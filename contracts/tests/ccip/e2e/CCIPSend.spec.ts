@@ -65,7 +65,7 @@ describe('Router', () => {
     const onchainFee = await sendGetValidatedFee(sender.getSender(), router, ccipSend)
     expect(onchainFee).toBe(offchainFee)
 
-    const totalSendValue = offchainFee + ccipSendCost + toNano('3') // TODO temporarily raise value to cover for fixed cost of TokenPool
+    const totalSendValue = offchainFee + ccipSendCost
     {
       const onrampBalanceBefore = (await blockchain.getContract(onRamp.address)).balance
       const result = await router.sendRouterCCIPSend(sender.getSender(), totalSendValue, ccipSend)
@@ -218,7 +218,7 @@ describe('Router', () => {
       router.address,
       ccipSendWithEmptyExtraArgs,
     )
-    const totalSendValue = offchainFee + toNano('0.5')
+    const totalSendValue = offchainFee + ccipSendCost
 
     const result = await router.sendRouterCCIPSend(
       sender.getSender(),

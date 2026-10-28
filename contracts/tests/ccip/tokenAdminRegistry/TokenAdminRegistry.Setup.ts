@@ -17,7 +17,7 @@ export const EntryErrors = tare.TokenAdminRegistryEntry.Errors
 export const CELL_UNDERFLOW = 9
 
 /** Enough value for any root operation, including a stale entry upgrade round trip. */
-export const OPERATION_VALUE = toNano('0.1')
+export const OPERATION_VALUE = toNano('0.2')
 
 export function createBlockchain(): Promise<Blockchain> {
   return Blockchain.create().then((blockchain) => {

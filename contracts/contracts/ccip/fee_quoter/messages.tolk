@@ -74,15 +74,17 @@ struct (0x5DFBB1BC) FeeQuoter_RemovePriceUpdater {
 // Costs associated with FeeQuoter operations
 struct FeeQuoter_Costs {}
 
-// Minimum value for calling FeeQuoter_GetValidatedFee
+// Minimum value for calling FeeQuoter_GetValidatedFee: 3x the measured compute and 2x the forward
+// fee for a MAX_DATA_CELLS message, whose reply echoes it.
 fun FeeQuoter_Costs.GetValidatedFee(): int {
-    return 
-        + grams("0.05") // computeFee
-        + grams("0.019") // MessageValidated | MessageValidationFailed fwdFee
+    return
+        + grams("0.0645") // computeFee (canonical snake walk of MAX_DATA_CELLS)
+        + grams("0.039") // MessageValidated | MessageValidationFailed fwdFee
         ;
 }
 
+/// 3x compute and 2x forward fees measured for 8 token and 1 gas price updates; a larger report is
+/// not rejected, the FeeQuoter just needs more.
 fun FeeQuoter_Costs.updatePrices(): int {
-    // when we support token transfers the message value amount should depend on the quantity of supported tokens
-    return grams("0.01");
+    return grams("0.016");
 }

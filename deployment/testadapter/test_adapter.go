@@ -1011,6 +1011,12 @@ func (a *TONAdapter) RMNCursed(t *testing.T, chainSelector uint64, cursed bool) 
 	return nil
 }
 
+// Router_Costs.CCIPSend(false/true) from contracts/contracts/ccip/router/messages.tolk.
+var (
+	CCIPSendMinValue           = tlb.MustFromTON("0.364")
+	CCIPSendWithTokensMinValue = tlb.MustFromTON("0.5175")
+)
+
 // SendCCIPMessage sends a CCIP request from a TON chain using the standard router.CCIPSend message.
 func SendCCIPMessage(
 	ctx context.Context,
@@ -1051,7 +1057,11 @@ func SendCCIPMessage(
 	}
 	l.Infof("Fee to send CCIP request: %s nano TON", fee.String())
 
-	value := big.NewInt(0).Add(fee, tlb.MustFromTON("3").Nano() /* To cover for gas */)
+	minValue := CCIPSendMinValue
+	if len(msg.TokenAmounts) > 0 {
+		minValue = CCIPSendWithTokensMinValue
+	}
+	value := big.NewInt(0).Add(fee, minValue.Nano())
 
 	knownAddresses := map[string]debug.TypeAndVersion{
 		routerAddr.String():    {Type: "Router", Version: *semver.MustParse("0.0.0")},

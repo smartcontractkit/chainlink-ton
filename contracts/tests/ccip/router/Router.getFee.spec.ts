@@ -10,6 +10,7 @@ import { setup, contractsCoverageConfig } from './Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 import { FeeQuoterSetup } from '../feequoter/FeeQuoterSetup'
+import { Costs } from '../../../wrappers/ccip/Router'
 
 const EVM_CC_ADDRESS: rt.CrossChainAddress = EVM_ADDRESS
 
@@ -98,11 +99,32 @@ describe.each(cases)(
 
     describe(`context: ${description}`, () => {
       describe('new version', () => {
-        it('should forward getValidatedFee to OnRamp', async () => {
-          const result = await router.sendRouterGetValidatedFee(sender.getSender(), toNano('0.5'), {
-            ccipSend: msg,
-            context,
+        it('should reject a request below Router_Costs.GetValidatedFee', async () => {
+          const result = await router.sendRouterGetValidatedFee(
+            sender.getSender(),
+            Costs.getValidatedFee - 1n,
+            { ccipSend: msg, context },
+          )
+          expect(result.transactions).toHaveTransaction({
+            from: sender.address,
+            to: router.address,
+            success: false,
+            exitCode: rt.Router.Errors['Router_Error.InsufficientFee'],
           })
+          expect(result.transactions).not.toHaveTransaction({
+            op: or.OnRamp_GetValidatedFee.PREFIX,
+          })
+        })
+
+        it('should forward getValidatedFee to OnRamp', async () => {
+          const result = await router.sendRouterGetValidatedFee(
+            sender.getSender(),
+            Costs.getValidatedFee,
+            {
+              ccipSend: msg,
+              context,
+            },
+          )
 
           expect(result.transactions).toHaveTransaction({
             from: sender.address,
@@ -151,10 +173,14 @@ describe.each(cases)(
               allowOutOfOrderExecution: true,
             }),
           }
-          const result = await router.sendRouterGetValidatedFee(sender.getSender(), toNano('0.5'), {
-            ccipSend: jettonMsg,
-            context,
-          })
+          const result = await router.sendRouterGetValidatedFee(
+            sender.getSender(),
+            Costs.getValidatedFee,
+            {
+              ccipSend: jettonMsg,
+              context,
+            },
+          )
 
           expect(result.transactions).toHaveTransaction({
             from: sender.address,
@@ -198,10 +224,14 @@ describe.each(cases)(
               allowOutOfOrderExecution: true,
             }),
           }
-          const result = await router.sendRouterGetValidatedFee(sender.getSender(), toNano('0.5'), {
-            ccipSend: badMsg,
-            context,
-          })
+          const result = await router.sendRouterGetValidatedFee(
+            sender.getSender(),
+            Costs.getValidatedFee,
+            {
+              ccipSend: badMsg,
+              context,
+            },
+          )
 
           expect(result.transactions).toHaveTransaction({
             from: sender.address,
@@ -259,10 +289,14 @@ describe.each(cases)(
               allowOutOfOrderExecution: true,
             }),
           }
-          const result = await router.sendRouterGetValidatedFee(sender.getSender(), toNano('0.5'), {
-            ccipSend: badMsg,
-            context,
-          })
+          const result = await router.sendRouterGetValidatedFee(
+            sender.getSender(),
+            Costs.getValidatedFee,
+            {
+              ccipSend: badMsg,
+              context,
+            },
+          )
 
           expect(result.transactions).toHaveTransaction({
             from: sender.address,
@@ -419,7 +453,7 @@ describe.each(cases)(
         it('should forward getValidatedFee to OnRamp', async () => {
           const result = await router.sendRouterGetValidatedFeeV1(
             sender.getSender(),
-            toNano('0.5'),
+            Costs.getValidatedFee,
             {
               ccipSend: msg,
               context: (context ?? Cell.EMPTY).asSlice(),

@@ -197,7 +197,8 @@ fun senderOnRampAccount(sender: address, token: address, router: address): addre
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated) {
-    if (msg.fee.feeTokenAmount + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
+    val hasTokens = !self.onrampSend.msg.load().tokenAmounts.empty();
+    if (msg.fee.feeTokenAmount + Router_Costs.CCIPSend(hasTokens) > self.onrampSend.metadata.value) {
         self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds, NO_FEE_CHARGED);
         return;
     }
@@ -271,10 +272,9 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onFeeReserved
     // was reserved), so it must be present here.
     val tokenRegistry = self.addresses.load().tokenRegistry!;
 
-    //TODO: Possible optimization: We could do this earlier in onExecute. We can send to FQ and TR at the same time, then wait for both messages to continue. It increases complexity but it's slightly faster.
     val queryMsg = createMessage({
         bounce: true,
-        value: TokenAdminRegistry_GetTokenInfo.cost(grams("0.5")), // TODO extract to constant and calculate real values
+        value: TokenAdminRegistry_GetTokenInfo.cost(),
         dest: tokenRegistry.load(),
         body: TokenAdminRegistry_GetTokenInfo {
             queryId: 0,
@@ -311,12 +311,18 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
     }
 
     val poolInfo = msg.poolInfo!.load();
+    val lockOrBurnAdmission = poolInfo.admission.load().lockOrBurn;
+    // The Router checked the entry value against the pool-type default admission; a pool that
+    // raised its budget is only known here.
+    if (contract.getOriginalBalance() < OnRamp_ExecutorRequestsLockOrBurn.cost(lockOrBurnAdmission) + SendExecutor_Costs.Finalize()) {
+        return self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds, state.chargedFee.feeTokenAmount);
+    }
     val ccipSend = lazy self.onrampSend.msg.load();
     val tokenAmount = ccipSend.tokenAmounts.iter().next();
     val addresses = lazy self.addresses.load();
     val requestLockOrBurn = createMessage({
         bounce: true,
-        value: OnRamp_ExecutorRequestsLockOrBurn.cost(poolInfo.admission.load().lockOrBurn),
+        value: OnRamp_ExecutorRequestsLockOrBurn.cost(lockOrBurnAdmission),
         dest: addresses.onramp,
         body: OnRamp_ExecutorRequestsLockOrBurn {
             queryID: ccipSend.queryID,

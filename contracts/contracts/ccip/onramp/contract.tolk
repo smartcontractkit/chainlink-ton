@@ -320,7 +320,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
                 }.toCell(),
             },
             selfMessage: {
-                value: SendExecutor_Costs.Execute() + grams("0.01"), // TODO temporarily raise value to cover for fixed cost of TokenPool
+                value: SendExecutor_Costs.Execute(),
                 body: CCIPSendExecutor_Execute {
                     onrampSend: payload,
                     config: CCIPSendExecutor_Config {
