@@ -840,7 +840,7 @@ export const builder = {
           oracle: src.loadAddress(),
           signers: loadDict(
             Dictionary.loadDirect(
-              Dictionary.Keys.BigUint(256),
+              Dictionary.Keys.BigUint(160),
               Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
               src.loadRef(),
             ),
