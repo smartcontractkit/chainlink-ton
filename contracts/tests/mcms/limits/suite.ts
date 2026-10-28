@@ -52,8 +52,10 @@ export type SetConfigSequenceCase = {
   /** Existing config before the first step. Omit for a fresh contract. */
   initial?: { signers: number; groups: number }
   steps: SetConfigStep[]
-  /** Gas ceiling applied to every step. */
+  /** Gas ceiling applied to every successful step. */
   maxGasPerStep?: bigint
+  /** Outcome expected for the final step. Previous steps must always succeed. */
+  expected?: ExpectedOutcome
 }
 
 export type SetRootCase = CaseBase & {
@@ -185,14 +187,21 @@ const runSetConfigSequenceCase = async (
     harness = await McmsLimitsHarness.create({ version, ownerSeed: seed })
   }
 
+  const finalExpected = testCase.expected ?? 'success'
+
   for (const [index, step] of testCase.steps.entries()) {
+    const isFinalStep = index === testCase.steps.length - 1
+    const expected = isFinalStep ? finalExpected : 'success'
+    const maxGas = expected === 'success' ? testCase.maxGasPerStep : undefined
     const layout = layoutFor(step.groups)
     const signers = makeSigners(step.signers, layout)
     const outcome = await harness.setConfig(signers, layout)
+
     logOutcome(`${version} ${testCase.name} [step ${index + 1}]`, outcome)
-    expect(outcome.exitCode).toBe(0)
-    if (testCase.maxGasPerStep !== undefined) {
-      expect(outcome.gasUsed).toBeLessThanOrEqual(testCase.maxGasPerStep)
+    expectOutcome(outcome, { ...testCase, expected, maxGas })
+
+    if (expected !== 'success') {
+      return
     }
     expectConfigSigners(await harness.getConfig(), signers, layout)
   }
