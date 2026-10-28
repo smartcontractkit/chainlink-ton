@@ -75,7 +75,9 @@ export type CurrentVersionTestConfig<TCurrentVersionContract> = {
  * Contract interface that must be implemented by upgradeable contracts for testing.
  */
 export interface UpgradeableContract
-  extends upgradeable.Interface, typeAndVersion.Interface, Contract {}
+  extends upgradeable.Interface,
+    typeAndVersion.Interface,
+    Contract {}
 
 interface PrevVersionSetup {
   version: string
