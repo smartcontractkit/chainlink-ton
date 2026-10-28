@@ -6,7 +6,7 @@ import "../lib/secp256k1";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/crypto/merkle_proof.tolk";
 
-const CONTRACT_VERSION = "0.0.4";
+const CONTRACT_VERSION = "0.0.5";
 
 /// This is a multi-sig contract that supports signing many transactions (called "ops" in
 /// the context of this contract to prevent confusion with transactions on the underlying chain)
@@ -1180,16 +1180,9 @@ fun MCMS<T>.setConfig(
 
     // Upack config from the contract data
     var config = Config.fromCell(self.data.config);
-    // Iterate over and remove old signers
-    var oldSigner = config.signers.findFirst();
-    while (oldSigner.isFound) {
-        val s = oldSigner.loadValue();
-        // Remove any old signer addresses
-        config.signers.delete(oldSigner.getKey());
-        self.data.signers.delete(s.address);
-        oldSigner = config.signers.findFirst();
-    }
-    config.signers = createEmptyMap(); // reset signers
+    // Remove old signer addresses
+    config.signers = createEmptyMap();
+    self.data.signers = createEmptyMap();
 
     config.groupQuorums = groupQuorums;
     config.groupParents = groupParents;
