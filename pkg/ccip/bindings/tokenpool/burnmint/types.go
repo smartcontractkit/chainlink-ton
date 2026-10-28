@@ -27,6 +27,9 @@ type BurnContext struct {
 	_              tlb.Magic                          `tlb:"#ba302a47" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	Wallet         *address.Address                   `tlb:"addr required"`
 	ForwardPayload tokenpool.LockOrBurnForwardPayload `tlb:"^"`
+	// TransferInitiator is the incoming transfer notification's initiator (the source DA); used
+	// unless the request carries an explicit returnTo.
+	TransferInitiator *address.Address `tlb:"addr required"`
 }
 
 // MintContext represents the context passed to the DepositAccount (off-ramp role) for mint

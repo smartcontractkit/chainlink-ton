@@ -1782,16 +1782,28 @@ fun TokenPool<T>.onLockOrBurnTransferContinue(
     throw TokenPool_Error.UnsupportedOperation;
 }
 
-fun TokenPool<T>.createCustodyReturn(forwardPayload: TokenPool_LockOrBurnForwardPayload): AskToTransfer {
+/// Builds a best-effort return of custody to the authenticated source.
+/// @dev The optional `extra.returnTo` and `extra.sendExcessesTo` override is read from
+/// the operation, defaults to transfer initiator and original sender respectively.
+fun TokenPool<T>.createCustodyReturn(
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
+    transferInitiator: address,
+): AskToTransfer {
     val requestMsg = lazy forwardPayload.requestMsg.load();
     val details = lazy requestMsg.request.load().transfer.details.load();
-    val sendExcessesTo = requestMsg.sendExcessesTo != null
-        ? requestMsg.sendExcessesTo!
+
+    val extra = requestMsg.extra != null ? requestMsg.extra!.load() : null;
+    val transferRecipient = extra != null && extra.returnTo != null
+        ? extra.returnTo!
+        : transferInitiator;
+    val sendExcessesTo = extra != null && extra.sendExcessesTo != null
+        ? extra.sendExcessesTo!
         : details.originalSender;
+
     return AskToTransfer {
         queryId: requestMsg.queryId,
         jettonAmount: details.amount,
-        transferRecipient: details.originalSender,
+        transferRecipient,
         sendExcessesTo,
         customPayload: null,
         forwardTonAmount: 0,

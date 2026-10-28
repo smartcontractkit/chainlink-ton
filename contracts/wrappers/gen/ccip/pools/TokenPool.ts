@@ -1985,7 +1985,7 @@ export const TokenPool_RMNAccessControlMessage = {
  >     replyTo: address
  >     finalizationValue: coins
  >     onRampNamespaces: map<uint32, ()>
- >     sendExcessesTo: address?
+ >     extra: Cell<TokenPool_LockOrBurnExtra>?
  > }
  */
 export interface TokenPool_LockOrBurn {
@@ -1997,7 +1997,7 @@ export interface TokenPool_LockOrBurn {
     replyTo: c.Address
     finalizationValue: coins
     onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
-    sendExcessesTo: c.Address | null /* = null */
+    extra: TokenPool_LockOrBurnExtra | null /* = null */
 }
 
 export const TokenPool_LockOrBurn = {
@@ -2011,11 +2011,11 @@ export const TokenPool_LockOrBurn = {
         replyTo: c.Address
         finalizationValue: coins
         onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
-        sendExcessesTo?: c.Address | null /* = null */
+        extra?: TokenPool_LockOrBurnExtra | null /* = null */
     }): TokenPool_LockOrBurn {
         return {
             $: 'TokenPool_LockOrBurn',
-            sendExcessesTo: null,
+            extra: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -2034,7 +2034,7 @@ export const TokenPool_LockOrBurn = {
                             (s) => [],
                             (v,b) => { {} }
                         ), s)),
-            sendExcessesTo: s.loadMaybeAddress(),
+            extra: s.loadBoolean() ? loadCellRef<TokenPool_LockOrBurnExtra>(s, TokenPool_LockOrBurnExtra.fromSlice) : null,
         }
     },
     store(self: TokenPool_LockOrBurn, b: c.Builder): void {
@@ -2054,10 +2054,52 @@ export const TokenPool_LockOrBurn = {
             (s) => [],
             (v,b) => { {} }
         ));
-        b.storeAddress(self.sendExcessesTo);
+        storeTolkNullable<TokenPool_LockOrBurnExtra>(self.extra, b,
+            (v,b) => storeCellRef<TokenPool_LockOrBurnExtra>(v, b, TokenPool_LockOrBurnExtra.store)
+        );
     },
     toCell(self: TokenPool_LockOrBurn): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurn>(self, TokenPool_LockOrBurn.store);
+    }
+}
+
+/**
+ > struct TokenPool_LockOrBurnExtra {
+ >     sendExcessesTo: address?
+ >     returnTo: address?
+ > }
+ */
+export interface TokenPool_LockOrBurnExtra {
+    readonly $: 'TokenPool_LockOrBurnExtra'
+    sendExcessesTo: c.Address | null /* = null */
+    returnTo: c.Address | null /* = null */
+}
+
+export const TokenPool_LockOrBurnExtra = {
+    create(args: {
+        sendExcessesTo?: c.Address | null /* = null */
+        returnTo?: c.Address | null /* = null */
+    }): TokenPool_LockOrBurnExtra {
+        return {
+            $: 'TokenPool_LockOrBurnExtra',
+            sendExcessesTo: null,
+            returnTo: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_LockOrBurnExtra {
+        return {
+            $: 'TokenPool_LockOrBurnExtra',
+            sendExcessesTo: s.loadMaybeAddress(),
+            returnTo: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenPool_LockOrBurnExtra, b: c.Builder): void {
+        b.storeAddress(self.sendExcessesTo);
+        b.storeAddress(self.returnTo);
+    },
+    toCell(self: TokenPool_LockOrBurnExtra): c.Cell {
+        return makeCellFrom<TokenPool_LockOrBurnExtra>(self, TokenPool_LockOrBurnExtra.store);
     }
 }
 
@@ -5400,7 +5442,7 @@ export class TokenPool implements c.Contract {
         replyTo: c.Address
         finalizationValue: coins
         onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
-        sendExcessesTo?: c.Address | null /* = null */
+        extra?: TokenPool_LockOrBurnExtra | null /* = null */
     }) {
         return TokenPool_LockOrBurn.toCell(TokenPool_LockOrBurn.create(body));
     }
@@ -5636,7 +5678,7 @@ export class TokenPool implements c.Contract {
         replyTo: c.Address
         finalizationValue: coins
         onRampNamespaces: Set<uint32> /* = [] as map<uint32, ()> */
-        sendExcessesTo?: c.Address | null /* = null */
+        extra?: TokenPool_LockOrBurnExtra | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

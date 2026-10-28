@@ -15,10 +15,18 @@ struct (0x9e9ec361) JettonLockBox_Deposit {
     amount: coins;
     /// Optional pool-specific context forwarded back in the Deposited reply.
     context: cell?;
-    /// Where to return custody on rejection. Defaults to the transfer initiator (depositor).
-    returnAddress: address?;
+    /// Optional rejection routing and failure funding; kept in a ref to stay within the
+    /// cell-size limit.
+    extra: Cell<JettonLockBox_DepositExtra>? = null;
+}
+
+struct JettonLockBox_DepositExtra {
+    /// Where to return custody on rejection; defaults to the transfer initiator (depositor).
+    returnTo: address? = null;
     /// CCIP post-custody failure budget, forwarded to the initiator on rejection.
-    failureValue: coins;
+    failureValue: coins = 0;
+    /// Where the return transfer's unused TON goes; null falls back to the depositor.
+    sendExcessesTo: address? = null;
 }
 
 /// Extra fields for withdraw — stored in a cell ref to keep the main struct compact.

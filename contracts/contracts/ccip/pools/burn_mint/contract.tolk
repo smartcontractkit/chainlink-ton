@@ -115,8 +115,7 @@ fun onBouncedMessage(in: InMessageBounced) {
             val operation = lazy context.forwardPayload.load();
             var pool = st.TokenPool();
             val exitCode = BurnMintTokenPool_Error.UnexpectedBurnBounce as int32;
-            // TODO: this custody should go to `returnAddress` (get it from fwdp)
-            val custodyReturn = TokenPool<void>.createCustodyReturn(operation);
+            val custodyReturn = TokenPool<void>.createCustodyReturn(operation, context.transferInitiator);
             pool.recoverLockOrBurnFailure(operation, exitCode, in.valueCoins, custodyReturn);
 
             st.poolData = pool.data.toCell();
@@ -159,6 +158,7 @@ fun onLockOrBurnTransferContinue(
     val context = BurnMintTokenPool_BurnContext {
         wallet: sender, // own wallet
         forwardPayload: fwdPayload.toCell(),
+        transferInitiator: msg.transferInitiator!, // already checked non-null
     };
 
     val operation = lazy context.forwardPayload.load();

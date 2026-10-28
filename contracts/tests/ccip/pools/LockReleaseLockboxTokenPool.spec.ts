@@ -19,6 +19,7 @@ import {
   TokenPool_LockOrBurnWithdraw,
   TokenPool_LockOrBurnFailure,
   TokenPool_LockOrBurnFinished,
+  TokenPool_LockOrBurnExtra,
   TokenPool_LockOrBurnForwardPayload,
   TokenPool_LockOrBurnPrepared,
   TokenPool_LockOrBurnOutV1,
@@ -1539,7 +1540,9 @@ describe('LockReleaseLockboxTokenPool', () => {
           replyTo: deployer.address,
           onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
           finalizationValue: toNano('0.01'),
-          sendExcessesTo: recipient.address,
+          extra: TokenPool_LockOrBurnExtra.create({
+            sendExcessesTo: recipient.address,
+          }),
         })
 
         const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({

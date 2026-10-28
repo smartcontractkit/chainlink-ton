@@ -148,16 +148,11 @@ fun onLockOrBurnTransferContinue(
     msg: TransferNotificationForRecipient,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
-    // On rejection the lockbox returns custody straight to the original initiator.
-    val returnAddress = msg.transferInitiator;
-
-    // Get the actual transfer original sender (initiator) from the transfer details.
+    // Resolve the caller's routing overrides, falling back to the authenticated source and the
+    // original sender that paid the source-side budget.
     val requestMsg = lazy fwdPayload.requestMsg.load();
-    // Return the wallet's unused value to the caller-selected recipient; default to the original
-    // sender, which paid the source-side budget.
-    val sendExcessesTo = requestMsg.sendExcessesTo != null
-        ? requestMsg.sendExcessesTo!
-        : requestMsg.request.load().transfer.details.load().originalSender;
+    val transferInitiator = msg.transferInitiator!; // already checked non-null
+    val extra = requestMsg.extra != null ? requestMsg.extra!.load() : null;
 
     val safety = st.TokenPool().budget().lockOrBurn.safety;
     val forwardTonAmount = safety + requestMsg.finalizationValue;
@@ -168,7 +163,7 @@ fun onLockOrBurnTransferContinue(
         bounce: BounceMode.RichBounce,
         value: 0,
         dest: jc.walletAddress(),
-        body: createLockboxTransfer(st, fwdPayload, returnAddress, sendExcessesTo, forwardTonAmount),
+        body: createLockboxTransfer(st, fwdPayload, transferInitiator, extra, forwardTonAmount),
     };
 
     val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
@@ -191,8 +186,8 @@ fun onLockOrBurnTransferContinue(
 fun createLockboxTransfer(
     st: Storage,
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
-    returnAddress: address?,
-    sendExcessesTo: address?,
+    transferInitiator: address,
+    extra: TokenPool_LockOrBurnExtra?,
     forwardTonAmount: coins,
 ): AskToTransfer {
     val requestMsg = lazy fwdPayload.requestMsg.load();
@@ -201,8 +196,16 @@ fun createLockboxTransfer(
     val requestDetails = lazy requestInV1.transfer.details.load();
     val jc = st.poolData.load().jettonClient();
 
+    val returnTo = extra != null && extra.returnTo != null
+        ? extra.returnTo!
+        : transferInitiator;
+    val sendExcessesTo = extra != null && extra.sendExcessesTo != null
+        ? extra.sendExcessesTo!
+        : requestMsg.request.load().transfer.details.load().originalSender;
+
     val context = LockReleaseLockboxTokenPool_LockContext {
         forwardPayload: fwdPayload.toCell(),
+        transferInitiator,
     };
 
     // Budget amount to return to the pool to cover failure finalization costs.
@@ -215,8 +218,7 @@ fun createLockboxTransfer(
         remoteChainSelector: requestDetails.remoteChainSelector,
         amount: prepared.destTokenAmount,
         context: context.toCell(),
-        returnAddress,
-        failureValue,
+        extra: JettonLockBox_DepositExtra { returnTo, failureValue, sendExcessesTo }.toCell(),
     };
 
     return AskToTransfer {
@@ -281,7 +283,7 @@ fun onDepositFailed(
         return;
     }
 
-    // TODO: the lockbox returns only the post-fee `destTokenAmount` to `returnAddress`, so the CCIP
+    // TODO: the lockbox returns only the post-fee `destTokenAmount` to `returnTo`, so the CCIP
     //       fee is retained by the pool on rejection. Refund the fee (details.amount - destTokenAmount)
     //       to the original sender to make the sender whole.
 
@@ -304,8 +306,7 @@ fun onLockboxTransferBounced(
     val operation = lazy context.forwardPayload.load();
 
     var pool = st.TokenPool();
-    // TODO: this custody should go to `returnAddress`
-    val custodyReturn = TokenPool<void>.createCustodyReturn(operation);
+    val custodyReturn = TokenPool<void>.createCustodyReturn(operation, context.transferInitiator);
     val exitCode = LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce as int32;
     pool.recoverLockOrBurnFailure(operation, exitCode, msgValue, custodyReturn);
     st.poolData = pool.data.toCell();

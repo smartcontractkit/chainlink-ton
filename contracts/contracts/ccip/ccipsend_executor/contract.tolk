@@ -316,7 +316,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
     val addresses = lazy self.addresses.load();
     val requestLockOrBurn = createMessage({
         bounce: true,
-        value: OnRamp_ExecutorRequestsLockOrBurn.cost(poolInfo.admission.load().lockOrBurn),
+        value: OnRamp_Costs.ExecutorRequestsLockOrBurn(poolInfo.admission.load().lockOrBurn),
         dest: addresses.onramp,
         body: OnRamp_ExecutorRequestsLockOrBurn {
             queryID: ccipSend.queryID,

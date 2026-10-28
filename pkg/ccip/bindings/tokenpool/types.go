@@ -411,8 +411,15 @@ type LockOrBurn struct {
 	// FailureValue is the CCIP post-custody failure budget.
 	FailureValue     tlb.Coins                    `tlb:"."`
 	OnRampNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
-	// SendExcessesTo is where jetton wallets return unused TON; nil keeps the pool default.
+	// Extra carries optional excess and failure-return routing.
+	Extra *LockOrBurnExtra `tlb:"maybe ^"`
+}
+
+// LockOrBurnExtra overrides where a lock/burn flow returns excess TON and failed custody.
+// Nil fields keep the pool defaults (original sender / source deposit account).
+type LockOrBurnExtra struct {
 	SendExcessesTo *address.Address `tlb:"addr"`
+	ReturnTo       *address.Address `tlb:"addr"`
 }
 
 // ReleaseOrMint releases or mints tokens on the destination chain. ReplyTo must be non-nil.

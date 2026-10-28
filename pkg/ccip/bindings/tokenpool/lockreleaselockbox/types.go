@@ -24,6 +24,9 @@ const (
 type LockContext struct {
 	_              tlb.Magic                          `tlb:"#60fdb63b" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	ForwardPayload tokenpool.LockOrBurnForwardPayload `tlb:"^"`
+	// TransferInitiator is the incoming transfer notification's initiator (the source DA); used
+	// unless the request carries an explicit returnTo.
+	TransferInitiator *address.Address `tlb:"addr required"`
 }
 
 // ReleaseContext represents the context passed to the DepositAccount (off-ramp role) for

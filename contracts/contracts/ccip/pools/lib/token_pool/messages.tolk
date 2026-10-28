@@ -110,9 +110,18 @@ struct (0xfa7da444) TokenPool_LockOrBurn {
     finalizationValue: coins;
     onRampNamespaces: map<uint32, ()> = [];
 
-    /// Where jetton wallets return unused TON (success excess). The caller chooses it; the
-    /// source flow defaults to the transfer's original sender.
+    /// Optional excess and failure-return routing; see `TokenPool_LockOrBurnExtra`.
+    extra: Cell<TokenPool_LockOrBurnExtra>? = null;
+}
+
+/// Optional value-routing overrides for a lock/burn operation. Kept in a ref so the main
+/// message stays within one cell even with many deposit namespaces.
+struct TokenPool_LockOrBurnExtra {
+    /// Where jetton wallets return unused TON (success excess). Defaults to the original sender.
     sendExcessesTo: address? = null;
+    /// Where failed custody returns go. Defaults to the transfer notification initiator (the
+    /// source deposit account).
+    returnTo: address? = null;
 }
 
 struct TokenPool_LockOrBurnForwardPayload {

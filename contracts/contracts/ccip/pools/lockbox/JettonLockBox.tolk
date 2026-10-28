@@ -210,7 +210,8 @@ fun onDepositReturn(
 ) {
     // The failure is optional, only if deposit information is available, and it's
     // non-configurable by design, always sent back to the initiator of the deposit.
-    val failureValue = deposit != null ? deposit!.failureValue : 0 as coins;
+    val depositExtra = deposit != null && deposit!.extra != null ? deposit!.extra!.load() : null;
+    val failureValue = depositExtra != null ? depositExtra.failureValue : 0 as coins;
     var failure = createMessage({
         bounce: BounceMode.NoBounce,
         value: failureValue,
@@ -226,8 +227,14 @@ fun onDepositReturn(
     });
 
     // Best-effort return to the account named in the deposit (falls back to the depositor).
-    val returnTo = deposit != null && deposit!.returnAddress != null
-        ? deposit!.returnAddress!
+    val returnTo = depositExtra != null && depositExtra.returnTo != null
+        ? depositExtra.returnTo!
+        : msg.transferInitiator!;
+    // Keep the return's excess at the caller-selected recipient; fall back to the depositor when
+    // the deposit did not name one. The return target may be a deposit account, which does not
+    // accept `ReturnExcessesBack`.
+    val sendExcessesTo = depositExtra != null && depositExtra.sendExcessesTo != null
+        ? depositExtra.sendExcessesTo!
         : msg.transferInitiator!;
     val forwardPayload = deposit != null
         ? msg.forwardPayload
@@ -245,7 +252,7 @@ fun onDepositReturn(
             queryId: msg.queryId,
             jettonAmount: msg.jettonAmount,
             transferRecipient: returnTo,
-            sendExcessesTo: returnTo,
+            sendExcessesTo,
             customPayload: null,
             forwardTonAmount: 0,
             forwardPayload,

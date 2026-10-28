@@ -423,12 +423,13 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     // before custody moves. Use the canonical jetton ask so the deposit account can forward it
     // without a parallel message type. The source sender paid the source-side budget, so the
     // wallet's unused value returns to it rather than accumulating in the OnRamp.
+    val extra = request.extra != null ? request.extra!.load() : null;
     val ask = AskToTransfer {
         queryId: msg.queryID,
         jettonAmount: withdrawRequest.amount,
         transferRecipient: withdrawRequest.tokenPool,
-        sendExcessesTo: request.sendExcessesTo != null
-            ? request.sendExcessesTo!
+        sendExcessesTo: extra != null && extra.sendExcessesTo != null
+            ? extra.sendExcessesTo!
             : request.request.load().transfer.details.load().originalSender,
         customPayload: null,
         forwardTonAmount: withdrawRequest.forwardTonAmount,
@@ -1039,6 +1040,12 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
     var onRampNamespaces: map<uint32, ()> = [];
     onRampNamespaces.set(DeployableNamespace_OnRampAccount, ());
     val details = lazy msg.request.load().transfer.details.load();
+    val extra = TokenPool_LockOrBurnExtra {
+        // The source sender paid the source-side budget; return unused TON to it.
+        sendExcessesTo: details.originalSender,
+        // Leave returnTo null: failed custody defaults back to the source deposit account.
+        returnTo: null,
+    };
     val tokenPoolLockOrBurn = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
@@ -1052,8 +1059,7 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
             finalizationValue: msg.finalizationValue,
             // Keep the pool's deposit-auth namespace cache in sync
             onRampNamespaces,
-            // The source sender paid the source-side budget; return unused TON to it.
-            sendExcessesTo: details.originalSender,
+            extra: extra.toCell(),
         }
     });
     tokenPoolLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

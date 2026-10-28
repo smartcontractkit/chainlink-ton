@@ -58,6 +58,7 @@ fun cctMintOpBudget(walletDeployFee: coins): coins {
 struct (0xba302a47) BurnMintTokenPool_BurnContext {
     wallet: address;
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
+    transferInitiator: address; // incoming transfer notification's initiator (the source DA)
 }
 
 /// Context passed to OffRampAccount for mint (release) operations.
@@ -65,9 +66,6 @@ struct (0xba302a47) BurnMintTokenPool_BurnContext {
 struct (0xb3d52361) BurnMintTokenPool_MintContext {
     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
 }
-
-/// @notice Context stored in OffRampAccount for mint operations.
-type BurnMintTokenPool_OffRampAccountContext = BurnMintTokenPool_MintContext;
 
 /// Error codes for BurnMintTokenPool. FACILITY_ID = 450, so codes start at 45000.
 enum BurnMintTokenPool_Error {
