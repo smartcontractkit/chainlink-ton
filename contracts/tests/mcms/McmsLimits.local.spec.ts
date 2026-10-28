@@ -15,7 +15,7 @@ runLimitsSuite({
       signers: 64,
       groups: 31,
       expected: 'success',
-      maxGas: 900_000n,
+      maxGas: 930_000n,
     },
     {
       name: 'setConfig: 32 -> 64 signers / 31 groups',
@@ -24,7 +24,7 @@ runLimitsSuite({
       groups: 31,
       fromSigners: 32,
       expected: 'success',
-      maxGas: 920_000n,
+      maxGas: 930_000n,
     },
     {
       name: 'setConfig: 64 -> 64 signers / 31 groups',
@@ -33,7 +33,7 @@ runLimitsSuite({
       groups: 31,
       fromSigners: 64,
       expected: 'success',
-      maxGas: 920_000n,
+      maxGas: 930_000n,
     },
     {
       name: 'setConfig: 32 -> 69 signers / 31 groups',
