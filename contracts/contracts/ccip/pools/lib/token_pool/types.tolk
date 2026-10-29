@@ -29,7 +29,7 @@ const RM_CUSTODY_MOVES_BEFORE_RELEASE_MINT: int = 2;
 struct TokenPool_DynamicConfig {
     router: address;
     rateLimitAdmin: address? = null;
-    feeAdmin: address?; // TODO[REFACTOR]: [NONEVM-5336] this is not being used?
+    feeAdmin: address?;
 }
 
 struct TokenPool_LocalPolicy {
