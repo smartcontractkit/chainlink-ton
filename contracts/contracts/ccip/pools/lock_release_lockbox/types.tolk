@@ -63,13 +63,3 @@ enum LockReleaseLockBoxTokenPool_Error {
     // The lockbox reported that the jetton transfer for a release (withdraw) bounced.
     LockBoxWithdrawFailed // 20906
 }
-
-// TODO[DELETE]: remove?
-struct LockReleaseLockboxTokenPool_InitConfig {
-    owner: address;
-    rmnAdmin: address;
-    jettonClient: JettonClient;
-    tokenDecimals: uint8;
-    router: address;
-    lockbox: address;
-}

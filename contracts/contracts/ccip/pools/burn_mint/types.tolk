@@ -75,12 +75,3 @@ enum BurnMintTokenPool_Error {
     InvalidOffRampAccountNotification // 45003
     OffRampAccountDeployFailed // 45004
 }
-
-// TODO[DELETE]: remove?
-struct BurnMintTokenPool_InitConfig {
-    owner: address;
-    rmnAdmin: address;
-    jettonClient: JettonClient;
-    tokenDecimals: uint8;
-    router: address;
-}

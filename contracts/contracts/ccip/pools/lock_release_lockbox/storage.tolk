@@ -21,32 +21,3 @@ fun Storage.load(): Storage {
 fun Storage.store(self) {
     contract.setData(self.toCell());
 }
-
-// Initializes the storage with the given configuration.
-fun Storage.init(config: LockReleaseLockboxTokenPool_InitConfig): Storage {
-    return Storage {
-        poolData: TokenPool_Data {
-            adminConfig: TokenPool_AdminConfig {
-                ownable: Ownable2Step {
-                    owner: config.owner,
-                    pendingOwner: null,
-                }.toCell(),
-                dynamicConfig: TokenPool_DynamicConfig {
-                    router: config.router,
-                    rateLimitAdmin: null,
-                    feeAdmin: null,
-                }.toCell(),
-                jettonClient: config.jettonClient,
-                allowedFinalityConfig: TOKEN_POOL_DEFAULT_FINALITY,
-                advancedPoolHooks: null, // opt-in; wired later via setAdvancedPoolHooks
-            }.toCell(),
-            localPolicy: TokenPool_LocalPolicy {
-                cursePolicy: CursePolicy.newWithAdmin(config.rmnAdmin),
-            }.toCell(),
-            tokenDecimals: config.tokenDecimals,
-            remoteChainConfigs: createEmptyMap(),
-            tokenTransferFeeConfigs: createEmptyMap(),
-        }.toCell(),
-        lockbox: config.lockbox,
-    };
-}
