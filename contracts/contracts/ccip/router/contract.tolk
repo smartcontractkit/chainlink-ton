@@ -1432,33 +1432,29 @@ struct Ramp {
     ramp: address
 }
 
-/// TODO[REFACTOR]: returns lisp_list<OnRamp>
-get fun onRamps(): lisp_list<Cell<Ramp>> {
+get fun onRamps(): lisp_list<Ramp> {
     val st = lazy Storage.load();
-    var onRamps: lisp_list<Cell<Ramp>> = [];
+    var onRamps: lisp_list<Ramp> = [];
     var r = st.onRamps.findFirst();
     while (r.isFound) {
-        val ramp = Ramp {
+        onRamps.prependHead(Ramp {
             chainSelector: r.getKey(),
             ramp: r.loadValue(),
-        };
-        onRamps.prependHead(ramp.toCell());
+        });
         r = st.onRamps.iterateNext(r);
     }
     return onRamps;
 }
 
-/// TODO[REFACTOR]: returns lisp_list<OffRamp>
-get fun offRamps(): lisp_list<Cell<Ramp>> {
+get fun offRamps(): lisp_list<Ramp> {
     val st = lazy Storage.load();
-    var offRamps: lisp_list<Cell<Ramp>> = [];
+    var offRamps: lisp_list<Ramp> = [];
     var r = st.offRamps.findFirst();
     while (r.isFound) {
-        val ramp = Ramp {
+        offRamps.prependHead(Ramp {
             chainSelector: r.getKey(),
             ramp: r.loadValue(),
-        };
-        offRamps.prependHead(ramp.toCell());
+        });
         r = st.offRamps.iterateNext(r);
     }
     return offRamps;
