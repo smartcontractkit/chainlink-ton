@@ -2055,20 +2055,12 @@ fun TokenPool<T>.calculateLocalAmount(self, remoteAmount: uint256, remoteDecimal
 
         if (remoteDecimals > self.data.tokenDecimals) {
             val decimalsDiff = remoteDecimals - self.data.tokenDecimals;
-            // This is a safety check to prevent overflow in the next calculation.
-            // TODO[REFACTOR]: Move to math as safePow() and mustPow()
-
             return remoteAmount / mustPow10(decimalsDiff, TokenPool_Error.OverflowDetected);
         }
 
-        // This is a safety check to prevent overflow in the next calculation.
-        // More than 77 would never fit in a uint256 and would cause an overflow.
-        // We also check if the resulting amount would overflow.
         val decimalsDiff = self.data.tokenDecimals - remoteDecimals;
         val scale = mustPow10(decimalsDiff, TokenPool_Error.OverflowDetected);
-        assert(scale == 0 || remoteAmount <= MAX_UINT256 / scale, TokenPool_Error.OverflowDetected);
-    
-        return remoteAmount * scale;
+        return mustProd(remoteAmount as int, scale as int, TokenPool_Error.OverflowDetected) as uint256;
     }(), TokenPool_Error.OverflowDetected)
 }
 
