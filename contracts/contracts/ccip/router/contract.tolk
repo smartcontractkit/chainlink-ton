@@ -1055,7 +1055,7 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
             queryId: msg.queryID,
             request: msg.request,
             requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
-            tokenArgs: null, // TODO[REMOVE]: tokenArgs are not supported?
+            tokenArgs: null, // TODO[REFACTOR]: [NONEVM-5336] tokenArgs are not supported?
             replyTo: msg.executorAddress,
             finalizationValue: msg.finalizationValue,
             // Keep the pool's deposit-auth namespace cache in sync
