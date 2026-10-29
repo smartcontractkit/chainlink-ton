@@ -347,6 +347,126 @@ export const CrossChainAddress = {
 }
 
 /**
+ > struct Ownable2Step {
+ >     owner: address
+ >     pendingOwner: address?
+ > }
+ */
+export interface Ownable2Step {
+    readonly $: 'Ownable2Step'
+    owner: c.Address
+    pendingOwner: c.Address | null /* = null */
+}
+
+export const Ownable2Step = {
+    create(args: {
+        owner: c.Address
+        pendingOwner?: c.Address | null /* = null */
+    }): Ownable2Step {
+        return {
+            $: 'Ownable2Step',
+            pendingOwner: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step {
+        return {
+            $: 'Ownable2Step',
+            owner: s.loadAddress(),
+            pendingOwner: s.loadMaybeAddress(),
+        }
+    },
+    store(self: Ownable2Step, b: c.Builder): void {
+        b.storeAddress(self.owner);
+        b.storeAddress(self.pendingOwner);
+    },
+    toCell(self: Ownable2Step): c.Cell {
+        return makeCellFrom<Ownable2Step>(self, Ownable2Step.store);
+    }
+}
+
+/**
+ > struct (0xf21b7da1) Ownable2Step_TransferOwnership {
+ >     queryId: uint64
+ >     newOwner: address
+ > }
+ */
+export interface Ownable2Step_TransferOwnership {
+    readonly $: 'Ownable2Step_TransferOwnership'
+    queryId: uint64
+    newOwner: c.Address
+}
+
+export const Ownable2Step_TransferOwnership = {
+    PREFIX: 0xf21b7da1,
+
+    create(args: {
+        queryId?: uint64
+        newOwner: c.Address
+    }): Ownable2Step_TransferOwnership {
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_TransferOwnership {
+        loadAndCheckPrefix32(s, 0xf21b7da1, 'Ownable2Step_TransferOwnership');
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            queryId: s.loadUintBig(64),
+            newOwner: s.loadAddress(),
+        }
+    },
+    store(self: Ownable2Step_TransferOwnership, b: c.Builder): void {
+        b.storeUint(0xf21b7da1, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.newOwner);
+    },
+    toCell(self: Ownable2Step_TransferOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_TransferOwnership>(self, Ownable2Step_TransferOwnership.store);
+    }
+}
+
+/**
+ > struct (0xf9e29e4a) Ownable2Step_AcceptOwnership {
+ >     queryId: uint64
+ > }
+ */
+export interface Ownable2Step_AcceptOwnership {
+    readonly $: 'Ownable2Step_AcceptOwnership'
+    queryId: uint64
+}
+
+export const Ownable2Step_AcceptOwnership = {
+    PREFIX: 0xf9e29e4a,
+
+    create(args: {
+        queryId?: uint64
+    }): Ownable2Step_AcceptOwnership {
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_AcceptOwnership {
+        loadAndCheckPrefix32(s, 0xf9e29e4a, 'Ownable2Step_AcceptOwnership');
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: Ownable2Step_AcceptOwnership, b: c.Builder): void {
+        b.storeUint(0xf9e29e4a, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: Ownable2Step_AcceptOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_AcceptOwnership>(self, Ownable2Step_AcceptOwnership.store);
+    }
+}
+
+/**
  > struct TokenPool_DynamicConfig {
  >     router: address
  >     rateLimitAdmin: address?
@@ -4965,45 +5085,6 @@ export const JettonClient = {
 }
 
 /**
- > struct Ownable2Step {
- >     owner: address
- >     pendingOwner: address?
- > }
- */
-export interface Ownable2Step {
-    readonly $: 'Ownable2Step'
-    owner: c.Address
-    pendingOwner: c.Address | null /* = null */
-}
-
-export const Ownable2Step = {
-    create(args: {
-        owner: c.Address
-        pendingOwner?: c.Address | null /* = null */
-    }): Ownable2Step {
-        return {
-            $: 'Ownable2Step',
-            pendingOwner: null,
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): Ownable2Step {
-        return {
-            $: 'Ownable2Step',
-            owner: s.loadAddress(),
-            pendingOwner: s.loadMaybeAddress(),
-        }
-    },
-    store(self: Ownable2Step, b: c.Builder): void {
-        b.storeAddress(self.owner);
-        b.storeAddress(self.pendingOwner);
-    },
-    toCell(self: Ownable2Step): c.Cell {
-        return makeCellFrom<Ownable2Step>(self, Ownable2Step.store);
-    }
-}
-
-/**
  > struct JettonWithdrawable_WithdrawFeeTransfer {
  >     wallet: address
  >     value: coins
@@ -5654,6 +5735,19 @@ export class TokenPool implements c.Contract {
         return JettonWithdrawable_Withdraw.toCell(JettonWithdrawable_Withdraw.create(body));
     }
 
+    static createCellOfOwnable2StepTransferOwnership(body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }) {
+        return Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body));
+    }
+
+    static createCellOfOwnable2StepAcceptOwnership(body: {
+        queryId?: uint64
+    }) {
+        return Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body));
+    }
+
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -5994,6 +6088,27 @@ export class TokenPool implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: JettonWithdrawable_Withdraw.toCell(JettonWithdrawable_Withdraw.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOwnable2StepTransferOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOwnable2StepAcceptOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body)),
             ...extraOptions
         });
     }
