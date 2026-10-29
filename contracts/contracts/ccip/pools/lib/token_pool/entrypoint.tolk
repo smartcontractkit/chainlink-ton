@@ -2465,17 +2465,9 @@ fun TokenPool<T>.setRateLimitConfig(
         val update = iter.next();
         var config = self.data.remoteChainConfigs.mustGet(update.remoteChainSelector, TokenPool_Error.NonExistentChain as int);
         if (update.fastFinality) {
-            var fastRateLimiters = config.fastFinalityRateLimiters.load();
-            // TODO[REFACTOR]: use setter RateLimiter._setTokenBucketConfig
-            fastRateLimiters.outbound = RateLimiter_TokenBucket.fromConfig(update.outboundRateLimiterConfig.load()).toCell();
-            fastRateLimiters.inbound = RateLimiter_TokenBucket.fromConfig(update.inboundRateLimiterConfig.load()).toCell();
-            config.fastFinalityRateLimiters = fastRateLimiters.toCell();
+            config.fastFinalityRateLimiters.updateRateLimiters(update);
         } else {
-            var rateLimiters = config.rateLimiters.load();
-            // TODO[REFACTOR]: use setter RateLimiter._setTokenBucketConfig
-            rateLimiters.outbound = RateLimiter_TokenBucket.fromConfig(update.outboundRateLimiterConfig.load()).toCell();
-            rateLimiters.inbound = RateLimiter_TokenBucket.fromConfig(update.inboundRateLimiterConfig.load()).toCell();
-            config.rateLimiters = rateLimiters.toCell();
+            config.rateLimiters.updateRateLimiters(update);
         }
         self.data.remoteChainConfigs.set(update.remoteChainSelector, config);
 
@@ -2489,6 +2481,19 @@ fun TokenPool<T>.setRateLimitConfig(
         body: TokenPool_RateLimitConfiguredNotification { queryId },
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// @notice Updates the rate limiters for a given rate limiter pair.
+/// @param update The rate limit configuration arguments.
+fun Cell<TokenPool_RateLimiterPair>.updateRateLimiters(mutate self, update: TokenPool_RateLimitConfigArgs) {
+    var rateLimiters = self.load();
+    var outbound = rateLimiters.outbound.load();
+    outbound._setTokenBucketConfig(update.outboundRateLimiterConfig.load());
+    var inbound = rateLimiters.inbound.load();
+    inbound._setTokenBucketConfig(update.inboundRateLimiterConfig.load());
+    rateLimiters.outbound = outbound.toCell();
+    rateLimiters.inbound = inbound.toCell();
+    self = rateLimiters.toCell();
 }
 
 /// Adds a pool address to the allowed remote token pools for a particular chain.

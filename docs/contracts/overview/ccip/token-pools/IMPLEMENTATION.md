@@ -258,7 +258,7 @@ sender with excess` (`token_pool.tolk:422,462`); other admin ops reply. Inconsis
 - ✅ (**Done**) **TON-TP/11 — Rate-limit-consumed events not emitted** (`token_pool.tolk:1162,
 1178,1204,1230`); fee-config updated/deleted events defined but unused
   (`events.tolk`).
-- **TON-TP/12 — `setRateLimitConfig` bypasses `_setTokenBucketConfig`.** Rebuilds
+- ✅ (**Done**) **TON-TP/12 — `setRateLimitConfig` bypasses `_setTokenBucketConfig`.** Rebuilds
   via `fromConfig` (`token_pool.tolk:1274-1283`), skipping `Config.validate()`.
 - **TON-TP/13 — `setDynamicConfig` missing router zero-address check**
   (`token_pool.tolk:216-217`).

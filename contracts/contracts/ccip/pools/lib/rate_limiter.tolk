@@ -139,9 +139,7 @@ fun RateLimiter_TokenBucket.currentTokenBucketState(mutate self): RateLimiter_To
     return self;
 }
 
-/// TODO[DESIGN] This is not used. Either adopt it in entrypoint.tolk:2313 or remove it.
-/// @notice Sets the rate limited config.
-/// @param s_bucket The token bucket.
+/// @notice Sets the rate limited config, reconfiguring the bucket in place.
 /// @param config The new config.
 fun RateLimiter_TokenBucket._setTokenBucketConfig(mutate self, config: RateLimiter_Config) {
     config.validate();
