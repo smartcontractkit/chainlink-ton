@@ -13,15 +13,15 @@ fun onInternalMessage(in: InMessage) {
     assert (in.body.isEmpty()) throw 0xFFFF
 }
 
-get fun get_safeAdd(a: int, b: int): (int, int) {
+get fun get_safeAdd(a: int, b: int): (int, Math_Result) {
     return safeAdd(a, b);
 }
 
-get fun get_safeProd(a: int, b: int): (int, int) {
+get fun get_safeProd(a: int, b: int): (int, Math_Result) {
     return safeProd(a, b);
 }
 
-get fun get_safePow10(n: uint8): (uint256, int) {
+get fun get_safePow10(n: uint8): (uint256, Math_Result) {
     return safePow10(n);
 }
 
