@@ -14,6 +14,7 @@ import * as counter from '../../wrappers/examples/Counter'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { merkleProof } from '../../src/mcms'
+import { findTransactionRequired } from '@ton/test-utils'
 
 describe('MCMS - IntegrationTest', () => {
   let blockchain: Blockchain
@@ -1013,7 +1014,24 @@ describe('MCMS - IntegrationTest', () => {
           success: true,
         })
 
-        // TODO[TEST]: verify emit Cancelled(callsHash);
+        // verify the timelock replied with Canceled(callsHash) to the veto MCMS
+        expect(r1.transactions).toHaveTransaction({
+          from: bind.timelock.address,
+          to: bind.mcmsVeto.address,
+          success: true,
+          op: rbactl.opcodes.out.Canceled,
+        })
+
+        expect(r1.transactions).toHaveTransaction({
+          from: bind.timelock.address,
+          to: bind.mcmsVeto.address,
+          op: rbactl.opcodes.out.Canceled,
+          body(x) {
+            if (!x) return false
+            const canceled = rbactl.builder.message.out.canceled.load(x.beginParse())
+            return canceled.queryId === 1 && canceled.id === callsHash
+          },
+        })
 
         blockchain.now = blockchain.now! + Number(MIN_DELAY)
 
