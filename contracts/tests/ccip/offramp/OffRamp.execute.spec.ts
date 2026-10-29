@@ -276,7 +276,7 @@ describe('OffRamp - Execute', () => {
       const report = setup.createExecuteReport([message1, message2])
       await setup.executeReportExpectingFailure(
         report,
-        of.OffRamp.Errors['OffRamp_Error.UnsupportedNumberOfMessages'],
+        of.OffRamp.Errors['OffRamp_Error.TooManyMessagesInReport'],
       )
     })
 

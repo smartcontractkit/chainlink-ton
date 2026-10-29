@@ -316,7 +316,6 @@ const (
 	ErrorMessageNotFromOwnedContract ExitCode = iota + 22100 // Facility ID * 100
 	ErrorSourceChainNotEnabled
 	ErrorEmptyExecutionReport
-	ErrorUnsupportedNumberOfMessages
 	ErrorInvalidMessageDestChainSelector
 	ErrorSourceChainSelectorMismatch
 	ErrorInvalidOnRampUpdate
