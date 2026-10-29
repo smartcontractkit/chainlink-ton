@@ -1,6 +1,7 @@
-import "../ccip/common/types.tolk"
+import "../ccip/lib/cross_chain_address/types"
 
 const TON_CROSS_CHAIN_ADDRESS_BYTES_SIZE: int = 36;
+
 fun tonAddressToCrossChainAddress(addr: address): CrossChainAddress {
 	val (_, hash) = addr.getWorkchainAndHash();
 	val slice = beginCell()
@@ -11,5 +12,3 @@ fun tonAddressToCrossChainAddress(addr: address): CrossChainAddress {
 		.beginParse();
 	return CrossChainAddress.fromSlice(slice);
 }
-
-

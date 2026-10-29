@@ -198,250 +198,6 @@ export const CCIPMessageReceived = {
 }
 
 /**
- > struct Storage {
- >     id: uint32
- >     ownable: Ownable2Step
- >     authorizedCaller: address
- >     behavior: TestReceiver_Behavior
- > }
- */
-export interface Storage {
-    readonly $: 'Storage'
-    id: uint32
-    ownable: Ownable2Step
-    authorizedCaller: c.Address
-    behavior: TestReceiver_Behavior
-}
-
-export const Storage = {
-    create(args: {
-        id: uint32
-        ownable: Ownable2Step
-        authorizedCaller: c.Address
-        behavior: TestReceiver_Behavior
-    }): Storage {
-        return {
-            $: 'Storage',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): Storage {
-        return {
-            $: 'Storage',
-            id: s.loadUintBig(32),
-            ownable: Ownable2Step.fromSlice(s),
-            authorizedCaller: s.loadAddress(),
-            behavior: TestReceiver_Behavior.fromSlice(s),
-        }
-    },
-    store(self: Storage, b: c.Builder): void {
-        b.storeUint(self.id, 32);
-        Ownable2Step.store(self.ownable, b);
-        b.storeAddress(self.authorizedCaller);
-        TestReceiver_Behavior.store(self.behavior, b);
-    },
-    toCell(self: Storage): c.Cell {
-        return makeCellFrom<Storage>(self, Storage.store);
-    }
-}
-
-/**
- > enum TestReceiver_Behavior { 3 variants }
- */
-export type TestReceiver_Behavior = bigint
-
-export const TestReceiver_Behavior = {
-    Accept: 0n,
-    RejectAll: 1n,
-    ConsumeAllGas: 2n,
-
-    fromSlice(s: c.Slice): TestReceiver_Behavior {
-        return s.loadUintBig(8);
-    },
-    store(self: TestReceiver_Behavior, b: c.Builder): void {
-        b.storeUint(self, 8);
-    },
-    toCell(self: TestReceiver_Behavior): c.Cell {
-        return makeCellFrom<TestReceiver_Behavior>(self, TestReceiver_Behavior.store);
-    }
-}
-
-/**
- > struct (0xcf87a147) TestReceiver_UpdateBehavior {
- >     behavior: TestReceiver_Behavior
- > }
- */
-export interface TestReceiver_UpdateBehavior {
-    readonly $: 'TestReceiver_UpdateBehavior'
-    behavior: TestReceiver_Behavior
-}
-
-export const TestReceiver_UpdateBehavior = {
-    PREFIX: 0xcf87a147,
-
-    create(args: {
-        behavior: TestReceiver_Behavior
-    }): TestReceiver_UpdateBehavior {
-        return {
-            $: 'TestReceiver_UpdateBehavior',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): TestReceiver_UpdateBehavior {
-        loadAndCheckPrefix32(s, 0xcf87a147, 'TestReceiver_UpdateBehavior');
-        return {
-            $: 'TestReceiver_UpdateBehavior',
-            behavior: TestReceiver_Behavior.fromSlice(s),
-        }
-    },
-    store(self: TestReceiver_UpdateBehavior, b: c.Builder): void {
-        b.storeUint(0xcf87a147, 32);
-        TestReceiver_Behavior.store(self.behavior, b);
-    },
-    toCell(self: TestReceiver_UpdateBehavior): c.Cell {
-        return makeCellFrom<TestReceiver_UpdateBehavior>(self, TestReceiver_UpdateBehavior.store);
-    }
-}
-
-/**
- > struct (0x9f5e489f) TestReceiver_UpdateAuthorizedCaller {
- >     authorizedCaller: address
- > }
- */
-export interface TestReceiver_UpdateAuthorizedCaller {
-    readonly $: 'TestReceiver_UpdateAuthorizedCaller'
-    authorizedCaller: c.Address
-}
-
-export const TestReceiver_UpdateAuthorizedCaller = {
-    PREFIX: 0x9f5e489f,
-
-    create(args: {
-        authorizedCaller: c.Address
-    }): TestReceiver_UpdateAuthorizedCaller {
-        return {
-            $: 'TestReceiver_UpdateAuthorizedCaller',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): TestReceiver_UpdateAuthorizedCaller {
-        loadAndCheckPrefix32(s, 0x9f5e489f, 'TestReceiver_UpdateAuthorizedCaller');
-        return {
-            $: 'TestReceiver_UpdateAuthorizedCaller',
-            authorizedCaller: s.loadAddress(),
-        }
-    },
-    store(self: TestReceiver_UpdateAuthorizedCaller, b: c.Builder): void {
-        b.storeUint(0x9f5e489f, 32);
-        b.storeAddress(self.authorizedCaller);
-    },
-    toCell(self: TestReceiver_UpdateAuthorizedCaller): c.Cell {
-        return makeCellFrom<TestReceiver_UpdateAuthorizedCaller>(self, TestReceiver_UpdateAuthorizedCaller.store);
-    }
-}
-
-/**
- > struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
- >     execId: uint192
- >     queryId: uint64
- >     message: Cell<Any2TVMMessage>
- > }
- */
-export interface Receiver_CCIPReceiveV2 {
-    readonly $: 'Receiver_CCIPReceiveV2'
-    execId: uint192
-    queryId: uint64
-    message: Any2TVMMessage
-}
-
-export const Receiver_CCIPReceiveV2 = {
-    PREFIX: 0x5b4bc7a6,
-
-    create(args: {
-        execId: uint192
-        queryId?: uint64
-        message: Any2TVMMessage
-    }): Receiver_CCIPReceiveV2 {
-        return {
-            $: 'Receiver_CCIPReceiveV2',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Receiver_CCIPReceiveV2 {
-        loadAndCheckPrefix32(s, 0x5b4bc7a6, 'Receiver_CCIPReceiveV2');
-        return {
-            $: 'Receiver_CCIPReceiveV2',
-            execId: s.loadUintBig(192),
-            queryId: s.loadUintBig(64),
-            message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
-        }
-    },
-    store(self: Receiver_CCIPReceiveV2, b: c.Builder): void {
-        b.storeUint(0x5b4bc7a6, 32);
-        b.storeUint(self.execId, 192);
-        b.storeUint(self.queryId, 64);
-        storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
-    },
-    toCell(self: Receiver_CCIPReceiveV2): c.Cell {
-        return makeCellFrom<Receiver_CCIPReceiveV2>(self, Receiver_CCIPReceiveV2.store);
-    }
-}
-
-/**
- > struct Any2TVMMessage {
- >     messageId: uint256
- >     sourceChainSelector: uint64
- >     sender: CrossChainAddress
- >     data: cell
- >     tokenAmounts: SnakedCell<TokenAmount>?
- > }
- */
-export interface Any2TVMMessage {
-    readonly $: 'Any2TVMMessage'
-    messageId: uint256
-    sourceChainSelector: uint64
-    sender: CrossChainAddress
-    data: c.Cell
-    tokenAmounts: SnakedCell<TokenAmount> | null
-}
-
-export const Any2TVMMessage = {
-    create(args: {
-        messageId: uint256
-        sourceChainSelector: uint64
-        sender: CrossChainAddress
-        data: c.Cell
-        tokenAmounts: SnakedCell<TokenAmount> | null
-    }): Any2TVMMessage {
-        return {
-            $: 'Any2TVMMessage',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): Any2TVMMessage {
-        return {
-            $: 'Any2TVMMessage',
-            messageId: s.loadUintBig(256),
-            sourceChainSelector: s.loadUintBig(64),
-            sender: CrossChainAddress.fromSlice(s),
-            data: s.loadRef(),
-            tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, TokenAmount.fromSlice) : null,
-        }
-    },
-    store(self: Any2TVMMessage, b: c.Builder): void {
-        b.storeUint(self.messageId, 256);
-        b.storeUint(self.sourceChainSelector, 64);
-        CrossChainAddress.store(self.sender, b);
-        b.storeRef(self.data);
-        storeTolkNullable<SnakedCell<TokenAmount>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, TokenAmount.store));
-    },
-    toCell(self: Any2TVMMessage): c.Cell {
-        return makeCellFrom<Any2TVMMessage>(self, Any2TVMMessage.store);
-    }
-}
-
-/**
  > type SnakedCell<T> = cell
  */
 export type SnakedCell<T> = T[]
@@ -612,6 +368,54 @@ export const Upgradeable_UpgradedEvent = {
 }
 
 /**
+ > struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
+ >     execId: uint192
+ >     queryId: uint64
+ >     message: Cell<Any2TVMMessage>
+ > }
+ */
+export interface Receiver_CCIPReceiveV2 {
+    readonly $: 'Receiver_CCIPReceiveV2'
+    execId: uint192
+    queryId: uint64
+    message: Any2TVMMessage
+}
+
+export const Receiver_CCIPReceiveV2 = {
+    PREFIX: 0x5b4bc7a6,
+
+    create(args: {
+        execId: uint192
+        queryId?: uint64
+        message: Any2TVMMessage
+    }): Receiver_CCIPReceiveV2 {
+        return {
+            $: 'Receiver_CCIPReceiveV2',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Receiver_CCIPReceiveV2 {
+        loadAndCheckPrefix32(s, 0x5b4bc7a6, 'Receiver_CCIPReceiveV2');
+        return {
+            $: 'Receiver_CCIPReceiveV2',
+            execId: s.loadUintBig(192),
+            queryId: s.loadUintBig(64),
+            message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
+        }
+    },
+    store(self: Receiver_CCIPReceiveV2, b: c.Builder): void {
+        b.storeUint(0x5b4bc7a6, 32);
+        b.storeUint(self.execId, 192);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
+    },
+    toCell(self: Receiver_CCIPReceiveV2): c.Cell {
+        return makeCellFrom<Receiver_CCIPReceiveV2>(self, Receiver_CCIPReceiveV2.store);
+    }
+}
+
+/**
  > struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
  >     queryId: uint64
  >     execId: ReceiveExecutorId
@@ -651,6 +455,219 @@ export const Router_CCIPReceiveConfirm = {
     },
     toCell(self: Router_CCIPReceiveConfirm): c.Cell {
         return makeCellFrom<Router_CCIPReceiveConfirm>(self, Router_CCIPReceiveConfirm.store);
+    }
+}
+
+/**
+ > struct Any2TVMMessage {
+ >     messageId: uint256
+ >     sourceChainSelector: uint64
+ >     sender: CrossChainAddress
+ >     data: cell
+ >     tokenAmounts: SnakedCell<TokenAmount>?
+ > }
+ */
+export interface Any2TVMMessage {
+    readonly $: 'Any2TVMMessage'
+    messageId: uint256
+    sourceChainSelector: uint64
+    sender: CrossChainAddress
+    data: c.Cell
+    tokenAmounts: SnakedCell<TokenAmount> | null
+}
+
+export const Any2TVMMessage = {
+    create(args: {
+        messageId: uint256
+        sourceChainSelector: uint64
+        sender: CrossChainAddress
+        data: c.Cell
+        tokenAmounts: SnakedCell<TokenAmount> | null
+    }): Any2TVMMessage {
+        return {
+            $: 'Any2TVMMessage',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Any2TVMMessage {
+        return {
+            $: 'Any2TVMMessage',
+            messageId: s.loadUintBig(256),
+            sourceChainSelector: s.loadUintBig(64),
+            sender: CrossChainAddress.fromSlice(s),
+            data: s.loadRef(),
+            tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, TokenAmount.fromSlice) : null,
+        }
+    },
+    store(self: Any2TVMMessage, b: c.Builder): void {
+        b.storeUint(self.messageId, 256);
+        b.storeUint(self.sourceChainSelector, 64);
+        CrossChainAddress.store(self.sender, b);
+        b.storeRef(self.data);
+        storeTolkNullable<SnakedCell<TokenAmount>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, TokenAmount.store));
+    },
+    toCell(self: Any2TVMMessage): c.Cell {
+        return makeCellFrom<Any2TVMMessage>(self, Any2TVMMessage.store);
+    }
+}
+
+/**
+ > type ReceiveExecutorId = uint192
+ */
+export type ReceiveExecutorId = uint192
+
+export const ReceiveExecutorId = {
+    fromSlice(s: c.Slice): ReceiveExecutorId {
+        return s.loadUintBig(192);
+    },
+    store(self: ReceiveExecutorId, b: c.Builder): void {
+        b.storeUint(self, 192);
+    },
+    toCell(self: ReceiveExecutorId): c.Cell {
+        return makeCellFrom<ReceiveExecutorId>(self, ReceiveExecutorId.store);
+    }
+}
+
+/**
+ > struct Storage {
+ >     id: uint32
+ >     ownable: Ownable2Step
+ >     authorizedCaller: address
+ >     behavior: TestReceiver_Behavior
+ > }
+ */
+export interface Storage {
+    readonly $: 'Storage'
+    id: uint32
+    ownable: Ownable2Step
+    authorizedCaller: c.Address
+    behavior: TestReceiver_Behavior
+}
+
+export const Storage = {
+    create(args: {
+        id: uint32
+        ownable: Ownable2Step
+        authorizedCaller: c.Address
+        behavior: TestReceiver_Behavior
+    }): Storage {
+        return {
+            $: 'Storage',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Storage {
+        return {
+            $: 'Storage',
+            id: s.loadUintBig(32),
+            ownable: Ownable2Step.fromSlice(s),
+            authorizedCaller: s.loadAddress(),
+            behavior: TestReceiver_Behavior.fromSlice(s),
+        }
+    },
+    store(self: Storage, b: c.Builder): void {
+        b.storeUint(self.id, 32);
+        Ownable2Step.store(self.ownable, b);
+        b.storeAddress(self.authorizedCaller);
+        TestReceiver_Behavior.store(self.behavior, b);
+    },
+    toCell(self: Storage): c.Cell {
+        return makeCellFrom<Storage>(self, Storage.store);
+    }
+}
+
+/**
+ > enum TestReceiver_Behavior { 3 variants }
+ */
+export type TestReceiver_Behavior = bigint
+
+export const TestReceiver_Behavior = {
+    Accept: 0n,
+    RejectAll: 1n,
+    ConsumeAllGas: 2n,
+
+    fromSlice(s: c.Slice): TestReceiver_Behavior {
+        return s.loadUintBig(8);
+    },
+    store(self: TestReceiver_Behavior, b: c.Builder): void {
+        b.storeUint(self, 8);
+    },
+    toCell(self: TestReceiver_Behavior): c.Cell {
+        return makeCellFrom<TestReceiver_Behavior>(self, TestReceiver_Behavior.store);
+    }
+}
+
+/**
+ > struct (0xcf87a147) TestReceiver_UpdateBehavior {
+ >     behavior: TestReceiver_Behavior
+ > }
+ */
+export interface TestReceiver_UpdateBehavior {
+    readonly $: 'TestReceiver_UpdateBehavior'
+    behavior: TestReceiver_Behavior
+}
+
+export const TestReceiver_UpdateBehavior = {
+    PREFIX: 0xcf87a147,
+
+    create(args: {
+        behavior: TestReceiver_Behavior
+    }): TestReceiver_UpdateBehavior {
+        return {
+            $: 'TestReceiver_UpdateBehavior',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TestReceiver_UpdateBehavior {
+        loadAndCheckPrefix32(s, 0xcf87a147, 'TestReceiver_UpdateBehavior');
+        return {
+            $: 'TestReceiver_UpdateBehavior',
+            behavior: TestReceiver_Behavior.fromSlice(s),
+        }
+    },
+    store(self: TestReceiver_UpdateBehavior, b: c.Builder): void {
+        b.storeUint(0xcf87a147, 32);
+        TestReceiver_Behavior.store(self.behavior, b);
+    },
+    toCell(self: TestReceiver_UpdateBehavior): c.Cell {
+        return makeCellFrom<TestReceiver_UpdateBehavior>(self, TestReceiver_UpdateBehavior.store);
+    }
+}
+
+/**
+ > struct (0x9f5e489f) TestReceiver_UpdateAuthorizedCaller {
+ >     authorizedCaller: address
+ > }
+ */
+export interface TestReceiver_UpdateAuthorizedCaller {
+    readonly $: 'TestReceiver_UpdateAuthorizedCaller'
+    authorizedCaller: c.Address
+}
+
+export const TestReceiver_UpdateAuthorizedCaller = {
+    PREFIX: 0x9f5e489f,
+
+    create(args: {
+        authorizedCaller: c.Address
+    }): TestReceiver_UpdateAuthorizedCaller {
+        return {
+            $: 'TestReceiver_UpdateAuthorizedCaller',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TestReceiver_UpdateAuthorizedCaller {
+        loadAndCheckPrefix32(s, 0x9f5e489f, 'TestReceiver_UpdateAuthorizedCaller');
+        return {
+            $: 'TestReceiver_UpdateAuthorizedCaller',
+            authorizedCaller: s.loadAddress(),
+        }
+    },
+    store(self: TestReceiver_UpdateAuthorizedCaller, b: c.Builder): void {
+        b.storeUint(0x9f5e489f, 32);
+        b.storeAddress(self.authorizedCaller);
+    },
+    toCell(self: TestReceiver_UpdateAuthorizedCaller): c.Cell {
+        return makeCellFrom<TestReceiver_UpdateAuthorizedCaller>(self, TestReceiver_UpdateAuthorizedCaller.store);
     }
 }
 
@@ -709,23 +726,6 @@ export const TokenAmount = {
     }
 }
 
-/**
- > type ReceiveExecutorId = uint192
- */
-export type ReceiveExecutorId = uint192
-
-export const ReceiveExecutorId = {
-    fromSlice(s: c.Slice): ReceiveExecutorId {
-        return s.loadUintBig(192);
-    },
-    store(self: ReceiveExecutorId, b: c.Builder): void {
-        b.storeUint(self, 192);
-    },
-    toCell(self: ReceiveExecutorId): c.Cell {
-        return makeCellFrom<ReceiveExecutorId>(self, ReceiveExecutorId.store);
-    }
-}
-
 // ————————————————————————————————————————————
 //    class TestReceiver
 //
@@ -765,10 +765,10 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TestReceiver implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAApYAART/APSkE/S88sgLAQIBYgIDAgLGBAUCASAMDQO70/Ej5IBBrlhFtLx6acYFrlhJ9eSJ+RxWY/SQYfEl2omhrD/0kfSh9JBjBAGFEKKnjgor5egFkZ30pfSoJfSlnZPaqcGuWEz4ehR5xgWuWECqgR7ZxgRhCB4DjgHl6QYHCAIDo9IKCwH+Me1E0IEVGfiXggnJw4C+8vTTHzH6SDH6UDH6SNcLByDCAvJFgRUY+JJQA8cFEvL0AdO/0z/XTCOOFV8DIMABlYFKnPLw4MACk3DrpODyBeAzAtDT/9M/0wchwUHyhQGqAtcY1PQE0XAFyMv/FMs/ItdJIKk4AvJFqwIgwUHyhQkAcDHXCwcgwgLyRfiS7UTQ1h/6SPpQ+kjXCwcgwgIx8kWCAMKIUVPHBRXy9ALIzvpS+lT6UssHye1UAL4x7UTQ0x8x+kgw+JKCAMKIAscF8vTTPzHXTJPxA+gAk/ED6QAg2gEj+wQj0O0e7VPtREAT2iHtVCH5AAHaAXADyMwSy//OycjPjxgABIIQoztJjs8L93HPC2HMyQH7AACAzwsHEs7M9ADJyM+PGAAEghDFpAqzzwv3cc8LYczJAfsAcHT7AviSyM+FiPpSghAeVbv2zwuOEss/y7/Jgwb7AAAfIFNvAGLUxLjYuMIxwXy9IAAPItTEuNi4xiACASAODwAjv7UXaiaGmPmP0kGP0oGP0kGEAgEgEBEAC7hoWBAL+AIBIBITABm1xRApU5QEEIH3flCQAgEgFBUAW7BX40IWxpbmsuY2hhaW4udG9uLmNjaXAudGVzdC5SZWNlaXZlcoItTEuNi4xiAAEa4Q9qJoa4WPwAAzr0V2omhpj5j9JBj9KBj9JBjrhYOQYQF5IsA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAApYAART/APSkE/S88sgLAQIBYgIDAgLGBAUCASAMDQO70/Ej5IBBrlhFtLx6acYFrlhJ9eSJ+RxWY/SQYfEl2omhrD/0kfSh9JBjBAGFEKKnjgor5egFkZ30pfSoJfSlnZPaqcGuWEz4ehR5xgWuWECqgR7ZxgRhCB4DjgHl6QYHCAIDo9IKCwH+Me1E0IEVGfiXggnJw4C+8vTTHzH6SDH6UDH6SNcLByDCAvJFgRUY+JJQA8cFEvL0AdO/0z/XTCOOFV8DIMABlYFKnPLw4MACk3DrpODyBeAzAtDT/9M/0wchwUHyiAGqAtcY1PQE0XAFyMv/FMs/ItdJIKk4AvJIqwIgwUHyiAkAcDHXCwcgwgLyRfiS7UTQ1h/6SPpQ+kjXCwcgwgIx8kWCAMKIUVPHBRXy9ALIzvpS+lT6UssHye1UAL4x7UTQ0x8x+kgw+JKCAMKIAscF8vTTPzHXTJPxA+gAk/ED6QAg2gEj+wQj0O0e7VPtREAT2iHtVCH5AAHaAXADyMwSy//OycjPjxgABIIQoztJjs8L93HPC2HMyQH7AACAzwsHEs7M9ADJyM+PGAAEghDFpAqzzwv3cc8LYczJAfsAcHT7AviSyM+FiPpSghAeVbv2zwuOEss/y7/Jgwb7AAAfIFNvAGLUxLjYuMIxwXy9IAAPItTEuNi4xiACASAODwAjv7UXaiaGmPmP0kGP0oGP0kGEAgEgEBEAC7hoWBAL+AIBIBITABm1xRApU5QEEIH3flCQAgEgFBUAW7BX40IWxpbmsuY2hhaW4udG9uLmNjaXAudGVzdC5SZWNlaXZlcoItTEuNi4xiAAEa4Q9qJoa4WPwAAzr0V2omhpj5j9JBj9KBj9JBjrhYOQYQF5IsA=');
 
     static Errors = {
-        'Common_Error.CrossChainAddressOutOfRange': 5,
+        'TVMError.CellOverflow': 8,
         'Receiver_Error.Unauthorized': 5400,
         'Receiver_Error.LowValue': 5401,
         'TestReceiver_Error.Rejected': 19100,

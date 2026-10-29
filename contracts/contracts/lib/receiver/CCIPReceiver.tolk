@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // NOTE: This is a stub contract for tooling to generate bindings.
 
-import "messages";
+import "../../ccip/lib/client/receiver/messages";
 
 tolk 1.4.2
 

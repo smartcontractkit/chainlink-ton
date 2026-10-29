@@ -12,8 +12,8 @@ import "../../../../lib/jetton/forward_payload_wrap"
 import "../../../../lib/access/ownable_2step"
 import "../../../../lib/deployable/namespace"
 import "../../../../lib/funding/jetton_withdrawable"
+import "../../../lib/cross_chain_address/types"
 
-import "../../../common/types"
 import "../../../rmn_remote/lib"
 import "../../../router/types"
 

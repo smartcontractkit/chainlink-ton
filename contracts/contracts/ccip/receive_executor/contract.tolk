@@ -3,6 +3,7 @@ import "@stdlib/gas-payments"
 
 import "../../lib/utils"
 import "../../lib/jetton/messages"
+import "../lib/client/common/types"
 
 import "../offramp/types"
 import "../offramp/messages"

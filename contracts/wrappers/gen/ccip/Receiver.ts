@@ -286,6 +286,56 @@ export const Any2TVMMessage = {
 }
 
 /**
+ > type SnakedCell<T> = cell
+ */
+export type SnakedCell<T> = T[]
+
+function buildSnakedCellOf<T>(v: SnakedCell<T>, storeFn_T: StoreCallback<T>): c.Cell {
+    if (v.length === 0) {
+        return c.Cell.EMPTY;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    return current;
+}
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    b.storeRef(buildSnakedCellOf(v, storeFn_T));
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
+
+/**
  > type CrossChainAddress = slice
  */
 export type CrossChainAddress = c.Slice
@@ -339,56 +389,6 @@ export const TokenAmount = {
         return makeCellFrom<TokenAmount>(self, TokenAmount.store);
     }
 }
-
-/**
- > type SnakedCell<T> = cell
- */
-export type SnakedCell<T> = T[]
-
-function buildSnakedCellOf<T>(v: SnakedCell<T>, storeFn_T: StoreCallback<T>): c.Cell {
-    if (v.length === 0) {
-        return c.Cell.EMPTY;
-    }
-    const cells: c.Builder[] = [];
-    let builder = c.beginCell();
-    for (const value of v) {
-        let itemB = c.beginCell();
-        storeFn_T(value, itemB);
-        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
-            cells.push(builder);
-            builder = c.beginCell();
-        }
-        builder.storeBuilder(itemB);
-    }
-    cells.push(builder);
-    let current = cells[cells.length - 1].endCell();
-    for (let i = cells.length - 2; i >= 0; i--) {
-        cells[i].storeRef(current);
-        current = cells[i].endCell();
-    }
-    return current;
-}
-
-function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
-    b.storeRef(buildSnakedCellOf(v, storeFn_T));
-}
-
-function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
-    let outArr = [] as T[];
-    let head = s.loadRef().beginParse();
-    while (head.remainingBits > 0 || head.remainingRefs > 0) {
-        if (head.remainingBits > 0) {
-            outArr.push(loadFn_T(head));
-        }
-        if (head.remainingRefs > 0) {
-            head = head.loadRef().beginParse();
-        } else {
-            break;
-        }
-    }
-    return outArr;
-}
-
 
 // ————————————————————————————————————————————
 //    class Receiver

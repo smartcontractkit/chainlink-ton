@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: BUSL-1.1
 
+import "../../../lib/cross_chain_address/types"
 import "../../../../lib/utils"
 import "../../../../lib/access/access_control"
 import "../../../../lib/jetton/messages"
 import "../../../../lib/funding/jetton_withdrawable"
-
-import "../../../common/types"
-import "../../../rmn_remote/lib"
 
 import "types"
 import "budget"

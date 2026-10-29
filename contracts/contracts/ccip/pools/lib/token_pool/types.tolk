@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../../../lib/utils"
-import "../../../common/types"
+import "../../../lib/cross_chain_address/types"
 import "../../../rmn_remote/lib"
-import "../../../cct/fees-management"
 
 import "../rate_limiter"
 

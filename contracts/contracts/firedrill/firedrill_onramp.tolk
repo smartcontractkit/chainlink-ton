@@ -1,5 +1,14 @@
 tolk 1.4.2
 
+import "../lib/utils.tolk"
+import "../ccip/lib/client/sender/types"
+import "../ccip/onramp/events.tolk"
+import "../ccip/onramp/types.tolk"
+import "../ccip/common/types.tolk"
+
+import "firedrill_onramp_messages.tolk"
+import "firedrill_utils.tolk"
+
 contract FiredrillOnRamp {
 	author: "SmartContract Chainlink Limited SEZC"
 
@@ -10,13 +19,6 @@ contract FiredrillOnRamp {
 	storage: FiredrillOnRamp_Storage
 	incomingMessages: FiredrillOnRamp_InMessage
 }
-
-import "../lib/utils.tolk"
-import "../ccip/onramp/events.tolk"
-import "../ccip/onramp/types.tolk"
-import "../ccip/common/types.tolk"
-import "firedrill_onramp_messages.tolk"
-import "firedrill_utils.tolk"
 
 struct FiredrillOnRamp_Storage {
 	id: uint32;

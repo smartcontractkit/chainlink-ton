@@ -9,12 +9,11 @@ import "../../lib/funding/withdrawable"
 import "../../lib/crypto/merkle_multi_proof"
 import "../../lib/ocr/multi_ocr3_base"
 import "../../lib/ocr/types"
+import "../../lib/ocr/errors"
 import "../../lib/utils"
 import "../../lib/jetton/messages"
-import "../../lib/receiver/types"
-import "../pools/lib/token_pool/messages"
+import "../lib/client/receiver/types"
 
-import "../common/types.tolk"
 import "../fee_quoter/messages"
 import "../merkle_root/messages"
 import "../merkle_root/storage"
@@ -23,14 +22,12 @@ import "../receive_executor/storage"
 import "../rmn_remote/lib"
 import "../router/messages"
 import "../router/utils"
-import "../accounts/deposit/types"
 
 import "messages"
 import "errors"
 import "types"
 import "storage"
 import "events"
-import "../../lib/ocr/errors"
 
 tolk 1.4.2
 
@@ -1166,6 +1163,7 @@ fun assertSenderIsMerkleRoot(st: Storage, merkleRoot: MerkleRootId, sender: addr
 import "../../../gen/Deployable.code"
 import "../../../gen/MerkleRoot.code"
 import "../../../gen/ReceiveExecutor.code"
+import "../lib/cross_chain_address/types"
 
 fun deployerCode(): cell {
     return deployableCompiledCode();

@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "@stdlib/lisp-lists"
 
-import "../common/types"
+import "../lib/cross_chain_address/types"
 
 import "lib/token_pool/types"
 import "lib/token_pool/budget"
 import "lib/token_pool/entrypoint"
 import "lib/token_pool/messages"
-import "lib/token_pool/errors"
 import "lib/token_pool/events"
 
 contract TokenPool {
