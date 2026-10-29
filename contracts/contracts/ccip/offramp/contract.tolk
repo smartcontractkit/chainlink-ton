@@ -800,7 +800,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     assert(!report.messages.beginParse().isEmpty(), OffRamp_Error.EmptyExecutionReport);
 
     // No execution batching so no need to use iterator
-    val message = Any2TVMRampMessage.fromCell(report.messages);
+    val message = report.messages.asSingle().unwrap(OffRamp_Error.UnsupportedNumberOfMessages);
 
     // Validate offchainTokenData shape: it must have one entry per message.
     // TON currently supports one message with at most one token transfer.

@@ -87,13 +87,7 @@ describe('OffRamp - Execute', () => {
       // Try to execute without committing
       const executeReport = of.ExecutionReport.create({
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-        messages: asSnakedCell([message], (msg) =>
-          (() => {
-            const b = beginCell()
-            of.Any2TVMRampMessage.store(msg, b)
-            return b
-          })(),
-        ),
+        messages: [message],
         offchainTokenData: [[]],
         proofs: [],
         proofFlagBits: 0n,
@@ -154,13 +148,7 @@ describe('OffRamp - Execute', () => {
       // Try to execute with the original message (not the one in the committed root)
       const executeReport = of.ExecutionReport.create({
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-        messages: asSnakedCell([message], (msg) =>
-          (() => {
-            const b = beginCell()
-            of.Any2TVMRampMessage.store(msg, b)
-            return b
-          })(),
-        ),
+        messages: [message],
         offchainTokenData: [[]],
         proofs: [],
         proofFlagBits: 0n,
@@ -218,13 +206,7 @@ describe('OffRamp - Execute', () => {
       // Create the execute report
       const executeReport = of.ExecutionReport.create({
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-        messages: asSnakedCell([message], (msg) =>
-          (() => {
-            const b = beginCell()
-            of.Any2TVMRampMessage.store(msg, b)
-            return b
-          })(),
-        ),
+        messages: [message],
         offchainTokenData: [[]],
         proofs: [],
         proofFlagBits: 0n,
@@ -283,6 +265,18 @@ describe('OffRamp - Execute', () => {
       await setup.executeReportExpectingFailure(
         report,
         of.OffRamp.Errors['OffRamp_Error.EmptyExecutionReport'],
+      )
+    })
+
+    it('should fail when report has more than one message', async () => {
+      const message1 = setup.createTestMessage(1n, 1n, setup.receiver.address)
+      const message2 = setup.createTestMessage(2n, 2n, setup.receiver.address)
+
+      await setup.setupOCRConfigs()
+      const report = setup.createExecuteReport([message1, message2])
+      await setup.executeReportExpectingFailure(
+        report,
+        of.OffRamp.Errors['OffRamp_Error.UnsupportedNumberOfMessages'],
       )
     })
 
@@ -1330,13 +1324,7 @@ describe('OffRamp - Execute', () => {
       // Execute first message with proof
       const report = of.ExecutionReport.create({
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-        messages: asSnakedCell([message1], (msg) =>
-          (() => {
-            const b = beginCell()
-            of.Any2TVMRampMessage.store(msg, b)
-            return b
-          })(),
-        ),
+        messages: [message1],
         offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
@@ -1399,13 +1387,7 @@ describe('OffRamp - Execute', () => {
       // Execute second message with proof
       const report = of.ExecutionReport.create({
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-        messages: asSnakedCell([message2], (msg) =>
-          (() => {
-            const b = beginCell()
-            of.Any2TVMRampMessage.store(msg, b)
-            return b
-          })(),
-        ),
+        messages: [message2],
         offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
@@ -1466,13 +1448,7 @@ describe('OffRamp - Execute', () => {
 
         const report = of.ExecutionReport.create({
           sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          messages: asSnakedCell([message1], (msg) =>
-            (() => {
-              const b = beginCell()
-              of.Any2TVMRampMessage.store(msg, b)
-              return b
-            })(),
-          ),
+          messages: [message1],
           offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,
@@ -1511,13 +1487,7 @@ describe('OffRamp - Execute', () => {
 
         const report = of.ExecutionReport.create({
           sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          messages: asSnakedCell([message2], (msg) =>
-            (() => {
-              const b = beginCell()
-              of.Any2TVMRampMessage.store(msg, b)
-              return b
-            })(),
-          ),
+          messages: [message2],
           offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,
@@ -1578,13 +1548,7 @@ describe('OffRamp - Execute', () => {
       // Try to execute first message with wrong proof (proof for message2)
       const report = of.ExecutionReport.create({
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-        messages: asSnakedCell([message1], (msg) =>
-          (() => {
-            const b = beginCell()
-            of.Any2TVMRampMessage.store(msg, b)
-            return b
-          })(),
-        ),
+        messages: [message1],
         offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
@@ -1659,13 +1623,7 @@ describe('OffRamp - Execute', () => {
       // Execute middle message with proof
       const report = of.ExecutionReport.create({
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-        messages: asSnakedCell([message2], (msg) =>
-          (() => {
-            const b = beginCell()
-            of.Any2TVMRampMessage.store(msg, b)
-            return b
-          })(),
-        ),
+        messages: [message2],
         offchainTokenData: [[]],
         proofs: proof.hashes,
         proofFlagBits,
@@ -1735,13 +1693,7 @@ describe('OffRamp - Execute', () => {
 
         const report = of.ExecutionReport.create({
           sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          messages: asSnakedCell([message], (msg) =>
-            (() => {
-              const b = beginCell()
-              of.Any2TVMRampMessage.store(msg, b)
-              return b
-            })(),
-          ),
+          messages: [message],
           offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,
@@ -1814,13 +1766,7 @@ describe('OffRamp - Execute', () => {
 
         const report = of.ExecutionReport.create({
           sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          messages: asSnakedCell([message], (msg) =>
-            (() => {
-              const b = beginCell()
-              of.Any2TVMRampMessage.store(msg, b)
-              return b
-            })(),
-          ),
+          messages: [message],
           offchainTokenData: [[]],
           proofs: proof.hashes,
           proofFlagBits,

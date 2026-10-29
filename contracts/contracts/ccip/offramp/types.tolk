@@ -13,8 +13,7 @@ const OffRamp_FACILITY_ID = OffRamp_FACILITY_NAME.crc32() % 640 + 10;  // 221
 
 struct ExecutionReport {
     sourceChainSelector: uint64;
-    // TODO[REFACTOR]: type should should be snakedCell
-    messages: cell; // single Any2TVMRampMessage, though interface is set up to possibly support vec<Any2TVMRampMessage> in the future
+    messages: SnakedCell<Any2TVMRampMessage>;
     // Offchain token data for every message and token transfer in the report.
     // A tokenless report may use either `[]` (empty outer list) or `[[]]` (one
     // empty per-message list); both are accepted. When there are token

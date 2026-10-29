@@ -307,7 +307,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorMessageNotFromOwnedContract)
-		ecMax = int32(ErrorUnexpectedTokenData)
+		ecMax = int32(ErrorUnexpectedExtraData)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -316,6 +316,7 @@ const (
 	ErrorMessageNotFromOwnedContract ExitCode = iota + 22100 // Facility ID * 100
 	ErrorSourceChainNotEnabled
 	ErrorEmptyExecutionReport
+	ErrorUnsupportedNumberOfMessages
 	ErrorInvalidMessageDestChainSelector
 	ErrorSourceChainSelectorMismatch
 	ErrorInvalidOnRampUpdate
@@ -335,6 +336,8 @@ const (
 	ErrorManualExecutionGasAmountCountMismatch
 	ErrorInvalidManualExecutionGasLimit
 	ErrorUnexpectedTokenData
+	ErrorMsgDataTooLarge
+	ErrorUnexpectedExtraData
 )
 
 // Getter method names for binding fetchers

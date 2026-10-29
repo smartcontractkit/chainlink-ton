@@ -5,6 +5,7 @@ enum OffRamp_Error {
     MessageNotFromOwnedContract = OffRamp_FACILITY_ID * 100
     SourceChainNotEnabled
     EmptyExecutionReport
+    UnsupportedNumberOfMessages
     InvalidMessageDestChainSelector
     SourceChainSelectorMismatch
     InvalidOnRampUpdate

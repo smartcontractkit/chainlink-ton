@@ -11,30 +11,33 @@ func _() {
 	_ = x[ErrorMessageNotFromOwnedContract-22100]
 	_ = x[ErrorSourceChainNotEnabled-22101]
 	_ = x[ErrorEmptyExecutionReport-22102]
-	_ = x[ErrorInvalidMessageDestChainSelector-22103]
-	_ = x[ErrorSourceChainSelectorMismatch-22104]
-	_ = x[ErrorInvalidOnRampUpdate-22105]
-	_ = x[ErrorInsufficientFee-22106]
-	_ = x[ErrorSubjectCursed-22107]
-	_ = x[ErrorUnauthorized-22108]
-	_ = x[ErrorZeroAddressNotAllowed-22109]
-	_ = x[ErrorTooManyMessagesInReport-22110]
-	_ = x[ErrorSignatureVerificationRequiredInCommitPlugin-22111]
-	_ = x[ErrorSignatureVerificationNotAllowedInExecutionPlugin-22112]
-	_ = x[ErrorInvalidInterval-22113]
-	_ = x[ErrorBatchingNotSupported-22114]
-	_ = x[ErrorOnRampAddressMismatch-22115]
-	_ = x[ErrorEmptyCommitReport-22116]
-	_ = x[ErrorMerkleRootCannotBeZero-22117]
-	_ = x[ErrorUnsupportedNumberOfTokens-22118]
-	_ = x[ErrorManualExecutionGasAmountCountMismatch-22119]
-	_ = x[ErrorInvalidManualExecutionGasLimit-22120]
-	_ = x[ErrorUnexpectedTokenData-22121]
+	_ = x[ErrorUnsupportedNumberOfMessages-22103]
+	_ = x[ErrorInvalidMessageDestChainSelector-22104]
+	_ = x[ErrorSourceChainSelectorMismatch-22105]
+	_ = x[ErrorInvalidOnRampUpdate-22106]
+	_ = x[ErrorInsufficientFee-22107]
+	_ = x[ErrorSubjectCursed-22108]
+	_ = x[ErrorUnauthorized-22109]
+	_ = x[ErrorZeroAddressNotAllowed-22110]
+	_ = x[ErrorTooManyMessagesInReport-22111]
+	_ = x[ErrorSignatureVerificationRequiredInCommitPlugin-22112]
+	_ = x[ErrorSignatureVerificationNotAllowedInExecutionPlugin-22113]
+	_ = x[ErrorInvalidInterval-22114]
+	_ = x[ErrorBatchingNotSupported-22115]
+	_ = x[ErrorOnRampAddressMismatch-22116]
+	_ = x[ErrorEmptyCommitReport-22117]
+	_ = x[ErrorMerkleRootCannotBeZero-22118]
+	_ = x[ErrorUnsupportedNumberOfTokens-22119]
+	_ = x[ErrorManualExecutionGasAmountCountMismatch-22120]
+	_ = x[ErrorInvalidManualExecutionGasLimit-22121]
+	_ = x[ErrorUnexpectedTokenData-22122]
+	_ = x[ErrorMsgDataTooLarge-22123]
+	_ = x[ErrorUnexpectedExtraData-22124]
 }
 
-const _ExitCode_name = "ErrorMessageNotFromOwnedContractErrorSourceChainNotEnabledErrorEmptyExecutionReportErrorInvalidMessageDestChainSelectorErrorSourceChainSelectorMismatchErrorInvalidOnRampUpdateErrorInsufficientFeeErrorSubjectCursedErrorUnauthorizedErrorZeroAddressNotAllowedErrorTooManyMessagesInReportErrorSignatureVerificationRequiredInCommitPluginErrorSignatureVerificationNotAllowedInExecutionPluginErrorInvalidIntervalErrorBatchingNotSupportedErrorOnRampAddressMismatchErrorEmptyCommitReportErrorMerkleRootCannotBeZeroErrorUnsupportedNumberOfTokensErrorManualExecutionGasAmountCountMismatchErrorInvalidManualExecutionGasLimitErrorUnexpectedTokenData"
+const _ExitCode_name = "ErrorMessageNotFromOwnedContractErrorSourceChainNotEnabledErrorEmptyExecutionReportErrorUnsupportedNumberOfMessagesErrorInvalidMessageDestChainSelectorErrorSourceChainSelectorMismatchErrorInvalidOnRampUpdateErrorInsufficientFeeErrorSubjectCursedErrorUnauthorizedErrorZeroAddressNotAllowedErrorTooManyMessagesInReportErrorSignatureVerificationRequiredInCommitPluginErrorSignatureVerificationNotAllowedInExecutionPluginErrorInvalidIntervalErrorBatchingNotSupportedErrorOnRampAddressMismatchErrorEmptyCommitReportErrorMerkleRootCannotBeZeroErrorUnsupportedNumberOfTokensErrorManualExecutionGasAmountCountMismatchErrorInvalidManualExecutionGasLimitErrorUnexpectedTokenDataErrorMsgDataTooLargeErrorUnexpectedExtraData"
 
-var _ExitCode_index = [...]uint16{0, 32, 58, 83, 119, 151, 175, 195, 213, 230, 256, 284, 332, 385, 405, 430, 456, 478, 505, 535, 577, 612, 636}
+var _ExitCode_index = [...]uint16{0, 32, 58, 83, 115, 151, 183, 207, 227, 245, 262, 288, 316, 364, 417, 437, 462, 488, 510, 537, 567, 609, 644, 668, 688, 712}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 22100
