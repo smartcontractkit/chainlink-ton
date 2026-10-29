@@ -277,7 +277,7 @@ fun onReleaseOrMintContinue(
     val mint = createMessage(mintOpts);
     mint.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
-    // TODO[DESIGN]: exceses handling for any leftover funds after the mint and wallet deployment fees are covered.
+    // TODO[VALUE]: [NONEVM-5766]: exceses handling for any leftover funds after the mint and wallet deployment fees are covered.
 
     return st;
 }

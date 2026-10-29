@@ -1208,7 +1208,7 @@ fun TokenPool<T>.getFeeAmount(
     // const c = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF * 0xFFFF // MAX_UINT120 * MAX_UINT16 // Evaluated value: 0xFFFEFFFFFFFFFFFFFFFFFFFFFFFFFF0001 (136 bits)
     // SAFETY: Division result can be safely casted back to `coins` (`varuint120`) given
     // `transferFeeBps` is guaranteed to be less than `TOKEN_POOL_BPS_DIVIDER`, so the result will always be smaller than details.amount (`uint120`).
-    return (details.amount as int * transferFeeBps as int) / TOKEN_POOL_BPS_DIVIDER; // TODO[TEST]: test case with max amount and max BPS to prove
+    return (details.amount as int * transferFeeBps as int) / TOKEN_POOL_BPS_DIVIDER; // TODO[TP]: [NONEVM-5336] test case with max amount and max BPS to prove
 }
 
 /// Resolves a fee-config lookup to `TokenPool_TokenTransferFeeConfig?`: null unless the entry
