@@ -8,6 +8,7 @@ import "lib/token_pool/budget"
 import "lib/token_pool/entrypoint"
 import "lib/token_pool/messages"
 import "lib/token_pool/events"
+import "lib/token_pool/errors"
 
 contract TokenPool {
     author: "SmartContract Chainlink Limited SEZC"
@@ -18,6 +19,7 @@ contract TokenPool {
     incomingMessages: TokenPool_InMessage | Ownable2Step_Messages
     outgoingMessages: TokenPool_OutMessage
     emittedEvents: TokenPool_Events
+    thrownErrors: TokenPool_Error
 }
 
 fun onInternalMessage(_: InMessage) {

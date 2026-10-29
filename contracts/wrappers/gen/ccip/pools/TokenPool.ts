@@ -4676,6 +4676,50 @@ export const TokenPool_RateLimitConfigured = {
 }
 
 /**
+ > enum TokenPool_Error { 26 variants }
+ */
+export type TokenPool_Error = bigint
+
+export const TokenPool_Error = {
+    InvalidTransferFeeBps: 51700n,
+    InvalidTokenTransferFeeConfig: 51701n,
+    CallerIsNotARampOnRouter: 51702n,
+    ZeroAddressInvalid: 51703n,
+    NonExistentChain: 51704n,
+    ChainNotAllowed: 51705n,
+    CursedByRMN: 51706n,
+    ChainAlreadyExists: 51707n,
+    InvalidSourcePoolAddress: 51708n,
+    InvalidToken: 51709n,
+    Unauthorized: 51710n,
+    PoolAlreadyAdded: 51711n,
+    InvalidRemotePoolForChain: 51712n,
+    InvalidRemoteChainDecimals: 51713n,
+    OverflowDetected: 51714n,
+    InvalidDecimalArgs: 51715n,
+    CallerIsNotOwnerOrFeeAdmin: 51716n,
+    UnsupportedOperation: 51717n,
+    MissingForwardPayload: 51718n,
+    MissingTransferInitiator: 51719n,
+    AmountMismatch: 51720n,
+    InvalidRequestedFinality: 51721n,
+    RateLimitExceeded: 51722n,
+    PreflightCheckFailed: 51723n,
+    PostflightCheckFailed: 51724n,
+    InsufficientMessageValue: 51725n,
+
+    fromSlice(s: c.Slice): TokenPool_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: TokenPool_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: TokenPool_Error): c.Cell {
+        return makeCellFrom<TokenPool_Error>(self, TokenPool_Error.store);
+    }
+}
+
+/**
  > type SnakedCell<T> = cell
  */
 export type SnakedCell<T> = T[]
@@ -5474,6 +5518,32 @@ export class TokenPool implements c.Contract {
     static CodeCell = c.Cell.fromBase64('te6ccgECQgEAAcMAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBICwtAgEgCAkCASAYGQIBIAoLAgEgFBUCASAMDQIBIBARAgFmDg8ADa3Iwgf5eEAAC6BeED/LwgALocYQP8vCAgEgEhMADa3YQgf5eEAADKlfhA/y8AAMqtCED/LwAgFuFhcADbAfIQP8vCAAC6dRCB/l4QALpFEIH+XhAgEgGhsCASAoKQIBIBwdAgEgJCUCASAeHwIBYiIjAAyqh4QP8vACASAgIQALpjsIH+XhAAulCwgf5eEAC6H6ED/LwgALoH4QP8vCAgEgJicADazjQgf5eEAADKm6hA/y8AAMqoqED/LwAgFYKisADbK64QP8vCAADKl6hA/y8AAMqraED/LwAgFYLi8CASAwMQANs3ohA/y8IAANs7nhA/y8IAIBIDIzAgEgODkCAWY0NQIBZjY3AAuk2wgf5eEAC6bxCB/l4QALp98IH+XhAAumKwgf5eECASA6OwIBIEBBAA2vAcIH+XhAAgFIPD0AC6VfCB/l4QIBWD4/AAu+eED/LwgAC7gYQP8vCAANrGvCB/l4QAANrDjCB/l4QA==');
 
     static Errors = {
+        'TokenPool_Error.InvalidTransferFeeBps': 51700,
+        'TokenPool_Error.InvalidTokenTransferFeeConfig': 51701,
+        'TokenPool_Error.CallerIsNotARampOnRouter': 51702,
+        'TokenPool_Error.ZeroAddressInvalid': 51703,
+        'TokenPool_Error.NonExistentChain': 51704,
+        'TokenPool_Error.ChainNotAllowed': 51705,
+        'TokenPool_Error.CursedByRMN': 51706,
+        'TokenPool_Error.ChainAlreadyExists': 51707,
+        'TokenPool_Error.InvalidSourcePoolAddress': 51708,
+        'TokenPool_Error.InvalidToken': 51709,
+        'TokenPool_Error.Unauthorized': 51710,
+        'TokenPool_Error.PoolAlreadyAdded': 51711,
+        'TokenPool_Error.InvalidRemotePoolForChain': 51712,
+        'TokenPool_Error.InvalidRemoteChainDecimals': 51713,
+        'TokenPool_Error.OverflowDetected': 51714,
+        'TokenPool_Error.InvalidDecimalArgs': 51715,
+        'TokenPool_Error.CallerIsNotOwnerOrFeeAdmin': 51716,
+        'TokenPool_Error.UnsupportedOperation': 51717,
+        'TokenPool_Error.MissingForwardPayload': 51718,
+        'TokenPool_Error.MissingTransferInitiator': 51719,
+        'TokenPool_Error.AmountMismatch': 51720,
+        'TokenPool_Error.InvalidRequestedFinality': 51721,
+        'TokenPool_Error.RateLimitExceeded': 51722,
+        'TokenPool_Error.PreflightCheckFailed': 51723,
+        'TokenPool_Error.PostflightCheckFailed': 51724,
+        'TokenPool_Error.InsufficientMessageValue': 51725,
     }
 
     readonly address: c.Address

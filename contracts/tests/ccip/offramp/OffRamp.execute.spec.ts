@@ -2318,7 +2318,118 @@ describe('OffRamp - Execute', () => {
       )
     })
 
-    // TODO[TEST]: extraData with different decimals and some out of range and invalid data
+    it('executes a token transfer whose extraData encodes higher source decimals', async () => {
+      // 18 source decimals scale down to the pool's 9 local decimals: 5e18 -> 5e9.
+      const message = setup.createTestMessageWithToken({
+        amount: 5n * 10n ** 18n,
+        extraData: beginCell().storeUint(18, 256).endCell(),
+      })
+      await setup.setupAndCommitMessage(message)
+      const result = await setup.executeReport(setup.createExecuteReport([message]))
+
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+      expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+    })
+
+    it('executes a token transfer whose extraData encodes lower source decimals', async () => {
+      // 6 source decimals scale up to the pool's 9 local decimals: 5e6 -> 5e9.
+      const message = setup.createTestMessageWithToken({
+        amount: 5n * 10n ** 6n,
+        extraData: beginCell().storeUint(6, 256).endCell(),
+      })
+      await setup.setupAndCommitMessage(message)
+      const result = await setup.executeReport(setup.createExecuteReport([message]))
+
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+      expect(await setup.getTokenBalance()).toEqual(setup.DEFAULT_TOKEN_AMOUNT)
+    })
+
+    it('fails when the extraData decimals are out of range', async () => {
+      // 256 does not fit a uint8, so the pool rejects the decimals encoding.
+      const message = setup.createTestMessageWithToken({
+        extraData: beginCell().storeUint(256, 256).endCell(),
+      })
+      await setup.setupAndCommitMessage(message)
+      const result = await setup.executeReport(setup.createExecuteReport([message]))
+
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: false,
+        exitCode: tp.TokenPool.Errors['TokenPool_Error.InvalidRemoteChainDecimals'],
+      })
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+    })
+
+    it('fails when the extraData is not exactly 256 bits of decimals', async () => {
+      // Passes the OffRamp size check, but the pool requires exactly 256 bits.
+      const message = setup.createTestMessageWithToken({
+        extraData: beginCell().storeUint(9, 128).endCell(),
+      })
+      await setup.setupAndCommitMessage(message)
+      const result = await setup.executeReport(setup.createExecuteReport([message]))
+
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.tokenPool.address,
+        op: tp.TokenPool_ReleaseOrMint.PREFIX,
+        success: false,
+        exitCode: tp.TokenPool.Errors['TokenPool_Error.InvalidRemoteChainDecimals'],
+      })
+      assertLog(
+        result.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+    })
+
+    it('rejects a token transfer whose extraData carries references', async () => {
+      const message = setup.createTestMessageWithToken({
+        extraData: beginCell().storeUint(0, 256).storeRef(Cell.EMPTY).endCell(),
+      })
+      await setup.setupAndCommitMessage(message)
+      await setup.executeReportExpectingFailure(
+        setup.createExecuteReport([message]),
+        of.OffRamp.Errors['OffRamp_Error.UnexpectedExtraData'],
+      )
+    })
 
     it('fails when the token is not enabled in the TokenRegistry', async () => {
       await setup.disableToken()
