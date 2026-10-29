@@ -31,6 +31,9 @@ jobs:
   build-pkgs:
     name: Build and package (Nix and Docker)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for assuming the public ECR read-only role via OIDC
     steps:
       - name: Check out code
         uses: actions/checkout@v5
@@ -39,6 +42,19 @@ jobs:
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
+
+      # Authenticate to the public ECR to avoid unauthenticated IP-based rate limits (429s)
+      # when pulling the base chainlink image.
+      - name: Assume public ECR read-only role
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_PUBLIC_ECR_READ_ONLY_ROLE }}
+          aws-region: us-east-1 # Public ECR auth is only available in us-east-1
+
+      - name: Login to ECR - Public
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+        with:
+          registry-type: public
 
       - name: Run build - Nix
         run: nix build -v .#chainlink-ton

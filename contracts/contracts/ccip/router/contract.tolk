@@ -560,7 +560,7 @@ fun returnAccidentalTransfer(walletSender: address, msg: TransferNotificationFor
             sendExcessesTo: msg.transferInitiator,
             customPayload: null,
             forwardTonAmount: 0,
-            forwardPayload: createEmptySlice(),
+            forwardPayload: beginCell().storeMaybeRef(null).endCell().beginParse(),
         },
     });
     returnMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
