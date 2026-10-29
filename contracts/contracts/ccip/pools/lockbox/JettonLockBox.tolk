@@ -9,8 +9,7 @@ import "../../../lib/access/access_control"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/forward_payload_wrap"
-import "../../../lib/budget/gas"
-import "../../../lib/budget/min_value"
+import "../../../lib/gas"
 
 import "../lib/token_pool/jetton_fees"
 
@@ -148,7 +147,7 @@ fun onDepositWithTransferNotification(
     // Assert basic conditions before acting on it.
     assert(st.isInitialized(), JettonLockBox_Error.ContractNotInitialized);
     assert(msg.jettonAmount > 0, JettonLockBox_Error.TokenAmountCannotBeZero);
-    assert(st.walletAddress != null && sender == st.walletAddress!, JettonLockBox_Error.UnsupportedToken);
+    assert(st.walletAddress != null && sender == st.walletAddress, JettonLockBox_Error.UnsupportedToken);
 
     // TODO: a minter can impersonate any transferInitiator, meaning inject any fwdPayload
 
@@ -161,7 +160,7 @@ fun onDepositWithTransferNotification(
     try {
         val fwdps = loadForwardPayloadAsSlice(msg.forwardPayload);
         if (fwdps != null) {
-            deposit = JettonLockBox_Deposit.fromSlice(fwdps!);
+            deposit = JettonLockBox_Deposit.fromSlice(fwdps);
         }
     } catch {}
 
@@ -169,10 +168,10 @@ fun onDepositWithTransferNotification(
         // Custody already arrived: validation and value failures use the existing custody-return path.
         assert(deposit != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
         val rbac = hookTrait__AccessControl(st);
-        rbac.requireRole(OPERATOR_ROLE, msg.transferInitiator!);
+        rbac.requireRole(OPERATOR_ROLE, msg.transferInitiator);
 
-        assert(deposit!.token == st.minterAddress, JettonLockBox_Error.UnsupportedToken);
-        assert(deposit!.amount == msg.jettonAmount, JettonLockBox_Error.MissingOrMalformedForwardPayload);
+        assert(deposit.token == st.minterAddress, JettonLockBox_Error.UnsupportedToken);
+        assert(deposit.amount == msg.jettonAmount, JettonLockBox_Error.MissingOrMalformedForwardPayload);
 
         // Custody has arrived; finalize optimistically without rejecting.
         // The operator funds the confirmation when it sends the deposit.
@@ -180,19 +179,19 @@ fun onDepositWithTransferNotification(
         // The log and transfer are separate actions. Protect the pre-message balance, then carry
         // only the unreserved remainder after paying for the log and this transaction.
         reserveBalanceBeforeInMessage(msgValue);
-        emit<JettonLockBox_Deposit>(TOPIC_DEPOSIT, deposit!);
+        emit<JettonLockBox_Deposit>(TOPIC_DEPOSIT, deposit);
 
         // Reply to the operator (pool) so it knows the deposit is confirmed.
         val reply = createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
-            dest: msg.transferInitiator!,
+            dest: msg.transferInitiator,
             body: JettonLockBox_Deposited {
-                queryId: deposit!.queryId,
-                token: deposit!.token,
+                queryId: deposit.queryId,
+                token: deposit.token,
                 depositor: msg.transferInitiator,
-                amount: deposit!.amount,
-                context: deposit!.context,
+                amount: deposit.amount,
+                context: deposit.context,
             },
         });
         reply.send(SEND_MODE_CARRY_ALL_BALANCE);
@@ -209,27 +208,38 @@ fun onDepositReturn(
     deposit: JettonLockBox_Deposit?,
     errorCode: int32,
 ) {
+    val transferInitiator = msg.transferInitiator!; // not-null
+
     // The failure is optional, only if deposit information is available, and it's
     // non-configurable by design, always sent back to the initiator of the deposit.
-    val failureValue = deposit != null ? deposit!.failureValue : 0 as coins;
+    val depositExtra = deposit != null && deposit!.extra != null
+        ? deposit!.extra!.load()
+        : null;
+    val failureValue = depositExtra != null ? depositExtra.failureValue : 0 as coins;
     var failure = createMessage({
         bounce: BounceMode.NoBounce,
         value: failureValue,
-        dest: msg.transferInitiator!,
+        dest: transferInitiator,
         body: JettonLockBox_DepositFailed {
             queryId: deposit != null ? deposit!.queryId : msg.queryId,
             token: st.minterAddress,
-            depositor: msg.transferInitiator!,
+            depositor: transferInitiator,
             amount: msg.jettonAmount,
-            context: deposit != null ? deposit!.toCell() : null,
+            context: deposit != null ? deposit.toCell() : null,
             errorCode,
         }
     });
 
     // Best-effort return to the account named in the deposit (falls back to the depositor).
-    val returnTo = deposit != null && deposit!.returnAddress != null
-        ? deposit!.returnAddress!
-        : msg.transferInitiator!;
+    var transferRecipient = depositExtra != null && depositExtra.returnTo != null
+        ? depositExtra.returnTo
+        : transferInitiator;
+    // Keep the return's excess at the caller-selected recipient; fall back to the depositor when
+    // the deposit did not name one. The return target may be a deposit account, which does not
+    // accept `ReturnExcessesBack`.
+    val sendExcessesTo = depositExtra != null && depositExtra.sendExcessesTo != null
+        ? depositExtra.sendExcessesTo
+        : transferInitiator;
     val forwardPayload = deposit != null
         ? msg.forwardPayload
         : beginCell()
@@ -245,8 +255,8 @@ fun onDepositReturn(
         body: AskToTransfer {
             queryId: msg.queryId,
             jettonAmount: msg.jettonAmount,
-            transferRecipient: returnTo,
-            sendExcessesTo: returnTo,
+            transferRecipient,
+            sendExcessesTo,
             customPayload: null,
             forwardTonAmount: 0,
             forwardPayload,
@@ -287,21 +297,21 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     reserveBalanceBeforeInMessage(msgValue);
     emit<JettonLockBox_Withdraw>(TOPIC_WITHDRAWAL, msg);
 
+    // Resolve the optional withdraw extras once.
+    val extra = msg.extra != null ? msg.extra.load(): null;
     // Determine where to send ReturnExcessesBack (from extra cell or default to self).
-    val sendExcessesTo = msg.extra != null
-        ? msg.extra!.load().sendExcessesTo != null
-            ? msg.extra!.load().sendExcessesTo!
-            : contract.getAddress()
+    val sendExcessesTo = extra != null && extra.sendExcessesTo != null
+        ? extra.sendExcessesTo
         : contract.getAddress();
 
     // Get forwardTonAmount from extra (defaults to 0 for backward compatibility).
-    val forwardTonAmount = msg.extra != null ? msg.extra!.load().forwardTonAmount : 0 as coins;
+    val forwardTonAmount = extra != null ? extra.forwardTonAmount : 0 as coins;
 
     // The caller (pool) tags its payload with a `Jetton_ForwardPayloadWrap` carrying its own
     // failure context. Unwrap one layer so the delivered payload is the caller's original
     // `forwardPayload`, then re-tag it with our context (the full withdraw) for the bounce path.
     // The caller's payload stays reachable via the echoed withdraw's `extra.forwardPayload`.
-    val callerPayload = msg.extra != null ? msg.extra!.load().forwardPayload : null;
+    val callerPayload = extra != null ? extra.forwardPayload : null;
     val delivered = Jetton_ForwardPayloadWrap.unwrapForwardPayload(callerPayload);
 
     val wrap = Jetton_ForwardPayloadWrap {
@@ -314,7 +324,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     val transferOpts = CreateMessageOptions<AskToTransfer> {
         bounce: BounceMode.RichBounce,
         value: 0,
-        dest: st.walletAddress!,
+        dest: st.walletAddress,
         body: AskToTransfer {
             queryId: msg.queryId,
             jettonAmount: msg.amount,
@@ -335,7 +345,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     val w = contract.getAddress().getWorkchain();
     val minValue = JettonFees.Reference.transferValue(forwardTonAmount, fwdFee)
         + calculateGasFee(w, JettonLockBox_WITHDRAW_GAS_UNITS);
-    assertMinValue(msgValue, minValue, JettonLockBox_Error.NotEnoughValue);
+    assert(msgValue >= minValue, JettonLockBox_Error.NotEnoughValue);
 
     val transfer = createMessage(transferOpts);
     transfer.send(sendMode);
@@ -360,16 +370,17 @@ fun onBouncedMessage(in: InMessageBounced) {
         AskToTransfer => {
             val wrap = parseLockBoxWithdrawWrap(msg.forwardPayload);
             assert(wrap != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
+            assert(wrap.context != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
 
             // Send error message to withdraw initiator
             val errorMsg = createMessage({
                 bounce: BounceMode.NoBounce,
                 value: 0,
-                dest: wrap!.initiator,
+                dest: wrap.initiator,
                 body: JettonLockBox_WithdrawFailed {
                     queryId: msg.queryId,
                     token: st.minterAddress,
-                    context: wrap!.context! as Cell<JettonLockBox_Withdraw>,
+                    context: wrap.context as Cell<JettonLockBox_Withdraw>,
                 },
             });
             errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -382,11 +393,11 @@ fun onBouncedMessage(in: InMessageBounced) {
 @inline
 fun parseLockBoxWithdrawWrap(forwardPayload: ForwardPayloadRemainder): Jetton_ForwardPayloadWrap? {
     val wrap = Jetton_ForwardPayloadWrap.from(forwardPayload);
-    if (wrap == null || wrap!.context == null) {
+    if (wrap == null || wrap.context == null) {
         return null;
     }
 
-    val ctx = lazy JettonLockBox_Withdraw.fromCell(wrap!.context!);
+    val ctx = lazy JettonLockBox_Withdraw.fromCell(wrap.context);
     match (ctx) {
         JettonLockBox_Withdraw => { return wrap; }
         else => { return null; }

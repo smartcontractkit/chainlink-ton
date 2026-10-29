@@ -174,7 +174,7 @@ fun onWithdraw(sender: address, msg: DepositAccount_Withdraw, msgCell: cell) {
             forwardTonAmount: msg.ask.forwardTonAmount,
             forwardPayload: Jetton_ForwardPayloadWrap {
                 initiator: sender,
-                forwardPayload: msg.ask.forwardPayload,
+                forwardPayload: loadForwardPayloadAsCell(msg.ask.forwardPayload),
                 // @notice we use msgCell as an optimization to avoid reconstructing the cell from the message body
                 context: msgCell,
             }.toCell().toForwardPayload(),

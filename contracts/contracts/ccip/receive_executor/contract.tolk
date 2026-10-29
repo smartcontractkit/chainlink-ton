@@ -2,6 +2,7 @@
 import "@stdlib/gas-payments"
 
 import "../../lib/utils"
+import "../../lib/jetton/messages"
 
 import "../offramp/types"
 import "../offramp/messages"
@@ -86,6 +87,9 @@ fun onInternalMessage(in: InMessage) {
         }
         // Not consumed yet; accepted so pools can confirm finalization.
         TokenPool_ReleaseOrMintFinalized => {}
+        // Passive excess return from a release/mint jetton wallet. Retain it in the executor;
+        // the finalization message carries the remaining balance to the OffRamp.
+        ReturnExcessesBack => {}
         // Sender must be the owner (OffRamp)
         ReceiveExecutor_ReleaseOrMintFailed => {
             var st = ReceiveExecutor_Storage.load();

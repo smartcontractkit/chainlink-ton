@@ -24,10 +24,10 @@ Each suite writes an isolated report (the reporter groups by ABI name, and CCT/w
 `JettonMinter`/`JettonWallet`, so they must run separately):
 
 ```bash
-yarn cct-gas-report               # -> tests/gas-report/cct-gas-report.json
-yarn wgram-gas-report             # -> tests/gas-report/wgram-gas-report.json
-yarn burn-mint-cct-gas-report     # -> tests/gas-report/burn-mint-cct-gas-report.json
-yarn lock-release-wgram-gas-report
+yarn gas-report-cct               # -> tests/gas-report/cct-gas-report.json
+yarn gas-report-wgram             # -> tests/gas-report/wgram-gas-report.json
+yarn gas-report-burn-mint-cct     # -> tests/gas-report/burn-mint-cct-gas-report.json
+yarn gas-report-lock-release-wgram
 ```
 
 The harness smoke test lives in the normal suite: `tests/gas/harness.spec.ts`.
@@ -62,9 +62,9 @@ tests/gas-report/
 
 ```bash
 yarn build
-GAS_REPORT_NETWORK=default yarn ccip-gas-report   # bundled sandbox config, works offline
-yarn ccip-gas-report                               # mainnet config (default), fetched from the network
-yarn ccip-gas-report:md                            # merges the snapshots into docs/contracts/overview/ccip/gas-report.md
+GAS_REPORT_NETWORK=default yarn gas-report-ccip   # bundled sandbox config, works offline
+yarn gas-report-ccip                               # mainnet config (default), fetched from the network
+yarn gas-report-ccip:md                            # merges the snapshots into docs/contracts/overview/ccip/gas-report.md
 ```
 
 Run it inside `nix develop .#contracts`. `GAS_REPORT_NETWORK` is `mainnet`, `testnet` or `default`;

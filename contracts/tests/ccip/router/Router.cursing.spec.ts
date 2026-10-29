@@ -199,6 +199,7 @@ describe('Router.cursing', () => {
       }),
       requestedFinalityConfig: 0n,
       replyTo: sender.address,
+      sendExcessesTo: offRamp.address,
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -242,6 +243,7 @@ describe('Router.cursing', () => {
       }),
       requestedFinalityConfig: 0n,
       replyTo: sender.address,
+      sendExcessesTo: offRamp.address,
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -277,6 +279,7 @@ describe('Router.cursing', () => {
       }),
       requestedFinalityConfig: 0n,
       replyTo: sender.address,
+      sendExcessesTo: offRamp.address,
     })
 
     expect(result.transactions).toHaveTransaction({

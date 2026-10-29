@@ -42,6 +42,7 @@ fun LockReleaseLockboxTokenPool_defaultBudget(): TokenPool_Budget {
 /// Carries the full forward payload for post-lock finalization.
 struct (0x60fdb63b) LockReleaseLockboxTokenPool_LockContext {
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
+    transferInitiator: address; // incoming transfer notification's initiator (the source DA)
 }
 
 /// @notice Context passed to OffRampAccount for release (withdraw) operations.

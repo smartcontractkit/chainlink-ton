@@ -9,6 +9,7 @@ import {
   JettonLockBox,
   JettonLockBox_Init,
   JettonLockBox_Deposit,
+  JettonLockBox_DepositExtra,
   JettonLockBox_Withdraw,
   JettonLockBox_WithdrawExtra,
   JettonLockBox_WithdrawFailed,
@@ -187,8 +188,9 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount: 1n,
           context: null,
-          returnAddress: null,
-          failureValue: toNano('0.01'),
+          extra: JettonLockBox_DepositExtra.create({
+            failureValue: toNano('0.01'),
+          }),
         }),
       )
       const result = await operatorWallet.sendTransfer(operator.getSender(), {
@@ -264,8 +266,9 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount,
           context: null,
-          returnAddress: null,
-          failureValue: toNano('0.01'),
+          extra: JettonLockBox_DepositExtra.create({
+            failureValue: toNano('0.01'),
+          }),
         }),
       )
 
@@ -324,8 +327,10 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount: 0n,
           context: callerContext,
-          returnAddress: null,
-          failureValue: toNano('0.01'),
+          extra: JettonLockBox_DepositExtra.create({
+            failureValue: toNano('0.01'),
+            sendExcessesTo: operator.address,
+          }),
         }),
       )
 
@@ -364,6 +369,18 @@ describe('JettonLockBox', () => {
             failure.context !== null &&
             JettonLockBox_Deposit.toCell(failure.context).equals(depositPayload) &&
             failure.context.context!.equals(callerContext)
+          )
+        },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: lockbox.address,
+        to: lockboxWallet.address,
+        op: AskToTransfer.PREFIX,
+        body(body) {
+          if (!body) return false
+          return (
+            AskToTransfer.fromSlice(body.beginParse()).sendExcessesTo?.equals(operator.address) ===
+            true
           )
         },
       })
@@ -451,8 +468,9 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount: toNano('3'),
           context: null,
-          returnAddress: null,
-          failureValue: toNano('0.01'),
+          extra: JettonLockBox_DepositExtra.create({
+            failureValue: toNano('0.01'),
+          }),
         }),
       )
 
@@ -511,8 +529,9 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount,
           context: null,
-          returnAddress: null,
-          failureValue: toNano('0.01'),
+          extra: JettonLockBox_DepositExtra.create({
+            failureValue: toNano('0.01'),
+          }),
         }),
       )
 
@@ -603,8 +622,9 @@ describe('JettonLockBox', () => {
           remoteChainSelector,
           amount: depositAmount,
           context: null,
-          returnAddress: null,
-          failureValue: toNano('0.01'),
+          extra: JettonLockBox_DepositExtra.create({
+            failureValue: toNano('0.01'),
+          }),
         }),
       )
 
@@ -1093,8 +1113,9 @@ describe('JettonLockBox', () => {
               remoteChainSelector,
               amount: depositAmount,
               context: null,
-              returnAddress: null,
-              failureValue: toNano('0.01'),
+              extra: JettonLockBox_DepositExtra.create({
+                failureValue: toNano('0.01'),
+              }),
             }),
           ),
         },

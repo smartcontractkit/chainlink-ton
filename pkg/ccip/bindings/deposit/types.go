@@ -8,6 +8,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 )
 
 // --- Constants ---
@@ -49,9 +50,9 @@ type Init struct {
 
 // Withdraw lets a beneficiary transfer jettons out of the account's learned jetton wallet.
 type Withdraw struct {
-	_       tlb.Magic             `tlb:"#1936d112" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID uint64                `tlb:"## 64"`
-	Ask     WithdrawAskToTransfer `tlb:"."`
+	_       tlb.Magic            `tlb:"#1936d112" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64               `tlb:"## 64"`
+	Ask     wallet.AskToTransfer `tlb:"."`
 }
 
 // --- Messages (outgoing) ---
@@ -91,21 +92,6 @@ type WithdrawFailed struct {
 	Token         *address.Address `tlb:"addr"`
 	WalletAddress *address.Address `tlb:"addr"`
 	Request       Withdraw         `tlb:"^"`
-}
-
-// WithdrawAskToTransfer has the same fields as the standard jetton transfer request except from
-// the QueryID.
-//
-// @dev Unlike the standard jetton AskToTransfer, whose forwardPayload is a
-//
-//	ForwardPayloadRemainder, the deposit account declares it as `cell?`
-type WithdrawAskToTransfer struct {
-	JettonAmount      tlb.Coins        `tlb:"."`
-	TransferRecipient *address.Address `tlb:"addr"`
-	SendExcessesTo    *address.Address `tlb:"addr"`
-	CustomPayload     *cell.Cell       `tlb:"maybe ^"`
-	ForwardTonAmount  tlb.Coins        `tlb:"."`
-	ForwardPayload    *cell.Cell       `tlb:"maybe ^"`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{

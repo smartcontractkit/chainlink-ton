@@ -340,6 +340,17 @@ describe('FeeQuoter Token Transfer Fee', () => {
     )
   })
 
+  it('reverts with CannotSendZeroTokens when a token amount is zero', async () => {
+    const message = messageWithTokens(
+      [{ token: FeeQuoterSetup.SOURCE_FEE_TOKEN.token, amount: 0n }],
+      FEE_TOKEN.token,
+    )
+    await setup.assertGetFeeValidationError(
+      message,
+      feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.CannotSendZeroTokens'],
+    )
+  })
+
   it('sums the premium, dest gas overhead and dest bytes overhead across multiple tokens', async () => {
     const tokenA = FeeQuoterSetup.SOURCE_FEE_TOKEN
     const tokenB = FeeQuoterSetup.CUSTOM_TOKEN

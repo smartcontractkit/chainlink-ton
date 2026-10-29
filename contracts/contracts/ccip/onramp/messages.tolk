@@ -57,23 +57,6 @@ struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
 /// and the executor re-checks against the reported admission once it has it.
 const TOKEN_POOL_DEFAULT_LOCK_OR_BURN_ADMISSION: coins = grams("0.105");
 
-/// Value the executor attaches to a lock/burn request: the CCIP relays to and from the pool
-/// (OnRamp, Router, deposit account withdraw), the pool's admission as reported by the token
-/// admin registry, and the post-custody finalization the pool forwards back.
-fun OnRamp_ExecutorRequestsLockOrBurn.cost(poolAdmission: coins): coins {
-    return
-        + grams("0.002") // OnRamp ExecutorRequestsLockOrBurn relay
-        + grams("0.0025") // Router_LockOrBurn relay
-        + grams("0.004") // SendExecutor TokenPool_LockOrBurnWithdraw
-        + grams("0.003") // OnRamp ExecutorRequestsWithdraw relay
-        + grams("0.0025") // Router_WithdrawToTokenPool relay
-        + grams("0.0025") // DepositAccount_Withdraw
-        + grams("0.001") // jetton excess returned to the OnRamp
-        + poolAdmission
-        + OnRamp_Costs.TokenPoolFinalization()
-        ;
-}
-
 struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {
     queryID: uint64,
     executorID: CCIPSendExecutor_ID,
@@ -169,6 +152,24 @@ fun OnRamp_Costs.GetValidatedFee(): int {
             OnRamp_Costs.FeeQuoter_MessageValidated(),
             OnRamp_Costs.FeeQuoter_MessageValidationFailed()
         )
+        ;
+}
+
+/// Value the executor attaches to a lock/burn request: the CCIP relays to and from the pool
+/// (OnRamp, Router, deposit account withdraw), the pool's admission as reported by the token
+/// admin registry, and the post-custody finalization the pool forwards back.
+@inline
+fun OnRamp_Costs.ExecutorRequestsLockOrBurn(poolAdmission: coins): coins {
+    return
+        + grams("0.002") // OnRamp ExecutorRequestsLockOrBurn relay
+        + grams("0.0025") // Router_LockOrBurn relay
+        + grams("0.004") // SendExecutor TokenPool_LockOrBurnWithdraw
+        + grams("0.003") // OnRamp ExecutorRequestsWithdraw relay
+        + grams("0.0025") // Router_WithdrawToTokenPool relay
+        + grams("0.0025") // DepositAccount_Withdraw
+        + grams("0.001") // jetton excess returned to the OnRamp
+        + poolAdmission
+        + OnRamp_Costs.TokenPoolFinalization()
         ;
 }
 

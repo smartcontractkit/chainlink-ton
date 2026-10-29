@@ -9,7 +9,6 @@
 import "@stdlib/gas-payments"
 
 import "../../wgram/fees-management"
-import "../../lib/budget/gas"
 
 contract WgramCostHarness {
     author: "SmartContract Chainlink Limited SEZC"

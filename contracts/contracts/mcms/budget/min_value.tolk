@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "../../lib/budget/min_value"
-import "../../lib/budget/gas"
+import "../../lib/gas"
 
 /// MCMS min-value floors. Gas units are set from tests/budget/mcms.
 

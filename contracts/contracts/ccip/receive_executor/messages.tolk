@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
+import "../../lib/jetton/messages"
+
 import "../offramp/messages"
 import "../offramp/types"
 import "../token_admin_registry/messages"
@@ -17,6 +19,7 @@ type ReceiveExecutor_InMessage =
     | ReceiveExecutor_ReleaseOrMintFailed
     | ReceiveExecutor_CCIPReceiveFailed
     | ReceiveExecutor_CCIPReceiveConfirm
+    | ReturnExcessesBack
     ;
 
 type ReceiveExecutor_BouncedMessage =

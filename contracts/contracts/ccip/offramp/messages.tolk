@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../lib/deployable/types"
 import "../../lib/funding/withdrawable"
+import "../../lib/jetton/messages"
 import "../../lib/ocr/multi_ocr3_base"
 import "../../lib/ocr/types"
 import "../../lib/utils"
@@ -36,6 +37,7 @@ type OffRamp_InMessage =
     | OffRamp_SetDynamicConfig
     | OCR3Base_SetOCR3Config
     | Upgradeable_Upgrade
+    | ReturnExcessesBack
     | Withdrawable_Withdraw;
 
 type OffRamp_InMessageBounced = 

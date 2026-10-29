@@ -65,7 +65,7 @@ fun SendExecutor_Costs.TokenTransfer(): int {
     return
         + TokenAdminRegistry_GetTokenInfo.cost()
         + grams("0.003") // TokenAdminRegistry_TokenInfo computeFee + ExecutorRequestsLockOrBurn fwdFee
-        + OnRamp_ExecutorRequestsLockOrBurn.cost(TOKEN_POOL_DEFAULT_LOCK_OR_BURN_ADMISSION)
+        + OnRamp_Costs.ExecutorRequestsLockOrBurn(TOKEN_POOL_DEFAULT_LOCK_OR_BURN_ADMISSION)
         ;
 }
 

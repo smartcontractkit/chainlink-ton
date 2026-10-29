@@ -109,6 +109,18 @@ struct (0xfa7da444) TokenPool_LockOrBurn {
     /// Finalization value the caller asks the lock/burn flow to forward on success/failure.
     finalizationValue: coins;
     onRampNamespaces: map<uint32, ()> = [];
+
+    /// Optional excess and failure-return routing; see `TokenPool_LockOrBurnExtra`.
+    extra: Cell<TokenPool_LockOrBurnExtra>? = null;
+}
+
+/// Optional value-routing overrides for a lock/burn operation.
+struct TokenPool_LockOrBurnExtra {
+    /// Where jetton wallets return unused TON (success excess). Defaults to the original sender.
+    sendExcessesTo: address? = null;
+    /// Where failed custody returns go. Defaults to the transfer notification initiator (the
+    /// source deposit account).
+    returnTo: address? = null;
 }
 
 struct TokenPool_LockOrBurnForwardPayload {
@@ -129,6 +141,10 @@ struct (0x351f77e3) TokenPool_ReleaseOrMint {
     // Continuation info
     replyTo: address;
     delivery: Cell<TokenPool_ReleaseOrMintDelivery>;
+
+    /// Where jetton wallets return unused TON (success excess). The caller chooses it; the
+    /// destination flow defaults to the request sender.
+    sendExcessesTo: address? = null;
 }
 
 /// Finalization value the caller asks the release/mint delivery to forward (zero without delivery).

@@ -20,10 +20,12 @@ const CCIP_POOL_V1_RET_BYTES = 32;
 // in the TokenTransferFeeConfig.destBytesOverhead if more data is required.
 const CCIP_LOCK_OR_BURN_V1_RET_BYTES = 32;
 
-// Includes withdraw, lock/burn, and return custody moves for pre-withdraw operations.
+// Includes withdraw, lock/burn, and return custody moves budget for pre-withdraw tx.
 const LB_CUSTODY_MOVES_BEFORE_WITHDRAW: int = 3;
-// Includes lock/burn and return custody moves for pre-lock/burn operations.
+// Includes lock/burn and return custody moves budget for pre-lock/burn tx.
 const LB_CUSTODY_MOVES_BEFORE_LOCK_BURN: int = 2;
+// Includes release/mint and return custody moves budget for pre-release/mint tx.
+const RM_CUSTODY_MOVES_BEFORE_RELEASE_MINT: int = 2;
 
 struct TokenPool_DynamicConfig {
     router: address;

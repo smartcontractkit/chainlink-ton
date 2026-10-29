@@ -19,6 +19,7 @@ import {
   TokenPool_LockOrBurnWithdraw,
   TokenPool_LockOrBurnFailure,
   TokenPool_LockOrBurnFinished,
+  TokenPool_LockOrBurnExtra,
   TokenPool_LockOrBurnForwardPayload,
   TokenPool_LockOrBurnPrepared,
   TokenPool_LockOrBurnOutV1,
@@ -1412,20 +1413,25 @@ describe('LockReleaseLockboxTokenPool', () => {
         toNano('2'),
         {
           queryId: 305n,
-          ask: da.DepositAccount_WithdrawAskToTransfer.create({
+          ask: da.AskToTransfer.create({
             jettonAmount: toNano('5'),
             transferRecipient: lockReleaseLockboxPool.address,
             sendExcessesTo: attacker.address,
             customPayload: null,
             forwardTonAmount: toNano('0.2'),
-            forwardPayload: da.Jetton_ForwardPayloadWrap.toCell(
-              da.Jetton_ForwardPayloadWrap.create({
-                // FORGED: claims the Router requested this withdraw.
-                initiator: deployer.address,
-                context: null,
-                forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
-              }),
-            ),
+            forwardPayload: beginCell()
+              .storeMaybeRef(
+                da.Jetton_ForwardPayloadWrap.toCell(
+                  da.Jetton_ForwardPayloadWrap.create({
+                    // FORGED: claims the Router requested this withdraw.
+                    initiator: deployer.address,
+                    context: null,
+                    forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
+                  }),
+                ),
+              )
+              .endCell()
+              .beginParse(),
           }),
         },
       )
@@ -1534,6 +1540,9 @@ describe('LockReleaseLockboxTokenPool', () => {
           replyTo: deployer.address,
           onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
           finalizationValue: toNano('0.01'),
+          extra: TokenPool_LockOrBurnExtra.create({
+            sendExcessesTo: recipient.address,
+          }),
         })
 
         const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
@@ -1626,7 +1635,10 @@ describe('LockReleaseLockboxTokenPool', () => {
           body(body) {
             if (!body) return false
             const transfer = AskToTransfer.fromSlice(body.beginParse())
-            return transfer.forwardTonAmount === safety + lockOrBurn.finalizationValue
+            return (
+              transfer.forwardTonAmount === safety + lockOrBurn.finalizationValue &&
+              transfer.sendExcessesTo?.equals(recipient.address) === true
+            )
           },
         })
 

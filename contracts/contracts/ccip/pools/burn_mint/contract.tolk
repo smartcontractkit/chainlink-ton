@@ -13,7 +13,6 @@ import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/funding/jetton_withdrawable"
-import "../../../lib/budget/min_value"
 
 import "../../common/types"
 import "../../cct/messages"
@@ -110,14 +109,13 @@ fun onBouncedMessage(in: InMessageBounced) {
         }
         CCT_AskToBurn => {
             assert(msg.forwardPayload != null) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
-            val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload!);
+            val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload);
             assert(in.senderAddress == context.wallet) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
 
             val operation = lazy context.forwardPayload.load();
             var pool = st.TokenPool();
             val exitCode = BurnMintTokenPool_Error.UnexpectedBurnBounce as int32;
-            // TODO: this custody should go to `returnAddress` (get it from fwdp)
-            val custodyReturn = TokenPool<void>.createCustodyReturn(operation);
+            val custodyReturn = TokenPool<void>.createCustodyReturn(operation, context.transferInitiator);
             pool.recoverLockOrBurnFailure(operation, exitCode, in.valueCoins, custodyReturn);
 
             st.poolData = pool.data.toCell();
@@ -127,8 +125,8 @@ fun onBouncedMessage(in: InMessageBounced) {
             assert(in.senderAddress == st.poolData.load().jettonClient().masterAddress) throw BurnMintTokenPool_Error.UnexpectedMintBounce;
             val internalTransfer = lazy msg.internalTransferMsg.load();
             val wrap = Jetton_ForwardPayloadWrap.from(internalTransfer.forwardPayload);
-            assert(wrap != null && wrap!.context != null) throw BurnMintTokenPool_Error.UnexpectedMintBounce;
-            val context = lazy BurnMintTokenPool_MintContext.fromCell(wrap!.context!);
+            assert(wrap != null && wrap.context != null) throw BurnMintTokenPool_Error.UnexpectedMintBounce;
+            val context = lazy BurnMintTokenPool_MintContext.fromCell(wrap.context);
 
             val operation = lazy context.forwardPayload.load();
             var pool = st.TokenPool();
@@ -157,9 +155,11 @@ fun onLockOrBurnTransferContinue(
     fwdPayload: TokenPool_LockOrBurnForwardPayload,
 ): Storage {
     val requestMsg = lazy fwdPayload.requestMsg.load();
+
     val context = BurnMintTokenPool_BurnContext {
         wallet: sender, // own wallet
         forwardPayload: fwdPayload.toCell(),
+        transferInitiator: msg.transferInitiator!, // already checked non-null
     };
 
     val operation = lazy context.forwardPayload.load();
@@ -192,7 +192,7 @@ fun onLockOrBurnTransferContinue(
         JettonFees.Reference.transferValue(0, fwdFee),
         JettonFees.Reference.burnValue(fwdFee, true)
     ) + TokenPool_Costs.finalization();
-    assertMinValue(safety, minValue, TokenPool_Error.InsufficientMessageValue);
+    assert(safety >= minValue, TokenPool_Error.InsufficientMessageValue);
 
     val burn = createMessage(burnOpts);
     burn.send(sendMode);
@@ -208,7 +208,7 @@ fun onReleaseOrMintContinue(
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
     assert(ctx != null, TokenPool_Error.UnsupportedOperation);
-    var st = ctx!;
+    var st = ctx;
     val delivery = msg.delivery.load();
     val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
         originalSender: sender,
@@ -229,8 +229,8 @@ fun onReleaseOrMintContinue(
     val jettonClient = st.poolData.load().jettonClient();
     val forwardTonAmount = st.TokenPool().releaseOrMintForward(msg.finalizationValue());
 
-    // TODO: sendExcessesTo should be configurable (original sender, oracle transmitter)
-    val sendExcessesTo = sender;
+    // Caller-selected excess recipient; default to the request sender.
+    val sendExcessesTo = msg.sendExcessesTo != null ? msg.sendExcessesTo! : sender;
 
     // The recipient's notification carries the pool's finalization safety plus the caller's
     // continuation. The minter gets the exact cost of the mint, so it keeps nothing; the wallet
@@ -274,7 +274,7 @@ fun onReleaseOrMintContinue(
     val w = contract.getAddress().getWorkchain();
     val gasFee = calculateGasFee(w, getGasConsumedAtTheMoment() + BurnMintTokenPool_MINT_SEND_GAS_UNITS);
     val minValue = mintOpts.value + fwdFee + gasFee;
-    assertMinValue(msgValue, minValue, TokenPool_Error.InsufficientMessageValue);
+    assert(msgValue >= minValue, TokenPool_Error.InsufficientMessageValue);
 
     val mint = createMessage(mintOpts);
     mint.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
@@ -290,7 +290,7 @@ fun onClaimMinterAdmin(
     msgValue: coins,
     queryId: uint64,
 ) {
-    assertMinValue(msgValue, TokenPool_Costs.admin(), TokenPool_Error.InsufficientMessageValue);
+    assert(msgValue >= TokenPool_Costs.admin(), TokenPool_Error.InsufficientMessageValue);
 
     st.poolData.load().adminConfig.load().ownable.load().requireOwner(sender);
 
@@ -327,7 +327,7 @@ fun onCCTReturnExcessesBack(
     // The minter sets `initiator` to the burnInitiator, which is the pool's own wallet owner (pool).
     assert(msg.initiator == contract.getAddress(), TokenPool_Error.Unauthorized);
 
-    val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload!);
+    val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload);
     val operation = lazy context.forwardPayload.load();
 
     pool.onLockOrBurnTransferFinalize(msgValue, operation);
@@ -471,6 +471,22 @@ get fun getRemotePools(remoteChainSelector: uint64): lisp_list<Cell<CrossChainAd
 /// Returns the token transfer fee configuration for the given destination chain selector.
 get fun getTokenTransferFeeConfig(destChainSelector: uint64): TokenPool_TokenTransferFeeConfig? {
     return Storage.load().TokenPool().getTokenTransferFeeConfig(destChainSelector);
+}
+
+/// Returns the pool-local cursed subjects.
+get fun cursedSubjects(): lisp_list<uint128> {
+    return keysLispList(Storage.load().poolData.load().localPolicy.load().cursePolicy.cursedSubjects.data)!;
+}
+
+/// Returns the pool's admin configuration.
+get fun getAdminConfig(): TokenPool_AdminConfig {
+    return Storage.load().poolData.load().adminConfig.load();
+}
+
+/// Returns the remote chain configuration for the given selector, or null if unknown.
+get fun getRemoteChainConfig(remoteChainSelector: uint64): TokenPool_RemoteChainConfig? {
+    val entry = Storage.load().poolData.load().remoteChainConfigs.get(remoteChainSelector);
+    return entry.isFound ? entry.loadValue() : null;
 }
 
 /// Returns the fee parameters that will apply to a transfer to the given destination chain.

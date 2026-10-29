@@ -2334,13 +2334,13 @@ describe('OffRamp - Execute', () => {
       const account = blockchain.openContract(deposit.DepositAccount.fromAddress(accountAddress))
       const withdrawTo = (requester: Address) => ({
         walletAddress: setup.walletAddress({ address: accountAddress }),
-        ask: deposit.DepositAccount_WithdrawAskToTransfer.create({
+        ask: deposit.AskToTransfer.create({
           jettonAmount: setup.DEFAULT_TOKEN_AMOUNT,
           transferRecipient: requester,
           sendExcessesTo: requester,
           customPayload: null,
           forwardTonAmount: 0n,
-          forwardPayload: null,
+          forwardPayload: beginCell().storeMaybeRef(null).asSlice(),
         }),
       })
 

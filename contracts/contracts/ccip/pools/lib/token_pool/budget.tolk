@@ -2,7 +2,7 @@
 
 import "@stdlib/gas-payments"
 
-import "../../../../lib/budget/gas"
+import "../../../../lib/gas"
 
 /// Initial CCIP budgets; calibration against success and recovery traces is still required.
 

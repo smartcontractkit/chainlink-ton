@@ -2,7 +2,7 @@
 /// JettonLockBox types, error codes, and storage.
 
 import "../../../lib/access/access_control"
-import "../../../lib/budget/gas"
+import "../../../lib/gas"
 
 /// Facility ID used for error code derivation.
 const JettonLockBox_FACILITY_NAME = "link.chain.ton.ccip.pool.JettonLockBox";

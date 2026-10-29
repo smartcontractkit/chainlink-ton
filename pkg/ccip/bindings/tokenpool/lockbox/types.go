@@ -27,8 +27,14 @@ type Deposit struct {
 	RemoteChainSelector uint64           `tlb:"## 64"`         // Destination chain selector for cross-chain routing.
 	Amount              tlb.Coins        `tlb:"."`             // The amount of tokens to deposit.
 	Context             *cell.Cell       `tlb:"maybe ^"`       // Optional context carried through the deposit flow.
-	ReturnAddress       *address.Address `tlb:"addr"`          // Where rejected custody is returned; defaults to the transfer initiator.
-	FailureValue        tlb.Coins        `tlb:"."`             // CCIP post-custody failure budget.
+	Extra               *DepositExtra    `tlb:"maybe ^"`       // Optional rejection routing and failure funding.
+}
+
+// DepositExtra holds optional rejection routing and failure funding for a deposit.
+type DepositExtra struct {
+	ReturnTo       *address.Address `tlb:"addr"` // Where rejected custody is returned; nil defaults to the transfer initiator.
+	FailureValue   tlb.Coins        `tlb:"."`    // CCIP post-custody failure budget.
+	SendExcessesTo *address.Address `tlb:"addr"` // Where the return transfer's unused TON goes; nil falls back to the depositor.
 }
 
 // WithdrawExtra holds optional extra fields for Withdraw.

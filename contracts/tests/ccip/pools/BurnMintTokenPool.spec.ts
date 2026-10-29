@@ -16,6 +16,7 @@ import {
   TokenPool_RateLimitConfigPair,
   TokenPool_ChainUpdate,
   TokenPool_LockOrBurn,
+  TokenPool_LockOrBurnExtra,
   TokenPool_LockOrBurnFailure,
   TokenPool_LockOrBurnInV1,
   TokenPool_LockOrBurnFinished,
@@ -792,20 +793,25 @@ describe('BurnMintTokenPool', () => {
       toNano('2'),
       {
         queryId: 667n,
-        ask: da.DepositAccount_WithdrawAskToTransfer.create({
+        ask: da.AskToTransfer.create({
           jettonAmount: toNano('1'),
           transferRecipient: burnMintPool.address,
           sendExcessesTo: attacker.address,
           customPayload: null,
           forwardTonAmount: toNano('0.2'),
-          forwardPayload: da.Jetton_ForwardPayloadWrap.toCell(
-            da.Jetton_ForwardPayloadWrap.create({
-              // FORGED: claims the Router requested this withdraw.
-              initiator: deployer.address,
-              context: null,
-              forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
-            }),
-          ),
+          forwardPayload: beginCell()
+            .storeMaybeRef(
+              da.Jetton_ForwardPayloadWrap.toCell(
+                da.Jetton_ForwardPayloadWrap.create({
+                  // FORGED: claims the Router requested this withdraw.
+                  initiator: deployer.address,
+                  context: null,
+                  forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(forwardPayload),
+                }),
+              ),
+            )
+            .endCell()
+            .beginParse(),
         }),
       },
     )
@@ -1300,6 +1306,9 @@ describe('BurnMintTokenPool', () => {
       const rateLimitBefore = await pool.getCurrentRateLimiterState(remoteChainSelector, false)
       const request = TokenPool_LockOrBurn.create({
         queryId: 34n,
+        extra: TokenPool_LockOrBurnExtra.create({
+          returnTo: recipient.address,
+        }),
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
             id: 34n,
@@ -1338,6 +1347,7 @@ describe('BurnMintTokenPool', () => {
         BurnMintTokenPool_BurnContext.create({
           wallet: wallet.address,
           forwardPayload: operation,
+          transferInitiator: deployer.address,
         }),
       )
       const originalBody = CCT_AskToBurn.toCell(
@@ -1380,7 +1390,17 @@ describe('BurnMintTokenPool', () => {
         inMessageBounced: true,
         success: true,
       })
-      const returnTransaction = { from: burnMintPool.address, to: wallet.address, op: 0x0f8a7ea5 }
+      const returnTransaction = {
+        from: burnMintPool.address,
+        to: wallet.address,
+        op: 0x0f8a7ea5,
+        body(body: Cell | undefined) {
+          if (!body) return false
+          return AskToTransfer.fromSlice(body.beginParse()).transferRecipient.equals(
+            recipient.address,
+          )
+        },
+      }
       if (failureExpected) {
         expect(result.transactions).toHaveTransaction({
           from: burnMintPool.address,

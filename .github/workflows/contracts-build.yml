@@ -32,11 +32,11 @@ jobs:
       - name: Run gas reports
         run: |
           pushd contracts
-          nix develop .#contracts -c sh -c 'yarn ccip-gas-report'
-          nix develop .#contracts -c sh -c 'yarn cct-gas-report'
-          nix develop .#contracts -c sh -c 'yarn wgram-gas-report'
-          nix develop .#contracts -c sh -c 'yarn burn-mint-cct-gas-report'
-          nix develop .#contracts -c sh -c 'yarn lock-release-wgram-gas-report'
+          nix develop .#contracts -c sh -c 'yarn gas-report-ccip'
+          nix develop .#contracts -c sh -c 'yarn gas-report-cct'
+          nix develop .#contracts -c sh -c 'yarn gas-report-wgram'
+          nix develop .#contracts -c sh -c 'yarn gas-report-burn-mint-cct'
+          nix develop .#contracts -c sh -c 'yarn gas-report-lock-release-wgram'
 
   build-nixpkg:
     name: Build nix package

@@ -94,8 +94,6 @@ function removeRefPropertyAccesses(sourceFile: morph.SourceFile): void {
 }
 
 export default function transformCellRef(sourceFile: morph.SourceFile): void {
-  // Newer acton versions no longer emit a local `CellRef` alias, but still use `CellRef<T>`
-  // in field types. The helpers and type references exist independently of the alias.
   transformStoreCellRefHelper(sourceFile)
   transformLoadCellRefHelper(sourceFile)
   transformReadCellRefMethod(sourceFile)

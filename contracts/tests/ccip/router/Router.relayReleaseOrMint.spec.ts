@@ -88,6 +88,7 @@ describe('Router.relayReleaseOrMint', () => {
       }),
       requestedFinalityConfig: 0n,
       replyTo: executor.address,
+      sendExcessesTo: offRamp.address,
     })
 
   const relay = (relayMsg: rt.Router_RelayReleaseOrMint, via = offRamp) =>
@@ -133,7 +134,8 @@ describe('Router.relayReleaseOrMint', () => {
         return (
           msg.queryId === queryID &&
           msg.delivery?.recipient.equals(account) === true &&
-          msg.replyTo?.equals(executor.address) === true
+          msg.replyTo?.equals(executor.address) === true &&
+          msg.sendExcessesTo?.equals(offRamp.address) === true
         )
       },
     })

@@ -13,7 +13,7 @@ From [contracts/package.json](../../../../contracts/package.json), run the dedic
 
 ```sh
 cd chainlink-ton/contracts
-yarn wgram-gas-report
+yarn gas-report-wgram
 ```
 
 This suite measures the worst covered execution branches and compares them against the constants in [contracts/contracts/wgram/fees-management.tolk](../../../../contracts/contracts/wgram/fees-management.tolk):
@@ -27,8 +27,8 @@ This suite measures the worst covered execution branches and compares them again
 
 When the reporter fails after a contract-path change:
 
-1. Re-run `yarn wgram-gas-report` and read the measured values printed by the failing test.
+1. Re-run `yarn gas-report-wgram` and read the measured values printed by the failing test.
 2. Update the matching constants in [contracts/contracts/wgram/fees-management.tolk](../../../../contracts/contracts/wgram/fees-management.tolk).
-3. Re-run `yarn wgram-gas-report` until the measured values and configured constants match exactly.
+3. Re-run `yarn gas-report-wgram` until the measured values and configured constants match exactly.
 
 Only update these constants after an intentional logic change on a covered path. If the numbers drift unexpectedly, treat that as a behavior change to review first, not just a docs-only constant refresh.

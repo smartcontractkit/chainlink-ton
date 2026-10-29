@@ -314,7 +314,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
     val lockOrBurnAdmission = poolInfo.admission.load().lockOrBurn;
     // The Router checked the entry value against the pool-type default admission; a pool that
     // raised its budget is only known here.
-    if (contract.getOriginalBalance() < OnRamp_ExecutorRequestsLockOrBurn.cost(lockOrBurnAdmission) + SendExecutor_Costs.Finalize()) {
+    if (contract.getOriginalBalance() < OnRamp_Costs.ExecutorRequestsLockOrBurn(lockOrBurnAdmission) + SendExecutor_Costs.Finalize()) {
         return self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds, state.chargedFee.feeTokenAmount);
     }
     val ccipSend = lazy self.onrampSend.msg.load();
@@ -322,7 +322,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
     val addresses = lazy self.addresses.load();
     val requestLockOrBurn = createMessage({
         bounce: true,
-        value: OnRamp_ExecutorRequestsLockOrBurn.cost(lockOrBurnAdmission),
+        value: OnRamp_Costs.ExecutorRequestsLockOrBurn(lockOrBurnAdmission),
         dest: addresses.onramp,
         body: OnRamp_ExecutorRequestsLockOrBurn {
             queryID: ccipSend.queryID,
