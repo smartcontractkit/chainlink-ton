@@ -392,9 +392,8 @@ fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifySuccess
 fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: address) {
     if (msg.delivered != null) {
-        // The only mode-64 send: it carries the inbound remainder after gas and its forward fee.
-        // The root update below is paid from the balance.
-        relayTokenTransferDelivered(st, msg.queryId, msg.execId, receiveExecutor, msg.delivered!, true);
+        // Fixed value; the executor's leftover stays on the OffRamp.
+        relayTokenTransferDelivered(st, msg.queryId, msg.execId, receiveExecutor, msg.delivered!, false);
     }
 
     val messageHeader = lazy msg.header.load();
