@@ -1,5 +1,5 @@
-import { SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Cell, Sender, toNano } from '@ton/core'
+import { SandboxContract, TreasuryContract, internal } from '@ton/sandbox'
+import { beginCell, Cell, Sender, toNano } from '@ton/core'
 import {
   TokenPool,
   TokenPool_LockOrBurn,
