@@ -8,6 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	// TODO: these shoud be outside pkg/ccip/
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
@@ -96,6 +97,44 @@ type SetConfig struct {
 	ClearRoot       bool                             `tlb:"bool"`
 }
 
+// Starts a new staged config update. Any previously staged config is discarded.
+type BeginConfigStaging struct {
+	_ tlb.Magic `tlb:"#eaaf141c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	GroupQuorums *tlbe.Dict[uint8, uint8] `tlb:"."` // indexed, iterable backwards
+	GroupParents *tlbe.Dict[uint8, uint8] `tlb:"."` // indexed, iterable backwards
+}
+
+// Appends a chunk of signers to the staged config.
+type StageConfig struct {
+	_ tlb.Magic `tlb:"#2847bdb3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	ExpectedNumSigners uint16                           `tlb:"## 16"`
+	SignerAddresses    common.SnakedCell[SignerAddress] `tlb:"^"`
+	SignerGroups       common.SnakedCell[SignerGroup]   `tlb:"^"`
+}
+
+// Atomically activates the staged config.
+type CommitConfig struct {
+	_ tlb.Magic `tlb:"#7a475aac" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	ExpectedNumSigners uint16 `tlb:"## 16"`
+	ClearRoot          bool   `tlb:"bool"`
+}
+
+// Discards the staged config without changing the active config.
+type AbortConfig struct {
+	_ tlb.Magic `tlb:"#c95d42b1" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+}
+
 // Changes the timeout required to finalize the currently executing op
 //
 // Replies with {MCMS_OpFinalizationTimeoutChange} message.
@@ -182,6 +221,22 @@ type ConfigSet struct {
 	IsRootCleared bool   `tlb:"bool"` // Whether the root was cleared.
 }
 
+// Sent back to sender after each staging message.
+type ConfigStaged struct {
+	_ tlb.Magic `tlb:"#3de839fe" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	NumSigners uint16 `tlb:"## 16"`
+}
+
+// Sent back to sender when a staged config is discarded.
+type ConfigStagingAborted struct {
+	_ tlb.Magic `tlb:"#381bbdc2" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+}
+
 // Replied to sender when the op finalization timeout is modified.
 type OpFinalizationTimeoutChange struct {
 	_ tlb.Magic `tlb:"#16fc10e6" json:"-"` //nolint:revive // (opcode) should stay uninitialized
@@ -247,11 +302,17 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	SetRoot{},
 	Execute{},
 	SetConfig{},
+	BeginConfigStaging{},
+	StageConfig{},
+	CommitConfig{},
+	AbortConfig{},
 	UpdateOpFinalizationTimeout{},
 	SubmitErrorReport{},
 	TransferOracleRole{},
 	NewRoot{},
 	ConfigSet{},
+	ConfigStaged{},
+	ConfigStagingAborted{},
 	OpExecuted{},
 	ErrorReportSubmitted{},
 	OracleRoleTransferred{},
@@ -274,8 +335,8 @@ type Data struct {
 	// have signers stored in config in order to easily deactivate them when a new config is set.
 	Signers *tlbe.Dict[tlbe.Uint160, Signer] `tlb:"."` // exists if the public key is a signer
 
-	// The current configuration of the contract
-	Config Config `tlb:"^"` // @dev split out as cell to avoid size limits
+	// The current configuration and any staged config (split out as cell to avoid size limits)
+	Config ConfigState `tlb:"^"`
 
 	// Remember signedHashes that this contract has seen. Each signedHash can only be set once.
 	SeenSignedHashes *tlbe.Dict[tlbe.Uint256, bool] `tlb:"."`
@@ -346,6 +407,13 @@ type Signer struct {
 //	  {addr: address(E), index: 2, group: 3}, {addr: address(F), index: 3, group: 3},
 //	  {addr: address(D), index: 4, group: 2}, {addr: address(B), index: 5, group: 1},
 //	]
+//
+// Active config plus the optional config being staged for an atomic commit.
+type ConfigState struct {
+	Config       Config        `tlb:"^"`
+	StagedConfig *StagedConfig `tlb:"maybe ^"`
+}
+
 type Config struct {
 	Signers *tlbe.Dict[uint8, Signer] `tlb:"."` // indexed
 	// groupQuorums[i] stores the quorum for the i-th signer group. Any group with
@@ -358,6 +426,16 @@ type Config struct {
 	// - (i != 0) implies (groupParents[i] < i)
 	// - groupParents[0] == 0
 	GroupParents *tlbe.Dict[uint8, uint8] `tlb:"."` // indexed, iterable backwards
+}
+
+// Config assembled across multiple transactions before being activated atomically.
+type StagedConfig struct {
+	Config              Config                            `tlb:"^"`
+	Signers             *tlbe.Dict[*tlbe.Uint160, Signer] `tlb:"."`
+	NumSigners          uint16                            `tlb:"## 16"`
+	QueryID             uint64                            `tlb:"## 64"`
+	LastAddress         *tlbe.Uint160                     `tlb:"."`
+	GroupChildrenCounts *tlbe.Dict[uint8, uint8]          `tlb:"."`
 }
 
 // Information about the current root, extracted into a separate struct (wrapped in a cell).
@@ -506,7 +584,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorOutOfBoundsNumSigners)
-		ecMax = int32(InsufficientFee)
+		ecMax = int32(ErrorConfigStagingSessionMismatch)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -599,4 +677,16 @@ const (
 
 	// Value attached to incomming message is not enough to pay for handler execution
 	InsufficientFee
+
+	// Thrown when staging a config chunk without an active staging session.
+	ErrorConfigStagingNotStarted
+
+	// Thrown when the staged signer count does not match the expected count.
+	ErrorConfigStagingIncomplete
+
+	// Thrown when a staging chunk exceeds MAX_SIGNERS_PER_STAGE.
+	ErrorConfigStagingChunkTooLarge
+
+	// Thrown when a staging message does not belong to the active staging session.
+	ErrorConfigStagingSessionMismatch
 )

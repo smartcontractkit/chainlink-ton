@@ -197,6 +197,57 @@ export class McmsLimitsHarness {
     return this.send(body, options.value)
   }
 
+  async stageConfig(
+    signers: LimitsSigner[],
+    layout: GroupLayout,
+    options: { chunkSize?: number; clearRoot?: boolean; value?: bigint } = {},
+  ): Promise<Outcome[]> {
+    const chunkSize = options.chunkSize ?? mcms.MAX_SIGNERS_PER_STAGE
+    const outcomes: Outcome[] = []
+
+    outcomes.push(
+      await this.send(
+        mcms.builder.message.in.beginConfigStaging
+          .encode({
+            queryId: 1n,
+            groupQuorums: layout.groupQuorums,
+            groupParents: layout.groupParents,
+          })
+          .endCell(),
+      ),
+    )
+
+    for (let offset = 0; offset < signers.length; offset += chunkSize) {
+      const chunk = signers.slice(offset, offset + chunkSize)
+      outcomes.push(
+        await this.send(
+          mcms.builder.message.in.stageConfig
+            .encode({
+              queryId: 1n,
+              expectedNumSigners: offset,
+              signerAddresses: chunk.map((signer) => BigInt(signer.address)),
+              signerGroups: chunk.map((signer) => signer.group),
+            })
+            .endCell(),
+        ),
+      )
+    }
+
+    outcomes.push(
+      await this.send(
+        mcms.builder.message.in.commitConfig
+          .encode({
+            queryId: 1n,
+            expectedNumSigners: signers.length,
+            clearRoot: options.clearRoot ?? false,
+          })
+          .endCell(),
+      ),
+    )
+
+    return outcomes
+  }
+
   async setRoot(options: {
     signingSigners: LimitsSigner[]
     validUntil: bigint
