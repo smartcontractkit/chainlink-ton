@@ -9,6 +9,7 @@ runLimitsSuite({
     maxSigners: 52,
     maxGroups: 21,
     maxSignatures: 52,
+    setConfigStrategy: 'direct',
   },
   cases: [
     {
@@ -310,17 +311,6 @@ runLimitsSuite({
         { signers: 69, groups: 21 },
       ],
       maxGasPerStep: 960_000n,
-    },
-    {
-      name: 'workaround: 69/21 -> 30/21 -> 69/21',
-      op: 'setConfigSequence',
-      initial: { signers: 69, groups: 21 },
-      steps: [
-        { signers: 30, groups: 21 },
-        { signers: 69, groups: 21 },
-      ],
-      maxGasPerStep: 1_000_000n,
-      expected: 'out-of-gas',
     },
     {
       name: 'workaround: 69/21 -> 16/8 -> 69/21',

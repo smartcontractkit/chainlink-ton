@@ -65,6 +65,33 @@ export type SetConfig = {
   clearRoot: boolean
 }
 
+// @dev Starts a new staged config update.
+export type BeginConfigStaging = {
+  queryId: bigint
+  groupQuorums: Map<number, number>
+  groupParents: Map<number, number>
+}
+
+// @dev Appends a chunk of signers to the staged config.
+export type StageConfig = {
+  queryId: bigint
+  expectedNumSigners: number
+  signerAddresses: bigint[]
+  signerGroups: number[]
+}
+
+// @dev Atomically activates the staged config.
+export type CommitConfig = {
+  queryId: bigint
+  expectedNumSigners: number
+  clearRoot: boolean
+}
+
+// @dev Discards the staged config.
+export type AbortConfig = {
+  queryId: bigint
+}
+
 /// Changes the timeout required to finalize the currently executing op
 ///
 /// Replies with {MCMS_OpFinalizationTimeoutChange} message.
@@ -126,6 +153,10 @@ export type InMessage =
   | SetRoot // <br>
   | Execute
   | SetConfig
+  | BeginConfigStaging
+  | StageConfig
+  | CommitConfig
+  | AbortConfig
   | UpdateOpFinalizationTimeout
   | SubmitErrorReport
   | TransferOracleRole
@@ -142,7 +173,7 @@ export type ContractData = {
   oracle: Address
   /// Map where entry exists if the public key is a signer
   signers: Map<bigint, Buffer> // map<uint256, Signer>
-  /// The current configuration of the contract
+  /// Active config. On deploy it is wrapped in ConfigState with no staged config.
   config: Config
 
   /// Remember signedHashes that this contract has seen. Each signedHash can only be set once.
@@ -169,6 +200,7 @@ export const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA = sha256(
 
 export const NUM_GROUPS = 32
 export const MAX_NUM_SIGNERS = 200
+export const MAX_SIGNERS_PER_STAGE = 32
 
 export const FACILITY_NAME = 'link.chain.ton.mcms.MCMS'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
@@ -262,6 +294,18 @@ export enum Error {
 
   /// Value attached to incoming message is not enough to pay for handler execution
   InsufficientFee,
+
+  /// Thrown when staging a config chunk without an active staging session.
+  ConfigStagingNotStarted,
+
+  /// Thrown when the staged signer count does not match the expected count.
+  ConfigStagingIncomplete,
+
+  /// Thrown when a staging chunk exceeds MAX_SIGNERS_PER_STAGE.
+  ConfigStagingChunkTooLarge,
+
+  /// Thrown when a staging message does not belong to the active staging session.
+  ConfigStagingSessionMismatch,
 }
 
 // --- Data structures ---
@@ -451,6 +495,10 @@ export const opcodes = {
     SetRoot: crc32('MCMS_SetRoot'),
     Execute: crc32('MCMS_Execute'),
     SetConfig: crc32('MCMS_SetConfig'),
+    BeginConfigStaging: crc32('MCMS_BeginConfigStaging'),
+    StageConfig: crc32('MCMS_StageConfig'),
+    CommitConfig: crc32('MCMS_CommitConfig'),
+    AbortConfig: crc32('MCMS_AbortConfig'),
     UpdateOpFinalizationTimeout: crc32('MCMS_UpdateOpFinalizationTimeout'),
     SubmitErrorReport: crc32('MCMS_SubmitErrorReport'),
     TransferOracleRole: crc32('MCMS_TransferOracleRole'),
@@ -460,6 +508,8 @@ export const opcodes = {
     NewRoot: crc32('MCMS_NewRoot'),
     OpExecuted: crc32('MCMS_OpExecuted'),
     ConfigSet: crc32('MCMS_ConfigSet'),
+    ConfigStaged: crc32('MCMS_ConfigStaged'),
+    ConfigStagingAborted: crc32('MCMS_ConfigStagingAborted'),
     OpFinalizationTimeoutChange: crc32('MCMS_OpFinalizationTimeoutChange'),
     ErrorReportedSubmitted: crc32('MCMS_ErrorReportSubmitted'),
     OracleRoleTransferred: crc32('MCMS_OracleRoleTransferred'),
@@ -509,7 +559,7 @@ export const builder = {
             queryId: src.loadUintBig(64),
             root: src.loadUintBig(256),
             validUntil: src.loadUintBig(64),
-            metadata: src.loadRef().beginParse() as unknown as RootMetadata, // TODO[TEST]: decode metadata properly
+            metadata: src.loadRef().beginParse() as unknown as RootMetadata, // TODO: decode metadata properly
             metadataProof: src.loadRef(),
             signatures: src.loadRef(),
           }
@@ -572,6 +622,92 @@ export const builder = {
               ),
             ),
             clearRoot: src.loadBoolean(),
+          }
+        },
+      },
+      // Creates a new `MCMS_BeginConfigStaging` message.
+      beginConfigStaging: {
+        encode: (msg: BeginConfigStaging): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.BeginConfigStaging, 32)
+            .storeUint(msg.queryId, 64)
+            .storeDict(
+              loadMap(Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8), msg.groupQuorums),
+            )
+            .storeDict(
+              loadMap(Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8), msg.groupParents),
+            )
+        },
+        load: (src: Slice): BeginConfigStaging => {
+          src.skip(32)
+          return {
+            queryId: src.loadUintBig(64),
+            groupQuorums: loadDict(
+              Dictionary.loadDirect(
+                Dictionary.Keys.Uint(8),
+                Dictionary.Values.Uint(8),
+                src.loadRef(),
+              ),
+            ),
+            groupParents: loadDict(
+              Dictionary.loadDirect(
+                Dictionary.Keys.Uint(8),
+                Dictionary.Values.Uint(8),
+                src.loadRef(),
+              ),
+            ),
+          }
+        },
+      },
+      // Creates a new `MCMS_StageConfig` message.
+      stageConfig: {
+        encode: (msg: StageConfig): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.StageConfig, 32)
+            .storeUint(msg.queryId, 64)
+            .storeUint(msg.expectedNumSigners, 16)
+            .storeRef(
+              asSnakedCell<bigint>(msg.signerAddresses, (a) => beginCell().storeUint(a, 160)),
+            )
+            .storeRef(asSnakedCell<number>(msg.signerGroups, (g) => beginCell().storeUint(g, 8)))
+        },
+        load: (src: Slice): StageConfig => {
+          src.skip(32)
+          return {
+            queryId: src.loadUintBig(64),
+            expectedNumSigners: src.loadUint(16),
+            signerAddresses: fromSnakeData<bigint>(src.loadRef(), (a) => a.loadUintBig(160)),
+            signerGroups: fromSnakeData<number>(src.loadRef(), (g) => g.loadUint(8)),
+          }
+        },
+      },
+      // Creates a new `MCMS_CommitConfig` message.
+      commitConfig: {
+        encode: (msg: CommitConfig): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.CommitConfig, 32)
+            .storeUint(msg.queryId, 64)
+            .storeUint(msg.expectedNumSigners, 16)
+            .storeBit(msg.clearRoot)
+        },
+        load: (src: Slice): CommitConfig => {
+          src.skip(32)
+          return {
+            queryId: src.loadUintBig(64),
+            expectedNumSigners: src.loadUint(16),
+            clearRoot: src.loadBoolean(),
+          }
+        },
+      },
+      // Creates a new `MCMS_AbortConfig` message.
+      abortConfig: {
+        encode: (msg: AbortConfig): Builder => {
+          return beginCell().storeUint(opcodes.in.AbortConfig, 32).storeUint(msg.queryId, 64)
+        },
+        load: (src: Slice): AbortConfig => {
+          src.skip(32)
+          return {
+            queryId: src.loadUintBig(64),
           }
         },
       },
@@ -808,26 +944,33 @@ export const builder = {
     // Creates a new `MCMS_Data` contract data cell
     const contractData: CellCodec<ContractData> = {
       encode: (data: ContractData): Builder => {
-        return beginCell()
-          .storeUint(data.id, 32)
-          .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable))
-          .storeAddress(data.oracle)
-          .storeDict(
-            loadMap(
-              Dictionary.Keys.BigUint(256),
+        return (
+          beginCell()
+            .storeUint(data.id, 32)
+            .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable))
+            .storeAddress(data.oracle)
+            .storeDict(
+              loadMap(
+                Dictionary.Keys.BigUint(160),
+                Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
+                data.signers,
+              ),
+              Dictionary.Keys.BigUint(160),
               Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
-              data.signers,
-            ),
-            Dictionary.Keys.BigUint(256),
-            Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
-          )
-          .storeRef(config.encode(data.config))
-          .storeDict(
-            loadMap(Dictionary.Keys.BigUint(256), Dictionary.Values.Bool(), data.seenSignedHashes),
-            Dictionary.Keys.BigUint(256),
-            Dictionary.Values.Bool(),
-          )
-          .storeRef(rootInfo.encode(data.rootInfo))
+            )
+            // Storage holds ConfigState { config, stagedConfig? }; deployments start with no staging.
+            .storeRef(beginCell().storeRef(config.encode(data.config)).storeBit(false).endCell())
+            .storeDict(
+              loadMap(
+                Dictionary.Keys.BigUint(256),
+                Dictionary.Values.Bool(),
+                data.seenSignedHashes,
+              ),
+              Dictionary.Keys.BigUint(256),
+              Dictionary.Values.Bool(),
+            )
+            .storeRef(rootInfo.encode(data.rootInfo))
+        )
       },
       load: (src: Slice): ContractData => {
         return {
@@ -844,7 +987,7 @@ export const builder = {
               src.loadRef(),
             ),
           ),
-          config: config.load(src.loadRef().beginParse()),
+          config: config.load(src.loadRef().beginParse().loadRef().beginParse()),
           seenSignedHashes: loadDict(
             Dictionary.loadDirect(
               Dictionary.Keys.BigUint(256),
@@ -944,6 +1087,32 @@ export class ContractClient implements Contract {
     return this.sendInternal(p, via, value, builder.message.in.setConfig.encode(body).endCell())
   }
 
+  async sendBeginConfigStaging(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint = 0n,
+    body: BeginConfigStaging,
+  ) {
+    return this.sendInternal(
+      p,
+      via,
+      value,
+      builder.message.in.beginConfigStaging.encode(body).endCell(),
+    )
+  }
+
+  async sendStageConfig(p: ContractProvider, via: Sender, value: bigint = 0n, body: StageConfig) {
+    return this.sendInternal(p, via, value, builder.message.in.stageConfig.encode(body).endCell())
+  }
+
+  async sendCommitConfig(p: ContractProvider, via: Sender, value: bigint = 0n, body: CommitConfig) {
+    return this.sendInternal(p, via, value, builder.message.in.commitConfig.encode(body).endCell())
+  }
+
+  async sendAbortConfig(p: ContractProvider, via: Sender, value: bigint = 0n, body: AbortConfig) {
+    return this.sendInternal(p, via, value, builder.message.in.abortConfig.encode(body).endCell())
+  }
+
   // --- Getters ---
 
   async getTypeAndVersion(p: ContractProvider): Promise<[string, string]> {
@@ -955,6 +1124,10 @@ export class ContractClient implements Contract {
 
   async getId(p: ContractProvider): Promise<number> {
     return p.get('getId', []).then((r) => r.stack.readNumber())
+  }
+
+  async getStagedConfigNumSigners(p: ContractProvider): Promise<number> {
+    return p.get('getStagedConfigNumSigners', []).then((r) => r.stack.readNumber())
   }
 
   async getConfig(p: ContractProvider): Promise<Config> {

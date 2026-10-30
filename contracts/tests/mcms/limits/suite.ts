@@ -14,14 +14,16 @@ import {
   makeRootMetadata,
   makeSigners,
 } from './harness'
-import { McmsVersion, isVersionAvailable } from './versions'
+import { MCMS_VERSIONS, McmsVersion, isVersionAvailable } from './versions'
 
 export type ExpectedOutcome = 'success' | 'out-of-gas' | 'value-limited-out-of-gas'
+export type SetConfigStrategy = 'direct' | 'staged'
 
 export type Limits = {
   maxSigners: number
   maxGroups: number
   maxSignatures: number
+  setConfigStrategy: SetConfigStrategy
 }
 
 type CaseBase = {
@@ -39,6 +41,7 @@ export type SetConfigCase = CaseBase & {
   groups: number
   /** Existing signer count before the update. Omit or use 0 for a fresh contract. */
   fromSigners?: number
+  strategy?: SetConfigStrategy
 }
 
 export type SetConfigStep = {
@@ -138,11 +141,24 @@ const configure = async (
   harness: McmsLimitsHarness,
   signers: LimitsSigner[],
   layout: GroupLayout,
+  strategy: SetConfigStrategy,
   label: string,
 ) => {
-  const outcome = await harness.setConfig(signers, layout)
-  logOutcome(label, outcome)
-  expect(outcome.exitCode).toBe(0)
+  if (strategy === 'staged') {
+    if (!MCMS_VERSIONS[harness.version].supportsStagedConfig) {
+      throw new Error(`MCMS ${harness.version} does not support staged config`)
+    }
+    const outcomes = await harness.stageConfig(signers, layout)
+    outcomes.forEach((outcome, index) => logOutcome(`${label} [tx ${index + 1}]`, outcome))
+    for (const outcome of outcomes) {
+      expect(outcome.exitCode).toBe(0)
+      expect(outcome.gasUsed).toBeLessThan(COMPUTE_GAS_LIMIT)
+    }
+  } else {
+    const outcome = await harness.setConfig(signers, layout)
+    logOutcome(label, outcome)
+    expect(outcome.exitCode).toBe(0)
+  }
 }
 
 const runSetConfigCase = async (version: McmsVersion, testCase: SetConfigCase, seed: string) => {
@@ -151,11 +167,28 @@ const runSetConfigCase = async (version: McmsVersion, testCase: SetConfigCase, s
 
   if (testCase.fromSigners && testCase.fromSigners > 0) {
     const initialSigners = makeSigners(testCase.fromSigners, layout)
-    await configure(harness, initialSigners, layout, `${version} ${testCase.name} [setup]`)
+    await configure(
+      harness,
+      initialSigners,
+      layout,
+      'direct',
+      `${version} ${testCase.name} [setup]`,
+    )
     expectConfigSigners(await harness.getConfig(), initialSigners, layout)
   }
 
   const signers = makeSigners(testCase.signers, layout)
+  const strategy = testCase.strategy ?? 'direct'
+
+  if (strategy === 'staged') {
+    if (testCase.expected !== 'success') {
+      throw new Error('staged setConfig cases must expect success')
+    }
+    await configure(harness, signers, layout, strategy, `${version} ${testCase.name}`)
+    expectConfigSigners(await harness.getConfig(), signers, layout)
+    return
+  }
+
   const outcome = await harness.setConfig(signers, layout, { value: testCase.value })
   logOutcome(`${version} ${testCase.name}`, outcome)
   expectOutcome(outcome, testCase)
@@ -304,7 +337,13 @@ export function runLimitsSuite(config: LimitsSuiteConfig) {
         ownerSeed: `${config.version}-limits-config`,
       })
 
-      await configure(harness, signers, layout, `${config.version} configured setConfig limits`)
+      await configure(
+        harness,
+        signers,
+        layout,
+        config.limits.setConfigStrategy,
+        `${config.version} configured setConfig limits`,
+      )
       const currentConfig = await harness.getConfig()
       expectConfigSigners(currentConfig, signers, layout)
       expect(currentConfig.groupQuorums.size).toBe(mcms.NUM_GROUPS)
@@ -329,6 +368,7 @@ export function runLimitsSuite(config: LimitsSuiteConfig) {
         harness,
         replacementSigners,
         layout,
+        config.limits.setConfigStrategy,
         `${config.version} configured rotation limits`,
       )
       expectConfigSigners(await harness.getConfig(), replacementSigners, layout)
