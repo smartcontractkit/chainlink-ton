@@ -120,7 +120,7 @@ fun JettonWithdrawable.onWithdraw(
         val ask = transfer.msg;
 
         // Never burn: disallow relaying to the zero address regardless of the allowlist.
-        assert(!isZeroAddress(ask.transferRecipient), JettonWithdrawable_Error.ZeroAddressNotAllowed);
+        assert (!isZeroAddress(ask.transferRecipient)) throw (JettonWithdrawable_Error.ZeroAddressNotAllowed);
         // With an allowlist configured, every transfer must land on one of its recipients.
         if (allowedRecipients != null
             && !JettonWithdrawable.isAllowedRecipient(ask.transferRecipient, allowedRecipients!)) {
@@ -138,7 +138,7 @@ fun JettonWithdrawable.onWithdraw(
         if (maxAmount != null) {
             val cap = maxAmount!.get(transfer.wallet);
             if (cap.isFound) {
-                assert(cumulative <= cap.loadValue(), JettonWithdrawable_Error.MaxAmountExceeded);
+                assert (cumulative <= cap.loadValue()) throw (JettonWithdrawable_Error.MaxAmountExceeded);
             }
         }
         withdrawnPerWallet.set(transfer.wallet, cumulative);

@@ -75,7 +75,7 @@ fun onInternalMessage(in: InMessage) {
             }
 
             // Accept empty messages (top-up), reject everything else.
-            assert(in.body.isEmpty()) throw 0xFFFF;
+            assert(in.body.isEmpty()) throw (0xFFFF);
         }
     }
 
@@ -87,21 +87,21 @@ fun onInternalMessage(in: InMessage) {
 /// One-time initialization: sets jetton addresses and grants admin role.
 /// @dev The deployer binds itself as the authorized initializer at construction (stateInit).
 fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLockBox_Init) {
-    assert(!st.isInitialized(), JettonLockBox_Error.ContractAlreadyInitialized);
+    assert (!st.isInitialized()) throw (JettonLockBox_Error.ContractAlreadyInitialized);
 
     // Only the initializer bound at construction (stateInit) may initialize.
-    assert(sender == st.initializer, JettonLockBox_Error.UnauthorizedInitializer);
+    assert (sender == st.initializer) throw (JettonLockBox_Error.UnauthorizedInitializer);
 
     // Validate addresses are not zero
-    assert(!isZeroAddress(msg.minterAddress), JettonLockBox_Error.UnsupportedToken);
-    assert(!isZeroAddress(msg.walletAddress), JettonLockBox_Error.UnsupportedToken);
+    assert (!isZeroAddress(msg.minterAddress)) throw (JettonLockBox_Error.UnsupportedToken);
+    assert (!isZeroAddress(msg.walletAddress)) throw (JettonLockBox_Error.UnsupportedToken);
 
     // Set storage addresses
     st.minterAddress = msg.minterAddress;
     st.walletAddress = msg.walletAddress;
 
     // Require enough value to cover the rent reserve plus the init replies
-    assert(contract.getOriginalBalance() >= MIN_GRAM_TO_RESERVE + MIN_GRAM_TO_INIT, JettonLockBox_Error.NotEnoughValue);
+    assert (contract.getOriginalBalance() >= MIN_GRAM_TO_RESERVE + MIN_GRAM_TO_INIT) throw (JettonLockBox_Error.NotEnoughValue);
 
     val reserveMode = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
     reserveGramsOnBalance(MIN_GRAM_TO_RESERVE, reserveMode);
@@ -154,15 +154,15 @@ fun onDepositWithTransferNotification(
     msg: TransferNotificationForRecipient,
 ) {
     // Assert basic conditions before acting on it.
-    assert(st.isInitialized(), JettonLockBox_Error.ContractNotInitialized);
-    assert(msg.jettonAmount > 0, JettonLockBox_Error.TokenAmountCannotBeZero);
-    assert(st.walletAddress != null && sender == st.walletAddress, JettonLockBox_Error.UnsupportedToken);
+    assert (st.isInitialized()) throw (JettonLockBox_Error.ContractNotInitialized);
+    assert (msg.jettonAmount > 0) throw (JettonLockBox_Error.TokenAmountCannotBeZero);
+    assert (st.walletAddress != null && sender == st.walletAddress) throw (JettonLockBox_Error.UnsupportedToken);
 
     // TODO[SAFETY]: a minter can impersonate any transferInitiator, meaning inject any fwdPayload
 
     // A null transferInitiator means this is not an operator-initiated deposit (e.g. a bare mint into the
     // lockbox wallet). It cannot be attributed or returned so we accept and error.
-    assert(msg.transferInitiator != null, AccessControl_Error.UnauthorizedAccount);
+    assert (msg.transferInitiator != null) throw (AccessControl_Error.UnauthorizedAccount);
 
     // Decode outside the validation try so its catch retains the deposit's correlation context.
     var deposit: JettonLockBox_Deposit? = null;
@@ -175,12 +175,12 @@ fun onDepositWithTransferNotification(
 
     try {
         // Custody already arrived: validation and value failures use the existing custody-return path.
-        assert(deposit != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
+        assert (deposit != null) throw (JettonLockBox_Error.MissingOrMalformedForwardPayload);
         val rbac = hookTrait__AccessControl(st);
         rbac.requireRole(OPERATOR_ROLE, msg.transferInitiator);
 
-        assert(deposit.token == st.minterAddress, JettonLockBox_Error.UnsupportedToken);
-        assert(deposit.amount == msg.jettonAmount, JettonLockBox_Error.MissingOrMalformedForwardPayload);
+        assert (deposit.token == st.minterAddress) throw (JettonLockBox_Error.UnsupportedToken);
+        assert (deposit.amount == msg.jettonAmount) throw (JettonLockBox_Error.MissingOrMalformedForwardPayload);
 
         // Custody has arrived; finalize optimistically without rejecting.
         // The operator funds the confirmation when it sends the deposit.
@@ -291,15 +291,15 @@ fun onDepositReturn(
 /// @dev The caller's address and the original withdraw request are tagged onto the transfer's
 /// `forwardPayload` via `Jetton_ForwardPayloadWrap`, so the bounce handler can notify the caller with context.
 fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLockBox_Withdraw) {
-    assert(st.isInitialized(), JettonLockBox_Error.ContractNotInitialized);
+    assert (st.isInitialized()) throw (JettonLockBox_Error.ContractNotInitialized);
 
     val rbac = hookTrait__AccessControl(st);
     rbac.requireRole(OPERATOR_ROLE, sender);
 
-    assert(msg.amount > 0, JettonLockBox_Error.TokenAmountCannotBeZero);
-    assert(msg.token == st.minterAddress, JettonLockBox_Error.UnsupportedToken);
-    assert(!isZeroAddress(msg.recipient), JettonLockBox_Error.RecipientCannotBeZeroAddress);
-    assert(st.walletAddress != null, JettonLockBox_Error.UnsupportedToken);
+    assert (msg.amount > 0) throw (JettonLockBox_Error.TokenAmountCannotBeZero);
+    assert (msg.token == st.minterAddress) throw (JettonLockBox_Error.UnsupportedToken);
+    assert (!isZeroAddress(msg.recipient)) throw (JettonLockBox_Error.RecipientCannotBeZeroAddress);
+    assert (st.walletAddress != null) throw (JettonLockBox_Error.UnsupportedToken);
 
     // The log and transfer are separate actions. Protect the pre-message balance, then carry
     // only the unreserved remainder after paying for the log and this transaction.
@@ -354,7 +354,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     val w = contract.getAddress().getWorkchain();
     val minValue = JettonFees.Reference.transferValue(forwardTonAmount, fwdFee)
         + calculateGasFee(w, JettonLockBox_WITHDRAW_GAS_UNITS);
-    assert(msgValue >= minValue, JettonLockBox_Error.NotEnoughValue);
+    assert (msgValue >= minValue) throw (JettonLockBox_Error.NotEnoughValue);
 
     val transfer = createMessage(transferOpts);
     transfer.send(sendMode);
@@ -396,8 +396,8 @@ fun onBouncedMessage(in: InMessageBounced) {
             }
 
             val wrap = parseLockBoxWithdrawWrap(msg.forwardPayload);
-            assert(wrap != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
-            assert(wrap.context != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
+            assert (wrap != null) throw (JettonLockBox_Error.MissingOrMalformedForwardPayload);
+            assert (wrap.context != null) throw (JettonLockBox_Error.MissingOrMalformedForwardPayload);
 
             // Send error message to withdraw initiator
             val errorMsg = createMessage({

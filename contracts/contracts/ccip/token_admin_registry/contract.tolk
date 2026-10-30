@@ -43,29 +43,29 @@ fun onInternalMessage(in: InMessage) {
         TokenAdminRegistry_RegisterToken => {
             var st = lazy TokenAdminRegistry_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            assert(in.valueCoins >= TokenAdminRegistry_RegisterToken.cost()) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_RegisterToken.cost()) throw (TokenAdminRegistry_Error.InsufficientValue);
             registerToken(st, msg);
         }
         TokenAdminRegistry_OverridePendingAdministrator => {
             var st = lazy TokenAdminRegistry_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw (TokenAdminRegistry_Error.InsufficientValue);
             overridePendingAdministrator(msg);
         }
         TokenAdminRegistry_TransferAdminRole => {
-            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw (TokenAdminRegistry_Error.InsufficientValue);
             transferAdminRole(msg, in.senderAddress);
         }
         TokenAdminRegistry_AcceptAdminRole => {
-            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw (TokenAdminRegistry_Error.InsufficientValue);
             acceptAdminRole(msg, in.senderAddress);
         }
         TokenAdminRegistry_SetPool => {
-            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_POOL_PROBE_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_POOL_PROBE_VALUE) throw (TokenAdminRegistry_Error.InsufficientValue);
             setPool(msg, in.senderAddress);
         }
         TokenAdminRegistry_GetTokenInfo => {
-            assert(in.valueCoins >= TokenAdminRegistry_GetTokenInfo.cost()) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_GetTokenInfo.cost()) throw (TokenAdminRegistry_Error.InsufficientValue);
             forwardToEntry(msg.token, msg.queryId, TokenAdminRegistryEntry_GetTokenInfo {
                 token: msg.token,
                 requester: in.senderAddress,
@@ -82,7 +82,7 @@ fun onInternalMessage(in: InMessage) {
             upgradeAndResume(in.senderAddress, msg.queryId, msg.request, in.valueCoins);
         }
         TokenAdminRegistry_UpgradeEntry => {
-            assert(in.valueCoins >= TokenAdminRegistryEntry_upgradeCost(entryCode())) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistryEntry_upgradeCost(entryCode())) throw (TokenAdminRegistry_Error.InsufficientValue);
             sendUpgrade(entryAddress(msg.tokenAddress).calculateAddress(), msg.queryId, 0, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         Upgradeable_Upgrade => {
@@ -111,11 +111,11 @@ fun onInternalMessage(in: InMessage) {
             emitPoolSet(msg);
         }
         TokenAdminRegistry_VerifyToken => {
-            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_WALLET_QUERY_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_WALLET_QUERY_VALUE) throw (TokenAdminRegistry_Error.InsufficientValue);
             forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_VerifyToken { requester: in.senderAddress });
         }
         TokenAdminRegistry_RefreshPoolConfig => {
-            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_POOL_PROBE_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_POOL_PROBE_VALUE) throw (TokenAdminRegistry_Error.InsufficientValue);
             forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_RefreshPoolConfig { requester: in.senderAddress });
         }
         else => {
@@ -125,7 +125,7 @@ fun onInternalMessage(in: InMessage) {
                 st.store();
                 return;
             }
-            assert (in.body.isEmpty()) throw 0xFFFF;
+            assert (in.body.isEmpty()) throw (0xFFFF);
         }
     }
 }
@@ -188,7 +188,7 @@ fun requestSender(content: TokenAdminRegistryEntry_RootMessage): address {
 /// sufficient to recompute the only entry address that may send that event.
 fun requireEntrySender(st: TokenAdminRegistry_Storage, token: address, sender: address) {
     val expectedEntry = entryAddress(token).calculateAddress();
-    assert(sender == expectedEntry) throw TokenAdminRegistry_Error.UnauthorizedEntry;
+    assert(sender == expectedEntry) throw (TokenAdminRegistry_Error.UnauthorizedEntry);
 }
 
 fun entryAddress(token: address): AutoDeployAddress {

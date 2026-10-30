@@ -87,14 +87,14 @@ fun onInternalMessage(in: InMessage) {
 		    }
 
 		    // ignore empty messages, "wrong opcode" for others
-		    assert (in.body.isEmpty()) throw 0xFFFF;
+		    assert (in.body.isEmpty()) throw (0xFFFF);
 		}
 
 	}
 }
 
 fun initRamps(mutate st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypoint_InitRamps) {
-	assert(st.firedrillContracts == null, FiredrillEntrypoint_Error.RampsAlreadyInitialized);
+	assert (st.firedrillContracts == null) throw (FiredrillEntrypoint_Error.RampsAlreadyInitialized);
 	val firedrillContracts = FiredrillContracts {
 		firedrillOnRamp: msg.onramp,
 		firedrillOffRamp: msg.offramp
@@ -104,7 +104,7 @@ fun initRamps(mutate st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypoint_I
 
 fun prepareRegister(st: FiredrillEntrypoint_Storage) {
 	// Send message to OffRamp to emit SourceChainConfigSet event
-	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
+	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 	val msg = createMessage({
 		bounce: false,
@@ -116,11 +116,11 @@ fun prepareRegister(st: FiredrillEntrypoint_Storage) {
 }
 
 fun drillPendingCommitPendingQueueTxSpike(mutate st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypoint_DrillPendingCommitPendingQueueTxSpike, value: coins) {
-	assert(msg.from <= msg.to, FiredrillEntrypoint_Error.NothingToSend);
-	assert(msg.from > st.sSendLast, FiredrillEntrypoint_Error.MessageAlreadySent);
-	assert(value >= DRILL_MESSAGE_VALUE * (msg.to - msg.from + 1) + grams("0.005"), FiredrillEntrypoint_Error.NotEnoughTon);
+	assert (msg.from <= msg.to) throw (FiredrillEntrypoint_Error.NothingToSend);
+	assert (msg.from > st.sSendLast) throw (FiredrillEntrypoint_Error.MessageAlreadySent);
+	assert (value >= DRILL_MESSAGE_VALUE * (msg.to - msg.from + 1) + grams("0.005")) throw (FiredrillEntrypoint_Error.NotEnoughTon);
 	
-	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
+	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 
 	// Send messages to OnRamp to emit CCIPMessageSent events
@@ -146,8 +146,8 @@ fun drillPendingCommitPendingQueueTxSpike(mutate st: FiredrillEntrypoint_Storage
 }
 
 fun drillPendingExecution(st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypoint_DrillPendingExecution) {
-	assert(msg.from <= msg.to, FiredrillEntrypoint_Error.NothingToSend);
-	assert(msg.to <= st.sSendLast, FiredrillEntrypoint_Error.NotYetSent);
+	assert (msg.from <= msg.to) throw (FiredrillEntrypoint_Error.NothingToSend);
+	assert (msg.to <= st.sSendLast) throw (FiredrillEntrypoint_Error.NotYetSent);
 	
 	// Send message to OffRamp to emit CommitReportAccepted event
 	val emitMsg = FiredrillOffRamp_EmitCommitReportAccepted {
@@ -155,7 +155,7 @@ fun drillPendingExecution(st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypo
 		maxSeqNr: msg.to
 	};
 
-	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
+	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 
 	val message = createMessage({
@@ -184,7 +184,7 @@ fun drillPriceRegistries(st: FiredrillEntrypoint_Storage) {
 get fun onRamp(destChainSelector: uint64): address {
 	val st = lazy FiredrillEntrypoint_Storage.load();
 
-	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
+	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 
 	return firedrillContracts.firedrillOnRamp;
@@ -193,7 +193,7 @@ get fun onRamp(destChainSelector: uint64): address {
 get fun offRamp(sourceChainSelector: uint64): address {
 	val st = lazy FiredrillEntrypoint_Storage.load();
 
-	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
+	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 
 	return firedrillContracts.firedrillOffRamp;
@@ -202,7 +202,7 @@ get fun offRamp(sourceChainSelector: uint64): address {
 get fun onRamps(): OnRamps {
 	val st = lazy FiredrillEntrypoint_Storage.load();
 
-	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
+	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 
 	val selectors = beginCell().storeUint(st.chainSelector, 64).endCell() as SnakedCell<uint64>;
@@ -216,7 +216,7 @@ get fun onRamps(): OnRamps {
 get fun offRamps(): OffRamps {
 	val st = lazy FiredrillEntrypoint_Storage.load();
 
-	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
+	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 	val selectors = beginCell().storeUint(st.chainSelector, 64).endCell() as SnakedCell<uint64>;
 	return OffRamps {
@@ -296,7 +296,7 @@ get fun tokenAddress(): address {
 get fun onRampAddress(): address {
 	val st = lazy FiredrillEntrypoint_Storage.load();
 
-	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
+	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 	return firedrillContracts.firedrillOnRamp;
 }
@@ -304,7 +304,7 @@ get fun onRampAddress(): address {
 get fun offRampAddress(): address {
 	val st = lazy FiredrillEntrypoint_Storage.load();
 
-	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
+	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 	return firedrillContracts.firedrillOffRamp;
 }

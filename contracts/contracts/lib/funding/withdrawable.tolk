@@ -42,17 +42,17 @@ fun Withdrawable.withdraw(self, msg: Withdrawable_Withdraw) {
         actualReserve = msg.reserve;
     }
     if (msg.drainAllAvailable) {
-        assert (msg.amount == 0) throw Withdrawable_Error.InvalidRequest;    
+        assert (msg.amount == 0) throw (Withdrawable_Error.InvalidRequest);    
         // Withdraw all balance above reserve
-        assert (originalBalance > actualReserve) throw Withdrawable_Error.HitReserve;
+        assert (originalBalance > actualReserve) throw (Withdrawable_Error.HitReserve);
         reserveGramsOnBalance(actualReserve, RESERVE_MODE_EXACT_AMOUNT);
 
         return _transfer(msg.destination, 0, SEND_MODE_CARRY_ALL_BALANCE);
     }
     // Withdraw specific amount
-    assert (msg.amount > 0) throw Withdrawable_Error.InvalidRequest;
-    assert (msg.amount < originalBalance) throw Withdrawable_Error.InsufficientBalance;
-    assert (msg.amount < originalBalance - actualReserve) throw Withdrawable_Error.HitReserve;
+    assert (msg.amount > 0) throw (Withdrawable_Error.InvalidRequest);
+    assert (msg.amount < originalBalance) throw (Withdrawable_Error.InsufficientBalance);
+    assert (msg.amount < originalBalance - actualReserve) throw (Withdrawable_Error.HitReserve);
     return _transfer(msg.destination, msg.amount, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 

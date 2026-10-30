@@ -50,7 +50,7 @@ fun onInternalMessage(in: InMessage) {
         }
         else => {
             // Accept empty messages (top-up), reject everything else.
-            assert(in.body.isEmpty()) throw 0xFFFF;
+            assert(in.body.isEmpty()) throw (0xFFFF);
         }
     }
 }

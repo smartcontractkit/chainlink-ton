@@ -55,7 +55,7 @@ fun onInternalMessage(in: InMessage) {
             onResponseWalletAddress(in.senderAddress, msg);
         }
         else => {
-            assert(in.body.isEmpty()) throw 0xFFFF;
+            assert(in.body.isEmpty()) throw (0xFFFF);
         }
     }
 }
@@ -80,14 +80,13 @@ fun onBouncedMessage(in: InMessageBounced) {
 
 fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
     var data = DepositAccount_Data.load();
-    assert(sender == data.owner, DepositAccount_Error.OnlyOwner);
+    assert (sender == data.owner) throw (DepositAccount_Error.OnlyOwner);
     val waitForWallet = data.wallet == null;
     val initCost = DepositAccount_MIN_GRAM_TO_INIT + (waitForWallet ? DepositAccount_WALLET_QUERY_VALUE : 0);
     // `getOriginalBalance` already includes the inbound value.
-    assert(
-        contract.getOriginalBalance() >= DepositAccount_MIN_GRAM_TO_RESERVE + initCost && msgValue >= initCost,
-        DepositAccount_Error.NotEnoughValue
-    );
+    assert (
+        contract.getOriginalBalance() >= DepositAccount_MIN_GRAM_TO_RESERVE + initCost && msgValue >= initCost
+    ) throw (DepositAccount_Error.NotEnoughValue);
 
     if (!waitForWallet) {
         reserveGramsOnBalance(DepositAccount_MIN_GRAM_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
@@ -105,7 +104,7 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
         return;
     }
 
-    assert(data.pendingInit == null, DepositAccount_Error.InitPending);
+    assert (data.pendingInit == null) throw (DepositAccount_Error.InitPending);
     data.pendingInit = DepositAccount_PendingInit {
         queryId: msg.queryId,
         context: msg.context,
@@ -126,8 +125,8 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
 
 fun onResponseWalletAddress(sender: address, msg: ResponseWalletAddress) {
     var data = DepositAccount_Data.load();
-    assert(sender == data.token, DepositAccount_Error.OnlyToken);
-    assert(data.pendingInit != null, DepositAccount_Error.NoPendingInit);
+    assert (sender == data.token) throw (DepositAccount_Error.OnlyToken);
+    assert (data.pendingInit != null) throw (DepositAccount_Error.NoPendingInit);
     if (msg.jettonWalletAddress != null) {
         data.wallet = msg.jettonWalletAddress.toCell();
     }
@@ -158,8 +157,8 @@ fun replyToPendingInit(mutate data: DepositAccount_Data, walletLearned: bool) {
 
 fun onWithdraw(sender: address, msg: DepositAccount_Withdraw, msgCell: cell) {
     val data = lazy DepositAccount_Data.load();
-    assert(data.beneficiaries.exists(sender), DepositAccount_Error.OnlyBeneficiary);
-    assert(data.wallet != null, DepositAccount_Error.WalletUnknown);
+    assert (data.beneficiaries.exists(sender)) throw (DepositAccount_Error.OnlyBeneficiary);
+    assert (data.wallet != null) throw (DepositAccount_Error.WalletUnknown);
 
     val transfer = createMessage({
         bounce: BounceMode.RichBounce,
@@ -187,7 +186,7 @@ fun onWithdraw(sender: address, msg: DepositAccount_Withdraw, msgCell: cell) {
 fun onWithdrawBounced(wallet: address, ask: AskToTransfer) {
     val data = lazy DepositAccount_Data.load();
     val wrap = Jetton_ForwardPayloadWrap.from(ask.forwardPayload).unwrap(DepositAccount_Error.InvalidForwardPayload);
-    assert(wrap.context != null, DepositAccount_Error.InvalidForwardPayload);
+    assert (wrap.context != null) throw (DepositAccount_Error.InvalidForwardPayload);
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,

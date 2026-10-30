@@ -48,7 +48,7 @@ fun GasOverride?.getEffectiveDestGasAmount(self, tokenTransfer: Any2TVMTokenTran
     if (self != null && self.tokenGasOverrides != null) {
         val tokenGasOverride = self.tokenGasOverrides.asSingle().unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
         if (tokenGasOverride != 0) {
-            assert (tokenGasOverride >= tokenTransfer.destGasAmount) throw OffRamp_Error.InvalidManualExecutionGasLimit;
+            assert (tokenGasOverride >= tokenTransfer.destGasAmount) throw (OffRamp_Error.InvalidManualExecutionGasLimit);
             return tokenGasOverride;
         }
     }
@@ -63,7 +63,7 @@ fun GasOverride?.getEffectiveDestGasAmount(self, tokenTransfer: Any2TVMTokenTran
 // It throws if receiverExecutionGasLimit is less than the gasLimit from the message
 fun GasOverride?.getEffectiveGasLimit(self, gasLimit: coins): coins {
     if (self != null && self.receiverExecutionGasLimit != null && self.receiverExecutionGasLimit != 0) {
-        assert (self.receiverExecutionGasLimit >= gasLimit) throw OffRamp_Error.InvalidManualExecutionGasLimit;
+        assert (self.receiverExecutionGasLimit >= gasLimit) throw (OffRamp_Error.InvalidManualExecutionGasLimit);
         return self.receiverExecutionGasLimit;
     }
     return gasLimit;

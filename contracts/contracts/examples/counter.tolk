@@ -132,7 +132,7 @@ fun onInternalMessage(in: InMessage) {
             if (!msgHandled) {
                 // If the message was not handled
                 // ignore empty messages, "wrong opcode" for others
-                assert (in.body.isEmpty()) throw 0xFFFF;
+                assert (in.body.isEmpty()) throw (0xFFFF);
             }
         }
     }

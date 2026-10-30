@@ -55,7 +55,7 @@ contract Router {
 fun requireSupportedVersion(version: slice) {
     assert (
         version.bitsEqual("1.6.0".literalSlice())
-    ) throw Upgradeable_Error.VersionMismatch;
+    ) throw (Upgradeable_Error.VersionMismatch);
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -71,13 +71,13 @@ fun onInternalMessage(in: InMessage) {
         // Permissionless
         Router_CCIPSend => {
             val minValue = Router_Costs.CCIPSend(!msg.tokenAmounts.empty());
-            assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
+            assert (in.valueCoins >= minValue) throw (Router_Error.InsufficientFee);
             onCCIPSend(msg, in.senderAddress, in.valueCoins);
         }
         // Permissionless
         Router_GetValidatedFee_V1 => {
             val minValue = Router_Costs.GetValidatedFee();
-            assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
+            assert (in.valueCoins >= minValue) throw (Router_Error.InsufficientFee);
             onGetValidatedFee(Router_GetValidatedFee {
                 ccipSend: msg.ccipSend,
                 context: msg.context.toCell(),
@@ -86,7 +86,7 @@ fun onInternalMessage(in: InMessage) {
         // Permissionless
         Router_GetValidatedFee => {
             val minValue = Router_Costs.GetValidatedFee();
-            assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
+            assert (in.valueCoins >= minValue) throw (Router_Error.InsufficientFee);
             onGetValidatedFee(msg, in.senderAddress, false);
         }
         // Sender must be Onramp
@@ -108,7 +108,7 @@ fun onInternalMessage(in: InMessage) {
             val st = lazy Storage.load();
             val message = lazy msg.message.load();
             val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.SourceChainNotEnabled);
-            assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
+            assert (in.senderAddress == expectedOffRamp) throw (Router_Error.SenderIsNotOffRamp);
             assertNotCursed(st, message.sourceChainSelector);
             onRouteMessage(msg, msg.message);
         }
@@ -128,7 +128,7 @@ fun onInternalMessage(in: InMessage) {
         Router_CCIPReceiveConfirm => {
             // Check that the amount sent by the receiver is enough to cover confirmation trace costs. 
             // Approx 0.02 TON.
-            assert(in.valueCoins >= Router_Costs.receiveConfirm()) throw Router_Error.InsufficientFee;
+            assert(in.valueCoins >= Router_Costs.receiveConfirm()) throw (Router_Error.InsufficientFee);
             onCCIPReceiveConfirm(msg, in.senderAddress);
         }
         // Sender must hold the RMN curse role.
@@ -227,11 +227,11 @@ fun onInternalMessage(in: InMessage) {
         Router_RelayReleaseOrMint => {
             val st = lazy Storage.load();
             val expectedOffRamp = st.offRamps.mustGet(msg.sourceChainSelector, Router_Error.SourceChainNotEnabled);
-            assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
+            assert (in.senderAddress == expectedOffRamp) throw (Router_Error.SenderIsNotOffRamp);
 
             val request = lazy msg.request.load();
             val details = lazy request.transfer.details.load();
-            assert(details.remoteChainSelector == msg.sourceChainSelector, Router_Error.SourceChainSelectorMismatch);
+            assert (details.remoteChainSelector == msg.sourceChainSelector) throw (Router_Error.SourceChainSelectorMismatch);
             if (isCursed(st, msg.sourceChainSelector)) {
                 return sendReleaseOrMintRelayFailure(
                     expectedOffRamp,
@@ -247,7 +247,7 @@ fun onInternalMessage(in: InMessage) {
         // Permissionless
         Router_GetOnRampAccount => {
             // Check that the amount sent by the user is enough to cover deployment trace costs.
-            assert (in.valueCoins >= Router_Costs.GetOnRampAccount()) throw Router_Error.InsufficientFee;
+            assert (in.valueCoins >= Router_Costs.GetOnRampAccount()) throw (Router_Error.InsufficientFee);
             onGetOnRampAccount(msg, in.senderAddress);
         }
         // Sender must be a deposit account owned by this Router (verified against the derived address)
@@ -267,7 +267,7 @@ fun onInternalMessage(in: InMessage) {
             val st = lazy Storage.load();
             val transfer = lazy msg.transfer.load();
             val expectedOffRamp = st.offRamps.mustGet(transfer.remoteChainSelector, Router_Error.SourceChainNotEnabled);
-            assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
+            assert (in.senderAddress == expectedOffRamp) throw (Router_Error.SenderIsNotOffRamp);
             onTokenTransferDelivered(msg);
         }
         // Passive excess returns are retained; no operation advances or authority is granted.
@@ -288,7 +288,7 @@ fun onInternalMessage(in: InMessage) {
             }
 
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF;
+            assert (in.body.isEmpty()) throw (0xFFFF);
         }
     }
 }
@@ -498,7 +498,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
 /// Hands the on-ramp account to the user once it confirmed initialization.
 fun onOnRampAccountReady(context: Router_OnRampAccountContext, msg: DepositAccount_Initialized, sender: address) {
     val user = context.user;
-    assert(sender == onRampAccountAddress(user, context.token), Router_Error.SenderIsNotOnRampAccount);
+    assert (sender == onRampAccountAddress(user, context.token)) throw (Router_Error.SenderIsNotOnRampAccount);
 
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
@@ -520,7 +520,7 @@ fun onOnRampAccountReady(context: Router_OnRampAccountContext, msg: DepositAccou
 ///      believed because re-deriving the on-ramp account address from it must yield the sender.
 ///      Off-ramp accounts never report here: only their receiver can withdraw from them.
 fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: address) {
-    assert(sender == onRampAccountAddress(msg.user, msg.token), Router_Error.SenderIsNotOnRampAccount);
+    assert (sender == onRampAccountAddress(msg.user, msg.token)) throw (Router_Error.SenderIsNotOnRampAccount);
     val request = lazy msg.request.load();
     emit(TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC, TokenPoolWithdrawBounced {
         wallet: msg.walletAddress,
@@ -630,7 +630,7 @@ fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: O
         while (!iter.empty()) {
             val selector = iter.next();
             val existing = st.offRamps.mustGet(selector, Router_Error.OffRampNotSetForSelector);
-            assert (existing == offRampRemove) throw Router_Error.OffRampAddressMismatch;
+            assert (existing == offRampRemove) throw (Router_Error.OffRampAddressMismatch);
             st.offRamps.delete(selector);
         }
 
@@ -893,7 +893,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
     // verify destination chain not cursed
     var rmn = st.rmnRemote.load();
     val isCursed = rmn.policy.cursedSubjects.isCursed(msg.destChainSelector as uint128);
-    assert(!isCursed, Router_Error.SubjectCursed);
+    assert (!isCursed) throw (Router_Error.SubjectCursed);
 
     if (msg.feeToken == null) {
         msg.feeToken = NATIVE_GRAM
@@ -957,7 +957,7 @@ fun RMNRemote.updateCursedSubjectsFee(self): coins {
 }
 
 fun RMNRemote.requireUpdateCursedSubjectsFee(self, value: coins) {
-    assert(value >= self.updateCursedSubjectsFee()) throw Router_Error.InsufficientFee;
+    assert(value >= self.updateCursedSubjectsFee()) throw (Router_Error.InsufficientFee);
 }
 
 // Errors are not ignored: if any update cannot be sent, the whole transaction
@@ -1150,7 +1150,7 @@ fun onDepositAccountInitialized(msg: DepositAccount_Initialized, sender: address
 fun onReceiverAccountReady(relay: Router_RelayReleaseOrMint, sender: address) {
     val request = lazy relay.request.load();
     val details = lazy request.transfer.details.load();
-    assert(sender == offRampAccount(details.receiver, details.localToken).calculateAddress(), Router_Error.SenderIsNotDepositAccount);
+    assert (sender == offRampAccount(details.receiver, details.localToken).calculateAddress()) throw (Router_Error.SenderIsNotDepositAccount);
 
     val tokenPoolReleaseOrMint = createMessage({
         bounce: BounceMode.RichBounce,
@@ -1181,12 +1181,12 @@ fun onDepositAccountWalletUnavailable(msg: DepositAccount_WalletUnavailable, sen
         Router_RelayReleaseOrMint => {
             val request = lazy context.request.load();
             val details = lazy request.transfer.details.load();
-            assert(sender == offRampAccount(details.receiver, details.localToken).calculateAddress(), Router_Error.SenderIsNotDepositAccount);
+            assert (sender == offRampAccount(details.receiver, details.localToken).calculateAddress()) throw (Router_Error.SenderIsNotDepositAccount);
 
             sendDepositAccountInitFailure(context, Router_Error.DepositAccountWalletUnavailable as int32);
         }
         Router_OnRampAccountContext => {
-            assert(sender == onRampAccountAddress(context.user, context.token), Router_Error.SenderIsNotOnRampAccount);
+            assert (sender == onRampAccountAddress(context.user, context.token)) throw (Router_Error.SenderIsNotOnRampAccount);
             sendOnRampAccountFailed(context.user, msg.queryId, Router_Error.DepositAccountWalletUnavailable as uint256);
         }
     }
@@ -1247,7 +1247,7 @@ Verifies that the caller corresponds to the onramp associated with the given cha
 */
 fun assertSenderIsOnRamp(st: Storage, destChainSelector: uint64, sender: address) {
     val onRampAddress = st.onRamps.mustGet(destChainSelector, Router_Error.DestChainNotEnabled);
-    assert (sender == onRampAddress) throw Router_Error.NotOnRamp;
+    assert (sender == onRampAddress) throw (Router_Error.NotOnRamp);
 }
 
 /// Enforces the Router's authoritative RMN policy for a remote chain.
@@ -1255,7 +1255,7 @@ fun assertSenderIsOnRamp(st: Storage, destChainSelector: uint64, sender: address
 /// Token pools can additionally enforce an independently managed local curse
 /// policy. A transfer is admitted only when both policy domains allow it.
 fun assertNotCursed(st: Storage, remoteChainSelector: uint64) {
-    assert(!isCursed(st, remoteChainSelector), Router_Error.SubjectCursed);
+    assert (!isCursed(st, remoteChainSelector)) throw (Router_Error.SubjectCursed);
 }
 
 fun isCursed(st: Storage, remoteChainSelector: uint64): bool {
@@ -1310,7 +1310,7 @@ fun migrate(storage: cell, version: slice): cell {
     val old = Router_Storage_V1_6_0.fromCell(storage);
     val oldRMN = old.rmnRemote.load();
     // Ensure that the already configured wrapped native token matches the expected NATIVE_GRAM value to prevent inconsistencies during the migration.
-    assert(old.wrappedNative == NATIVE_GRAM) throw Upgradeable_Error.VersionMismatch;
+    assert(old.wrappedNative == NATIVE_GRAM) throw (Upgradeable_Error.VersionMismatch);
 
     // The policy starts unseeded: the legacy RMN administrator keeps curse,
     // uncurse and role management as the implicit bearer of all three roles.

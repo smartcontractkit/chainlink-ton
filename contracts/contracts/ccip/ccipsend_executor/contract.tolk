@@ -40,52 +40,52 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be this contract (called when initializing the contract)
         CCIPSendExecutor_Execute => {
             var this = init(msg.onrampSend, msg.config.load());
-            assert (in.senderAddress == contract.getAddress()) throw CCIPSendExecutor_Error.Unauthorized;
-            assert (in.valueCoins >= SendExecutor_Costs.Execute()) throw CCIPSendExecutor_Error.InsufficientFee;
+            assert (in.senderAddress == contract.getAddress()) throw (CCIPSendExecutor_Error.Unauthorized);
+            assert (in.valueCoins >= SendExecutor_Costs.Execute()) throw (CCIPSendExecutor_Error.InsufficientFee);
             this.onExecute();
         }
 
         // Sender must be the Fee Quoter
         FeeQuoter_MessageValidated => {
             var this: CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation> = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
-            assert(this.addresses.load().feeQuoter == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+            assert (this.addresses.load().feeQuoter == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
             this.onMessageValidated(msg);
         }
         // Sender must be the Fee Quoter
         FeeQuoter_MessageValidationFailed => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
-            assert(this.addresses.load().feeQuoter == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+            assert (this.addresses.load().feeQuoter == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
             this.onMessageValidationFailed(msg);
         }
         // Sender must be the OnRamp after it has reserved the validated fee.
         OnRamp_ExecutorFeeReserved => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.load();
-            assert(this.addresses.load().onramp == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+            assert (this.addresses.load().onramp == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
             this.onFeeReserved(msg);
         }
         // Sender must be the TokenAdminRegistry
         TokenAdminRegistry_TokenInfo => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
-            assert(this.addresses.load().tokenRegistry!.load() == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
-            assert(msg.token == this.state.load().token, CCIPSendExecutor_Error.Unauthorized);
+            assert (this.addresses.load().tokenRegistry!.load() == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
+            assert (msg.token == this.state.load().token) throw (CCIPSendExecutor_Error.Unauthorized);
             this.onTokenInfoReceived(msg);
         }
         // Sender must be the TokenAdminRegistry
         TokenAdminRegistry_GetTokenInfoFailed => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
-            assert(this.addresses.load().tokenRegistry!.load() == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
-            assert(msg.token == this.state.load().token, CCIPSendExecutor_Error.Unauthorized);
+            assert (this.addresses.load().tokenRegistry!.load() == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
+            assert (msg.token == this.state.load().token) throw (CCIPSendExecutor_Error.Unauthorized);
             this.exitWithError(CCIPSendExecutor_Error.TokenNotEnabled as uint256, this.state.load().chargedFee.feeTokenAmount);
         }
         // Sender must be the TokenPool
         TokenPool_LockOrBurnWithdraw => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
-            assert(this.state.load().tokenPool == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+            assert (this.state.load().tokenPool == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
             this.onConfirmLockOrBurn(msg);
         }
         TokenPool_LockOrBurnFinished => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.load();
-            assert(this.state.load().tokenPool == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+            assert (this.state.load().tokenPool == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
             this.onConfirmWithdraw(msg);
         }
         // Structured pool failures can arrive either before custody withdrawal
@@ -94,11 +94,11 @@ fun onInternalMessage(in: InMessage) {
             val st = lazy CCIPSendExecutor_Data.fromCell(contract.getData());
             if (st.state is Cell<CCIPSendExecutor_State_TokenPool_LockOrBurn>) {
                 var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
-                assert(this.state.load().tokenPool == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+                assert (this.state.load().tokenPool == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
                 this.exitWithError(msg.errorCode as uint256, this.state.load().chargedFee.feeTokenAmount);
             } else {
                 var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.load();
-                assert(this.state.load().tokenPool == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+                assert (this.state.load().tokenPool == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
                 this.exitWithError(msg.errorCode as uint256, this.state.load().chargedFee.feeTokenAmount);
             }
         }
@@ -110,20 +110,20 @@ fun onInternalMessage(in: InMessage) {
                 var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
                 val state = lazy this.state.load();
                 val addresses = lazy this.addresses.load();
-                assert(addresses.router == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
-                assert(state.tokenPool == msg.tokenPool, CCIPSendExecutor_Error.Unauthorized);
+                assert (addresses.router == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
+                assert (state.tokenPool == msg.tokenPool) throw (CCIPSendExecutor_Error.Unauthorized);
                 this.exitWithError(CCIPSendExecutor_Error.TokenPoolBounce as uint256, state.chargedFee.feeTokenAmount);
             } else {
                 var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.load();
                 val state = lazy this.state.load();
                 val addresses = lazy this.addresses.load();
-                assert(addresses.router == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
-                assert(state.tokenPool == msg.tokenPool, CCIPSendExecutor_Error.Unauthorized);
+                assert (addresses.router == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
+                assert (state.tokenPool == msg.tokenPool) throw (CCIPSendExecutor_Error.Unauthorized);
                 this.exitWithError(CCIPSendExecutor_Error.TokenPoolBounce as uint256, state.chargedFee.feeTokenAmount);
             }
         }
         else => {
-            assert (in.body.isEmpty()) throw 0xFFFF;
+            assert (in.body.isEmpty()) throw (0xFFFF);
         },   
     }
 }
@@ -241,7 +241,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onFeeReserved(mutate self, msg: OnRamp_ExecutorFeeReserved) {
-    assert(msg.executorID == self.id) throw CCIPSendExecutor_Error.Unauthorized;
+    assert(msg.executorID == self.id) throw (CCIPSendExecutor_Error.Unauthorized);
     val state = self.state.load();
     val chargedFee = state.fee;
     val message = Router_CCIPSend.fromCell(self.onrampSend.msg);

@@ -96,7 +96,7 @@ fun onInternalMessage(in:InMessage) {
         // Sender must be the rmnRouter
         OffRamp_UpdateCursedSubjects => {
             var st = lazy Storage.load();
-            assert(in.senderAddress == st.config.load().staticConfig.rmnRouter, OffRamp_Error.Unauthorized);
+            assert (in.senderAddress == st.config.load().staticConfig.rmnRouter) throw (OffRamp_Error.Unauthorized);
             onUpdateCursedSubjects(msg)
         },
         // Sender must be router
@@ -173,7 +173,7 @@ fun onInternalMessage(in:InMessage) {
             }
 
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF;
+            assert (in.body.isEmpty()) throw (0xFFFF);
         }
     }
 }
@@ -329,7 +329,7 @@ struct OffRamp_Deployables_V1_6_2 {
 }
 
 fun requireSupportedVersion(version: slice) {
-    assert (version.bitsEqual("1.6.2".literalSlice())) throw Upgradeable_Error.VersionMismatch;
+    assert (version.bitsEqual("1.6.2".literalSlice())) throw (Upgradeable_Error.VersionMismatch);
 }
 
 @method_id(1001)
@@ -601,14 +601,14 @@ fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
     // Note: this mirrors EVM's _afterOCR3ConfigSet hook, but direct implementation
     if (msg.ocrPluginType == OCR_PLUGIN_TYPE_COMMIT) {
         // signature verification must be enabled for commit plugin
-        assert(msg.isSignatureVerificationEnabled, OffRamp_Error.SignatureVerificationRequiredInCommitPlugin);
+        assert (msg.isSignatureVerificationEnabled) throw (OffRamp_Error.SignatureVerificationRequiredInCommitPlugin);
         
         // reset price sequence number when commit OCR config changes
         // (scoped per config digest, roots persist across reconfigurations)
         st.latestPriceSequenceNumber = 0;
     } else if (msg.ocrPluginType == OCR_PLUGIN_TYPE_EXECUTE) {
         // signature verification must be disabled for execution plugin
-        assert(!msg.isSignatureVerificationEnabled, OffRamp_Error.SignatureVerificationNotAllowedInExecutionPlugin);
+        assert (!msg.isSignatureVerificationEnabled) throw (OffRamp_Error.SignatureVerificationNotAllowedInExecutionPlugin);
     }
 
     st.ocr3Base = ocr3Base.toCell();
@@ -633,14 +633,14 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
     val report = msg.report;
     val hasRoots = !report.merkleRoots.empty();
 
-    assert (report.priceUpdates != null || hasRoots, OffRamp_Error.EmptyCommitReport);
+    assert (report.priceUpdates != null || hasRoots) throw (OffRamp_Error.EmptyCommitReport);
     var root: MerkleRoot? = null;
 
     if (hasRoots) {
         // no batching of roots supported for now, check that there is exactly one root in the SnakedCell
         var iter = report.merkleRoots.iter();
         root = iter.next();
-        assert(iter.empty(), OffRamp_Error.BatchingNotSupported);
+        assert (iter.empty()) throw (OffRamp_Error.BatchingNotSupported);
     }
 
     var hasPriceUpdates = false;
@@ -648,27 +648,26 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
         val priceUpdates = report.priceUpdates!.load();
         hasPriceUpdates = !(priceUpdates.tokenPriceUpdates.empty() && priceUpdates.gasPriceUpdates.empty());
     }
-    assert(value >= OffRamp_Costs.commit(hasRoots, hasPriceUpdates), OffRamp_Error.InsufficientFee);
+    assert (value >= OffRamp_Costs.commit(hasRoots, hasPriceUpdates)) throw (OffRamp_Error.InsufficientFee);
 
     if (root != null) {
         // validate lane is enabled and not cursed
 
         var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, OffRamp_Error.SourceChainNotEnabled);
-        assert(sourceChainConfig.isEnabled, OffRamp_Error.SourceChainNotEnabled);
-        assert(!st.cursedSubjects.isCursed(root.sourceChainSelector as uint128), OffRamp_Error.SubjectCursed);
+        assert (sourceChainConfig.isEnabled) throw (OffRamp_Error.SourceChainNotEnabled);
+        assert (!st.cursedSubjects.isCursed(root.sourceChainSelector as uint128)) throw (OffRamp_Error.SubjectCursed);
 
         // hard cap of 64 messages per report
-        assert((root.maxSeqNr - root.minSeqNr) < 64, OffRamp_Error.TooManyMessagesInReport);
+        assert ((root.maxSeqNr - root.minSeqNr) < 64) throw (OffRamp_Error.TooManyMessagesInReport);
 
-        assert(sourceChainConfig.onRamp.bitsEqual(root.onRampAddress), OffRamp_Error.OnRampAddressMismatch);
+        assert (sourceChainConfig.onRamp.bitsEqual(root.onRampAddress)) throw (OffRamp_Error.OnRampAddressMismatch);
 
-        assert(
+        assert (
             (sourceChainConfig.minSeqNr == root.minSeqNr) && // No seqNr skipped
-            (root.maxSeqNr >= root.minSeqNr), // valid root range
-            OffRamp_Error.InvalidInterval
-        );
+            (root.maxSeqNr >= root.minSeqNr) // valid root range
+        ) throw (OffRamp_Error.InvalidInterval);
 
-        assert(root.merkleRoot != 0, OffRamp_Error.MerkleRootCannotBeZero);
+        assert (root.merkleRoot != 0) throw (OffRamp_Error.MerkleRootCannotBeZero);
 
         // set next expected sequence number to maxSeqNr + 1 (matches EVM implementation)
         sourceChainConfig.minSeqNr = root.maxSeqNr + 1;
@@ -800,9 +799,9 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
 
     // check if chain was cursed by RMNRemote
     val isCursed = st.cursedSubjects.isCursed(report.sourceChainSelector as uint128);
-    assert(!isCursed, OffRamp_Error.SubjectCursed);
+    assert (!isCursed) throw (OffRamp_Error.SubjectCursed);
 
-    assert(!report.messages.beginParse().isEmpty(), OffRamp_Error.EmptyExecutionReport);
+    assert (!report.messages.beginParse().isEmpty()) throw (OffRamp_Error.EmptyExecutionReport);
 
     // No execution batching so no need to use iterator
     val message = report.messages.asSingle().unwrap(OffRamp_Error.TooManyMessagesInReport);
@@ -821,10 +820,10 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     if (hasTokens) {
         assert(!isZeroAddress(st.config.load().staticConfig.tokenAdminRegistry), OffRamp_Error.TokenAdminRegistryNotSet);
         var offchainTokenDataForTTOfMessage = offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
-        assert(!offchainTokenDataForTTOfMessage.isEmpty(), OffRamp_Error.UnexpectedTokenData);
+        assert (!offchainTokenDataForTTOfMessage.isEmpty()) throw (OffRamp_Error.UnexpectedTokenData);
         // Offchain token data is not supported yet: every entry must be an empty cell.
         while (!offchainTokenDataForTTOfMessage.isEmpty()) {
-            assert(offchainTokenDataForTTOfMessage.popHead() == createEmptyCell(), OffRamp_Error.UnexpectedTokenData);
+            assert (offchainTokenDataForTTOfMessage.popHead() == createEmptyCell()) throw (OffRamp_Error.UnexpectedTokenData);
         }
         var transfers = message.tokenAmounts!.iter();
         while (!transfers.empty()) {
@@ -832,7 +831,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
             // At most the source pool's encoded decimals.
             if (tokenTransfer.extraData != null) {
                 val extraData = tokenTransfer.extraData!.beginParse();
-                assert(extraData.remainingRefsCount() == 0 && extraData.remainingBitsCount() <= OFFRAMP_MAX_EXTRA_DATA_BITS, OffRamp_Error.UnexpectedExtraData);
+                assert (extraData.remainingRefsCount() == 0 && extraData.remainingBitsCount() <= OFFRAMP_MAX_EXTRA_DATA_BITS) throw (OffRamp_Error.UnexpectedExtraData);
             }
             destGasAmount += tokenTransfer.destGasAmount;
         }
@@ -847,22 +846,22 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
         // Reject any non-empty inner list or more than one outer entry.
         if (!offchainTokenData.isEmpty()) {
             val offchainTokenDataForTTOfMessage = offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
-            assert(offchainTokenDataForTTOfMessage.isEmpty(), OffRamp_Error.UnexpectedTokenData);
+            assert (offchainTokenDataForTTOfMessage.isEmpty()) throw (OffRamp_Error.UnexpectedTokenData);
         }
     }
 
-    assert(snakedBytesLen(message.data) <= OFFRAMP_MAX_DATA_BYTES, OffRamp_Error.MsgDataTooLarge);
+    assert (snakedBytesLen(message.data) <= OFFRAMP_MAX_DATA_BYTES) throw (OffRamp_Error.MsgDataTooLarge);
     var effectiveGasLimit = message.gasLimit;
     if (gasOverride != null && gasOverride.receiverExecutionGasLimit != null) {
         effectiveGasLimit = max(effectiveGasLimit, gasOverride.receiverExecutionGasLimit!);
     }
-    assert(value >= OffRamp_Costs.execute(hasTokens) + effectiveGasLimit + destGasAmount, OffRamp_Error.InsufficientFee);
+    assert (value >= OffRamp_Costs.execute(hasTokens) + effectiveGasLimit + destGasAmount) throw (OffRamp_Error.InsufficientFee);
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
-    assert(sourceChainConfigResult.isFound, OffRamp_Error.SourceChainNotEnabled);
+    assert (sourceChainConfigResult.isFound) throw (OffRamp_Error.SourceChainNotEnabled);
 
     val sourceChainConfig = sourceChainConfigResult.loadValue();
-    assert(sourceChainConfig.isEnabled, OffRamp_Error.SourceChainNotEnabled);
+    assert (sourceChainConfig.isEnabled) throw (OffRamp_Error.SourceChainNotEnabled);
 
     //  Hashing all of the message fields ensures that the message being executed is correct and not tampered with.
     //Including the known OnRamp ensures that the message originates from the correct OnRamp version.
@@ -876,12 +875,12 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     // Commits do not verify the destChainSelector in the message since only the root is committed, so we
     // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
     // the st.chainSelector as the destChainSelector.
-    assert(message.header.destChainSelector == st.config.load().staticConfig.chainSelector, OffRamp_Error.InvalidMessageDestChainSelector);
+    assert (message.header.destChainSelector == st.config.load().staticConfig.chainSelector) throw (OffRamp_Error.InvalidMessageDestChainSelector);
 
     // If the message source chain selector does not match the report's source chain selector and the root has not
     // been committed for the report source chain selector this will be caught by the root verification.
     // This acts as an extra check to ensure the message source chain selector matches the report's source chain.
-    assert(message.header.sourceChainSelector == report.sourceChainSelector, OffRamp_Error.SourceChainSelectorMismatch);
+    assert (message.header.sourceChainSelector == report.sourceChainSelector) throw (OffRamp_Error.SourceChainSelectorMismatch);
 
     var leaves: array<uint256> = [];
     leaves.push(message.generateMessageId(metadataHash));
@@ -937,7 +936,7 @@ fun onUpdateSourceChainConfigs(msg: OffRamp_UpdateSourceChainConfigs) {
             // If an OnRamp is misconfigured, no reports should have been
             // committed and no messages should have been executed.
             config = existingConfigEntry.loadValue();
-            assert (config.minSeqNr == 1 || config.onRamp.bitsEqual(configUpdate.config.onRamp)) throw OffRamp_Error.InvalidOnRampUpdate;
+            assert (config.minSeqNr == 1 || config.onRamp.bitsEqual(configUpdate.config.onRamp)) throw (OffRamp_Error.InvalidOnRampUpdate);
             config.router = configUpdate.config.router;
             config.isEnabled = configUpdate.config.isEnabled;
             config.onRamp = configUpdate.config.onRamp;
@@ -1062,7 +1061,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 // per-message list with exactly one entry for the single token transfer.
 fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, sourceChainSelector: uint64, receiver: address, gasOverride: GasOverride?, offchainTokenData: lisp_list<cell>): Cell<ReceiveExecutor_TokenTransfer>? {
     if (tokenAmounts == null) {
-        assert(gasOverride == null || gasOverride.tokenGasOverrides == null, OffRamp_Error.ManualExecutionGasAmountCountMismatch);
+        assert (gasOverride == null || gasOverride.tokenGasOverrides == null) throw (OffRamp_Error.ManualExecutionGasAmountCountMismatch);
         return null;
     }
     var tokenTransfer = tokenAmounts.asSingle().unwrap(OffRamp_Error.UnsupportedNumberOfTokens);
@@ -1139,7 +1138,7 @@ Verifies that the caller corresponds to a receiver executor contract
 */
 fun assertSenderIsReceiverExecutor(st: Storage, execId: ReceiveExecutorId, sender: address) {
     val expectedAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execId);
-    assert(expectedAddress.calculateAddress() == sender) throw OffRamp_Error.MessageNotFromOwnedContract;
+    assert(expectedAddress.calculateAddress() == sender) throw (OffRamp_Error.MessageNotFromOwnedContract);
 }
 
 /*
@@ -1163,7 +1162,7 @@ Verifies that the caller corresponds to a merkle root contract
 */
 fun assertSenderIsMerkleRoot(st: Storage, merkleRoot: MerkleRootId, sender: address) {
     val expectedAddress: AutoDeployAddress = getMerkleRootDeployAddress(st, merkleRoot);
-    assert(expectedAddress.calculateAddress() == sender) throw OffRamp_Error.MessageNotFromOwnedContract;
+    assert(expectedAddress.calculateAddress() == sender) throw (OffRamp_Error.MessageNotFromOwnedContract);
 }
 
 import "../../../gen/Deployable.code"
@@ -1188,7 +1187,7 @@ Verifies that the caller corresponds to the router asociated with the given chai
 */
 fun assertSenderIsTheRouter(st: Storage, sourceChainSelector: uint64, sender: address) {
     val router = getRouterFromSelector(st, sourceChainSelector);
-    assert(sender == router, OffRamp_Error.Unauthorized);
+    assert (sender == router) throw (OffRamp_Error.Unauthorized);
 }
 
 /*

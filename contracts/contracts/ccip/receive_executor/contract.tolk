@@ -38,15 +38,15 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be the owner (OffRamp)
         ReceiveExecutor_InitExecute => {
             var st = ReceiveExecutor_Storage.load();
-            assert(in.senderAddress == st.owner, ReceiveExecutor_Error.Unauthorized);
+            assert (in.senderAddress == st.owner) throw (ReceiveExecutor_Error.Unauthorized);
             onInitExecute(mutate st, msg, in.valueCoins);
             st.store();
         }
         // Sender must be the owner (OffRamp)
         ReceiveExecutor_CCIPReceiveConfirm => {
             var st = ReceiveExecutor_Storage.load();
-            assert(in.senderAddress == st.owner, ReceiveExecutor_Error.Unauthorized);
-            assert (st.state.messageExecution == ReceiveExecutor_MessageExecutionState.Execute) throw ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage;
+            assert (in.senderAddress == st.owner) throw (ReceiveExecutor_Error.Unauthorized);
+            assert (st.state.messageExecution == ReceiveExecutor_MessageExecutionState.Execute) throw (ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage);
             onCCIPReceiveConfirm(mutate st, msg);
             st.store();
         }
@@ -54,9 +54,9 @@ fun onInternalMessage(in: InMessage) {
         TokenAdminRegistry_TokenInfo => {
             var st = ReceiveExecutor_Storage.load();
             val ttInfo = st.state.tokenTransfer.loadOpt();
-            assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery) throw ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse;
-            assert(in.senderAddress == ttInfo.tokenAdminRegistry, ReceiveExecutor_Error.Unauthorized);
-            assert(msg.token == ttInfo.transfer.load().token, ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse);
+            assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery) throw (ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse);
+            assert (in.senderAddress == ttInfo.tokenAdminRegistry) throw (ReceiveExecutor_Error.Unauthorized);
+            assert (msg.token == ttInfo.transfer.load().token) throw (ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse);
             onTokenAdminRegistryResponse(mutate st, msg, ttInfo);
             st.store();
         }
@@ -64,9 +64,9 @@ fun onInternalMessage(in: InMessage) {
         TokenAdminRegistry_GetTokenInfoFailed => {
             var st = ReceiveExecutor_Storage.load();
             val ttInfo = st.state.tokenTransfer.loadOpt();
-            assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery) throw ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse;
-            assert(in.senderAddress == ttInfo.tokenAdminRegistry, ReceiveExecutor_Error.Unauthorized);
-            assert(msg.token == ttInfo.transfer.load().token, ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse);
+            assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery) throw (ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse);
+            assert (in.senderAddress == ttInfo.tokenAdminRegistry) throw (ReceiveExecutor_Error.Unauthorized);
+            assert (msg.token == ttInfo.transfer.load().token) throw (ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse);
             onTokenNotEnabled(mutate st, ttInfo);
             st.store();
         }
@@ -79,8 +79,8 @@ fun onInternalMessage(in: InMessage) {
         TokenPool_ReleaseOrMintFailure => {
             var st = ReceiveExecutor_Storage.load();
             val ttInfo = st.state.tokenTransfer.loadOpt();
-            assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_ReleaseOrMint) throw ReceiveExecutor_Error.TokenPoolUnexpectedResponse;
-            assert(in.senderAddress == ttInfo.state.tokenPool, ReceiveExecutor_Error.Unauthorized);
+            assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_ReleaseOrMint) throw (ReceiveExecutor_Error.TokenPoolUnexpectedResponse);
+            assert (in.senderAddress == ttInfo.state.tokenPool) throw (ReceiveExecutor_Error.Unauthorized);
             // TokenPool returns a small remainder of the destGasAmount set
             setGasLimitToMaximum();
             onReleaseOrMintFailure(mutate st, ttInfo, ttInfo.state);
@@ -102,23 +102,23 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be the owner (OffRamp)
         ReceiveExecutor_ReleaseOrMintFailed => {
             var st = ReceiveExecutor_Storage.load();
-            assert(in.senderAddress == st.owner, ReceiveExecutor_Error.Unauthorized);
+            assert (in.senderAddress == st.owner) throw (ReceiveExecutor_Error.Unauthorized);
             val ttInfo = st.state.tokenTransfer.loadOpt();
-            assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_ReleaseOrMint) throw ReceiveExecutor_Error.TokenPoolUnexpectedResponse;
+            assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_ReleaseOrMint) throw (ReceiveExecutor_Error.TokenPoolUnexpectedResponse);
             onReleaseOrMintFailure(mutate st, ttInfo, ttInfo.state);
             st.store();
         }
         // Sender must be the owner (OffRamp)
         ReceiveExecutor_CCIPReceiveFailed => {
             var st = ReceiveExecutor_Storage.load();
-            assert(in.senderAddress == st.owner, ReceiveExecutor_Error.Unauthorized);
-            assert (st.state.messageExecution == ReceiveExecutor_MessageExecutionState.Execute) throw ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage;
+            assert (in.senderAddress == st.owner) throw (ReceiveExecutor_Error.Unauthorized);
+            assert (st.state.messageExecution == ReceiveExecutor_MessageExecutionState.Execute) throw (ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage);
             onCCIPReceiveBounced(mutate st, msg);
             st.store();
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF
+            assert (in.body.isEmpty()) throw (0xFFFF)
         }
     }
 }
@@ -306,7 +306,7 @@ fun receiverTokenAmounts(st: ReceiveExecutor_Storage): SnakedCell<TokenAmount>? 
 fun onCCIPReceiveConfirm(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_CCIPReceiveConfirm) {
     val ccipMessage = lazy st.message.load();
 
-    assert (msg.receiver == ccipMessage.receiver, ReceiveExecutor_Error.NotificationFromInvalidReceiver);
+    assert (msg.receiver == ccipMessage.receiver) throw (ReceiveExecutor_Error.NotificationFromInvalidReceiver);
 
     endExecutionSuccessfully(mutate st, ccipMessage.header);
 }
@@ -314,7 +314,7 @@ fun onCCIPReceiveConfirm(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
 fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_CCIPReceiveFailed){
     val ccipMessage = lazy st.message.load();
 
-    assert (msg.receiver == ccipMessage.receiver, ReceiveExecutor_Error.NotificationFromInvalidReceiver);
+    assert (msg.receiver == ccipMessage.receiver) throw (ReceiveExecutor_Error.NotificationFromInvalidReceiver);
 
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.ExecuteFailed;
     endExecutionWithFailure(mutate st, ccipMessage.header);

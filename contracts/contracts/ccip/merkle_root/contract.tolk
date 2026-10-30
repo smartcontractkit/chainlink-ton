@@ -29,7 +29,7 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be the owner (OffRamp)
         MerkleRoot_Validate => {
             var st = lazy MerkleRoot_Storage.load();
-            assert(in.senderAddress == st.owner, MerkleRoot_Error.NotOwner);
+            assert (in.senderAddress == st.owner) throw (MerkleRoot_Error.NotOwner);
             onInitExecute(mutate st, msg);
             st.store();
 
@@ -37,13 +37,13 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be the owner (OffRamp)
         MerkleRoot_MarkState => {
             var st = lazy MerkleRoot_Storage.load();
-            assert(in.senderAddress == st.owner, MerkleRoot_Error.NotOwner);
+            assert (in.senderAddress == st.owner) throw (MerkleRoot_Error.NotOwner);
             onMarkState(mutate st, msg);
             st.store();
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF
+            assert (in.body.isEmpty()) throw (0xFFFF)
         }
     }
 }
@@ -57,8 +57,8 @@ fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
     // validate we're transitioning states correctly: success is final
     val previousState= st.getMessageState(msg.seqNum);
 
-    assert(previousState != ExecutionState.Success, MerkleRoot_Error.InvalidState);
-    assert(msg.state == ExecutionState.Success || msg.state == ExecutionState.Failure, MerkleRoot_Error.InvalidState);
+    assert (previousState != ExecutionState.Success) throw (MerkleRoot_Error.InvalidState);
+    assert (msg.state == ExecutionState.Success || msg.state == ExecutionState.Failure) throw (MerkleRoot_Error.InvalidState);
 
     st.setMessageState(msg.seqNum, msg.state);
 
@@ -88,7 +88,7 @@ This triggers OffRamp deployment of the ReceiveExecutor contract that handles ex
 fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
     val message = lazy msg.message.load();
     val state = st.getMessageState(message.header.sequenceNumber);
-    assert(state == ExecutionState.Failure || state == ExecutionState.Untouched, MerkleRoot_Error.SkippedAlreadyExecutedMessage);
+    assert (state == ExecutionState.Failure || state == ExecutionState.Untouched) throw (MerkleRoot_Error.SkippedAlreadyExecutedMessage);
 
     val isManualExecute = msg.gasOverride != null;
 
@@ -96,10 +96,10 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
         val isOldCommitReport = (blockchain.now() - st.timestamp > msg.permissionlessExecutionThresholdSeconds);
         // Manual execution is fine if we previously failed or if the commit report is just too old.
         // (In that case the report will still be in UNTOUCHED state)
-        assert(isOldCommitReport || state == ExecutionState.Failure, MerkleRoot_Error.ManualExecutionNotYetEnabled);
+        assert (isOldCommitReport || state == ExecutionState.Failure) throw (MerkleRoot_Error.ManualExecutionNotYetEnabled);
     } else {
         // DON can only execute a message once.
-        assert(state == ExecutionState.Untouched, MerkleRoot_Error.AlreadyExecuted);
+        assert (state == ExecutionState.Untouched) throw (MerkleRoot_Error.AlreadyExecuted);
     }
 
     st.setMessageState(message.header.sequenceNumber, ExecutionState.InProgress);

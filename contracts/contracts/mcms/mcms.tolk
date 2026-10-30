@@ -735,7 +735,7 @@ fun MCMS<T>.setRoot(
     metadataProof: SnakedCell<uint256>,
     signatures: SnakedCell<Signature>,
 ) {
-    assert(value >= MCMS_Costs.setRoot(), MCMS_Error.InsufficientFee);
+    assert (value >= MCMS_Costs.setRoot()) throw (MCMS_Error.InsufficientFee);
 
     if (validUntil < blockchain.now()) {
         throw MCMS_Error.ValidUntilHasAlreadyPassed;
@@ -962,7 +962,7 @@ fun MCMS<T>.execute(
     op: Op,
     proof: SnakedCell<uint256>,
 ) {
-    assert(value >= MCMS_Costs.execute(), MCMS_Error.InsufficientFee);
+    assert (value >= MCMS_Costs.execute()) throw (MCMS_Error.InsufficientFee);
 
     // Unpack the root info from the contract data
     val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
@@ -997,7 +997,7 @@ fun MCMS<T>.execute(
 
     // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
     // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-    assert(op.value >= calculateGasFeeDefault(), MCMS_Error.InsufficientValue);
+    assert (op.value >= calculateGasFeeDefault()) throw (MCMS_Error.InsufficientValue);
 
     // verify that the op exists in the merkle tree
     // @dev we use the standard sha256 hash function to hash the leaf.
@@ -1084,7 +1084,7 @@ fun MCMS<T>.setConfig(
 ) {
     self.data.ownable.requireOwner(sender);
 
-    assert(value >= MCMS_Costs.setConfig(), MCMS_Error.InsufficientFee);
+    assert (value >= MCMS_Costs.setConfig()) throw (MCMS_Error.InsufficientFee);
 
     // Validate input lengths
     var signerAddrsIterator = signerAddresses.iter();
@@ -1315,7 +1315,7 @@ fun MCMS<T>.submitErrorReport(
         throw MCMS_Error.UnauthorizedOracle;
     }
 
-    assert(value >= MCMS_Costs.submitErrorReport(), MCMS_Error.InsufficientFee);
+    assert (value >= MCMS_Costs.submitErrorReport()) throw (MCMS_Error.InsufficientFee);
 
     // Check if right environment via chainId
     if (op.chainId != globalId() as int256) {
@@ -1421,7 +1421,7 @@ fun MCMS<T>.cleanExpiredRoots(
     var rootsIter = roots.iter();
     while (!rootsIter.empty()) {
         val rd = rootsIter.next();
-        assert(rd.validUntil < blockchain.now()) throw MCMS_Error.RootNotExpired;
+        assert(rd.validUntil < blockchain.now()) throw (MCMS_Error.RootNotExpired);
 
         // Construct the ID (hash) of the root
         val signedHash = self._hashRoot(rd.root, rd.validUntil);

@@ -94,7 +94,7 @@ fun onInternalMessage(in: InMessage) {
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF
+            assert (in.body.isEmpty()) throw (0xFFFF)
         }
     }
 }
@@ -137,7 +137,7 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
 
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell { 
-    assert(version.bitsEqual("1.6.0".literalSlice()), Upgradeable_Error.VersionMismatch);
+    assert (version.bitsEqual("1.6.0".literalSlice())) throw (Upgradeable_Error.VersionMismatch);
     return storage;
 }
 

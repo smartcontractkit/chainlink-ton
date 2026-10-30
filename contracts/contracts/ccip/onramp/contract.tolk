@@ -40,7 +40,7 @@ contract OnRamp {
 }
 
 fun requireSupportedVersion(version: slice) {
-    assert (version.bitsEqual("1.6.0".literalSlice())) throw Upgradeable_Error.VersionMismatch;
+    assert (version.bitsEqual("1.6.0".literalSlice())) throw (Upgradeable_Error.VersionMismatch);
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -54,14 +54,14 @@ fun onInternalMessage(in: InMessage) {
         FeeQuoter_MessageValidated => {
             val st = lazy OnRamp_Storage.load();
             val feeQuoterAddress = st.config.load().feeQuoter;
-            assert (in.senderAddress == feeQuoterAddress, OnRamp_Error.Unauthorized);
+            assert (in.senderAddress == feeQuoterAddress) throw (OnRamp_Error.Unauthorized);
             onMessageValidated(msg)
         }
         // Sender must be the FeeQuoter
         FeeQuoter_MessageValidationFailed => {
             val st = lazy OnRamp_Storage.load();
             val feeQuoterAddress = st.config.load().feeQuoter;
-            assert (in.senderAddress == feeQuoterAddress, OnRamp_Error.Unauthorized);
+            assert (in.senderAddress == feeQuoterAddress) throw (OnRamp_Error.Unauthorized);
             onMessageValidationFailed(msg)
         }
         // Sender must be the Router
@@ -76,39 +76,39 @@ fun onInternalMessage(in: InMessage) {
             }
             val destChainConfig = destChainConfigResult.loadValue();
             // ccipSend must be forwarded from the router
-            assert(destChainConfig.router == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert (destChainConfig.router == in.senderAddress) throw (OnRamp_Error.Unauthorized);
             onSend(st, destChainConfig, msg)
         }
         // Sender must be Send Executor
         OnRamp_ExecutorRequestsLockOrBurn => {
             var st = lazy OnRamp_Storage.load();
-            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert (executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress) throw (OnRamp_Error.Unauthorized);
             onExecutorRequestsLockOrBurn(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorRequestsWithdraw =>  {
             var st = lazy OnRamp_Storage.load();
-            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert (executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress) throw (OnRamp_Error.Unauthorized);
             onExecutorRequestsWithdraw(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorReserveFee => {
             var st = lazy OnRamp_Storage.load();
-            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert (executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress) throw (OnRamp_Error.Unauthorized);
             onExecutorReserveFee(mutate st, msg, in.senderAddress);
             st.store();
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
             var st = lazy OnRamp_Storage.load();
-            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert (executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress) throw (OnRamp_Error.Unauthorized);
             onExecutorFinishedSuccessfully(mutate st, msg);
             st.store();
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedWithError => {
             var st = lazy OnRamp_Storage.load();
-            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert (executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress) throw (OnRamp_Error.Unauthorized);
             onExecutorFinishedWithError(mutate st, msg);
             st.store();
         }
@@ -144,7 +144,7 @@ fun onInternalMessage(in: InMessage) {
         }
         // Permissionless
         OnRamp_WithdrawFeeTokens => {
-            assert (in.valueCoins > OnRamp_Costs.WithdrawFeeTokens(), OnRamp_Error.InsufficientValue);
+            assert (in.valueCoins > OnRamp_Costs.WithdrawFeeTokens()) throw (OnRamp_Error.InsufficientValue);
             onWithdrawFeeTokens(msg);
         },
         // Sender must be owner
@@ -163,7 +163,7 @@ fun onInternalMessage(in: InMessage) {
             }
 
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF
+            assert (in.body.isEmpty()) throw (0xFFFF)
         }
     }
 }
@@ -419,7 +419,7 @@ fun processPoolReturnData(msg: OnRamp_ExecutorRequestsWithdraw) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
     val prepared = lazy withdrawRequest.forwardPayload.load().prepared.load();
     val out = prepared.out;
-    assert(snakedBytesLen(out.destPoolData) <= msg.destBytesOverhead) throw OnRamp_Error.SourceTokenDataTooLarge;
+    assert(snakedBytesLen(out.destPoolData) <= msg.destBytesOverhead) throw (OnRamp_Error.SourceTokenDataTooLarge);
     try {
         validateDestFamilyAddress(msg.chainFamilySelector, out.destTokenAddress.load(), false);
     } catch {
@@ -464,7 +464,7 @@ fun onExecutorFinishedSuccessfully(mutate st: OnRamp_Storage, msg: OnRamp_Execut
     // assign sequence number, we can't do this sooner since the message might fail validation/getFee
     destChainConfig.sequenceNumber = destChainConfig.sequenceNumber + 1;
     st.destChainConfigs.set(ccipsend.destChainSelector, destChainConfig);
-    assert (st.pendingFeeReservations >= msg.fee.feeTokenAmount) throw OnRamp_Error.PendingFeeReservationsUnderflow;  
+    assert (st.pendingFeeReservations >= msg.fee.feeTokenAmount) throw (OnRamp_Error.PendingFeeReservationsUnderflow);  
     st.pendingFeeReservations = st.pendingFeeReservations - msg.fee.feeTokenAmount;  
 
     var rampMessage = TVM2AnyRampMessage {
@@ -665,7 +665,7 @@ fun onWithdrawFeeTokens(msg: OnRamp_WithdrawFeeTokens) {
     val feeTokens = msg.feeTokens.iter();
     // We do not support fee payments in tokens yet, so we only withdraw TON coins for now.
     // This will change in future versions.
-    assert (feeTokens.empty()) throw OnRamp_Error.UnknownToken;
+    assert (feeTokens.empty()) throw (OnRamp_Error.UnknownToken);
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
 
