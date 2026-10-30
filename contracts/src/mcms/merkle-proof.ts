@@ -1,5 +1,12 @@
 import { beginCell, Cell } from '@ton/core'
-import { getBytes, hashMessage, keccak256, SigningKey } from 'ethers'
+import {
+  computeAddress,
+  getBytes,
+  hashMessage,
+  keccak256,
+  recoverAddress,
+  SigningKey,
+} from 'ethers'
 
 import { asSnakedCell, uint8ArrayToBigInt } from '../utils'
 
@@ -170,7 +177,17 @@ function fillSignatures(root: bigint, validUntil: bigint, signers: SigningKey[])
 
   for (const signer of signers) {
     const signature = signer.sign(msgHash)
-    // TODO: validate signature
+
+    // Validate that the signature recovers to the signer's address over the same
+    // EIP191 message hash the contract verifies on-chain.
+    const expectedAddress = computeAddress(signer.publicKey)
+    const recoveredAddress = recoverAddress(msgHash, signature)
+    if (recoveredAddress !== expectedAddress) {
+      throw new Error(
+        `Invalid signature: recovered ${recoveredAddress} does not match signer ${expectedAddress}`,
+      )
+    }
+
     signatures.push({ v: signature.v, r: BigInt(signature.r), s: BigInt(signature.s) })
   }
 

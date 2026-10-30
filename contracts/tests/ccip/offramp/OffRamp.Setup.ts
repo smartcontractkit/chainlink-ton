@@ -14,7 +14,6 @@ import { KeyPair } from '@ton/crypto'
 import {
   generateMockTonAddress,
   uint8ArrayToBigInt,
-  asSnakedCell,
   generateEd25519KeyPair,
   generateRandomContractId,
 } from '../../../src/utils'
@@ -405,7 +404,6 @@ export class OffRampTestSetup {
     ]
   }
 
-  // TODO should recieve opts
   createTestMessage(
     sequenceNumber = 1n,
     messageId = 1n,
@@ -579,14 +577,7 @@ export class OffRampTestSetup {
     }
     return of.ExecutionReport.create({
       sourceChainSelector,
-      // TODO tolk type should should be snakedCell
-      messages: asSnakedCell(messages, (msg) =>
-        (() => {
-          const b = beginCell()
-          of.Any2TVMRampMessage.store(msg, b)
-          return b
-        })(),
-      ),
+      messages,
       offchainTokenData: tokenData,
       proofs: [],
       proofFlagBits: 0n,
@@ -601,12 +592,8 @@ export class OffRampTestSetup {
     value?: bigint,
   ) {
     let totalGas = value ?? executeValue({ gasLimit: 0n, tokenAmounts: null })
-    if (value === undefined) {
-      try {
-        totalGas = executeValue(of.Any2TVMRampMessage.fromSlice(report.messages.asSlice()))
-      } catch {
-        // Probably an empty report
-      }
+    if (value === undefined && report.messages.length > 0) {
+      totalGas = executeValue(report.messages[0])
     }
     const result = await this.offRamp.sendOffRampExecute(
       this.transmitters[0].getSender(),
@@ -637,7 +624,7 @@ export class OffRampTestSetup {
       | undefined = undefined,
     expectSuccess = true,
   ) {
-    const msg = of.Any2TVMRampMessage.fromSlice(report.messages.asSlice())
+    const msg = report.messages[0]
     const gasOverride_ = of.GasOverride.create({ ...gasOverride })
     let totalGas = max(msg.gasLimit, gasOverride_?.receiverExecutionGasLimit ?? 0n)
     if (msg.tokenAmounts != null) {

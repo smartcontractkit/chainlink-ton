@@ -307,7 +307,6 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     expect(opCount2).toEqual(baseTest.testOps[1].nonce + 1n)
   })
 
-  // TODO mcms doesn't handle bounced messages yet
   it('should revert on failed op', async () => {
     // Execute operations up to the reverting op index
     await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX)
@@ -343,7 +342,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       exitCode: 0xffff, // Unknown opcode
     })
 
-    // TODO check emit or reply with the failed error
+    // TODO[TEST]: check emit or reply with the failed error
 
     // Verify we're (back) at the correct op count, the error was handled and we can retry
     currentOpCount = await baseTest.bind.mcms.getOpCount()

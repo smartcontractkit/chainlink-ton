@@ -239,10 +239,9 @@ func (a *TonCurseAdapter) IsChainConnectedToTargetChain(e cldf.Environment, sele
 		return false, fmt.Errorf("failed to get current block: %w", err)
 	}
 
-	// TODO: extract a Getter and use tvm.CallGetterLatest
 	// Call isChainSupported(targetSel) to check if connection exists
 	// If it returns a valid address, the chains are connected
-	// TODO check if we should call onramp isChainSupported() or router onRamp()
+	// TODO[TOOLING]: [NONEVM-6092] check if we should call onramp isChainSupported() or router onRamp()
 	result, err := chain.Client.WaitForBlock(block.SeqNo).RunGetMethod(e.GetContext(), block, &onramp, "isChainSupported", targetSel)
 	if err != nil {
 		return false, fmt.Errorf("failed to call isChainSupported: %w", err)
@@ -292,7 +291,6 @@ func (a *TonCurseAdapter) ListConnectedChains(e cldf.Environment, selector uint6
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
 
-	// TODO: extract a Getter and use tvm.CallGetterLatest
 	// Call destChainSelectors() to get all destination chains
 	result, err := chain.Client.WaitForBlock(block.SeqNo).RunGetMethod(e.GetContext(), block, &router, "destChainSelectors")
 	if err != nil {
@@ -320,7 +318,7 @@ func (a *TonCurseAdapter) SubjectToSelector(subject api.Subject) (uint64, error)
 		return 0, nil
 	}
 
-	// Use generic helper to extract selector from big-endian encoding (bytes 8-15) TODO: double check if TON is using big endian
+	// Use generic helper to extract selector from big-endian encoding (bytes 8-15)
 	return api.GenericSubjectToSelector(subject)
 }
 
@@ -415,7 +413,7 @@ func (a *TonCurseAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.O
 					ContractType:     bindings.ShortRouter,
 					Tags:             []string{},
 					ContractTypeFull: bindings.TypeRouter,
-				}, // TODO: add appropriate tags
+				}, // TODO[TOOLING]: [NONEVM-6092] add appropriate tags
 			}
 
 			return mcms.WithOperationOutput(out, r.Output, types.ChainSelector(in.ChainSelector), meta)
@@ -498,7 +496,7 @@ func (a *TonCurseAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences
 					ContractType:     bindings.ShortRouter,
 					Tags:             []string{},
 					ContractTypeFull: bindings.TypeRouter,
-				}, // TODO: add appropriate tags
+				}, // TODO[TOOLING]: [NONEVM-6092]: add appropriate tags
 			}
 
 			return mcms.WithOperationOutput(out, r.Output, types.ChainSelector(in.ChainSelector), meta)

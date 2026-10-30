@@ -161,7 +161,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 						{
 							Bounce:  true,
 							DstAddr: &addr,
-							Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
+							Amount:  tlb.MustFromTON("0.1"), // TODO[TOOLING]: [NONEVM-6092] (ops/gas): static, should allow overrides?
 							Body:    codec.MustWrapMessage[any](bindings.TypeFeeQuoter, body),
 						},
 					},
@@ -184,8 +184,8 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 
 		// update onramp with dest chain configs
 		{
-			// TODO (ops/ccip): !input.IsDisabled
-			// TODO (ops/ccip): input.TestRouter
+			// TODO[TOOLING]: [NONEVM-6092] (ops/ccip): !input.IsDisabled
+			// TODO[TOOLING]: [NONEVM-6092] (ops/ccip): input.TestRouter
 			router := stateCCIP.Router
 			updates := []onramp.UpdateDestChainConfig{
 				{
@@ -200,7 +200,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			if len(updates) != 0 {
 				// Set Router addr from state for all updates which don't have it set
 				for _, u := range updates {
-					// TODO: TestRouter support
+					// TODO[TOOLING]: [NONEVM-6092] TestRouter support
 					if u.Router == nil {
 						u.Router = &stateCCIP.Router
 					}
@@ -220,7 +220,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 						{
 							Bounce:  true,
 							DstAddr: &addr,
-							Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
+							Amount:  tlb.MustFromTON("0.1"), // TODO[TOOLING]: [NONEVM-6092] (ops/gas): static, should allow overrides?
 							Body:    codec.MustWrapMessage[any](bindings.TypeOnRamp, body),
 						},
 					},
@@ -396,7 +396,7 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 /// Mappers ///
 ///////////////
 
-// TODO change the operation input to lanes.UpdateLanesInput
+// TODO[TOOLING]: [NONEVM-6092] change the operation input to lanes.UpdateLanesInput
 func intoUpdateFeeQuoterDestChainConfigs(input lanes.UpdateLanesInput) []feequoter.UpdateDestChainConfig {
 	fqc := input.Dest.FeeQuoterDestChainConfig
 	var v1 lanes.FeeQuoterV1Params

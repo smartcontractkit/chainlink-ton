@@ -24,8 +24,6 @@ var (
 type DeployInput struct {
 	Messages []DeployMessage[any, any] `json:"messages"`
 	Plan     bool                      `json:"plan"`
-
-	// TODO: add WaitTrace option
 }
 
 type DeployMessage[T any, D any] struct {

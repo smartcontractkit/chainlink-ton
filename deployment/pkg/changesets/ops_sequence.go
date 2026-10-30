@@ -110,7 +110,6 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in OpsAnySequence) (cldf.Ch
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to execute %s on %d: %w", opsmcms.TimelockAnySequence.ID(), selector, err)
 	}
 
-	// TODO (ops/deploy): check outputs for deployed addresses and update dataStore.Addresses()
 	// Use data store to track new deployed addresses
 	dataStore := cldfds.NewMemoryDataStore()
 

@@ -4,11 +4,11 @@ import "../../lib/utils";
 import "../../lib/versioning/upgradeable"
 import "../../lib/deployable/types"
 import "../../lib/deployable/namespace"
+import "../lib/client/sender/messages"
 
 import "../common/types";
 import "../common/cross_chain_address_validation"
 import "../common/addresses"
-
 
 import "../pools/lib/token_pool/types"
 import "../ccipsend_executor/types"
@@ -350,7 +350,7 @@ fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequest
             tokenPool: msg.tokenPool,
             request: TokenPool_LockOrBurnInV1{
                 transfer: TokenPool_Transfer {
-                    id: 0, // TBD is this the same as queryID?
+                    id: 0,
                     details: TokenPool_TransferDetails {
                         receiver: msg.receiver,
                         remoteChainSelector: msg.destChainSelector,

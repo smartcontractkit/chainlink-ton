@@ -47,7 +47,7 @@ export class MCMSBaseTestSetup {
   static readonly GROUP1_PARENT = 0
   static readonly GROUP2_PARENT = 0
   static readonly GROUP3_PARENT = 0
-  static readonly TEST_CHAIN_ID = -239n // TODO: blockchain global chain ID (will need to be signed int)
+  static readonly TEST_CHAIN_ID = -239n // TODO[TEST]: blockchain global chain ID (will need to be signed int)
   static readonly TEST_VALID_UNTIL = 1000000n
 
   static readonly OP_FINALIZATION_TIMEOUT_ZERO = 0

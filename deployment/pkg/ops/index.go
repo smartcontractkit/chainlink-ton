@@ -18,7 +18,7 @@ var (
 		ton.Deploy.AsUntypedRelaxed(),
 		upgradeable.Upgrade.AsUntypedRelaxed(),
 
-		// TODO (ops): refactor ops below
+		// TODO[?]: (ops) refactor ops below
 		operation.DeployTONContractOp.AsUntypedRelaxed(),
 
 		// MCMS operations

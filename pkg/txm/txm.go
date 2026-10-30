@@ -28,7 +28,6 @@ import (
 )
 
 // walletGas accounts for the extra balance used when sending a message with [wallet.PayGasSeparately] mode.
-// TODO calculate this based on message body and StateInit
 func walletGas(request Request) *tlb.Coins {
 	tonValue := tlb.MustFromTON("0.01")
 	return &tonValue

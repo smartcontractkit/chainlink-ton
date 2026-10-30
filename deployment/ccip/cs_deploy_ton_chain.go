@@ -31,7 +31,7 @@ type DeployCCIPContractsCfg struct {
 }
 
 func (c DeployCCIPContractsCfg) Validate() error {
-	// TODO: implement chain selector validation, contract parameters validation
+	// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] implement chain selector validation, contract parameters validation
 	return nil
 }
 
@@ -41,12 +41,12 @@ var _ cldf.ChangeSetV2[DeployCCIPContractsCfg] = DeployCCIPContracts{}
 type DeployCCIPContracts struct{}
 
 func (cs DeployCCIPContracts) VerifyPreconditions(_ cldf.Environment, _ DeployCCIPContractsCfg) error {
-	// TODO: Implement precondition checks for contract deployment
+	// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] Implement precondition checks for contract deployment
 	return nil
 }
 
 func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContractsCfg) (cldf.ChangesetOutput, error) {
-	// TODO: Implement logic of deploying Ton chain packages and modules
+	// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] Implement logic of deploying Ton chain packages and modules
 	// - once all contracts are deployed, we can remove the hardcoded addresses from the TonTestDeployPrerequisitesChangeSet
 	// - Deploy TON MCMS, https://smartcontract-it.atlassian.net/browse/NONEVM-1939
 	env.Logger.Infof("deploying contracts for TON chains: %v", cfg.TonChainSelector)
@@ -66,7 +66,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	// Use data store to track new deployed addresses
 	dataStore := ds.NewMemoryDataStore()
 
-	// TODO: deploy LINK
+	// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] deploy LINK
 	if s.LinkTokenAddress.IsAddrNone() {
 		s.LinkTokenAddress = *tvm.LinkTokenAddr // using dummy LINK address until we deploy real one
 		_ = dataStore.Addresses().Upsert(ds.AddressRef{
@@ -78,7 +78,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 		})
 	}
 
-	// TODO: deploy TON native token
+	// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] deploy TON native token
 	if s.TONNativeAddress.IsAddrNone() {
 		s.TONNativeAddress = *tvm.NativeGRAMAddr // using dummy TON address until we deploy real one
 		_ = dataStore.Addresses().Upsert(ds.AddressRef{
@@ -112,7 +112,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	}
 	reports = append(reports, ccipSeqReport.ExecutionReports...)
 
-	// TODO (ops): duplicates csMCMSDeploy - extract to common deploy/addr processing utility
+	// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] (ops): duplicates csMCMSDeploy - extract to common deploy/addr processing utility
 	// Add newly deployed TON addresses to our output data store
 	if len(ccipSeqReport.Output.Addresses) > 0 {
 		for _, addr := range ccipSeqReport.Output.Addresses {
@@ -216,7 +216,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to convert data store to address book: %w", err)
 	}
 
-	// TODO: generate MCMS proposal or execute
+	// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] generate MCMS proposal or execute
 	return cldf.ChangesetOutput{
 		Reports:   reports,
 		DataStore: dataStore,

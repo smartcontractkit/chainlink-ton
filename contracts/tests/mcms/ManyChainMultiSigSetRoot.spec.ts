@@ -434,7 +434,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 1n,
         newRootMetadata,
         baseTest.testOps,
-      ) // TODO: Original test doesn't add this 1, but this test fails with ERROR_SignedHashAlreadySeen if we don't. Thats probably a bug? Should the "override previous root" be used to calculate the hash? Or maybe it is a problem in the order of validations
+      ) // TODO[BUG]: Original test doesn't add this 1, but this test fails with ERROR_SignedHashAlreadySeen if we don't. Thats probably a bug? Should the "override previous root" be used to calculate the hash? Or maybe it is a problem in the order of validations
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(

@@ -26,7 +26,7 @@ import (
 var _ cldf.ChangeSetV2[SetOCR3OffRampConfig] = SetOCR3Config{}
 
 type SetOCR3OffRampConfig struct {
-	RemoteChainSels []uint64 // TODO (ops): unused currently
+	RemoteChainSels []uint64 // TODO[TOOLING]: [NONEVM-6092] (ops): unused currently
 	Configs         map[operation.PluginType]operation.OCR3ConfigArgs
 
 	// MCMS input configuration required to create proposals

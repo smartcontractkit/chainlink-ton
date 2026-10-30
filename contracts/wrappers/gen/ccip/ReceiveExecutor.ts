@@ -347,6 +347,44 @@ export const ReturnExcessesBack = {
 }
 
 /**
+ > struct TokenAmount {
+ >     amount: coins
+ >     token: address
+ > }
+ */
+export interface TokenAmount {
+    readonly $: 'TokenAmount'
+    amount: coins
+    token: c.Address
+}
+
+export const TokenAmount = {
+    create(args: {
+        amount: coins
+        token: c.Address
+    }): TokenAmount {
+        return {
+            $: 'TokenAmount',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenAmount {
+        return {
+            $: 'TokenAmount',
+            amount: s.loadCoins(),
+            token: s.loadAddress(),
+        }
+    },
+    store(self: TokenAmount, b: c.Builder): void {
+        b.storeCoins(self.amount);
+        b.storeAddress(self.token);
+    },
+    toCell(self: TokenAmount): c.Cell {
+        return makeCellFrom<TokenAmount>(self, TokenAmount.store);
+    }
+}
+
+/**
  > struct Any2TVMRampMessage {
  >     header: RampMessageHeader
  >     sender: Cell<CrossChainAddress>
@@ -456,23 +494,6 @@ export const Any2TVMTokenTransfer = {
     },
     toCell(self: Any2TVMTokenTransfer): c.Cell {
         return makeCellFrom<Any2TVMTokenTransfer>(self, Any2TVMTokenTransfer.store);
-    }
-}
-
-/**
- > type ReceiveExecutorId = uint192
- */
-export type ReceiveExecutorId = uint192
-
-export const ReceiveExecutorId = {
-    fromSlice(s: c.Slice): ReceiveExecutorId {
-        return s.loadUintBig(192);
-    },
-    store(self: ReceiveExecutorId, b: c.Builder): void {
-        b.storeUint(self, 192);
-    },
-    toCell(self: ReceiveExecutorId): c.Cell {
-        return makeCellFrom<ReceiveExecutorId>(self, ReceiveExecutorId.store);
     }
 }
 
@@ -1342,23 +1363,6 @@ export const DepositAccount_ForwardNotification = {
 }
 
 /**
- > type CrossChainAddress = slice
- */
-export type CrossChainAddress = c.Slice
-
-export const CrossChainAddress = {
-    fromSlice(s: c.Slice): CrossChainAddress {
-        return invokeCustomUnpackFromSlice<CrossChainAddress>('CrossChainAddress', s);
-    },
-    store(self: CrossChainAddress, b: c.Builder): void {
-        invokeCustomPackToBuilder<CrossChainAddress>('CrossChainAddress', self, b);
-    },
-    toCell(self: CrossChainAddress): c.Cell {
-        return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
-    }
-}
-
-/**
  > struct RampMessageHeader {
  >     messageId: uint256
  >     sourceChainSelector: uint64
@@ -1408,44 +1412,6 @@ export const RampMessageHeader = {
     },
     toCell(self: RampMessageHeader): c.Cell {
         return makeCellFrom<RampMessageHeader>(self, RampMessageHeader.store);
-    }
-}
-
-/**
- > struct TokenAmount {
- >     amount: coins
- >     token: address
- > }
- */
-export interface TokenAmount {
-    readonly $: 'TokenAmount'
-    amount: coins
-    token: c.Address
-}
-
-export const TokenAmount = {
-    create(args: {
-        amount: coins
-        token: c.Address
-    }): TokenAmount {
-        return {
-            $: 'TokenAmount',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): TokenAmount {
-        return {
-            $: 'TokenAmount',
-            amount: s.loadCoins(),
-            token: s.loadAddress(),
-        }
-    },
-    store(self: TokenAmount, b: c.Builder): void {
-        b.storeCoins(self.amount);
-        b.storeAddress(self.token);
-    },
-    toCell(self: TokenAmount): c.Cell {
-        return makeCellFrom<TokenAmount>(self, TokenAmount.store);
     }
 }
 
@@ -2289,6 +2255,40 @@ export const ReceiveExecutor_Error = {
     },
     toCell(self: ReceiveExecutor_Error): c.Cell {
         return makeCellFrom<ReceiveExecutor_Error>(self, ReceiveExecutor_Error.store);
+    }
+}
+
+/**
+ > type ReceiveExecutorId = uint192
+ */
+export type ReceiveExecutorId = uint192
+
+export const ReceiveExecutorId = {
+    fromSlice(s: c.Slice): ReceiveExecutorId {
+        return s.loadUintBig(192);
+    },
+    store(self: ReceiveExecutorId, b: c.Builder): void {
+        b.storeUint(self, 192);
+    },
+    toCell(self: ReceiveExecutorId): c.Cell {
+        return makeCellFrom<ReceiveExecutorId>(self, ReceiveExecutorId.store);
+    }
+}
+
+/**
+ > type CrossChainAddress = slice
+ */
+export type CrossChainAddress = c.Slice
+
+export const CrossChainAddress = {
+    fromSlice(s: c.Slice): CrossChainAddress {
+        return invokeCustomUnpackFromSlice<CrossChainAddress>('CrossChainAddress', s);
+    },
+    store(self: CrossChainAddress, b: c.Builder): void {
+        invokeCustomPackToBuilder<CrossChainAddress>('CrossChainAddress', self, b);
+    },
+    toCell(self: CrossChainAddress): c.Cell {
+        return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
     }
 }
 

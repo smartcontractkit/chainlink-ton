@@ -1047,7 +1047,7 @@ export class ContractClient implements Contract {
         validAfter: result.stack.readBigNumber(),
         opFinalizationTimeout: result.stack.readNumber(),
         opPendingId: result.stack.readBigNumber(),
-        // TODO: read opPendingCalls dictionary
+        // TODO[TEST]: read opPendingCalls dictionary
       }))
   }
 }

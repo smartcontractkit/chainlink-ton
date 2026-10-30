@@ -17,7 +17,6 @@ type ContractData struct {
 	ID    uint32 `tlb:"## 32"`
 	Value uint32 `tlb:"## 32"`
 
-	// TODO: import as ownable2step.Data bindings from pkg/bindings/lib/access/ownable_2step
 	Ownable ownable2step.Storage `tlb:"."`
 }
 
@@ -40,31 +39,31 @@ var TopicCountSet uint32 = hash.CRC32("CountSet")
 var TopicCountIncreased uint32 = hash.CRC32("CountIncreased")
 
 type CountSet struct {
-	ID     uint32          `tlb:"## 32"`
-	Value  uint32          `tlb:"## 32"`
-	Sender address.Address `tlb:"addr"`
+	ID     uint32           `tlb:"## 32"`
+	Value  uint32           `tlb:"## 32"`
+	Sender *address.Address `tlb:"addr"`
 }
 
 type CountIncreased struct {
-	ID     uint32          `tlb:"## 32"`
-	Value  uint32          `tlb:"## 32"`
-	Sender address.Address `tlb:"addr"`
+	ID     uint32           `tlb:"## 32"`
+	Value  uint32           `tlb:"## 32"`
+	Sender *address.Address `tlb:"addr"`
 }
 
 // Reply message to sender when the counter is set.
 type CountSetMsg struct {
-	_      tlb.Magic       `tlb:"#0xf3a02426" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	ID     uint32          `tlb:"## 32"`
-	Value  uint32          `tlb:"## 32"`
-	Sender address.Address `tlb:"addr"`
+	_      tlb.Magic        `tlb:"#f3a02426" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	ID     uint32           `tlb:"## 32"`
+	Value  uint32           `tlb:"## 32"`
+	Sender *address.Address `tlb:"addr"`
 }
 
 // Reply message to sender when the counter is increased.
 type CountIncreasedMsg struct {
-	_      tlb.Magic       `tlb:"#0x41c92746" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	ID     uint32          `tlb:"## 32"`
-	Value  uint32          `tlb:"## 32"`
-	Sender address.Address `tlb:"addr"`
+	_      tlb.Magic        `tlb:"#41c92746" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	ID     uint32           `tlb:"## 32"`
+	Value  uint32           `tlb:"## 32"`
+	Sender *address.Address `tlb:"addr"`
 }
 
 // Getters

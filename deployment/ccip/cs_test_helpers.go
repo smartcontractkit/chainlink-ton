@@ -30,7 +30,6 @@ const (
 )
 
 var (
-	// TODO Remove in favor of the canonical model
 	EvmFeeQuoterDestChainConfig = config.FeeQuoterDestChainConfig{
 		IsEnabled:                         true,
 		MaxNumberOfTokensPerMsg:           10,
@@ -53,7 +52,6 @@ var (
 		NetworkFeeUSDCents:                10,
 	}
 
-	// TODO Remove in favor of the canonical model
 	// Default fee quoter config for TON CCIP testing
 	TonFeeQuoterDestChainConfig = config.FeeQuoterDestChainConfig{
 		IsEnabled:                       true,
@@ -119,7 +117,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				ID:            idForContracts,
 				Coin:          "0.05",
 				ChainSelector: ChainSelEVMTest90000001,
-				// TODO:
+				// TODO[TOOLING-ALLOWLIST]: [NONEVM-4252]
 				// AllowlistAdmin: &address.Address{},
 				FeeAggregator: deployer.WalletAddress(),
 				Reserve:       "0.5",
@@ -137,7 +135,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 	}
 }
 
-// TODO add TON token price into func parameters
+// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] add TON token price into func parameters
 func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fromFamily, toFamily string, gasPrices map[uint64]*big.Int) config.LaneConfig {
 	if fromFamily != chainsel.FamilyTon && toFamily != chainsel.FamilyTon {
 		env.Logger.Fatalf("AddLaneTONChangesets: expected at least one chain to be TON, got fromFamily=%s, toFamily=%s", fromFamily, toFamily)
@@ -175,7 +173,8 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 				tvm.LinkTokenAddr.String():  linkTokenPrice,
 			},
 			FeeQuoterDestChainConfig: TonFeeQuoterDestChainConfig,
-			// TokenTransferFeeConfigs: , TODO:
+			// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573]
+			// TokenTransferFeeConfigs: ,
 		}
 	default:
 		env.Logger.Fatalf("Unsupported source chain family: %v", fromFamily)
@@ -203,7 +202,8 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 				tvm.NativeGRAMAddr.String(): tonTokenPrice,
 			},
 			FeeQuoterDestChainConfig: TonFeeQuoterDestChainConfig,
-			// TokenTransferFeeConfigs: , TODO:
+			// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573]
+			// TokenTransferFeeConfigs: ,
 		}
 	default:
 		env.Logger.Fatalf("Unsupported destination chain family: %v", toFamily)

@@ -55,7 +55,6 @@ func NewCCIPProvider(
 
 	// NOTE: provider can still be initialized with an EVM offramp address, and AddressBytesToString will fail on addresses with len=20
 	// technically we only need the chainwriter to do fee estimation so this doesn't matter and we can use a zero address
-	// TODO: Should we even build the rest of the provider? Or just initialize the accessor with just the estimator.
 	if len(cargs.OffRampAddress) == tvm.AddressLength {
 		offRampAddrStr, err = addressCodec.AddressBytesToString(cargs.OffRampAddress)
 		if err != nil {

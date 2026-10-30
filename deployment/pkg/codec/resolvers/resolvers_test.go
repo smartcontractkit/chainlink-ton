@@ -669,7 +669,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 			var actual opston.SendMessagesInput
 			require.NoError(t, json.Unmarshal(resolvedJSON, &actual), "unmarshal into SendMessagesInput")
 
-			// TODO: envelope Value fields are lost on marshal/unmarshal, need to load again for comparison
+			// TODO[TEST]: envelope Value fields are lost on marshal/unmarshal, need to load again for comparison
 			for i := range actual.Messages {
 				// compare cell hashes to avoid comparing cell objects directly
 				// Notice: we do this b/c slight mismatch in Cell serialization refs: ([]*cell.Cell) <nil> vs {}

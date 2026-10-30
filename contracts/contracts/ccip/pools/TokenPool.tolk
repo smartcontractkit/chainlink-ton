@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "@stdlib/lisp-lists"
 
-import "../common/types"
+import "../lib/cross_chain_address/types"
+import "../../lib/access/ownable_2step"
 
 import "lib/token_pool/types"
 import "lib/token_pool/budget"
 import "lib/token_pool/entrypoint"
 import "lib/token_pool/messages"
-import "lib/token_pool/errors"
 import "lib/token_pool/events"
+import "lib/token_pool/errors"
 
 contract TokenPool {
     author: "SmartContract Chainlink Limited SEZC"
@@ -16,9 +16,10 @@ contract TokenPool {
     description: "link.chain.ton.ccip.pool.TokenPool"
 
     storage: TokenPool_Data
-    incomingMessages: TokenPool_InMessage // TODO: all incoming messages should be registered
+    incomingMessages: TokenPool_InMessage | Ownable2Step_Messages
     outgoingMessages: TokenPool_OutMessage
     emittedEvents: TokenPool_Events
+    thrownErrors: TokenPool_Error
 }
 
 fun onInternalMessage(_: InMessage) {

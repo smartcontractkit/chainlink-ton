@@ -119,7 +119,6 @@ func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet
 		return nil, fmt.Errorf("failed to parse compiled contract: %w", cerr)
 	}
 
-	// TODO: any context is not being used in contract helpers
 	sigClient := &tracetracking.SignedAPIClient{
 		Client: client,
 		Wallet: *wallet,

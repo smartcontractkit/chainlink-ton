@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "../../lib/deployable/types"
-import "@stdlib/lisp-lists"
 import "../../lib/utils"
+import "../lib/client/receiver/types"
+import "../lib/cross_chain_address/types"
 import "../common/types"
 import "../fee_quoter/types"
+
 import "errors"
 
 const OffRamp_FACILITY_NAME = "link.chain.ton.ccip.OffRamp";
@@ -12,7 +13,7 @@ const OffRamp_FACILITY_ID = OffRamp_FACILITY_NAME.crc32() % 640 + 10;  // 221
 
 struct ExecutionReport {
     sourceChainSelector: uint64;
-    messages: cell; // single Any2TVMRampMessage, though interface is set up to possibly support vec<Any2TVMRampMessage> in the future
+    messages: SnakedCell<Any2TVMRampMessage>;
     // Offchain token data for every message and token transfer in the report.
     // A tokenless report may use either `[]` (empty outer list) or `[[]]` (one
     // empty per-message list); both are accepted. When there are token
@@ -23,16 +24,6 @@ struct ExecutionReport {
     proofs: SnakedCell<uint256>; // Proofs used to construct the merkle root as vec<uint256>
     proofFlagBits: uint256;
 }
-
-// /// OffChainTokenData represents the offchain token data for all token transfers of all messages in an ExecutionReport.
-// type OffChainTokenData = lisp_list<OffChainTokenDataPerMessage>
-
-// /// OffChainTokenDataPerMessage represents the offchain token data of every token transfer of a single message.
-// type OffChainTokenDataPerMessage = lisp_list<SnakeBytes>
-
-// /// SnakeBytes is a byte array
-// /// TODO: implement serialization/deserialization
-// type SnakeBytes = cell
 
 struct GasOverride {
     receiverExecutionGasLimit: coins? = null;
@@ -229,7 +220,6 @@ struct Any2TVMTokenTransfer {
 const MERKLE_ROOT_ID_SIZE = 256;
 const RECEIVE_EXECUTOR_ID_SIZE = 192;
 
-type ReceiveExecutorId = uint192;
 type MerkleRootId = uint256;
 
 fun ReceiveExecutorId.getSourceChainSelector(self): uint64 {

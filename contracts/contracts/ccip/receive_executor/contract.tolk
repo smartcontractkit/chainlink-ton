@@ -3,6 +3,7 @@ import "@stdlib/gas-payments"
 
 import "../../lib/utils"
 import "../../lib/jetton/messages"
+import "../lib/client/common/types"
 
 import "../offramp/types"
 import "../offramp/messages"
@@ -312,9 +313,9 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
 }
 
 // Returns all balance to the OffRamp; a manual execution funds the retry again.
-// TODO add reason
+// TODO[ERROR]: [NONEVM-5463]: add reason
 fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, _errorCode: uint16 = 0) {
-    // TODO: propagate `_errorCode` through `OffRamp_NotifyFailure` so the reason is observable.
+    // TODO[ERROR]: [NONEVM-5463]: propagate `_errorCode` through `OffRamp_NotifyFailure` so the reason is observable.
     val notifyFailure = createMessage({
         bounce: true,
         value: 0,

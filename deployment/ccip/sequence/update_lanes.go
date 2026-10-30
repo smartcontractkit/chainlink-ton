@@ -82,7 +82,7 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 					{
 						Bounce:  true,
 						DstAddr: &addr,
-						Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
+						Amount:  tlb.MustFromTON("0.1"), // TODO[TOOLING]: [NONEVM-6092] (ops/gas): static, should allow overrides?
 						Body:    codec.MustWrapMessage[any](bindings.TypeFeeQuoter, body),
 					},
 				},
@@ -117,7 +117,7 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 		if len(updates) != 0 {
 			// Set Router addr from state for all updates which don't have it set
 			for _, u := range updates {
-				// TODO: TestRouter support
+				// TODO[TOOLING]: [NONEVM-6092] TestRouter support
 				if u.Router == nil {
 					router := stateCCIP.Router
 					u.Router = &router
@@ -133,7 +133,7 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 					{
 						Bounce:  true,
 						DstAddr: &addr,
-						Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
+						Amount:  tlb.MustFromTON("0.1"), // TODO[TOOLING]: [NONEVM-6092] (ops/gas): static, should allow overrides?
 						Body:    codec.MustWrapMessage[any](bindings.TypeOnRamp, body),
 					},
 				},
@@ -284,8 +284,8 @@ func setTonSourceUpdates(lane ccipConfig.LaneConfig, updateInputsByTonChain map[
 	input := updateInputsByTonChain[source.Selector]
 
 	// isEnabled := !lane.IsDisabled
-	// TODO (ops/ccip): !input.IsDisabled
-	// TODO (ops/ccip): input.TestRouter // TODO: changesets use a flag rather than raw address?
+	// TODO[TOOLING]: [NONEVM-6092] (ops/ccip): !input.IsDisabled
+	// TODO[TOOLING]: [NONEVM-6092] (ops/ccip): input.TestRouter // changesets use a flag rather than raw address?
 	input.UpdateOnRampDestChainConfigs = []onramp.UpdateDestChainConfig{
 		{
 			DestinationChainSelector: dest.Selector,

@@ -166,7 +166,7 @@ func (d debugger) dumpRec(m *tt.ReceivedMessage, verbose bool) error {
 	if err != nil {
 		return fmt.Errorf("error describing received message: %w", err)
 	}
-	subcontext = d.Writer.NewReceivedMessage(m, *info) // TODO rm reference
+	subcontext = d.Writer.NewReceivedMessage(m, *info) // TODO: rm reference
 	subD := d.withSubcontext(subcontext)
 	for _, received := range m.OutgoingInternalReceivedMessages {
 		err = subD.dumpRec(received, verbose)
@@ -186,7 +186,7 @@ func (d debugger) dumpRec(m *tt.ReceivedMessage, verbose bool) error {
 		if err != nil {
 			return fmt.Errorf("error describing external message: %w", err)
 		}
-		subD.Writer.NewEvent(&externalMessage, *msgInfo) // TODO rm reference
+		subD.Writer.NewEvent(&externalMessage, *msgInfo) // TODO: rm reference
 	}
 	return nil
 }

@@ -160,7 +160,7 @@ export class ContractClient implements Contract, typeAndVersion.Interface, upgra
     return result.stack.readAddressOpt()
   }
 
-  // TODO: remove this, no need to proxy ownership methods, just use the ownable2step client directly
+  // TODO[REFACTOR]: remove this, no need to proxy ownership methods, just use the ownable2step client directly
   async sendOwnable2StepTransferOwnership(
     p: ContractProvider,
     via: Sender,

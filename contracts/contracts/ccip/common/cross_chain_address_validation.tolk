@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // From https://github.com/smartcontractkit/chainlink-ccip/blob/2c65147d933b7c8e7495dc3d96a460c4c9006fbb/chains/evm/contracts/libraries/Internal.sol
 
-import "types"
+import "../lib/cross_chain_address/types"
 
 tolk 1.4.2
 

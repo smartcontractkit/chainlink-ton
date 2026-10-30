@@ -1,23 +1,24 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "types"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable";
 import "../../lib/access/access_control";
 import "../../lib/versioning/upgradeable"
 import "../../lib/jetton/messages"
-import "../../lib/receiver/types"
-import "../../lib/receiver/messages"
-import "../common/types"
+import "../../lib/deployable/types"
+
+import "../lib/client/receiver/types"
+import "../lib/client/receiver/messages"
+import "../lib/client/sender/messages"
+
 import "../accounts/deposit/types"
 import "../accounts/deposit/messages"
-import "../offramp/types"
 import "../offramp/messages"
 import "../onramp/messages"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
-import "../rmn_remote/lib"
 import "../accounts/deposit/messages"
-import "../../lib/deployable/types"
+
+import "types"
 
 type Router_InMsg =
     | Router_CCIPSend
@@ -68,17 +69,6 @@ struct (0x7db6745d) Router_ApplyRampUpdates {
     onRampUpdates: OnRamps? = null;
     offRampAdds: OffRamps? = null;
     offRampRemoves: OffRamps? = null;
-}
-
-// Answers with Router_CCIPReceive
-struct (0x31768d95) Router_CCIPSend {
-    queryID: uint64;
-    destChainSelector: uint64;
-    receiver: CrossChainAddress;
-    data: cell;
-    tokenAmounts: SnakedCell<TokenAmount>;
-    feeToken: address?;
-    extraArgs: Cell<ExtraArgs>;
 }
 
 struct (0xfc69c50b) Router_RouteMessage {
@@ -141,11 +131,6 @@ struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
     destChainSelector: uint64;
     withdrawRequest: Cell<Router_WithdrawRequest>;
     error: int32;                                   // Raw TVM exit code (signed).
-}
-
-struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
-    queryId: uint64;
-    execId: ReceiveExecutorId;
 }
 
 // curse/uncurse/verify uncursed (also as getter)

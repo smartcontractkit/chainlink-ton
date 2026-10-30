@@ -124,7 +124,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		return ccipdseq.OnChainOutput{}, err
 	}
 
-	// TODO: fix type as tlb.Coins vs. string
+	// TODO[TOOLING-MCMS]: [NONEVM-6578] fix type as tlb.Coins vs. string
 	value := tlb.MustFromTON(DefaultDeployValueTON)
 	if in.Value != nil {
 		value = *in.Value
@@ -175,7 +175,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 			return nil, fmt.Errorf("failed to deploy MCMS contract of type %s: %w", contractType, err)
 		}
 
-		// TODO (fix, improve above deployment op):
+		// TODO[TOOLING-MCMS]: [NONEVM-6578] (fix, improve above deployment op):
 		// Override (output) addr type with specific MCMS deployment type
 		outputAddr.Type = contractType
 		b.Logger.Infof("Deployed MCMS type %s at address %s on chain %s", outputAddr.Type, outputAddr.Address, chain.Name)

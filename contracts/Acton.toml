@@ -159,13 +159,6 @@ src = "contracts/mcms/mcms.tolk"
 domain = "mcms"
 depends = []
 
-# TODO: gen lib bindings
-# [contracts.AccessControl]
-# display-name = "link.chain.ton.lib.access.AccessControl"
-# src = "contracts/lib/access/access_control.tolk"
-# domain = "mcms"
-# depends = []
-
 # Testing wrappers
 
 [contracts.TestLibMath]

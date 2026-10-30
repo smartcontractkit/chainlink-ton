@@ -1,20 +1,18 @@
 // SPDX-License-Identifier: BUSL-1.1
 tolk 1.4.2
 
-import "@stdlib/lisp-lists"
 import "@stdlib/gas-payments"
 
 import "../../../lib/utils"
 import "../../../lib/access/ownable_2step"
 import "../../../lib/access/access_control"
-import "../../../lib/deployable/types"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/funding/jetton_withdrawable"
+import "../../lib/cross_chain_address/types"
 
-import "../../common/types"
 import "../../cct/messages"
 import "../../rmn_remote/lib"
 
@@ -279,7 +277,7 @@ fun onReleaseOrMintContinue(
     val mint = createMessage(mintOpts);
     mint.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
-    // TODO: exceses handling for any leftover funds after the mint and wallet deployment fees are covered.
+    // TODO[VALUE]: [NONEVM-5766]: exceses handling for any leftover funds after the mint and wallet deployment fees are covered.
 
     return st;
 }

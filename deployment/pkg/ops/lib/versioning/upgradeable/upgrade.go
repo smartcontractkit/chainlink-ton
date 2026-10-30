@@ -26,8 +26,6 @@ var (
 type UpgradeInput struct {
 	Messages []UpgradeMessage `json:"messages"`
 	Plan     bool             `json:"plan"`
-
-	// TODO: add WaitTrace option
 }
 
 type UpgradeMessage struct {

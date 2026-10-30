@@ -9,7 +9,7 @@ describe('AccessControl', () => {
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
-    // TODO: deploy and init AccessControl test contract
+    // TODO[TEST]: deploy and init AccessControl test contract
   })
 
   it('should compute crc32 opcodes', async () => {
