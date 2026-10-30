@@ -304,7 +304,6 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       run: () => ccipSend(token, data),
       book,
       discover: nameExecutor,
-      aborts: ['PoolWallet->OnRamp'],
       budget: ccipSendBudget,
     })
 
