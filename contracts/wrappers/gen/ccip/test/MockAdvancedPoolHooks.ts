@@ -183,14 +183,14 @@ export const MockAdvancedPoolHooks_Data = {
  > struct (0x30612b17) TokenPool_QueryCCVsReply {
  >     queryId: uint64
  >     requiredCCVs: array<address>
- >     replyPayload: cell?
+ >     forwardPayload: cell?
  > }
  */
 export interface TokenPool_QueryCCVsReply {
     readonly $: 'TokenPool_QueryCCVsReply'
     queryId: uint64
     requiredCCVs: array<c.Address>
-    replyPayload: c.Cell | null
+    forwardPayload: c.Cell | null
 }
 
 export const TokenPool_QueryCCVsReply = {
@@ -199,7 +199,7 @@ export const TokenPool_QueryCCVsReply = {
     create(args: {
         queryId?: uint64
         requiredCCVs: array<c.Address>
-        replyPayload: c.Cell | null
+        forwardPayload: c.Cell | null
     }): TokenPool_QueryCCVsReply {
         return {
             $: 'TokenPool_QueryCCVsReply',
@@ -215,7 +215,7 @@ export const TokenPool_QueryCCVsReply = {
             requiredCCVs: loadArrayOf<c.Address>(s,
                 (s) => s.loadAddress()
             ),
-            replyPayload: s.loadBoolean() ? s.loadRef() : null,
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: TokenPool_QueryCCVsReply, b: c.Builder): void {
@@ -224,7 +224,7 @@ export const TokenPool_QueryCCVsReply = {
         storeArrayOf<c.Address>(self.requiredCCVs, b,
             (v,b) => b.storeAddress(v)
         );
-        storeTolkNullable<c.Cell>(self.replyPayload, b,
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
             (v,b) => b.storeRef(v)
         );
     },
@@ -272,7 +272,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MockAdvancedPoolHooks implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECCAEAAdAAART/APSkE/S88sgLAQIC0QIDAgEgBAUAyUbDPtRNDTB9GEB7qUhA/y8OAjqTgAnMjPkIecdh4Uyz/MyZzIz5J4qa2aFMs/zMni7UTQ0wfRgQD9uo4WAqsAyM+FCBL6UgH6AnHPC2rMyXH7AOAyyM+FCPpScc8LbszJgED7AIAZk+JHyQCDXLCIJTohMjhIx0z/U0x/0BPoA+kj0BfiX8AHg1ywjgeFaxI4QMdM/1PoA0x/6SPQF+JfwAuDXLCYqO2lc4wIwhA8BxwDy9IAYA0RsMzPtRNDTB9GEB7qUhA/y8OAjqTgAncjPkpt+mI4Uyz8TzMmdyM+QI8v+3hTLPxPMyeLtRNDTB9GBAP26jhYBqwDIz4UIE/pSWPoCcc8LaszJcfsA4DHIz4UIEvpScc8LbszJgED7AIAH8MdM/+kgx0z8x+gAx0x8x0wchwgFsEvJF9AQx+kj0Be1E0NMH0SCEB7qUhA/y8OAggQD+upSAZPgB3m8AAZMib4zeyM+QwYSsXhTLPyNviHNtVHIhqQaOGwHI9ABTIbYIUSKhIplTgG+BWPpSAaTkAckCoeQwMTXPCwcT9AASBwAo9ADJyM+FCBL6UnHPC27MyYBA+wA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECCAEAAdIAART/APSkE/S88sgLAQIC0QIDAgEgBAUAz0bDPtRNDTB9GEB7qUhA/y8OAjqTgAncjPkIecdh4Uyz8SzMmdyM+SeKmtmhTLPxLMyeLtRNDTB9GBAP26jhYBqwDIz4UIE/pSWPoCcc8LaszJcfsA4DHIz4UIEvpScc8LbszJgED7AIAZk+JHyQCDXLCIJTohMjhIx0z/U0x/0BPoA9AX4l/iS8AHg1ywjgeFaxI4QMdM/1PoA0x/0BfiX+JLwAuDXLCYqO2lc4wIwhA8BxwDy9IAYAyxsMzPtRNDTB9GEB7qUhA/y8OAjqTgAnMjPkpt+mI4Uyz/MyZzIz5Ajy/7eFMs/zMni7UTQ0wfRgQD9uo4WAqsAyM+FCBL6UgH6AnHPC2rMyXH7AOAyyM+FCPpScc8LbszJgED7AIAH8MdM/+kgx0z8x+gAx0x8x0wchwgFsEvJF9AQx+lAx9AX4ku1E0NMH0SCEB7qUhA/y8OAggQD+upSAZPgB3m8AAZMhb4zeyM+QwYSsXhTLPyNviHNtVHIhqQaOGwHI9ABTIbYIUSKhIplTgG+BWPpSAaTkAckCoeQwMTXPCwcTBwAs9AD0AMnIz4UIEvpScc8LbszJgED7AA==');
 
     static Errors = {
     }
