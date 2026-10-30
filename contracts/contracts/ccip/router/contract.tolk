@@ -735,7 +735,9 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
             receiver: sender,
         }
     });
-    receiveBounced.send(SEND_MODE_REGULAR);
+    // Mode 64 adds the bounced remainder on top of the fixed floor, which the Router funds when the
+    // receiver consumed its whole gasLimit.
+    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // Entrypoint to get a validated fee from the FeeQuoter.
