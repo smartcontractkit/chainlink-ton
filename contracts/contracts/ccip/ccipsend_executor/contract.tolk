@@ -1,10 +1,9 @@
 import "@stdlib/gas-payments"
 
 import "../../lib/utils"
-import "../../lib/jetton/messages"
+import "../lib/client/sender/messages"
 
 import "../pools/lib/token_pool/messages"
-import "../pools/lib/token_pool/types"
 
 import "../token_admin_registry/messages"
 import "../fee_quoter/messages"
@@ -12,13 +11,12 @@ import "../fee_quoter/types"
 import "../onramp/messages"
 import "../onramp/types"
 import "../router/messages"
-import "../common/types"
+import "../router/utils"
 
 import "types"
 import "messages"
 import "storage"
 import "errors"
-import "../router/utils"
 import "../../../gen/Deployable.code"
 
 tolk 1.4.2
@@ -33,7 +31,6 @@ contract CCIPSendExecutor {
     storage: CCIPSendExecutor_Data
     storageAtDeployment: CCIPSendExecutor_InitialData
     incomingMessages: CCIPSendExecutor_InMessage
-    // TBD Acton is not detecting InsufficientFunds and FeeQuoterBounce.
     thrownErrors: CCIPSendExecutor_Error | Utils_Error
 }
 

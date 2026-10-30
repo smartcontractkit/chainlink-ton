@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "storage"
-import "../../../lib/receiver/messages"
+import "../../lib/client/receiver/messages"
 import "../../../lib/versioning/upgradeable"
 
 type TestReceiver_InMessage = 

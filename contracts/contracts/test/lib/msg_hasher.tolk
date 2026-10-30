@@ -1,4 +1,4 @@
-import "../../ccip/common/types"
+import "../../ccip/lib/cross_chain_address/types"
 import "../../ccip/offramp/types"
 import "../../ccip/onramp/types"
 

@@ -11,10 +11,10 @@ contract FiredrillOffRamp {
 	incomingMessages: FiredrillOffRamp_InMessage
 }
 
+import "../ccip/lib/cross_chain_address/types"
 import "../lib/utils.tolk"
 import "../ccip/offramp/events.tolk"
 import "../ccip/offramp/types.tolk"
-import "../ccip/common/types.tolk"
 import "../lib/ocr/multi_ocr3_base"
 import "firedrill_offramp_messages.tolk"
 

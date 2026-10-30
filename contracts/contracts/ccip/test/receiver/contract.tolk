@@ -3,19 +3,18 @@
 // because it needs to be included in GitHub release artifacts for integration tests.
 // Contracts with the "examples.*" prefix are excluded from published releases.
 // See: .github/workflows/contracts-publish-compiled-artifacts.yml
+
+import "../../../lib/utils";
+import "../../../lib/access/ownable_2step"
+import "../../../lib/versioning/upgradeable"
+import "../../lib/client/receiver/messages"
+import "../../lib/client/receiver/types";
+import "../../lib/client/receiver/errors"
+
 import "storage"
 import "errors"
 import "messages"
 import "types"
-
-import "../../../lib/receiver/messages";
-import "../../../lib/receiver/types";
-import "../../../lib/receiver/errors"
-import "../../../lib/utils";
-import "../../../lib/access/ownable_2step"
-import "../../../lib/versioning/upgradeable"
-
-import "../../router/messages"
 
 tolk 1.4.2
 

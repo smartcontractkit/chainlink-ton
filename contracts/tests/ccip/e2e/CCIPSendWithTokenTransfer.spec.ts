@@ -409,7 +409,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [rt.TokenAmount.create({ amount: TOKEN_AMOUNT, token: minter.address })],
-      feeToken: NATIVE_GRAM, // TODO should be just native?
+      feeToken: NATIVE_GRAM,
       extraArgs: rt.GenericExtraArgsV2.create({
         gasLimit: 100n,
         allowOutOfOrderExecution: true,

@@ -83,7 +83,7 @@ func fetchMainnetFeePrices(ctx context.Context) (feePrices, error) {
 	if err != nil {
 		return feePrices{}, fmt.Errorf("get masterchain info: %w", err)
 	}
-	cfg, err := api.GetBlockchainConfig(ctx, block, int32(tlb.ConfigParamGasPricesBasechain), int32(tlb.ConfigParamMsgForwardPricesBasechain))
+	cfg, err := api.WaitForBlock(block.SeqNo).GetBlockchainConfig(ctx, block, int32(tlb.ConfigParamGasPricesBasechain), int32(tlb.ConfigParamMsgForwardPricesBasechain))
 	if err != nil {
 		return feePrices{}, fmt.Errorf("get blockchain config: %w", err)
 	}

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
-import "types"
 import "errors"
-import "../../ccip/router/messages"
+import "types"
 
 struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
     // execId lets us calculate where to send CCIPReceiveConfirm and CCIPReceiveFailed
@@ -54,4 +53,10 @@ fun Receiver_CCIPReceiveV2.validateAndConfirm(self, opts: Receiver_ValidateOptio
         }
     });
     receiveConfirm.send(opts.confirmationMsg.sendMode);
+}
+
+/// Confirmation message sent back to the router after accepting a CCIP message
+struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
+    queryId: uint64;
+    execId: ReceiveExecutorId;
 }

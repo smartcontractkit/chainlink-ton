@@ -422,7 +422,7 @@ type Topic = uint32
 type Role = *big.Int
 
 var (
-	// TODO: compute with Go implementation of keccak256
+	// TODO[TOOLING-MCMS]: [NONEVM-6578] compute with Go implementation of keccak256
 	// Notice: role constants are kept as original Ethereum implementation (keccak256)
 	RoleAdmin     = mustHexToBigInt("0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775") // keccak256('ADMIN_ROLE')
 	RoleProposer  = mustHexToBigInt("0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1") // keccak256('PROPOSER_ROLE')

@@ -24,7 +24,7 @@ type OffRampSourceUpdate struct {
 	IsEnabled  bool // If false, disables the source by setting router to 0x0.
 	TestRouter bool // Flag for safety only allow specifying either router or testRouter.
 	// IsRMNVerificationDisabled is a flag to disable RMN verification for this source chain.
-	IsRMNVerificationDisabled bool // TODO: remove this, default true?
+	IsRMNVerificationDisabled bool // TODO[TOOLING]: [NONEVM-6092] remove this, default true?
 	OnRamp                    []byte
 }
 

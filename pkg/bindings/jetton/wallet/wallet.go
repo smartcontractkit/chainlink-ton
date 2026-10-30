@@ -87,18 +87,13 @@ type BurnNotificationForMinter struct {
 	SendExcessesTo *address.Address `tlb:"addr"`
 }
 
-type ReturnExcessesBack struct {
-	_       tlb.Magic `tlb:"#d53276db" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID uint64    `tlb:"## 64"`
-}
-
 var TLBs = tvm.MustNewTLBMap([]any{
 	AskToTransfer{},
 	AskToBurn{},
 	InternalTransferStep{},
 	TransferNotificationForRecipient{},
 	BurnNotificationForMinter{},
-	ReturnExcessesBack{},
+	jetton.ReturnExcessesBack{},
 	jetton.TopUpTons{},
 }).MustWithStorageType(InitData{})
 

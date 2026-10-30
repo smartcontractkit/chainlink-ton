@@ -6,6 +6,8 @@ import "../../lib/ocr/multi_ocr3_base"
 import "../../lib/ocr/types"
 import "../../lib/utils"
 import "../../lib/versioning/upgradeable"
+import "../lib/client/common/types"
+import "../lib/client/receiver/types"
 
 import "../accounts/deposit/types"
 import "../common/types"

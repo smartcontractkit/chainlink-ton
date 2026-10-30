@@ -81,7 +81,7 @@ func (im *InternalMessage[T]) ToMessage() (*tlb.InternalMessage, error) {
 			return nil, fmt.Errorf("failed to convert state init to cell: %w", err)
 		}
 
-		wc := int8(0) // TODO: expose option to set workchain (default ok for now)
+		wc := int8(0)
 		msg.DstAddr = address.NewAddress(0, byte(wc), stateCell.Hash())
 	}
 

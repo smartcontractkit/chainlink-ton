@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "types"
-import "../router/messages"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
+import "../lib/client/sender/messages"
+import "types"
 
 type FeeQuoter_InMessage =
     | FeeQuoter_AddPriceUpdater

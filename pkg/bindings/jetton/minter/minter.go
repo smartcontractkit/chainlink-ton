@@ -106,6 +106,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	DropMinterAdmin{},
 	ChangeMinterMetadataURI{},
 	UpgradeMinterCode{},
+	jetton.ReturnExcessesBack{},
 	jetton.TopUpTons{},
 	wallet.BurnNotificationForMinter{},
 }).MustWithStorageType(InitData{})

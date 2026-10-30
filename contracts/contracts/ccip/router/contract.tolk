@@ -10,11 +10,12 @@ import "../../lib/access/ownable_2step"
 import "../../lib/access/access_control"
 import "../../lib/versioning/upgradeable"
 import "../../lib/jetton/messages"
-import "../../lib/receiver/types"
-import "../../lib/receiver/messages"
 import "../../lib/jetton/jetton_client"
 import "../../lib/deployable/types"
 import "../../lib/deployable/namespace"
+import "../lib/client/sender/messages"
+import "../lib/client/receiver/messages"
+import "../lib/client/receiver/types"
 
 import "../accounts/deposit/types"
 import "../accounts/deposit/messages"
@@ -1030,7 +1031,6 @@ fun sendMessageRejected(sender: address, queryID: uint64, error: uint256) {
     nackMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-//TODO: Sending LockOrBurn to the TokenPool should trigger a withdraw pattern to get the tokens to the TP
 /*
 The thing is at this point we still didn't go through all the preflight checks - (1) gas check for TP processing - unique per TP/Jetton, (2) rate limiter check, (3) advanced hooks check
 
@@ -1057,7 +1057,7 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
             queryId: msg.queryID,
             request: msg.request,
             requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
-            tokenArgs: null, // TBD?
+            tokenArgs: null, // TODO[REFACTOR]: [NONEVM-5336] tokenArgs are not supported?
             replyTo: msg.executorAddress,
             finalizationValue: msg.finalizationValue,
             // Keep the pool's deposit-auth namespace cache in sync
@@ -1434,33 +1434,29 @@ struct Ramp {
     ramp: address
 }
 
-/// TODO returns lisp_list<OnRamp>
-get fun onRamps(): lisp_list<Cell<Ramp>> {
+get fun onRamps(): lisp_list<Ramp> {
     val st = lazy Storage.load();
-    var onRamps: lisp_list<Cell<Ramp>> = [];
+    var onRamps: lisp_list<Ramp> = [];
     var r = st.onRamps.findFirst();
     while (r.isFound) {
-        val ramp = Ramp {
+        onRamps.prependHead(Ramp {
             chainSelector: r.getKey(),
             ramp: r.loadValue(),
-        };
-        onRamps.prependHead(ramp.toCell());
+        });
         r = st.onRamps.iterateNext(r);
     }
     return onRamps;
 }
 
-/// TODO returns lisp_list<OffRamp>
-get fun offRamps(): lisp_list<Cell<Ramp>> {
+get fun offRamps(): lisp_list<Ramp> {
     val st = lazy Storage.load();
-    var offRamps: lisp_list<Cell<Ramp>> = [];
+    var offRamps: lisp_list<Ramp> = [];
     var r = st.offRamps.findFirst();
     while (r.isFound) {
-        val ramp = Ramp {
+        offRamps.prependHead(Ramp {
             chainSelector: r.getKey(),
             ramp: r.loadValue(),
-        };
-        offRamps.prependHead(ramp.toCell());
+        });
         r = st.offRamps.iterateNext(r);
     }
     return offRamps;

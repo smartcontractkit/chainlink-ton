@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 
+import "@stdlib/reflection"
+
 import "jetton_client"
 import "messages"
 
@@ -46,8 +48,8 @@ fun Jetton_ForwardPayloadWrap.unwrapForwardPayload(payload: cell?): cell? {
     }
 
     val s = payload!.beginParse();
-    // TODO: use reflection for opcode
-    if (s.remainingBitsCount() < 32 || s.preloadUint(32) != 0x2d61600c) {
+    val (opcode, opcodeWith) = reflect.serializationPrefixOf<Jetton_ForwardPayloadWrap>();
+    if (s.remainingBitsCount() < opcodeWith || s.preloadUint(opcodeWith) != opcode) {
         return payload;
     }
 

@@ -31,7 +31,6 @@ const (
 	// Third-party contract types
 	PkgJetton tvm.FullyQualifiedName = "com.github.ton-blockchain.jetton-contract"
 
-	// TODO: move these constants to their respective packages
 	// Contract types
 
 	// Libs and traits

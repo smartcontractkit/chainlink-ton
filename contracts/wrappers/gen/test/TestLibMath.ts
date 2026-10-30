@@ -115,6 +115,27 @@ type coins = bigint
 type uint8 = bigint
 type uint256 = bigint
 
+/**
+ > enum Math_Result { 3 variants }
+ */
+export type Math_Result = bigint
+
+export const Math_Result = {
+    Ok: 0n,
+    Overflow: 1n,
+    Underflow: 2n,
+
+    fromSlice(s: c.Slice): Math_Result {
+        return s.loadUintBig(2);
+    },
+    store(self: Math_Result, b: c.Builder): void {
+        b.storeUint(self, 2);
+    },
+    toCell(self: Math_Result): c.Cell {
+        return makeCellFrom<Math_Result>(self, Math_Result.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class TestLibMath
 //
@@ -157,6 +178,7 @@ export class TestLibMath implements c.Contract {
     static CodeCell = c.Cell.fromBase64('te6ccgECFwEAAacAART/APSkE/S88sgLAQIBYgIDAgLOBAUCASALDAIBIAYHAgEgCAkAFz4kfJAhA8BxwDy9IABVCDCAJiE/yGhIrnDAJFw4pNbcHHgIMEAmIX/IaEivMMAkXDik1twcuCgcIAGpO2i7fshlSDAAMMAkX/ik1twIOAhwP+cMSCF/7qTMHBx4KNw4CDA/5wwIIX/upMwcHHgo3DgIcIAlSDCAMMAkXDinoT/IakEIrmVW3Bx2zHg4w6ocIAoAaQgwk2TMHBx4HF6kyLCAI4gInGwwAGchP8iqQQhvvKEZqgB3gKrACDCAJRRIKgC3gLoMDFwgAJIhwQCVIMEAwwCRcOKehP8hqQQivJVbcHHbMeCOKyHCAJUgwQDDAJFw4p6F/yKpBCG8lVtwctsx4J6F/yGpBCK8lVtwctsx4OLiAAm+rseAFAIBIA0OAgEgDxACASAREgAXtd1rPgAyYD5eHAYwACm2bsQ4IBIv8sQwjveYYBxSXl4cBhACAecTFAAXtunLPgBSYD5eHAYwAgFYFRYAFaQEA+AHJgPl4cBjAAe6PwAYAAe6rwA4');
 
     static Errors = {
+        'TVMError.IntegerOverflow': 4,
     }
 
     readonly address: c.Address
@@ -189,7 +211,7 @@ export class TestLibMath implements c.Contract {
 
     async getSafeAdd(provider: ContractProvider, a: bigint, b: bigint): Promise<[
         bigint,
-        bigint,
+        Math_Result,
     ]> {
         const r = StackReader.fromGetMethod(2, await provider.get('get_safeAdd', [
             { type: 'int', value: a },
@@ -203,7 +225,7 @@ export class TestLibMath implements c.Contract {
 
     async getSafeProd(provider: ContractProvider, a: bigint, b: bigint): Promise<[
         bigint,
-        bigint,
+        Math_Result,
     ]> {
         const r = StackReader.fromGetMethod(2, await provider.get('get_safeProd', [
             { type: 'int', value: a },
@@ -217,7 +239,7 @@ export class TestLibMath implements c.Contract {
 
     async getSafePow10(provider: ContractProvider, n: uint8): Promise<[
         uint256,
-        bigint,
+        Math_Result,
     ]> {
         const r = StackReader.fromGetMethod(2, await provider.get('get_safePow10', [
             { type: 'int', value: n },

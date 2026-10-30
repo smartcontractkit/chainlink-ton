@@ -139,9 +139,7 @@ fun RateLimiter_TokenBucket.currentTokenBucketState(mutate self): RateLimiter_To
     return self;
 }
 
-/// TBD This is not used
-/// @notice Sets the rate limited config.
-/// @param s_bucket The token bucket.
+/// @notice Sets the rate limited config, reconfiguring the bucket in place.
 /// @param config The new config.
 fun RateLimiter_TokenBucket._setTokenBucketConfig(mutate self, config: RateLimiter_Config) {
     config.validate();
@@ -181,7 +179,6 @@ fun RateLimiter_Config.validate(self) {
             throw (RateLimiter_Error.InvalidRateLimitConfig, self);
         }
     } else {
-        // TBD: What is the point here? Do we expect disabled rate limiters to have zero values? If so, why not put rate and capacity in an optional struct, so isEnabled is implicitly false when the struct is None?
         if (self.rate != 0 || self.capacity != 0) {
             throw (RateLimiter_Error.DisabledNonZeroRateLimit, self);
         }

@@ -17,7 +17,7 @@ type OnRampOverrides = Partial<
 }
 
 // Deprecated, use deployOnRampContractW instead for more flexibility in tests. Will be removed in a future version.
-// TODO: refactor existing tests to use deployOnRampContractW and remove this function.
+// TODO[REFACTOR]: refactor existing tests to use deployOnRampContractW and remove this function.
 export async function deployOnRampContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,

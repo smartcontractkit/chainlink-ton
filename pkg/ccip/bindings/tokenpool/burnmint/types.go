@@ -5,6 +5,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
 )
 
@@ -47,13 +48,6 @@ type ClaimMinterAdmin struct {
 	QueryID uint64    `tlb:"## 64"`
 }
 
-// ReturnExcessesBack is sent by the jetton minter/wallet after a burn or mint operation.
-// TODO: move to shared jetton bindings package, shared opcode 0xd53276db
-type ReturnExcessesBack struct {
-	_       tlb.Magic `tlb:"#d53276db" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID uint64    `tlb:"## 64"`
-}
-
 // --- Storage ---
 
 // Storage represents the BurnMintTokenPool contract storage.
@@ -87,7 +81,7 @@ func (e ExitCode) New() tvm.ExitCode {
 var TLBs = tvm.MustNewTLBMap([]any{
 	// Incoming
 	ClaimMinterAdmin{},
-	ReturnExcessesBack{},
+	jetton.ReturnExcessesBack{},
 	// Context types
 	BurnContext{},
 	MintContext{},

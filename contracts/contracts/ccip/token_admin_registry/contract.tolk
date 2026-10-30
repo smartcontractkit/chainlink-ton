@@ -260,10 +260,6 @@ fun emitPoolSet(event: TokenAdminRegistry_PoolSet) {
 /// The entry then queries the token with TEP-89 and stays disabled until the token
 /// answers with a wallet. See TokenAdminRegistry_VerifyToken to query again.
 fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_RegisterToken) {
-    // TODO: add self-service registration once TON has a canonical,
-    // independently verifiable proof that the sender controls the token minter.
-    // Until then, the root owner is the trusted registration module.
-
     val deployMsg = createMessage({
         bounce: false,
         value: TokenAdminRegistryEntry_deployCost(),

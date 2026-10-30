@@ -16,6 +16,8 @@
  * 3. All functions are designed to be gas-efficient and secure
  */
 
+import "tvm/errors"
+
 // int is a 257-bit signed integer
 // These are its max/min values
 // For a 257-bit signed integer: max = 2^256 - 1, min = -2^256
@@ -28,41 +30,47 @@ const MAX_UINT256: uint256 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
 const MAX_EXP10: uint8 = 77;
 
+enum Math_Result {
+    Ok = 0
+    Overflow
+    Underflow
+}
+
 // Returns (result, errorCode), where errorCode is 0 if no error.
-fun safeAdd(a: int, b: int): (int, int) {
+fun safeAdd(a: int, b: int): (int, Math_Result) {
     // Check for positive overflow: a > INT_MAX - b
     if (b > 0 && a > INT_MAX - b) {
-        return (0, 1); // overflow error
+        return (0, Math_Result.Overflow);
     }
     
     // Check for negative overflow: a < INT_MIN - b
     if (b < 0 && a < INT_MIN - b) {
-        return (0, 2); // underflow error
+        return (0, Math_Result.Underflow);
     }
     
-    return (a + b, 0); // success
+    return (a + b, Math_Result.Ok); // success
 }
 
 // Returns (result, errorCode), where errorCode is 0 if no error.
-fun safeProd(a: int, b: int): (int, int) {
+fun safeProd(a: int, b: int): (int, Math_Result) {
     // Handle zero cases
     if (a == 0 || b == 0) {
-        return (0, 0);
+        return (0, Math_Result.Ok);
     }
     
     // Handle -1 special case to avoid division by zero
     if (a == -1) {
         if (b == INT_MIN) {
-            return (0, 1); // overflow: -1 * INT_MIN = overflow
+            return (0, Math_Result.Overflow); // -1 * INT_MIN = overflow
         }
-        return (-b, 0);
+        return (-b, Math_Result.Ok);
     }
     
     if (b == -1) {
         if (a == INT_MIN) {
-            return (0, 1); // overflow: INT_MIN * -1 = overflow
+            return (0, Math_Result.Overflow); // overflow: INT_MIN * -1 = overflow
         }
-        return (-a, 0);
+        return (-a, Math_Result.Ok);
     }
     
     // Check for overflow by division
@@ -73,30 +81,29 @@ fun safeProd(a: int, b: int): (int, int) {
     
     if (a > 0 && b > 0) {
         if (a > INT_MAX / b) {
-            return (0, 1); // overflow
+            return (0, Math_Result.Overflow);
         }
     } else if (a < 0 && b < 0) {
         if (a < INT_MAX / b) {
-            return (0, 1); // overflow (both negative, result positive)
+            return (0, Math_Result.Overflow);
         }
     } else if (a > 0 && b < 0) {
         if (b < INT_MIN / a) {
-            return (0, 2); // underflow
+            return (0, Math_Result.Underflow);
         }
     } else { // a < 0 && b > 0
         if (a < INT_MIN / b) {
-            return (0, 2); // underflow
+            return (0, Math_Result.Underflow);
         }
     }
     
-    return (a * b, 0); // success
+    return (a * b, Math_Result.Ok);
 }
 
 // @dev Calculates 10^n for n <= 77 in O(log n). For n > 77, it would overflow uint256.
-// TODO test limits
-fun safePow10(n: uint8): (uint256, int) {
+fun safePow10(n: uint8): (uint256, Math_Result) {
     if (n > MAX_EXP10) {
-        return (0, 1); // overflow error
+        return (0, Math_Result.Overflow);
     }
 
     var result: uint256 = 1;
@@ -104,8 +111,8 @@ fun safePow10(n: uint8): (uint256, int) {
 
     while (n > 0) {
         if ((n & 1) == 1) {
-            // Check for potential overflow before multiplication
-            assert(result == 0 || base <= MAX_UINT256 / result, 4); // exit code 4: Integer overflow
+            // Check for potential overflow before multiplication (UNREACHABLE)
+            assert(result == 0 || base <= MAX_UINT256 / result, TVMError.IntegerOverflow);
             result *= base;
         }
         n >>= 1;
@@ -116,13 +123,13 @@ fun safePow10(n: uint8): (uint256, int) {
         }
     }
 
-    return (result, 0); // success
+    return (result, Math_Result.Ok);
 }
 
 // Returns result or throws errCode on overflow.
 fun mustAdd(a: int, b: int, errCode: int): int {
     val (res, err) = safeAdd(a, b);
-    if (err != 0) {
+    if (err != Math_Result.Ok) {
         throw errCode;
     }
     return res;
@@ -131,7 +138,7 @@ fun mustAdd(a: int, b: int, errCode: int): int {
 // Returns result or throws errCode on overflow.
 fun mustProd(a: int, b: int, errCode: int): int {
     val (res, err) = safeProd(a, b);
-    if (err != 0) {
+    if (err != Math_Result.Ok) {
         throw errCode;
     }
     return res;
@@ -140,7 +147,7 @@ fun mustProd(a: int, b: int, errCode: int): int {
 // Returns result or throws errCode on overflow.
 fun mustPow10(n: uint8, errCode: int): uint256 {
     val (res, err) = safePow10(n);
-    if (err != 0) {
+    if (err != Math_Result.Ok) {
         throw errCode;
     }
     return res;

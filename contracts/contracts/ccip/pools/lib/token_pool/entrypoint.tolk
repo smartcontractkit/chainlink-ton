@@ -12,8 +12,8 @@ import "../../../../lib/jetton/forward_payload_wrap"
 import "../../../../lib/access/ownable_2step"
 import "../../../../lib/deployable/namespace"
 import "../../../../lib/funding/jetton_withdrawable"
+import "../../../lib/cross_chain_address/types"
 
-import "../../../common/types"
 import "../../../rmn_remote/lib"
 import "../../../router/types"
 
@@ -609,7 +609,7 @@ fun TokenPool<T>.applyChainUpdates(
     remoteChainSelectorsToRemove: SnakedCell<uint64>,
     chainsToAdd: SnakedCell<TokenPool_ChainUpdate>,
 ) {
-    // TODO: A/dynamic - loops removals/additions/remote pools; a static S does not bound large inputs
+    // TODO[VALUE]: [NONEVM-5766] A/dynamic - loops removals/additions/remote pools; a static S does not bound large inputs
     self.requireMinValue(msgValue);
 
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
@@ -913,7 +913,7 @@ fun TokenPool<T>.onLockOrBurnWithdrawFailed(
     msgValue: coins,
 ): void {
     self.onlyRouter(sender);
-    // TBD do we need a hook here?
+    // TODO[REFACTOR]: [NONEVM-5336] register as an available hook
     val fwdp = lazy msg.forwardPayload.load();
 
     // Custody never left the pool's wallet: reinstate the rate limit consumed at admission and
@@ -1089,7 +1089,7 @@ fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
     updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>,
     disableChainSelectors: SnakedCell<uint64>,
 ) {
-    // TODO: A/dynamic - consider adding a cost function for this operation
+    // TODO[VALUE]: [NONEVM-5766] A/dynamic - consider adding a cost function for this operation
     self.requireMinValue(msgValue);
 
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
@@ -1134,7 +1134,6 @@ fun TokenPool<T>.getTokenTransferFeeConfig(self, destChainSelector: uint64): Tok
     return entry.isFound ? entry.loadValue() : null;
 }
 
-// TBD: should we put return value in a struct? For getters is the same, as they are returned in the stack, but it is much beter for readability
 /// Returns the pool fee parameters that will apply to a transfer.
 /// @param destChainSelector The destination lane selector.
 /// @param requestedFinalityConfig Requested finality encoding (see `FinalityCodec`).
@@ -1191,7 +1190,7 @@ fun TokenPool<T>.getFeeAmount(
     transfer: TokenPool_LockOrBurnTransfer,
     requestedFinalityConfig: uint32,
 ): coins {
-    // TODO: register as an available hook
+    // TODO[REFACTOR]: [NONEVM-5336] register as an available hook
     val details: TokenPool_TransferDetails<address, Cell<CrossChainAddress>, coins> = lazy transfer.details.load();
     val feeConfig = TokenPool<T>.enabledFeeConfig(self.data.tokenTransferFeeConfigs.get(details.remoteChainSelector));
     if (feeConfig == null) {
@@ -1209,7 +1208,7 @@ fun TokenPool<T>.getFeeAmount(
     // const c = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF * 0xFFFF // MAX_UINT120 * MAX_UINT16 // Evaluated value: 0xFFFEFFFFFFFFFFFFFFFFFFFFFFFFFF0001 (136 bits)
     // SAFETY: Division result can be safely casted back to `coins` (`varuint120`) given
     // `transferFeeBps` is guaranteed to be less than `TOKEN_POOL_BPS_DIVIDER`, so the result will always be smaller than details.amount (`uint120`).
-    return (details.amount as int * transferFeeBps as int) / TOKEN_POOL_BPS_DIVIDER; // TODO test case with max amount and max BPS to prove
+    return (details.amount as int * transferFeeBps as int) / TOKEN_POOL_BPS_DIVIDER; // TODO[TP]: [NONEVM-5336] test case with max amount and max BPS to prove
 }
 
 /// Resolves a fee-config lookup to `TokenPool_TokenTransferFeeConfig?`: null unless the entry
@@ -1603,7 +1602,7 @@ fun TokenPool<T>.onLockOrBurnWithdraw(
     msg: TokenPool_LockOrBurn,
     prepared: TokenPool_LockOrBurnPrepared,
 ): void {
-    // TODO: expose as a hook
+    // TODO[REFACTOR]: [NONEVM-5336] expose as a hook
 
     val forwardPayload = TokenPool_LockOrBurnForwardPayload {
         originalSender: sender,
@@ -1695,7 +1694,7 @@ fun TokenPool<T>.processLockOrBurnTransfer(
         val minValue = self.custodyForward(custodyMoves, requestMsg.finalizationValue);
         assert(msgValue >= minValue, TokenPool_Error.InsufficientMessageValue);
 
-        // TODO: do we assert exact amount?
+        // TODO[VALUE]: [NONEVM-5766] do we assert exact amount?
         assert(details.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
         self.onLockOrBurnTransferContinue(sender, msgValue, msg, fwdp);
     } catch (errorCode) {
@@ -2056,20 +2055,12 @@ fun TokenPool<T>.calculateLocalAmount(self, remoteAmount: uint256, remoteDecimal
 
         if (remoteDecimals > self.data.tokenDecimals) {
             val decimalsDiff = remoteDecimals - self.data.tokenDecimals;
-            // This is a safety check to prevent overflow in the next calculation.
-            // TODO Move to math as safePow() and mustPow()
-
             return remoteAmount / mustPow10(decimalsDiff, TokenPool_Error.OverflowDetected);
         }
 
-        // This is a safety check to prevent overflow in the next calculation.
-        // More than 77 would never fit in a uint256 and would cause an overflow.
-        // We also check if the resulting amount would overflow.
         val decimalsDiff = self.data.tokenDecimals - remoteDecimals;
         val scale = mustPow10(decimalsDiff, TokenPool_Error.OverflowDetected);
-        assert(scale == 0 || remoteAmount <= MAX_UINT256 / scale, TokenPool_Error.OverflowDetected);
-    
-        return remoteAmount * scale;
+        return mustProd(remoteAmount as int, scale as int, TokenPool_Error.OverflowDetected) as uint256;
     }(), TokenPool_Error.OverflowDetected)
 }
 
@@ -2456,7 +2447,7 @@ fun TokenPool<T>.setRateLimitConfig(
     queryId: uint64,
     updates: SnakedCell<TokenPool_RateLimitConfigArgs>,
 ) {
-    // TODO: A/dynamic - loops over updates; a static S does not bound large inputs
+    // TODO[VALUE]: [NONEVM-5766] A/dynamic - loops over updates; a static S does not bound large inputs
     self.requireMinValue(msgValue);
 
     self.onlyOwnerOrRateLimitAdmin(sender);
@@ -2466,17 +2457,9 @@ fun TokenPool<T>.setRateLimitConfig(
         val update = iter.next();
         var config = self.data.remoteChainConfigs.mustGet(update.remoteChainSelector, TokenPool_Error.NonExistentChain as int);
         if (update.fastFinality) {
-            var fastRateLimiters = config.fastFinalityRateLimiters.load();
-            // TODO: use setter RateLimiter._setTokenBucketConfig
-            fastRateLimiters.outbound = RateLimiter_TokenBucket.fromConfig(update.outboundRateLimiterConfig.load()).toCell();
-            fastRateLimiters.inbound = RateLimiter_TokenBucket.fromConfig(update.inboundRateLimiterConfig.load()).toCell();
-            config.fastFinalityRateLimiters = fastRateLimiters.toCell();
+            config.fastFinalityRateLimiters.updateRateLimiters(update);
         } else {
-            var rateLimiters = config.rateLimiters.load();
-            // TODO: use setter RateLimiter._setTokenBucketConfig
-            rateLimiters.outbound = RateLimiter_TokenBucket.fromConfig(update.outboundRateLimiterConfig.load()).toCell();
-            rateLimiters.inbound = RateLimiter_TokenBucket.fromConfig(update.inboundRateLimiterConfig.load()).toCell();
-            config.rateLimiters = rateLimiters.toCell();
+            config.rateLimiters.updateRateLimiters(update);
         }
         self.data.remoteChainConfigs.set(update.remoteChainSelector, config);
 
@@ -2490,6 +2473,19 @@ fun TokenPool<T>.setRateLimitConfig(
         body: TokenPool_RateLimitConfiguredNotification { queryId },
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// @notice Updates the rate limiters for a given rate limiter pair.
+/// @param update The rate limit configuration arguments.
+fun Cell<TokenPool_RateLimiterPair>.updateRateLimiters(mutate self, update: TokenPool_RateLimitConfigArgs) {
+    var rateLimiters = self.load();
+    var outbound = rateLimiters.outbound.load();
+    outbound._setTokenBucketConfig(update.outboundRateLimiterConfig.load());
+    var inbound = rateLimiters.inbound.load();
+    inbound._setTokenBucketConfig(update.inboundRateLimiterConfig.load());
+    rateLimiters.outbound = outbound.toCell();
+    rateLimiters.inbound = inbound.toCell();
+    self = rateLimiters.toCell();
 }
 
 /// Adds a pool address to the allowed remote token pools for a particular chain.
@@ -2527,7 +2523,7 @@ fun TokenPool<T>.onWithdrawFeeTokensDispatch(
     }
 
     // owner/fee-admin fee relay; replacement hook owns its funding policy
-    // TODO: A/dynamic - loops over the withdrawal list; a static S does not bound large inputs
+    // TODO[VALUE]: [NONEVM-5766] A/dynamic - loops over the withdrawal list; a static S does not bound large inputs
     self.requireMinValue(msgValue);
 
     // No cap by default (the jetton wallet's physical balance is the only bound); can be

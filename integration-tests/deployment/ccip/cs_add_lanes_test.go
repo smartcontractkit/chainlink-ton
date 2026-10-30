@@ -189,7 +189,7 @@ func TestAddLanes(t *testing.T) {
 		require.True(t, destConfig.IsEnabled)
 		require.Equal(t, uint16(1), destConfig.MaxNumberOfTokensPerMsg)
 		require.Equal(t, uint32(3000000), destConfig.MaxPerMsgGasLimit)
-		// TODO Add token prices to the fee quoter view and assert that those have been applied on chain
+		// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] Add token prices to the fee quoter view and assert that those have been applied on chain
 
 		// OffRamp
 		offRampView, exit := generatedView.OffRamp[offRampAddr.String()]

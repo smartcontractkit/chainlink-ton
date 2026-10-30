@@ -347,6 +347,126 @@ export const CrossChainAddress = {
 }
 
 /**
+ > struct Ownable2Step {
+ >     owner: address
+ >     pendingOwner: address?
+ > }
+ */
+export interface Ownable2Step {
+    readonly $: 'Ownable2Step'
+    owner: c.Address
+    pendingOwner: c.Address | null /* = null */
+}
+
+export const Ownable2Step = {
+    create(args: {
+        owner: c.Address
+        pendingOwner?: c.Address | null /* = null */
+    }): Ownable2Step {
+        return {
+            $: 'Ownable2Step',
+            pendingOwner: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step {
+        return {
+            $: 'Ownable2Step',
+            owner: s.loadAddress(),
+            pendingOwner: s.loadMaybeAddress(),
+        }
+    },
+    store(self: Ownable2Step, b: c.Builder): void {
+        b.storeAddress(self.owner);
+        b.storeAddress(self.pendingOwner);
+    },
+    toCell(self: Ownable2Step): c.Cell {
+        return makeCellFrom<Ownable2Step>(self, Ownable2Step.store);
+    }
+}
+
+/**
+ > struct (0xf21b7da1) Ownable2Step_TransferOwnership {
+ >     queryId: uint64
+ >     newOwner: address
+ > }
+ */
+export interface Ownable2Step_TransferOwnership {
+    readonly $: 'Ownable2Step_TransferOwnership'
+    queryId: uint64
+    newOwner: c.Address
+}
+
+export const Ownable2Step_TransferOwnership = {
+    PREFIX: 0xf21b7da1,
+
+    create(args: {
+        queryId?: uint64
+        newOwner: c.Address
+    }): Ownable2Step_TransferOwnership {
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_TransferOwnership {
+        loadAndCheckPrefix32(s, 0xf21b7da1, 'Ownable2Step_TransferOwnership');
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            queryId: s.loadUintBig(64),
+            newOwner: s.loadAddress(),
+        }
+    },
+    store(self: Ownable2Step_TransferOwnership, b: c.Builder): void {
+        b.storeUint(0xf21b7da1, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.newOwner);
+    },
+    toCell(self: Ownable2Step_TransferOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_TransferOwnership>(self, Ownable2Step_TransferOwnership.store);
+    }
+}
+
+/**
+ > struct (0xf9e29e4a) Ownable2Step_AcceptOwnership {
+ >     queryId: uint64
+ > }
+ */
+export interface Ownable2Step_AcceptOwnership {
+    readonly $: 'Ownable2Step_AcceptOwnership'
+    queryId: uint64
+}
+
+export const Ownable2Step_AcceptOwnership = {
+    PREFIX: 0xf9e29e4a,
+
+    create(args: {
+        queryId?: uint64
+    }): Ownable2Step_AcceptOwnership {
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_AcceptOwnership {
+        loadAndCheckPrefix32(s, 0xf9e29e4a, 'Ownable2Step_AcceptOwnership');
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: Ownable2Step_AcceptOwnership, b: c.Builder): void {
+        b.storeUint(0xf9e29e4a, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: Ownable2Step_AcceptOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_AcceptOwnership>(self, Ownable2Step_AcceptOwnership.store);
+    }
+}
+
+/**
  > struct TokenPool_DynamicConfig {
  >     router: address
  >     rateLimitAdmin: address?
@@ -4556,6 +4676,50 @@ export const TokenPool_RateLimitConfigured = {
 }
 
 /**
+ > enum TokenPool_Error { 26 variants }
+ */
+export type TokenPool_Error = bigint
+
+export const TokenPool_Error = {
+    InvalidTransferFeeBps: 51700n,
+    InvalidTokenTransferFeeConfig: 51701n,
+    CallerIsNotARampOnRouter: 51702n,
+    ZeroAddressInvalid: 51703n,
+    NonExistentChain: 51704n,
+    ChainNotAllowed: 51705n,
+    CursedByRMN: 51706n,
+    ChainAlreadyExists: 51707n,
+    InvalidSourcePoolAddress: 51708n,
+    InvalidToken: 51709n,
+    Unauthorized: 51710n,
+    PoolAlreadyAdded: 51711n,
+    InvalidRemotePoolForChain: 51712n,
+    InvalidRemoteChainDecimals: 51713n,
+    OverflowDetected: 51714n,
+    InvalidDecimalArgs: 51715n,
+    CallerIsNotOwnerOrFeeAdmin: 51716n,
+    UnsupportedOperation: 51717n,
+    MissingForwardPayload: 51718n,
+    MissingTransferInitiator: 51719n,
+    AmountMismatch: 51720n,
+    InvalidRequestedFinality: 51721n,
+    RateLimitExceeded: 51722n,
+    PreflightCheckFailed: 51723n,
+    PostflightCheckFailed: 51724n,
+    InsufficientMessageValue: 51725n,
+
+    fromSlice(s: c.Slice): TokenPool_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: TokenPool_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: TokenPool_Error): c.Cell {
+        return makeCellFrom<TokenPool_Error>(self, TokenPool_Error.store);
+    }
+}
+
+/**
  > type SnakedCell<T> = cell
  */
 export type SnakedCell<T> = T[]
@@ -4965,45 +5129,6 @@ export const JettonClient = {
 }
 
 /**
- > struct Ownable2Step {
- >     owner: address
- >     pendingOwner: address?
- > }
- */
-export interface Ownable2Step {
-    readonly $: 'Ownable2Step'
-    owner: c.Address
-    pendingOwner: c.Address | null /* = null */
-}
-
-export const Ownable2Step = {
-    create(args: {
-        owner: c.Address
-        pendingOwner?: c.Address | null /* = null */
-    }): Ownable2Step {
-        return {
-            $: 'Ownable2Step',
-            pendingOwner: null,
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): Ownable2Step {
-        return {
-            $: 'Ownable2Step',
-            owner: s.loadAddress(),
-            pendingOwner: s.loadMaybeAddress(),
-        }
-    },
-    store(self: Ownable2Step, b: c.Builder): void {
-        b.storeAddress(self.owner);
-        b.storeAddress(self.pendingOwner);
-    },
-    toCell(self: Ownable2Step): c.Cell {
-        return makeCellFrom<Ownable2Step>(self, Ownable2Step.store);
-    }
-}
-
-/**
  > struct JettonWithdrawable_WithdrawFeeTransfer {
  >     wallet: address
  >     value: coins
@@ -5393,6 +5518,32 @@ export class TokenPool implements c.Contract {
     static CodeCell = c.Cell.fromBase64('te6ccgECQgEAAcMAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBICwtAgEgCAkCASAYGQIBIAoLAgEgFBUCASAMDQIBIBARAgFmDg8ADa3Iwgf5eEAAC6BeED/LwgALocYQP8vCAgEgEhMADa3YQgf5eEAADKlfhA/y8AAMqtCED/LwAgFuFhcADbAfIQP8vCAAC6dRCB/l4QALpFEIH+XhAgEgGhsCASAoKQIBIBwdAgEgJCUCASAeHwIBYiIjAAyqh4QP8vACASAgIQALpjsIH+XhAAulCwgf5eEAC6H6ED/LwgALoH4QP8vCAgEgJicADazjQgf5eEAADKm6hA/y8AAMqoqED/LwAgFYKisADbK64QP8vCAADKl6hA/y8AAMqraED/LwAgFYLi8CASAwMQANs3ohA/y8IAANs7nhA/y8IAIBIDIzAgEgODkCAWY0NQIBZjY3AAuk2wgf5eEAC6bxCB/l4QALp98IH+XhAAumKwgf5eECASA6OwIBIEBBAA2vAcIH+XhAAgFIPD0AC6VfCB/l4QIBWD4/AAu+eED/LwgAC7gYQP8vCAANrGvCB/l4QAANrDjCB/l4QA==');
 
     static Errors = {
+        'TokenPool_Error.InvalidTransferFeeBps': 51700,
+        'TokenPool_Error.InvalidTokenTransferFeeConfig': 51701,
+        'TokenPool_Error.CallerIsNotARampOnRouter': 51702,
+        'TokenPool_Error.ZeroAddressInvalid': 51703,
+        'TokenPool_Error.NonExistentChain': 51704,
+        'TokenPool_Error.ChainNotAllowed': 51705,
+        'TokenPool_Error.CursedByRMN': 51706,
+        'TokenPool_Error.ChainAlreadyExists': 51707,
+        'TokenPool_Error.InvalidSourcePoolAddress': 51708,
+        'TokenPool_Error.InvalidToken': 51709,
+        'TokenPool_Error.Unauthorized': 51710,
+        'TokenPool_Error.PoolAlreadyAdded': 51711,
+        'TokenPool_Error.InvalidRemotePoolForChain': 51712,
+        'TokenPool_Error.InvalidRemoteChainDecimals': 51713,
+        'TokenPool_Error.OverflowDetected': 51714,
+        'TokenPool_Error.InvalidDecimalArgs': 51715,
+        'TokenPool_Error.CallerIsNotOwnerOrFeeAdmin': 51716,
+        'TokenPool_Error.UnsupportedOperation': 51717,
+        'TokenPool_Error.MissingForwardPayload': 51718,
+        'TokenPool_Error.MissingTransferInitiator': 51719,
+        'TokenPool_Error.AmountMismatch': 51720,
+        'TokenPool_Error.InvalidRequestedFinality': 51721,
+        'TokenPool_Error.RateLimitExceeded': 51722,
+        'TokenPool_Error.PreflightCheckFailed': 51723,
+        'TokenPool_Error.PostflightCheckFailed': 51724,
+        'TokenPool_Error.InsufficientMessageValue': 51725,
     }
 
     readonly address: c.Address
@@ -5652,6 +5803,19 @@ export class TokenPool implements c.Contract {
         transfers: array<JettonWithdrawable_WithdrawFeeTransfer>
     }) {
         return JettonWithdrawable_Withdraw.toCell(JettonWithdrawable_Withdraw.create(body));
+    }
+
+    static createCellOfOwnable2StepTransferOwnership(body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }) {
+        return Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body));
+    }
+
+    static createCellOfOwnable2StepAcceptOwnership(body: {
+        queryId?: uint64
+    }) {
+        return Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body));
     }
 
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
@@ -5994,6 +6158,27 @@ export class TokenPool implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: JettonWithdrawable_Withdraw.toCell(JettonWithdrawable_Withdraw.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOwnable2StepTransferOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        newOwner: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOwnable2StepAcceptOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body)),
             ...extraOptions
         });
     }

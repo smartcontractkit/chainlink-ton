@@ -86,7 +86,7 @@ func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider,
 	}
 
 	contractAddress := *deployContractReport.Output.Address
-	// TODO: Qualifier not used here (fix)
+	// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] Qualifier not used here (fix)
 	return &ds.AddressRef{
 		Address:       contractAddress.String(),
 		ChainSelector: chainSelector,

@@ -293,7 +293,7 @@ func TestTxmLocal(t *testing.T) {
 					require.Equal(t, initialValue, currentValue, "Counter should remain unchanged after tx with insufficient funds")
 					setup.txmTestingClient.AssertExpectations(t)
 
-					// TODO TXM should enabling getting TX results with error. Testing logs is not reliable. https://smartcontract-it.atlassian.net/browse/NONEVM-4956
+					// TODO[TEST]: [NONEVM-4956] TXM should enabling getting TX results with error. Testing logs is not reliable.
 					entries := logs.FilterMessage("transaction did not produce any outgoing messages, this may indicate that the value of the enqueued message was higher than the balance of the account").FilterLevelExact(zapcore.ErrorLevel)
 					require.GreaterOrEqual(t, entries.Len(), 1, "expected TXM to log error")
 				}

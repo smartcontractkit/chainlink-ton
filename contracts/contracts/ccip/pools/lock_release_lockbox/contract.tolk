@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 tolk 1.4.2
 
-import "@stdlib/lisp-lists"
-import "@stdlib/gas-payments"
-
 import "../../../lib/utils"
 import "../../../lib/access/access_control"
 import "../../../lib/access/ownable_2step"
@@ -12,9 +9,8 @@ import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/funding/jetton_withdrawable"
 import "../../../lib/gas"
+import "../../lib/cross_chain_address/types"
 
-
-import "../../common/types"
 import "../../rmn_remote/lib"
 
 import "../lib/token_pool/entrypoint"
@@ -285,7 +281,7 @@ fun onDepositFailed(
         return;
     }
 
-    // TODO: the lockbox returns only the post-fee `destTokenAmount` to `returnTo`, so the CCIP
+    // TODO[VALUE]: [NONEVM-5766] the lockbox returns only the post-fee `destTokenAmount` to `returnTo`, so the CCIP
     //       fee is retained by the pool on rejection. Refund the fee (details.amount - destTokenAmount)
     //       to the original sender to make the sender whole.
 

@@ -129,7 +129,6 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 	// Match old behaviour: if a contract isn't bound, we return an empty value so the nodes can achieve consensus on partial config
 	// https://github.com/smartcontractkit/chainlink-ccip/blob/a8dbbdbf14a07593de2f0dbe608f8b64d893a6bd/pkg/contractreader/extended.go#L226-L231
 
-	// TODO: pass in addresses we fetched so subsequent fetches don't fail (offramp->feeQuoter etc)
 	var config ccipocr3.ChainConfigSnapshot
 	var sourceChainConfigs map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig
 
@@ -422,7 +421,7 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 	if err != nil {
 		return 0, fmt.Errorf("failed to get TON client: %w", err)
 	}
-	result, err := client.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, addr, "expectedNextSequenceNumber", uint64(dest)) // TODO refactor to use tvm.CallGetter
+	result, err := client.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, addr, "expectedNextSequenceNumber", uint64(dest))
 	if err != nil {
 		return 0, err
 	}
@@ -859,7 +858,7 @@ func (a *TONAccessor) GetLatestPriceSeqNr(ctx context.Context) (ccipocr3.SeqNum,
 	if err != nil {
 		return 0, fmt.Errorf("failed to get TON client: %w", err)
 	}
-	result, err := client.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, addr, "latestPriceSequenceNumber") // TODO refactor to use tvm.CallGetter
+	result, err := client.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, addr, "latestPriceSequenceNumber")
 	if err != nil {
 		return 0, err
 	}

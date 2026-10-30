@@ -116,7 +116,6 @@ func (r *Relayer) TON() (commontypes.TONService, error) {
 }
 
 func (r *Relayer) NewCCIPProvider(ctx context.Context, cargs commontypes.CCIPProviderArgs) (commontypes.CCIPProvider, error) {
-	// TODO: store chainSelector within Chain
 	chainID, err := strconv.ParseInt(r.chain.ID(), 10, 16)
 	if err != nil {
 		return nil, fmt.Errorf("invalid chain ID %s: could not parse as an integer: %w", r.chain.ID(), err)
@@ -134,7 +133,6 @@ func (r *Relayer) NewCCIPProvider(ctx context.Context, cargs commontypes.CCIPPro
 		return cl, nil
 	}
 
-	// TODO: check if rargs.ContractID is offramp address ?
 	return provider.NewCCIPProvider(
 		r.lggr,
 		ccipocr3.ChainSelector(chainSelector),

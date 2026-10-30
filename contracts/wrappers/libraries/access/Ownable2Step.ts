@@ -37,7 +37,7 @@ export type AcceptOwnership = {
   queryId: bigint
 }
 
-// TODO: crc32 opcode resolution
+// TODO[REFACTOR]: crc32 opcode resolution
 export const opcodes = {
   in: {
     TransferOwnership: crc32('Ownable2Step_TransferOwnership'),

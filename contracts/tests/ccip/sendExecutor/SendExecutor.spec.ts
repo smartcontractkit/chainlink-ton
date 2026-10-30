@@ -642,7 +642,7 @@ describe('SendExecutor - Unit tests', () => {
     const { sendExecutor } = await sendDeploy()
 
     const result = await sendExecutor.sendFeeQuoterMessageValidated(
-      deployer.getSender(), // TODO Should be feeQuoterMock?
+      deployer.getSender(), // TODO[REFACTOR]: Should be feeQuoterMock?
       toNano('0.3'),
       sx.FeeQuoter_MessageValidated.create({
         fee: sx.Fee.create({

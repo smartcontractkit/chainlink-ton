@@ -30,11 +30,13 @@ func _() {
 	_ = x[ErrorManualExecutionGasAmountCountMismatch-22119]
 	_ = x[ErrorInvalidManualExecutionGasLimit-22120]
 	_ = x[ErrorUnexpectedTokenData-22121]
+	_ = x[ErrorMsgDataTooLarge-22122]
+	_ = x[ErrorUnexpectedExtraData-22123]
 }
 
-const _ExitCode_name = "ErrorMessageNotFromOwnedContractErrorSourceChainNotEnabledErrorEmptyExecutionReportErrorInvalidMessageDestChainSelectorErrorSourceChainSelectorMismatchErrorInvalidOnRampUpdateErrorInsufficientFeeErrorSubjectCursedErrorUnauthorizedErrorZeroAddressNotAllowedErrorTooManyMessagesInReportErrorSignatureVerificationRequiredInCommitPluginErrorSignatureVerificationNotAllowedInExecutionPluginErrorInvalidIntervalErrorBatchingNotSupportedErrorOnRampAddressMismatchErrorEmptyCommitReportErrorMerkleRootCannotBeZeroErrorUnsupportedNumberOfTokensErrorManualExecutionGasAmountCountMismatchErrorInvalidManualExecutionGasLimitErrorUnexpectedTokenData"
+const _ExitCode_name = "ErrorMessageNotFromOwnedContractErrorSourceChainNotEnabledErrorEmptyExecutionReportErrorInvalidMessageDestChainSelectorErrorSourceChainSelectorMismatchErrorInvalidOnRampUpdateErrorInsufficientFeeErrorSubjectCursedErrorUnauthorizedErrorZeroAddressNotAllowedErrorTooManyMessagesInReportErrorSignatureVerificationRequiredInCommitPluginErrorSignatureVerificationNotAllowedInExecutionPluginErrorInvalidIntervalErrorBatchingNotSupportedErrorOnRampAddressMismatchErrorEmptyCommitReportErrorMerkleRootCannotBeZeroErrorUnsupportedNumberOfTokensErrorManualExecutionGasAmountCountMismatchErrorInvalidManualExecutionGasLimitErrorUnexpectedTokenDataErrorMsgDataTooLargeErrorUnexpectedExtraData"
 
-var _ExitCode_index = [...]uint16{0, 32, 58, 83, 119, 151, 175, 195, 213, 230, 256, 284, 332, 385, 405, 430, 456, 478, 505, 535, 577, 612, 636}
+var _ExitCode_index = [...]uint16{0, 32, 58, 83, 119, 151, 175, 195, 213, 230, 256, 284, 332, 385, 405, 430, 456, 478, 505, 535, 577, 612, 636, 656, 680}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 22100

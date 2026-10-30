@@ -329,6 +329,794 @@ export const UnsafeBodyNoRef = {
 }
 
 /**
+ > enum Ownable2Step_Error { 3 variants }
+ */
+export type Ownable2Step_Error = bigint
+
+export const Ownable2Step_Error = {
+    OnlyCallableByOwner: 49800n,
+    CannotTransferToSelf: 49801n,
+    MustBeProposedOwner: 49802n,
+
+    fromSlice(s: c.Slice): Ownable2Step_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: Ownable2Step_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: Ownable2Step_Error): c.Cell {
+        return makeCellFrom<Ownable2Step_Error>(self, Ownable2Step_Error.store);
+    }
+}
+
+/**
+ > struct Ownable2Step {
+ >     owner: address
+ >     pendingOwner: address?
+ > }
+ */
+export interface Ownable2Step {
+    readonly $: 'Ownable2Step'
+    owner: c.Address
+    pendingOwner: c.Address | null /* = null */
+}
+
+export const Ownable2Step = {
+    create(args: {
+        owner: c.Address
+        pendingOwner?: c.Address | null /* = null */
+    }): Ownable2Step {
+        return {
+            $: 'Ownable2Step',
+            pendingOwner: null,
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step {
+        return {
+            $: 'Ownable2Step',
+            owner: s.loadAddress(),
+            pendingOwner: s.loadMaybeAddress(),
+        }
+    },
+    store(self: Ownable2Step, b: c.Builder): void {
+        b.storeAddress(self.owner);
+        b.storeAddress(self.pendingOwner);
+    },
+    toCell(self: Ownable2Step): c.Cell {
+        return makeCellFrom<Ownable2Step>(self, Ownable2Step.store);
+    }
+}
+
+/**
+ > struct (0xf21b7da1) Ownable2Step_TransferOwnership {
+ >     queryId: uint64
+ >     newOwner: address
+ > }
+ */
+export interface Ownable2Step_TransferOwnership {
+    readonly $: 'Ownable2Step_TransferOwnership'
+    queryId: uint64
+    newOwner: c.Address
+}
+
+export const Ownable2Step_TransferOwnership = {
+    PREFIX: 0xf21b7da1,
+
+    create(args: {
+        queryId?: uint64
+        newOwner: c.Address
+    }): Ownable2Step_TransferOwnership {
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_TransferOwnership {
+        loadAndCheckPrefix32(s, 0xf21b7da1, 'Ownable2Step_TransferOwnership');
+        return {
+            $: 'Ownable2Step_TransferOwnership',
+            queryId: s.loadUintBig(64),
+            newOwner: s.loadAddress(),
+        }
+    },
+    store(self: Ownable2Step_TransferOwnership, b: c.Builder): void {
+        b.storeUint(0xf21b7da1, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.newOwner);
+    },
+    toCell(self: Ownable2Step_TransferOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_TransferOwnership>(self, Ownable2Step_TransferOwnership.store);
+    }
+}
+
+/**
+ > struct (0xf9e29e4a) Ownable2Step_AcceptOwnership {
+ >     queryId: uint64
+ > }
+ */
+export interface Ownable2Step_AcceptOwnership {
+    readonly $: 'Ownable2Step_AcceptOwnership'
+    queryId: uint64
+}
+
+export const Ownable2Step_AcceptOwnership = {
+    PREFIX: 0xf9e29e4a,
+
+    create(args: {
+        queryId?: uint64
+    }): Ownable2Step_AcceptOwnership {
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_AcceptOwnership {
+        loadAndCheckPrefix32(s, 0xf9e29e4a, 'Ownable2Step_AcceptOwnership');
+        return {
+            $: 'Ownable2Step_AcceptOwnership',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: Ownable2Step_AcceptOwnership, b: c.Builder): void {
+        b.storeUint(0xf9e29e4a, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: Ownable2Step_AcceptOwnership): c.Cell {
+        return makeCellFrom<Ownable2Step_AcceptOwnership>(self, Ownable2Step_AcceptOwnership.store);
+    }
+}
+
+/**
+ > struct Ownable2Step_OwnershipTransferRequested {
+ >     queryId: uint64
+ >     newOwner: address
+ > }
+ */
+export interface Ownable2Step_OwnershipTransferRequested {
+    readonly $: 'Ownable2Step_OwnershipTransferRequested'
+    queryId: uint64
+    newOwner: c.Address
+}
+
+export const Ownable2Step_OwnershipTransferRequested = {
+    create(args: {
+        queryId?: uint64
+        newOwner: c.Address
+    }): Ownable2Step_OwnershipTransferRequested {
+        return {
+            $: 'Ownable2Step_OwnershipTransferRequested',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferRequested {
+        return {
+            $: 'Ownable2Step_OwnershipTransferRequested',
+            queryId: s.loadUintBig(64),
+            newOwner: s.loadAddress(),
+        }
+    },
+    store(self: Ownable2Step_OwnershipTransferRequested, b: c.Builder): void {
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.newOwner);
+    },
+    toCell(self: Ownable2Step_OwnershipTransferRequested): c.Cell {
+        return makeCellFrom<Ownable2Step_OwnershipTransferRequested>(self, Ownable2Step_OwnershipTransferRequested.store);
+    }
+}
+
+/**
+ > struct Ownable2Step_OwnershipTransferred {
+ >     queryId: uint64
+ >     oldOwner: address
+ >     newOwner: address
+ > }
+ */
+export interface Ownable2Step_OwnershipTransferred {
+    readonly $: 'Ownable2Step_OwnershipTransferred'
+    queryId: uint64
+    oldOwner: c.Address
+    newOwner: c.Address
+}
+
+export const Ownable2Step_OwnershipTransferred = {
+    create(args: {
+        queryId?: uint64
+        oldOwner: c.Address
+        newOwner: c.Address
+    }): Ownable2Step_OwnershipTransferred {
+        return {
+            $: 'Ownable2Step_OwnershipTransferred',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferred {
+        return {
+            $: 'Ownable2Step_OwnershipTransferred',
+            queryId: s.loadUintBig(64),
+            oldOwner: s.loadAddress(),
+            newOwner: s.loadAddress(),
+        }
+    },
+    store(self: Ownable2Step_OwnershipTransferred, b: c.Builder): void {
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.oldOwner);
+        b.storeAddress(self.newOwner);
+    },
+    toCell(self: Ownable2Step_OwnershipTransferred): c.Cell {
+        return makeCellFrom<Ownable2Step_OwnershipTransferred>(self, Ownable2Step_OwnershipTransferred.store);
+    }
+}
+
+/**
+ > enum Withdrawable_Error { 3 variants }
+ */
+export type Withdrawable_Error = bigint
+
+export const Withdrawable_Error = {
+    InsufficientBalance: 57100n,
+    HitReserve: 57101n,
+    InvalidRequest: 57102n,
+
+    fromSlice(s: c.Slice): Withdrawable_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: Withdrawable_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: Withdrawable_Error): c.Cell {
+        return makeCellFrom<Withdrawable_Error>(self, Withdrawable_Error.store);
+    }
+}
+
+/**
+ > struct (0xf343fc1b) Withdrawable_Withdraw {
+ >     queryId: uint64
+ >     destination: address
+ >     amount: coins
+ >     reserve: coins?
+ >     drainAllAvailable: bool
+ > }
+ */
+export interface Withdrawable_Withdraw {
+    readonly $: 'Withdrawable_Withdraw'
+    queryId: uint64
+    destination: c.Address
+    amount: coins
+    reserve: coins | null
+    drainAllAvailable: boolean
+}
+
+export const Withdrawable_Withdraw = {
+    PREFIX: 0xf343fc1b,
+
+    create(args: {
+        queryId?: uint64
+        destination: c.Address
+        amount: coins
+        reserve: coins | null
+        drainAllAvailable: boolean
+    }): Withdrawable_Withdraw {
+        return {
+            $: 'Withdrawable_Withdraw',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Withdrawable_Withdraw {
+        loadAndCheckPrefix32(s, 0xf343fc1b, 'Withdrawable_Withdraw');
+        return {
+            $: 'Withdrawable_Withdraw',
+            queryId: s.loadUintBig(64),
+            destination: s.loadAddress(),
+            amount: s.loadCoins(),
+            reserve: s.loadBoolean() ? s.loadCoins() : null,
+            drainAllAvailable: s.loadBoolean(),
+        }
+    },
+    store(self: Withdrawable_Withdraw, b: c.Builder): void {
+        b.storeUint(0xf343fc1b, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.destination);
+        b.storeCoins(self.amount);
+        storeTolkNullable<coins>(self.reserve, b,
+            (v,b) => b.storeCoins(v)
+        );
+        b.storeBit(self.drainAllAvailable);
+    },
+    toCell(self: Withdrawable_Withdraw): c.Cell {
+        return makeCellFrom<Withdrawable_Withdraw>(self, Withdrawable_Withdraw.store);
+    }
+}
+
+/**
+ > enum Upgradeable_Error { 1 variants }
+ */
+export type Upgradeable_Error = bigint
+
+export const Upgradeable_Error = {
+    VersionMismatch: 19900n,
+
+    fromSlice(s: c.Slice): Upgradeable_Error {
+        return s.loadUintBig(15);
+    },
+    store(self: Upgradeable_Error, b: c.Builder): void {
+        b.storeUint(self, 15);
+    },
+    toCell(self: Upgradeable_Error): c.Cell {
+        return makeCellFrom<Upgradeable_Error>(self, Upgradeable_Error.store);
+    }
+}
+
+/**
+ > struct (0x0aa811ed) Upgradeable_Upgrade {
+ >     queryId: uint64
+ >     code: cell
+ > }
+ */
+export interface Upgradeable_Upgrade {
+    readonly $: 'Upgradeable_Upgrade'
+    queryId: uint64
+    code: c.Cell
+}
+
+export const Upgradeable_Upgrade = {
+    PREFIX: 0x0aa811ed,
+
+    create(args: {
+        queryId?: uint64
+        code: c.Cell
+    }): Upgradeable_Upgrade {
+        return {
+            $: 'Upgradeable_Upgrade',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Upgradeable_Upgrade {
+        loadAndCheckPrefix32(s, 0x0aa811ed, 'Upgradeable_Upgrade');
+        return {
+            $: 'Upgradeable_Upgrade',
+            queryId: s.loadUintBig(64),
+            code: s.loadRef(),
+        }
+    },
+    store(self: Upgradeable_Upgrade, b: c.Builder): void {
+        b.storeUint(0x0aa811ed, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeRef(self.code);
+    },
+    toCell(self: Upgradeable_Upgrade): c.Cell {
+        return makeCellFrom<Upgradeable_Upgrade>(self, Upgradeable_Upgrade.store);
+    }
+}
+
+/**
+ > struct Upgradeable_UpgradedEvent {
+ >     code: cell
+ >     hash: uint256
+ >     version: UnsafeBodyNoRef<slice>
+ > }
+ */
+export interface Upgradeable_UpgradedEvent {
+    readonly $: 'Upgradeable_UpgradedEvent'
+    code: c.Cell
+    hash: uint256
+    version: UnsafeBodyNoRef<c.Slice>
+}
+
+export const Upgradeable_UpgradedEvent = {
+    create(args: {
+        code: c.Cell
+        hash: uint256
+        version: UnsafeBodyNoRef<c.Slice>
+    }): Upgradeable_UpgradedEvent {
+        return {
+            $: 'Upgradeable_UpgradedEvent',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Upgradeable_UpgradedEvent {
+        throw new Error(`Can't unpack 'Upgradeable_UpgradedEvent' from cell, because 'UnsafeBodyNoRef.forceInline' is 'slice' (it can be used for writing only)`);
+    },
+    store(self: Upgradeable_UpgradedEvent, b: c.Builder): void {
+        b.storeRef(self.code);
+        b.storeUint(self.hash, 256);
+        b.storeSlice(self.version.forceInline);
+    },
+    toCell(self: Upgradeable_UpgradedEvent): c.Cell {
+        return makeCellFrom<Upgradeable_UpgradedEvent>(self, Upgradeable_UpgradedEvent.store);
+    }
+}
+
+/**
+ > enum Utils_Error { 2 variants }
+ */
+export type Utils_Error = bigint
+
+export const Utils_Error = {
+    InvalidData: 13500n,
+    BitmapOutOfBounds: 13501n,
+
+    fromSlice(s: c.Slice): Utils_Error {
+        return s.loadUintBig(14);
+    },
+    store(self: Utils_Error, b: c.Builder): void {
+        b.storeUint(self, 14);
+    },
+    toCell(self: Utils_Error): c.Cell {
+        return makeCellFrom<Utils_Error>(self, Utils_Error.store);
+    }
+}
+
+/**
+ > type SnakedCell<T> = cell
+ */
+export type SnakedCell<T> = T[]
+
+function buildSnakedCellOf<T>(v: SnakedCell<T>, storeFn_T: StoreCallback<T>): c.Cell {
+    if (v.length === 0) {
+        return c.Cell.EMPTY;
+    }
+    const cells: c.Builder[] = [];
+    let builder = c.beginCell();
+    for (const value of v) {
+        let itemB = c.beginCell();
+        storeFn_T(value, itemB);
+        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
+            cells.push(builder);
+            builder = c.beginCell();
+        }
+        builder.storeBuilder(itemB);
+    }
+    cells.push(builder);
+    let current = cells[cells.length - 1].endCell();
+    for (let i = cells.length - 2; i >= 0; i--) {
+        cells[i].storeRef(current);
+        current = cells[i].endCell();
+    }
+    return current;
+}
+
+function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    b.storeRef(buildSnakedCellOf(v, storeFn_T));
+}
+
+function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
+    let outArr = [] as T[];
+    let head = s.loadRef().beginParse();
+    while (head.remainingBits > 0 || head.remainingRefs > 0) {
+        if (head.remainingBits > 0) {
+            outArr.push(loadFn_T(head));
+        }
+        if (head.remainingRefs > 0) {
+            head = head.loadRef().beginParse();
+        } else {
+            break;
+        }
+    }
+    return outArr;
+}
+
+
+/**
+ > type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
+ */
+export type ExtraArgs =
+    | GenericExtraArgsV2
+    | SVMExtraArgsV1
+    | SuiExtraArgsV1
+
+export const ExtraArgs = {
+    fromSlice(s: c.Slice): ExtraArgs {
+        return lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
+            lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
+            lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
+            throwNonePrefixMatch('ExtraArgs');
+    },
+    store(self: ExtraArgs, b: c.Builder): void {
+        switch (self.$) {
+            case 'GenericExtraArgsV2':
+                GenericExtraArgsV2.store(self, b);
+                break;
+            case 'SVMExtraArgsV1':
+                SVMExtraArgsV1.store(self, b);
+                break;
+            case 'SuiExtraArgsV1':
+                SuiExtraArgsV1.store(self, b);
+                break;
+        }
+    },
+    toCell(self: ExtraArgs): c.Cell {
+        return makeCellFrom<ExtraArgs>(self, ExtraArgs.store);
+    }
+}
+
+/**
+ > struct (0x181dcf10) GenericExtraArgsV2 {
+ >     gasLimit: uint256?
+ >     allowOutOfOrderExecution: bool
+ > }
+ */
+export interface GenericExtraArgsV2 {
+    readonly $: 'GenericExtraArgsV2'
+    gasLimit: uint256 | null
+    allowOutOfOrderExecution: boolean
+}
+
+export const GenericExtraArgsV2 = {
+    PREFIX: 0x181dcf10,
+
+    create(args: {
+        gasLimit: uint256 | null
+        allowOutOfOrderExecution: boolean
+    }): GenericExtraArgsV2 {
+        return {
+            $: 'GenericExtraArgsV2',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): GenericExtraArgsV2 {
+        loadAndCheckPrefix32(s, 0x181dcf10, 'GenericExtraArgsV2');
+        return {
+            $: 'GenericExtraArgsV2',
+            gasLimit: s.loadBoolean() ? s.loadUintBig(256) : null,
+            allowOutOfOrderExecution: s.loadBoolean(),
+        }
+    },
+    store(self: GenericExtraArgsV2, b: c.Builder): void {
+        b.storeUint(0x181dcf10, 32);
+        storeTolkNullable<uint256>(self.gasLimit, b,
+            (v,b) => b.storeUint(v, 256)
+        );
+        b.storeBit(self.allowOutOfOrderExecution);
+    },
+    toCell(self: GenericExtraArgsV2): c.Cell {
+        return makeCellFrom<GenericExtraArgsV2>(self, GenericExtraArgsV2.store);
+    }
+}
+
+/**
+ > struct (0x1f3b3aba) SVMExtraArgsV1 {
+ >     computeUnits: uint32
+ >     accountIsWritableBitmap: uint64
+ >     allowOutOfOrderExecution: bool
+ >     tokenReceiver: uint256
+ >     accounts: SnakedCell<uint256>
+ > }
+ */
+export interface SVMExtraArgsV1 {
+    readonly $: 'SVMExtraArgsV1'
+    computeUnits: uint32
+    accountIsWritableBitmap: uint64
+    allowOutOfOrderExecution: boolean
+    tokenReceiver: uint256
+    accounts: SnakedCell<uint256>
+}
+
+export const SVMExtraArgsV1 = {
+    PREFIX: 0x1f3b3aba,
+
+    create(args: {
+        computeUnits: uint32
+        accountIsWritableBitmap: uint64
+        allowOutOfOrderExecution: boolean
+        tokenReceiver: uint256
+        accounts: SnakedCell<uint256>
+    }): SVMExtraArgsV1 {
+        return {
+            $: 'SVMExtraArgsV1',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): SVMExtraArgsV1 {
+        loadAndCheckPrefix32(s, 0x1f3b3aba, 'SVMExtraArgsV1');
+        return {
+            $: 'SVMExtraArgsV1',
+            computeUnits: s.loadUintBig(32),
+            accountIsWritableBitmap: s.loadUintBig(64),
+            allowOutOfOrderExecution: s.loadBoolean(),
+            tokenReceiver: s.loadUintBig(256),
+            accounts: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+        }
+    },
+    store(self: SVMExtraArgsV1, b: c.Builder): void {
+        b.storeUint(0x1f3b3aba, 32);
+        b.storeUint(self.computeUnits, 32);
+        b.storeUint(self.accountIsWritableBitmap, 64);
+        b.storeBit(self.allowOutOfOrderExecution);
+        b.storeUint(self.tokenReceiver, 256);
+        storeSnakedCellOf(self.accounts, b, (v, b) => b.storeUint(v, 256));
+    },
+    toCell(self: SVMExtraArgsV1): c.Cell {
+        return makeCellFrom<SVMExtraArgsV1>(self, SVMExtraArgsV1.store);
+    }
+}
+
+/**
+ > struct (0x21ea4ca9) SuiExtraArgsV1 {
+ >     gasLimit: uint256
+ >     allowOutOfOrderExecution: bool
+ >     tokenReceiver: uint256
+ >     receiverObjectIds: SnakedCell<uint256>
+ > }
+ */
+export interface SuiExtraArgsV1 {
+    readonly $: 'SuiExtraArgsV1'
+    gasLimit: uint256
+    allowOutOfOrderExecution: boolean
+    tokenReceiver: uint256
+    receiverObjectIds: SnakedCell<uint256>
+}
+
+export const SuiExtraArgsV1 = {
+    PREFIX: 0x21ea4ca9,
+
+    create(args: {
+        gasLimit: uint256
+        allowOutOfOrderExecution: boolean
+        tokenReceiver: uint256
+        receiverObjectIds: SnakedCell<uint256>
+    }): SuiExtraArgsV1 {
+        return {
+            $: 'SuiExtraArgsV1',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): SuiExtraArgsV1 {
+        loadAndCheckPrefix32(s, 0x21ea4ca9, 'SuiExtraArgsV1');
+        return {
+            $: 'SuiExtraArgsV1',
+            gasLimit: s.loadUintBig(256),
+            allowOutOfOrderExecution: s.loadBoolean(),
+            tokenReceiver: s.loadUintBig(256),
+            receiverObjectIds: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
+        }
+    },
+    store(self: SuiExtraArgsV1, b: c.Builder): void {
+        b.storeUint(0x21ea4ca9, 32);
+        b.storeUint(self.gasLimit, 256);
+        b.storeBit(self.allowOutOfOrderExecution);
+        b.storeUint(self.tokenReceiver, 256);
+        storeSnakedCellOf(self.receiverObjectIds, b, (v, b) => b.storeUint(v, 256));
+    },
+    toCell(self: SuiExtraArgsV1): c.Cell {
+        return makeCellFrom<SuiExtraArgsV1>(self, SuiExtraArgsV1.store);
+    }
+}
+
+/**
+ > struct TokenAmount {
+ >     amount: coins
+ >     token: address
+ > }
+ */
+export interface TokenAmount {
+    readonly $: 'TokenAmount'
+    amount: coins
+    token: c.Address
+}
+
+export const TokenAmount = {
+    create(args: {
+        amount: coins
+        token: c.Address
+    }): TokenAmount {
+        return {
+            $: 'TokenAmount',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenAmount {
+        return {
+            $: 'TokenAmount',
+            amount: s.loadCoins(),
+            token: s.loadAddress(),
+        }
+    },
+    store(self: TokenAmount, b: c.Builder): void {
+        b.storeCoins(self.amount);
+        b.storeAddress(self.token);
+    },
+    toCell(self: TokenAmount): c.Cell {
+        return makeCellFrom<TokenAmount>(self, TokenAmount.store);
+    }
+}
+
+/**
+ > struct (0x31768d95) Router_CCIPSend {
+ >     queryID: uint64
+ >     destChainSelector: uint64
+ >     receiver: CrossChainAddress
+ >     data: cell
+ >     tokenAmounts: SnakedCell<TokenAmount>
+ >     feeToken: address?
+ >     extraArgs: Cell<ExtraArgs>
+ > }
+ */
+export interface Router_CCIPSend {
+    readonly $: 'Router_CCIPSend'
+    queryID: uint64
+    destChainSelector: uint64
+    receiver: CrossChainAddress
+    data: c.Cell
+    tokenAmounts: SnakedCell<TokenAmount>
+    feeToken: c.Address | null
+    extraArgs: ExtraArgs
+}
+
+export const Router_CCIPSend = {
+    PREFIX: 0x31768d95,
+
+    create(args: {
+        queryID?: uint64
+        destChainSelector: uint64
+        receiver: CrossChainAddress
+        data: c.Cell
+        tokenAmounts: SnakedCell<TokenAmount>
+        feeToken: c.Address | null
+        extraArgs: ExtraArgs
+    }): Router_CCIPSend {
+        return {
+            $: 'Router_CCIPSend',
+            ...args,
+            queryID: args.queryID ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_CCIPSend {
+        loadAndCheckPrefix32(s, 0x31768d95, 'Router_CCIPSend');
+        return {
+            $: 'Router_CCIPSend',
+            queryID: s.loadUintBig(64),
+            destChainSelector: s.loadUintBig(64),
+            receiver: CrossChainAddress.fromSlice(s),
+            data: s.loadRef(),
+            tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
+            feeToken: s.loadMaybeAddress(),
+            extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
+        }
+    },
+    store(self: Router_CCIPSend, b: c.Builder): void {
+        b.storeUint(0x31768d95, 32);
+        b.storeUint(self.queryID, 64);
+        b.storeUint(self.destChainSelector, 64);
+        CrossChainAddress.store(self.receiver, b);
+        b.storeRef(self.data);
+        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
+        b.storeAddress(self.feeToken);
+        storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
+    },
+    toCell(self: Router_CCIPSend): c.Cell {
+        return makeCellFrom<Router_CCIPSend>(self, Router_CCIPSend.store);
+    }
+}
+
+/**
+ > enum DestFamilyAddressValidation_Error { 3 variants }
+ */
+export type DestFamilyAddressValidation_Error = bigint
+
+export const DestFamilyAddressValidation_Error = {
+    InvalidEVMAddress: 35100n,
+    Invalid32ByteAddress: 35101n,
+    UnsupportedChainFamilySelector: 35102n,
+
+    fromSlice(s: c.Slice): DestFamilyAddressValidation_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: DestFamilyAddressValidation_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: DestFamilyAddressValidation_Error): c.Cell {
+        return makeCellFrom<DestFamilyAddressValidation_Error>(self, DestFamilyAddressValidation_Error.store);
+    }
+}
+
+/**
  > enum FeeQuoter_Error { 31 variants }
  */
 export type FeeQuoter_Error = bigint
@@ -1561,794 +2349,6 @@ export const CrossChainAddress = {
     }
 }
 
-/**
- > type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
- */
-export type ExtraArgs =
-    | GenericExtraArgsV2
-    | SVMExtraArgsV1
-    | SuiExtraArgsV1
-
-export const ExtraArgs = {
-    fromSlice(s: c.Slice): ExtraArgs {
-        return lookupPrefix(s, 0x181dcf10, 32) ? GenericExtraArgsV2.fromSlice(s) :
-            lookupPrefix(s, 0x1f3b3aba, 32) ? SVMExtraArgsV1.fromSlice(s) :
-            lookupPrefix(s, 0x21ea4ca9, 32) ? SuiExtraArgsV1.fromSlice(s) :
-            throwNonePrefixMatch('ExtraArgs');
-    },
-    store(self: ExtraArgs, b: c.Builder): void {
-        switch (self.$) {
-            case 'GenericExtraArgsV2':
-                GenericExtraArgsV2.store(self, b);
-                break;
-            case 'SVMExtraArgsV1':
-                SVMExtraArgsV1.store(self, b);
-                break;
-            case 'SuiExtraArgsV1':
-                SuiExtraArgsV1.store(self, b);
-                break;
-        }
-    },
-    toCell(self: ExtraArgs): c.Cell {
-        return makeCellFrom<ExtraArgs>(self, ExtraArgs.store);
-    }
-}
-
-/**
- > struct (0x181dcf10) GenericExtraArgsV2 {
- >     gasLimit: uint256?
- >     allowOutOfOrderExecution: bool
- > }
- */
-export interface GenericExtraArgsV2 {
-    readonly $: 'GenericExtraArgsV2'
-    gasLimit: uint256 | null
-    allowOutOfOrderExecution: boolean
-}
-
-export const GenericExtraArgsV2 = {
-    PREFIX: 0x181dcf10,
-
-    create(args: {
-        gasLimit: uint256 | null
-        allowOutOfOrderExecution: boolean
-    }): GenericExtraArgsV2 {
-        return {
-            $: 'GenericExtraArgsV2',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): GenericExtraArgsV2 {
-        loadAndCheckPrefix32(s, 0x181dcf10, 'GenericExtraArgsV2');
-        return {
-            $: 'GenericExtraArgsV2',
-            gasLimit: s.loadBoolean() ? s.loadUintBig(256) : null,
-            allowOutOfOrderExecution: s.loadBoolean(),
-        }
-    },
-    store(self: GenericExtraArgsV2, b: c.Builder): void {
-        b.storeUint(0x181dcf10, 32);
-        storeTolkNullable<uint256>(self.gasLimit, b,
-            (v,b) => b.storeUint(v, 256)
-        );
-        b.storeBit(self.allowOutOfOrderExecution);
-    },
-    toCell(self: GenericExtraArgsV2): c.Cell {
-        return makeCellFrom<GenericExtraArgsV2>(self, GenericExtraArgsV2.store);
-    }
-}
-
-/**
- > struct (0x1f3b3aba) SVMExtraArgsV1 {
- >     computeUnits: uint32
- >     accountIsWritableBitmap: uint64
- >     allowOutOfOrderExecution: bool
- >     tokenReceiver: uint256
- >     accounts: SnakedCell<uint256>
- > }
- */
-export interface SVMExtraArgsV1 {
-    readonly $: 'SVMExtraArgsV1'
-    computeUnits: uint32
-    accountIsWritableBitmap: uint64
-    allowOutOfOrderExecution: boolean
-    tokenReceiver: uint256
-    accounts: SnakedCell<uint256>
-}
-
-export const SVMExtraArgsV1 = {
-    PREFIX: 0x1f3b3aba,
-
-    create(args: {
-        computeUnits: uint32
-        accountIsWritableBitmap: uint64
-        allowOutOfOrderExecution: boolean
-        tokenReceiver: uint256
-        accounts: SnakedCell<uint256>
-    }): SVMExtraArgsV1 {
-        return {
-            $: 'SVMExtraArgsV1',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): SVMExtraArgsV1 {
-        loadAndCheckPrefix32(s, 0x1f3b3aba, 'SVMExtraArgsV1');
-        return {
-            $: 'SVMExtraArgsV1',
-            computeUnits: s.loadUintBig(32),
-            accountIsWritableBitmap: s.loadUintBig(64),
-            allowOutOfOrderExecution: s.loadBoolean(),
-            tokenReceiver: s.loadUintBig(256),
-            accounts: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
-        }
-    },
-    store(self: SVMExtraArgsV1, b: c.Builder): void {
-        b.storeUint(0x1f3b3aba, 32);
-        b.storeUint(self.computeUnits, 32);
-        b.storeUint(self.accountIsWritableBitmap, 64);
-        b.storeBit(self.allowOutOfOrderExecution);
-        b.storeUint(self.tokenReceiver, 256);
-        storeSnakedCellOf(self.accounts, b, (v, b) => b.storeUint(v, 256));
-    },
-    toCell(self: SVMExtraArgsV1): c.Cell {
-        return makeCellFrom<SVMExtraArgsV1>(self, SVMExtraArgsV1.store);
-    }
-}
-
-/**
- > struct (0x21ea4ca9) SuiExtraArgsV1 {
- >     gasLimit: uint256
- >     allowOutOfOrderExecution: bool
- >     tokenReceiver: uint256
- >     receiverObjectIds: SnakedCell<uint256>
- > }
- */
-export interface SuiExtraArgsV1 {
-    readonly $: 'SuiExtraArgsV1'
-    gasLimit: uint256
-    allowOutOfOrderExecution: boolean
-    tokenReceiver: uint256
-    receiverObjectIds: SnakedCell<uint256>
-}
-
-export const SuiExtraArgsV1 = {
-    PREFIX: 0x21ea4ca9,
-
-    create(args: {
-        gasLimit: uint256
-        allowOutOfOrderExecution: boolean
-        tokenReceiver: uint256
-        receiverObjectIds: SnakedCell<uint256>
-    }): SuiExtraArgsV1 {
-        return {
-            $: 'SuiExtraArgsV1',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): SuiExtraArgsV1 {
-        loadAndCheckPrefix32(s, 0x21ea4ca9, 'SuiExtraArgsV1');
-        return {
-            $: 'SuiExtraArgsV1',
-            gasLimit: s.loadUintBig(256),
-            allowOutOfOrderExecution: s.loadBoolean(),
-            tokenReceiver: s.loadUintBig(256),
-            receiverObjectIds: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
-        }
-    },
-    store(self: SuiExtraArgsV1, b: c.Builder): void {
-        b.storeUint(0x21ea4ca9, 32);
-        b.storeUint(self.gasLimit, 256);
-        b.storeBit(self.allowOutOfOrderExecution);
-        b.storeUint(self.tokenReceiver, 256);
-        storeSnakedCellOf(self.receiverObjectIds, b, (v, b) => b.storeUint(v, 256));
-    },
-    toCell(self: SuiExtraArgsV1): c.Cell {
-        return makeCellFrom<SuiExtraArgsV1>(self, SuiExtraArgsV1.store);
-    }
-}
-
-/**
- > struct TokenAmount {
- >     amount: coins
- >     token: address
- > }
- */
-export interface TokenAmount {
-    readonly $: 'TokenAmount'
-    amount: coins
-    token: c.Address
-}
-
-export const TokenAmount = {
-    create(args: {
-        amount: coins
-        token: c.Address
-    }): TokenAmount {
-        return {
-            $: 'TokenAmount',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): TokenAmount {
-        return {
-            $: 'TokenAmount',
-            amount: s.loadCoins(),
-            token: s.loadAddress(),
-        }
-    },
-    store(self: TokenAmount, b: c.Builder): void {
-        b.storeCoins(self.amount);
-        b.storeAddress(self.token);
-    },
-    toCell(self: TokenAmount): c.Cell {
-        return makeCellFrom<TokenAmount>(self, TokenAmount.store);
-    }
-}
-
-/**
- > enum DestFamilyAddressValidation_Error { 3 variants }
- */
-export type DestFamilyAddressValidation_Error = bigint
-
-export const DestFamilyAddressValidation_Error = {
-    InvalidEVMAddress: 35100n,
-    Invalid32ByteAddress: 35101n,
-    UnsupportedChainFamilySelector: 35102n,
-
-    fromSlice(s: c.Slice): DestFamilyAddressValidation_Error {
-        return s.loadUintBig(16);
-    },
-    store(self: DestFamilyAddressValidation_Error, b: c.Builder): void {
-        b.storeUint(self, 16);
-    },
-    toCell(self: DestFamilyAddressValidation_Error): c.Cell {
-        return makeCellFrom<DestFamilyAddressValidation_Error>(self, DestFamilyAddressValidation_Error.store);
-    }
-}
-
-/**
- > enum Ownable2Step_Error { 3 variants }
- */
-export type Ownable2Step_Error = bigint
-
-export const Ownable2Step_Error = {
-    OnlyCallableByOwner: 49800n,
-    CannotTransferToSelf: 49801n,
-    MustBeProposedOwner: 49802n,
-
-    fromSlice(s: c.Slice): Ownable2Step_Error {
-        return s.loadUintBig(16);
-    },
-    store(self: Ownable2Step_Error, b: c.Builder): void {
-        b.storeUint(self, 16);
-    },
-    toCell(self: Ownable2Step_Error): c.Cell {
-        return makeCellFrom<Ownable2Step_Error>(self, Ownable2Step_Error.store);
-    }
-}
-
-/**
- > struct Ownable2Step {
- >     owner: address
- >     pendingOwner: address?
- > }
- */
-export interface Ownable2Step {
-    readonly $: 'Ownable2Step'
-    owner: c.Address
-    pendingOwner: c.Address | null /* = null */
-}
-
-export const Ownable2Step = {
-    create(args: {
-        owner: c.Address
-        pendingOwner?: c.Address | null /* = null */
-    }): Ownable2Step {
-        return {
-            $: 'Ownable2Step',
-            pendingOwner: null,
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): Ownable2Step {
-        return {
-            $: 'Ownable2Step',
-            owner: s.loadAddress(),
-            pendingOwner: s.loadMaybeAddress(),
-        }
-    },
-    store(self: Ownable2Step, b: c.Builder): void {
-        b.storeAddress(self.owner);
-        b.storeAddress(self.pendingOwner);
-    },
-    toCell(self: Ownable2Step): c.Cell {
-        return makeCellFrom<Ownable2Step>(self, Ownable2Step.store);
-    }
-}
-
-/**
- > struct (0xf21b7da1) Ownable2Step_TransferOwnership {
- >     queryId: uint64
- >     newOwner: address
- > }
- */
-export interface Ownable2Step_TransferOwnership {
-    readonly $: 'Ownable2Step_TransferOwnership'
-    queryId: uint64
-    newOwner: c.Address
-}
-
-export const Ownable2Step_TransferOwnership = {
-    PREFIX: 0xf21b7da1,
-
-    create(args: {
-        queryId?: uint64
-        newOwner: c.Address
-    }): Ownable2Step_TransferOwnership {
-        return {
-            $: 'Ownable2Step_TransferOwnership',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Ownable2Step_TransferOwnership {
-        loadAndCheckPrefix32(s, 0xf21b7da1, 'Ownable2Step_TransferOwnership');
-        return {
-            $: 'Ownable2Step_TransferOwnership',
-            queryId: s.loadUintBig(64),
-            newOwner: s.loadAddress(),
-        }
-    },
-    store(self: Ownable2Step_TransferOwnership, b: c.Builder): void {
-        b.storeUint(0xf21b7da1, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeAddress(self.newOwner);
-    },
-    toCell(self: Ownable2Step_TransferOwnership): c.Cell {
-        return makeCellFrom<Ownable2Step_TransferOwnership>(self, Ownable2Step_TransferOwnership.store);
-    }
-}
-
-/**
- > struct (0xf9e29e4a) Ownable2Step_AcceptOwnership {
- >     queryId: uint64
- > }
- */
-export interface Ownable2Step_AcceptOwnership {
-    readonly $: 'Ownable2Step_AcceptOwnership'
-    queryId: uint64
-}
-
-export const Ownable2Step_AcceptOwnership = {
-    PREFIX: 0xf9e29e4a,
-
-    create(args: {
-        queryId?: uint64
-    }): Ownable2Step_AcceptOwnership {
-        return {
-            $: 'Ownable2Step_AcceptOwnership',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Ownable2Step_AcceptOwnership {
-        loadAndCheckPrefix32(s, 0xf9e29e4a, 'Ownable2Step_AcceptOwnership');
-        return {
-            $: 'Ownable2Step_AcceptOwnership',
-            queryId: s.loadUintBig(64),
-        }
-    },
-    store(self: Ownable2Step_AcceptOwnership, b: c.Builder): void {
-        b.storeUint(0xf9e29e4a, 32);
-        b.storeUint(self.queryId, 64);
-    },
-    toCell(self: Ownable2Step_AcceptOwnership): c.Cell {
-        return makeCellFrom<Ownable2Step_AcceptOwnership>(self, Ownable2Step_AcceptOwnership.store);
-    }
-}
-
-/**
- > struct Ownable2Step_OwnershipTransferRequested {
- >     queryId: uint64
- >     newOwner: address
- > }
- */
-export interface Ownable2Step_OwnershipTransferRequested {
-    readonly $: 'Ownable2Step_OwnershipTransferRequested'
-    queryId: uint64
-    newOwner: c.Address
-}
-
-export const Ownable2Step_OwnershipTransferRequested = {
-    create(args: {
-        queryId?: uint64
-        newOwner: c.Address
-    }): Ownable2Step_OwnershipTransferRequested {
-        return {
-            $: 'Ownable2Step_OwnershipTransferRequested',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferRequested {
-        return {
-            $: 'Ownable2Step_OwnershipTransferRequested',
-            queryId: s.loadUintBig(64),
-            newOwner: s.loadAddress(),
-        }
-    },
-    store(self: Ownable2Step_OwnershipTransferRequested, b: c.Builder): void {
-        b.storeUint(self.queryId, 64);
-        b.storeAddress(self.newOwner);
-    },
-    toCell(self: Ownable2Step_OwnershipTransferRequested): c.Cell {
-        return makeCellFrom<Ownable2Step_OwnershipTransferRequested>(self, Ownable2Step_OwnershipTransferRequested.store);
-    }
-}
-
-/**
- > struct Ownable2Step_OwnershipTransferred {
- >     queryId: uint64
- >     oldOwner: address
- >     newOwner: address
- > }
- */
-export interface Ownable2Step_OwnershipTransferred {
-    readonly $: 'Ownable2Step_OwnershipTransferred'
-    queryId: uint64
-    oldOwner: c.Address
-    newOwner: c.Address
-}
-
-export const Ownable2Step_OwnershipTransferred = {
-    create(args: {
-        queryId?: uint64
-        oldOwner: c.Address
-        newOwner: c.Address
-    }): Ownable2Step_OwnershipTransferred {
-        return {
-            $: 'Ownable2Step_OwnershipTransferred',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferred {
-        return {
-            $: 'Ownable2Step_OwnershipTransferred',
-            queryId: s.loadUintBig(64),
-            oldOwner: s.loadAddress(),
-            newOwner: s.loadAddress(),
-        }
-    },
-    store(self: Ownable2Step_OwnershipTransferred, b: c.Builder): void {
-        b.storeUint(self.queryId, 64);
-        b.storeAddress(self.oldOwner);
-        b.storeAddress(self.newOwner);
-    },
-    toCell(self: Ownable2Step_OwnershipTransferred): c.Cell {
-        return makeCellFrom<Ownable2Step_OwnershipTransferred>(self, Ownable2Step_OwnershipTransferred.store);
-    }
-}
-
-/**
- > enum Withdrawable_Error { 3 variants }
- */
-export type Withdrawable_Error = bigint
-
-export const Withdrawable_Error = {
-    InsufficientBalance: 57100n,
-    HitReserve: 57101n,
-    InvalidRequest: 57102n,
-
-    fromSlice(s: c.Slice): Withdrawable_Error {
-        return s.loadUintBig(16);
-    },
-    store(self: Withdrawable_Error, b: c.Builder): void {
-        b.storeUint(self, 16);
-    },
-    toCell(self: Withdrawable_Error): c.Cell {
-        return makeCellFrom<Withdrawable_Error>(self, Withdrawable_Error.store);
-    }
-}
-
-/**
- > struct (0xf343fc1b) Withdrawable_Withdraw {
- >     queryId: uint64
- >     destination: address
- >     amount: coins
- >     reserve: coins?
- >     drainAllAvailable: bool
- > }
- */
-export interface Withdrawable_Withdraw {
-    readonly $: 'Withdrawable_Withdraw'
-    queryId: uint64
-    destination: c.Address
-    amount: coins
-    reserve: coins | null
-    drainAllAvailable: boolean
-}
-
-export const Withdrawable_Withdraw = {
-    PREFIX: 0xf343fc1b,
-
-    create(args: {
-        queryId?: uint64
-        destination: c.Address
-        amount: coins
-        reserve: coins | null
-        drainAllAvailable: boolean
-    }): Withdrawable_Withdraw {
-        return {
-            $: 'Withdrawable_Withdraw',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Withdrawable_Withdraw {
-        loadAndCheckPrefix32(s, 0xf343fc1b, 'Withdrawable_Withdraw');
-        return {
-            $: 'Withdrawable_Withdraw',
-            queryId: s.loadUintBig(64),
-            destination: s.loadAddress(),
-            amount: s.loadCoins(),
-            reserve: s.loadBoolean() ? s.loadCoins() : null,
-            drainAllAvailable: s.loadBoolean(),
-        }
-    },
-    store(self: Withdrawable_Withdraw, b: c.Builder): void {
-        b.storeUint(0xf343fc1b, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeAddress(self.destination);
-        b.storeCoins(self.amount);
-        storeTolkNullable<coins>(self.reserve, b,
-            (v,b) => b.storeCoins(v)
-        );
-        b.storeBit(self.drainAllAvailable);
-    },
-    toCell(self: Withdrawable_Withdraw): c.Cell {
-        return makeCellFrom<Withdrawable_Withdraw>(self, Withdrawable_Withdraw.store);
-    }
-}
-
-/**
- > enum Upgradeable_Error { 1 variants }
- */
-export type Upgradeable_Error = bigint
-
-export const Upgradeable_Error = {
-    VersionMismatch: 19900n,
-
-    fromSlice(s: c.Slice): Upgradeable_Error {
-        return s.loadUintBig(15);
-    },
-    store(self: Upgradeable_Error, b: c.Builder): void {
-        b.storeUint(self, 15);
-    },
-    toCell(self: Upgradeable_Error): c.Cell {
-        return makeCellFrom<Upgradeable_Error>(self, Upgradeable_Error.store);
-    }
-}
-
-/**
- > struct (0x0aa811ed) Upgradeable_Upgrade {
- >     queryId: uint64
- >     code: cell
- > }
- */
-export interface Upgradeable_Upgrade {
-    readonly $: 'Upgradeable_Upgrade'
-    queryId: uint64
-    code: c.Cell
-}
-
-export const Upgradeable_Upgrade = {
-    PREFIX: 0x0aa811ed,
-
-    create(args: {
-        queryId?: uint64
-        code: c.Cell
-    }): Upgradeable_Upgrade {
-        return {
-            $: 'Upgradeable_Upgrade',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Upgradeable_Upgrade {
-        loadAndCheckPrefix32(s, 0x0aa811ed, 'Upgradeable_Upgrade');
-        return {
-            $: 'Upgradeable_Upgrade',
-            queryId: s.loadUintBig(64),
-            code: s.loadRef(),
-        }
-    },
-    store(self: Upgradeable_Upgrade, b: c.Builder): void {
-        b.storeUint(0x0aa811ed, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeRef(self.code);
-    },
-    toCell(self: Upgradeable_Upgrade): c.Cell {
-        return makeCellFrom<Upgradeable_Upgrade>(self, Upgradeable_Upgrade.store);
-    }
-}
-
-/**
- > struct Upgradeable_UpgradedEvent {
- >     code: cell
- >     hash: uint256
- >     version: UnsafeBodyNoRef<slice>
- > }
- */
-export interface Upgradeable_UpgradedEvent {
-    readonly $: 'Upgradeable_UpgradedEvent'
-    code: c.Cell
-    hash: uint256
-    version: UnsafeBodyNoRef<c.Slice>
-}
-
-export const Upgradeable_UpgradedEvent = {
-    create(args: {
-        code: c.Cell
-        hash: uint256
-        version: UnsafeBodyNoRef<c.Slice>
-    }): Upgradeable_UpgradedEvent {
-        return {
-            $: 'Upgradeable_UpgradedEvent',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): Upgradeable_UpgradedEvent {
-        throw new Error(`Can't unpack 'Upgradeable_UpgradedEvent' from cell, because 'UnsafeBodyNoRef.forceInline' is 'slice' (it can be used for writing only)`);
-    },
-    store(self: Upgradeable_UpgradedEvent, b: c.Builder): void {
-        b.storeRef(self.code);
-        b.storeUint(self.hash, 256);
-        b.storeSlice(self.version.forceInline);
-    },
-    toCell(self: Upgradeable_UpgradedEvent): c.Cell {
-        return makeCellFrom<Upgradeable_UpgradedEvent>(self, Upgradeable_UpgradedEvent.store);
-    }
-}
-
-/**
- > enum Utils_Error { 2 variants }
- */
-export type Utils_Error = bigint
-
-export const Utils_Error = {
-    InvalidData: 13500n,
-    BitmapOutOfBounds: 13501n,
-
-    fromSlice(s: c.Slice): Utils_Error {
-        return s.loadUintBig(14);
-    },
-    store(self: Utils_Error, b: c.Builder): void {
-        b.storeUint(self, 14);
-    },
-    toCell(self: Utils_Error): c.Cell {
-        return makeCellFrom<Utils_Error>(self, Utils_Error.store);
-    }
-}
-
-/**
- > type SnakedCell<T> = cell
- */
-export type SnakedCell<T> = T[]
-
-function buildSnakedCellOf<T>(v: SnakedCell<T>, storeFn_T: StoreCallback<T>): c.Cell {
-    if (v.length === 0) {
-        return c.Cell.EMPTY;
-    }
-    const cells: c.Builder[] = [];
-    let builder = c.beginCell();
-    for (const value of v) {
-        let itemB = c.beginCell();
-        storeFn_T(value, itemB);
-        if (builder.availableBits < itemB.bits || builder.availableRefs <= 1) {
-            cells.push(builder);
-            builder = c.beginCell();
-        }
-        builder.storeBuilder(itemB);
-    }
-    cells.push(builder);
-    let current = cells[cells.length - 1].endCell();
-    for (let i = cells.length - 2; i >= 0; i--) {
-        cells[i].storeRef(current);
-        current = cells[i].endCell();
-    }
-    return current;
-}
-
-function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
-    b.storeRef(buildSnakedCellOf(v, storeFn_T));
-}
-
-function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
-    let outArr = [] as T[];
-    let head = s.loadRef().beginParse();
-    while (head.remainingBits > 0 || head.remainingRefs > 0) {
-        if (head.remainingBits > 0) {
-            outArr.push(loadFn_T(head));
-        }
-        if (head.remainingRefs > 0) {
-            head = head.loadRef().beginParse();
-        } else {
-            break;
-        }
-    }
-    return outArr;
-}
-
-
-/**
- > struct (0x31768d95) Router_CCIPSend {
- >     queryID: uint64
- >     destChainSelector: uint64
- >     receiver: CrossChainAddress
- >     data: cell
- >     tokenAmounts: SnakedCell<TokenAmount>
- >     feeToken: address?
- >     extraArgs: Cell<ExtraArgs>
- > }
- */
-export interface Router_CCIPSend {
-    readonly $: 'Router_CCIPSend'
-    queryID: uint64
-    destChainSelector: uint64
-    receiver: CrossChainAddress
-    data: c.Cell
-    tokenAmounts: SnakedCell<TokenAmount>
-    feeToken: c.Address | null
-    extraArgs: ExtraArgs
-}
-
-export const Router_CCIPSend = {
-    PREFIX: 0x31768d95,
-
-    create(args: {
-        queryID?: uint64
-        destChainSelector: uint64
-        receiver: CrossChainAddress
-        data: c.Cell
-        tokenAmounts: SnakedCell<TokenAmount>
-        feeToken: c.Address | null
-        extraArgs: ExtraArgs
-    }): Router_CCIPSend {
-        return {
-            $: 'Router_CCIPSend',
-            ...args,
-            queryID: args.queryID ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Router_CCIPSend {
-        loadAndCheckPrefix32(s, 0x31768d95, 'Router_CCIPSend');
-        return {
-            $: 'Router_CCIPSend',
-            queryID: s.loadUintBig(64),
-            destChainSelector: s.loadUintBig(64),
-            receiver: CrossChainAddress.fromSlice(s),
-            data: s.loadRef(),
-            tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
-            feeToken: s.loadMaybeAddress(),
-            extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
-        }
-    },
-    store(self: Router_CCIPSend, b: c.Builder): void {
-        b.storeUint(0x31768d95, 32);
-        b.storeUint(self.queryID, 64);
-        b.storeUint(self.destChainSelector, 64);
-        CrossChainAddress.store(self.receiver, b);
-        b.storeRef(self.data);
-        storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
-        b.storeAddress(self.feeToken);
-        storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
-    },
-    toCell(self: Router_CCIPSend): c.Cell {
-        return makeCellFrom<Router_CCIPSend>(self, Router_CCIPSend.store);
-    }
-}
-
 // ————————————————————————————————————————————
 //    class FeeQuoter
 //
@@ -2388,7 +2388,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class FeeQuoter implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'Utils_Error.InvalidData': 13500,

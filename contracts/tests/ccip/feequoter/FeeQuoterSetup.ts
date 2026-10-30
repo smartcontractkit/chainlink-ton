@@ -231,7 +231,7 @@ export class FeeQuoterSetup {
     const feeQuoterContract = this.blockchain.openContract(
       feeQuoter.FeeQuoter.fromStorage(data, { overrideContractCode: this.code.feeQuoter }),
     )
-    // TODO shis is unatural
+    // TODO[REFACTOR]: this is unatural
     this.bind = { feeQuoter: feeQuoterContract } as TestContracts
   }
 

@@ -291,7 +291,7 @@ func (e MessageEnvelope[T]) decode(r tvm.ContractTLBRegistry) (T, error) {
 		return e.Value, nil
 	}
 
-	// TODO (ops): map contract name to opcode (as a fallback) !!
+	// TODO: (ops): map contract name to opcode (as a fallback) !!
 	// Try to load from JSON payload + registry
 	if e.Payload != nil {
 		typ, ok := r.Lookup(e.Metadata.Contract, e.Metadata.Opcode)
