@@ -86,8 +86,16 @@ fun onInternalMessage(in: InMessage) {
             onReleaseOrMintFailure(mutate st, ttInfo, ttInfo.state);
             st.store();
         }
-        // Not consumed yet; accepted so pools can confirm finalization.
-        TokenPool_ReleaseOrMintFinalized => {}
+        // Permissionless. Execution may already be final, so the value goes to the OffRamp.
+        TokenPool_ReleaseOrMintFinalized => {
+            val st = lazy ReceiveExecutor_Storage.load();
+            createMessage({
+                bounce: BounceMode.NoBounce,
+                value: 0,
+                dest: st.owner,
+                body: createEmptyCell(),
+            }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }
         // Passive excess return from a release/mint jetton wallet. Retain it in the executor;
         // the finalization message carries the remaining balance to the OffRamp.
         ReturnExcessesBack => {}
