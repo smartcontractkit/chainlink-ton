@@ -127,6 +127,7 @@ describe('TokenAdminRegistry flow fees', () => {
       tokenDecimals: 9n,
       remoteChainConfigs: new Map(),
       tokenTransferFeeConfigs: new Map(),
+      accruedFees: 0n,
     })
     const burnMint = blockchain.openContract(
       BurnMintTokenPool.fromStorage(

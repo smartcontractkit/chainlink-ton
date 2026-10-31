@@ -451,6 +451,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				TokenDecimals:           defaultJettonDecimals,
 				RemoteChainConfigs:      nil,
 				TokenTransferFeeConfigs: nil,
+				AccruedFees:             0,
 			}
 
 			// The pool keeps the lockbox address in its own storage, so the lockbox has to be

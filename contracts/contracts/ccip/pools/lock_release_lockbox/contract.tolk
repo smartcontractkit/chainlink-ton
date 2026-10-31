@@ -7,7 +7,6 @@ import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/forward_payload_wrap"
-import "../../../lib/funding/jetton_withdrawable"
 import "../../../lib/gas"
 import "../../lib/cross_chain_address/types"
 
@@ -103,17 +102,8 @@ fun onBouncedMessage(in: InMessageBounced) {
     val msg = lazy LockReleaseLockboxTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
         AskToTransfer => {
-            // Distinguish a fee-withdrawal `AskToTransfer` (tagged with a `WithdrawContext`) from a
-            // lock `AskToTransfer` (tagged with a `LockContext`).
-            val data = st.poolData.load();
-            val jc = data.jettonClient();
-            if (JettonWithdrawable.onWithdrawBounced(jc.walletAddress(), msg)) {
-                assert(jc.isWallet(in.senderAddress)) throw LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce;
-                st.store();
-
-                return;
-            }
-
+            // Tagged fee withdrawals are handled by the base library (ledger re-credit); here we
+            // only handle a lock `AskToTransfer` tagged with a `LockContext`.
             onLockboxTransferBounced(mutate st, in.senderAddress, in.valueCoins, msg);
             st.store();
         }
@@ -247,6 +237,7 @@ fun onDeposited(
     var pool = st.TokenPool();
     val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.context);
     pool.onLockOrBurnTransferFinalize(msgValue, context.forwardPayload.load());
+    st.poolData = pool.data.toCell();
 }
 
 fun validateRejectedDeposit(st: Storage, msg: JettonLockBox_DepositFailed): TokenPool_LockOrBurnForwardPayload {
@@ -465,6 +456,10 @@ fun Storage.TokenPool(self): TokenPool<Storage> {
 }
 
 /* === Getters === */
+
+get fun getAccruedFees(): coins {
+    return Storage.load().TokenPool().getAccruedFees();
+}
 
 get fun typeAndVersion(): (slice, slice) {
     return (LockReleaseLockboxTokenPool_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);

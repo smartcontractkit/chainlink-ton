@@ -10,7 +10,6 @@ import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/forward_payload_wrap"
-import "../../../lib/funding/jetton_withdrawable"
 import "../../lib/cross_chain_address/types"
 
 import "../../cct/messages"
@@ -99,10 +98,10 @@ fun onBouncedMessage(in: InMessageBounced) {
     match (msg) {
         // Recovery returns are best-effort; their bounced value stays with the pool.
         AskToTransfer => {
-            val data = st.poolData.load();
-            val wallet  = data.jettonClient().walletAddress();
+            // Tagged fee withdrawals are handled by the base library (ledger re-credit); here we
+            // only accept best-effort custody returns from the pool's own wallet.
+            val wallet = st.poolData.load().jettonClient().walletAddress();
             assert(in.senderAddress == wallet) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
-            JettonWithdrawable.onWithdrawBounced(wallet, msg);
             st.store();
         }
         CCT_AskToBurn => {
@@ -348,6 +347,10 @@ fun Storage.TokenPool(self): TokenPool<Storage> {
             transferInitiator: null,
         },
     };
+}
+
+get fun getAccruedFees(): coins {
+    return Storage.load().TokenPool().getAccruedFees();
 }
 
 get fun typeAndVersion(): (slice, slice) {

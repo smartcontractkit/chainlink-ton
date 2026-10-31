@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 import { findTransaction } from '@ton/test-utils'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, SandboxContract, TreasuryContract, internal } from '@ton/sandbox'
 import { Address, beginCell, toNano } from '@ton/core'
 import {
   AskToTransfer,
@@ -8,7 +8,9 @@ import {
   JettonWithdrawable_WithdrawFeeTransfer,
   TokenPool,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
-import { JettonWallet } from '../../../wrappers/examples/jetton'
+import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
+import { contractCode } from '../../../wrappers/codeLoader'
+import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 import { sendMessageAsync, captureAccountChanges } from '../../utils/sendInternalMessage'
 
 // ———————————————————————————————————————————————————————————————————————————————
@@ -16,11 +18,9 @@ import { sendMessageAsync, captureAccountChanges } from '../../utils/sendInterna
 // Mirrors EVM TokenPool.withdrawFee.t.sol, transposed to TON where fees settle into
 // the pool's own Jetton wallet. All pool families leave the transfer fee in the pool
 // wallet on a successful lock (custody is burnt / forwarded elsewhere), so the
-// withdraw mechanics below are identical across lock/release, burn/mint and the
-// the lockbox pool. Each instance supplies `getWithdrawableFees` (the amount currently
-// withdrawable as fees: the `accruedFees` ledger for lock/release, or the pool-wallet fee
-// balance for the no-ledger burn/mint & lockbox families) and `doLock` (a successful
-// fee-accruing lock where fee = amount*feeBps/BPS_DIVIDER).
+// withdraw mechanics below are identical across lock/release and burn/mint. Each instance
+// supplies `getWithdrawableFees` (the pool's `accruedFees` ledger) and `doLock` (a
+// successful fee-accruing lock where fee = amount*feeBps/BPS_DIVIDER).
 // ———————————————————————————————————————————————————————————————————————————————
 
 export type TokenPoolWithdrawFeeTokensBehaviorContext = {
@@ -32,7 +32,7 @@ export type TokenPoolWithdrawFeeTokensBehaviorContext = {
   recipient: SandboxContract<TreasuryContract>
   unauthorized: SandboxContract<TreasuryContract>
   feeAdmin: SandboxContract<TreasuryContract>
-  /// Reads the amount currently withdrawable as fees (ledger or wallet fee balance).
+  /// Reads the amount currently withdrawable from the pool's own token (the `accruedFees` ledger).
   getWithdrawableFees: () => Promise<bigint>
   /// The pool's own Jetton wallet (commingled: may hold user liquidity + fees).
   poolWallet: SandboxContract<JettonWallet>
@@ -43,11 +43,6 @@ export type TokenPoolWithdrawFeeTokensBehaviorContext = {
   /// Performs a successful lock of `amount` jettons, accruing `fee = amount*feeBps/BPS_DIVIDER`.
   /// Returns the exact accrued fee so assertions don't recompute it.
   doLock: (amount: bigint, queryId: bigint) => Promise<{ feeAmount: bigint }>
-  /// Whether the pool accepts a `Withdraw` with multiple transfers (default `true`).
-  /// Lock/release bounds withdrawals by its single-token `accruedFees` ledger, so its hook
-  /// rejects any withdrawal that isn't exactly one transfer to the pool's own wallet;
-  /// the shared multi-transfer success test is skipped for such pools.
-  allowsMultiTransfer?: boolean
 }
 
 export function runTokenPoolWithdrawFeeTokensBehaviorTests(
@@ -119,6 +114,221 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
       expect(await (await ctx.userWallet(ctx.recipient.address)).getJettonBalance()).toBe(feeAmount)
       // Ledger cleared: nothing further is withdrawable.
       expect(await ctx.getWithdrawableFees()).toBe(0n)
+    })
+
+    it('rejects a withdrawal above the accrued-fee ledger', async () => {
+      const ctx = await setup()
+      const amount = toNano('10')
+      const { feeAmount } = await ctx.doLock(amount, 104n)
+      expect(await ctx.getWithdrawableFees()).toBe(feeAmount)
+
+      const poolBalanceBefore = await ctx.poolWallet.getJettonBalance()
+
+      // The ledger caps withdrawals at `feeAmount`; custody retained in the wallet must not be
+      // sweepable even though it is physically present (D-04).
+      const result = await ctx.pool.sendJettonWithdrawableWithdraw(
+        ctx.deployer.getSender(), // owner
+        toNano('0.5'),
+        {
+          queryId: 203n,
+          transfers: [
+            JettonWithdrawable_WithdrawFeeTransfer.create({
+              wallet: ctx.poolWallet.address,
+              value: toNano('0.2'),
+              msg: AskToTransfer.create({
+                queryId: 203n,
+                jettonAmount: feeAmount * 2n,
+                transferRecipient: ctx.recipient.address,
+                sendExcessesTo: ctx.pool.address,
+                customPayload: null,
+                forwardTonAmount: 0n,
+                forwardPayload: beginCell().storeBit(0).endCell().beginParse(),
+              }),
+            }),
+          ],
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        success: false,
+        exitCode: 55702, // JettonWithdrawable_Error.MaxAmountExceeded
+      })
+      expect(await ctx.poolWallet.getJettonBalance()).toBe(poolBalanceBefore)
+      expect(await ctx.getWithdrawableFees()).toBe(feeAmount)
+    })
+
+    it('withdraws foreign jettons accidentally sent to the pool', async () => {
+      const ctx = await setup()
+      const amount = toNano('10')
+      const { feeAmount } = await ctx.doLock(amount, 105n)
+      expect(await ctx.getWithdrawableFees()).toBe(feeAmount)
+
+      // Deploy a second Jetton and mint directly to the pool address. The pool becomes the owner
+      // of that token's wallet, exactly like an accidental transfer.
+      const foreignWalletCode = await contractCode.jetton('JettonWallet')
+      const foreignMinter = ctx.blockchain.openContract(
+        JettonMinter.createFromConfig(
+          {
+            admin: ctx.deployer.address,
+            transferAdmin: null,
+            walletCode: foreignWalletCode,
+            jettonContent: beginCell().storeStringTail('foreign').endCell(),
+            totalSupply: 0n,
+          },
+          await contractCode.jetton('JettonMinter'),
+        ),
+      )
+      await foreignMinter.sendDeploy(ctx.deployer.getSender(), toNano('1'))
+
+      const foreignAmount = toNano('5')
+      await foreignMinter.sendMint(ctx.deployer.getSender(), {
+        value: toNano('1'),
+        message: {
+          queryId: 500n,
+          destination: ctx.pool.address,
+          tonAmount: toNano('0.05'),
+          jettonAmount: foreignAmount,
+          from: ctx.deployer.address,
+          responseDestination: ctx.deployer.address,
+          forwardTonAmount: 0n,
+        },
+      })
+
+      const poolForeignWallet = ctx.blockchain.openContract(
+        JettonWallet.createFromAddress(await foreignMinter.getWalletAddress(ctx.pool.address)),
+      )
+      expect(await poolForeignWallet.getJettonBalance()).toBe(foreignAmount)
+      const recipientForeignWallet = ctx.blockchain.openContract(
+        JettonWallet.createFromAddress(await foreignMinter.getWalletAddress(ctx.recipient.address)),
+      )
+
+      const result = await ctx.pool.sendJettonWithdrawableWithdraw(
+        ctx.deployer.getSender(), // owner
+        toNano('0.5'),
+        {
+          queryId: 205n,
+          transfers: [
+            JettonWithdrawable_WithdrawFeeTransfer.create({
+              wallet: ctx.poolWallet.address,
+              value: toNano('0.2'),
+              msg: AskToTransfer.create({
+                queryId: 205n,
+                jettonAmount: feeAmount,
+                transferRecipient: ctx.recipient.address,
+                sendExcessesTo: ctx.pool.address,
+                customPayload: null,
+                forwardTonAmount: 0n,
+                forwardPayload: beginCell().storeBit(0).endCell().beginParse(),
+              }),
+            }),
+            JettonWithdrawable_WithdrawFeeTransfer.create({
+              wallet: poolForeignWallet.address,
+              value: toNano('0.2'),
+              msg: AskToTransfer.create({
+                queryId: 206n,
+                jettonAmount: foreignAmount,
+                transferRecipient: ctx.recipient.address,
+                sendExcessesTo: ctx.pool.address,
+                customPayload: null,
+                forwardTonAmount: 0n,
+                forwardPayload: beginCell().storeBit(0).endCell().beginParse(),
+              }),
+            }),
+          ],
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.poolWallet.address,
+        success: true,
+        op: AskToTransfer.PREFIX,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: poolForeignWallet.address,
+        success: true,
+        op: AskToTransfer.PREFIX,
+      })
+      expect(await (await ctx.userWallet(ctx.recipient.address)).getJettonBalance()).toBe(feeAmount)
+      expect(await recipientForeignWallet.getJettonBalance()).toBe(foreignAmount)
+      // Only the pool's own token is ledgered.
+      expect(await ctx.getWithdrawableFees()).toBe(0n)
+    })
+
+    it('re-credits the ledger when a fee-withdraw ask from the pool wallet bounces', async () => {
+      const ctx = await setup()
+      await ctx.doLock(toNano('1'), 106n)
+      const before = await ctx.getWithdrawableFees()
+      const bouncedAmount = 123n
+
+      const ask = AskToTransfer.create({
+        queryId: 400n,
+        jettonAmount: bouncedAmount,
+        transferRecipient: ctx.recipient.address,
+        sendExcessesTo: ctx.pool.address,
+        customPayload: null,
+        forwardTonAmount: 0n,
+        forwardPayload: beginCell()
+          .storeMaybeRef(
+            da.Jetton_ForwardPayloadWrap.toCell(
+              da.Jetton_ForwardPayloadWrap.create({
+                initiator: ctx.deployer.address,
+                context: beginCell().storeUint(0x0196a077, 32).endCell(), // JettonWithdrawable_WithdrawContext
+                forwardPayload: beginCell().storeBit(false).endCell(),
+              }),
+            ),
+          )
+          .endCell()
+          .beginParse(),
+      })
+      const originalBody = AskToTransfer.toCell(ask)
+      const originalInfo = beginCell()
+        .storeCoins(toNano('0.01'))
+        .storeDict(null)
+        .storeUint(0, 64)
+        .storeUint(0, 32)
+        .endCell()
+      const body = beginCell()
+        .storeUint(0xfffffffe, 32)
+        .storeRef(originalBody)
+        .storeRef(originalInfo)
+        .storeUint(1, 8)
+        .storeInt(0, 32)
+        .storeBit(false)
+        .endCell()
+
+      const result = await ctx.blockchain.sendMessage(
+        internal({
+          from: ctx.poolWallet.address,
+          to: ctx.pool.address,
+          value: toNano('0.05'),
+          bounced: true,
+          body,
+        }),
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        to: ctx.pool.address,
+        inMessageBounced: true,
+        success: true,
+      })
+      // The initiator is notified with the bounced ask.
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.deployer.address,
+        success: true,
+        body(body) {
+          if (!body) return false
+          const s = body.beginParse()
+          const wallet = s.loadAddress()
+          const bouncedAsk = AskToTransfer.fromSlice(s)
+          return wallet.equals(ctx.poolWallet.address) && bouncedAsk.queryId === 400n
+        },
+      })
+      expect(await ctx.getWithdrawableFees()).toBe(before + bouncedAmount)
     })
 
     it('withdraws accrued fees as feeAdmin', async () => {
@@ -238,11 +448,9 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
 
     // Multi-transfer withdrawals: the base handler relays N transfers and enforces the
     // per-wallet cap cumulatively (so splitting one amount across several transfers to the
-    // same wallet cannot evade a cap). Skipped for pools whose hook only accepts a single
-    // transfer to the pool's own wallet (lock/release).
+    // same wallet cannot evade a cap).
     it('relays multiple transfers in one withdrawal', async () => {
       const ctx = await setup()
-      if (ctx.allowsMultiTransfer === false) return
 
       const amount = toNano('10')
       const { feeAmount } = await ctx.doLock(amount, 110n)
@@ -367,79 +575,8 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
       expect(await (await ctx.userWallet(ctx.recipient.address)).getJettonBalance()).toBe(feeAmount)
     })
 
-    // A bounced fee-withdraw ask (wallet rejects the amount) is recognized via its forwardPayload
-    // context and reported to the withdrawal initiator (the owner/fee-admin that called withdraw).
-    it('notifies the withdrawal initiator when the fee-withdraw ask bounces', async () => {
-      const ctx = await setup()
-      // Ledger-bounded pools (lock/release) cap withdrawals at the accrued-fee ledger, which can
-      // never exceed the wallet's physical balance, so a bounce cannot be forced there.
-      if (ctx.allowsMultiTransfer === false) return
-
-      // A prior lock deploys the pool wallet (the wallet is lazily deployed on first use).
-      await ctx.doLock(toNano('1'), 130n)
-
-      // Request more jettons than the pool wallet physically holds → the real jetton wallet
-      // bounces the AskToTransfer back to the pool.
-      const walletBalance = await ctx.poolWallet.getJettonBalance()
-      const overAmount = walletBalance + toNano('100')
-
-      const result = await ctx.pool.sendJettonWithdrawableWithdraw(
-        ctx.deployer.getSender(), // owner
-        toNano('0.5'),
-        {
-          queryId: 400n,
-          transfers: [
-            JettonWithdrawable_WithdrawFeeTransfer.create({
-              wallet: ctx.poolWallet.address,
-              value: toNano('0.2'),
-              msg: AskToTransfer.create({
-                queryId: 400n,
-                jettonAmount: overAmount,
-                transferRecipient: ctx.recipient.address,
-                sendExcessesTo: ctx.pool.address,
-                customPayload: null,
-                forwardTonAmount: 0n,
-                forwardPayload: beginCell().storeBit(0).endCell().beginParse(),
-              }),
-            }),
-          ],
-        },
-      )
-
-      // The pool relayed the ask and the wallet bounced it back; the pool handled the bounce.
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.pool.address,
-        to: ctx.poolWallet.address,
-        op: AskToTransfer.PREFIX,
-      })
-      expect(result.transactions).toHaveTransaction({
-        to: ctx.pool.address,
-        inMessageBounced: true,
-        success: true,
-      })
-
-      // JettonWithdrawable_WithdrawFailed { wallet, ask } is sent to the initiator (deployer),
-      // echoing the bounced ask (queryId 400) and the wallet it was sent to.
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.pool.address,
-        to: ctx.deployer.address,
-        success: true,
-        body(body) {
-          if (!body) return false
-          const s = body.beginParse()
-          const wallet = s.loadAddress()
-          const ask = AskToTransfer.fromSlice(s)
-          return wallet.equals(ctx.poolWallet.address) && ask.queryId === 400n
-        },
-      })
-    })
-
-    // The up-front reserveToncoinsOnBalance(originalBalance + rent) means every relay value and
-    // emitted event must be paid by the INBOUND value alone; the pool's custodial GRAM stays
-    // untouched. Proven by asserting the pool's balance never drops below its pre-message value.
     it('never draws down the pool balance: inbound value funds relays and emits', async () => {
       const ctx = await setup()
-      if (ctx.allowsMultiTransfer === false) return
 
       const amount = toNano('10')
       const { feeAmount } = await ctx.doLock(amount, 300n)

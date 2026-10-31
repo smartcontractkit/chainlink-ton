@@ -446,7 +446,8 @@ type TokenPool_BouncedMessage =
     | TokenPool_LockOrBurnWithdraw
     | TokenPool_GetCCVs
     | TokenPool_PreflightCheck
-    | TokenPool_PostflightCheck;
+    | TokenPool_PostflightCheck
+    | AskToTransfer;
 
 /// Asks a pool for the configuration the token admin registry caches: the initiator of its
 /// release/mint deliveries and its admission budgets. Sent when a pool is set or refreshed, e.g.

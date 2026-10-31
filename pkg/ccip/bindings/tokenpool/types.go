@@ -301,6 +301,7 @@ type Storage struct {
 	RemoteChainConfigs      *cell.Dictionary `tlb:"dict 64"`
 	TokenTransferFeeConfigs *cell.Dictionary `tlb:"dict 64"`
 	Budget                  Budget           `tlb:"."`
+	AccruedFees             tlb.Coins        `tlb:"."`
 }
 
 // --- Messages - incoming ---

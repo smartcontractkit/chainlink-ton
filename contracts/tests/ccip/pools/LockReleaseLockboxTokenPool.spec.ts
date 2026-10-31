@@ -189,6 +189,7 @@ describe('LockReleaseLockboxTokenPool', () => {
             tokenDecimals: 9n,
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
+            accruedFees: 0n,
           }),
           lockbox: jettonLockBox.address,
         },
@@ -453,8 +454,8 @@ describe('LockReleaseLockboxTokenPool', () => {
   })
 
   // WithdrawFeeTokens behavior tests (fee accrual + withdrawal). The lockbox pool forwards only
-  // the post-fee amount to the lockbox, leaving the fee in the pool's own wallet as the
-  // withdrawable amount (no accrued-fee ledger => unbounded base path).
+  // the post-fee amount to the lockbox, leaving the fee in the pool's own wallet. Withdrawals are
+  // bounded by the pool's `accruedFees` ledger.
   runTokenPoolWithdrawFeeTokensBehaviorTests('LockReleaseLockboxTokenPool', async () => {
     const feeAdmin = await blockchain.treasury('feeAdmin')
     const unauthorized = await blockchain.treasury('unauthorized')
@@ -565,11 +566,7 @@ describe('LockReleaseLockboxTokenPool', () => {
     // The pool's own jetton wallet is only deployed once it first receives jettons, so tolerate
     // it not being active yet (returns 0 pre-first-lock).
     const getWithdrawableFees = async (): Promise<bigint> => {
-      try {
-        return await poolWallet.getJettonBalance()
-      } catch {
-        return 0n
-      }
+      return await lockReleaseLockboxPool.getAccruedFees()
     }
 
     return {

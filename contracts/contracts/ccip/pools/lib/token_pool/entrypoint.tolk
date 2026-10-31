@@ -80,6 +80,9 @@ struct TokenPool_Data {
     /// Per-instance budget; it can only raise the pool-type defaults (zero keeps a default).
     /// Set at deploy/init or via `TokenPool_SetBudget`. See `TokenPool<T>.budget`.
     budget: TokenPool_Budget = {};
+    /// Fees retained in the pool's own Jetton wallet on successful locks/burns.
+    /// Bounds owner/fee-admin withdrawals so they cannot sweep in-flight custody.
+    accruedFees: coins = 0;
 }
 
 @inline
@@ -210,7 +213,9 @@ struct TokenPool_Hooks<T> {
     /// @param msgValue The TON value on the inbound withdrawal message (must cover all asks + reserve).
     /// @param msg      The withdrawal request (wallet + `AskToTransfer` pairs).
     /// @return The (possibly mutated) context.
-    /// @dev Base behavior: unbounded relay (cap = sum of requested amounts) by `onlyOwnerOrFeeAdmin`.
+    /// @dev Base behavior: bounded relay by `onlyOwnerOrFeeAdmin`. The pool's own token wallet is
+    ///      capped by the `accruedFees` ledger; foreign-token wallets are unbounded so accidental
+    ///      tokens can be recovered. Setting a hook replaces it.
     onWithdrawFeeTokens: ((T?, address, coins, JettonWithdrawable_Withdraw) -> T?)? = null;
 
     // ----------------------------------------------------------------------
@@ -308,6 +313,11 @@ fun TokenPool_Data.token(self): address {
 @inline
 fun TokenPool<T>.isSupportedToken(self, token: address): bool {
     return self.data.token() == token;
+}
+
+/// Gets the accrued fee ledger: fees retained in the pool's own Jetton wallet.
+fun TokenPool<T>.getAccruedFees(self): coins {
+    return self.data.accruedFees;
 }
 
 /// Gets the Jetton token that this pool can lock or burn.
@@ -861,6 +871,18 @@ fun TokenPool<T>.onBouncedMessage(mutate self, bouncedSender: address, msgValue:
             val fwdp = (msg.forwardPayload as Cell<TokenPool_ReleaseOrMintForwardPayload>).load();
             self.recoverReleaseOrMintFailure(fwdp, rich.exitCode, msgValue);
             return true;
+        }
+        AskToTransfer => {
+            // Tagged fee-withdraw asks may come from any wallet the pool owns (including a
+            // foreign token received by accident). Notify the initiator; re-credit the ledger
+            // only when the bounce came from this token's own wallet.
+            if (JettonWithdrawable.onWithdrawBounced(bouncedSender, msg)) {
+                if (bouncedSender == self.data.jettonClient().walletAddress()) {
+                    self.data.accruedFees += msg.jettonAmount;
+                }
+                return true;
+            }
+            return false;
         }
         else => {
             return false; // pool-specific message — let the concrete pool handle it
@@ -1834,6 +1856,9 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
     val requestMsg = lazy forwardPayload.requestMsg.load();
     val prepared = lazy forwardPayload.prepared.load();
 
+    // Custody settled successfully: the fee portion stayed in the pool's own wallet.
+    self.data.accruedFees += prepared.feeAmount;
+
     val request = lazy requestMsg.request.load();
     val details = lazy request.transfer.details.load();
     emit(TOPIC_TOKEN_POOL_LOCKED_OR_BURNED, TokenPool_LockedOrBurned {
@@ -2510,16 +2535,40 @@ fun TokenPool<T>.onWithdrawFeeTokensDispatch(
 ) {
     if (self.hooks != null && self.hooks.onWithdrawFeeTokens != null) {
         self.context = self.hooks.onWithdrawFeeTokens(self.context!, sender, msgValue, msg);
+
         return;
     }
 
-    // owner/fee-admin fee relay; replacement hook owns its funding policy
+    // Default owner/fee-admin relay. The accrued-fee ledger caps the pool's own token so a
+    // withdrawal cannot sweep in-flight custody; foreign-token wallets are unbounded so
+    // accidental tokens can be recovered. A replacement hook owns its own policy.
     // TODO[VALUE]: [NONEVM-5766] A/dynamic - loops over the withdrawal list; a static S does not bound large inputs
     self.requireMinValue(msgValue);
 
-    // No cap by default (the jetton wallet's physical balance is the only bound); can be
-    // specialized by the hook (e.g. lock/release, whose accrued-fee ledger bounds the withdrawal).
-    self.withdrawFeeTokens(sender, msgValue, msg, null);
+    val withdrawnOwnToken = self.withdrawFeeTokensWithLedger(sender, msgValue, msg, self.data.accruedFees);
+    self.data.accruedFees -= withdrawnOwnToken;
+}
+
+/// Withdraws fee jettons with the pool's own token capped by the accrued-fee ledger.
+/// Foreign-token wallets have no ledger entry, so `JettonWithdrawable` leaves them unbounded;
+/// this lets the owner/fee-admin recover jettons accidentally sent to the pool.
+/// @return The amount relayed from the pool's own token wallet (for ledger bookkeeping).
+fun TokenPool<T>.withdrawFeeTokensWithLedger(
+    mutate self,
+    sender: address,
+    msgValue: coins,
+    msg: JettonWithdrawable_Withdraw,
+    maxAmount: coins,
+): coins {
+    val poolWallet = self.data.jettonClient().walletAddress();
+
+    // Cap only the pool's own token wallet. Every other wallet listed in the request is an
+    // accidental foreign-token holding and has no in-flight custody to protect.
+    var caps: map<address, coins> = [];
+    caps.set(poolWallet, maxAmount);
+    val withdrawn = self.withdrawFeeTokens(sender, msgValue, msg, caps);
+    val entry = withdrawn.get(poolWallet);
+    return entry.isFound ? entry.loadValue() : 0;
 }
 
 /// Withdraws accrued fee jettons.
