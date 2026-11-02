@@ -47,7 +47,7 @@ jobs:
           echo "chainlink-ton_version=$CHAINLINK_TON_VERSION" >> "$GITHUB_OUTPUT"
       - name: Setup GitHub Token
         id: setup-github-token
-        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
+        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/v1
         with:
           aws-role-arn: ${{ secrets.AWS_ROLE_ARN_WORKFLOWS_CHAINLINKCCIP }}
           aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHAINLINKCCIP }}

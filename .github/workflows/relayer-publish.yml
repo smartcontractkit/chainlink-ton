@@ -28,10 +28,10 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    
+
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
+
     outputs:
       base_image: ${{ steps.detect-core-image.outputs.BASE_IMAGE }}
       base_image_tag: ${{ steps.detect-core-image.outputs.BASE_IMAGE_TAG }}
@@ -67,13 +67,13 @@ jobs:
           AWS_REGION: ${{ vars.AWS_REGION }}
         run: ./.github/scripts/detect-core-image.sh
 
-  # Only runs if the core image doesn't already exist 
+  # Only runs if the core image doesn't already exist
   build-core-image:
     name: Build & Publish Chainlink Core Docker Image
     needs: determine-core-image
     if: |
       needs.determine-core-image.outputs.base_image_already_exists != 'true' && (
-        github.event_name != 'pull_request' || 
+        github.event_name != 'pull_request' ||
         contains(github.event.pull_request.labels.*.name, 'build-publish-docker')
       )
     permissions:
@@ -116,12 +116,12 @@ jobs:
     name: Build & Publish Chainlink Core + TON Relayer Image
     needs: [determine-core-image, build-core-image]
     if: |
-      always() && 
+      always() &&
       needs.determine-core-image.result == 'success' && (
-        needs.build-core-image.result == 'success' || 
+        needs.build-core-image.result == 'success' ||
         needs.build-core-image.result == 'skipped'
       ) && (
-        github.event_name != 'pull_request' || 
+        github.event_name != 'pull_request' ||
         contains(github.event.pull_request.labels.*.name, 'build-publish-docker')
       )
     permissions:
@@ -150,13 +150,13 @@ jobs:
       DOCKER_BUILD_ARGS: |
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ github.sha }}
-        BASE_IMAGE=${{ 
-          needs.determine-core-image.outputs.base_image_public == 'true' && 
-          needs.determine-core-image.outputs.base_image || 
-          format('{0}.dkr.ecr.{1}.amazonaws.com/chainlink-plugins-dev:{2}', 
-            secrets.AWS_ACCOUNT_ID_STAGING, 
-            vars.AWS_REGION, 
-            needs.determine-core-image.outputs.base_image_tag) 
+        BASE_IMAGE=${{
+          needs.determine-core-image.outputs.base_image_public == 'true' &&
+          needs.determine-core-image.outputs.base_image ||
+          format('{0}.dkr.ecr.{1}.amazonaws.com/chainlink-plugins-dev:{2}',
+            secrets.AWS_ACCOUNT_ID_STAGING,
+            vars.AWS_REGION,
+            needs.determine-core-image.outputs.base_image_tag)
         }}
 
   # Updates the Kubernetes infrastructure with the newly built image
@@ -170,7 +170,7 @@ jobs:
     steps:
       - name: Setup GitHub Token for Infrastructure Updates
         id: setup-github-token
-        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
+        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/v1
         with:
           aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_CHAINLINK_TON_CD }}
           aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHANGESETS }}
