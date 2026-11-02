@@ -1,4 +1,4 @@
-import { toNano } from '@ton/core'
+import { Address, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { crc32 } from 'zlib'
 
@@ -19,6 +19,8 @@ import {
 import { contractCode } from '../../../wrappers/codeLoader'
 import { deployLegacyOnRampContract, deployOnRampContract, setup } from './OnRamp.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
+
+const ZERO_ADDRESS = Address.parse('0:' + '0'.repeat(64))
 
 describe('OnRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
@@ -51,7 +53,7 @@ describe('OnRamp - Upgrade Tests', () => {
     verifyMigration: async (onramp, owner) => {
       const staticConfig = await onramp.getStaticConfig()
       expect(staticConfig.chainSelector).toBe(ChainSelectors.testnet.ton)
-      expect(staticConfig.tokenAdminRegistry).toEqualAddress(owner.address)
+      expect(staticConfig.tokenAdminRegistry).toEqualAddress(ZERO_ADDRESS)
 
       const dynamicConfig = await onramp.getDynamicConfig()
       expect(dynamicConfig.feeQuoter).toEqualAddress(owner.address)
@@ -66,6 +68,66 @@ describe('OnRamp - Upgrade Tests', () => {
       name: 'onramp',
     },
   ])
+})
+
+describe('OnRamp - SetTokenAdminRegistry after migration', () => {
+  let blockchain: Blockchain
+  let owner: SandboxContract<TreasuryContract>
+  let onramp: SandboxContract<or.OnRamp>
+
+  beforeEach(async () => {
+    blockchain = await Blockchain.create()
+    owner = await blockchain.treasury('owner')
+    const legacy = await deployLegacyOnRampContract(
+      blockchain,
+      owner,
+      await SUPPORTED_PREV_VERSIONS['1.6.0'](),
+    )
+    onramp = blockchain.openContract(or.OnRamp.fromAddress(legacy.address))
+    const result = await onramp.sendUpgradeableUpgrade(owner.getSender(), toNano('0.05'), {
+      code: await contractCode.ccip.local('OnRamp'),
+    })
+    expect(result.transactions).toHaveTransaction({ to: onramp.address, success: true })
+  })
+
+  it('lets the owner set the registry exactly once', async () => {
+    const registry = (await blockchain.treasury('registry')).address
+    const set = await onramp.sendOnRampSetTokenAdminRegistry(owner.getSender(), toNano('0.05'), {
+      tokenAdminRegistry: registry,
+    })
+    expect(set.transactions).toHaveTransaction({ to: onramp.address, success: true })
+    expect((await onramp.getStaticConfig()).tokenAdminRegistry).toEqualAddress(registry)
+
+    const again = await onramp.sendOnRampSetTokenAdminRegistry(owner.getSender(), toNano('0.05'), {
+      tokenAdminRegistry: owner.address,
+    })
+    expect(again.transactions).toHaveTransaction({
+      to: onramp.address,
+      success: false,
+      exitCode: Number(or.OnRamp.Errors['OnRamp_Error.TokenAdminRegistryAlreadySet']),
+    })
+    expect((await onramp.getStaticConfig()).tokenAdminRegistry).toEqualAddress(registry)
+  })
+
+  it('rejects the zero address', async () => {
+    const result = await onramp.sendOnRampSetTokenAdminRegistry(owner.getSender(), toNano('0.05'), {
+      tokenAdminRegistry: ZERO_ADDRESS,
+    })
+    expect(result.transactions).toHaveTransaction({
+      to: onramp.address,
+      success: false,
+      exitCode: Number(or.OnRamp.Errors['OnRamp_Error.InvalidConfig']),
+    })
+  })
+
+  it('rejects non-owners', async () => {
+    const other = await blockchain.treasury('other')
+    const result = await onramp.sendOnRampSetTokenAdminRegistry(other.getSender(), toNano('0.05'), {
+      tokenAdminRegistry: other.address,
+    })
+    expect(result.transactions).toHaveTransaction({ to: onramp.address, success: false })
+    expect((await onramp.getStaticConfig()).tokenAdminRegistry).toEqualAddress(ZERO_ADDRESS)
+  })
 })
 
 describe('OnRamp - Ownable Tests', () => {

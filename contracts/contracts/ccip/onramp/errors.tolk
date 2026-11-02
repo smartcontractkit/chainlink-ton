@@ -12,4 +12,6 @@ enum OnRamp_Error {
     SourceTokenDataTooLarge
     PendingFeeReservationsUnderflow
     FeePaymentsWithJettonsNotSupported
+    TokenAdminRegistryNotSet
+    TokenAdminRegistryAlreadySet
 }

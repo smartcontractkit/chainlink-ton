@@ -82,8 +82,8 @@ export async function deployOnRampContractW(
   return { onramp, config }
 }
 
-// This layout matches the deployed 1.6.0 OnRamp. Keep it here rather than in
-// generated bindings so the upgrade test exercises the persisted release data.
+// Matches the 1.6.0 OnRamp shipped in releases 1.6.0 through 1.6.3. The legacy code
+// parses the fixture before returning, so layout drift fails here.
 export async function deployLegacyOnRampContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
@@ -95,18 +95,15 @@ export async function deployLegacyOnRampContract(
     allowlistAdmin: owner.address,
     reserve: toNano('0.05'),
   })
-  const deployablesConfig = beginCell()
-    .storeRef(beginCell().endCell())
-    .storeRef(beginCell().endCell())
-    .storeAddress(owner.address)
-    .endCell()
   const data = beginCell()
   data.storeUint(generateRandomContractId(), 32)
   or.Ownable2Step.store(or.Ownable2Step.create({ owner: owner.address, pendingOwner: null }), data)
   data.storeUint(ChainSelectors.testnet.ton, 64)
   data.storeRef(or.OnRamp_DynamicConfig.toCell(config))
   data.storeDict(null)
-  data.storeRef(deployablesConfig)
+  // ExecutorDeployment { deployableCode, executorCode }, stored inline.
+  data.storeRef(beginCell().endCell())
+  data.storeRef(beginCell().endCell())
 
   const init = { code, data: data.endCell() }
   const onramp = blockchain.openContract(or.OnRamp.fromAddress(contractAddress(0, init)))
@@ -114,7 +111,11 @@ export async function deployLegacyOnRampContract(
     to: onramp.address,
     value: toNano('0.1'),
     init,
-    body: beginCell().endCell(),
+    // Legacy OnRamp_SetDynamicConfig: loads and stores the full storage.
+    body: beginCell()
+      .storeUint(0xa178c62e, 32)
+      .storeBuilder(or.OnRamp_DynamicConfig.toCell(config).asBuilder())
+      .endCell(),
   })
   expect(result.transactions).toHaveTransaction({
     from: owner.address,
