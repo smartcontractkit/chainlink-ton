@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { toNano } from '@ton/core'
+import { Address, toNano } from '@ton/core'
 import '@ton/test-utils'
 
 import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
@@ -23,6 +23,8 @@ import { errorCode, facilityId } from '../../../wrappers/utils'
 import { crc32 } from 'zlib'
 import { ChainSelectors } from '../../utils/Selectors'
 import { PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS } from './OffRamp.Setup'
+
+const ZERO_ADDRESS = Address.parse('0:' + '0'.repeat(64))
 
 describe('OffRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
@@ -69,7 +71,7 @@ describe('OffRamp - Upgrade Tests', () => {
     verifyMigration: async (offramp, owner) => {
       const config = await offramp.getConfig()
       expect(config.chainSelector).toBe(ChainSelectors.testnet.ton)
-      expect(config.tokenAdminRegistry).toEqualAddress(owner.address)
+      expect(config.tokenAdminRegistry).toEqualAddress(ZERO_ADDRESS)
       expect(config.feeQuoter).toEqualAddress(owner.address)
       expect(config.permissionlessExecutionThresholdSeconds).toBe(
         PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
@@ -83,6 +85,78 @@ describe('OffRamp - Upgrade Tests', () => {
       name: 'offramp',
     },
   ])
+})
+
+describe('OffRamp - SetTokenAdminRegistry after migration', () => {
+  let blockchain: Blockchain
+  let owner: SandboxContract<TreasuryContract>
+  let offramp: SandboxContract<of.OffRamp>
+
+  beforeEach(async () => {
+    blockchain = await Blockchain.create()
+    owner = await blockchain.treasury('owner')
+    const legacy = await deployLegacyOffRampContract(
+      blockchain,
+      owner,
+      await SUPPORTED_PREV_VERSIONS['1.6.2'](),
+    )
+    offramp = blockchain.openContract(of.OffRamp.fromAddress(legacy.address))
+    const result = await offramp.sendUpgradeableUpgrade(owner.getSender(), toNano('0.05'), {
+      code: await contractCode.ccip.local('OffRamp'),
+    })
+    expect(result.transactions).toHaveTransaction({ to: offramp.address, success: true })
+  })
+
+  it('lets the owner set the registry exactly once', async () => {
+    const registry = (await blockchain.treasury('registry')).address
+    const set = await offramp.sendOffRampSetTokenAdminRegistry(owner.getSender(), toNano('0.05'), {
+      tokenAdminRegistry: registry,
+    })
+    expect(set.transactions).toHaveTransaction({ to: offramp.address, success: true })
+    expect((await offramp.getConfig()).tokenAdminRegistry).toEqualAddress(registry)
+
+    const again = await offramp.sendOffRampSetTokenAdminRegistry(
+      owner.getSender(),
+      toNano('0.05'),
+      {
+        tokenAdminRegistry: owner.address,
+      },
+    )
+    expect(again.transactions).toHaveTransaction({
+      to: offramp.address,
+      success: false,
+      exitCode: Number(of.OffRamp.Errors['OffRamp_Error.TokenAdminRegistryAlreadySet']),
+    })
+    expect((await offramp.getConfig()).tokenAdminRegistry).toEqualAddress(registry)
+  })
+
+  it('rejects the zero address', async () => {
+    const result = await offramp.sendOffRampSetTokenAdminRegistry(
+      owner.getSender(),
+      toNano('0.05'),
+      {
+        tokenAdminRegistry: ZERO_ADDRESS,
+      },
+    )
+    expect(result.transactions).toHaveTransaction({
+      to: offramp.address,
+      success: false,
+      exitCode: Number(of.OffRamp.Errors['OffRamp_Error.ZeroAddressNotAllowed']),
+    })
+  })
+
+  it('rejects non-owners', async () => {
+    const other = await blockchain.treasury('other')
+    const result = await offramp.sendOffRampSetTokenAdminRegistry(
+      other.getSender(),
+      toNano('0.05'),
+      {
+        tokenAdminRegistry: other.address,
+      },
+    )
+    expect(result.transactions).toHaveTransaction({ to: offramp.address, success: false })
+    expect((await offramp.getConfig()).tokenAdminRegistry).toEqualAddress(ZERO_ADDRESS)
+  })
 })
 
 describe('OffRamp - Current Version Tests', () => {

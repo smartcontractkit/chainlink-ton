@@ -144,6 +144,12 @@ fun onInternalMessage(in:InMessage) {
             onSetDynamicConfig(msg);
         }
         // Sender must be owner
+        OffRamp_SetTokenAdminRegistry => {
+            val st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            onSetTokenAdminRegistry(msg);
+        }
+        // Sender must be owner
         Withdrawable_Withdraw => {
             val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -282,7 +288,8 @@ fun migrate(storage: cell, version: slice): cell {
         config: OffRamp_StorageConfig {
             staticConfig: OffRamp_StaticConfig {
                 rmnRouter: oldDeployables.rmnRouter,
-                tokenAdminRegistry: oldDeployables.tokenAdminRegistry,
+                // 1.6.x had no registry; the owner sets it once via OffRamp_SetTokenAdminRegistry.
+                tokenAdminRegistry: ZERO_ADDRESS,
                 chainSelector: old.chainSelector,
             },
             dynamicConfig: OffRamp_DynamicConfig {
@@ -299,8 +306,8 @@ fun migrate(storage: cell, version: slice): cell {
     }.toCell();
 }
 
-// Persisted layout for the final 1.6.2 release. The three code cells are now
-// compile-time dependencies of OffRamp and intentionally do not survive.
+// Persisted layout of the 1.6.2 OffRamp shipped in releases 1.6.2 and 1.6.3. The three
+// code cells are now compile-time dependencies of OffRamp and intentionally do not survive.
 struct Storage_V1_6_2 {
     id: uint32;
     ownable: Ownable2Step;
@@ -316,7 +323,6 @@ struct Storage_V1_6_2 {
 
 struct OffRamp_Deployables_V1_6_2 {
     rmnRouter: address;
-    tokenAdminRegistry: address;
     deployer: cell;
     merkleRootCode: cell;
     receiveExecutorCode: cell;
@@ -813,6 +819,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     // Failure instead of rejecting the report; here only the shape the cost functions assume.
     var destGasAmount: coins = 0;
     if (hasTokens) {
+        assert(!isZeroAddress(st.config.load().staticConfig.tokenAdminRegistry), OffRamp_Error.TokenAdminRegistryNotSet);
         var offchainTokenDataForTTOfMessage = offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
         assert(!offchainTokenDataForTTOfMessage.isEmpty(), OffRamp_Error.UnexpectedTokenData);
         // Offchain token data is not supported yet: every entry must be an empty cell.
@@ -1202,6 +1209,16 @@ fun onSetDynamicConfig(msg: OffRamp_SetDynamicConfig) {
     emit(DYNAMIC_CONFIG_SET_TOPIC, OffRamp_DynamicConfigSet{
         config: msg.config,
     });
+}
+
+fun onSetTokenAdminRegistry(msg: OffRamp_SetTokenAdminRegistry) {
+    var st = Storage.load();
+    var config = st.config.load();
+    assert(isZeroAddress(config.staticConfig.tokenAdminRegistry), OffRamp_Error.TokenAdminRegistryAlreadySet);
+    assert(!isZeroAddress(msg.tokenAdminRegistry), OffRamp_Error.ZeroAddressNotAllowed);
+    config.staticConfig.tokenAdminRegistry = msg.tokenAdminRegistry;
+    st.config = config.toCell();
+    st.store();
 }
 
 get fun latestPriceSequenceNumber(): uint64 {

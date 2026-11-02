@@ -32,11 +32,13 @@ func _() {
 	_ = x[ErrorUnexpectedTokenData-22121]
 	_ = x[ErrorMsgDataTooLarge-22122]
 	_ = x[ErrorUnexpectedExtraData-22123]
+	_ = x[ErrorTokenAdminRegistryNotSet-22124]
+	_ = x[ErrorTokenAdminRegistryAlreadySet-22125]
 }
 
-const _ExitCode_name = "ErrorMessageNotFromOwnedContractErrorSourceChainNotEnabledErrorEmptyExecutionReportErrorInvalidMessageDestChainSelectorErrorSourceChainSelectorMismatchErrorInvalidOnRampUpdateErrorInsufficientFeeErrorSubjectCursedErrorUnauthorizedErrorZeroAddressNotAllowedErrorTooManyMessagesInReportErrorSignatureVerificationRequiredInCommitPluginErrorSignatureVerificationNotAllowedInExecutionPluginErrorInvalidIntervalErrorBatchingNotSupportedErrorOnRampAddressMismatchErrorEmptyCommitReportErrorMerkleRootCannotBeZeroErrorUnsupportedNumberOfTokensErrorManualExecutionGasAmountCountMismatchErrorInvalidManualExecutionGasLimitErrorUnexpectedTokenDataErrorMsgDataTooLargeErrorUnexpectedExtraData"
+const _ExitCode_name = "ErrorMessageNotFromOwnedContractErrorSourceChainNotEnabledErrorEmptyExecutionReportErrorInvalidMessageDestChainSelectorErrorSourceChainSelectorMismatchErrorInvalidOnRampUpdateErrorInsufficientFeeErrorSubjectCursedErrorUnauthorizedErrorZeroAddressNotAllowedErrorTooManyMessagesInReportErrorSignatureVerificationRequiredInCommitPluginErrorSignatureVerificationNotAllowedInExecutionPluginErrorInvalidIntervalErrorBatchingNotSupportedErrorOnRampAddressMismatchErrorEmptyCommitReportErrorMerkleRootCannotBeZeroErrorUnsupportedNumberOfTokensErrorManualExecutionGasAmountCountMismatchErrorInvalidManualExecutionGasLimitErrorUnexpectedTokenDataErrorMsgDataTooLargeErrorUnexpectedExtraDataErrorTokenAdminRegistryNotSetErrorTokenAdminRegistryAlreadySet"
 
-var _ExitCode_index = [...]uint16{0, 32, 58, 83, 119, 151, 175, 195, 213, 230, 256, 284, 332, 385, 405, 430, 456, 478, 505, 535, 577, 612, 636, 656, 680}
+var _ExitCode_index = [...]uint16{0, 32, 58, 83, 119, 151, 175, 195, 213, 230, 256, 284, 332, 385, 405, 430, 456, 478, 505, 535, 577, 612, 636, 656, 680, 709, 742}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 22100
