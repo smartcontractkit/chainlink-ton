@@ -191,6 +191,52 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
       })
     })
 
+    it('owner can withdraw excess TON while preserving the reserve', async () => {
+      const ctx = await setup()
+      const amount = toNano('0.1')
+
+      const result = await ctx.pool.sendWithdrawableWithdraw(
+        ctx.deployer.getSender(), // owner
+        toNano('0.02'),
+        {
+          queryId: 209n,
+          destination: ctx.recipient.address,
+          amount,
+          reserve: null,
+          drainAllAvailable: false,
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.recipient.address,
+        value: amount,
+        success: true,
+      })
+    })
+
+    it('rejects TON withdrawal from a non-owner', async () => {
+      const ctx = await setup()
+
+      const result = await ctx.pool.sendWithdrawableWithdraw(
+        ctx.unauthorized.getSender(),
+        toNano('0.02'),
+        {
+          queryId: 210n,
+          destination: ctx.recipient.address,
+          amount: toNano('0.1'),
+          reserve: null,
+          drainAllAvailable: false,
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.unauthorized.address,
+        to: ctx.pool.address,
+        success: false,
+      })
+    })
+
     it('rejects a withdrawal above the accrued-fee ledger', async () => {
       const ctx = await setup()
       const amount = toNano('10')

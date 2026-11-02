@@ -10,6 +10,7 @@ import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/gas"
+import "../../../lib/funding/withdrawable"
 
 import "../lib/token_pool/jetton_fees"
 
@@ -53,6 +54,11 @@ fun onInternalMessage(in: InMessage) {
         }
         JettonLockBox_Init => {
             onInit(mutate st, in.senderAddress, in.valueCoins, msg);
+        }
+        Withdrawable_Withdraw => {
+            var rbac = hookTrait__AccessControl(st);
+            rbac.requireRole(DEFAULT_ADMIN_ROLE, in.senderAddress);
+            Withdrawable { reserve: MIN_GRAM_TO_RESERVE }.withdrawSafe(msg);
         }
         else => {
             var rbac = hookTrait__AccessControl(st);

@@ -5,6 +5,7 @@ import "../../../../lib/utils"
 import "../../../../lib/access/access_control"
 import "../../../../lib/jetton/messages"
 import "../../../../lib/funding/jetton_withdrawable"
+import "../../../../lib/funding/withdrawable"
 
 import "types"
 import "budget"
@@ -332,7 +333,8 @@ type TokenPool_InMessage =
     | TokenPool_RMNOwnableMessage
     | TokenPool_RMNAccessControlMessage
     | JettonWithdrawable_Withdraw
-    | TokenPool_WithdrawRescue;
+    | TokenPool_WithdrawRescue
+    | Withdrawable_Withdraw;
 
 struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
     queryId: uint64;

@@ -14,6 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/jetton_withdrawable"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/withdrawable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	pkgtlbe "github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
@@ -30,6 +31,8 @@ type ChainSelector struct {
 type (
 	// JettonWithdrawableWithdraw mirrors the Tolk JettonWithdrawable_Withdraw message.
 	JettonWithdrawableWithdraw = jetton_withdrawable.Withdraw
+	// WithdrawableWithdraw mirrors the Tolk Withdrawable_Withdraw message.
+	WithdrawableWithdraw = withdrawable.Withdraw
 	// JettonWithdrawableWithdrawFeeTransfer is one wallet + AskToTransfer step.
 	JettonWithdrawableWithdrawFeeTransfer = jetton_withdrawable.WithdrawFeeTransfer
 	// FeeTokenWithdrawn is emitted when jettons are withdrawn from a pool wallet.
@@ -878,6 +881,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	// Notice: T as any to register once for all generic instances of RMNAccessControlMessage
 	RMNAccessControlMessage[any]{Content: nil},
 	JettonWithdrawableWithdraw{},
+	WithdrawableWithdraw{},
 	WithdrawRescue{},
 	LockOrBurn{},
 	ReleaseOrMint{},

@@ -981,6 +981,47 @@ describe('JettonLockBox', () => {
     })
   })
 
+  describe('TON withdraw', () => {
+    it('allows the admin to withdraw excess TON', async () => {
+      await deployer.send({ to: lockbox.address, value: toNano('1'), body: beginCell().endCell() })
+      const amount = toNano('0.1')
+      const result = await lockbox.sendWithdrawableWithdraw(deployer.getSender(), toNano('0.02'), {
+        queryId: 300n,
+        destination: recipient.address,
+        amount,
+        reserve: null,
+        drainAllAvailable: false,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: lockbox.address,
+        to: recipient.address,
+        value: amount,
+        success: true,
+      })
+    })
+
+    it('rejects TON withdrawal from a non-admin', async () => {
+      const result = await lockbox.sendWithdrawableWithdraw(
+        unauthorized.getSender(),
+        toNano('0.02'),
+        {
+          queryId: 301n,
+          destination: recipient.address,
+          amount: toNano('0.1'),
+          reserve: null,
+          drainAllAvailable: false,
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: unauthorized.address,
+        to: lockbox.address,
+        success: false,
+      })
+    })
+  })
+
   describe('message routing', () => {
     it('should accept empty messages (top-up pattern)', async () => {
       // Send an empty internal message from deployer to lockbox
