@@ -62,6 +62,7 @@ var (
 	GetRemoteChainConfig       = tokenpool.GetRemoteChainConfig
 	GetFee                     = tokenpool.GetFee
 	GetCCVAmount               = tokenpool.GetCCVAmount
+	GetAccruedFees             = tokenpool.GetAccruedFees
 )
 
 // --- Re-export argument types for convenience ---

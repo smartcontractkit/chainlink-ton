@@ -530,6 +530,21 @@ var GetFee = tvm.Getter[GetFeeArgs, GetFeeResult]{
 	}),
 }
 
+// GetAccruedFees gets the fee ledger: fees retained in the pool's own Jetton wallet after
+// successful lock/burn finalization. It is a conservative lower bound on actual fees.
+//
+// On-chain: get fun getAccruedFees(): coins
+var GetAccruedFees = tvm.NewNoArgsGetter(tvm.NoArgsOpts[tlb.Coins]{
+	Name: "getAccruedFees",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (tlb.Coins, error) {
+		n, err := r.Int(0)
+		if err != nil {
+			return tlb.Coins{}, fmt.Errorf("error getting Int(0) - accruedFees: %w", err)
+		}
+		return tlb.FromNanoTON(n), nil
+	}),
+})
+
 // --- GetCCVAmount getter ---
 
 // GetCCVAmountArgs holds the arguments for the getCCVAmount getter.

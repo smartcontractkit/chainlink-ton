@@ -456,6 +456,13 @@ type SetBudget struct {
 	Budget  Budget    `tlb:"."`
 }
 
+// WithdrawRescue is the explicit owner-only recovery withdrawal. It is intentionally uncapped
+// and may sweep in-flight custody; the owner is responsible for the outcome.
+type WithdrawRescue struct {
+	_           tlb.Magic                  `tlb:"#3f9b99ae" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	WithdrawMsg JettonWithdrawableWithdraw `tlb:"."`
+}
+
 // BudgetSet answers SetBudget with the effective budget.
 type BudgetSet struct {
 	_       tlb.Magic `tlb:"#fa704988" json:"-"` //nolint:revive // (opcode) should stay uninitialized
@@ -871,6 +878,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	// Notice: T as any to register once for all generic instances of RMNAccessControlMessage
 	RMNAccessControlMessage[any]{Content: nil},
 	JettonWithdrawableWithdraw{},
+	WithdrawRescue{},
 	LockOrBurn{},
 	ReleaseOrMint{},
 	PreflightCheckFinished{},

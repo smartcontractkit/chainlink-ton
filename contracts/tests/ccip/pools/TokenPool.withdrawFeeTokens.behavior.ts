@@ -116,6 +116,81 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
       expect(await ctx.getWithdrawableFees()).toBe(0n)
     })
 
+    it('owner can rescue fees with the explicit opcode', async () => {
+      const ctx = await setup()
+      const amount = toNano('10')
+      const { feeAmount } = await ctx.doLock(amount, 107n)
+      expect(await ctx.getWithdrawableFees()).toBe(feeAmount)
+
+      const result = await ctx.pool.sendTokenPoolWithdrawRescue(
+        ctx.deployer.getSender(), // owner
+        toNano('0.5'),
+        {
+          withdrawMsg: JettonWithdrawable_Withdraw.create({
+            queryId: 207n,
+            transfers: [
+              JettonWithdrawable_WithdrawFeeTransfer.create({
+                wallet: ctx.poolWallet.address,
+                value: toNano('0.2'),
+                msg: AskToTransfer.create({
+                  queryId: 207n,
+                  jettonAmount: feeAmount,
+                  transferRecipient: ctx.recipient.address,
+                  sendExcessesTo: ctx.pool.address,
+                  customPayload: null,
+                  forwardTonAmount: 0n,
+                  forwardPayload: beginCell().storeBit(0).endCell().beginParse(),
+                }),
+              }),
+            ],
+          }),
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.poolWallet.address,
+        success: true,
+        op: AskToTransfer.PREFIX,
+      })
+      expect(await (await ctx.userWallet(ctx.recipient.address)).getJettonBalance()).toBe(feeAmount)
+      expect(await ctx.getWithdrawableFees()).toBe(0n)
+    })
+
+    it('rejects rescue from a non-owner', async () => {
+      const ctx = await setup()
+
+      const setFeeAdmin = await ctx.pool.sendTokenPoolSetDynamicConfig(
+        ctx.deployer.getSender(),
+        toNano('0.2'),
+        {
+          queryId: 5n,
+          router: ctx.deployer.address,
+          rateLimitAdmin: null,
+          feeAdmin: ctx.feeAdmin.address,
+        },
+      )
+      expect(setFeeAdmin.transactions).toHaveTransaction({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+
+      const result = await ctx.pool.sendTokenPoolWithdrawRescue(
+        ctx.feeAdmin.getSender(),
+        toNano('0.5'),
+        {
+          withdrawMsg: JettonWithdrawable_Withdraw.create({ queryId: 208n, transfers: [] }),
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.feeAdmin.address,
+        to: ctx.pool.address,
+        success: false,
+      })
+    })
+
     it('rejects a withdrawal above the accrued-fee ledger', async () => {
       const ctx = await setup()
       const amount = toNano('10')
@@ -258,7 +333,7 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
       expect(await ctx.getWithdrawableFees()).toBe(0n)
     })
 
-    it('re-credits the ledger when a fee-withdraw ask from the pool wallet bounces', async () => {
+    it('does not re-credit accruedFees when a fee-withdraw ask bounces', async () => {
       const ctx = await setup()
       await ctx.doLock(toNano('1'), 106n)
       const before = await ctx.getWithdrawableFees()
@@ -328,7 +403,8 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
           return wallet.equals(ctx.poolWallet.address) && bouncedAsk.queryId === 400n
         },
       })
-      expect(await ctx.getWithdrawableFees()).toBe(before + bouncedAmount)
+      // The returned jettons are rescued explicitly; the ledger must not be inflated.
+      expect(await ctx.getWithdrawableFees()).toBe(before)
     })
 
     it('withdraws accrued fees as feeAdmin', async () => {

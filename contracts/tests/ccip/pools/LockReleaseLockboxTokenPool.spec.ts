@@ -32,6 +32,8 @@ import {
   TokenPool_Transfer,
   TokenPool_TokenTransferFeeConfig,
   TokenPool_TokenTransferFeeConfigArgs,
+  JettonWithdrawable_Withdraw,
+  JettonWithdrawable_WithdrawFeeTransfer,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import {
   JettonClient,
@@ -1274,6 +1276,46 @@ describe('LockReleaseLockboxTokenPool', () => {
               TokenPool_LockOrBurnFailure.PREFIX,
         )
         expect(failures).toHaveLength(1)
+
+        // The rejected deposit left the fee in the pool wallet without accruing it. The owner
+        // can recover it with the explicit rescue opcode; the normal fee path is capped by the
+        // zero ledger and cannot.
+        expect(await lockReleaseLockboxPool.getAccruedFees()).toBe(0n)
+        const recipientWallet = await userWallet(recipient.address)
+        const recipientBefore = await recipientWallet.getJettonBalance().catch(() => 0n)
+        const rescue = await pool.sendTokenPoolWithdrawRescue(
+          deployer.getSender(), // owner
+          toNano('0.5'),
+          {
+            withdrawMsg: JettonWithdrawable_Withdraw.create({
+              queryId: 302n,
+              transfers: [
+                JettonWithdrawable_WithdrawFeeTransfer.create({
+                  wallet: poolWallet.address,
+                  value: toNano('0.2'),
+                  msg: AskToTransfer.create({
+                    queryId: 302n,
+                    jettonAmount: toNano('1'),
+                    transferRecipient: recipient.address,
+                    sendExcessesTo: lockReleaseLockboxPool.address,
+                    customPayload: null,
+                    forwardTonAmount: 0n,
+                    forwardPayload: beginCell().storeBit(0).endCell().beginParse(),
+                  }),
+                }),
+              ],
+            }),
+          },
+        )
+        expect(rescue.transactions).toHaveTransaction({
+          from: lockReleaseLockboxPool.address,
+          to: poolWallet.address,
+          success: true,
+          op: AskToTransfer.PREFIX,
+        })
+        expect(await poolWallet.getJettonBalance()).toBe(0n)
+        expect(await recipientWallet.getJettonBalance()).toBe(recipientBefore + toNano('1'))
+        expect(await lockReleaseLockboxPool.getAccruedFees()).toBe(0n)
       },
     )
 

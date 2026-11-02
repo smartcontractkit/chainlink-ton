@@ -3827,6 +3827,43 @@ export const TokenPool_Config = {
 }
 
 /**
+ > struct (0x3f9b99ae) TokenPool_WithdrawRescue {
+ >     withdrawMsg: JettonWithdrawable_Withdraw
+ > }
+ */
+export interface TokenPool_WithdrawRescue {
+    readonly $: 'TokenPool_WithdrawRescue'
+    withdrawMsg: JettonWithdrawable_Withdraw
+}
+
+export const TokenPool_WithdrawRescue = {
+    PREFIX: 0x3f9b99ae,
+
+    create(args: {
+        withdrawMsg: JettonWithdrawable_Withdraw
+    }): TokenPool_WithdrawRescue {
+        return {
+            $: 'TokenPool_WithdrawRescue',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_WithdrawRescue {
+        loadAndCheckPrefix32(s, 0x3f9b99ae, 'TokenPool_WithdrawRescue');
+        return {
+            $: 'TokenPool_WithdrawRescue',
+            withdrawMsg: JettonWithdrawable_Withdraw.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_WithdrawRescue, b: c.Builder): void {
+        b.storeUint(0x3f9b99ae, 32);
+        JettonWithdrawable_Withdraw.store(self.withdrawMsg, b);
+    },
+    toCell(self: TokenPool_WithdrawRescue): c.Cell {
+        return makeCellFrom<TokenPool_WithdrawRescue>(self, TokenPool_WithdrawRescue.store);
+    }
+}
+
+/**
  > struct (0x1e54ab8b) TokenPool_SetBudget {
  >     queryId: uint64
  >     budget: TokenPool_Budget
@@ -5528,7 +5565,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECQgEAAcMAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBICwtAgEgCAkCASAYGQIBIAoLAgEgFBUCASAMDQIBIBARAgFmDg8ADa3Iwgf5eEAAC6BeED/LwgALocYQP8vCAgEgEhMADa3YQgf5eEAADKlfhA/y8AAMqtCED/LwAgFuFhcADbAfIQP8vCAAC6dRCB/l4QALpFEIH+XhAgEgGhsCASAoKQIBIBwdAgEgJCUCASAeHwIBYiIjAAyqh4QP8vACASAgIQALpjsIH+XhAAulCwgf5eEAC6H6ED/LwgALoH4QP8vCAgEgJicADazjQgf5eEAADKm6hA/y8AAMqoqED/LwAgFYKisADbK64QP8vCAADKl6hA/y8AAMqraED/LwAgFYLi8CASAwMQANs3ohA/y8IAANs7nhA/y8IAIBIDIzAgEgODkCAWY0NQIBZjY3AAuk2wgf5eEAC6bxCB/l4QALp98IH+XhAAumKwgf5eECASA6OwIBIEBBAA2vAcIH+XhAAgFIPD0AC6VfCB/l4QIBWD4/AAu+eED/LwgAC7gYQP8vCAANrGvCB/l4QAANrDjCB/l4QA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECRAEAAdAAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAcHQIBIAYHAgFYCAkCASAKCwANs3ohA/y8IAANs7nhA/y8IAIBIAwNAgEgEhMCAWYODwIBZhARAAuk2wgf5eEAC6bxCB/l4QALp98IH+XhAAumKwgf5eECASAUFQIBIBobAA2vAcIH+XhAAgFIFhcAC6VfCB/l4QIBWBgZAAu+eED/LwgAC7gYQP8vCAANrGvCB/l4QAANrDjCB/l4QAIBIB4fAgEgMDECASAgIQIBICwtAgEgIiMCASAoKQIBICQlAA2tyMIH+XhAAgFYJicADKpbhA/y8AALoF4QP8vCAAuhxhA/y8ICASAqKwANrdhCB/l4QAAMqV+ED/LwAAyq0IQP8vACAW4uLwANsB8hA/y8IAALp1EIH+XhAAukUQgf5eECASAyMwIBIEBBAgEgNDUCASA8PQIBIDY3AgFiOjsADKqHhA/y8AIBIDg5AAumOwgf5eEAC6ULCB/l4QALofoQP8vCAAugfhA/y8ICASA+PwANrONCB/l4QAAMqbqED/LwAAyqioQP8vACAVhCQwANsrrhA/y8IAAMqXqED/LwAAyqtoQP8vA=');
 
     static Errors = {
         'TokenPool_Error.InvalidTransferFeeBps': 51700,
@@ -5818,6 +5855,12 @@ export class TokenPool implements c.Contract {
         transfers: array<JettonWithdrawable_WithdrawFeeTransfer>
     }) {
         return JettonWithdrawable_Withdraw.toCell(JettonWithdrawable_Withdraw.create(body));
+    }
+
+    static createCellOfTokenPoolWithdrawRescue(body: {
+        withdrawMsg: JettonWithdrawable_Withdraw
+    }) {
+        return TokenPool_WithdrawRescue.toCell(TokenPool_WithdrawRescue.create(body));
     }
 
     static createCellOfOwnable2StepTransferOwnership(body: {
@@ -6178,6 +6221,16 @@ export class TokenPool implements c.Contract {
         });
     }
 
+    async sendTokenPoolWithdrawRescue(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        withdrawMsg: JettonWithdrawable_Withdraw
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_WithdrawRescue.toCell(TokenPool_WithdrawRescue.create(body)),
+            ...extraOptions
+        });
+    }
+
     async sendOwnable2StepTransferOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         newOwner: c.Address
@@ -6517,5 +6570,10 @@ export class TokenPool implements c.Contract {
                 safety: r.readBigInt(),
             }),
         });
+    }
+
+    async getAccruedFees(provider: ContractProvider): Promise<coins> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getAccruedFees', []));
+        return r.readBigInt();
     }
 }

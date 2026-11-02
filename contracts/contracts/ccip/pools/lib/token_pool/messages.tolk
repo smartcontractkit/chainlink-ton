@@ -331,7 +331,8 @@ type TokenPool_InMessage =
     | TokenPool_Uncurse
     | TokenPool_RMNOwnableMessage
     | TokenPool_RMNAccessControlMessage
-    | JettonWithdrawable_Withdraw;
+    | JettonWithdrawable_Withdraw
+    | TokenPool_WithdrawRescue;
 
 struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
     queryId: uint64;
@@ -461,6 +462,14 @@ struct (0x1c8a40b8) TokenPool_Config {
     queryId: uint64;
     transferInitiator: address?;
     admission: TokenPool_AdmissionBudget;
+}
+
+/// Owner-only emergency recovery of stranded tokens. The normal fee withdrawal is capped by
+/// `accruedFees`; this opcode is the explicit, auditable authorization to sweep any pool-owned
+/// token wallet, including amounts not backed by the fee ledger.
+/// @dev The owner is responsible for not sweeping in-flight custody.
+struct (0x3f9b99ae) TokenPool_WithdrawRescue {
+    withdrawMsg: JettonWithdrawable_Withdraw;
 }
 
 /// Sets the pool's per-instance budget. Values only raise the pool-type defaults; zero keeps the
