@@ -64,6 +64,10 @@ struct TokenPool_AdminConfig {
     /// FinalityCodec.WAIT_FOR_FINALITY_FLAG means wait for finality.
     allowedFinalityConfig: uint32 = TOKEN_POOL_DEFAULT_FINALITY;
     /// Optional advanced pool hooks contract for additional features like allowlists and CCV management.
+    /// @dev TRUST BOUNDARY: the hook is part of the pool owner's trust domain. Configure only an
+    ///      audited hook that authenticates this pool as the sender and echoes `forwardPayload`
+    ///      verbatim. The pool authenticates the hook as the sender but does not bind the reply to
+    ///      the request it admitted; this is an owner-trust assumption, not a protocol guarantee.
     advancedPoolHooks: address? = null;
 }
 
@@ -106,6 +110,9 @@ fun TokenPool_Data.storeAsContractData(self) {
 /// Setting an operation hook replaces the base flow for that phase, so the override owns every
 /// check the base path would have performed (e.g., `validateLockOrBurn` / `validateReleaseOrMint`).
 ///
+/// Inline hooks are trusted pool code. The external async `advancedPoolHooks` contract lives in
+/// the pool owner's trust domain; see the trust-boundary note on that field.
+///
 /// The fee-withdrawal hook `onWithdrawFeeTokens` is a fourth, standalone extension point.
 struct TokenPool_Hooks<T> {
     /// RMN curse guard for a remote lane.
@@ -134,7 +141,7 @@ struct TokenPool_Hooks<T> {
 
     /// Async postflight gate: called once validation has consumed the rate limit.
     /// @param msg        The full inbound request.
-    /// @param fwdPayload Carries `requestMsg` + `prepared` for later resumption.
+    /// @param forwardPayload Carries `requestMsg` + `prepared` for later resumption.
     /// @return `true` to wait for a `TokenPool_PostflightCheckFinished/Failed` callback from the
     ///         configured `advancedPoolHooks`; `false` to continue immediately.
     /// @dev Only checked when the pool has async hooks configured; a custom hook here and async
@@ -171,7 +178,7 @@ struct TokenPool_Hooks<T> {
 
     /// Async preflight gate: called once validation has consumed the rate limit.
     /// @param msg        The full outbound request.
-    /// @param fwdPayload Carries `requestMsg` + `prepared` for later resumption.
+    /// @param forwardPayload Carries `requestMsg` + `prepared` for later resumption.
     /// @return `true` to wait for a `TokenPool_PreflightCheckFinished/Failed` callback from the
     ///         configured `advancedPoolHooks`; `false` to continue immediately.
     /// @dev Only checked when the pool has async hooks configured; a custom hook here and async
@@ -190,7 +197,7 @@ struct TokenPool_Hooks<T> {
     /// @param sender    The pool's Jetton wallet that delivered the notification.
     /// @param msgValue  The incoming notification value after the base safety check.
     /// @param msg       The decoded inbound transfer notification.
-    /// @param fwdPayload The original request + prepared data.
+    /// @param forwardPayload The original request + prepared data.
     /// @return The (possibly mutated) context.
     onLockOrBurnTransferContinue: ((T, address, coins, TransferNotificationForRecipient, TokenPool_LockOrBurnForwardPayload) -> T);
 
@@ -836,21 +843,22 @@ fun TokenPool<T>.onBouncedMessage(mutate self, bouncedSender: address, msgValue:
             return true;
         }
         TokenPool_GetCCVs => {
-            // Fail by notifying the target (replyTo)
-            self.onGetCCVsBounced(msg, rich.exitCode);
+            assert(msg.forwardPayload != null, TokenPool_Error.MissingForwardPayload);
+            val context = lazy (msg.forwardPayload as Cell<TokenPool_GetCCVsContext>).load();
+            self.sendCCVsFailed(context.replyTo, msg.queryId, context.forwardPayload, rich.exitCode);
             return true;
         }
         TokenPool_PreflightCheck => {
             // Fail by notifying the target (replyTo); reimburse any consumed rate limit
-            assert(msg.replyPayload != null, TokenPool_Error.MissingForwardPayload);
-            val fwdp = (msg.replyPayload as Cell<TokenPool_LockOrBurnForwardPayload>).load();
+            assert(msg.forwardPayload != null, TokenPool_Error.MissingForwardPayload);
+            val fwdp = (msg.forwardPayload as Cell<TokenPool_LockOrBurnForwardPayload>).load();
             self.recoverLockOrBurnFailure(fwdp, rich.exitCode, msgValue);
             return true;
         }
         TokenPool_PostflightCheck => {
             // Fail by notifying the target (replyTo); reimburse any consumed rate limit
-            assert(msg.replyPayload != null, TokenPool_Error.MissingForwardPayload);
-            val fwdp = (msg.replyPayload as Cell<TokenPool_ReleaseOrMintForwardPayload>).load();
+            assert(msg.forwardPayload != null, TokenPool_Error.MissingForwardPayload);
+            val fwdp = (msg.forwardPayload as Cell<TokenPool_ReleaseOrMintForwardPayload>).load();
             self.recoverReleaseOrMintFailure(fwdp, rich.exitCode, msgValue);
             return true;
         }
@@ -1323,11 +1331,12 @@ fun TokenPool<T>.onGetCCVs(
 
     self.validateGetCCVsRequest(msg.localToken, msg.remoteChainSelector, msg.requestedFinalityConfig);
 
-    val context = TokenPool_GetCCVsContext {
-        replyTo: sender,
-        fwdPayload: msg.forwardPayload,
-        fees,
-    };
+    val replyTo = msg.replyTo == null ? sender : msg.replyTo;
+    if (replyTo != sender) {
+        // Only the authenticated Router may redirect the reply.
+        self.onlyRouter(sender);
+    }
+    val context = TokenPool_GetCCVsContext { replyTo, forwardPayload: msg.forwardPayload, fees };
 
     val adminConfig = lazy self.data.adminConfig.load();
     val hooks = adminConfig.advancedPoolHooks;
@@ -1345,7 +1354,7 @@ fun TokenPool<T>.onGetCCVs(
                 requestedFinalityConfig: msg.requestedFinalityConfig,
                 direction: msg.direction,
                 extraData: msg.extraData,
-                replyTo: contract.getAddress(), // hooks reply to the pool.
+                replyTo: null, // hooks reply to the sender (the pool).
                 forwardPayload: context.toCell(),
             },
         });
@@ -1356,7 +1365,7 @@ fun TokenPool<T>.onGetCCVs(
 
     // No hooks -> empty CCV set (callers fall back to lane defaults).
     var emptyCCVs: array<address> = [];
-    self.sendCCVsReply(sender, msg.queryId, emptyCCVs, context);
+    self.sendCCVsReply(replyTo, msg.queryId, emptyCCVs, context);
 }
 
 /// Handles an on-chain `TokenPool_GetCCVsAndFees` query: validates, then computes the fee
@@ -1383,12 +1392,12 @@ fun TokenPool<T>.onGetCCVsAndFees(
         requestedFinalityConfig: msg.requestedFinalityConfig,
         direction: msg.direction,
         extraData: msg.extraData,
-        replyTo: contract.getAddress(), // unused in the non-hooks path; set to self.
+        replyTo: msg.replyTo,
         forwardPayload: msg.forwardPayload,
     }, fees);
 }
 
-/// Assembles and sends the reply to the original requester, echoing the caller's `fwdPayload`.
+/// Assembles and sends the reply to the original requester, echoing the caller's `forwardPayload`.
 /// Selects the reply variant from `context.fees` (null → `TokenPool_CCVs`, else `CCVsAndFees`).
 fun TokenPool<T>.sendCCVsReply(
     self,
@@ -1399,12 +1408,12 @@ fun TokenPool<T>.sendCCVsReply(
 ): void {
     var body: cell;
     if (context.fees == null) {
-        val fwdPayload = context.fwdPayload;
-        body = TokenPool_CCVs { queryId, requiredCCVs, fwdPayload }.toCell();
+        val forwardPayload = context.forwardPayload;
+        body = TokenPool_CCVs { queryId, requiredCCVs, forwardPayload }.toCell();
     } else {
         val fees = context.fees as Cell<TokenPool_FeeContext>;
-        val fwdPayload = context.fwdPayload;
-        body = TokenPool_CCVsAndFees { queryId, requiredCCVs, fees, fwdPayload}.toCell();
+        val forwardPayload = context.forwardPayload;
+        body = TokenPool_CCVsAndFees { queryId, requiredCCVs, fees, forwardPayload}.toCell();
     }
 
     val reply = createMessage({
@@ -1416,20 +1425,20 @@ fun TokenPool<T>.sendCCVsReply(
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// Sends `TokenPool_GetCCVsFailed` to the original requester, echoing their `fwdPayload`.
+/// Sends `TokenPool_GetCCVsFailed` to the original requester, echoing their `forwardPayload`.
 /// Finalizes a query that could not complete (e.g. the hooks contract bounced).
 fun TokenPool<T>.sendCCVsFailed(
     self,
     replyTo: address,
     queryId: uint64,
-    fwdPayload: cell?,
+    forwardPayload: cell?,
     errorCode: int32,
 ): void {
     val failure = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: replyTo,
-        body: TokenPool_GetCCVsFailed { queryId, errorCode, fwdPayload },
+        body: TokenPool_GetCCVsFailed { queryId, errorCode, forwardPayload },
     });
     failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -1445,33 +1454,17 @@ fun TokenPool<T>.onQueryCCVsReply(
     val adminConfig = lazy self.data.adminConfig.load();
     val hooks = adminConfig.advancedPoolHooks;
     assert(hooks != null && hooks == sender, TokenPool_Error.Unauthorized);
-    assert(msg.replyPayload != null, TokenPool_Error.MissingForwardPayload);
+    assert(msg.forwardPayload != null, TokenPool_Error.MissingForwardPayload);
 
-    val context = lazy (msg.replyPayload as Cell<TokenPool_GetCCVsContext>).load();
+    val context = lazy (msg.forwardPayload as Cell<TokenPool_GetCCVsContext>).load();
     try {
         self.requireMinValue(msgValue);
     } catch (errorCode) {
-        self.sendCCVsFailed(context.replyTo, msg.queryId, context.fwdPayload, errorCode as int32);
+        self.sendCCVsFailed(context.replyTo, msg.queryId, context.forwardPayload, errorCode as int32);
         return;
     }
 
     self.sendCCVsReply(context.replyTo, msg.queryId, msg.requiredCCVs, context);
-}
-
-/// Handles a bounced `TokenPool_GetCCVs` forwarded to the hooks contract, finalizing the
-/// query by sending `TokenPool_GetCCVsFailed` (carrying the TVM `exitCode`) to the original
-/// requester via the echoed context. Called from the shared base `TokenPool.onBouncedMessage`.
-fun TokenPool<T>.onGetCCVsBounced(
-    self,
-    msg: TokenPool_GetCCVs,
-    exitCode: int32,
-): void {
-    if (msg.forwardPayload == null) {
-        return; // no requester to notify
-    }
-
-    val context = lazy (msg.forwardPayload as Cell<TokenPool_GetCCVsContext>).load();
-    self.sendCCVsFailed(context.replyTo, msg.queryId, context.fwdPayload, exitCode);
 }
 
 /// Validates the lock or burn input for correctness on
@@ -1529,13 +1522,13 @@ fun TokenPool<T>.validateLockOrBurn(
     };
 
     // Build forward payload using the original message (no reconstruction needed).
-    val fwdPayload = TokenPool_LockOrBurnForwardPayload {
+    val forwardPayload = TokenPool_LockOrBurnForwardPayload {
         originalSender: sender,
         requestMsg: msg.toCell(),
         prepared: prepared.toCell(),
     };
 
-    val wait = self.preflightCheck(sender, msg, fwdPayload);
+    val wait = self.preflightCheck(sender, msg, forwardPayload);
     return (wait, prepared);
 }
 
@@ -1769,11 +1762,11 @@ fun TokenPool<T>.onLockOrBurnTransferContinue(
     sender: address,
     msgValue: coins,
     msg: TransferNotificationForRecipient,
-    fwdPayload: TokenPool_LockOrBurnForwardPayload,
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
 ): void {
     if (self.hooks != null) {
         // Every concrete pool must implement this post-custody continuation
-        self.context = self.hooks.onLockOrBurnTransferContinue(self.context!, sender, msgValue, msg, fwdPayload);
+        self.context = self.hooks.onLockOrBurnTransferContinue(self.context!, sender, msgValue, msg, forwardPayload);
 
         return;
     }
@@ -1836,10 +1829,10 @@ fun TokenPool<T>.buildReturnTransfer(msg: TransferNotificationForRecipient): Ask
 fun TokenPool<T>.onLockOrBurnTransferFinalize(
     mutate self,
     msgValue: coins,
-    fwdPayload: TokenPool_LockOrBurnForwardPayload,
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
 ): void {
-    val requestMsg = lazy fwdPayload.requestMsg.load();
-    val prepared = lazy fwdPayload.prepared.load();
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val prepared = lazy forwardPayload.prepared.load();
 
     val request = lazy requestMsg.request.load();
     val details = lazy request.transfer.details.load();
@@ -1847,7 +1840,7 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
         remoteChainSelector: details.remoteChainSelector,
         details: TokenPool_LockedOrBurnedDetails {
             token: details.localToken,
-            sender: fwdPayload.originalSender,
+            sender: forwardPayload.originalSender,
             amount: prepared.destTokenAmount,
         }.toCell(),
     });
@@ -1924,13 +1917,13 @@ fun TokenPool<T>.validateReleaseOrMint(
     };
 
     // Build forward payload using the original message (no reconstruction needed).
-    val fwdPayload = TokenPool_ReleaseOrMintForwardPayload {
+    val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
         originalSender: sender,
         requestMsg: msg.toCell(),
         prepared: prepared.toCell(),
     };
 
-    val wait = self.postflightCheck(sender, msg, fwdPayload);
+    val wait = self.postflightCheck(sender, msg, forwardPayload);
     return (wait, prepared);
 }
 
@@ -2117,21 +2110,21 @@ fun TokenPool<T>.preflightCheck(
     self,
     sender: address,
     msg: TokenPool_LockOrBurn,
-    fwdPayload: TokenPool_LockOrBurnForwardPayload,
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
 ): bool {
     // Check inline hooks first (synchronous path).
     if (self.hooks != null && self.hooks.preflightCheck != null) {
-        return self.hooks.preflightCheck(self.context, msg, fwdPayload);
+        return self.hooks.preflightCheck(self.context, msg, forwardPayload);
     }
 
     // Check if on-chain async hooks are configured.
     val adminConfig = lazy self.data.adminConfig.load();
     val hooks = adminConfig.advancedPoolHooks;
     if (hooks != null) {
-        // amountPostFee is already computed in fwdPayload.prepared.destTokenAmount.
-        val prepared = lazy fwdPayload.prepared.load();
+        // amountPostFee is already computed in forwardPayload.prepared.destTokenAmount.
+        val prepared = lazy forwardPayload.prepared.load();
 
-        // Send async preflight check to hooks with replyPayload for callback resumption.
+        // Send async preflight check to hooks with forwardPayload for callback resumption.
         val hooksMsg = createMessage({
             bounce: BounceMode.RichBounce,
             value: 0,
@@ -2142,8 +2135,7 @@ fun TokenPool<T>.preflightCheck(
                 requestedFinalityConfig: msg.requestedFinalityConfig,
                 tokenArgs: msg.tokenArgs,
                 amountPostFee: prepared.destTokenAmount,
-                replyTo: contract.getAddress(),
-                replyPayload: fwdPayload.toCell(),
+                forwardPayload: forwardPayload.toCell(),
             },
         });
         hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -2158,21 +2150,21 @@ fun TokenPool<T>.postflightCheck(
     self,
     sender: address,
     msg: TokenPool_ReleaseOrMint,
-    fwdPayload: TokenPool_ReleaseOrMintForwardPayload,
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
 ): bool {
     // Check inline hooks first (synchronous path).
     if (self.hooks != null && self.hooks.postflightCheck != null) {
-        return self.hooks.postflightCheck(self.context, msg, fwdPayload);
+        return self.hooks.postflightCheck(self.context, msg, forwardPayload);
     }
 
     // Check if on-chain async hooks are configured.
     val adminConfig = lazy self.data.adminConfig.load();
     val hooks = adminConfig.advancedPoolHooks;
     if (hooks != null) {
-        // localAmount is already computed in fwdPayload.prepared.localAmount.
-        val prepared = lazy fwdPayload.prepared.load();
+        // localAmount is already computed in forwardPayload.prepared.localAmount.
+        val prepared = lazy forwardPayload.prepared.load();
 
-        // Send async postflight check to hooks with replyPayload for callback resumption.
+        // Send async postflight check to hooks with forwardPayload for callback resumption.
         val hooksMsg = createMessage({
             bounce: BounceMode.RichBounce,
             value: 0,
@@ -2182,8 +2174,7 @@ fun TokenPool<T>.postflightCheck(
                 request: msg.request,
                 localAmount: prepared.localAmount,
                 requestedFinalityConfig: msg.requestedFinalityConfig,
-                replyTo: contract.getAddress(),
-                replyPayload: fwdPayload.toCell(),
+                forwardPayload: forwardPayload.toCell(),
             },
         });
         hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

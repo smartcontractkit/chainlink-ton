@@ -2738,7 +2738,7 @@ export const TokenPool_FeeContext = {
  >     requestedFinalityConfig: uint32
  >     direction: TokenPool_MessageDirection
  >     extraData: cell?
- >     replyTo: address
+ >     replyTo: address?
  >     forwardPayload: cell?
  > }
  */
@@ -2751,7 +2751,7 @@ export interface TokenPool_GetCCVs {
     requestedFinalityConfig: uint32
     direction: TokenPool_MessageDirection
     extraData: c.Cell | null
-    replyTo: c.Address
+    replyTo: c.Address | null /* = null */
     forwardPayload: c.Cell | null
 }
 
@@ -2766,11 +2766,12 @@ export const TokenPool_GetCCVs = {
         requestedFinalityConfig: uint32
         direction: TokenPool_MessageDirection
         extraData: c.Cell | null
-        replyTo: c.Address
+        replyTo?: c.Address | null /* = null */
         forwardPayload: c.Cell | null
     }): TokenPool_GetCCVs {
         return {
             $: 'TokenPool_GetCCVs',
+            replyTo: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -2786,7 +2787,7 @@ export const TokenPool_GetCCVs = {
             requestedFinalityConfig: s.loadUintBig(32),
             direction: TokenPool_MessageDirection.fromSlice(s),
             extraData: s.loadBoolean() ? s.loadRef() : null,
-            replyTo: s.loadAddress(),
+            replyTo: s.loadMaybeAddress(),
             forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
@@ -2820,6 +2821,7 @@ export const TokenPool_GetCCVs = {
  >     requestedFinalityConfig: uint32
  >     direction: TokenPool_MessageDirection
  >     extraData: cell?
+ >     replyTo: address?
  >     forwardPayload: cell?
  > }
  */
@@ -2832,6 +2834,7 @@ export interface TokenPool_GetCCVsAndFees {
     requestedFinalityConfig: uint32
     direction: TokenPool_MessageDirection
     extraData: c.Cell | null
+    replyTo: c.Address | null /* = null */
     forwardPayload: c.Cell | null
 }
 
@@ -2846,10 +2849,12 @@ export const TokenPool_GetCCVsAndFees = {
         requestedFinalityConfig: uint32
         direction: TokenPool_MessageDirection
         extraData: c.Cell | null
+        replyTo?: c.Address | null /* = null */
         forwardPayload: c.Cell | null
     }): TokenPool_GetCCVsAndFees {
         return {
             $: 'TokenPool_GetCCVsAndFees',
+            replyTo: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -2865,6 +2870,7 @@ export const TokenPool_GetCCVsAndFees = {
             requestedFinalityConfig: s.loadUintBig(32),
             direction: TokenPool_MessageDirection.fromSlice(s),
             extraData: s.loadBoolean() ? s.loadRef() : null,
+            replyTo: s.loadMaybeAddress(),
             forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
@@ -2879,6 +2885,7 @@ export const TokenPool_GetCCVsAndFees = {
         storeTolkNullable<c.Cell>(self.extraData, b,
             (v,b) => b.storeRef(v)
         );
+        b.storeAddress(self.replyTo);
         storeTolkNullable<c.Cell>(self.forwardPayload, b,
             (v,b) => b.storeRef(v)
         );
@@ -2892,14 +2899,14 @@ export const TokenPool_GetCCVsAndFees = {
  > struct (0x6c70b2dd) TokenPool_CCVs {
  >     queryId: uint64
  >     requiredCCVs: array<address>
- >     fwdPayload: cell?
+ >     forwardPayload: cell?
  > }
  */
 export interface TokenPool_CCVs {
     readonly $: 'TokenPool_CCVs'
     queryId: uint64
     requiredCCVs: array<c.Address>
-    fwdPayload: c.Cell | null
+    forwardPayload: c.Cell | null
 }
 
 export const TokenPool_CCVs = {
@@ -2908,7 +2915,7 @@ export const TokenPool_CCVs = {
     create(args: {
         queryId?: uint64
         requiredCCVs: array<c.Address>
-        fwdPayload: c.Cell | null
+        forwardPayload: c.Cell | null
     }): TokenPool_CCVs {
         return {
             $: 'TokenPool_CCVs',
@@ -2924,7 +2931,7 @@ export const TokenPool_CCVs = {
             requiredCCVs: loadArrayOf<c.Address>(s,
                 (s) => s.loadAddress()
             ),
-            fwdPayload: s.loadBoolean() ? s.loadRef() : null,
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: TokenPool_CCVs, b: c.Builder): void {
@@ -2933,7 +2940,7 @@ export const TokenPool_CCVs = {
         storeArrayOf<c.Address>(self.requiredCCVs, b,
             (v,b) => b.storeAddress(v)
         );
-        storeTolkNullable<c.Cell>(self.fwdPayload, b,
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
             (v,b) => b.storeRef(v)
         );
     },
@@ -2947,7 +2954,7 @@ export const TokenPool_CCVs = {
  >     queryId: uint64
  >     requiredCCVs: array<address>
  >     fees: Cell<TokenPool_FeeContext>
- >     fwdPayload: cell?
+ >     forwardPayload: cell?
  > }
  */
 export interface TokenPool_CCVsAndFees {
@@ -2955,7 +2962,7 @@ export interface TokenPool_CCVsAndFees {
     queryId: uint64
     requiredCCVs: array<c.Address>
     fees: TokenPool_FeeContext
-    fwdPayload: c.Cell | null
+    forwardPayload: c.Cell | null
 }
 
 export const TokenPool_CCVsAndFees = {
@@ -2965,7 +2972,7 @@ export const TokenPool_CCVsAndFees = {
         queryId?: uint64
         requiredCCVs: array<c.Address>
         fees: TokenPool_FeeContext
-        fwdPayload: c.Cell | null
+        forwardPayload: c.Cell | null
     }): TokenPool_CCVsAndFees {
         return {
             $: 'TokenPool_CCVsAndFees',
@@ -2982,7 +2989,7 @@ export const TokenPool_CCVsAndFees = {
                 (s) => s.loadAddress()
             ),
             fees: loadCellRef<TokenPool_FeeContext>(s, TokenPool_FeeContext.fromSlice),
-            fwdPayload: s.loadBoolean() ? s.loadRef() : null,
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: TokenPool_CCVsAndFees, b: c.Builder): void {
@@ -2992,7 +2999,7 @@ export const TokenPool_CCVsAndFees = {
             (v,b) => b.storeAddress(v)
         );
         storeCellRef<TokenPool_FeeContext>(self.fees, b, TokenPool_FeeContext.store);
-        storeTolkNullable<c.Cell>(self.fwdPayload, b,
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
             (v,b) => b.storeRef(v)
         );
     },
@@ -3005,14 +3012,14 @@ export const TokenPool_CCVsAndFees = {
  > struct (0x0449d467) TokenPool_GetCCVsFailed {
  >     queryId: uint64
  >     errorCode: int32
- >     fwdPayload: cell?
+ >     forwardPayload: cell?
  > }
  */
 export interface TokenPool_GetCCVsFailed {
     readonly $: 'TokenPool_GetCCVsFailed'
     queryId: uint64
     errorCode: int32
-    fwdPayload: c.Cell | null
+    forwardPayload: c.Cell | null
 }
 
 export const TokenPool_GetCCVsFailed = {
@@ -3021,7 +3028,7 @@ export const TokenPool_GetCCVsFailed = {
     create(args: {
         queryId?: uint64
         errorCode: int32
-        fwdPayload: c.Cell | null
+        forwardPayload: c.Cell | null
     }): TokenPool_GetCCVsFailed {
         return {
             $: 'TokenPool_GetCCVsFailed',
@@ -3035,14 +3042,14 @@ export const TokenPool_GetCCVsFailed = {
             $: 'TokenPool_GetCCVsFailed',
             queryId: s.loadUintBig(64),
             errorCode: s.loadIntBig(32),
-            fwdPayload: s.loadBoolean() ? s.loadRef() : null,
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: TokenPool_GetCCVsFailed, b: c.Builder): void {
         b.storeUint(0x0449d467, 32);
         b.storeUint(self.queryId, 64);
         b.storeInt(self.errorCode, 32);
-        storeTolkNullable<c.Cell>(self.fwdPayload, b,
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
             (v,b) => b.storeRef(v)
         );
     },
@@ -3055,14 +3062,14 @@ export const TokenPool_GetCCVsFailed = {
  > struct (0x30612b17) TokenPool_QueryCCVsReply {
  >     queryId: uint64
  >     requiredCCVs: array<address>
- >     replyPayload: cell?
+ >     forwardPayload: cell?
  > }
  */
 export interface TokenPool_QueryCCVsReply {
     readonly $: 'TokenPool_QueryCCVsReply'
     queryId: uint64
     requiredCCVs: array<c.Address>
-    replyPayload: c.Cell | null
+    forwardPayload: c.Cell | null
 }
 
 export const TokenPool_QueryCCVsReply = {
@@ -3071,7 +3078,7 @@ export const TokenPool_QueryCCVsReply = {
     create(args: {
         queryId?: uint64
         requiredCCVs: array<c.Address>
-        replyPayload: c.Cell | null
+        forwardPayload: c.Cell | null
     }): TokenPool_QueryCCVsReply {
         return {
             $: 'TokenPool_QueryCCVsReply',
@@ -3087,7 +3094,7 @@ export const TokenPool_QueryCCVsReply = {
             requiredCCVs: loadArrayOf<c.Address>(s,
                 (s) => s.loadAddress()
             ),
-            replyPayload: s.loadBoolean() ? s.loadRef() : null,
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: TokenPool_QueryCCVsReply, b: c.Builder): void {
@@ -3096,7 +3103,7 @@ export const TokenPool_QueryCCVsReply = {
         storeArrayOf<c.Address>(self.requiredCCVs, b,
             (v,b) => b.storeAddress(v)
         );
-        storeTolkNullable<c.Cell>(self.replyPayload, b,
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
             (v,b) => b.storeRef(v)
         );
     },
@@ -5670,7 +5677,7 @@ export class TokenPool implements c.Contract {
         requestedFinalityConfig: uint32
         direction: TokenPool_MessageDirection
         extraData: c.Cell | null
-        replyTo: c.Address
+        replyTo?: c.Address | null /* = null */
         forwardPayload: c.Cell | null
     }) {
         return TokenPool_GetCCVs.toCell(TokenPool_GetCCVs.create(body));
@@ -5684,6 +5691,7 @@ export class TokenPool implements c.Contract {
         requestedFinalityConfig: uint32
         direction: TokenPool_MessageDirection
         extraData: c.Cell | null
+        replyTo?: c.Address | null /* = null */
         forwardPayload: c.Cell | null
     }) {
         return TokenPool_GetCCVsAndFees.toCell(TokenPool_GetCCVsAndFees.create(body));
@@ -5692,7 +5700,7 @@ export class TokenPool implements c.Contract {
     static createCellOfTokenPoolQueryCCVsReply(body: {
         queryId?: uint64
         requiredCCVs: array<c.Address>
-        replyPayload: c.Cell | null
+        forwardPayload: c.Cell | null
     }) {
         return TokenPool_QueryCCVsReply.toCell(TokenPool_QueryCCVsReply.create(body));
     }
@@ -5955,7 +5963,7 @@ export class TokenPool implements c.Contract {
         requestedFinalityConfig: uint32
         direction: TokenPool_MessageDirection
         extraData: c.Cell | null
-        replyTo: c.Address
+        replyTo?: c.Address | null /* = null */
         forwardPayload: c.Cell | null
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -5973,6 +5981,7 @@ export class TokenPool implements c.Contract {
         requestedFinalityConfig: uint32
         direction: TokenPool_MessageDirection
         extraData: c.Cell | null
+        replyTo?: c.Address | null /* = null */
         forwardPayload: c.Cell | null
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -5985,7 +5994,7 @@ export class TokenPool implements c.Contract {
     async sendTokenPoolQueryCCVsReply(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         requiredCCVs: array<c.Address>
-        replyPayload: c.Cell | null
+        forwardPayload: c.Cell | null
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
