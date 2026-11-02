@@ -4732,7 +4732,7 @@ export const Storage = {
 }
 
 /**
- > enum Router_Error { 19 variants }
+ > enum Router_Error { 20 variants }
  */
 export type Router_Error = bigint
 
@@ -4756,6 +4756,7 @@ export const Router_Error = {
     WithdrawExecutorMismatch: 57116n,
     OnRampAccountWithdrawFailed: 57117n,
     FeePaymentsWithJettonsNotSupported: 57118n,
+    UnhandledLegacyBounce: 57119n,
 
     fromSlice(s: c.Slice): Router_Error {
         return s.loadUintBig(16);
@@ -5269,6 +5270,7 @@ export class Router implements c.Contract {
         'Router_Error.WithdrawExecutorMismatch': 57116,
         'Router_Error.OnRampAccountWithdrawFailed': 57117,
         'Router_Error.FeePaymentsWithJettonsNotSupported': 57118,
+        'Router_Error.UnhandledLegacyBounce': 57119,
     }
 
     readonly address: c.Address

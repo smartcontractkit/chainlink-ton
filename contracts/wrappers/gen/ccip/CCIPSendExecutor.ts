@@ -2223,7 +2223,7 @@ export const CCIPSendExecutor_Execute = {
 }
 
 /**
- > enum CCIPSendExecutor_Error { 12 variants }
+ > enum CCIPSendExecutor_Error { 13 variants }
  */
 export type CCIPSendExecutor_Error = bigint
 
@@ -2240,6 +2240,7 @@ export const CCIPSendExecutor_Error = {
     InvalidValidatedFee: 17809n,
     TokenRegistryBounce: 17810n,
     MissingDestOverhead: 17811n,
+    UnhandledLegacyBounce: 17812n,
 
     fromSlice(s: c.Slice): CCIPSendExecutor_Error {
         return s.loadUintBig(15);
@@ -2797,6 +2798,7 @@ export class CCIPSendExecutor implements c.Contract {
         'CCIPSendExecutor_Error.InvalidValidatedFee': 17809,
         'CCIPSendExecutor_Error.TokenRegistryBounce': 17810,
         'CCIPSendExecutor_Error.MissingDestOverhead': 17811,
+        'CCIPSendExecutor_Error.UnhandledLegacyBounce': 17812,
     }
 
     readonly address: c.Address

@@ -302,77 +302,71 @@ fun onRMNAccessControlMessage(sender: address, value: coins, body: slice) {
 }
 
 fun onBouncedMessage(in: InMessageBounced) {
-    if (in.bouncedBody.preloadUint(32) == 0xfffffffe) {
-        val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
-        val richMsg = lazy Router_RichBouncedMessage.fromCell(rich.originalBody);
-        match (richMsg) {
-            TokenPool_LockOrBurn => {
-                sendLockOrBurnRelayFailure(
-                    richMsg.replyTo,
-                    richMsg.queryId,
-                    in.senderAddress,
-                    rich.exitCode,
-                );
-            }
-            TokenPool_ReleaseOrMint => {
-                // Recover the lane from the request and route the failure
-                // back through its OffRamp.
-                val request = lazy richMsg.request.load();
-                val details = lazy request.transfer.details.load();
-                val st = lazy Storage.load();
-                val offRamp = st.offRamps.mustGet(details.remoteChainSelector, Router_Error.SourceChainNotEnabled);
-                sendReleaseOrMintRelayFailure(
-                    offRamp,
-                    details.remoteChainSelector,
-                    richMsg.replyTo,
-                    richMsg.queryId,
-                    in.senderAddress,
-                    rich.exitCode,
-                );
-            }
-            // Ignored: a retried deployment bounces off the already-initialized account, and a
-            // failed fresh deployment is reported by the `DepositAccount_Init` bounce that follows.
-            Deployable_Initialize => {}
-            // The deposit account was not deployed or rejected the init.
-            DepositAccount_Init => {
-                if (richMsg.context != null) {
-                    val context = lazy Router_DepositAccountInitContext.fromCell(richMsg.context!);
-                    match (context) {
-                        Router_RelayReleaseOrMint => {
-                            sendDepositAccountInitFailure(context, rich.exitCode);
-                        }
-                        Router_OnRampAccountContext => {
-                            sendOnRampAccountFailed(context.user, richMsg.queryId, rich.exitCode as uint256);
-                        }
+    assert (in.bouncedBody.preloadUint(32) == 0xfffffffe) throw (Router_Error.UnhandledLegacyBounce);
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val richMsg = lazy Router_RichBouncedMessage.fromCell(rich.originalBody);
+    match (richMsg) {
+        TokenPool_LockOrBurn => {
+            sendLockOrBurnRelayFailure(
+                richMsg.replyTo,
+                richMsg.queryId,
+                in.senderAddress,
+                rich.exitCode,
+            );
+        }
+        TokenPool_ReleaseOrMint => {
+            // Recover the lane from the request and route the failure
+            // back through its OffRamp.
+            val request = lazy richMsg.request.load();
+            val details = lazy request.transfer.details.load();
+            val st = lazy Storage.load();
+            val offRamp = st.offRamps.mustGet(details.remoteChainSelector, Router_Error.SourceChainNotEnabled);
+            sendReleaseOrMintRelayFailure(
+                offRamp,
+                details.remoteChainSelector,
+                richMsg.replyTo,
+                richMsg.queryId,
+                in.senderAddress,
+                rich.exitCode,
+            );
+        }
+        // Ignored: a retried deployment bounces off the already-initialized account, and a
+        // failed fresh deployment is reported by the `DepositAccount_Init` bounce that follows.
+        Deployable_Initialize => {}
+        // The deposit account was not deployed or rejected the init.
+        DepositAccount_Init => {
+            if (richMsg.context != null) {
+                val context = lazy Router_DepositAccountInitContext.fromCell(richMsg.context!);
+                match (context) {
+                    Router_RelayReleaseOrMint => {
+                        sendDepositAccountInitFailure(context, rich.exitCode);
+                    }
+                    Router_OnRampAccountContext => {
+                        sendOnRampAccountFailed(context.user, richMsg.queryId, rich.exitCode as uint256);
                     }
                 }
             }
-            // The on-ramp account rejected the withdraw (e.g. it doesn't know its wallet yet).
-            DepositAccount_Withdraw => {
-                failWithdrawToTokenPool(richMsg, rich.exitCode);
-            }
         }
-        return;
-    }
-
-    val msg = lazy Router_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
-    match (msg) {
-      // We are lazy matching and only accessing the first element of the struct.
-      // The rest of the data is not a part of the bounced body so it cannot be accessed
-      Receiver_CCIPReceiveV2 => { onCCIPReceiveBounced(msg.execId, in.senderAddress) }
-      // We cannot take any action if the OffRamp is bouncing the Router messages other than to emit an event for visibility
-      OffRamp_CCIPReceiveConfirm => {
-        emit(MESSAGE_TO_OFF_RAMP_BOUNCED_TOPIC, MessageToOffRampBounced {
-            offRamp: in.senderAddress,
-            execId: msg.execId,
-        });
-      }
-      OffRamp_CCIPReceiveBounced => {
-        emit(MESSAGE_TO_OFF_RAMP_BOUNCED_TOPIC, MessageToOffRampBounced {
-            offRamp: in.senderAddress,
-            execId: msg.execId,
-        });
-      }
+        // The on-ramp account rejected the withdraw (e.g. it doesn't know its wallet yet).
+        DepositAccount_Withdraw => {
+            failWithdrawToTokenPool(richMsg, rich.exitCode);
+        }
+        Receiver_CCIPReceiveV2 => {
+            onCCIPReceiveBounced(richMsg.execId, in.senderAddress);
+        }
+        // We cannot take any action if the OffRamp is bouncing the Router messages other than to emit an event for visibility
+        OffRamp_CCIPReceiveConfirm => {
+            emit(MESSAGE_TO_OFF_RAMP_BOUNCED_TOPIC, MessageToOffRampBounced {
+                offRamp: in.senderAddress,
+                execId: richMsg.execId,
+            });
+        }
+        OffRamp_CCIPReceiveBounced => {
+            emit(MESSAGE_TO_OFF_RAMP_BOUNCED_TOPIC, MessageToOffRampBounced {
+                offRamp: in.senderAddress,
+                execId: richMsg.execId,
+            });
+        }
     }
 }
 
@@ -396,7 +390,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
     };
 
     val messageForReceiver = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: msg.gasLimit,
         dest: msg.receiver,
         body: ccipReceive,
@@ -691,7 +685,7 @@ fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
     val offRamp: address = st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled);
 
     val confirmMsg = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: 0, 
         dest: offRamp,
         body: OffRamp_CCIPReceiveConfirm {
@@ -725,11 +719,9 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
     val sourceChainSelector = execId.getSourceChainSelector();
     val offRamp = st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled);
 
-    // queryId is not available from the bounced body (only the first 256 bits are returned,
-    // which covers the opcode + execId + part of the queryId), so it is omitted. The ReceiveExecutor
-    // already stores the queryId in its own storage.
+    // queryId is omitted: the ReceiveExecutor already stores it in its own storage.
     val receiveBounced = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: OffRamp_Costs.receiveConfirmOrDeny(),
         dest: offRamp,
         body: OffRamp_CCIPReceiveBounced {

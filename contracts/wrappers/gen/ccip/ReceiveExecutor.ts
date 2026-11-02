@@ -2226,7 +2226,7 @@ export const ReceiveExecutor_MessageExecutionState = {
 }
 
 /**
- > enum ReceiveExecutor_Error { 10 variants }
+ > enum ReceiveExecutor_Error { 11 variants }
  */
 export type ReceiveExecutor_Error = bigint
 
@@ -2241,6 +2241,7 @@ export const ReceiveExecutor_Error = {
     TokenPoolUnexpectedResponse: 37607n,
     TokenNotEnabledInTokenRegistry: 37608n,
     TokenAdmissionNotMet: 37609n,
+    UnhandledLegacyBounce: 37610n,
 
     fromSlice(s: c.Slice): ReceiveExecutor_Error {
         return s.loadUintBig(16);
@@ -2377,6 +2378,7 @@ export class ReceiveExecutor implements c.Contract {
         'ReceiveExecutor_Error.TokenPoolUnexpectedResponse': 37607,
         'ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry': 37608,
         'ReceiveExecutor_Error.TokenAdmissionNotMet': 37609,
+        'ReceiveExecutor_Error.UnhandledLegacyBounce': 37610,
     }
 
     readonly address: c.Address

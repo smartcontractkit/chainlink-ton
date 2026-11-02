@@ -818,7 +818,7 @@ describe('SendExecutor - Unit tests', () => {
       from: feeQuoterBouncer.address,
       to: sendExecutor.address,
       success: true,
-      op: 0xffffffff,
+      op: 0xfffffffe,
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -1024,7 +1024,7 @@ describe('SendExecutor - Unit tests', () => {
       from: onrampBouncer.address,
       to: bouncerExecutor.address,
       success: true,
-      op: 0xffffffff,
+      op: 0xfffffffe,
     })
 
     // The executor exits with the reservation bounce error and no refund: the
@@ -1073,7 +1073,7 @@ describe('SendExecutor - Unit tests', () => {
       from: registryBouncer.address,
       to: sendExecutor.address,
       success: true,
-      op: 0xffffffff,
+      op: 0xfffffffe,
     })
 
     // The executor finalizes with the registry bounce error and refunds the fee.

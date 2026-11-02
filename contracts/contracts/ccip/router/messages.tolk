@@ -51,17 +51,15 @@ type Router_InMsg =
     | TransferNotificationForRecipient
     | ReturnExcessesBack;
 
-type Router_BouncedMessage = 
-    | Receiver_CCIPReceiveV2
-    | OffRamp_CCIPReceiveConfirm
-    | OffRamp_CCIPReceiveBounced;
-
 type Router_RichBouncedMessage =
     | TokenPool_LockOrBurn
     | TokenPool_ReleaseOrMint
     | Deployable_Initialize
     | DepositAccount_Init
-    | DepositAccount_Withdraw;
+    | DepositAccount_Withdraw
+    | Receiver_CCIPReceiveV2
+    | OffRamp_CCIPReceiveConfirm
+    | OffRamp_CCIPReceiveBounced;
 
 // update multiple chain selectors in batch to the same onramp/offramp address
 struct (0x7db6745d) Router_ApplyRampUpdates {

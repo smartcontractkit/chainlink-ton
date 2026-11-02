@@ -129,7 +129,9 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun onBouncedMessage(in: InMessageBounced) {
-    val msg = lazy CCIPSendExecutor_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
+    assert (in.bouncedBody.preloadUint(32) == 0xfffffffe) throw (CCIPSendExecutor_Error.UnhandledLegacyBounce);
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val msg = lazy CCIPSendExecutor_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
         FeeQuoter_GetValidatedFee => {
             val this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
@@ -178,7 +180,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.onExecute(mutate self) 
 
 fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
     val getValidatedFeeMsg = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: feeQuoter,
         body: FeeQuoter_GetValidatedFee {
@@ -218,7 +220,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     }
 
     val reserveFee = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: msg.fee.feeTokenAmount + OnRamp_Costs.ExecutorReserveFee(),
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorReserveFee {
@@ -270,7 +272,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onFeeReserved
     val tokenRegistry = self.addresses.load().tokenRegistry!;
 
     val queryMsg = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: TokenAdminRegistry_GetTokenInfo.cost(),
         dest: tokenRegistry.load(),
         body: TokenAdminRegistry_GetTokenInfo {

@@ -93,8 +93,9 @@ fun onMessageFromRoot(msg: TokenAdminRegistryEntry_MessageFromRoot, replay: bool
 /// A pool update whose probe bounces delists the token until the administrator sets a pool again.
 /// A bounced TEP-89 query leaves the token disabled.
 fun onBouncedMessage(in: InMessageBounced) {
-    in.bouncedBody.skipBouncedPrefix();
-    val bounced = lazy TokenAdminRegistryEntry_BouncedMessage.fromSlice(in.bouncedBody);
+    assert (in.bouncedBody.preloadUint(32) == 0xfffffffe) throw (TokenAdminRegistryEntry_Error.UnhandledLegacyBounce);
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val bounced = lazy TokenAdminRegistryEntry_BouncedMessage.fromCell(rich.originalBody);
     match (bounced) {
         TokenPool_GetConfig => {
             val st = lazy TokenRegistry_Storage.load();
@@ -202,7 +203,7 @@ fun onVerifyToken(queryId: uint64) {
 /// A bounced query or a response without a wallet leaves the token unverified.
 fun queryWallet(token: address, queryId: uint64) {
     createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: TokenAdminRegistryEntry_WALLET_QUERY_VALUE,
         dest: token,
         body: RequestWalletAddress {
@@ -299,7 +300,7 @@ fun onRefreshPoolConfig(queryId: uint64) {
 
 fun probePoolConfig(pool: address, queryId: uint64) {
     createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: TokenAdminRegistryEntry_POOL_PROBE_VALUE,
         dest: pool,
         body: TokenPool_GetConfig { queryId },

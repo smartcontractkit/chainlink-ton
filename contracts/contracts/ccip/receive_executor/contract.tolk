@@ -126,8 +126,9 @@ fun onInternalMessage(in: InMessage) {
 // A bounced token admin registry query fails the execution so it can be retried (the retry
 // restarts from the registry query).
 fun onBouncedMessage(in: InMessageBounced) {
-    in.bouncedBody.skipBouncedPrefix();
-    val bounced = lazy ReceiveExecutor_BouncedMessage.fromSlice(in.bouncedBody);
+    assert (in.bouncedBody.preloadUint(32) == 0xfffffffe) throw (ReceiveExecutor_Error.UnhandledLegacyBounce);
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val bounced = lazy ReceiveExecutor_BouncedMessage.fromCell(rich.originalBody);
     var st = ReceiveExecutor_Storage.load();
     var ttInfo = st.state.tokenTransfer.loadOpt();
     if (ttInfo == null) {
@@ -192,7 +193,7 @@ fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
     st.state.tokenTransfer = ttInfo.toCell();
     createMessage(
         {
-            bounce: BounceMode.Only256BitsOfBody,
+            bounce: BounceMode.RichBounce,
             value: TokenAdminRegistry_GetTokenInfo.cost(),
             dest: ttInfo.tokenAdminRegistry,
             body: TokenAdminRegistry_GetTokenInfo {
