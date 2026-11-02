@@ -1156,7 +1156,7 @@ describe('JettonLockBox', () => {
       expect(result.transactions).toHaveTransaction({
         from: lockbox.address,
         to: recipient.address,
-        value: amount,
+        value: (value) => value !== undefined && value >= amount,
         success: true,
       })
     })

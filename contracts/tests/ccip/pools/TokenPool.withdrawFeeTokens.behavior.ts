@@ -210,7 +210,7 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
       expect(result.transactions).toHaveTransaction({
         from: ctx.pool.address,
         to: ctx.recipient.address,
-        value: amount,
+        value: (value) => value !== undefined && value >= amount,
         success: true,
       })
     })

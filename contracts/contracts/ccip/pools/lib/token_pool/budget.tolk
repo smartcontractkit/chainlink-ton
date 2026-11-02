@@ -4,8 +4,8 @@ import "@stdlib/gas-payments"
 
 import "../../../../lib/gas"
 
-/// Minimum native TON kept on a pool; protects long-term storage rent when withdrawing excess TON.
-const TOKEN_POOL_TON_RESERVE = grams("1");
+/// Rent reserve kept on the pool.
+const MIN_GRAM_TO_RESERVE: int = grams("0.05");
 
 /// Initial CCIP budgets; calibration against success and recovery traces is still required.
 

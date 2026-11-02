@@ -371,7 +371,7 @@ fun onWithdrawRescue(st: Storage, sender: address, msgValue: coins, msg: JettonL
 fun onWithdrawableWithdraw(st: Storage, sender: address, msgValue: coins, msg: Withdrawable_Withdraw) {
     var rbac = hookTrait__AccessControl(st);
     rbac.requireRole(DEFAULT_ADMIN_ROLE, sender);
-    Withdrawable { reserve: MIN_GRAM_TO_RESERVE }.withdrawSafe(msg);
+    Withdrawable { reserve: MIN_GRAM_TO_RESERVE }.withdraw(msg);
 }
 
 /// Handles bounced jetton transfers — notifies the original caller that the withdrawal failed.

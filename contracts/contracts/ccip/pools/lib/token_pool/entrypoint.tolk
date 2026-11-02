@@ -821,7 +821,7 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.onWithdrawRescue(msgSender, msgValue, msg);
         }
         Withdrawable_Withdraw => {
-            self.onWithdrawTon(msgSender, msg);
+            self.onWithdrawableWithdraw(msgSender, msg);
         }
         TokenPool_SetBudget => {
             self.setBudget(msgSender, msgValue, msg.queryId, msg.budget);
@@ -2595,15 +2595,14 @@ fun TokenPool<T>.onWithdrawRescue(
     self.debitAccruedFees(withdrawnOwnToken);
 }
 
-/// Owner-only native TON withdraw. Preserves a long-term rent floor and never lets the caller
-/// lower it. This is separate from Jetton rescue: it recovers excess/stranded TON.
-fun TokenPool<T>.onWithdrawTon(
+/// Owner-only native TON withdraw. This is separate from Jetton rescue: it recovers excess TON.
+fun TokenPool<T>.onWithdrawableWithdraw(
     mutate self,
     sender: address,
     msg: Withdrawable_Withdraw,
 ) {
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
-    Withdrawable { reserve: TOKEN_POOL_TON_RESERVE }.withdrawSafe(msg);
+    Withdrawable { reserve: MIN_GRAM_TO_RESERVE }.withdraw(msg);
 }
 
 /// Debits `accruedFees` conservatively: never below zero, never more than the current ledger.
