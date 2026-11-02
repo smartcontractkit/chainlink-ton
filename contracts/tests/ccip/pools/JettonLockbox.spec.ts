@@ -15,6 +15,8 @@ import {
   JettonLockBox_WithdrawFailed,
   JettonLockBox_Deposited,
   JettonLockBox_DepositFailed,
+  JettonWithdrawable_Withdraw,
+  JettonWithdrawable_WithdrawFeeTransfer,
   AccessControl_RoleData,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
@@ -140,6 +142,44 @@ describe('JettonLockBox', () => {
       role: OPERATOR_ROLE_VALUE,
       account: operator.address,
     })
+  })
+
+  const deployMinter = async (content: string) => {
+    const minter = blockchain.openContract(
+      JettonMinter.createFromConfig(
+        {
+          admin: deployer.address,
+          transferAdmin: null,
+          walletCode: await contractCode.jetton('JettonWallet'),
+          jettonContent: beginCell().storeStringTail(content).endCell(),
+          totalSupply: 0n,
+        },
+        await contractCode.jetton('JettonMinter'),
+      ),
+    )
+    await minter.sendDeploy(deployer.getSender(), toNano('1'))
+    return minter
+  }
+
+  const rescueBody = (queryId: bigint, wallet: Address, amount: bigint) => ({
+    withdrawMsg: JettonWithdrawable_Withdraw.create({
+      queryId,
+      transfers: [
+        JettonWithdrawable_WithdrawFeeTransfer.create({
+          wallet,
+          value: toNano('0.2'),
+          msg: AskToTransfer.create({
+            queryId,
+            jettonAmount: amount,
+            transferRecipient: recipient.address,
+            sendExcessesTo: lockbox.address,
+            customPayload: null,
+            forwardTonAmount: 0n,
+            forwardPayload: beginCell().storeBit(0).endCell().beginParse(),
+          }),
+        }),
+      ],
+    }),
   })
 
   describe('initialization', () => {
@@ -610,6 +650,126 @@ describe('JettonLockBox', () => {
         success: false,
         exitCode: JettonLockBox.Errors['AccessControl_Error.UnauthorizedAccount'],
       })
+    })
+
+    it('allows the admin to rescue the configured wallet', async () => {
+      const amount = toNano('5')
+      await jettonMinter.sendMint(deployer.getSender(), {
+        value: toNano('0.5'),
+        message: {
+          queryId: 303n,
+          destination: lockbox.address,
+          tonAmount: toNano('0.1'),
+          jettonAmount: amount,
+          from: deployer.address,
+          responseDestination: null,
+        },
+      })
+      const recipientWallet = blockchain.openContract(
+        JettonWallet.createFromAddress(await jettonMinter.getWalletAddress(recipient.address)),
+      )
+
+      const result = await lockbox.sendJettonLockBoxWithdrawRescue(
+        deployer.getSender(),
+        toNano('0.5'),
+        rescueBody(303n, lockboxWallet.address, amount),
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: lockbox.address,
+        to: lockboxWallet.address,
+        success: true,
+        op: AskToTransfer.PREFIX,
+      })
+      expect(await lockboxWallet.getJettonBalance()).toBe(0n)
+      expect(await recipientWallet.getJettonBalance()).toBe(amount)
+    })
+
+    it('allows the admin to rescue a foreign wallet', async () => {
+      const foreignMinter = await deployMinter('lockbox-foreign')
+      const amount = toNano('7')
+      await foreignMinter.sendMint(deployer.getSender(), {
+        value: toNano('0.5'),
+        message: {
+          queryId: 304n,
+          destination: lockbox.address,
+          tonAmount: toNano('0.1'),
+          jettonAmount: amount,
+          from: deployer.address,
+          responseDestination: null,
+        },
+      })
+
+      const foreignLockboxWallet = blockchain.openContract(
+        JettonWallet.createFromAddress(await foreignMinter.getWalletAddress(lockbox.address)),
+      )
+      const recipientWallet = blockchain.openContract(
+        JettonWallet.createFromAddress(await foreignMinter.getWalletAddress(recipient.address)),
+      )
+      expect(await foreignLockboxWallet.getJettonBalance()).toBe(amount)
+
+      const result = await lockbox.sendJettonLockBoxWithdrawRescue(
+        deployer.getSender(),
+        toNano('0.5'),
+        rescueBody(304n, foreignLockboxWallet.address, amount),
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: lockbox.address,
+        to: foreignLockboxWallet.address,
+        success: true,
+        op: AskToTransfer.PREFIX,
+      })
+      expect(await foreignLockboxWallet.getJettonBalance()).toBe(0n)
+      expect(await recipientWallet.getJettonBalance()).toBe(amount)
+    })
+
+    it('rejects rescue from a non-admin', async () => {
+      const result = await lockbox.sendJettonLockBoxWithdrawRescue(
+        operator.getSender(),
+        toNano('0.5'),
+        {
+          withdrawMsg: JettonWithdrawable_Withdraw.create({ queryId: 305n, transfers: [] }),
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: operator.address,
+        to: lockbox.address,
+        success: false,
+        exitCode: JettonLockBox.Errors['AccessControl_Error.UnauthorizedAccount'],
+      })
+    })
+
+    it('notifies the admin when a rescue ask bounces', async () => {
+      const operatorBalanceBefore = await operatorWallet.getJettonBalance()
+
+      const result = await lockbox.sendJettonLockBoxWithdrawRescue(
+        deployer.getSender(),
+        toNano('0.5'),
+        rescueBody(306n, operatorWallet.address, 1n),
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: lockbox.address,
+        to: operatorWallet.address,
+        success: false,
+        op: AskToTransfer.PREFIX,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: lockbox.address,
+        to: deployer.address,
+        success: true,
+        body(body) {
+          if (!body) return false
+          const s = body.beginParse()
+          return (
+            s.loadAddress().equals(operatorWallet.address) &&
+            AskToTransfer.fromSlice(s).queryId === 306n
+          )
+        },
+      })
+      expect(await operatorWallet.getJettonBalance()).toBe(operatorBalanceBefore)
     })
 
     it('should send AskToTransfer on authorized withdraw', async () => {
