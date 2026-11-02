@@ -96,14 +96,6 @@ fun onBouncedMessage(in: InMessageBounced) {
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val msg = lazy BurnMintTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
-        // Recovery returns are best-effort; their bounced value stays with the pool.
-        AskToTransfer => {
-            // Tagged fee withdrawals are handled by the base library (ledger re-credit); here we
-            // only accept best-effort custody returns from the pool's own wallet.
-            val wallet = st.poolData.load().jettonClient().walletAddress();
-            assert(in.senderAddress == wallet) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
-            st.store();
-        }
         CCT_AskToBurn => {
             assert(msg.forwardPayload != null) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
             val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload);
