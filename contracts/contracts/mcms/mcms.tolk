@@ -929,7 +929,7 @@ fun MCMS<T>.setRoot(
 
     // Reply to sender new root was set, return excess
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: MCMS_NewRoot{queryId, root, validUntil, metadata}
@@ -1046,7 +1046,7 @@ fun MCMS<T>.execute(
 
     // Reply back to sender
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: MCMS_OpExecuted{queryId, nonce: op.nonce, to: op.to, data: op.data, value: op.value}
@@ -1249,7 +1249,7 @@ fun MCMS<T>.setConfig(
 
     // Reply to sender config is set, return excess
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: MCMS_ConfigSet{ queryId, config, isRootCleared: clearRoot }
@@ -1288,7 +1288,7 @@ fun MCMS<T>.updateOpFinalizationTimeout(
     self.data.rootInfo = rootInfo.toCell();
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: MCMS_OpFinalizationTimeoutChange{ queryId, oldDuration: currTimeout, newDuration: newOpFinalizationTimeout}
@@ -1362,7 +1362,7 @@ fun MCMS<T>.submitErrorReport(
         .endCell() as Cell<uint256>;
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: MCMS_ErrorReportSubmitted{
@@ -1396,7 +1396,7 @@ fun MCMS<T>.transferOracleRole(
     self.data.oracle = newOracle;
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: MCMS_OracleRoleTransferred{ queryId, oldOracle, newOracle }
@@ -1429,7 +1429,7 @@ fun MCMS<T>.cleanExpiredRoots(
     }
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: MCMS_ExpiredRootsCleaned{queryId, roots}
@@ -1444,7 +1444,7 @@ fun MCMS<T>._execute(self, dest: address, value: coins, body: cell): void {
     }
 
     // Send a message to the target with the provided value and data
-    val op = createMessage({bounce: true, value, dest, body});
+    val op = createMessage({bounce: BounceMode.Only256BitsOfBody, value, dest, body});
     op.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 

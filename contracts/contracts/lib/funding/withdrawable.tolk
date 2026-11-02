@@ -58,7 +58,7 @@ fun Withdrawable.withdraw(self, msg: Withdrawable_Withdraw) {
 
 fun _transfer(destination: address, value: coins, sendMode: int ) {
     val reply = createMessage({
-        bounce: false, // So refund is not returned in case requester doesn't handle empty messages
+        bounce: BounceMode.NoBounce, // So refund is not returned in case requester doesn't handle empty messages
         value,
         dest: destination,
         body: createEmptyCell(),

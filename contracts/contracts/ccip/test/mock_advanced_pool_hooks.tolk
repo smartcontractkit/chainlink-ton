@@ -89,7 +89,7 @@ fun replyGetCCVs(msg: TokenPool_GetCCVs, sender: address) {
     }
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: TokenPool_QueryCCVsReply {
@@ -125,12 +125,12 @@ fun replyPreflight(msg: TokenPool_PreflightCheck, msgValue: coins, sender: addre
     }
 
     if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_COSTLY_ID) {
-        createMessage({ bounce: false, value: msgValue / 2, dest: sender, body: body })
+        createMessage({ bounce: BounceMode.NoBounce, value: msgValue / 2, dest: sender, body: body })
             .send(SEND_MODE_PAY_FEES_SEPARATELY);
         return;
     }
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: body,
@@ -162,12 +162,12 @@ fun replyPostflight(msg: TokenPool_PostflightCheck, msgValue: coins, sender: add
     }
 
     if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_COSTLY_ID) {
-        createMessage({ bounce: false, value: msgValue / 2, dest: sender, body: body })
+        createMessage({ bounce: BounceMode.NoBounce, value: msgValue / 2, dest: sender, body: body })
             .send(SEND_MODE_PAY_FEES_SEPARATELY);
         return;
     }
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: body,

@@ -107,7 +107,7 @@ fun prepareRegister(st: FiredrillEntrypoint_Storage) {
 	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 	val msg = createMessage({
-		bounce: false,
+		bounce: BounceMode.NoBounce,
 		value: 0,
 		dest: firedrillContracts.firedrillOffRamp,
 		body: FiredrillOffRamp_EmitSourceChainConfigSet {},
@@ -132,7 +132,7 @@ fun drillPendingCommitPendingQueueTxSpike(mutate st: FiredrillEntrypoint_Storage
 		};
 		
 		val message = createMessage({
-			bounce: false,
+			bounce: BounceMode.NoBounce,
 			value: DRILL_MESSAGE_VALUE,
 			dest: firedrillContracts.firedrillOnRamp,
 			body: emitMsg,
@@ -159,7 +159,7 @@ fun drillPendingExecution(st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypo
 	val firedrillContracts = st.firedrillContracts.load();
 
 	val message = createMessage({
-		bounce: false,
+		bounce: BounceMode.NoBounce,
 		value: 0,
 		dest: firedrillContracts.firedrillOffRamp,
 		body: emitMsg,

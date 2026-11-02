@@ -795,7 +795,7 @@ fun Timelock<T>.init(
 
     // Reply back to sender
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: Timelock_MinDelayChange{queryId, oldDuration: 0, newDuration: minDelay}
@@ -855,7 +855,7 @@ fun Timelock<T>.scheduleBatch(
     assert (value >= Timelock_Costs.scheduleBatch(index)) throw (Timelock_Error.InsufficientFee);
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: Timelock_BatchScheduled{queryId, id, delay}
@@ -890,7 +890,7 @@ fun Timelock<T>.cancel(mutate self, sender: address, _value: coins, queryId: uin
     self.data.timestamps.delete(id);
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: Timelock_Canceled{queryId, id}
@@ -966,7 +966,7 @@ fun Timelock<T>.executeBatch(
     self.afterCall(id);
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: Timelock_BatchExecuted{queryId, id}
@@ -978,7 +978,7 @@ fun Timelock<T>.executeBatch(
 fun Timelock<T>.execute(self, call: Timelock_Call): void {
     // @dev: we do not require success before continuing with the next call (async execution model, fan out)
     val op = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: call.value,
         dest: call.target,
         body: call.data
@@ -1036,7 +1036,7 @@ fun Timelock<T>.updateDelay(
     rbac.requireRole(ADMIN_ROLE, sender);
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: Timelock_MinDelayChange{
@@ -1079,7 +1079,7 @@ fun Timelock<T>.updateOpFinalizationTimeout(
     }
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: Timelock_OpFinalizationTimeoutChange{queryId, oldDuration, newDuration: newOpFinalizationTimeout}
@@ -1120,7 +1120,7 @@ fun Timelock<T>.blockFunctionSelector(
     }
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body,
@@ -1158,7 +1158,7 @@ fun Timelock<T>.unblockFunctionSelector(
     }
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body,
@@ -1217,7 +1217,7 @@ fun Timelock<T>.bypasserExecuteBatch(
     assert (value >= Timelock_Costs.bypasserExecuteBatch(index)) throw (Timelock_Error.InsufficientFee);
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: Timelock_BypasserBatchExecuted{queryId}
@@ -1245,7 +1245,7 @@ fun Timelock<T>.updateExecutorRoleCheck(
     self.data.executorRoleCheckEnabled = enabled;
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: Timelock_ExecutorRoleCheckUpdated{queryId, enabled}
@@ -1289,7 +1289,7 @@ fun Timelock<T>.submitErrorReport(
     }
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: Timelock_ErrorReportSubmitted{

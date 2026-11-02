@@ -357,7 +357,7 @@ fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
     // bounced Receiver_CCIPReceiveV2, where only the first 256 bits are returned). The
     // ReceiveExecutor already stores the queryId in its own storage.
     val receiveBounced = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_CCIPReceiveFailed{ 
@@ -373,7 +373,7 @@ fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
 // specific sequence number in a MerkleRoot contract.
 fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
     val markState= createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: MerkleRoot_Costs.markState(),
         dest: root,
         body: MerkleRoot_MarkState {
@@ -473,7 +473,7 @@ fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifySuccess/Failure
 fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
     val receiveConfirm = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest:  getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_CCIPReceiveConfirm {
@@ -530,7 +530,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
 
 fun ccipReceiveFailed(receiveExecutor: address, queryId: uint64, receiver: address, reason: ReceiveExecutor_FailedReason) {
     val receiveBounced = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: receiveExecutor,
         body: ReceiveExecutor_CCIPReceiveFailed{
@@ -545,7 +545,7 @@ fun ccipReceiveFailed(receiveExecutor: address, queryId: uint64, receiver: addre
 // Send ReceiveBounced to initiate the failure notification trace
 fun mintOrReleaseFailed(receiveExecutor: address, queryId: uint64, reason: ReleaseOrMint_ReleaseOrMintFailedReason) {
     val receiveBounced = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: receiveExecutor,
         body: ReceiveExecutor_ReleaseOrMintFailed {
@@ -714,7 +714,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
                 // and update the prices in the fee quoter
 
                 val updatePricesMsg = createMessage({
-                    bounce: true,
+                    bounce: BounceMode.Only256BitsOfBody,
                     value: FeeQuoter_Costs.updatePrices(),
                     dest: st.config.load().dynamicConfig.load().feeQuoter,
                     body: FeeQuoter_UpdatePrices {
@@ -892,7 +892,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
 
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: getMerkleRootDeployAddress(st, root),
         body: MerkleRoot_Validate {

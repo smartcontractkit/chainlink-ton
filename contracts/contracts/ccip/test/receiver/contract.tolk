@@ -70,7 +70,7 @@ fun onInternalMessage(in: InMessage) {
             // even if there are some fluctuations in the fees.
             reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
             val receiveConfirm = createMessage({
-                bounce: true,
+                bounce: BounceMode.Only256BitsOfBody,
                 value: 0,
                 dest: in.senderAddress,
                 body: Router_CCIPReceiveConfirm {

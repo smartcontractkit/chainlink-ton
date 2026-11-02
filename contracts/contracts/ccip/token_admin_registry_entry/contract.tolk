@@ -117,7 +117,7 @@ fun requireRoot(sender: address) {
 fun deferToRoot(msg: TokenAdminRegistryEntry_MessageFromRoot) {
     val st = lazy TokenRegistry_Storage.load();
     createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: st.adminConfig.load().tokenAdminRegistry,
         body: TokenAdminRegistry_EntryUpgradeRequest {
@@ -144,7 +144,7 @@ fun onGetTokenInfo(queryId: uint64, msg: TokenAdminRegistryEntry_GetTokenInfo) {
         tokenInfo = disabled.toCell();
     }
     createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: st.adminConfig.load().tokenAdminRegistry,
         body: TokenAdminRegistryEntry_TokenInfo {
@@ -202,7 +202,7 @@ fun onVerifyToken(queryId: uint64) {
 /// A bounced query or a response without a wallet leaves the token unverified.
 fun queryWallet(token: address, queryId: uint64) {
     createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: TokenAdminRegistryEntry_WALLET_QUERY_VALUE,
         dest: token,
         body: RequestWalletAddress {
@@ -299,7 +299,7 @@ fun onRefreshPoolConfig(queryId: uint64) {
 
 fun probePoolConfig(pool: address, queryId: uint64) {
     createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: TokenAdminRegistryEntry_POOL_PROBE_VALUE,
         dest: pool,
         body: TokenPool_GetConfig { queryId },
@@ -379,7 +379,7 @@ fun notifyPoolSet(queryId: uint64, token: address, previousPool: address?, newPo
 fun notifyRoot(body: cell) {
     val st = TokenRegistry_Storage.load();
     createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: TokenAdminRegistryEntry_relayEventCost(),
         dest: st.adminConfig.load().tokenAdminRegistry,
         body,

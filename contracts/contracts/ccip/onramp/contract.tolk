@@ -186,7 +186,7 @@ fun onGetValidatedFee(msg: OnRamp_GetValidatedFee, sender: address) {
     val feeQuoter = config.feeQuoter;
 
     val getFeeMsg = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: feeQuoter,
         body: FeeQuoter_GetValidatedFee {
@@ -218,7 +218,7 @@ fun onMessageValidated(msg: FeeQuoter_MessageValidated) {
     val userAddress = context.onrampContext;
 
     val confirmation = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: userAddress,
         body: OnRamp_MessageValidated {
@@ -249,7 +249,7 @@ fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed) {
     val userAddress = context.onrampContext;
 
     val rejection = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: userAddress,
         body: OnRamp_MessageValidationFailed {
@@ -318,7 +318,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
     }
     val executorId = generateRandomSendExecutorId();
     val executeMsg = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: executorAutoDeployAddress(executorId),
         body: Deployable_InitializeAndSend {
@@ -352,7 +352,7 @@ fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequest
     var destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector as int);
     val tokenAmount = msg.tokenAmount.load();
     val routerLockOrBurn = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: destChainConfig.router,
         body: Router_LockOrBurn {
@@ -387,7 +387,7 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
         processPoolReturnData(msg);
     } catch (e) {
         val failure = createMessage({
-            bounce: false,
+            bounce: BounceMode.NoBounce,
             value: 0,
             dest: destChainConfig.router,
             body: Router_WithdrawToTokenPoolFailed {
@@ -402,7 +402,7 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
     }
 
     val routerWithdraw = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: destChainConfig.router,
         body: Router_WithdrawToTokenPool {
@@ -437,7 +437,7 @@ fun onExecutorReserveFee(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorReserveF
 
     reserveGramsOnBalance(msg.fee, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
     val confirmation = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: sendExecutor,
         body: OnRamp_ExecutorFeeReserved {
@@ -511,7 +511,7 @@ fun onExecutorFinishedSuccessfully(mutate st: OnRamp_Storage, msg: OnRamp_Execut
     emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent { message: rampMessage });
 
     val confirmation = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: destChainConfig.router,
         body: Router_MessageSent {
@@ -547,7 +547,7 @@ fun onExecutorFinishedWithError(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorF
 
 fun rejectMessage(error: int, router: address, queryID: uint64, destChainSelector: uint64, sender: address, refund: coins = 0) {
     val errorMsg = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         // A charged fee is already reserved on this contract.
         value: refund,
         dest: router,
@@ -674,7 +674,7 @@ fun onWithdrawFeeTokens(msg: OnRamp_WithdrawFeeTokens) {
     reserveGramsOnBalance(config.reserve + st.pendingFeeReservations, RESERVE_MODE_AT_MOST);
 
     val withdrawMsg = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: config.feeAggregator,
         body: createEmptyCell(),

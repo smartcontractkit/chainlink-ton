@@ -150,7 +150,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     val content = request.content.load();
     if (content is TokenAdminRegistryEntry_GetTokenInfo) {
         createMessage({
-            bounce: false,
+            bounce: BounceMode.NoBounce,
             value: 0,
             dest: content.requester,
             body: TokenAdminRegistry_GetTokenInfoFailed {
@@ -236,7 +236,7 @@ fun upgradeAndResume(entry: address, queryId: uint64, request: Cell<TokenAdminRe
 
 fun sendUpgrade(dest: address, queryId: uint64, value: coins, mode: int) {
     createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value,
         dest,
         body: Upgradeable_Upgrade {
@@ -262,7 +262,7 @@ fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
     }
 
     createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: msg.requester,
         body: TokenAdminRegistry_TokenInfo {
@@ -296,7 +296,7 @@ fun emitPoolSet(event: TokenAdminRegistry_PoolSet) {
 /// answers with a wallet. See TokenAdminRegistry_VerifyToken to query again.
 fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_RegisterToken) {
     val deployMsg = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: TokenAdminRegistryEntry_deployCost(),
         dest: entryAddress(msg.tokenAddress),
         body: Deployable_InitializeAndSend {

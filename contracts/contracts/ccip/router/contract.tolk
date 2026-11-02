@@ -157,7 +157,7 @@ fun onInternalMessage(in: InMessage) {
         Router_RMNRemoteVerifyNotCursed => {
             val result = verifyNotCursed(msg.subject);
             val reply = createMessage({
-                bounce: false,
+                bounce: BounceMode.NoBounce,
                 value: 0,
                 dest: in.senderAddress,
                 body: Router_RMNRemoteVerifyNotCursedResponse { queryId: msg.queryId, result },
@@ -396,7 +396,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
     };
 
     val messageForReceiver = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: msg.gasLimit,
         dest: msg.receiver,
         body: ccipReceive,
@@ -584,7 +584,7 @@ consumed at admission and fail the send.
 fun onWithdrawToTokenPoolFailed(msg: Router_WithdrawToTokenPoolFailed) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
     val failure = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: withdrawRequest.tokenPool,
         body: TokenPool_LockOrBurnWithdrawFailed {
@@ -691,7 +691,7 @@ fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
     val offRamp: address = st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled);
 
     val confirmMsg = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0, 
         dest: offRamp,
         body: OffRamp_CCIPReceiveConfirm {
@@ -729,7 +729,7 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
     // which covers the opcode + execId + part of the queryId), so it is omitted. The ReceiveExecutor
     // already stores the queryId in its own storage.
     val receiveBounced = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: OffRamp_Costs.receiveConfirmOrDeny(),
         dest: offRamp,
         body: OffRamp_CCIPReceiveBounced {
@@ -774,7 +774,7 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee, sender: address, isV1: bool) 
     }
 
     val feeQuoterMsg = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: onRampResult.loadValue(),
         body: OnRamp_GetValidatedFee {
@@ -827,7 +827,7 @@ fun onMessageValidatedFromOnRamp(msg: OnRamp_MessageValidated) {
         };
     }
     val replyMsg = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: userAddress,
         body,
@@ -876,7 +876,7 @@ fun sendMessageValidationFailed(userAddress: address, error: uint256, msg: Cell<
         }
     }
     val replyMsg = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: userAddress,
         body
@@ -906,7 +906,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
         return sendMessageRejected(sender, msg.queryID, Router_Error.DestChainNotEnabled as uint256);
     }
     val sendMsg = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: onRampResult.loadValue(),
         body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender, value }},
@@ -990,7 +990,7 @@ fun RMNRemote.forwardCursedSubjects(self) {
 //     Router           ->> SenderAcc: Router_CCIPSendACK
 fun onSendACK(msg: Router_MessageSent) {
     val ackMsg = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: msg.sender,
         body: Router_CCIPSendACK {
@@ -1020,7 +1020,7 @@ fun onSendNACK(msg: Router_MessageRejected) {
 
 fun sendMessageRejected(sender: address, queryID: uint64, error: uint256) {
     val nackMsg = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: sender,
         body: Router_CCIPSendNACK {

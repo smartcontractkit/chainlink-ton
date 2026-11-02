@@ -192,7 +192,7 @@ fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
     st.state.tokenTransfer = ttInfo.toCell();
     createMessage(
         {
-            bounce: true,
+            bounce: BounceMode.Only256BitsOfBody,
             value: TokenAdminRegistry_GetTokenInfo.cost(),
             dest: ttInfo.tokenAdminRegistry,
             body: TokenAdminRegistry_GetTokenInfo {
@@ -238,7 +238,7 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
     val rampMsg = lazy st.message.load();
     val releaseOrMint = createMessage(
         {
-            bounce: true,
+            bounce: BounceMode.Only256BitsOfBody,
             value: transfer.destGasAmount + OffRamp_ReleaseOrMint.cost(),
             dest: st.owner,
             body: OffRamp_ReleaseOrMint {
@@ -273,7 +273,7 @@ fun execute(mutate st: ReceiveExecutor_Storage) {
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.Execute;
     createMessage(
         {
-            bounce: true,
+            bounce: BounceMode.Only256BitsOfBody,
             value: OffRamp_Costs.dispatchValidated() + st.state.effectiveGasLimit,
             dest: st.owner,
             body: OffRamp_DispatchValidated {
@@ -325,7 +325,7 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
 fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, _errorCode: uint16 = 0) {
     // TODO[ERROR]: [NONEVM-5463]: propagate `_errorCode` through `OffRamp_NotifyFailure` so the reason is observable.
     val notifyFailure = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: st.owner,
         body: OffRamp_NotifyFailure {
@@ -392,7 +392,7 @@ fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: Receive
     // The only mode-64 send: it carries the inbound remainder after gas and its forward fee.
     // `execute` below pays its fixed value from the balance.
     val deliveredMsg = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: st.owner,
         body: OffRamp_TokenTransferDelivered {
@@ -409,7 +409,7 @@ fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: 
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.Success;
 
     val notifySuccess = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: st.owner,
         body: OffRamp_NotifySuccess {

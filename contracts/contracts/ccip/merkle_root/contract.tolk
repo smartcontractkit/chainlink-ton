@@ -69,7 +69,7 @@ fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
     if (st.deliveredMessageCount == st.expectedMessages()) {
         // if this is the last message from the root we return all the balance to the OffRamp and freeze the contract
         val freezeRoot = createMessage({
-            bounce: true,
+            bounce: BounceMode.Only256BitsOfBody,
             value: 0,
             dest: st.owner,
             body: createEmptyCell()
@@ -105,7 +105,7 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
     st.setMessageState(message.header.sequenceNumber, ExecutionState.InProgress);
 
     val executeValidated = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: st.owner,
         body: OffRamp_ExecuteValidated {

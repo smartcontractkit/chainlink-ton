@@ -82,7 +82,7 @@ fun onInternalMessage(in: InMessage) {
 
             // reply back to sender
             val reply = createMessage({
-                bounce: false,
+                bounce: BounceMode.NoBounce,
                 value: 0,
                 dest: in.senderAddress,
                 body: CountSetMsg {
@@ -112,7 +112,7 @@ fun onInternalMessage(in: InMessage) {
 
             // reply back to sender
             val reply = createMessage({
-                bounce: false,
+                bounce: BounceMode.NoBounce,
                 value: 0,
                 dest: in.senderAddress,
                 body: CountIncreasedMsg {
