@@ -80,9 +80,9 @@ jobs:
               -czf "dist/${{ steps.meta.outputs.tar_name }}" .
           echo "tar_path=dist/${{ steps.meta.outputs.tar_name }}" >> "$GITHUB_OUTPUT"
 
-      - name: Setup GitHub Token 
+      - name: Setup GitHub Token
         id: setup-github-token
-        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
+        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/v1
         with:
           aws-role-arn: ${{ secrets.AWS_OIDC_CHAINLINK_TON_CHANGESETS_TOKEN_ISSUER_ROLE_ARN }}
           aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHANGESETS }}
