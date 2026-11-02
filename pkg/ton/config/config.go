@@ -21,6 +21,7 @@ const maxQueryID = 1 << 23
 // already-executed while still within the dedup window.
 var WalletVersion = func() wallet.ConfigHighloadV3 {
 	var queryID atomic.Uint32
+	//nolint:gosec // the seed is not security-sensitive; it only needs to avoid replaying the previous process's counter position, and query ids are public on-chain anyway
 	queryID.Store(rand.Uint32N(maxQueryID))
 	return wallet.ConfigHighloadV3{
 		MessageTTL: 120,
