@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, toNano } from '@ton/core'
+import { toNano } from '@ton/core'
 import '@ton/test-utils'
 
 import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
@@ -18,13 +18,11 @@ import { contractCode } from '../../../wrappers/codeLoader'
 import { deployLegacyOffRampContract, deployOffRampContract } from './OffRamp.Setup'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as ofManual from '../../../wrappers/ccip/OffRamp'
-import { generateMockTonAddress } from '../../../src/utils'
+import { generateMockTonAddress, ZERO_ADDRESS } from '../../../src/utils'
 import { errorCode, facilityId } from '../../../wrappers/utils'
 import { crc32 } from 'zlib'
 import { ChainSelectors } from '../../utils/Selectors'
 import { PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS } from './OffRamp.Setup'
-
-const ZERO_ADDRESS = Address.parse('0:' + '0'.repeat(64))
 
 describe('OffRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({

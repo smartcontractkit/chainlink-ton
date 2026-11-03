@@ -1,4 +1,4 @@
-import { Address, toNano } from '@ton/core'
+import { toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { crc32 } from 'zlib'
 
@@ -19,8 +19,7 @@ import {
 import { contractCode } from '../../../wrappers/codeLoader'
 import { deployLegacyOnRampContract, deployOnRampContract, setup } from './OnRamp.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
-
-const ZERO_ADDRESS = Address.parse('0:' + '0'.repeat(64))
+import { ZERO_ADDRESS } from '../../../src/utils'
 
 describe('OnRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
