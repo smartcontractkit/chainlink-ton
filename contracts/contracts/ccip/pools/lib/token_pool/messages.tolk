@@ -391,13 +391,13 @@ struct (0xe17bf3cc) TokenPool_RemotePoolRemovedNotification {
     remotePoolAddress: Cell<CrossChainAddress>;
 }
 
-struct (0x426a713b) TokenPool_FinalityConfigSet {
+struct (0xcbd30d33) TokenPool_FinalityConfigSetNotification {
     queryId: uint64;
     allowedFinalityConfig: uint32;
 }
 
 /// Replied on `TokenPool_SetDynamicConfig` to confirm tx and return excess to sender.
-struct (0xb735e30c) TokenPool_DynamicConfigSet {
+struct (0xbe67c13d) TokenPool_DynamicConfigSetNotification {
     queryId: uint64;
     router: address;
     rateLimitAdmin: address?;
@@ -419,7 +419,7 @@ struct (0x28cbcc64) TokenPool_FeeConfigApplied {
     queryId: uint64;
 }
 
-struct (0x3c869d80) TokenPool_AdvancedPoolHooksSet {
+struct (0xf63f3401) TokenPool_AdvancedPoolHooksSetNotification {
     queryId: uint64;
     advancedPoolHooks: address?;
 }
@@ -436,10 +436,10 @@ type TokenPool_OutMessage =
     | TokenPool_GetCCVs
     | TokenPool_RemotePoolAddedNotification
     | TokenPool_RemotePoolRemovedNotification
-    | TokenPool_FinalityConfigSet
-    | TokenPool_DynamicConfigSet
+    | TokenPool_FinalityConfigSetNotification
+    | TokenPool_DynamicConfigSetNotification
     | TokenPool_RateLimitConfiguredNotification
-    | TokenPool_AdvancedPoolHooksSet
+    | TokenPool_AdvancedPoolHooksSetNotification
     | TokenPool_ChainUpdatesApplied
     | TokenPool_FeeConfigApplied
     | TokenPool_BudgetSet
