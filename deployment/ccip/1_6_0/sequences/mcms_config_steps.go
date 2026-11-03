@@ -1,6 +1,7 @@
 package sequences
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -45,13 +46,13 @@ func (a *TonDeployAdapter) configSteps(contractVersion *semver.Version, currentS
 	}
 
 	if a.mcmsIntermediateConfig == nil {
-		return nil, fmt.Errorf("MCMS config requires two-step setConfig but no intermediate config is configured")
+		return nil, errors.New("MCMS config requires two-step setConfig but no intermediate config is configured")
 	}
 	if err := a.mcmsIntermediateConfig.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid intermediate MCMS config: %w", err)
 	}
 	if a.mcmsIntermediateConfig.Equals(&final) {
-		return nil, fmt.Errorf("intermediate MCMS config must differ from final config")
+		return nil, errors.New("intermediate MCMS config must differ from final config")
 	}
 
 	return []mcmstypes.Config{*a.mcmsIntermediateConfig, final}, nil
