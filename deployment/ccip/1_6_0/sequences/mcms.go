@@ -293,28 +293,55 @@ func (a *TonDeployAdapter) UpdateMCMSConfig() *cldfops.Sequence[ccipddeploy.Upda
 					return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to get owner of MCMS contract %s: %w", contractRef.Address, err)
 				}
 
-				// Always plan the setConfig message: SendOrPlan decides whether it is sent directly
-				// (deployer is owner) or batched for MCMS execution.
-				r, err := cldfops.ExecuteOperation(b, opsmcms.SetConfig, dp, opsmcms.SetConfigInput{
-					Bounce:    true,
-					DstAddr:   contractAddr,
-					Amount:    tlb.MustFromTON("0.5"), // TODO[TOOLING]: [NONEVM-6092] make dynamic based on input
-					Config:    &in.MCMConfig,
-					ClearRoot: false,
-					Plan:      true,
-				})
+				plan := !sender.Equals(owner) // plan if the deployer is not the owner
+
+				currentConfig, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, contractAddr, mcmsbind.GetConfig)
 				if err != nil {
-					return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to build setConfig message for MCMS contract %s: %w", contractRef.Address, err)
+					return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to get config of MCMS contract %s: %w", contractRef.Address, err)
+				}
+				currentSigners := 0
+				if currentConfig.Signers != nil {
+					currentSigners = currentConfig.Signers.Len()
+				}
+				steps, err := a.configSteps(contractRef.Version, currentSigners, activeGroupCount(currentConfig.GroupQuorums), in.MCMConfig)
+				if err != nil {
+					return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to resolve setConfig steps for MCMS contract %s: %w", contractRef.Address, err)
+				}
+				if len(steps) > 1 && !plan {
+					return ccipdseq.OnChainOutput{}, fmt.Errorf("two-step setConfig requires Timelock ownership for MCMS contract %s", contractRef.Address)
 				}
 
-				plan := !sender.Equals(owner) // plan if the deployer is not the owner
-				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []opsmcms.OperationMetadata{
-					{
-						ContractType:     contractRef.Type.String(),
-						ContractTypeFull: bindings.TypeMCMS,
-						Tags:             []string{"MCMS", "setConfig"},
-					},
-				})
+				for i, step := range steps {
+					// Always plan the setConfig message: SendOrPlan decides whether it is sent directly
+					// (deployer is owner) or batched for MCMS execution.
+					r, err := cldfops.ExecuteOperation(b, opsmcms.SetConfig, dp, opsmcms.SetConfigInput{
+						Bounce:    true,
+						DstAddr:   contractAddr,
+						Amount:    tlb.MustFromTON("0.5"), // TODO[TOOLING]: [NONEVM-6092] make dynamic based on input
+						Config:    &step,
+						ClearRoot: false,
+						Plan:      true,
+					})
+					if err != nil {
+						return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to build setConfig message %d/%d for MCMS contract %s: %w", i+1, len(steps), contractRef.Address, err)
+					}
+
+					tags := []string{"MCMS", "setConfig"}
+					if len(steps) > 1 {
+						tags = append(tags, fmt.Sprintf("setConfigStep:%d/%d", i+1, len(steps)))
+					}
+
+					plans := opston.AsCells(r.Output.Plans)
+					metadata := make([]opsmcms.OperationMetadata, len(plans))
+					for j := range metadata {
+						metadata[j] = opsmcms.OperationMetadata{
+							ContractType:     contractRef.Type.String(),
+							ContractTypeFull: bindings.TypeMCMS,
+							Tags:             tags,
+						}
+					}
+					_inputMCMS.Add(plans, plan, metadata)
+				}
 			}
 
 			r, err := cldfops.ExecuteOperation(b, opsmcms.SendOrPlan, dp, _inputMCMS)

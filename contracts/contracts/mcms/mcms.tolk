@@ -1183,16 +1183,10 @@ fun MCMS<T>.setConfig(
 
     // Upack config from the contract data
     var config = Config.fromCell(self.data.config);
-    // Iterate over and remove old signers
-    var oldSigner = config.signers.findFirst();
-    while (oldSigner.isFound) {
-        val s = oldSigner.loadValue();
-        // Remove any old signer addresses
-        config.signers.delete(oldSigner.getKey());
-        self.data.signers.delete(s.address);
-        oldSigner = config.signers.findFirst();
-    }
-    config.signers = []; // reset signers
+
+    // Remove old signers
+    config.signers = [];
+    self.data.signers = [];
 
     config.groupQuorums = groupQuorums;
     config.groupParents = groupParents;

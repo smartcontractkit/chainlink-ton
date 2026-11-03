@@ -28,8 +28,11 @@ func init() {
 		panic(err)
 	}
 
-	// Register separate adapters for each interface
-	deploy.GetRegistry().RegisterDeployer(chainsel.FamilyTon, v, &TonDeployAdapter{})
+	// Register separate adapters for each interface.
+	// The deployer is registered with a default (nil) intermediate config; CLD can
+	// inject the approved config via SetTonDeployAdapterIntermediateConfig before
+	// running the update-mcms-config changeset.
+	deploy.GetRegistry().RegisterDeployer(chainsel.FamilyTon, v, defaultTonDeployAdapter)
 	lanes.GetLaneAdapterRegistry().RegisterLaneAdapter(chainsel.FamilyTon, v, &TonLaneAdapter{})
 	deploy.GetTransferOwnershipRegistry().RegisterAdapter(chainsel.FamilyTon, v, &TonTransferOwnershipAdapter{})
 	curseAdapter := &TonCurseAdapter{}

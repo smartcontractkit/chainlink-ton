@@ -10,6 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
+	mcmstypes "github.com/smartcontractkit/mcms/types"
 
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
@@ -39,7 +40,15 @@ const defaultCCIPContractCoin = "0.05"
 const defaultReserveAmount = "0.5"
 
 // TonDeployAdapter implements the deploy.Deployer interface for TON chains.
-type TonDeployAdapter struct{}
+type TonDeployAdapter struct {
+	// mcmsIntermediateConfig is applied before an oversized final MCMS config so the
+	// final setConfig fits within the 1M per-transaction gas limit on TON 1.6.2.
+	mcmsIntermediateConfig *mcmstypes.Config
+}
+
+func NewTonDeployAdapter(mcmsIntermediateConfig *mcmstypes.Config) *TonDeployAdapter {
+	return &TonDeployAdapter{mcmsIntermediateConfig: mcmsIntermediateConfig}
+}
 
 var _ deploy.Deployer = &TonDeployAdapter{}
 
