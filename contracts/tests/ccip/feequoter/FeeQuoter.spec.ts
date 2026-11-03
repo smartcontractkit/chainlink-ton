@@ -76,6 +76,30 @@ describe('FeeQuoter - Upgrade Tests', () => {
   ])
 })
 
+describe('FeeQuoter - tokenPriceStalenessThreshold migration', () => {
+  // setupTestFeeQuoter stores 1000; only 1.6.3 already carries the 24h reset and is preserved.
+  const expected: Record<string, bigint> = {
+    '1.6.0': 86400n,
+    '1.6.1': 86400n,
+    '1.6.2': 86400n,
+    '1.6.3': 1000n,
+  }
+  for (const [version, getCode] of Object.entries(SUPPORTED_PREV_VERSIONS)) {
+    it(`migrating from ${version} leaves the threshold at ${expected[version]}`, async () => {
+      const blockchain = await Blockchain.create()
+      const owner = await blockchain.treasury('owner')
+      const legacy = await setupTestFeeQuoter(owner, blockchain, await getCode())
+      const feeQuoter = blockchain.openContract(fq.FeeQuoter.fromAddress(legacy.address))
+      const result = await feeQuoter.sendUpgradeableUpgrade(owner.getSender(), toNano('0.05'), {
+        code: await contractCode.ccip.local('FeeQuoter'),
+      })
+      expect(result.transactions).toHaveTransaction({ to: feeQuoter.address, success: true })
+      const [, , threshold] = await feeQuoter.getStaticConfig()
+      expect(threshold).toBe(expected[version])
+    })
+  }
+})
+
 describe('FeeQuoter - Ownable Tests', () => {
   it('supports ownable messages', async () => {
     const blockchain = await Blockchain.create()

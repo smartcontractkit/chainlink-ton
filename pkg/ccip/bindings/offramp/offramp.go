@@ -167,6 +167,14 @@ type SetDynamicConfig struct {
 	Config  DynamicConfig `tlb:"."`
 }
 
+// SetTokenAdminRegistry sets the token admin registry once on an OffRamp
+// migrated from 1.6.x, where it is left as the zero address.
+type SetTokenAdminRegistry struct {
+	_                  tlb.Magic        `tlb:"#453736a5" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID            uint64           `tlb:"## 64"`
+	TokenAdminRegistry *address.Address `tlb:"addr"`
+}
+
 // UpdateDeployables is the legacy (contracts 1.6.x) OffRamp message that updates
 // the deployable code cells stored on the contract.
 //
@@ -188,6 +196,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	Commit{},
 	Execute{},
 	SetDynamicConfig{},
+	SetTokenAdminRegistry{},
 	UpdateDeployables{},
 }).MustWithStorageType(Storage{})
 
@@ -307,7 +316,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorMessageNotFromOwnedContract)
-		ecMax = int32(ErrorUnexpectedExtraData)
+		ecMax = int32(ErrorTokenAdminRegistryAlreadySet)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -337,6 +346,8 @@ const (
 	ErrorUnexpectedTokenData
 	ErrorMsgDataTooLarge
 	ErrorUnexpectedExtraData
+	ErrorTokenAdminRegistryNotSet
+	ErrorTokenAdminRegistryAlreadySet
 )
 
 // Getter method names for binding fetchers

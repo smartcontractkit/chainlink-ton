@@ -26,4 +26,6 @@ enum OffRamp_Error {
     UnexpectedTokenData
     MsgDataTooLarge
     UnexpectedExtraData
+    TokenAdminRegistryNotSet
+    TokenAdminRegistryAlreadySet
 }

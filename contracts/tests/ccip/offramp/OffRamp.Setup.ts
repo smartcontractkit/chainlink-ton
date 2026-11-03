@@ -112,15 +112,14 @@ export async function deployOffRampContract(
   return offramp
 }
 
-// This layout matches the deployed 1.6.2 OffRamp. The deployable code cells
-// are deliberately retained in the fixture because the migration discards them.
+// Matches the 1.6.2 OffRamp shipped in releases 1.6.2 and 1.6.3. The legacy code
+// parses the fixture before returning, so layout drift fails here.
 export async function deployLegacyOffRampContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
   code: Cell,
 ): Promise<SandboxContract<of.OffRamp>> {
   const deployables = beginCell()
-    .storeAddress(owner.address)
     .storeAddress(owner.address)
     .storeRef(beginCell().endCell())
     .storeRef(beginCell().endCell())
@@ -146,7 +145,13 @@ export async function deployLegacyOffRampContract(
     to: offramp.address,
     value: toNano('0.05'),
     init,
-    body: beginCell().endCell(),
+    // Legacy OffRamp_SetDynamicConfig: loads and stores the full root storage.
+    body: beginCell()
+      .storeUint(0x95bc5a5c, 32)
+      .storeUint(0n, 64)
+      .storeAddress(owner.address)
+      .storeUint(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS, 32)
+      .endCell(),
   })
   expect(result.transactions).toHaveTransaction({
     from: owner.address,
@@ -154,6 +159,8 @@ export async function deployLegacyOffRampContract(
     deploy: true,
     success: true,
   })
+  // Fully parses the deployables cell.
+  await blockchain.runGetMethod(offramp.address, 'deployableHashes')
   return offramp
 }
 export const createSignatures = (
