@@ -1,11 +1,11 @@
 package sequences
 
 import (
-	"math/big"
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/ethereum/go-ethereum/common"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/require"
 )
@@ -139,14 +139,24 @@ func TestConfigStepsRejectsSameIntermediateAndFinal(t *testing.T) {
 func testConfig(t *testing.T, signerCount, groupCount int) mcmstypes.Config {
 	t.Helper()
 
-	groups := make([]mcmstypes.Config, groupCount)
+	groups := make([]map[string]any, groupCount)
 	for i := 0; i < signerCount; i++ {
 		group := i % groupCount
-		groups[group].Quorum = 1
-		groups[group].Signers = append(groups[group].Signers, common.BigToAddress(big.NewInt(int64(i+1))))
+		signers, _ := groups[group]["signers"].([]string)
+		groups[group] = map[string]any{
+			"quorum":  1,
+			"signers": append(signers, fmt.Sprintf("0x%040x", i+1)),
+		}
 	}
 
-	cfg, err := mcmstypes.NewConfig(2, nil, groups)
+	raw, err := json.Marshal(map[string]any{
+		"quorum":       2,
+		"groupSigners": groups,
+	})
 	require.NoError(t, err)
+
+	var cfg mcmstypes.Config
+	require.NoError(t, json.Unmarshal(raw, &cfg))
+	require.NoError(t, cfg.Validate())
 	return cfg
 }
