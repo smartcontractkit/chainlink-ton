@@ -499,6 +499,115 @@ export function runTokenPoolBehaviorTests(
       })
     })
 
+    it('emits DynamicConfigSet when the dynamic config changes (C-8)', async () => {
+      const ctx = await setup()
+      const router = ctx.onRampAddress
+      const rateLimitAdmin = ctx.unauthorized.address
+      const feeAdmin = ctx.recipient.address
+
+      const poolBefore = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+      const result = await ctx.pool.sendTokenPoolSetDynamicConfig(
+        ctx.deployer.getSender(),
+        toNano('0.2'),
+        { queryId: 950n, router, rateLimitAdmin, feeAdmin },
+      )
+      const poolAfter = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+
+      // The emit is funded from the inbound value, not the pool balance, and the remainder
+      // is still returned to the caller.
+      expect(poolAfter).toBeGreaterThanOrEqual(poolBefore)
+      const reply = result.transactions.find(
+        (tx) =>
+          tx.inMessage?.info.type === 'internal' &&
+          tx.inMessage.info.dest?.equals(ctx.deployer.address) &&
+          tx.inMessage.info.value.coins > 0n,
+      )
+      expect(reply?.inMessage?.info.type).toBe('internal')
+      if (reply?.inMessage?.info.type === 'internal') {
+        expect(reply.inMessage.info.value.coins).toBeGreaterThan(toNano('0.15'))
+      }
+
+      const events = getExternals(result.transactions).filter((ext) =>
+        testLog(ext, ctx.pool.address, 'TokenPool_DynamicConfigSet'),
+      )
+      expect(events).toHaveLength(1)
+      const body = events[0].body!.beginParse()
+      expect(body.loadAddress().equals(router)).toBe(true)
+      expect(body.loadMaybeAddress()?.equals(rateLimitAdmin)).toBe(true)
+      expect(body.loadMaybeAddress()?.equals(feeAdmin)).toBe(true)
+    })
+
+    it('emits FinalityConfigSet when the allowed finality config changes (C-8)', async () => {
+      const ctx = await setup()
+      const poolBefore = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+
+      const result = await ctx.pool.sendTokenPoolSetAllowedFinalityConfig(
+        ctx.deployer.getSender(),
+        toNano('0.2'),
+        { queryId: 951n, allowedFinalityConfig: 1n },
+      )
+      const poolAfter = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+
+      expect(poolAfter).toBeGreaterThanOrEqual(poolBefore)
+
+      const events = getExternals(result.transactions).filter((ext) =>
+        testLog(ext, ctx.pool.address, 'TokenPool_FinalityConfigSet'),
+      )
+      expect(events).toHaveLength(1)
+      expect(events[0].body!.beginParse().loadUint(32)).toBe(1)
+    })
+
+    it('emits AdvancedPoolHooksUpdated with the old and new hooks (C-8)', async () => {
+      const ctx = await setup()
+      const hooks = ctx.unauthorized.address
+      const poolBefore = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+
+      const result = await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(
+        ctx.deployer.getSender(),
+        toNano('0.2'),
+        { queryId: 952n, advancedPoolHooks: hooks },
+      )
+      const poolAfter = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+
+      expect(poolAfter).toBeGreaterThanOrEqual(poolBefore)
+
+      const events = getExternals(result.transactions).filter((ext) =>
+        testLog(ext, ctx.pool.address, 'TokenPool_AdvancedPoolHooksUpdated'),
+      )
+      expect(events).toHaveLength(1)
+      const body = events[0].body!.beginParse()
+      expect(body.loadMaybeAddress()).toBeNull()
+      expect(body.loadMaybeAddress()?.equals(hooks)).toBe(true)
+    })
+
+    it('funds rate-limit config events from the inbound value (C-8)', async () => {
+      const ctx = await setup()
+      const poolBefore = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+
+      await ctx.pool.sendTokenPoolSetRateLimitConfig(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 953n,
+        updates: [
+          TokenPool_RateLimitConfigArgs.create({
+            remoteChainSelector: ctx.remoteChainSelector,
+            fastFinality: false,
+            outboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 10n,
+              rate: 0n,
+            }),
+            inboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 10n,
+              rate: 0n,
+            }),
+          }),
+        ],
+      })
+
+      const poolAfter = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+      expect(poolAfter).toBeGreaterThanOrEqual(poolBefore)
+    })
+
     it('returns unsupported for unknown chain', async () => {
       const ctx = await setup()
       const unknownChainSelector = ctx.remoteChainSelector + 1n

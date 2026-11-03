@@ -140,6 +140,8 @@ fun RateLimiter_TokenBucket.currentTokenBucketState(mutate self): RateLimiter_To
 }
 
 /// @notice Sets the rate limited config, reconfiguring the bucket in place.
+/// @dev Intentionally follows EVM v2.0 semantics (`tokens = capacity`), not v1.6
+/// (`min(newCapacity, tokens)`): TON token pools target CCIP 2.0, while CCIP core remains 1.6.
 /// @param config The new config.
 fun RateLimiter_TokenBucket._setTokenBucketConfig(mutate self, config: RateLimiter_Config) {
     config.validate();

@@ -379,9 +379,8 @@ fun onReleaseOrMintContinue(
         + TokenPool_Costs.finalization(); // T + max(F0, F1) = T + F
     assert(safety >= minValue, TokenPool_Error.InsufficientMessageValue);
 
-    // The ReleaseOrMint entry emitted an inbound-rate-limit event. Reserve the pre-message balance
-    // so the event and this hop are paid from the inbound admission, not the pool balance.
-    reserveBalanceBeforeInMessage(msgValue);
+    // The base ReleaseOrMint entry points reserve the pre-message balance before this
+    // continuation, so the inbound-rate-limit event and this hop are funded by the inbound admission.
     val withdraw = createMessage(withdrawOpts);
     withdraw.send(sendMode);
 
