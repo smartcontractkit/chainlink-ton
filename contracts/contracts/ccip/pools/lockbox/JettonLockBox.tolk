@@ -10,6 +10,8 @@ import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/gas"
+import "../../../lib/funding/withdrawable"
+import "../../../lib/funding/jetton_withdrawable"
 
 import "../lib/token_pool/jetton_fees"
 
@@ -51,8 +53,14 @@ fun onInternalMessage(in: InMessage) {
         JettonLockBox_Withdraw => {
             onWithdraw(mutate st, in.senderAddress, in.valueCoins, msg);
         }
+        JettonLockBox_WithdrawRescue => {
+            onWithdrawRescue(st, in.senderAddress, in.valueCoins, msg);
+        }
         JettonLockBox_Init => {
             onInit(mutate st, in.senderAddress, in.valueCoins, msg);
+        }
+        Withdrawable_Withdraw => {
+            onWithdrawableWithdraw(st, in.senderAddress, in.valueCoins, msg);
         }
         else => {
             var rbac = hookTrait__AccessControl(st);
@@ -352,6 +360,20 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     transfer.send(sendMode);
 }
 
+/// Admin-only recovery of any lockbox-owned Jetton wallet; the wallet enforces ownership.
+fun onWithdrawRescue(st: Storage, sender: address, msgValue: coins, msg: JettonLockBox_WithdrawRescue) {
+    val rbac = hookTrait__AccessControl(st);
+    rbac.requireRole(DEFAULT_ADMIN_ROLE, sender);
+    JettonWithdrawable.onWithdraw(msgValue, sender, msg.withdrawMsg, null, null);
+}
+
+/// Admin-only recovery of any excess GRAM
+fun onWithdrawableWithdraw(st: Storage, sender: address, msgValue: coins, msg: Withdrawable_Withdraw) {
+    var rbac = hookTrait__AccessControl(st);
+    rbac.requireRole(DEFAULT_ADMIN_ROLE, sender);
+    Withdrawable { reserve: MIN_GRAM_TO_RESERVE }.withdraw(msg);
+}
+
 /// Handles bounced jetton transfers — notifies the original caller that the withdrawal failed.
 /// @dev The bounce handler recovers the caller and the original withdraw request from the
 /// `Jetton_ForwardPayloadWrap` tagged onto the `AskToTransfer` in `onWithdraw`.
@@ -369,6 +391,10 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     match (msg) {
         AskToTransfer => {
+            if (JettonWithdrawable.onWithdrawBounced(in.senderAddress, msg)) {
+                return;
+            }
+
             val wrap = parseLockBoxWithdrawWrap(msg.forwardPayload);
             assert(wrap != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
             assert(wrap.context != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);

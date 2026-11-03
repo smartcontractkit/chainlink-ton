@@ -7,6 +7,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/jetton_withdrawable"
 )
 
 // --- Constants ---
@@ -53,6 +54,12 @@ type Withdraw struct {
 	Amount              tlb.Coins        `tlb:"."`             // The amount of tokens to withdraw. If set to max uint256, withdraws the entire balance.
 	Recipient           *address.Address `tlb:"addr required"` // Recipient owner address (the owner of the destination jetton wallet).
 	Extra               *WithdrawExtra   `tlb:"maybe ^"`
+}
+
+// WithdrawRescue is the admin-only recovery withdrawal. It targets any wallet owned by the lockbox.
+type WithdrawRescue struct {
+	_           tlb.Magic                    `tlb:"#0440d11a" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	WithdrawMsg jetton_withdrawable.Withdraw `tlb:"."`
 }
 
 // Deposited is sent back to the transfer initiator after a deposit is confirmed.
@@ -147,6 +154,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	// Incoming
 	Deposit{},
 	Withdraw{},
+	WithdrawRescue{},
 	Init{},
 	// Outgoing
 	Deposited{},

@@ -12,6 +12,7 @@ import "../../../../lib/jetton/forward_payload_wrap"
 import "../../../../lib/access/ownable_2step"
 import "../../../../lib/deployable/namespace"
 import "../../../../lib/funding/jetton_withdrawable"
+import "../../../../lib/funding/withdrawable"
 import "../../../lib/cross_chain_address/types"
 
 import "../../../rmn_remote/lib"
@@ -80,6 +81,12 @@ struct TokenPool_Data {
     /// Per-instance budget; it can only raise the pool-type defaults (zero keeps a default).
     /// Set at deploy/init or via `TokenPool_SetBudget`. See `TokenPool<T>.budget`.
     budget: TokenPool_Budget = {};
+    /// Conservative lower bound on fees retained in the pool's own Jetton wallet:
+    /// + accrued only on successful lock/burn finalization,
+    /// - debited by normal/rescue withdrawals, never re-credited on a bounce.
+    /// Normal withdrawals cap at this value, so they cannot sweep in-flight custody.
+    /// Any unledgered balance is recoverable through the explicit owner-only rescue opcode.
+    accruedFees: coins = 0;
 }
 
 @inline
@@ -210,7 +217,9 @@ struct TokenPool_Hooks<T> {
     /// @param msgValue The TON value on the inbound withdrawal message (must cover all asks + reserve).
     /// @param msg      The withdrawal request (wallet + `AskToTransfer` pairs).
     /// @return The (possibly mutated) context.
-    /// @dev Base behavior: unbounded relay (cap = sum of requested amounts) by `onlyOwnerOrFeeAdmin`.
+    /// @dev Base behavior: bounded relay by `onlyOwnerOrFeeAdmin`. The pool's own token wallet is
+    ///      capped by the `accruedFees` ledger; foreign-token wallets are unbounded so accidental
+    ///      tokens can be recovered. Setting a hook replaces it.
     onWithdrawFeeTokens: ((T?, address, coins, JettonWithdrawable_Withdraw) -> T?)? = null;
 
     // ----------------------------------------------------------------------
@@ -308,6 +317,11 @@ fun TokenPool_Data.token(self): address {
 @inline
 fun TokenPool<T>.isSupportedToken(self, token: address): bool {
     return self.data.token() == token;
+}
+
+/// Gets the accrued fee ledger: fees retained in the pool's own Jetton wallet.
+fun TokenPool<T>.getAccruedFees(self): coins {
+    return self.data.accruedFees;
 }
 
 /// Gets the Jetton token that this pool can lock or burn.
@@ -801,7 +815,13 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.onCursePolicyOwnableMessage(msgSender, msgValue, msg.content);
         }
         JettonWithdrawable_Withdraw => {
-            self.onWithdrawFeeTokensDispatch(msgSender, msgValue, msg);
+            self.onWithdrawFeeTokens(msgSender, msgValue, msg);
+        }
+        TokenPool_WithdrawRescue => {
+            self.onWithdrawRescue(msgSender, msgValue, msg);
+        }
+        Withdrawable_Withdraw => {
+            self.onWithdrawableWithdraw(msgSender, msg);
         }
         TokenPool_SetBudget => {
             self.setBudget(msgSender, msgValue, msg.queryId, msg.budget);
@@ -861,6 +881,15 @@ fun TokenPool<T>.onBouncedMessage(mutate self, bouncedSender: address, msgValue:
             val fwdp = (msg.forwardPayload as Cell<TokenPool_ReleaseOrMintForwardPayload>).load();
             self.recoverReleaseOrMintFailure(fwdp, rich.exitCode, msgValue);
             return true;
+        }
+        AskToTransfer => {
+            // Tagged fee-withdraw asks may come from any pool-owned wallet. Notify the initiator.
+            // Returned jettons stay in the wallet and remain recoverable by an explicit rescue;
+            // never re-credit `accruedFees` here, because the rescue may include non-fee balance.
+            if (JettonWithdrawable.onWithdrawBounced(bouncedSender, msg)) {
+                return true;
+            }
+            return false;
         }
         else => {
             return false; // pool-specific message — let the concrete pool handle it
@@ -1687,8 +1716,10 @@ fun TokenPool<T>.processLockOrBurnTransfer(
         val minValue = self.custodyForward(custodyMoves, requestMsg.finalizationValue);
         assert(msgValue >= minValue, TokenPool_Error.InsufficientMessageValue);
 
-        // TODO[VALUE]: [NONEVM-5766] do we assert exact amount?
         assert(details.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
+        val prepared = lazy fwdp.prepared.load();
+        assert(prepared.feeAmount + prepared.destTokenAmount == details.amount, TokenPool_Error.AmountMismatch);
+
         self.onLockOrBurnTransferContinue(sender, msgValue, msg, fwdp);
     } catch (errorCode) {
         val custodyReturn = TokenPool<T>.buildReturnTransfer(msg);
@@ -1833,6 +1864,9 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
 ): void {
     val requestMsg = lazy forwardPayload.requestMsg.load();
     val prepared = lazy forwardPayload.prepared.load();
+
+    // Custody settled successfully: the fee portion stayed in the pool's own wallet.
+    self.data.accruedFees += prepared.feeAmount;
 
     val request = lazy requestMsg.request.load();
     val details = lazy request.transfer.details.load();
@@ -2502,7 +2536,12 @@ fun TokenPool<T>._setRemotePool(
 }
 
 /// Withdraws accrued fee jettons.
-fun TokenPool<T>.onWithdrawFeeTokensDispatch(
+/// @dev Only callable by the owner or the configured fee admin.
+/// @param sender The caller; must be the owner or fee admin.
+/// @param msgValue The TON value carried by the inbound withdrawal message; must cover the sum of
+///     the relayed transfer values + reserve (validated in `JettonWithdrawable.onWithdraw`).
+/// @param msg The withdrawal request (wallet + transfer pairs).
+fun TokenPool<T>.onWithdrawFeeTokens(
     mutate self,
     sender: address,
     msgValue: coins,
@@ -2510,37 +2549,65 @@ fun TokenPool<T>.onWithdrawFeeTokensDispatch(
 ) {
     if (self.hooks != null && self.hooks.onWithdrawFeeTokens != null) {
         self.context = self.hooks.onWithdrawFeeTokens(self.context!, sender, msgValue, msg);
+
         return;
     }
 
-    // owner/fee-admin fee relay; replacement hook owns its funding policy
+    assert(self.onlyOwnerOrFeeAdmin(sender), TokenPool_Error.CallerIsNotOwnerOrFeeAdmin);
+
+    // Default owner/fee-admin relay. The accrued-fee ledger caps the pool's own token so a
+    // withdrawal cannot sweep in-flight custody; foreign-token wallets are unbounded so
+    // accidental tokens can be recovered. A replacement hook owns its own policy.
     // TODO[VALUE]: [NONEVM-5766] A/dynamic - loops over the withdrawal list; a static S does not bound large inputs
     self.requireMinValue(msgValue);
 
-    // No cap by default (the jetton wallet's physical balance is the only bound); can be
-    // specialized by the hook (e.g. lock/release, whose accrued-fee ledger bounds the withdrawal).
-    self.withdrawFeeTokens(sender, msgValue, msg, null);
+    // Cap only the pool's own token wallet. Every other wallet listed in the request is an
+    // accidental foreign-token holding and has no in-flight custody to protect.
+    val wallet = self.data.jettonClient().walletAddress();
+    var maxAmount: map<address, coins> = [];
+    maxAmount.set(wallet, self.data.accruedFees);
+
+    val withdrawn = JettonWithdrawable.onWithdraw(msgValue, sender, msg, maxAmount, null);
+    val entry = withdrawn.get(wallet);
+    val withdrawnOwnToken = entry.isFound ? entry.loadValue() : 0 as coins;
+
+    self.debitAccruedFees(withdrawnOwnToken);
 }
 
-/// Withdraws accrued fee jettons.
-/// @dev Only callable by the owner or the configured fee admin.
-/// @param sender The caller; must be the owner or fee admin.
-/// @param msgValue The TON value carried by the inbound withdrawal message; must cover the sum of
-///     the relayed transfer values + reserve (validated in `JettonWithdrawable.onWithdraw`).
-/// @param msg The withdrawal request (wallet + transfer pairs).
-/// @param maxAmount Per-wallet upper bound on the cumulative amount relayed (cap); `null` = unbounded.
-/// @return The per-wallet total jetton amount relayed (for caller bookkeeping).
-fun TokenPool<T>.withdrawFeeTokens(
+/// Explicit owner-only recovery of stranded tokens. This intentionally ignores the fee ledger
+/// and may sweep in-flight custody; the owner is responsible for the outcome.
+fun TokenPool<T>.onWithdrawRescue(
     mutate self,
     sender: address,
     msgValue: coins,
-    msg: JettonWithdrawable_Withdraw,
-    maxAmount: map<address, coins>?,
-): map<address, coins> {
-    assert(self.onlyOwnerOrFeeAdmin(sender), TokenPool_Error.CallerIsNotOwnerOrFeeAdmin);
+    msg: TokenPool_WithdrawRescue,
+) {
+    self.data.adminConfig.load().ownable.load().requireOwner(sender);
+    self.requireMinValue(msgValue);
 
-    // No recipient allowlist: access is gated by onlyOwnerOrFeeAdmin above
-    return JettonWithdrawable.onWithdraw(msgValue, sender, msg, maxAmount, null);
+    val withdrawn = JettonWithdrawable.onWithdraw(msgValue, sender, msg.withdrawMsg, null, null);
+
+    // `accruedFees` is a conservative lower bound. A rescue may include donations or stranded
+    // tokens, so only debit up to the current value; it must never exceed real fees.
+    val wallet = self.data.jettonClient().walletAddress();
+    val entry = withdrawn.get(wallet);
+    val withdrawnOwnToken = entry.isFound ? entry.loadValue() : 0 as coins;
+    self.debitAccruedFees(withdrawnOwnToken);
+}
+
+/// Owner-only native TON withdraw. This is separate from Jetton rescue: it recovers excess TON.
+fun TokenPool<T>.onWithdrawableWithdraw(
+    mutate self,
+    sender: address,
+    msg: Withdrawable_Withdraw,
+) {
+    self.data.adminConfig.load().ownable.load().requireOwner(sender);
+    Withdrawable { reserve: MIN_GRAM_TO_RESERVE }.withdraw(msg);
+}
+
+/// Debits `accruedFees` conservatively: never below zero, never more than the current ledger.
+fun TokenPool<T>.debitAccruedFees(mutate self, amount: coins) {
+    self.data.accruedFees -= min(amount, self.data.accruedFees);
 }
 
 /// Whether the caller is the owner or the fee admin

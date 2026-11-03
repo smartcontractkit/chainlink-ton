@@ -5,6 +5,7 @@ import "../../../../lib/utils"
 import "../../../../lib/access/access_control"
 import "../../../../lib/jetton/messages"
 import "../../../../lib/funding/jetton_withdrawable"
+import "../../../../lib/funding/withdrawable"
 
 import "types"
 import "budget"
@@ -331,7 +332,9 @@ type TokenPool_InMessage =
     | TokenPool_Uncurse
     | TokenPool_RMNOwnableMessage
     | TokenPool_RMNAccessControlMessage
-    | JettonWithdrawable_Withdraw;
+    | JettonWithdrawable_Withdraw
+    | TokenPool_WithdrawRescue
+    | Withdrawable_Withdraw;
 
 struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
     queryId: uint64;
@@ -446,7 +449,8 @@ type TokenPool_BouncedMessage =
     | TokenPool_LockOrBurnWithdraw
     | TokenPool_GetCCVs
     | TokenPool_PreflightCheck
-    | TokenPool_PostflightCheck;
+    | TokenPool_PostflightCheck
+    | AskToTransfer;
 
 /// Asks a pool for the configuration the token admin registry caches: the initiator of its
 /// release/mint deliveries and its admission budgets. Sent when a pool is set or refreshed, e.g.
@@ -460,6 +464,14 @@ struct (0x1c8a40b8) TokenPool_Config {
     queryId: uint64;
     transferInitiator: address?;
     admission: TokenPool_AdmissionBudget;
+}
+
+/// Owner-only emergency recovery of stranded tokens. The normal fee withdrawal is capped by
+/// `accruedFees`; this opcode is the explicit, auditable authorization to sweep any pool-owned
+/// token wallet, including amounts not backed by the fee ledger.
+/// @dev The owner is responsible for not sweeping in-flight custody.
+struct (0x3f9b99ae) TokenPool_WithdrawRescue {
+    withdrawMsg: JettonWithdrawable_Withdraw;
 }
 
 /// Sets the pool's per-instance budget. Values only raise the pool-type defaults; zero keeps the
