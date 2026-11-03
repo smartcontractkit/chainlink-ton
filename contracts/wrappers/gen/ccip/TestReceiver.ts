@@ -166,23 +166,17 @@ export const UnsafeBodyNoRef = {
 
 /**
  > struct CCIPMessageReceived {
- >     messageId: uint256
- >     sourceChainSelector: uint64
- >     sender: CrossChainAddress
+ >     message: Any2TVMMessage
  > }
  */
 export interface CCIPMessageReceived {
     readonly $: 'CCIPMessageReceived'
-    messageId: uint256
-    sourceChainSelector: uint64
-    sender: CrossChainAddress
+    message: Any2TVMMessage
 }
 
 export const CCIPMessageReceived = {
     create(args: {
-        messageId: uint256
-        sourceChainSelector: uint64
-        sender: CrossChainAddress
+        message: Any2TVMMessage
     }): CCIPMessageReceived {
         return {
             $: 'CCIPMessageReceived',
@@ -192,15 +186,11 @@ export const CCIPMessageReceived = {
     fromSlice(s: c.Slice): CCIPMessageReceived {
         return {
             $: 'CCIPMessageReceived',
-            messageId: s.loadUintBig(256),
-            sourceChainSelector: s.loadUintBig(64),
-            sender: CrossChainAddress.fromSlice(s),
+            message: Any2TVMMessage.fromSlice(s),
         }
     },
     store(self: CCIPMessageReceived, b: c.Builder): void {
-        b.storeUint(self.messageId, 256);
-        b.storeUint(self.sourceChainSelector, 64);
-        CrossChainAddress.store(self.sender, b);
+        Any2TVMMessage.store(self.message, b);
     },
     toCell(self: CCIPMessageReceived): c.Cell {
         return makeCellFrom<CCIPMessageReceived>(self, CCIPMessageReceived.store);
@@ -539,23 +529,6 @@ export const ReceiveExecutorId = {
 }
 
 /**
- > type CrossChainAddress = slice
- */
-export type CrossChainAddress = c.Slice
-
-export const CrossChainAddress = {
-    fromSlice(s: c.Slice): CrossChainAddress {
-        return invokeCustomUnpackFromSlice<CrossChainAddress>('CrossChainAddress', s);
-    },
-    store(self: CrossChainAddress, b: c.Builder): void {
-        invokeCustomPackToBuilder<CrossChainAddress>('CrossChainAddress', self, b);
-    },
-    toCell(self: CrossChainAddress): c.Cell {
-        return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
-    }
-}
-
-/**
  > struct Storage {
  >     id: uint32
  >     ownable: Ownable2Step
@@ -699,6 +672,23 @@ export const TestReceiver_UpdateAuthorizedCaller = {
 }
 
 /**
+ > type CrossChainAddress = slice
+ */
+export type CrossChainAddress = c.Slice
+
+export const CrossChainAddress = {
+    fromSlice(s: c.Slice): CrossChainAddress {
+        return invokeCustomUnpackFromSlice<CrossChainAddress>('CrossChainAddress', s);
+    },
+    store(self: CrossChainAddress, b: c.Builder): void {
+        invokeCustomPackToBuilder<CrossChainAddress>('CrossChainAddress', self, b);
+    },
+    toCell(self: CrossChainAddress): c.Cell {
+        return makeCellFrom<CrossChainAddress>(self, CrossChainAddress.store);
+    }
+}
+
+/**
  > struct TokenAmount {
  >     amount: coins
  >     token: address
@@ -775,7 +765,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TestReceiver implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAApkAART/APSkE/S88sgLAQIBYgIDAgLGBAUCASAMDQO70/Ej5IBBrlhFtLx6acYFrlhJ9eSJ+RxWY/SQYfEl2omhrD/0kfSh9JBjBAGFEKKnjgor5egFkZ30pfSoJfSlnZPaqcGuWEz4ehR5xgWuWECqgR7ZxgRhCB4DjgHl6QYHCAIDo9IKCwH8Me1E0AHTv9M/10wD0x8x+kgx+lAx+kjXCwcgwgLyRYIJycOA+JL4l4II5OHAcSOBFRgIxwUX8vQBgRUZBL4T8vTIz4WI+lIB+gKCEB5Vu/bPC4oTyz8Ty7/JWPsAII4UMSDAAZWBSpzy8ODAApNw66Tg8gXgMNDT/9M/0wchCQBwMdcLByDCAvJF+JLtRNDWH/pI+lD6SNcLByDCAjHyRYIAwohRU8cFFfL0AsjO+lL6VPpSywfJ7VQAvjHtRNDTHzH6SDD4koIAwogCxwXy9NM/MddMk/ED6ACT8QPpACDaASP7BCPQ7R7tU+1EQBPaIe1UIfkAAdoBcAPIzBLL/87JyM+PGAAEghCjO0mOzwv3cc8LYczJAfsAAIjBQfKIAaoC1xjUMfQEMdFwA8jL/xLLPyHXSSCpOALySKsCIMFB8ojPCwfOycjPjxgABIIQxaQKs88L93HPC2HMyQH7AAAfIFNvAGLUxLjYuMIxwXy9IAAPItTEuNi4xiACASAODwAjv7UXaiaGmPmP0kGP0oGP0kGEAgEgEBEAC7hoWBAL+AIBIBITABm1xRApU5QEEIH3flCQAgEgFBUAW7BX40IWxpbmsuY2hhaW4udG9uLmNjaXAudGVzdC5SZWNlaXZlcoItTEuNi4xiAAEa4Q9qJoa4WPwAAzr0V2omhpj5j9JBj9KBj9JBjrhYOQYQF5IsA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAApYAART/APSkE/S88sgLAQIBYgIDAgLGBAUCASAMDQO70/Ej5IBBrlhFtLx6acYFrlhJ9eSJ+RxWY/SQYfEl2omhrD/0kfSh9JBjBAGFEKKnjgor5egFkZ30pfSoJfSlnZPaqcGuWEz4ehR5xgWuWECqgR7ZxgRhCB4DjgHl6QYHCAIDo9IKCwH+Me1E0IEVGfiXggnJw4C+8vTTHzH6SDH6UDH6SNcLByDCAvJFgRUY+JJQA8cFEvL0AdO/0z/XTCOOFV8DIMABlYFKnPLw4MACk3DrpODyBeAzAtDT/9M/0wchwUHyiAGqAtcY1PQE0XAFyMv/FMs/ItdJIKk4AvJIqwIgwUHyiAkAcDHXCwcgwgLyRfiS7UTQ1h/6SPpQ+kjXCwcgwgIx8kWCAMKIUVPHBRXy9ALIzvpS+lT6UssHye1UAL4x7UTQ0x8x+kgw+JKCAMKIAscF8vTTPzHXTJPxA+gAk/ED6QAg2gEj+wQj0O0e7VPtREAT2iHtVCH5AAHaAXADyMwSy//OycjPjxgABIIQoztJjs8L93HPC2HMyQH7AACAzwsHEs7M9ADJyM+PGAAEghDFpAqzzwv3cc8LYczJAfsAcHT7AviSyM+FiPpSghAeVbv2zwuOEss/y7/Jgwb7AAAfIFNvAGLUxLjYuMIxwXy9IAAPItTEuNi4xiACASAODwAjv7UXaiaGmPmP0kGP0oGP0kGEAgEgEBEAC7hoWBAL+AIBIBITABm1xRApU5QEEIH3flCQAgEgFBUAW7BX40IWxpbmsuY2hhaW4udG9uLmNjaXAudGVzdC5SZWNlaXZlcoItTEuNi4xiAAEa4Q9qJoa4WPwAAzr0V2omhpj5j9JBj9KBj9JBjrhYOQYQF5IsA=');
 
     static Errors = {
         'TVMError.CellOverflow': 8,

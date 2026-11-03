@@ -4,8 +4,8 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	ccipcommon "github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 )
 
 type Behavior uint8
@@ -38,10 +38,7 @@ type UpdateAuthorizedCaller struct {
 // crc32('Receiver_CCIPMessageReceived') = 0xc5a40ab3
 const CCIPMessageReceivedEventTopic = 0xc5a40ab3
 
-// CCIPMessageReceived represents the Receiver_CCIPMessageReceived event emitted by the receiver
-// contract. Older receivers emitted the whole message, whose layout starts with the same fields.
+// CCIPMessageReceived represents the Receiver_CCIPMessageReceived event emitted by the receiver contract
 type CCIPMessageReceived struct {
-	MessageID           []byte                       `tlb:"bits 256"`
-	SourceChainSelector uint64                       `tlb:"## 64"`
-	Sender              ccipcommon.CrossChainAddress `tlb:"."`
+	Message offramp.Any2TVMMessage `tlb:"."`
 }

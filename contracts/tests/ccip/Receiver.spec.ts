@@ -12,6 +12,7 @@ import * as r from '../../wrappers/gen/ccip/Receiver'
 import * as trMan from '../../wrappers/examples/Receiver'
 import * as tr from '../../wrappers/gen/ccip/TestReceiver'
 import * as rt from '../../wrappers/gen/ccip/Router'
+import { Costs as OffRampCosts } from '../../wrappers/ccip/OffRamp'
 import { assertLog } from '../Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
@@ -329,16 +330,23 @@ describe('Receiver', () => {
       toNano('0.03'),
       message,
     )
-    expect(result.transactions).toHaveTransaction({
-      from: receiver.address,
-      to: deployer.address,
-      op: rt.Router_CCIPReceiveConfirm.PREFIX,
-      value: toNano('0.015'),
-    })
+    const receiveTx = result.transactions[1]
+    expect([...receiveTx.outMessages.values()].some((m) => m.info.type === 'external-out')).toBe(
+      true,
+    )
+    const confirmTx = result.transactions.find(
+      (tx) =>
+        tx.inMessage?.info.type === 'internal' &&
+        tx.inMessage.info.src.equals(receiver.address) &&
+        tx.inMessage.info.dest.equals(deployer.address),
+    )
+    expect(confirmTx).toBeDefined()
+    const info = confirmTx!.inMessage!.info
+    if (info.type !== 'internal') throw new Error('Expected an internal message')
+    expect(info.value.coins).toBeGreaterThanOrEqual(OffRampCosts.receiveConfirm)
   })
 
-  // The confirmation carries a fixed value; the rest of the inbound value stays on the receiver.
-  it('should not spend its own balance when receiving', async () => {
+  it('should keep original balance after succesfully receiving', async () => {
     const contract = await blockchain.getContract(receiver.address)
     const initialBalance = contract.balance
 
@@ -371,6 +379,6 @@ describe('Receiver', () => {
     const storageFees = tx.description.storagePhase?.storageFeesCollected || toNano('0')
 
     const finalBalance = (await blockchain.getContract(receiver.address)).balance
-    expect(finalBalance).toBeGreaterThanOrEqual(initialBalance - storageFees)
+    expect(finalBalance).toEqual(initialBalance - storageFees)
   })
 })

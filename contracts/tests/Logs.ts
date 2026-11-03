@@ -9,7 +9,6 @@ import * as rt from '../wrappers/gen/ccip/Router'
 import * as on from '../wrappers/gen/ccip/OnRamp'
 import * as of from '../wrappers/gen/ccip/OffRamp'
 import * as fq from '../wrappers/gen/ccip/FeeQuoter'
-import * as tr from '../wrappers/gen/ccip/TestReceiver'
 import { Decoder } from '../src/utils/codec'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
@@ -365,13 +364,8 @@ export const testLogReceiverCCIPMessageReceived = (
   expected: CCIPLogs.ReceiverCCIPMessageReceived,
 ) => {
   return testLog(actual, from, CCIPLogs.LogTypes.ReceiverCCIPMessageReceived, (actual) => {
-    const decoded = tr.CCIPMessageReceived.fromSlice(actual.beginParse())
-    equalsObject(decoded, {
-      $: 'CCIPMessageReceived',
-      messageId: expected.message.messageId,
-      sourceChainSelector: expected.message.sourceChainSelector,
-      sender: expected.message.sender,
-    })
+    const decoded = of.Any2TVMMessage.fromSlice(actual.beginParse())
+    equalsObject(decoded, expected.message)
     return true
   })
 }
