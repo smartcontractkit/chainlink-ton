@@ -163,6 +163,16 @@ describe('TokenAdminRegistry - Set Pool', () => {
     expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx, null))
   })
 
+  it('keeps a pending replacement when the current pool reports another token', async () => {
+    await registerAndAccept(fx)
+    await requestSetPool(fx, fx.administrator, fx.replacementPool, 114n)
+    await answerPoolProbe(fx, { poolToken: fx.otherToken })
+    expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx, null))
+
+    await answerPoolProbe(fx, { from: fx.replacementPool, queryId: 114n })
+    expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx, fx.replacementPool))
+  })
+
   it('lets anyone refresh the transfer initiator reported by the current pool', async () => {
     await registerAndAccept(fx)
     const refresh = await fx.registry.sendTokenAdminRegistryRefreshPoolConfig(

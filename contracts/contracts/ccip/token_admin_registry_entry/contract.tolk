@@ -99,7 +99,7 @@ fun onBouncedMessage(in: InMessageBounced) {
         TokenPool_GetConfig => {
             val st = lazy TokenRegistry_Storage.load();
             if (st.pendingPool != null && in.senderAddress == st.pendingPool!) {
-                delist(bounced.queryId);
+                delist(bounced.queryId, true);
             }
         }
         RequestWalletAddress => {}
@@ -267,10 +267,10 @@ fun onSetPool(queryId: uint64, msg: TokenAdminRegistryEntry_SetPool) {
         return probePoolConfig(msg.tokenPool!, queryId);
     }
 
-    delist(queryId);
+    delist(queryId, true);
 }
 
-fun delist(queryId: uint64) {
+fun delist(queryId: uint64, clearPendingPool: bool) {
     var st = lazy TokenRegistry_Storage.load();
     var tokenInfo = st.tokenInfo.load();
     val previousPool = tokenInfo.tokenPool;
@@ -278,7 +278,9 @@ fun delist(queryId: uint64) {
     tokenInfo.transferInitiator = null;
     tokenInfo.admission = null;
     st.tokenInfo = tokenInfo.toCell();
-    st.pendingPool = null;
+    if (clearPendingPool) {
+        st.pendingPool = null;
+    }
     st.store();
     if (previousPool != null) {
         notifyPoolSet(queryId, st.tokenAddress, previousPool, null, null);
@@ -315,7 +317,8 @@ fun onPoolConfig(msg: TokenPool_Config, sender: address) {
         return;
     }
     if (msg.token != st.tokenAddress) {
-        return delist(msg.queryId);
+        // A mismatch from the current pool must not cancel a pending replacement.
+        return delist(msg.queryId, fromPendingPool);
     }
     if (fromPendingPool) {
         st.pendingPool = null;
