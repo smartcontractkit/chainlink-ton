@@ -193,6 +193,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
             tokenDecimals: 0n,
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
+            accruedFees: 0n,
           }),
           lockbox: jettonLockBox.address,
         },

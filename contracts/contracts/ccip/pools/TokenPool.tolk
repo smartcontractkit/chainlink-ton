@@ -194,3 +194,8 @@ get fun isSupportedToken(token: address): bool {
 get fun getBudget(): TokenPool_Budget {
     throw 0xFFFF;
 }
+
+/// Fees retained in the pool's own Jetton wallet on successful locks/burns.
+get fun getAccruedFees(): coins {
+    throw 0xFFFF;
+}

@@ -994,6 +994,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
             tokenDecimals,
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
+            accruedFees: 0n,
           }),
           lockbox: this.jettonLockBox.address,
         },

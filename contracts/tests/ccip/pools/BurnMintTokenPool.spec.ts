@@ -154,6 +154,7 @@ describe('BurnMintTokenPool', () => {
             tokenDecimals: 9n,
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
+            accruedFees: 0n,
           }),
         },
         { overrideContractCode: burnMintPoolCode },
@@ -350,8 +351,8 @@ describe('BurnMintTokenPool', () => {
   })
 
   // WithdrawFeeTokens behavior tests (fee accrual + withdrawal). burn/mint burns only the
-  // post-fee amount, leaving the fee jettons behind in the pool's own wallet, so the fee balance
-  // is the withdrawable amount (no accrued-fee ledger => unbounded base path).
+  // post-fee amount, leaving the fee jettons behind in the pool's own wallet. Withdrawals are
+  // bounded by the pool's `accruedFees` ledger.
   runTokenPoolWithdrawFeeTokensBehaviorTests('BurnMintTokenPool', async () => {
     const feeAdmin = await blockchain.treasury('feeAdmin')
     const feeBps = 100n // 1% transfer fee
@@ -467,11 +468,7 @@ describe('BurnMintTokenPool', () => {
     // The pool's own jetton wallet is only deployed once it first receives jettons, so tolerate
     // it not being active yet (returns 0 pre-first-lock).
     const getWithdrawableFees = async (): Promise<bigint> => {
-      try {
-        return await poolWallet.getJettonBalance()
-      } catch {
-        return 0n
-      }
+      return await burnMintPool.getAccruedFees()
     }
 
     return {

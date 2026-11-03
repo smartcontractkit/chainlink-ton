@@ -74,6 +74,7 @@ runTokenPoolGasCalibration({
             tokenDecimals: 9n,
             remoteChainConfigs: new Map(),
             tokenTransferFeeConfigs: new Map(),
+            accruedFees: 0n,
           }),
         },
         { overrideContractCode: burnMintPoolCode },
