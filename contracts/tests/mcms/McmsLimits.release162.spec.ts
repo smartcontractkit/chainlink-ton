@@ -46,6 +46,33 @@ runLimitsSuite({
       maxGas: 970_000n,
     },
     {
+      // Threshold calibration for the TON adapter: 52/21 is the safe single-step
+      // boundary; 56/21 is already close to the 1M limit, and 60/21 is over it.
+      name: 'setConfig: 52 -> 56 signers / 21 groups (single-step boundary)',
+      op: 'setConfig',
+      signers: 56,
+      groups: 21,
+      fromSigners: 52,
+      expected: 'success',
+      maxGas: 990_000n,
+    },
+    {
+      name: 'setConfig: 60 -> 60 signers / 21 groups is over the single-step limit',
+      op: 'setConfig',
+      signers: 60,
+      groups: 21,
+      fromSigners: 60,
+      expected: 'out-of-gas',
+    },
+    {
+      name: 'setConfig: 68 -> 68 signers / 20 groups is over the single-step limit',
+      op: 'setConfig',
+      signers: 68,
+      groups: 20,
+      fromSigners: 68,
+      expected: 'out-of-gas',
+    },
+    {
       name: 'setConfig: 56 -> 56 signers / 12 groups',
       op: 'setConfig',
       signers: 56,
