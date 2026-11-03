@@ -9,7 +9,9 @@ import {
   FeeQuoterDestChainConfig,
   FeeQuoter_UpdateDestChainConfig,
   FeeToken,
+  GasPriceUpdate,
   Ownable2Step,
+  PriceUpdates,
   Storage,
   TimestampedPrice,
 } from '../../../wrappers/gen/ccip/FeeQuoter'
@@ -85,6 +87,21 @@ export const setupTestFeeQuoter = async (
   result = await feeQuoter.sendFeeQuoterUpdateFeeTokens(deployer.getSender(), toNano('1'), {
     add: new Map([[NATIVE_GRAM, FeeToken.create({ premiumMultiplierWeiPerEth: 1n })]]),
     remove: [],
+  })
+  expect(result.transactions).toHaveTransaction({ to: feeQuoter.address, success: true })
+
+  result = await feeQuoter.sendFeeQuoterUpdatePrices(deployer.getSender(), toNano('1'), {
+    updates: PriceUpdates.create({
+      tokenPriceUpdates: [],
+      gasPriceUpdates: [
+        GasPriceUpdate.create({
+          destChainSelector: BigInt(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
+          executionGasPrice: 1n,
+          dataAvailabilityGasPrice: 1n,
+        }),
+      ],
+    }),
+    sendExcessesTo: deployer.address,
   })
   expect(result.transactions).toHaveTransaction({ to: feeQuoter.address, success: true })
 

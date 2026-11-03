@@ -277,6 +277,29 @@ async function deployFeeQuoterInstance(
   }
 
   {
+    // Seed a gas price for the dest chain: getValidatedGasPrice requires a timestamped
+    // (non-zero) price entry, regardless of the staleness threshold. This must run after
+    // the dest chain config exists — updatePrices ignores gas updates for unknown chains.
+    const result = await feeQuoter.sendFeeQuoterUpdatePrices(deployer.getSender(), toNano('1'), {
+      updates: fq.PriceUpdates.create({
+        gasPriceUpdates: [
+          fq.GasPriceUpdate.create({
+            destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+            executionGasPrice: 1n,
+            dataAvailabilityGasPrice: 1n,
+          }),
+        ],
+        tokenPriceUpdates: [],
+      }),
+      sendExcessesTo: null,
+    })
+    expect(result.transactions).toHaveTransaction({
+      to: feeQuoter.address,
+      success: true,
+    })
+  }
+
+  {
     const result = await feeQuoter.sendFeeQuoterUpdateFeeTokens(deployer.getSender(), toNano('1'), {
       add: new Map([[NATIVE_GRAM, fq.FeeToken.create({ premiumMultiplierWeiPerEth: 1n })]]),
       remove: [],

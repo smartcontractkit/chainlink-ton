@@ -21,7 +21,7 @@ func _() {
 	_ = x[ErrorTooManySVMExtraArgsAccounts-34410]
 	_ = x[ErrorInvalidSVMExtraArgsWritableBitmap-34411]
 	_ = x[ErrorMsgDataTooLarge-34412]
-	_ = x[ErrorStaleGasPrice-34413]
+	_ = x[ErrorNoGasPriceAvailable-34413]
 	_ = x[ErrorDestChainNotEnabled-34414]
 	_ = x[ErrorFeeTokenNotSupported-34415]
 	_ = x[ErrorInvalidMsgData-34416]
@@ -40,9 +40,9 @@ func _() {
 	_ = x[ErrorInvalidDestBytesOverhead-34429]
 }
 
-const _ExitCode_name = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighErrorExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidTokenAmountsDataErrorInvalidSuiReceiverAddressErrorInvalidSVMReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorTooManySVMExtraArgsAccountsErrorInvalidSVMExtraArgsWritableBitmapErrorMsgDataTooLargeErrorStaleGasPriceErrorDestChainNotEnabledErrorFeeTokenNotSupportedErrorInvalidMsgDataErrorTokenNotSupportedErrorUnknownDestChainSelectorErrorInsufficientFeeErrorTokenTransfersNotSupportedErrorUnauthorizedPriceUpdaterErrorExecutionCostOverflowErrorPremiumFeeOverflowErrorDataAvailabilityCostOverflowErrorFeeCalculationOverflowErrorFeeOverflowErrorMessageFeeTooHighErrorTokenTransferConfigMustBeEnabledErrorInvalidDestBytesOverhead"
+const _ExitCode_name = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighErrorExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidTokenAmountsDataErrorInvalidSuiReceiverAddressErrorInvalidSVMReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorTooManySVMExtraArgsAccountsErrorInvalidSVMExtraArgsWritableBitmapErrorMsgDataTooLargeErrorNoGasPriceAvailableErrorDestChainNotEnabledErrorFeeTokenNotSupportedErrorInvalidMsgDataErrorTokenNotSupportedErrorUnknownDestChainSelectorErrorInsufficientFeeErrorTokenTransfersNotSupportedErrorUnauthorizedPriceUpdaterErrorExecutionCostOverflowErrorPremiumFeeOverflowErrorDataAvailabilityCostOverflowErrorFeeCalculationOverflowErrorFeeOverflowErrorMessageFeeTooHighErrorTokenTransferConfigMustBeEnabledErrorInvalidDestBytesOverhead"
 
-var _ExitCode_index = [...]uint16{0, 35, 55, 97, 122, 152, 180, 210, 240, 265, 306, 338, 376, 396, 414, 438, 463, 482, 504, 533, 553, 584, 613, 639, 662, 695, 722, 738, 760, 797, 826}
+var _ExitCode_index = [...]uint16{0, 35, 55, 97, 122, 152, 180, 210, 240, 265, 306, 338, 376, 396, 420, 444, 469, 488, 510, 539, 559, 590, 619, 645, 668, 701, 728, 744, 766, 803, 832}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 34400
