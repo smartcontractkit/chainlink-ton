@@ -11,3 +11,5 @@ export const NATIVE_GRAM: Address = Address.parse(
 export const LINK_TOKEN: Address = Address.parse(
   '0:0000000000000000000000000000000000000000000000000000000000000002',
 )
+
+export const ZERO_ADDRESS: Address = Address.parse('0:' + '0'.repeat(64))

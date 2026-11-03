@@ -120,6 +120,13 @@ fun onInternalMessage(in: InMessage) {
             st.store();
         }
         // Sender must be the owner
+        OnRamp_SetTokenAdminRegistry => {
+            var st = lazy OnRamp_Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            onSetTokenAdminRegistry(mutate st, msg);
+            st.store();
+        }
+        // Sender must be the owner
         OnRamp_UpdateDestChainConfigs => {
             var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -304,6 +311,9 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
     val staticConfig = st.staticConfig.load();
     var tokenRegistry: address? = null;
     if (!msg.tokenAmounts.empty()) {
+        if (isZeroAddress(staticConfig.tokenAdminRegistry)) {
+            return rejectMessage(OnRamp_Error.TokenAdminRegistryNotSet, destChainConfig.router, msg.queryID, msg.destChainSelector, payload.metadata.sender, 0);
+        }
         tokenRegistry = staticConfig.tokenAdminRegistry;
     }
     val executorId = generateRandomSendExecutorId();
@@ -569,6 +579,14 @@ fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) 
     )
 }
 
+fun onSetTokenAdminRegistry(mutate st: OnRamp_Storage, msg: OnRamp_SetTokenAdminRegistry) {
+    var staticConfig = st.staticConfig.load();
+    assert(isZeroAddress(staticConfig.tokenAdminRegistry), OnRamp_Error.TokenAdminRegistryAlreadySet);
+    assert(!isZeroAddress(msg.tokenAdminRegistry), OnRamp_Error.InvalidConfig);
+    staticConfig.tokenAdminRegistry = msg.tokenAdminRegistry;
+    st.staticConfig = staticConfig.toCell();
+}
+
 
 /*
 Applies destination chain configuration updates by creating new configurations or updating
@@ -762,13 +780,13 @@ get fun pendingFeeReservations(): coins {
 fun migrate(storage: cell, version: slice): cell {
     requireSupportedVersion(version);
     val old = OnRamp_Storage_V1_6_0.fromCell(storage);
-    val oldDeployables = old.deployablesConfig.load();
     return OnRamp_Storage {
         id: old.id,
         ownable: old.ownable,
         staticConfig: OnRamp_StaticConfig {
             chainSelector: old.chainSelector,
-            tokenAdminRegistry: oldDeployables.tokenAdminRegistry,
+            // 1.6.x had no registry; the owner sets it once via OnRamp_SetTokenAdminRegistry.
+            tokenAdminRegistry: ZERO_ADDRESS,
         }.toCell(),
         config: old.config,
         destChainConfigs: old.destChainConfigs,
@@ -776,25 +794,20 @@ fun migrate(storage: cell, version: slice): cell {
     }.toCell();
 }
 
-// Persisted layout for the final 1.6.0 release. Keep this local to the
-// migration boundary: executor code is now compiled into OnRamp.
+// Persisted layout of the 1.6.0 OnRamp shipped in releases 1.6.0 through 1.6.3.
+// Executor code is now compiled into OnRamp, so the code cells are dropped.
 struct OnRamp_Storage_V1_6_0 {
     id: uint32;
     ownable: Ownable2Step;
     chainSelector: uint64;
     config: Cell<OnRamp_DynamicConfig>;
     destChainConfigs: map<uint64, OnRamp_DestChainConfig> = [];
-    deployablesConfig: Cell<OnRamp_DeployablesConfig_V1_6_0>;
+    executor: ExecutorDeployment_V1_6_0;
 }
 
 struct ExecutorDeployment_V1_6_0 {
     deployableCode: cell;
     executorCode: cell;
-}
-
-struct OnRamp_DeployablesConfig_V1_6_0 {
-    executor: ExecutorDeployment_V1_6_0;
-    tokenAdminRegistry: address;
 }
 
 @method_id(1001)
