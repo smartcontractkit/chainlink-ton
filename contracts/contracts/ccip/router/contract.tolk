@@ -408,6 +408,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
 /// transfer's forward payload, so that payload must name the executor requesting the withdraw.
 fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
+    val account = withdrawRequest.onRampAccount.load();
     val fwdp = lazy withdrawRequest.forwardPayload.load();
     val request = lazy fwdp.requestMsg.load();
     if (request.replyTo != msg.executor) {
@@ -439,7 +440,7 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     val withdraw = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
-        dest: withdrawRequest.depositAccount,
+        dest: onRampAccountAddress(account.user, account.token),
         body: DepositAccount_Withdraw { queryId: msg.queryID, ask },
     });
     withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
