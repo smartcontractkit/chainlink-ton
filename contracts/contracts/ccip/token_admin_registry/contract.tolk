@@ -132,17 +132,20 @@ fun onInternalMessage(in: InMessage) {
 
 /// Requests to entries are rich-bounced, either on the first forward or on a Resume, and reported
 /// to their sender with the unspent value. A first forward bounces when the token was never
-/// registered. Bounced upgrades are not rich and keep their value on the root.
+/// registered. Bounced upgrades are not rich and keep their value on the root, as does any other
+/// bounce.
 fun onBouncedMessage(in: InMessageBounced) {
     if (in.bouncedBody.preloadUint(32) != RICH_BOUNCE_PREFIX) {
         return;
     }
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
-    val bounced = TokenAdminRegistry_BouncedEntryMessage.fromCell(rich.originalBody);
-    val request = match (bounced) {
-        TokenAdminRegistryEntry_MessageFromRoot => bounced,
-        TokenAdminRegistryEntry_Resume => bounced.request.load(),
-    };
+    val bounced = lazy TokenAdminRegistry_BouncedEntryMessage.fromCell(rich.originalBody);
+    var request: TokenAdminRegistryEntry_MessageFromRoot;
+    match (bounced) {
+        TokenAdminRegistryEntry_MessageFromRoot => { request = bounced; }
+        TokenAdminRegistryEntry_Resume => { request = bounced.request.load(); }
+        else => { return; }
+    }
     val content = request.content.load();
     if (content is TokenAdminRegistryEntry_GetTokenInfo) {
         createMessage({
