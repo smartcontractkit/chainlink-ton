@@ -18,7 +18,6 @@ type BurnMintTokenPool_OutMessage =
     | ClaimMinterAdmin;
 
 type BurnMintTokenPool_BouncedMessage =
-    | AskToTransfer
     | CCT_AskToBurn
     | MintNewJettons
     | ClaimMinterAdmin;

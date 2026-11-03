@@ -12,6 +12,7 @@ import "../../../../lib/jetton/forward_payload_wrap"
 import "../../../../lib/access/ownable_2step"
 import "../../../../lib/deployable/namespace"
 import "../../../../lib/funding/jetton_withdrawable"
+import "../../../../lib/funding/withdrawable"
 import "../../../lib/cross_chain_address/types"
 
 import "../../../rmn_remote/lib"
@@ -64,6 +65,10 @@ struct TokenPool_AdminConfig {
     /// FinalityCodec.WAIT_FOR_FINALITY_FLAG means wait for finality.
     allowedFinalityConfig: uint32 = TOKEN_POOL_DEFAULT_FINALITY;
     /// Optional advanced pool hooks contract for additional features like allowlists and CCV management.
+    /// @dev TRUST BOUNDARY: the hook is part of the pool owner's trust domain. Configure only an
+    ///      audited hook that authenticates this pool as the sender and echoes `forwardPayload`
+    ///      verbatim. The pool authenticates the hook as the sender but does not bind the reply to
+    ///      the request it admitted; this is an owner-trust assumption, not a protocol guarantee.
     advancedPoolHooks: address? = null;
 }
 
@@ -76,6 +81,12 @@ struct TokenPool_Data {
     /// Per-instance budget; it can only raise the pool-type defaults (zero keeps a default).
     /// Set at deploy/init or via `TokenPool_SetBudget`. See `TokenPool<T>.budget`.
     budget: TokenPool_Budget = {};
+    /// Conservative lower bound on fees retained in the pool's own Jetton wallet:
+    /// + accrued only on successful lock/burn finalization,
+    /// - debited by normal/rescue withdrawals, never re-credited on a bounce.
+    /// Normal withdrawals cap at this value, so they cannot sweep in-flight custody.
+    /// Any unledgered balance is recoverable through the explicit owner-only rescue opcode.
+    accruedFees: coins = 0;
 }
 
 @inline
@@ -106,6 +117,9 @@ fun TokenPool_Data.storeAsContractData(self) {
 /// Setting an operation hook replaces the base flow for that phase, so the override owns every
 /// check the base path would have performed (e.g., `validateLockOrBurn` / `validateReleaseOrMint`).
 ///
+/// Inline hooks are trusted pool code. The external async `advancedPoolHooks` contract lives in
+/// the pool owner's trust domain; see the trust-boundary note on that field.
+///
 /// The fee-withdrawal hook `onWithdrawFeeTokens` is a fourth, standalone extension point.
 struct TokenPool_Hooks<T> {
     /// RMN curse guard for a remote lane.
@@ -134,7 +148,7 @@ struct TokenPool_Hooks<T> {
 
     /// Async postflight gate: called once validation has consumed the rate limit.
     /// @param msg        The full inbound request.
-    /// @param fwdPayload Carries `requestMsg` + `prepared` for later resumption.
+    /// @param forwardPayload Carries `requestMsg` + `prepared` for later resumption.
     /// @return `true` to wait for a `TokenPool_PostflightCheckFinished/Failed` callback from the
     ///         configured `advancedPoolHooks`; `false` to continue immediately.
     /// @dev Only checked when the pool has async hooks configured; a custom hook here and async
@@ -171,7 +185,7 @@ struct TokenPool_Hooks<T> {
 
     /// Async preflight gate: called once validation has consumed the rate limit.
     /// @param msg        The full outbound request.
-    /// @param fwdPayload Carries `requestMsg` + `prepared` for later resumption.
+    /// @param forwardPayload Carries `requestMsg` + `prepared` for later resumption.
     /// @return `true` to wait for a `TokenPool_PreflightCheckFinished/Failed` callback from the
     ///         configured `advancedPoolHooks`; `false` to continue immediately.
     /// @dev Only checked when the pool has async hooks configured; a custom hook here and async
@@ -190,7 +204,7 @@ struct TokenPool_Hooks<T> {
     /// @param sender    The pool's Jetton wallet that delivered the notification.
     /// @param msgValue  The incoming notification value after the base safety check.
     /// @param msg       The decoded inbound transfer notification.
-    /// @param fwdPayload The original request + prepared data.
+    /// @param forwardPayload The original request + prepared data.
     /// @return The (possibly mutated) context.
     onLockOrBurnTransferContinue: ((T, address, coins, TransferNotificationForRecipient, TokenPool_LockOrBurnForwardPayload) -> T);
 
@@ -203,7 +217,9 @@ struct TokenPool_Hooks<T> {
     /// @param msgValue The TON value on the inbound withdrawal message (must cover all asks + reserve).
     /// @param msg      The withdrawal request (wallet + `AskToTransfer` pairs).
     /// @return The (possibly mutated) context.
-    /// @dev Base behavior: unbounded relay (cap = sum of requested amounts) by `onlyOwnerOrFeeAdmin`.
+    /// @dev Base behavior: bounded relay by `onlyOwnerOrFeeAdmin`. The pool's own token wallet is
+    ///      capped by the `accruedFees` ledger; foreign-token wallets are unbounded so accidental
+    ///      tokens can be recovered. Setting a hook replaces it.
     onWithdrawFeeTokens: ((T?, address, coins, JettonWithdrawable_Withdraw) -> T?)? = null;
 
     // ----------------------------------------------------------------------
@@ -301,6 +317,11 @@ fun TokenPool_Data.token(self): address {
 @inline
 fun TokenPool<T>.isSupportedToken(self, token: address): bool {
     return self.data.token() == token;
+}
+
+/// Gets the accrued fee ledger: fees retained in the pool's own Jetton wallet.
+fun TokenPool<T>.getAccruedFees(self): coins {
+    return self.data.accruedFees;
 }
 
 /// Gets the Jetton token that this pool can lock or burn.
@@ -794,7 +815,13 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.onCursePolicyOwnableMessage(msgSender, msgValue, msg.content);
         }
         JettonWithdrawable_Withdraw => {
-            self.onWithdrawFeeTokensDispatch(msgSender, msgValue, msg);
+            self.onWithdrawFeeTokens(msgSender, msgValue, msg);
+        }
+        TokenPool_WithdrawRescue => {
+            self.onWithdrawRescue(msgSender, msgValue, msg);
+        }
+        Withdrawable_Withdraw => {
+            self.onWithdrawableWithdraw(msgSender, msg);
         }
         TokenPool_SetBudget => {
             self.setBudget(msgSender, msgValue, msg.queryId, msg.budget);
@@ -836,23 +863,33 @@ fun TokenPool<T>.onBouncedMessage(mutate self, bouncedSender: address, msgValue:
             return true;
         }
         TokenPool_GetCCVs => {
-            // Fail by notifying the target (replyTo)
-            self.onGetCCVsBounced(msg, rich.exitCode);
+            assert(msg.forwardPayload != null, TokenPool_Error.MissingForwardPayload);
+            val context = lazy (msg.forwardPayload as Cell<TokenPool_GetCCVsContext>).load();
+            self.sendCCVsFailed(context.replyTo, msg.queryId, context.forwardPayload, rich.exitCode);
             return true;
         }
         TokenPool_PreflightCheck => {
             // Fail by notifying the target (replyTo); reimburse any consumed rate limit
-            assert(msg.replyPayload != null, TokenPool_Error.MissingForwardPayload);
-            val fwdp = (msg.replyPayload as Cell<TokenPool_LockOrBurnForwardPayload>).load();
+            assert(msg.forwardPayload != null, TokenPool_Error.MissingForwardPayload);
+            val fwdp = (msg.forwardPayload as Cell<TokenPool_LockOrBurnForwardPayload>).load();
             self.recoverLockOrBurnFailure(fwdp, rich.exitCode, msgValue);
             return true;
         }
         TokenPool_PostflightCheck => {
             // Fail by notifying the target (replyTo); reimburse any consumed rate limit
-            assert(msg.replyPayload != null, TokenPool_Error.MissingForwardPayload);
-            val fwdp = (msg.replyPayload as Cell<TokenPool_ReleaseOrMintForwardPayload>).load();
+            assert(msg.forwardPayload != null, TokenPool_Error.MissingForwardPayload);
+            val fwdp = (msg.forwardPayload as Cell<TokenPool_ReleaseOrMintForwardPayload>).load();
             self.recoverReleaseOrMintFailure(fwdp, rich.exitCode, msgValue);
             return true;
+        }
+        AskToTransfer => {
+            // Tagged fee-withdraw asks may come from any pool-owned wallet. Notify the initiator.
+            // Returned jettons stay in the wallet and remain recoverable by an explicit rescue;
+            // never re-credit `accruedFees` here, because the rescue may include non-fee balance.
+            if (JettonWithdrawable.onWithdrawBounced(bouncedSender, msg)) {
+                return true;
+            }
+            return false;
         }
         else => {
             return false; // pool-specific message — let the concrete pool handle it
@@ -1323,11 +1360,12 @@ fun TokenPool<T>.onGetCCVs(
 
     self.validateGetCCVsRequest(msg.localToken, msg.remoteChainSelector, msg.requestedFinalityConfig);
 
-    val context = TokenPool_GetCCVsContext {
-        replyTo: sender,
-        fwdPayload: msg.forwardPayload,
-        fees,
-    };
+    val replyTo = msg.replyTo == null ? sender : msg.replyTo;
+    if (replyTo != sender) {
+        // Only the authenticated Router may redirect the reply.
+        self.onlyRouter(sender);
+    }
+    val context = TokenPool_GetCCVsContext { replyTo, forwardPayload: msg.forwardPayload, fees };
 
     val adminConfig = lazy self.data.adminConfig.load();
     val hooks = adminConfig.advancedPoolHooks;
@@ -1345,7 +1383,7 @@ fun TokenPool<T>.onGetCCVs(
                 requestedFinalityConfig: msg.requestedFinalityConfig,
                 direction: msg.direction,
                 extraData: msg.extraData,
-                replyTo: contract.getAddress(), // hooks reply to the pool.
+                replyTo: null, // hooks reply to the sender (the pool).
                 forwardPayload: context.toCell(),
             },
         });
@@ -1356,7 +1394,7 @@ fun TokenPool<T>.onGetCCVs(
 
     // No hooks -> empty CCV set (callers fall back to lane defaults).
     var emptyCCVs: array<address> = [];
-    self.sendCCVsReply(sender, msg.queryId, emptyCCVs, context);
+    self.sendCCVsReply(replyTo, msg.queryId, emptyCCVs, context);
 }
 
 /// Handles an on-chain `TokenPool_GetCCVsAndFees` query: validates, then computes the fee
@@ -1383,12 +1421,12 @@ fun TokenPool<T>.onGetCCVsAndFees(
         requestedFinalityConfig: msg.requestedFinalityConfig,
         direction: msg.direction,
         extraData: msg.extraData,
-        replyTo: contract.getAddress(), // unused in the non-hooks path; set to self.
+        replyTo: msg.replyTo,
         forwardPayload: msg.forwardPayload,
     }, fees);
 }
 
-/// Assembles and sends the reply to the original requester, echoing the caller's `fwdPayload`.
+/// Assembles and sends the reply to the original requester, echoing the caller's `forwardPayload`.
 /// Selects the reply variant from `context.fees` (null → `TokenPool_CCVs`, else `CCVsAndFees`).
 fun TokenPool<T>.sendCCVsReply(
     self,
@@ -1399,12 +1437,12 @@ fun TokenPool<T>.sendCCVsReply(
 ): void {
     var body: cell;
     if (context.fees == null) {
-        val fwdPayload = context.fwdPayload;
-        body = TokenPool_CCVs { queryId, requiredCCVs, fwdPayload }.toCell();
+        val forwardPayload = context.forwardPayload;
+        body = TokenPool_CCVs { queryId, requiredCCVs, forwardPayload }.toCell();
     } else {
         val fees = context.fees as Cell<TokenPool_FeeContext>;
-        val fwdPayload = context.fwdPayload;
-        body = TokenPool_CCVsAndFees { queryId, requiredCCVs, fees, fwdPayload}.toCell();
+        val forwardPayload = context.forwardPayload;
+        body = TokenPool_CCVsAndFees { queryId, requiredCCVs, fees, forwardPayload}.toCell();
     }
 
     val reply = createMessage({
@@ -1416,20 +1454,20 @@ fun TokenPool<T>.sendCCVsReply(
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// Sends `TokenPool_GetCCVsFailed` to the original requester, echoing their `fwdPayload`.
+/// Sends `TokenPool_GetCCVsFailed` to the original requester, echoing their `forwardPayload`.
 /// Finalizes a query that could not complete (e.g. the hooks contract bounced).
 fun TokenPool<T>.sendCCVsFailed(
     self,
     replyTo: address,
     queryId: uint64,
-    fwdPayload: cell?,
+    forwardPayload: cell?,
     errorCode: int32,
 ): void {
     val failure = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: replyTo,
-        body: TokenPool_GetCCVsFailed { queryId, errorCode, fwdPayload },
+        body: TokenPool_GetCCVsFailed { queryId, errorCode, forwardPayload },
     });
     failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -1445,33 +1483,17 @@ fun TokenPool<T>.onQueryCCVsReply(
     val adminConfig = lazy self.data.adminConfig.load();
     val hooks = adminConfig.advancedPoolHooks;
     assert(hooks != null && hooks == sender, TokenPool_Error.Unauthorized);
-    assert(msg.replyPayload != null, TokenPool_Error.MissingForwardPayload);
+    assert(msg.forwardPayload != null, TokenPool_Error.MissingForwardPayload);
 
-    val context = lazy (msg.replyPayload as Cell<TokenPool_GetCCVsContext>).load();
+    val context = lazy (msg.forwardPayload as Cell<TokenPool_GetCCVsContext>).load();
     try {
         self.requireMinValue(msgValue);
     } catch (errorCode) {
-        self.sendCCVsFailed(context.replyTo, msg.queryId, context.fwdPayload, errorCode as int32);
+        self.sendCCVsFailed(context.replyTo, msg.queryId, context.forwardPayload, errorCode as int32);
         return;
     }
 
     self.sendCCVsReply(context.replyTo, msg.queryId, msg.requiredCCVs, context);
-}
-
-/// Handles a bounced `TokenPool_GetCCVs` forwarded to the hooks contract, finalizing the
-/// query by sending `TokenPool_GetCCVsFailed` (carrying the TVM `exitCode`) to the original
-/// requester via the echoed context. Called from the shared base `TokenPool.onBouncedMessage`.
-fun TokenPool<T>.onGetCCVsBounced(
-    self,
-    msg: TokenPool_GetCCVs,
-    exitCode: int32,
-): void {
-    if (msg.forwardPayload == null) {
-        return; // no requester to notify
-    }
-
-    val context = lazy (msg.forwardPayload as Cell<TokenPool_GetCCVsContext>).load();
-    self.sendCCVsFailed(context.replyTo, msg.queryId, context.fwdPayload, exitCode);
 }
 
 /// Validates the lock or burn input for correctness on
@@ -1529,13 +1551,13 @@ fun TokenPool<T>.validateLockOrBurn(
     };
 
     // Build forward payload using the original message (no reconstruction needed).
-    val fwdPayload = TokenPool_LockOrBurnForwardPayload {
+    val forwardPayload = TokenPool_LockOrBurnForwardPayload {
         originalSender: sender,
         requestMsg: msg.toCell(),
         prepared: prepared.toCell(),
     };
 
-    val wait = self.preflightCheck(sender, msg, fwdPayload);
+    val wait = self.preflightCheck(sender, msg, forwardPayload);
     return (wait, prepared);
 }
 
@@ -1694,8 +1716,10 @@ fun TokenPool<T>.processLockOrBurnTransfer(
         val minValue = self.custodyForward(custodyMoves, requestMsg.finalizationValue);
         assert(msgValue >= minValue, TokenPool_Error.InsufficientMessageValue);
 
-        // TODO[VALUE]: [NONEVM-5766] do we assert exact amount?
         assert(details.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
+        val prepared = lazy fwdp.prepared.load();
+        assert(prepared.feeAmount + prepared.destTokenAmount == details.amount, TokenPool_Error.AmountMismatch);
+
         self.onLockOrBurnTransferContinue(sender, msgValue, msg, fwdp);
     } catch (errorCode) {
         val custodyReturn = TokenPool<T>.buildReturnTransfer(msg);
@@ -1769,11 +1793,11 @@ fun TokenPool<T>.onLockOrBurnTransferContinue(
     sender: address,
     msgValue: coins,
     msg: TransferNotificationForRecipient,
-    fwdPayload: TokenPool_LockOrBurnForwardPayload,
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
 ): void {
     if (self.hooks != null) {
         // Every concrete pool must implement this post-custody continuation
-        self.context = self.hooks.onLockOrBurnTransferContinue(self.context!, sender, msgValue, msg, fwdPayload);
+        self.context = self.hooks.onLockOrBurnTransferContinue(self.context!, sender, msgValue, msg, forwardPayload);
 
         return;
     }
@@ -1836,10 +1860,13 @@ fun TokenPool<T>.buildReturnTransfer(msg: TransferNotificationForRecipient): Ask
 fun TokenPool<T>.onLockOrBurnTransferFinalize(
     mutate self,
     msgValue: coins,
-    fwdPayload: TokenPool_LockOrBurnForwardPayload,
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
 ): void {
-    val requestMsg = lazy fwdPayload.requestMsg.load();
-    val prepared = lazy fwdPayload.prepared.load();
+    val requestMsg = lazy forwardPayload.requestMsg.load();
+    val prepared = lazy forwardPayload.prepared.load();
+
+    // Custody settled successfully: the fee portion stayed in the pool's own wallet.
+    self.data.accruedFees += prepared.feeAmount;
 
     val request = lazy requestMsg.request.load();
     val details = lazy request.transfer.details.load();
@@ -1847,7 +1874,7 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
         remoteChainSelector: details.remoteChainSelector,
         details: TokenPool_LockedOrBurnedDetails {
             token: details.localToken,
-            sender: fwdPayload.originalSender,
+            sender: forwardPayload.originalSender,
             amount: prepared.destTokenAmount,
         }.toCell(),
     });
@@ -1924,13 +1951,13 @@ fun TokenPool<T>.validateReleaseOrMint(
     };
 
     // Build forward payload using the original message (no reconstruction needed).
-    val fwdPayload = TokenPool_ReleaseOrMintForwardPayload {
+    val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
         originalSender: sender,
         requestMsg: msg.toCell(),
         prepared: prepared.toCell(),
     };
 
-    val wait = self.postflightCheck(sender, msg, fwdPayload);
+    val wait = self.postflightCheck(sender, msg, forwardPayload);
     return (wait, prepared);
 }
 
@@ -2117,21 +2144,21 @@ fun TokenPool<T>.preflightCheck(
     self,
     sender: address,
     msg: TokenPool_LockOrBurn,
-    fwdPayload: TokenPool_LockOrBurnForwardPayload,
+    forwardPayload: TokenPool_LockOrBurnForwardPayload,
 ): bool {
     // Check inline hooks first (synchronous path).
     if (self.hooks != null && self.hooks.preflightCheck != null) {
-        return self.hooks.preflightCheck(self.context, msg, fwdPayload);
+        return self.hooks.preflightCheck(self.context, msg, forwardPayload);
     }
 
     // Check if on-chain async hooks are configured.
     val adminConfig = lazy self.data.adminConfig.load();
     val hooks = adminConfig.advancedPoolHooks;
     if (hooks != null) {
-        // amountPostFee is already computed in fwdPayload.prepared.destTokenAmount.
-        val prepared = lazy fwdPayload.prepared.load();
+        // amountPostFee is already computed in forwardPayload.prepared.destTokenAmount.
+        val prepared = lazy forwardPayload.prepared.load();
 
-        // Send async preflight check to hooks with replyPayload for callback resumption.
+        // Send async preflight check to hooks with forwardPayload for callback resumption.
         val hooksMsg = createMessage({
             bounce: BounceMode.RichBounce,
             value: 0,
@@ -2142,8 +2169,7 @@ fun TokenPool<T>.preflightCheck(
                 requestedFinalityConfig: msg.requestedFinalityConfig,
                 tokenArgs: msg.tokenArgs,
                 amountPostFee: prepared.destTokenAmount,
-                replyTo: contract.getAddress(),
-                replyPayload: fwdPayload.toCell(),
+                forwardPayload: forwardPayload.toCell(),
             },
         });
         hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -2158,21 +2184,21 @@ fun TokenPool<T>.postflightCheck(
     self,
     sender: address,
     msg: TokenPool_ReleaseOrMint,
-    fwdPayload: TokenPool_ReleaseOrMintForwardPayload,
+    forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
 ): bool {
     // Check inline hooks first (synchronous path).
     if (self.hooks != null && self.hooks.postflightCheck != null) {
-        return self.hooks.postflightCheck(self.context, msg, fwdPayload);
+        return self.hooks.postflightCheck(self.context, msg, forwardPayload);
     }
 
     // Check if on-chain async hooks are configured.
     val adminConfig = lazy self.data.adminConfig.load();
     val hooks = adminConfig.advancedPoolHooks;
     if (hooks != null) {
-        // localAmount is already computed in fwdPayload.prepared.localAmount.
-        val prepared = lazy fwdPayload.prepared.load();
+        // localAmount is already computed in forwardPayload.prepared.localAmount.
+        val prepared = lazy forwardPayload.prepared.load();
 
-        // Send async postflight check to hooks with replyPayload for callback resumption.
+        // Send async postflight check to hooks with forwardPayload for callback resumption.
         val hooksMsg = createMessage({
             bounce: BounceMode.RichBounce,
             value: 0,
@@ -2182,8 +2208,7 @@ fun TokenPool<T>.postflightCheck(
                 request: msg.request,
                 localAmount: prepared.localAmount,
                 requestedFinalityConfig: msg.requestedFinalityConfig,
-                replyTo: contract.getAddress(),
-                replyPayload: fwdPayload.toCell(),
+                forwardPayload: forwardPayload.toCell(),
             },
         });
         hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -2511,7 +2536,12 @@ fun TokenPool<T>._setRemotePool(
 }
 
 /// Withdraws accrued fee jettons.
-fun TokenPool<T>.onWithdrawFeeTokensDispatch(
+/// @dev Only callable by the owner or the configured fee admin.
+/// @param sender The caller; must be the owner or fee admin.
+/// @param msgValue The TON value carried by the inbound withdrawal message; must cover the sum of
+///     the relayed transfer values + reserve (validated in `JettonWithdrawable.onWithdraw`).
+/// @param msg The withdrawal request (wallet + transfer pairs).
+fun TokenPool<T>.onWithdrawFeeTokens(
     mutate self,
     sender: address,
     msgValue: coins,
@@ -2519,37 +2549,65 @@ fun TokenPool<T>.onWithdrawFeeTokensDispatch(
 ) {
     if (self.hooks != null && self.hooks.onWithdrawFeeTokens != null) {
         self.context = self.hooks.onWithdrawFeeTokens(self.context!, sender, msgValue, msg);
+
         return;
     }
 
-    // owner/fee-admin fee relay; replacement hook owns its funding policy
+    assert(self.onlyOwnerOrFeeAdmin(sender), TokenPool_Error.CallerIsNotOwnerOrFeeAdmin);
+
+    // Default owner/fee-admin relay. The accrued-fee ledger caps the pool's own token so a
+    // withdrawal cannot sweep in-flight custody; foreign-token wallets are unbounded so
+    // accidental tokens can be recovered. A replacement hook owns its own policy.
     // TODO[VALUE]: [NONEVM-5766] A/dynamic - loops over the withdrawal list; a static S does not bound large inputs
     self.requireMinValue(msgValue);
 
-    // No cap by default (the jetton wallet's physical balance is the only bound); can be
-    // specialized by the hook (e.g. lock/release, whose accrued-fee ledger bounds the withdrawal).
-    self.withdrawFeeTokens(sender, msgValue, msg, null);
+    // Cap only the pool's own token wallet. Every other wallet listed in the request is an
+    // accidental foreign-token holding and has no in-flight custody to protect.
+    val wallet = self.data.jettonClient().walletAddress();
+    var maxAmount: map<address, coins> = [];
+    maxAmount.set(wallet, self.data.accruedFees);
+
+    val withdrawn = JettonWithdrawable.onWithdraw(msgValue, sender, msg, maxAmount, null);
+    val entry = withdrawn.get(wallet);
+    val withdrawnOwnToken = entry.isFound ? entry.loadValue() : 0 as coins;
+
+    self.debitAccruedFees(withdrawnOwnToken);
 }
 
-/// Withdraws accrued fee jettons.
-/// @dev Only callable by the owner or the configured fee admin.
-/// @param sender The caller; must be the owner or fee admin.
-/// @param msgValue The TON value carried by the inbound withdrawal message; must cover the sum of
-///     the relayed transfer values + reserve (validated in `JettonWithdrawable.onWithdraw`).
-/// @param msg The withdrawal request (wallet + transfer pairs).
-/// @param maxAmount Per-wallet upper bound on the cumulative amount relayed (cap); `null` = unbounded.
-/// @return The per-wallet total jetton amount relayed (for caller bookkeeping).
-fun TokenPool<T>.withdrawFeeTokens(
+/// Explicit owner-only recovery of stranded tokens. This intentionally ignores the fee ledger
+/// and may sweep in-flight custody; the owner is responsible for the outcome.
+fun TokenPool<T>.onWithdrawRescue(
     mutate self,
     sender: address,
     msgValue: coins,
-    msg: JettonWithdrawable_Withdraw,
-    maxAmount: map<address, coins>?,
-): map<address, coins> {
-    assert(self.onlyOwnerOrFeeAdmin(sender), TokenPool_Error.CallerIsNotOwnerOrFeeAdmin);
+    msg: TokenPool_WithdrawRescue,
+) {
+    self.data.adminConfig.load().ownable.load().requireOwner(sender);
+    self.requireMinValue(msgValue);
 
-    // No recipient allowlist: access is gated by onlyOwnerOrFeeAdmin above
-    return JettonWithdrawable.onWithdraw(msgValue, sender, msg, maxAmount, null);
+    val withdrawn = JettonWithdrawable.onWithdraw(msgValue, sender, msg.withdrawMsg, null, null);
+
+    // `accruedFees` is a conservative lower bound. A rescue may include donations or stranded
+    // tokens, so only debit up to the current value; it must never exceed real fees.
+    val wallet = self.data.jettonClient().walletAddress();
+    val entry = withdrawn.get(wallet);
+    val withdrawnOwnToken = entry.isFound ? entry.loadValue() : 0 as coins;
+    self.debitAccruedFees(withdrawnOwnToken);
+}
+
+/// Owner-only native TON withdraw. This is separate from Jetton rescue: it recovers excess TON.
+fun TokenPool<T>.onWithdrawableWithdraw(
+    mutate self,
+    sender: address,
+    msg: Withdrawable_Withdraw,
+) {
+    self.data.adminConfig.load().ownable.load().requireOwner(sender);
+    Withdrawable { reserve: MIN_GRAM_TO_RESERVE }.withdraw(msg);
+}
+
+/// Debits `accruedFees` conservatively: never below zero, never more than the current ledger.
+fun TokenPool<T>.debitAccruedFees(mutate self, amount: coins) {
+    self.data.accruedFees -= min(amount, self.data.accruedFees);
 }
 
 /// Whether the caller is the owner or the fee admin

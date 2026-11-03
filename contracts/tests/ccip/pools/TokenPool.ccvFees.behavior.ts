@@ -110,7 +110,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
 
     // ======= TokenPool_GetCCVs (CCVs only) =======
 
-    it('GetCCVs (no fee) replies TokenPool_CCVs to the sender with empty CCVs + echoed fwdPayload', async () => {
+    it('GetCCVs (no fee) replies TokenPool_CCVs to the sender with empty CCVs + echoed forwardPayload', async () => {
       const fwd = beginCell().storeUint(0xbeef, 16).endCell()
 
       const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.3'), {
@@ -121,11 +121,11 @@ export function runTokenPoolCcvFeesBehaviorTests(
         requestedFinalityConfig: 0n,
         direction: 0n, // Outbound
         extraData: null,
-        replyTo: ctx.deployer.address,
+        replyTo: null,
         forwardPayload: fwd,
       })
 
-      // Reply goes to msg.sender (not replyTo-owned semantics), immediately when no hooks.
+      // A null replyTo means "reply to the sender", immediately when no hooks.
       expect(result.transactions).toHaveTransaction({
         from: ctx.pool.address,
         to: ctx.deployer.address,
@@ -137,10 +137,87 @@ export function runTokenPoolCcvFeesBehaviorTests(
           return (
             reply.queryId === 10n &&
             reply.requiredCCVs.length === 0 && // empty == use lane defaults
-            reply.fwdPayload !== null &&
-            reply.fwdPayload!.hash().equals(fwd.hash())
+            reply.forwardPayload !== null &&
+            reply.forwardPayload!.hash().equals(fwd.hash())
           )
         },
+      })
+    })
+
+    it('GetCCVs replies to the Router-selected replyTo', async () => {
+      const fwd = beginCell().storeUint(0xbeef, 16).endCell()
+      const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.3'), {
+        queryId: 16n,
+        localToken: ctx.localToken,
+        remoteChainSelector: ctx.remoteChainSelector,
+        amount: toNano('1'),
+        requestedFinalityConfig: 0n,
+        direction: 0n,
+        extraData: null,
+        replyTo: ctx.recipient.address,
+        forwardPayload: fwd,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.recipient.address,
+        success: true,
+        op: TokenPool_CCVs.PREFIX,
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.deployer.address,
+        op: TokenPool_CCVs.PREFIX,
+      })
+    })
+
+    it('allows a non-Router caller to reply to itself', async () => {
+      const result = await ctx.pool.sendTokenPoolGetCCVs(
+        ctx.unauthorized.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 17n,
+          localToken: ctx.localToken,
+          remoteChainSelector: ctx.remoteChainSelector,
+          amount: toNano('1'),
+          requestedFinalityConfig: 0n,
+          direction: 0n,
+          extraData: null,
+          replyTo: ctx.unauthorized.address,
+          forwardPayload: null,
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.unauthorized.address,
+        success: true,
+        op: TokenPool_CCVs.PREFIX,
+      })
+    })
+
+    it('rejects a non-Router GetCCVs replyTo redirect', async () => {
+      const result = await ctx.pool.sendTokenPoolGetCCVs(
+        ctx.unauthorized.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 18n,
+          localToken: ctx.localToken,
+          remoteChainSelector: ctx.remoteChainSelector,
+          amount: toNano('1'),
+          requestedFinalityConfig: 0n,
+          direction: 0n,
+          extraData: null,
+          replyTo: ctx.deployer.address,
+          forwardPayload: null,
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.unauthorized.address,
+        to: ctx.pool.address,
+        success: false,
+        exitCode: 51710, // TokenPool_Error.Unauthorized
       })
     })
 
@@ -223,6 +300,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
           requestedFinalityConfig: 0n,
           direction: 0n, // Outbound
           extraData: null,
+          replyTo: ctx.deployer.address,
           forwardPayload: fwd,
         },
       )
@@ -240,8 +318,8 @@ export function runTokenPoolCcvFeesBehaviorTests(
             reply.fees.feesProvided === true &&
             reply.fees.amountPostFee === postFee &&
             reply.fees.feeConfig.finalityTransferFeeBps === FEE_BPS &&
-            reply.fwdPayload !== null &&
-            reply.fwdPayload!.hash().equals(fwd.hash())
+            reply.forwardPayload !== null &&
+            reply.forwardPayload!.hash().equals(fwd.hash())
           )
         },
       })
@@ -272,6 +350,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
           requestedFinalityConfig: 0n,
           direction: 0n, // Outbound
           extraData: null,
+          replyTo: ctx.deployer.address,
           forwardPayload: null,
         },
       )
@@ -336,7 +415,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
 
     it('GetCCVs with async hooks echoes a NON-empty CCV set back to the requester', async () => {
       const hooks = await deployHooks(Number(MOCK_HOOKS_NONEMPTY_ID))
-      // The mock returns a single hard-coded CCV = the pool address (the hook's replyTo).
+      // The mock returns a single hard-coded CCV = the pool address (the hook's sender).
       const expectedCCV: Address = ctx.pool.address
 
       const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.3'), {
@@ -376,7 +455,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
       })
     })
 
-    it('GetCCVsToHooks bounce finalizes with TokenPool_GetCCVsFailed to the requester, echoing fwdPayload', async () => {
+    it('GetCCVsToHooks bounce finalizes with TokenPool_GetCCVsFailed to the requester, echoing forwardPayload', async () => {
       const hooks = await deployHooks(Number(MOCK_HOOKS_BOUNCE_ID))
 
       const fwd = beginCell().storeUint(0x1234, 16).endCell()
@@ -401,7 +480,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
       })
 
       // The hooks throw → the pool receives a bounce → finalizes with GetCCVsFailed to the
-      // original requester, echoing their fwdPayload so they can resume/abort. The failure
+      // original requester, echoing their forwardPayload so they can resume/abort. The failure
       // carries the TVM exit code from the bounce verbatim (the mock throws 0xFFFF).
       expect(result.transactions).toHaveTransaction({
         from: ctx.pool.address,
@@ -414,8 +493,8 @@ export function runTokenPoolCcvFeesBehaviorTests(
           return (
             reply.queryId === 22n &&
             reply.errorCode === 0xffffn &&
-            reply.fwdPayload !== null &&
-            reply.fwdPayload!.hash().equals(fwd.hash())
+            reply.forwardPayload !== null &&
+            reply.forwardPayload!.hash().equals(fwd.hash())
           )
         },
       })
@@ -451,8 +530,8 @@ export function runTokenPoolCcvFeesBehaviorTests(
           return (
             reply.queryId === 23n &&
             reply.errorCode === -14n && // ExitCodeOutOfGasErrorVariant, not a clamped 0xFFFF
-            reply.fwdPayload !== null &&
-            reply.fwdPayload!.hash().equals(fwd.hash())
+            reply.forwardPayload !== null &&
+            reply.forwardPayload!.hash().equals(fwd.hash())
           )
         },
       })
@@ -473,7 +552,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
             TokenPool_QueryCCVsReply.create({
               queryId: 23n,
               requiredCCVs: [ctx.pool.address],
-              replyPayload: Cell.EMPTY,
+              forwardPayload: Cell.EMPTY,
             }),
           ),
         }),
@@ -486,7 +565,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
       })
     })
 
-    it('rejects onQueryCCVsReply from hooks with a missing replyPayload', async () => {
+    it('rejects onQueryCCVsReply from hooks with a missing forwardPayload', async () => {
       const hooks = await deployHooks(Number(MOCK_HOOKS_DEFAULT_ID))
 
       // Sender is the registered hooks (passes auth) but the forwarded context is missing.
@@ -499,7 +578,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
             TokenPool_QueryCCVsReply.create({
               queryId: 24n,
               requiredCCVs: [],
-              replyPayload: null,
+              forwardPayload: null,
             }),
           ),
         }),

@@ -46,6 +46,7 @@ struct FeeQuoterDestChainConfig {
 
     // Multiplier for gas costs, 1e18 based so 11e17 = 10% extra cost.
     gasMultiplierWeiPerEth: uint64;
+    // @deprecated no longer use to validate gas prices
     gasPriceStalenessThreshold: uint32;
     networkFeeUsdCents: uint32;
 }

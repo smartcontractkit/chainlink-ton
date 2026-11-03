@@ -3,6 +3,10 @@
 // Uses the incoming message queryId to determine reply behavior:
 //   queryId % 2 == 0  → Finished  (success)
 //   queryId % 2 == 1  → Failed    (failure)
+//
+// It always replies to the sender, so it cannot be used as a generic echo to forge
+// continuations. This is a test double, not a production hook template; see the
+// trust-boundary note on `advancedPoolHooks` in `pools/lib/token_pool/entrypoint.tolk`.
 
 import "@stdlib/gas-payments"
 
@@ -36,13 +40,13 @@ fun onInternalMessage(in: InMessage) {
 
     match (msg) {
         TokenPool_PreflightCheck => {
-            replyPreflight(msg, in.valueCoins);
+            replyPreflight(msg, in.valueCoins, in.senderAddress);
         }
         TokenPool_PostflightCheck => {
-            replyPostflight(msg, in.valueCoins);
+            replyPostflight(msg, in.valueCoins, in.senderAddress);
         }
         TokenPool_GetCCVs => {
-            replyGetCCVs(msg);
+            replyGetCCVs(msg, in.senderAddress);
         }
         else => {
             // Accept empty messages (top-up), reject everything else.
@@ -52,7 +56,7 @@ fun onInternalMessage(in: InMessage) {
 }
 
 /// Replies to a pool `TokenPool_GetCCVs` with a `TokenPool_QueryCCVsReply`, preserving the
-/// context in `replyPayload` so the pool can assemble the final `TokenPool_CCVsAndFees`.
+/// context in `forwardPayload` so the pool can assemble the final `TokenPool_CCVsAndFees`.
 /// The CCV set is driven by the mock's storage `id`:
 ///   - `id == 0` (default): empty CCV set, signaling "use lane defaults".
 ///   - `id != 0`, `id != 254` and `id != 255`: returns a single hard-coded CCV (the pool itself)
@@ -67,7 +71,7 @@ const MOCK_HOOKS_OOG_ID = 254;
 /// `id == 253`: a costly hook. Its postflight reply carries half of the request's value.
 const MOCK_HOOKS_COSTLY_ID = 253;
 
-fun replyGetCCVs(msg: TokenPool_GetCCVs) {
+fun replyGetCCVs(msg: TokenPool_GetCCVs, sender: address) {
     val data = MockAdvancedPoolHooks_Data.load();
     if (data.id == MOCK_HOOKS_BOUNCE_ID) {
         throw 0xFFFF; // bounce the pool's forwarded GetCCVs
@@ -81,23 +85,23 @@ fun replyGetCCVs(msg: TokenPool_GetCCVs) {
     if (data.id != 0) {
         // A single CCV (the pool that queried us) — meaningful enough for a mock and lets tests
         // assert that the non-empty set is echoed back through the pool unchanged.
-        requiredCCVs.push(msg.replyTo);
+        requiredCCVs.push(sender);
     }
 
     val reply = createMessage({
         bounce: false,
         value: 0,
-        dest: msg.replyTo,
+        dest: sender,
         body: TokenPool_QueryCCVsReply {
             queryId: msg.queryId,
             requiredCCVs: requiredCCVs,
-            replyPayload: msg.forwardPayload,
+            forwardPayload: msg.forwardPayload,
         },
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun replyPreflight(msg: TokenPool_PreflightCheck, msgValue: coins) {
+fun replyPreflight(msg: TokenPool_PreflightCheck, msgValue: coins, sender: address) {
     // id == 255 => reject at entry (throw), so the request bounces back to the pool and its
     // base onBouncedMessage must refund the outbound rate limit + send LockOrBurnFailure.
     if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_BOUNCE_ID) {
@@ -105,7 +109,7 @@ fun replyPreflight(msg: TokenPool_PreflightCheck, msgValue: coins) {
     }
 
     val queryId = msg.queryId;
-    val fwd = msg.replyPayload!;
+    val fwd = msg.forwardPayload!;
 
     var body: cell;
     if (queryId % 2 == 0) {
@@ -121,20 +125,20 @@ fun replyPreflight(msg: TokenPool_PreflightCheck, msgValue: coins) {
     }
 
     if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_COSTLY_ID) {
-        createMessage({ bounce: false, value: msgValue / 2, dest: msg.replyTo, body: body })
+        createMessage({ bounce: false, value: msgValue / 2, dest: sender, body: body })
             .send(SEND_MODE_PAY_FEES_SEPARATELY);
         return;
     }
     val reply = createMessage({
         bounce: false,
         value: 0,
-        dest: msg.replyTo,
+        dest: sender,
         body: body,
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun replyPostflight(msg: TokenPool_PostflightCheck, msgValue: coins) {
+fun replyPostflight(msg: TokenPool_PostflightCheck, msgValue: coins, sender: address) {
     // id == 255 => reject at entry (throw); the base onBouncedMessage must refund the inbound
     // rate limit + send ReleaseOrMintFailure (see replyPreflight).
     if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_BOUNCE_ID) {
@@ -142,7 +146,7 @@ fun replyPostflight(msg: TokenPool_PostflightCheck, msgValue: coins) {
     }
 
     val queryId = msg.queryId;
-    val fwd: cell = msg.replyPayload!;
+    val fwd: cell = msg.forwardPayload!;
 
     var body: cell;
     if (queryId % 2 == 0) {
@@ -158,14 +162,14 @@ fun replyPostflight(msg: TokenPool_PostflightCheck, msgValue: coins) {
     }
 
     if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_COSTLY_ID) {
-        createMessage({ bounce: false, value: msgValue / 2, dest: msg.replyTo, body: body })
+        createMessage({ bounce: false, value: msgValue / 2, dest: sender, body: body })
             .send(SEND_MODE_PAY_FEES_SEPARATELY);
         return;
     }
     val reply = createMessage({
         bounce: false,
         value: 0,
-        dest: msg.replyTo,
+        dest: sender,
         body: body,
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

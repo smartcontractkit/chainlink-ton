@@ -2,6 +2,8 @@
 /// JettonLockBox message types for deposit, withdrawal, and initialization.
 
 import "../../../lib/jetton/messages"
+import "../../../lib/funding/withdrawable"
+import "../../../lib/funding/jetton_withdrawable"
 
 /// Embedded in a jetton transfer's forwardPayload to identify the deposit context.
 /// The lockbox extracts this from `TransferNotificationForRecipient.forwardPayload` on deposit.
@@ -52,6 +54,11 @@ struct (0xd065c306) JettonLockBox_Withdraw {
     recipient: address;
     /// Optional extra fields (sendExcessesTo routing, forwardTonAmount, forwardPayload).
     extra: Cell<JettonLockBox_WithdrawExtra>?;
+}
+
+/// Admin-only recovery of any lockbox-owned Jetton wallet.
+struct (0x0440d11a) JettonLockBox_WithdrawRescue {
+    withdrawMsg: JettonWithdrawable_Withdraw;
 }
 
 /// Bounced message types handled by `onBouncedMessage`.
@@ -111,6 +118,8 @@ struct (0x60bae556) JettonLockBox_WithdrawFailed {
 type JettonLockBox_InMessage =
     | JettonLockBox_Init
     | JettonLockBox_Withdraw
+    | JettonLockBox_WithdrawRescue
+    | Withdrawable_Withdraw
     | TransferNotificationForRecipient;
 
 /// All outgoing message types.

@@ -97,6 +97,7 @@ export async function deployTokenWithPool(opts: {
     tokenDecimals: 9n,
     remoteChainConfigs: new Map(),
     tokenTransferFeeConfigs: new Map(),
+    accruedFees: 0n,
   })
 
   let pool: SandboxContract<lrp.LockReleaseLockboxTokenPool | bmp.BurnMintTokenPool>

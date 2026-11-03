@@ -10,7 +10,6 @@ import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/forward_payload_wrap"
-import "../../../lib/funding/jetton_withdrawable"
 import "../../lib/cross_chain_address/types"
 
 import "../../cct/messages"
@@ -97,14 +96,6 @@ fun onBouncedMessage(in: InMessageBounced) {
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val msg = lazy BurnMintTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
-        // Recovery returns are best-effort; their bounced value stays with the pool.
-        AskToTransfer => {
-            val data = st.poolData.load();
-            val wallet  = data.jettonClient().walletAddress();
-            assert(in.senderAddress == wallet) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
-            JettonWithdrawable.onWithdrawBounced(wallet, msg);
-            st.store();
-        }
         CCT_AskToBurn => {
             assert(msg.forwardPayload != null) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
             val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload);
@@ -348,6 +339,10 @@ fun Storage.TokenPool(self): TokenPool<Storage> {
             transferInitiator: null,
         },
     };
+}
+
+get fun getAccruedFees(): coins {
+    return Storage.load().TokenPool().getAccruedFees();
 }
 
 get fun typeAndVersion(): (slice, slice) {

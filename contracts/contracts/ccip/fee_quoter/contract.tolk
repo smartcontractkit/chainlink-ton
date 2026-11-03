@@ -243,10 +243,8 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
 
 fun DestChainConfig.getValidatedGasPrice(self): uint112 {
     val price = self.usdPerUnitGas.load();
-    val threshold = self.config.gasPriceStalenessThreshold as int64;
-    val elapsedTime = blockchain.now() - price.timestamp;
 
-    assert(threshold == 0 || threshold > elapsedTime, FeeQuoter_Error.StaleGasPrice);
+    assert(price.timestamp != 0, FeeQuoter_Error.NoGasPriceAvailable);
 
     return price.executionGasPrice;
 }

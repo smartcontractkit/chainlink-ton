@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 tolk 1.4.2
 
+import "@stdlib/gas-payments"
+
 const Withdrawable_FACILITY_NAME = "link.chain.ton.lib.funding.Withdrawable";
 const Withdrawable_FACILITY_ID = Withdrawable_FACILITY_NAME.crc32() % 640 + 10;  // 571
 // NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions

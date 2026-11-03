@@ -345,6 +345,21 @@ export class FeeQuoterSetup {
           executionGasPrice: FeeQuoterSetup.USD_PER_GAS,
           dataAvailabilityGasPrice: FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
         }),
+        feeQuoter.GasPriceUpdate.create({
+          destChainSelector: ChainSelectors.testnet.solana,
+          executionGasPrice: FeeQuoterSetup.USD_PER_GAS,
+          dataAvailabilityGasPrice: FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
+        }),
+        feeQuoter.GasPriceUpdate.create({
+          destChainSelector: ChainSelectors.testnet.aptos,
+          executionGasPrice: FeeQuoterSetup.USD_PER_GAS,
+          dataAvailabilityGasPrice: FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
+        }),
+        feeQuoter.GasPriceUpdate.create({
+          destChainSelector: ChainSelectors.testnet.sui,
+          executionGasPrice: FeeQuoterSetup.USD_PER_GAS,
+          dataAvailabilityGasPrice: FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
+        }),
       ],
     })
 
@@ -726,8 +741,8 @@ function printErrorName(error: number): string {
       return 'TooManySuiExtraArgsReceiverObjectIds'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.MsgDataTooLarge']:
       return 'MsgDataTooLarge'
-    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.StaleGasPrice']:
-      return 'StaleGasPrice'
+    case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.NoGasPriceAvailable']:
+      return 'NoGasPriceAvailable'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.DestChainNotEnabled']:
       return 'DestChainNotEnabled'
     case feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.FeeTokenNotSupported']:
