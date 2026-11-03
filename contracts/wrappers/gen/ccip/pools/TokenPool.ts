@@ -3781,6 +3781,7 @@ export const TokenPool_GetConfig = {
 /**
  > struct (0x1c8a40b8) TokenPool_Config {
  >     queryId: uint64
+ >     token: address
  >     transferInitiator: address?
  >     admission: TokenPool_AdmissionBudget
  > }
@@ -3788,6 +3789,7 @@ export const TokenPool_GetConfig = {
 export interface TokenPool_Config {
     readonly $: 'TokenPool_Config'
     queryId: uint64
+    token: c.Address
     transferInitiator: c.Address | null
     admission: TokenPool_AdmissionBudget
 }
@@ -3797,6 +3799,7 @@ export const TokenPool_Config = {
 
     create(args: {
         queryId?: uint64
+        token: c.Address
         transferInitiator: c.Address | null
         admission: TokenPool_AdmissionBudget
     }): TokenPool_Config {
@@ -3811,6 +3814,7 @@ export const TokenPool_Config = {
         return {
             $: 'TokenPool_Config',
             queryId: s.loadUintBig(64),
+            token: s.loadAddress(),
             transferInitiator: s.loadMaybeAddress(),
             admission: TokenPool_AdmissionBudget.fromSlice(s),
         }
@@ -3818,6 +3822,7 @@ export const TokenPool_Config = {
     store(self: TokenPool_Config, b: c.Builder): void {
         b.storeUint(0x1c8a40b8, 32);
         b.storeUint(self.queryId, 64);
+        b.storeAddress(self.token);
         b.storeAddress(self.transferInitiator);
         TokenPool_AdmissionBudget.store(self.admission, b);
     },

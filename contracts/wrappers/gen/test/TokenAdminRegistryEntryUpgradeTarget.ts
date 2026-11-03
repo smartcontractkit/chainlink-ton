@@ -484,28 +484,35 @@ export const TokenAdminRegistryEntry_SetPool = {
 
 /**
  > struct (0xa14b0288) TokenAdminRegistryEntry_VerifyToken {
+ >     requester: address
  > }
  */
 export interface TokenAdminRegistryEntry_VerifyToken {
     readonly $: 'TokenAdminRegistryEntry_VerifyToken'
+    requester: c.Address
 }
 
 export const TokenAdminRegistryEntry_VerifyToken = {
     PREFIX: 0xa14b0288,
 
-    create(): TokenAdminRegistryEntry_VerifyToken {
+    create(args: {
+        requester: c.Address
+    }): TokenAdminRegistryEntry_VerifyToken {
         return {
             $: 'TokenAdminRegistryEntry_VerifyToken',
+            ...args
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_VerifyToken {
         loadAndCheckPrefix32(s, 0xa14b0288, 'TokenAdminRegistryEntry_VerifyToken');
         return {
             $: 'TokenAdminRegistryEntry_VerifyToken',
+            requester: s.loadAddress(),
         }
     },
     store(self: TokenAdminRegistryEntry_VerifyToken, b: c.Builder): void {
         b.storeUint(0xa14b0288, 32);
+        b.storeAddress(self.requester);
     },
     toCell(self: TokenAdminRegistryEntry_VerifyToken): c.Cell {
         return makeCellFrom<TokenAdminRegistryEntry_VerifyToken>(self, TokenAdminRegistryEntry_VerifyToken.store);
@@ -514,28 +521,35 @@ export const TokenAdminRegistryEntry_VerifyToken = {
 
 /**
  > struct (0xecf005ba) TokenAdminRegistryEntry_RefreshPoolConfig {
+ >     requester: address
  > }
  */
 export interface TokenAdminRegistryEntry_RefreshPoolConfig {
     readonly $: 'TokenAdminRegistryEntry_RefreshPoolConfig'
+    requester: c.Address
 }
 
 export const TokenAdminRegistryEntry_RefreshPoolConfig = {
     PREFIX: 0xecf005ba,
 
-    create(): TokenAdminRegistryEntry_RefreshPoolConfig {
+    create(args: {
+        requester: c.Address
+    }): TokenAdminRegistryEntry_RefreshPoolConfig {
         return {
             $: 'TokenAdminRegistryEntry_RefreshPoolConfig',
+            ...args
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_RefreshPoolConfig {
         loadAndCheckPrefix32(s, 0xecf005ba, 'TokenAdminRegistryEntry_RefreshPoolConfig');
         return {
             $: 'TokenAdminRegistryEntry_RefreshPoolConfig',
+            requester: s.loadAddress(),
         }
     },
     store(self: TokenAdminRegistryEntry_RefreshPoolConfig, b: c.Builder): void {
         b.storeUint(0xecf005ba, 32);
+        b.storeAddress(self.requester);
     },
     toCell(self: TokenAdminRegistryEntry_RefreshPoolConfig): c.Cell {
         return makeCellFrom<TokenAdminRegistryEntry_RefreshPoolConfig>(self, TokenAdminRegistryEntry_RefreshPoolConfig.store);

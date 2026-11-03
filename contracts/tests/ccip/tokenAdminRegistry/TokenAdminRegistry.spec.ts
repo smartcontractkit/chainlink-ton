@@ -143,6 +143,9 @@ describe('TokenAdminRegistry - Opcodes', () => {
 
   it('should match out opcodes', () => {
     expect(tar.TokenAdminRegistry_TokenInfo.PREFIX).toBe(crc32('TokenAdminRegistry_TokenInfo'))
+    expect(tar.TokenAdminRegistry_RequestFailed.PREFIX).toBe(
+      crc32('TokenAdminRegistry_RequestFailed'),
+    )
   })
 })
 
@@ -204,6 +207,55 @@ describe('TokenAdminRegistry - Unit Tests', () => {
       to: fx.registry.address,
       success: true,
     })
+  })
+
+  it('reports a permissionless request for an unregistered token to its sender', async () => {
+    const result = await fx.registry.sendTokenAdminRegistryVerifyToken(
+      fx.other.getSender(),
+      OPERATION_VALUE,
+      { queryId: 5n, tokenAddress: fx.otherToken },
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: fx.registry.address,
+      to: fx.other.address,
+      op: tar.TokenAdminRegistry_RequestFailed.PREFIX,
+      body(body) {
+        if (!body) return false
+        return tar.TokenAdminRegistry_RequestFailed.fromSlice(body.beginParse()).queryId === 5n
+      },
+    })
+  })
+
+  it('lets only the owner withdraw TON above the reserve', async () => {
+    await fx.other.send({
+      to: fx.registry.address,
+      value: toNano('1'),
+      body: beginCell().endCell(),
+    })
+    const withdraw = (via: SandboxContract<TreasuryContract>) =>
+      fx.registry.sendWithdrawableWithdraw(via.getSender(), toNano('0.05'), {
+        queryId: 0n,
+        destination: via.address,
+        amount: 0n,
+        reserve: null,
+        drainAllAvailable: true,
+      })
+
+    const rejected = await withdraw(fx.other)
+    expect(rejected.transactions).toHaveTransaction({
+      from: fx.other.address,
+      to: fx.registry.address,
+      success: false,
+      exitCode: ownable2step.Errors.OnlyCallableByOwner,
+    })
+
+    const result = await withdraw(fx.owner)
+    expect(result.transactions).toHaveTransaction({
+      from: fx.registry.address,
+      to: fx.owner.address,
+      success: true,
+    })
+    expect((await blockchain.getContract(fx.registry.address)).balance).toBe(toNano('0.1'))
   })
 
   it('rejects unknown opcodes', async () => {

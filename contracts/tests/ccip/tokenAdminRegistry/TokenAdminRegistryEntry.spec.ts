@@ -200,7 +200,7 @@ describe('TokenAdminRegistryEntry - Unit Tests', () => {
     )
   })
 
-  it('does not bounce a failed administration replay back to the root', async () => {
+  it('reports a failed administration replay to the actor', async () => {
     expectEntrySuccess(fx, await acceptAdminRole(fx, fx.administrator))
     const result = await entryFor(fx).sendTokenAdminRegistryEntryMessageFromRoot(
       asRoot(fx),
@@ -219,8 +219,6 @@ describe('TokenAdminRegistryEntry - Unit Tests', () => {
       op: tar.TokenAdminRegistry_EntryUpgradeRequest.PREFIX,
       success: true,
     })
-    const [resumeTx] = fromRootToEntry(result, tare.TokenAdminRegistryEntry_Resume.PREFIX)
-    expect(resumeTx.inMessage.info.bounce).toBe(false)
     expect(result.transactions).toHaveTransaction({
       from: fx.registry.address,
       to: entryAddress(fx),
@@ -228,9 +226,16 @@ describe('TokenAdminRegistryEntry - Unit Tests', () => {
       success: false,
       exitCode: EntryErrors['TokenAdminRegistryEntry_Error.VersionUnavailable'],
     })
-    expect(result.transactions).not.toHaveTransaction({
-      to: fx.registry.address,
-      inMessageBounced: true,
+    expect(result.transactions).toHaveTransaction({
+      from: fx.registry.address,
+      to: fx.administrator.address,
+      op: tar.TokenAdminRegistry_RequestFailed.PREFIX,
+      body: tar.TokenAdminRegistry_RequestFailed.toCell(
+        tar.TokenAdminRegistry_RequestFailed.create({
+          queryId: 0n,
+          exitCode: BigInt(EntryErrors['TokenAdminRegistryEntry_Error.VersionUnavailable']),
+        }),
+      ),
     })
     expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx))
   })

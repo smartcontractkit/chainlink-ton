@@ -305,14 +305,20 @@ fun probePoolConfig(pool: address, queryId: uint64) {
 }
 
 /// Accepts the answer of the pending pool (setting it) or of the current pool (refreshing it).
+/// A pool for another token is treated like a bounced probe and delists the token.
 fun onPoolConfig(msg: TokenPool_Config, sender: address) {
     var st = lazy TokenRegistry_Storage.load();
     var tokenInfo = st.tokenInfo.load();
     val previousPool = tokenInfo.tokenPool;
-    if (st.pendingPool != null && sender == st.pendingPool!) {
-        st.pendingPool = null;
-    } else if (previousPool == null || sender != previousPool!) {
+    val fromPendingPool = st.pendingPool != null && sender == st.pendingPool!;
+    if (!fromPendingPool && (previousPool == null || sender != previousPool!)) {
         return;
+    }
+    if (msg.token != st.tokenAddress) {
+        return delist(msg.queryId);
+    }
+    if (fromPendingPool) {
+        st.pendingPool = null;
     }
 
     val previousTransferInitiator = tokenInfo.transferInitiator;

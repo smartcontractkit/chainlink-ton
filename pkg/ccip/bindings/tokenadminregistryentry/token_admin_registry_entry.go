@@ -36,7 +36,6 @@ type TokenInfo struct {
 	TokenPool *address.Address `tlb:"addr"`
 	// TransferInitiator reported by the pool; nil when the pool delivers by minting.
 	TransferInitiator *address.Address `tlb:"addr"`
-	MinterAddress     *address.Address `tlb:"addr"`
 	Version           uint32           `tlb:"## 32"`
 	// Admission budgets reported by the pool; nil until it answers the config probe.
 	Admission *tokenpool.AdmissionBudget `tlb:"maybe ^"`
@@ -121,13 +120,17 @@ type SetPool struct {
 }
 
 // crc32('TokenAdminRegistryEntry_VerifyToken')
+// Requester is only used to report a bounced request.
 type VerifyToken struct {
-	_ tlb.Magic `tlb:"#a14b0288" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	_         tlb.Magic        `tlb:"#a14b0288" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	Requester *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_RefreshPoolConfig')
+// Requester is only used to report a bounced request.
 type RefreshPoolConfig struct {
-	_ tlb.Magic `tlb:"#ecf005ba" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	_         tlb.Magic        `tlb:"#ecf005ba" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	Requester *address.Address `tlb:"addr"`
 }
 
 // crc32('TokenAdminRegistryEntry_Resume')

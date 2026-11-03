@@ -1,6 +1,7 @@
 package tokenpool
 
 import (
+	"bytes"
 	"math/big"
 	"testing"
 
@@ -265,11 +266,12 @@ func TestAdminConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
 	require.Empty(t, decodedEmpty.AllowedDepositNamespaces.AsMap())
 }
 
-// TestConfig_WireFormat pins TokenPool_Config: opcode, query id, transfer initiator, then the
-// admission budget inline (lockOrBurn, releaseOrMint).
+// TestConfig_WireFormat pins TokenPool_Config: opcode, query id, token, transfer initiator, then
+// the admission budget inline (lockOrBurn, releaseOrMint).
 func TestConfig_WireFormat(t *testing.T) {
 	msg := Config{
 		QueryID:           7,
+		Token:             address.NewAddress(0, 0, bytes.Repeat([]byte{1}, 32)),
 		TransferInitiator: address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"),
 		Admission: AdmissionBudget{
 			LockOrBurn:    tlb.MustFromTON("0.1"),
@@ -282,6 +284,7 @@ func TestConfig_WireFormat(t *testing.T) {
 	s := c.MustBeginParse()
 	require.Equal(t, uint64(0x1c8a40b8), s.MustLoadUInt(32))
 	require.Equal(t, uint64(7), s.MustLoadUInt(64))
+	require.Equal(t, msg.Token.String(), s.MustLoadAddr().String())
 	require.Equal(t, msg.TransferInitiator.String(), s.MustLoadAddr().String())
 	require.Equal(t, tlb.MustFromTON("0.1").Nano(), s.MustLoadBigCoins())
 	require.Equal(t, tlb.MustFromTON("0.2").Nano(), s.MustLoadBigCoins())

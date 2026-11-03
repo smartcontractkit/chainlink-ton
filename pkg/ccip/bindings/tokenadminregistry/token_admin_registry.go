@@ -10,6 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/withdrawable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/versioning/upgradeable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenadminregistryentry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool"
@@ -93,11 +94,10 @@ type GetTokenInfo struct {
 
 // crc32('TokenAdminRegistry_TokenInfo')
 type TokenInfo struct {
-	_             tlb.Magic        `tlb:"#0a9bf5d1" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	QueryID       uint64           `tlb:"## 64"`
-	Token         *address.Address `tlb:"addr"`
-	MinterAddress *address.Address `tlb:"addr"`
-	Version       uint32           `tlb:"## 32"`
+	_       tlb.Magic        `tlb:"#0a9bf5d1" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID uint64           `tlb:"## 64"`
+	Token   *address.Address `tlb:"addr"`
+	Version uint32           `tlb:"## 32"`
 	// PoolInfo is nil when the token is not enabled (delisted or awaiting the pool probe).
 	PoolInfo *PoolInfo `tlb:"maybe ^"`
 }
@@ -118,6 +118,15 @@ type GetTokenInfoFailed struct {
 	_       tlb.Magic        `tlb:"#e533c614" json:"-"` //nolint:revive // used by tlb reflection for encoding
 	QueryID uint64           `tlb:"## 64"`
 	Token   *address.Address `tlb:"addr"`
+}
+
+// crc32('TokenAdminRegistry_RequestFailed')
+// Sent to the sender of an administration request the entry rejected, or to the root owner for an
+// OverridePendingAdministrator. Carries the unspent value.
+type RequestFailed struct {
+	_        tlb.Magic `tlb:"#e73a39de" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID  uint64    `tlb:"## 64"`
+	ExitCode int32     `tlb:"## 32"`
 }
 
 // crc32('TokenAdminRegistry_EntryUpgradeRequest')
@@ -184,6 +193,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	tokenadminregistryentry.TokenInfoResponse{},
 	TokenInfo{},
 	GetTokenInfoFailed{},
+	RequestFailed{},
 	EntryUpgradeRequest{},
 	UpgradeEntry{},
 	upgradeable.Upgrade{},
@@ -191,4 +201,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	AdministratorTransferred{},
 	PoolSet{},
 	VerifyToken{},
+	RefreshPoolConfig{},
+	withdrawable.Withdraw{},
 }).MustWithStorageType(Storage{})
