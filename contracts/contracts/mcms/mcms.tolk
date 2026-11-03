@@ -1183,8 +1183,8 @@ fun MCMS<T>.setConfig(
 
     // Upack config from the contract data
     var config = Config.fromCell(self.data.config);
-    // The whole config is replaced. Dropping the old map roots is O(1); deleting every old
-    // entry individually is not, and is the main reason large configs used to run out of gas.
+
+    // Remove old signers
     config.signers = [];
     self.data.signers = [];
 
