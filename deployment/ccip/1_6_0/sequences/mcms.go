@@ -303,7 +303,7 @@ func (a *TonDeployAdapter) UpdateMCMSConfig() *cldfops.Sequence[ccipddeploy.Upda
 				if currentConfig.Signers != nil {
 					currentSigners = currentConfig.Signers.Len()
 				}
-				steps, err := a.configSteps(currentSigners, activeGroupCount(currentConfig.GroupQuorums), in.MCMConfig)
+				steps, err := a.configSteps(contractRef.Version, currentSigners, activeGroupCount(currentConfig.GroupQuorums), in.MCMConfig)
 				if err != nil {
 					return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to resolve setConfig steps for MCMS contract %s: %w", contractRef.Address, err)
 				}

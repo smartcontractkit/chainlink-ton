@@ -3,8 +3,10 @@ package sequences
 import (
 	"fmt"
 
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
+	"github.com/Masterminds/semver/v3"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
+
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 const (
@@ -16,6 +18,11 @@ const (
 	maxSingleStepSigners = 52
 	maxSingleStepGroups  = 21
 )
+
+// multiStepSetConfigVersion is the only MCMS version that needs the temporary
+// intermediate-config workaround. Remove this gate and the multi-step path once
+// this version is no longer live.
+var multiStepSetConfigVersion = semver.MustParse("0.0.4")
 
 var defaultTonDeployAdapter = NewTonDeployAdapter(nil)
 
@@ -32,8 +39,8 @@ func SetTonDeployAdapterIntermediateConfig(config *mcmstypes.Config) {
 // injected intermediate config first, then the final config. Both calls stay in
 // the same Timelock batch, preserving order and allowing recovery if the final
 // call fails.
-func (a *TonDeployAdapter) configSteps(currentSigners, currentGroups int, final mcmstypes.Config) ([]mcmstypes.Config, error) {
-	if !needsTwoStep(currentSigners, currentGroups, final) {
+func (a *TonDeployAdapter) configSteps(contractVersion *semver.Version, currentSigners, currentGroups int, final mcmstypes.Config) ([]mcmstypes.Config, error) {
+	if !supportsMultiStepSetConfig(contractVersion) || !needsTwoStep(currentSigners, currentGroups, final) {
 		return []mcmstypes.Config{final}, nil
 	}
 
@@ -48,6 +55,10 @@ func (a *TonDeployAdapter) configSteps(currentSigners, currentGroups int, final 
 	}
 
 	return []mcmstypes.Config{*a.mcmsIntermediateConfig, final}, nil
+}
+
+func supportsMultiStepSetConfig(contractVersion *semver.Version) bool {
+	return contractVersion != nil && contractVersion.Equal(multiStepSetConfigVersion)
 }
 
 func needsTwoStep(currentSigners, currentGroups int, final mcmstypes.Config) bool {
