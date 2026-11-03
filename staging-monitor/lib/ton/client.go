@@ -186,7 +186,7 @@ func (c *Client) GetCurrentBlock(ctx context.Context) (uint64, error) {
 	return uint64(mc.SeqNo), nil
 }
 
-func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger, receiver string, messageID string, expectedData string, startBlock uint64) error {
+func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger, receiver string, messageID string, _ string, startBlock uint64) error {
 	receiverAddr, err := address.ParseAddr(receiver)
 	if err != nil {
 		return fmt.Errorf("failed to parse receiver address: %w", err)
@@ -271,29 +271,11 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 					continue
 				}
 				seenEvents[eventKey] = true
-				receivedMessageID := hex.EncodeToString(event.TypedData.Message.MessageID)
+				receivedMessageID := hex.EncodeToString(event.TypedData.MessageID)
 
-				// Match on messageID if provided
+				// The receiver event carries no data, so messages are matched on messageID only.
 				if messageID != "" && receivedMessageID != messageID {
 					continue
-				}
-
-				// Decode and match data if expectedData provided
-				if expectedData != "" && event.TypedData.Message.Data != nil {
-					dataSlice, err := event.TypedData.Message.Data.BeginParse()
-					if err != nil {
-						lggr.Warnw("Failed to begin parsing data cell", "error", err)
-						continue
-					}
-					if dataSlice.BitsLeft() > 0 {
-						dataBits, err := dataSlice.LoadSlice(dataSlice.BitsLeft())
-						if err == nil {
-							gotData := string(dataBits)
-							if gotData != expectedData {
-								continue
-							}
-						}
-					}
 				}
 
 				lggr.Infow("CCIPMessageReceived event found",

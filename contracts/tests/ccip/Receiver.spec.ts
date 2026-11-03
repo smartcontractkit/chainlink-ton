@@ -3,6 +3,7 @@ import { Address, beginCell, Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
 
 import { generateRandomContractId } from '../../src/utils'
+import { asSnakeBytes } from '../../src/utils/types'
 import { facilityId } from '../../wrappers/utils'
 import { crc32 } from 'zlib'
 import { contractCode } from '../../wrappers/codeLoader'
@@ -315,7 +316,29 @@ describe('Receiver', () => {
     })
   })
 
-  it('should keep original balance after succesfully receiving', async () => {
+  it('confirms a message with 2000 bytes of data when sent the minimum value', async () => {
+    const message = r.Receiver_CCIPReceiveV2.create({
+      ...ccipReceiveSampleMessage,
+      message: rt.Any2TVMMessage.create({
+        ...ccipReceiveSampleMessage.message,
+        data: asSnakeBytes(Buffer.alloc(2000, 0xab)),
+      }),
+    })
+    const result = await receiver.sendReceiverCCIPReceiveV2(
+      deployer.getSender(),
+      toNano('0.03'),
+      message,
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: receiver.address,
+      to: deployer.address,
+      op: rt.Router_CCIPReceiveConfirm.PREFIX,
+      value: toNano('0.015'),
+    })
+  })
+
+  // The confirmation carries a fixed value; the rest of the inbound value stays on the receiver.
+  it('should not spend its own balance when receiving', async () => {
     const contract = await blockchain.getContract(receiver.address)
     const initialBalance = contract.balance
 
@@ -348,6 +371,6 @@ describe('Receiver', () => {
     const storageFees = tx.description.storagePhase?.storageFeesCollected || toNano('0')
 
     const finalBalance = (await blockchain.getContract(receiver.address)).balance
-    expect(finalBalance).toEqual(initialBalance - storageFees)
+    expect(finalBalance).toBeGreaterThanOrEqual(initialBalance - storageFees)
   })
 })

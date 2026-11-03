@@ -10,6 +10,7 @@ import "../../../lib/versioning/upgradeable"
 import "../../lib/client/receiver/messages"
 import "../../lib/client/receiver/types";
 import "../../lib/client/receiver/errors"
+import "../../lib/cross_chain_address/types"
 
 import "storage"
 import "errors"
@@ -31,9 +32,15 @@ contract TestReceiver {
 
 const RECEIVED_MESSAGE_TOPIC = 0xc5a40ab3; //crc32('Receiver_CCIPMessageReceived')
 
+/// Only the header: echoing up to 2 KB of data would cost more than the confirmation.
 struct CCIPMessageReceived {
-    message: Any2TVMMessage
+    messageId: uint256
+    sourceChainSelector: uint64
+    sender: CrossChainAddress
 }
+
+/// Compute, the event and the confirmation with its forward fee, for a message with 2 KB of data.
+const TEST_RECEIVER_MIN_VALUE = grams("0.03");
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TestReceiver_InMessage.fromSlice(in.body);
@@ -42,13 +49,16 @@ fun onInternalMessage(in: InMessage) {
             var st = lazy Storage.load();
             // Standard way for a receiver to be implemented:
 
-            // 1. Check that enough value is received to process this message (you should benchmark accordingly)
-            assert( in.valueCoins >= grams("0.03") ) throw (Receiver_Error.LowValue);
+            // 1. Authenticate the router, check the value (benchmark yours) and enqueue
+            // CCIPReceiveConfirm before any other action.
+            msg.validateAndConfirm({
+                router: st.authorizedCaller,
+                minValue: TEST_RECEIVER_MIN_VALUE,
+                inMsg: { senderAddress: in.senderAddress, valueCoins: in.valueCoins },
+                confirmationMsg: {},
+            });
 
-            // 2. Check Receiver_CCIPReceiveV2 only comes from router
-            assert( in.senderAddress == st.authorizedCaller) throw (Receiver_Error.Unauthorized);
-
-            // 3. Process the message according to your product logic
+            // 2. Process the message according to your product logic
             match (st.behavior) {
                 TestReceiver_Behavior.Accept => {
                     processAccept(msg, in.senderAddress)
@@ -60,26 +70,6 @@ fun onInternalMessage(in: InMessage) {
                     processConsumeAllGas()
                 }
             }
-
-            // 4. Enqueue CCIPReceiveConfirm to msg.callback
-
-            // In this example we are sending all the value remaining from the message after compute costs
-            // and action fees from previously emitted events. You should use an appropiate message mode for your own use case.
-            // But, consider that a minimum of 0.02 TON is required for the Router to process your confirmation message,
-            // and you should probably send more than that (~0.025 TON) to make sure the message goes through
-            // even if there are some fluctuations in the fees.
-            reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
-            val receiveConfirm = createMessage({
-                bounce: true,
-                value: 0,
-                dest: in.senderAddress,
-                body: Router_CCIPReceiveConfirm {
-                    queryId: msg.queryId,
-                    execId: msg.execId,
-                }
-            });
-            receiveConfirm.send(SEND_MODE_CARRY_ALL_BALANCE);
-           
         }
         TestReceiver_UpdateAuthorizedCaller => {
             onUpdateAuthorizedCaller(msg, in.senderAddress)
@@ -100,8 +90,11 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun processAccept(msg: Receiver_CCIPReceiveV2, senderAddress: address) {
+    val message = msg.message.load();
     emit(RECEIVED_MESSAGE_TOPIC, CCIPMessageReceived{
-        message: msg.message.load(),
+        messageId: message.messageId,
+        sourceChainSelector: message.sourceChainSelector,
+        sender: message.sender,
     });
 }
 

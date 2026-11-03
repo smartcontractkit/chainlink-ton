@@ -15,10 +15,14 @@ struct Receiver_InMessagePartial { // Tolk compiler doesn't allow passing builti
     valueCoins: coins;
 }
 
+/// Covers the Router's `Router_Costs.receiveConfirm()` with headroom for later changes.
+const Receiver_CONFIRM_VALUE = grams("0.015");
+
 struct Receiver_ValidateOptions {
     // Router address
     router: address;
-    // Minimum value that must be sent along with the message to cover all gas, forward and action fees
+    // Minimum value that must be sent along with the message to cover all gas, forward and action
+    // fees, including the confirmation's value and forward fee.
     minValue: coins;
     // Original incoming message
     inMsg: Receiver_InMessagePartial;
@@ -28,11 +32,14 @@ struct Receiver_ValidateOptions {
 
 struct Receiver_ConfirmOpts {
     // Value to attach to the confirmation message
-    value: coins = 0;
+    value: coins = Receiver_CONFIRM_VALUE;
     // Send mode for the confirmation message
-    sendMode: uint8 = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE;
+    sendMode: uint8 = SEND_MODE_PAY_FEES_SEPARATELY;
 }
 
+/// Call before any other action so the confirmation's value is set aside first. A rejected
+/// confirmation leaves the message in progress; the receiver can claim it later by resending
+/// Router_CCIPReceiveConfirm with the same `queryId` and `execId`.
 fun Receiver_CCIPReceiveV2.validateAndConfirm(self, opts: Receiver_ValidateOptions) {
     // Standard for every receiver to implement:
 
