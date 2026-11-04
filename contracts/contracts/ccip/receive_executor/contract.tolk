@@ -393,7 +393,7 @@ fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: Receive
     // `execute` below pays its fixed value from the balance.
     val deliveredMsg = createMessage({
         bounce: false,
-        value: 0,
+        value: OffRamp_Costs.tokenTransferDelivered(),
         dest: st.owner,
         body: OffRamp_TokenTransferDelivered {
             queryId: st.state.queryId,
@@ -401,7 +401,7 @@ fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: Receive
             delivered: delivered.toCell(),
         },
     });
-    deliveredMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    deliveredMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
     execute(mutate st)
 }
 
