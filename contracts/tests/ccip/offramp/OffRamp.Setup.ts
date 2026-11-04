@@ -930,7 +930,6 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         tokenInfo: tar.TokenRegistry_TokenInfo.create({
           tokenPool,
           transferInitiator,
-          minterAddress: token,
           version: 1n,
         }),
         administrator: this.deployer.address,

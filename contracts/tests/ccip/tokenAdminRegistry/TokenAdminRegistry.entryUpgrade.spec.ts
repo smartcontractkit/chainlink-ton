@@ -147,8 +147,75 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
       fx.pool,
     )
     expect(await accountState(fx)).toEqual(before)
-    // The Upgrade is funded from the request's value, not from the root balance.
-    expect((await blockchain.getContract(fx.registry.address)).balance).toBe(rootBalanceBefore)
+    // The root balance funds the Upgrade, so the request keeps its own value.
+    const rootSpent =
+      rootBalanceBefore - (await blockchain.getContract(fx.registry.address)).balance
+    expect(rootSpent).toBeGreaterThanOrEqual(await fx.registry.getEntryUpgradeCost())
+  })
+
+  it('answers a request that only carries its own cost, funding the upgrade from the root', async () => {
+    const result = await fx.registry.sendTokenAdminRegistryEntryUpgradeRequest(
+      asEntry(fx),
+      Costs.getTokenInfo,
+      { queryId: 21n, token: fx.token, request: resolveTokenInfo(ENTRY_VERSION) },
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: fx.registry.address,
+      to: entryAddress(fx),
+      op: tare.Upgradeable_Upgrade.PREFIX,
+      value: await fx.registry.getEntryUpgradeCost(),
+      success: true,
+    })
+    expect(returnedTokenInfo(fx, result, fx.other.address).poolInfo?.tokenPool).toEqualAddress(
+      fx.pool,
+    )
+  })
+
+  it('still resumes the request when the root cannot fund the upgrade', async () => {
+    await fx.registry.sendWithdrawableWithdraw(fx.owner.getSender(), toNano('0.05'), {
+      queryId: 0n,
+      destination: fx.owner.address,
+      amount: 0n,
+      reserve: 0n,
+      drainAllAvailable: true,
+    })
+    const result = await fx.registry.sendTokenAdminRegistryEntryUpgradeRequest(
+      asEntry(fx),
+      Costs.getTokenInfo,
+      { queryId: 21n, token: fx.token, request: resolveTokenInfo(ENTRY_VERSION) },
+    )
+    expect(result.transactions).not.toHaveTransaction({
+      from: fx.registry.address,
+      op: tare.Upgradeable_Upgrade.PREFIX,
+    })
+    expect(returnedTokenInfo(fx, result, fx.other.address).poolInfo?.tokenPool).toEqualAddress(
+      fx.pool,
+    )
+  })
+
+  it('upgrades an entry whose balance was drained by rent', async () => {
+    const drained = await createBlockchain()
+    const dfx = await setup(drained)
+    await registerToken(dfx)
+    // The entry's registration leftovers cover about 2.7 years of rent.
+    drained.now = 1 + Math.floor(3.5 * 365 * 24 * 3600)
+    const result = await dfx.registry.sendTokenAdminRegistryUpgradeEntry(
+      dfx.other.getSender(),
+      await dfx.registry.getEntryUpgradeCost(),
+      { tokenAddress: dfx.token },
+    )
+    const upgradeTx = result.transactions.find(
+      (tx) =>
+        tx.inMessage?.info.type === 'internal' &&
+        tx.inMessage.info.dest.equals(entryAddress(dfx)) &&
+        tx.inMessage.body.beginParse().preloadUint(32) === tare.Upgradeable_Upgrade.PREFIX,
+    )
+    if (!upgradeTx || upgradeTx.description.type !== 'generic') {
+      throw new Error('Upgrade transaction not found')
+    }
+    const debt = upgradeTx.description.storagePhase?.storageFeesDue ?? 0n
+    expect(debt).toBeGreaterThan(0n)
+    expect(upgradeTx.description.aborted).toBe(false)
   })
 
   it('reports a request to the requester when the root has no code satisfying it, without looping', async () => {
@@ -226,7 +293,7 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
   it('lets anyone push the root entry code to an entry', async () => {
     const underfunded = await fx.registry.sendTokenAdminRegistryUpgradeEntry(
       fx.other.getSender(),
-      Costs.upgrade - 1n,
+      (await fx.registry.getEntryUpgradeCost()) - 1n,
       { tokenAddress: fx.token },
     )
     expectRootFailure(

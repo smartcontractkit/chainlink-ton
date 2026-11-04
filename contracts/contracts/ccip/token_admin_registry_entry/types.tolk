@@ -9,7 +9,6 @@ struct TokenRegistry_TokenInfo {
     /// `transferInitiator` of the jetton transfers delivering a release/mint, as reported by the
     /// pool (e.g. its lockbox). Null means the pool delivers by minting.
     transferInitiator: address? = null
-    minterAddress: address
     /// Pool interface version. It is currently carried but ignored, so a
     /// future pool-interface upgrade can select the correct protocol.
     version: uint32 = 1

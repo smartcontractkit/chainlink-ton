@@ -1,6 +1,7 @@
 import "../token_admin_registry_entry/types"
 import "../token_admin_registry_entry/messages"
 import "../../lib/versioning/upgradeable"
+import "../../lib/funding/withdrawable"
 import "../pools/lib/token_pool/budget"
 
 type TokenAdminRegistry_InMessage =
@@ -18,7 +19,8 @@ type TokenAdminRegistry_InMessage =
     | TokenAdminRegistry_AdministratorTransferred
     | TokenAdminRegistry_PoolSet
     | TokenAdminRegistry_VerifyToken
-    | TokenAdminRegistry_RefreshPoolConfig;
+    | TokenAdminRegistry_RefreshPoolConfig
+    | Withdrawable_Withdraw;
 
 /// Root messages to an entry that may come back as rich bounces.
 type TokenAdminRegistry_BouncedEntryMessage =
@@ -108,7 +110,6 @@ fun TokenAdminRegistry_GetTokenInfo.cost(): coins {
 struct (0x0a9bf5d1) TokenAdminRegistry_TokenInfo {
     queryId: uint64;
     token: address;
-    minterAddress: address;
     /// Pool interface version.
     version: uint32;
     /// Pool-specific state. Null means the token is not enabled: delisted, or its pool has not
@@ -131,6 +132,15 @@ struct TokenAdminRegistry_PoolInfo {
 struct (0xe533c614) TokenAdminRegistry_GetTokenInfoFailed {
     queryId: uint64;
     token: address;
+}
+
+/// Sent to the sender of an administration request the entry rejected, or the root owner for an
+/// OverridePendingAdministrator. Carries the unspent value and the request the root sent to the entry.
+// crc32('TokenAdminRegistry_RequestFailed')
+struct (0xe73a39de) TokenAdminRegistry_RequestFailed {
+    queryId: uint64;
+    exitCode: int32;
+    request: Cell<TokenAdminRegistryEntry_MessageFromRoot>;
 }
 
 /// Sent by a stale entry with the request it deferred. The root answers with an
