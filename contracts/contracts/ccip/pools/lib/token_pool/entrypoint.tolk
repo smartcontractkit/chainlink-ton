@@ -2363,16 +2363,14 @@ fun TokenPool<T>.releaseFastFinalityOutboundRateLimit(mutate self, remoteChainSe
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.outbound.load();
     if (!fastBucket.isEnabled) {
-        var rateLimiters = config.rateLimiters.load();
-        var bucket = rateLimiters.outbound.load();
-        bucket.refund(amount as uint256);
-        rateLimiters.outbound = bucket.toCell();
-        config.rateLimiters = rateLimiters.toCell();
-    } else {
-        fastBucket.refund(amount as uint256);
-        fastRateLimiters.outbound = fastBucket.toCell();
-        config.fastFinalityRateLimiters = fastRateLimiters.toCell();
+        self.releaseOutboundRateLimit(remoteChainSelector, amount);
+
+        return;
     }
+
+    fastBucket.refund(amount as uint256);
+    fastRateLimiters.outbound = fastBucket.toCell();
+    config.fastFinalityRateLimiters = fastRateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
     emit(TOPIC_TOKEN_POOL_FAST_FINALITY_OUTBOUND_RATE_LIMIT_REFUNDED, TokenPool_FastFinalityOutboundRateLimitRefunded {
@@ -2393,16 +2391,14 @@ fun TokenPool<T>.releaseFastFinalityInboundRateLimit(mutate self, remoteChainSel
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.inbound.load();
     if (!fastBucket.isEnabled) {
-        var rateLimiters = config.rateLimiters.load();
-        var bucket = rateLimiters.inbound.load();
-        bucket.refund(amount as uint256);
-        rateLimiters.inbound = bucket.toCell();
-        config.rateLimiters = rateLimiters.toCell();
-    } else {
-        fastBucket.refund(amount as uint256);
-        fastRateLimiters.inbound = fastBucket.toCell();
-        config.fastFinalityRateLimiters = fastRateLimiters.toCell();
+        self.releaseInboundRateLimit(remoteChainSelector, amount);
+
+        return;
     }
+
+    fastBucket.refund(amount as uint256);
+    fastRateLimiters.inbound = fastBucket.toCell();
+    config.fastFinalityRateLimiters = fastRateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
     emit(TOPIC_TOKEN_POOL_FAST_FINALITY_INBOUND_RATE_LIMIT_REFUNDED, TokenPool_FastFinalityInboundRateLimitRefunded {
