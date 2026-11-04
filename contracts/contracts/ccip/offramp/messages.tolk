@@ -41,7 +41,8 @@ type OffRamp_InMessage =
     | OCR3Base_SetOCR3Config
     | Upgradeable_Upgrade
     | ReturnExcessesBack
-    | Withdrawable_Withdraw;
+    | Withdrawable_Withdraw
+    | OffRamp_ReturnExcessToExecutor;
 
 type OffRamp_InMessageBounced = 
     | ReceiveExecutor_InitExecute
@@ -162,6 +163,11 @@ struct (0x7deaf076) OffRamp_ReleaseOrMint {
     destGasAmount: coins
     requestedFinalityConfig: uint32
     request: Cell<TokenPool_ReleaseOrMintInV1>
+}
+
+struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
+    queryId: uint64;
+    execId: ReceiveExecutorId;
 }
 
 /// Relays between the executor and the pool, on top of `destGasAmount`: the OffRamp and Router

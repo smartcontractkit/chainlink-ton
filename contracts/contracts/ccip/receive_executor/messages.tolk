@@ -20,6 +20,7 @@ type ReceiveExecutor_InMessage =
     | ReceiveExecutor_CCIPReceiveFailed
     | ReceiveExecutor_CCIPReceiveConfirm
     | ReturnExcessesBack
+    | OffRamp_ReturnExcessToExecutor
     ;
 
 type ReceiveExecutor_BouncedMessage =

@@ -163,6 +163,12 @@ fun onInternalMessage(in:InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             onUpgrade(msg);
         }
+        // Sender must be the Router
+        OffRamp_ReturnExcessToExecutor => {
+            val st = lazy Storage.load();
+            assertSenderIsTheRouter(st, msg.execId.getSourceChainSelector(), in.senderAddress);
+            forwardValueToExecutor(getReceiverExecutorDeployAddress(st, msg.execId));
+        }
         else => {
             // attempt to handle Ownable messages
             var st = lazy Storage.load();
@@ -369,6 +375,17 @@ fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+/// Forwards the whole inbound value to a message's ReceiveExecutor
+fun forwardValueToExecutor(executorAddress: AutoDeployAddress) {
+    val excess = createMessage({
+        bounce: false,
+        value: 0,
+        dest: executorAddress,
+        body: createEmptyCell(),
+    });
+    excess.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
 // Sends a MerkleRoot_MarkState message to update the execution state of a
 // specific sequence number in a MerkleRoot contract.
 fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
@@ -483,7 +500,6 @@ fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
     });
     receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
-
 // Dispatches a validated message to the receiver via the Router_RouteMessage.
 // Verifies sender ownership which should be the corresponing receiver executor,
 // resolves the Router from the source selector, and applies a gas override only
@@ -508,7 +524,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     }
     val routeMessage = createMessage({
         bounce: BounceMode.RichBounce,
-        value: msg.effectiveGasLimit + Router_Costs.routeMessage(),
+        value: 0,
         dest: router,
         body: Router_RouteMessage {
             queryId: msg.queryId,
@@ -525,9 +541,8 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
         }
     });
 
-    routeMessage.send(SEND_MODE_REGULAR);
+    routeMessage.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
-
 fun ccipReceiveFailed(receiveExecutor: address, queryId: uint64, receiver: address, reason: ReceiveExecutor_FailedReason) {
     val receiveBounced = createMessage({
         bounce: false,

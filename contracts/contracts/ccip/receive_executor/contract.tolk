@@ -99,6 +99,9 @@ fun onInternalMessage(in: InMessage) {
         // Passive excess return from a release/mint jetton wallet. Retain it in the executor;
         // the finalization message carries the remaining balance to the OffRamp.
         ReturnExcessesBack => {}
+        // The Router's unused RouteMessage handling budget, returned via the OffRamp. Retain it
+        // in the executor; the finalization message carries the remaining balance to the OffRamp.
+        OffRamp_ReturnExcessToExecutor => {}
         // Sender must be the owner (OffRamp)
         ReceiveExecutor_ReleaseOrMintFailed => {
             var st = ReceiveExecutor_Storage.load();
