@@ -474,18 +474,23 @@ fun TokenPool<T>.setDynamicConfig(
     adminConfig.dynamicConfig = dynamicConfig.toCell();
     self.data.adminConfig = adminConfig.toCell();
 
+    reserveBalanceBeforeInMessage(msgValue);
+
+    val configSet = TokenPool_DynamicConfigSet { router, rateLimitAdmin, feeAdmin };
+    emit(TOPIC_TOKEN_POOL_DYNAMIC_CONFIG_SET, configSet);
+
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: TokenPool_DynamicConfigSet {
+        body: TokenPool_DynamicConfigSetNotification {
             queryId,
             router,
             rateLimitAdmin,
             feeAdmin,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 /// Sets the finality config according to the FinalityCodec library encoding.
@@ -500,16 +505,21 @@ fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, msgValue
     adminConfig.allowedFinalityConfig = allowedFinalityConfig;
     self.data.adminConfig = adminConfig.toCell();
 
+    reserveBalanceBeforeInMessage(msgValue);
+
+    val configSet = TokenPool_FinalityConfigSet { allowedFinalityConfig };
+    emit(TOPIC_TOKEN_POOL_FINALITY_CONFIG_SET, configSet);
+
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: TokenPool_FinalityConfigSet {
+        body: TokenPool_FinalityConfigSetNotification {
             queryId,
             allowedFinalityConfig,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 fun TokenPool<T>.setAdvancedPoolHooks(
@@ -524,19 +534,25 @@ fun TokenPool<T>.setAdvancedPoolHooks(
     var adminConfig = self.data.adminConfig.load();
     adminConfig.ownable.load().requireOwner(sender);
 
+    val oldHook = adminConfig.advancedPoolHooks;
     adminConfig.advancedPoolHooks = advancedPoolHooks;
     self.data.adminConfig = adminConfig.toCell();
+
+    reserveBalanceBeforeInMessage(msgValue);
+
+    val hooksUpdated = TokenPool_AdvancedPoolHooksUpdated { oldHook, newHook: advancedPoolHooks };
+    emit(TOPIC_TOKEN_POOL_ADVANCED_POOL_HOOKS_UPDATED, hooksUpdated);
 
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: TokenPool_AdvancedPoolHooksSet {
+        body: TokenPool_AdvancedPoolHooksSetNotification {
             queryId,
             advancedPoolHooks,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 /// Adds a remote pool for a given chain selector. This could be due to a pool being upgraded on the remote
@@ -558,6 +574,8 @@ fun TokenPool<T>.addRemotePool(
     assert(self.isSupportedChain(remoteChainSelector), TokenPool_Error.NonExistentChain);
 
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
+
+    reserveBalanceBeforeInMessage(msgValue);
     self._setRemotePool(mutate config, remoteChainSelector, remotePoolAddress);
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
@@ -571,12 +589,12 @@ fun TokenPool<T>.addRemotePool(
             remotePoolAddress,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 /// Removes the remote pool address for a given chain selector.
-/// @dev All inflight txs from the remote pool will be rejected after it is removed. To ensure no loss of funds, there
-/// should be no inflight txs from the given pool.
+/// @dev All inflight txs from the remote pool will be rejected after it is removed.
+/// To ensure no loss of funds, there should be no inflight txs from the given pool.
 /// @param remoteChainSelector The remote chain selector.
 /// @param remotePoolAddress The remote pool address to remove.
 fun TokenPool<T>.removeRemotePool(
@@ -597,7 +615,7 @@ fun TokenPool<T>.removeRemotePool(
     assert(deleted, TokenPool_Error.InvalidRemotePoolForChain);
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
-    // We emit in addition to reply to sender, to stay consistent with TokenPool_RemotePoolAdded event
+    reserveBalanceBeforeInMessage(msgValue);
     emit(TOPIC_TOKEN_POOL_REMOTE_POOL_REMOVED, TokenPool_RemotePoolRemoved {
         remoteChainSelector,
         remotePoolAddress,
@@ -613,7 +631,7 @@ fun TokenPool<T>.removeRemotePool(
             remotePoolAddress,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 /// Sets the permissions for a list of chains selectors. Actual senders for these chains
@@ -630,10 +648,10 @@ fun TokenPool<T>.applyChainUpdates(
     remoteChainSelectorsToRemove: SnakedCell<uint64>,
     chainsToAdd: SnakedCell<TokenPool_ChainUpdate>,
 ) {
-    // TODO[VALUE]: [NONEVM-5766] A/dynamic - loops removals/additions/remote pools; a static S does not bound large inputs
     self.requireMinValue(msgValue);
-
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
+
+    reserveBalanceBeforeInMessage(msgValue);
 
     var rmIter = remoteChainSelectorsToRemove.iter();
     while (!rmIter.empty()) {
@@ -695,7 +713,7 @@ fun TokenPool<T>.applyChainUpdates(
         dest: sender,
         body: TokenPool_ChainUpdatesApplied { queryId },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 /// Curses `subjects` in the pool-local `CursePolicy`. Sender must hold
@@ -778,7 +796,7 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         TokenPool_QueryCCVsReply => {
             self.onQueryCCVsReply(msgSender, msgValue, msg);
         }
-         TokenPool_ApplyChainUpdates => {
+        TokenPool_ApplyChainUpdates => {
             self.applyChainUpdates(msgSender, msgValue, msg.queryId, msg.remoteChainSelectorsToRemove, msg.chainsToAdd);
         }
         TokenPool_AddRemotePool => {
@@ -925,6 +943,8 @@ fun TokenPool<T>.onPreflightCheckFinished(
         return;
     }
 
+    // This continuation path expects the reserve to be installed
+    reserveBalanceBeforeInMessage(msgValue);
     self.onLockOrBurnWithdraw(fwdp.originalSender, msgValue, requestMsg, prepared);
 }
 
@@ -950,7 +970,6 @@ fun TokenPool<T>.onLockOrBurnWithdrawFailed(
     msgValue: coins,
 ): void {
     self.onlyRouter(sender);
-    // TODO[REFACTOR]: [NONEVM-5336] register as an available hook
     val fwdp = lazy msg.forwardPayload.load();
 
     // Custody never left the pool's wallet: reinstate the rate limit consumed at admission and
@@ -977,6 +996,8 @@ fun TokenPool<T>.onPostflightCheckFinished(
         val minValue = self.releaseOrMintForward(requestMsg.finalizationValue());
         assert(msgValue >= minValue, TokenPool_Error.InsufficientMessageValue);
 
+        // This continuation path expects the reserve to be installed
+        reserveBalanceBeforeInMessage(msgValue);
         self.onReleaseOrMintContinue(fwdp.originalSender, msgValue, requestMsg, prepared);
     } catch (errorCode) {
         self.recoverReleaseOrMintFailure(fwdp, errorCode, msgValue);
@@ -1044,6 +1065,7 @@ fun TokenPool<T>.recoverLockOrBurnFailure(
     msgValue: coins,
     custodyReturn: AskToTransfer? = null,
 ): void {
+    reserveBalanceBeforeInMessage(msgValue);
     self.refundLockOrBurnRateLimit(forwardPayload);
 
     // Determine the failure value to send back based on whether custody return is required.
@@ -1075,19 +1097,14 @@ fun TokenPool<T>.recoverLockOrBurnFailure(
         // return, skip it and return the remaining inbound value.
         val failureCost = failureValue + failure.estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
         if (failureValue > 0 && msgValue > failureCost) {
-            reserveBalanceBeforeInMessage(msgValue);
             failure.send(SEND_MODE_PAY_FEES_SEPARATELY);
-            transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
-            return;
         }
 
-        transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
+        transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
         return;
     }
 
     // No custody to return
-    // Reserve the pre-message balance, then carry the remaining inbound value
-    reserveBalanceBeforeInMessage(msgValue);
     failure.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
@@ -1100,6 +1117,7 @@ fun TokenPool<T>.recoverReleaseOrMintFailure(
     errorCode: int32,
     msgValue: coins,
 ): void {
+    reserveBalanceBeforeInMessage(msgValue);
     self.refundReleaseOrMintRateLimit(forwardPayload);
 
     val requestMsg = lazy forwardPayload.requestMsg.load();
@@ -1110,8 +1128,6 @@ fun TokenPool<T>.recoverReleaseOrMintFailure(
         body: TokenPool_ReleaseOrMintFailure { queryId: requestMsg.queryId, errorCode},
     });
 
-    // Reserve the pre-message balance, then carry the remaining inbound value
-    reserveBalanceBeforeInMessage(msgValue);
     failure.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
@@ -1126,10 +1142,11 @@ fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
     updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>,
     disableChainSelectors: SnakedCell<uint64>,
 ) {
-    // TODO[VALUE]: [NONEVM-5766] A/dynamic - consider adding a cost function for this operation
     self.requireMinValue(msgValue);
 
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
+
+    reserveBalanceBeforeInMessage(msgValue);
 
     var iter = updates.iter();
     while (!iter.empty()) {
@@ -1163,7 +1180,7 @@ fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
         dest: sender,
         body: TokenPool_FeeConfigApplied { queryId },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 fun TokenPool<T>.getTokenTransferFeeConfig(self, destChainSelector: uint64): TokenPool_TokenTransferFeeConfig? {
@@ -1227,7 +1244,6 @@ fun TokenPool<T>.getFeeAmount(
     transfer: TokenPool_LockOrBurnTransfer,
     requestedFinalityConfig: uint32,
 ): coins {
-    // TODO[REFACTOR]: [NONEVM-5336] register as an available hook
     val details: TokenPool_TransferDetails<address, Cell<CrossChainAddress>, coins> = lazy transfer.details.load();
     val feeConfig = TokenPool<T>.enabledFeeConfig(self.data.tokenTransferFeeConfigs.get(details.remoteChainSelector));
     if (feeConfig == null) {
@@ -1245,7 +1261,7 @@ fun TokenPool<T>.getFeeAmount(
     // const c = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF * 0xFFFF // MAX_UINT120 * MAX_UINT16 // Evaluated value: 0xFFFEFFFFFFFFFFFFFFFFFFFFFFFFFF0001 (136 bits)
     // SAFETY: Division result can be safely casted back to `coins` (`varuint120`) given
     // `transferFeeBps` is guaranteed to be less than `TOKEN_POOL_BPS_DIVIDER`, so the result will always be smaller than details.amount (`uint120`).
-    return (details.amount as int * transferFeeBps as int) / TOKEN_POOL_BPS_DIVIDER; // TODO[TP]: [NONEVM-5336] test case with max amount and max BPS to prove
+    return (details.amount as int * transferFeeBps as int) / TOKEN_POOL_BPS_DIVIDER;
 }
 
 /// Resolves a fee-config lookup to `TokenPool_TokenTransferFeeConfig?`: null unless the entry
@@ -1589,6 +1605,10 @@ fun TokenPool<T>.onLockOrBurn(
 
     self.updateDepositNamespaces(sender, msg.onRampNamespaces);
 
+    // The validation step emits events (RL) so we reserve the inbound value,
+    // and any continuation should finally carry all (remaining) balance.
+    reserveBalanceBeforeInMessage(msgValue);
+
     // Validate and call preflightCheck with full message.
     val (wait, prepared) = self.validateLockOrBurn(sender, msg);
 
@@ -1624,8 +1644,6 @@ fun TokenPool<T>.onLockOrBurnWithdraw(
     msg: TokenPool_LockOrBurn,
     prepared: TokenPool_LockOrBurnPrepared,
 ): void {
-    // TODO[REFACTOR]: [NONEVM-5336] expose as a hook
-
     val forwardPayload = TokenPool_LockOrBurnForwardPayload {
         originalSender: sender,
         requestMsg: msg.toCell(),
@@ -1642,8 +1660,6 @@ fun TokenPool<T>.onLockOrBurnWithdraw(
         body: TokenPool_LockOrBurnWithdraw { queryId, forwardTonAmount, forwardPayload},
     });
 
-    // Reserve the pre-message balance, then carry the remaining inbound value
-    reserveBalanceBeforeInMessage(msgValue);
     withdrawalMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
@@ -1870,6 +1886,8 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
 
     val request = lazy requestMsg.request.load();
     val details = lazy request.transfer.details.load();
+
+    reserveBalanceBeforeInMessage(msgValue);
     emit(TOPIC_TOKEN_POOL_LOCKED_OR_BURNED, TokenPool_LockedOrBurned {
         remoteChainSelector: details.remoteChainSelector,
         details: TokenPool_LockedOrBurnedDetails {
@@ -1890,8 +1908,6 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
         },
     });
 
-    // Reserve the pre-message balance, then carry the remaining inbound value
-    reserveBalanceBeforeInMessage(msgValue);
     finished.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
@@ -1982,6 +1998,10 @@ fun TokenPool<T>.onReleaseOrMint(
         return;
     }
 
+    // The validation step emits events (RL) so we reserve the inbound value,
+    // and any continuation should finally carry all (remaining) balance.
+    reserveBalanceBeforeInMessage(msgValue);
+
     // Validate and call postflightCheck with full message.
     val (wait, prepared) = self.validateReleaseOrMint(sender, msg);
 
@@ -2022,6 +2042,7 @@ fun TokenPool<T>.onReleaseOrMintDelivered(
     val transfer = lazy msg.transfer.load();
     assert(self.isSupportedToken(transfer.localToken), TokenPool_Error.InvalidToken);
 
+    reserveBalanceBeforeInMessage(msgValue);
     emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
         remoteChainSelector: transfer.remoteChainSelector,
         details: TokenPool_ReleasedOrMintedDetails {
@@ -2042,8 +2063,6 @@ fun TokenPool<T>.onReleaseOrMintDelivered(
         },
     });
 
-    // Reserve the pre-message balance, then carry the remaining inbound value
-    reserveBalanceBeforeInMessage(msgValue);
     finalized.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
@@ -2172,7 +2191,7 @@ fun TokenPool<T>.preflightCheck(
                 forwardPayload: forwardPayload.toCell(),
             },
         });
-        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        hooksMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 
         return true; // wait for async callback
     }
@@ -2211,7 +2230,7 @@ fun TokenPool<T>.postflightCheck(
                 forwardPayload: forwardPayload.toCell(),
             },
         });
-        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        hooksMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 
         return true; // wait for async callback
     }
@@ -2338,16 +2357,14 @@ fun TokenPool<T>.releaseFastFinalityOutboundRateLimit(mutate self, remoteChainSe
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.outbound.load();
     if (!fastBucket.isEnabled) {
-        var rateLimiters = config.rateLimiters.load();
-        var bucket = rateLimiters.outbound.load();
-        bucket.refund(amount as uint256);
-        rateLimiters.outbound = bucket.toCell();
-        config.rateLimiters = rateLimiters.toCell();
-    } else {
-        fastBucket.refund(amount as uint256);
-        fastRateLimiters.outbound = fastBucket.toCell();
-        config.fastFinalityRateLimiters = fastRateLimiters.toCell();
+        self.releaseOutboundRateLimit(remoteChainSelector, amount);
+
+        return;
     }
+
+    fastBucket.refund(amount as uint256);
+    fastRateLimiters.outbound = fastBucket.toCell();
+    config.fastFinalityRateLimiters = fastRateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
     emit(TOPIC_TOKEN_POOL_FAST_FINALITY_OUTBOUND_RATE_LIMIT_REFUNDED, TokenPool_FastFinalityOutboundRateLimitRefunded {
@@ -2368,16 +2385,14 @@ fun TokenPool<T>.releaseFastFinalityInboundRateLimit(mutate self, remoteChainSel
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.inbound.load();
     if (!fastBucket.isEnabled) {
-        var rateLimiters = config.rateLimiters.load();
-        var bucket = rateLimiters.inbound.load();
-        bucket.refund(amount as uint256);
-        rateLimiters.inbound = bucket.toCell();
-        config.rateLimiters = rateLimiters.toCell();
-    } else {
-        fastBucket.refund(amount as uint256);
-        fastRateLimiters.inbound = fastBucket.toCell();
-        config.fastFinalityRateLimiters = fastRateLimiters.toCell();
+        self.releaseInboundRateLimit(remoteChainSelector, amount);
+
+        return;
     }
+
+    fastBucket.refund(amount as uint256);
+    fastRateLimiters.inbound = fastBucket.toCell();
+    config.fastFinalityRateLimiters = fastRateLimiters.toCell();
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
     emit(TOPIC_TOKEN_POOL_FAST_FINALITY_INBOUND_RATE_LIMIT_REFUNDED, TokenPool_FastFinalityInboundRateLimitRefunded {
@@ -2472,10 +2487,10 @@ fun TokenPool<T>.setRateLimitConfig(
     queryId: uint64,
     updates: SnakedCell<TokenPool_RateLimitConfigArgs>,
 ) {
-    // TODO[VALUE]: [NONEVM-5766] A/dynamic - loops over updates; a static S does not bound large inputs
     self.requireMinValue(msgValue);
-
     self.onlyOwnerOrRateLimitAdmin(sender);
+
+    reserveBalanceBeforeInMessage(msgValue);
 
     var iter = updates.iter();
     while (!iter.empty()) {
@@ -2497,7 +2512,7 @@ fun TokenPool<T>.setRateLimitConfig(
         dest: sender,
         body: TokenPool_RateLimitConfiguredNotification { queryId },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 /// @notice Updates the rate limiters for a given rate limiter pair.
@@ -2558,7 +2573,6 @@ fun TokenPool<T>.onWithdrawFeeTokens(
     // Default owner/fee-admin relay. The accrued-fee ledger caps the pool's own token so a
     // withdrawal cannot sweep in-flight custody; foreign-token wallets are unbounded so
     // accidental tokens can be recovered. A replacement hook owns its own policy.
-    // TODO[VALUE]: [NONEVM-5766] A/dynamic - loops over the withdrawal list; a static S does not bound large inputs
     self.requireMinValue(msgValue);
 
     // Cap only the pool's own token wallet. Every other wallet listed in the request is an

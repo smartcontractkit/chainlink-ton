@@ -23,9 +23,7 @@ import "messages"
 /// @dev Acts as a shared vault — multiple pools can delegate to the same lockbox (e.g., migrating a TP)
 /// instead of each holding their own jetton balance. Pools send/receive Deposit/Withdraw messages to move tokens in/out.
 ///
-/// TODO[DOC]: Update wording. stale (it asserts)
 /// @warning `onDepositWithTransferNotification` will throw if `transferInitiator` is null (e.g., mint flows).
-/// The pool must ensure the jetton transfer is initiated by an address, not a mint operation.
 contract JettonLockBox {
     author: "SmartContract Chainlink Limited SEZC"
     version: "0.1.0"
@@ -117,12 +115,6 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
     val adminAddress = msg.admin != null ? msg.admin! : sender;
     rbac._grantRole(msg.queryId, sender, DEFAULT_ADMIN_ROLE, adminAddress, returnExcess);
 
-    // TODO[REFACTOR]: [NONEVM-5336] add operators on init
-    // var oo = operators.iter();
-    // while (!oo.empty()) {
-    //     rbac._grantRole(queryId, sender, OPERATOR_ROLE, oo.next(), returnExcess);
-    // }
-
     st.rbac = rbac.data;
 
     // Notify sender that initialization is complete, returning the excess value
@@ -157,8 +149,6 @@ fun onDepositWithTransferNotification(
     assert(st.isInitialized(), JettonLockBox_Error.ContractNotInitialized);
     assert(msg.jettonAmount > 0, JettonLockBox_Error.TokenAmountCannotBeZero);
     assert(st.walletAddress != null && sender == st.walletAddress, JettonLockBox_Error.UnsupportedToken);
-
-    // TODO[SAFETY]: a minter can impersonate any transferInitiator, meaning inject any fwdPayload
 
     // A null transferInitiator means this is not an operator-initiated deposit (e.g. a bare mint into the
     // lockbox wallet). It cannot be attributed or returned so we accept and error.
