@@ -648,7 +648,6 @@ fun TokenPool<T>.applyChainUpdates(
     remoteChainSelectorsToRemove: SnakedCell<uint64>,
     chainsToAdd: SnakedCell<TokenPool_ChainUpdate>,
 ) {
-    // TODO[VALUE]: [NONEVM-5766] A/dynamic - loops removals/additions/remote pools; a static S does not bound large inputs
     self.requireMinValue(msgValue);
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
 
@@ -971,7 +970,6 @@ fun TokenPool<T>.onLockOrBurnWithdrawFailed(
     msgValue: coins,
 ): void {
     self.onlyRouter(sender);
-    // TODO[REFACTOR]: [NONEVM-5336] register as an available hook
     val fwdp = lazy msg.forwardPayload.load();
 
     // Custody never left the pool's wallet: reinstate the rate limit consumed at admission and
@@ -1144,7 +1142,6 @@ fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
     updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>,
     disableChainSelectors: SnakedCell<uint64>,
 ) {
-    // TODO[VALUE]: [NONEVM-5766] A/dynamic - consider adding a cost function for this operation
     self.requireMinValue(msgValue);
 
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
@@ -1247,7 +1244,6 @@ fun TokenPool<T>.getFeeAmount(
     transfer: TokenPool_LockOrBurnTransfer,
     requestedFinalityConfig: uint32,
 ): coins {
-    // TODO[REFACTOR]: [NONEVM-5336] register as an available hook
     val details: TokenPool_TransferDetails<address, Cell<CrossChainAddress>, coins> = lazy transfer.details.load();
     val feeConfig = TokenPool<T>.enabledFeeConfig(self.data.tokenTransferFeeConfigs.get(details.remoteChainSelector));
     if (feeConfig == null) {
@@ -1265,7 +1261,7 @@ fun TokenPool<T>.getFeeAmount(
     // const c = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF * 0xFFFF // MAX_UINT120 * MAX_UINT16 // Evaluated value: 0xFFFEFFFFFFFFFFFFFFFFFFFFFFFFFF0001 (136 bits)
     // SAFETY: Division result can be safely casted back to `coins` (`varuint120`) given
     // `transferFeeBps` is guaranteed to be less than `TOKEN_POOL_BPS_DIVIDER`, so the result will always be smaller than details.amount (`uint120`).
-    return (details.amount as int * transferFeeBps as int) / TOKEN_POOL_BPS_DIVIDER; // TODO[TP]: [NONEVM-5336] test case with max amount and max BPS to prove
+    return (details.amount as int * transferFeeBps as int) / TOKEN_POOL_BPS_DIVIDER;
 }
 
 /// Resolves a fee-config lookup to `TokenPool_TokenTransferFeeConfig?`: null unless the entry
@@ -1648,8 +1644,6 @@ fun TokenPool<T>.onLockOrBurnWithdraw(
     msg: TokenPool_LockOrBurn,
     prepared: TokenPool_LockOrBurnPrepared,
 ): void {
-    // TODO[REFACTOR]: [NONEVM-5336] expose as a hook
-
     val forwardPayload = TokenPool_LockOrBurnForwardPayload {
         originalSender: sender,
         requestMsg: msg.toCell(),
@@ -2493,7 +2487,6 @@ fun TokenPool<T>.setRateLimitConfig(
     queryId: uint64,
     updates: SnakedCell<TokenPool_RateLimitConfigArgs>,
 ) {
-    // TODO[VALUE]: [NONEVM-5766] A/dynamic - loops over updates; a static S does not bound large inputs
     self.requireMinValue(msgValue);
     self.onlyOwnerOrRateLimitAdmin(sender);
 
@@ -2580,7 +2573,6 @@ fun TokenPool<T>.onWithdrawFeeTokens(
     // Default owner/fee-admin relay. The accrued-fee ledger caps the pool's own token so a
     // withdrawal cannot sweep in-flight custody; foreign-token wallets are unbounded so
     // accidental tokens can be recovered. A replacement hook owns its own policy.
-    // TODO[VALUE]: [NONEVM-5766] A/dynamic - loops over the withdrawal list; a static S does not bound large inputs
     self.requireMinValue(msgValue);
 
     // Cap only the pool's own token wallet. Every other wallet listed in the request is an

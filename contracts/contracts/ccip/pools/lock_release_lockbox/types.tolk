@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/gas-payments"
 
-import "../../../lib/jetton/jetton_client"
-
 import "../lib/token_pool/messages"
 import "../lib/token_pool/budget"
 

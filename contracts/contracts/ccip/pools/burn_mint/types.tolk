@@ -2,7 +2,6 @@
 
 import "@stdlib/gas-payments"
 
-import "../../../lib/jetton/jetton_client"
 import "../../../lib/gas"
 
 import "../../cct/fees-management"

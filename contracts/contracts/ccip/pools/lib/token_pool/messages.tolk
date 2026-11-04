@@ -89,7 +89,7 @@ struct (0x2e7a1790) TokenPool_RMNAccessControlMessage {
 ///        request so the pool can refresh its deposit-auth cache.
 struct (0xfa7da444) TokenPool_LockOrBurn {
     queryId: uint64;
-    request: Cell<TokenPool_LockOrBurnInV1>; // TODO[REFACTOR]: [NONEVM-5336] consider renaming
+    request: Cell<TokenPool_LockOrBurnInV1>;
     requestedFinalityConfig: uint32;
     tokenArgs: cell?;
 
@@ -353,11 +353,8 @@ struct (0x9643c08d) TokenPool_LockOrBurnWithdrawFailed {
 
 struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
     queryId: uint64;
-    // TODO[REFACTOR]: [NONEVM-5336] can we remove this if executor is not going to use it anyway?
-    // TODO[REFACTOR]: [NONEVM-5336] unwrap and inline this type
     out: Cell<TokenPool_LockOrBurnOutV1>;
     /// Token amount in local token decimals after deducting the fee.
-    // TODO[REFACTOR]: [NONEVM-5336] rename to just amount?
     destTokenAmount: coins;
 }
 
