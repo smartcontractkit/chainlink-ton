@@ -14,60 +14,17 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/internal/tonmock"
 )
-
-// mockAPIClient is a minimal mock for ton.APIClientWrapped used in unit tests
-type mockAPIClient struct {
-	ton.APIClientWrapped // embed to satisfy interface
-	masterchainInfo      *ton.BlockIDExt
-	masterchainErr       error
-	lookupBlockResult    *ton.BlockIDExt
-	lookupBlockErr       error
-	lookupBlockFunc      func(seqNo uint32) *ton.BlockIDExt // optional: dynamic block lookup
-	liteClient           *mockLiteClient
-}
-
-func (m *mockAPIClient) CurrentMasterchainInfo(_ context.Context) (*ton.BlockIDExt, error) {
-	return m.masterchainInfo, m.masterchainErr
-}
-
-func (m *mockAPIClient) LookupBlock(_ context.Context, _ int32, _ int64, seqNo uint32) (*ton.BlockIDExt, error) {
-	if m.lookupBlockFunc != nil {
-		return m.lookupBlockFunc(seqNo), m.lookupBlockErr
-	}
-	return m.lookupBlockResult, m.lookupBlockErr
-}
-
-func (m *mockAPIClient) Client() ton.LiteClient {
-	return m.liteClient
-}
-
-func (m *mockAPIClient) WaitForBlock(seqno uint32) ton.APIClientWrapped {
-	return m
-}
-
-// mockLiteClient mocks the LiteClient interface for testing liteserver queries
-type mockLiteClient struct {
-	ton.LiteClient
-	queryFunc func(ctx context.Context, req, resp tl.Serializable) error
-	callCount int
-}
-
-func (m *mockLiteClient) QueryLiteserver(ctx context.Context, req tl.Serializable, resp tl.Serializable) error {
-	m.callCount++
-	if m.queryFunc != nil {
-		return m.queryFunc(ctx, req, resp)
-	}
-	return nil
-}
 
 func TestGetMasterchainCurrentBlock_WorkchainValidation(t *testing.T) {
 	t.Parallel()
 
 	t.Run("rejects non-masterchain workchain", func(t *testing.T) {
 		t.Parallel()
-		mock := &mockAPIClient{
-			masterchainInfo: &ton.BlockIDExt{Workchain: 0, SeqNo: 100}, // workchain 0 is base chain, not masterchain
+		mock := &tonmock.APIClient{
+			MasterchainInfo: &ton.BlockIDExt{Workchain: 0, SeqNo: 100}, // workchain 0 is base chain, not masterchain
 		}
 
 		lp := &service{
@@ -84,8 +41,8 @@ func TestGetMasterchainCurrentBlock_WorkchainValidation(t *testing.T) {
 
 	t.Run("accepts masterchain workchain", func(t *testing.T) {
 		t.Parallel()
-		mock := &mockAPIClient{
-			masterchainInfo: &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100},
+		mock := &tonmock.APIClient{
+			MasterchainInfo: &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100},
 		}
 
 		lp := &service{
@@ -112,7 +69,7 @@ func TestGetBlockRange(t *testing.T) {
 		lp := &service{
 			lggr: logger.Sugared(logger.Nop()),
 			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
-				return &mockAPIClient{}, nil
+				return &tonmock.APIClient{}, nil
 			},
 			lastProcessedBlockSeqNo: 100, // same as SeqNo, so no new blocks
 		}
@@ -214,12 +171,12 @@ func TestComputeLookbackWindow(t *testing.T) {
 func TestResolveMCBlockSeqNoWithRetry(t *testing.T) {
 	t.Parallel()
 
-	newTestService := func(liteClient *mockLiteClient, maxRetries uint32, baseDelay time.Duration) *service {
+	newTestService := func(liteClient *tonmock.LiteClient, maxRetries uint32, baseDelay time.Duration) *service {
 		cache, _ := lru.New[string, uint32](100)
 		return &service{
 			lggr: logger.Sugared(logger.Nop()),
 			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
-				return &mockAPIClient{liteClient: liteClient}, nil
+				return &tonmock.APIClient{LiteClient: liteClient}, nil
 			},
 			mcBlockCache:             cache,
 			mcBlockResolveMaxRetries: maxRetries,
@@ -231,8 +188,8 @@ func TestResolveMCBlockSeqNoWithRetry(t *testing.T) {
 
 	t.Run("success on first attempt", func(t *testing.T) {
 		t.Parallel()
-		liteClient := &mockLiteClient{
-			queryFunc: func(_ context.Context, _, resp tl.Serializable) error {
+		liteClient := &tonmock.LiteClient{
+			QueryFunc: func(_ context.Context, _, resp tl.Serializable) error {
 				// Set response to successful ShardBlockProof
 				ptr := resp.(*tl.Serializable)
 				*ptr = ton.ShardBlockProof{
@@ -247,14 +204,14 @@ func TestResolveMCBlockSeqNoWithRetry(t *testing.T) {
 		seqno, err := lp.resolveMCBlockSeqNoWithRetry(context.Background(), shardBlock)
 		require.NoError(t, err)
 		require.Equal(t, uint32(99999), seqno)
-		require.Equal(t, 1, liteClient.callCount, "should only call once on success")
+		require.Equal(t, 1, liteClient.CallCount, "should only call once on success")
 	})
 
 	t.Run("success after retries", func(t *testing.T) {
 		t.Parallel()
 		callCount := 0
-		liteClient := &mockLiteClient{
-			queryFunc: func(_ context.Context, _, resp tl.Serializable) error {
+		liteClient := &tonmock.LiteClient{
+			QueryFunc: func(_ context.Context, _, resp tl.Serializable) error {
 				callCount++
 				if callCount < 3 {
 					return errors.New("transient error")
@@ -278,8 +235,8 @@ func TestResolveMCBlockSeqNoWithRetry(t *testing.T) {
 
 	t.Run("failure after all retries exhausted", func(t *testing.T) {
 		t.Parallel()
-		liteClient := &mockLiteClient{
-			queryFunc: func(_ context.Context, _, _ tl.Serializable) error {
+		liteClient := &tonmock.LiteClient{
+			QueryFunc: func(_ context.Context, _, _ tl.Serializable) error {
 				return errors.New("persistent error")
 			},
 		}
@@ -289,14 +246,14 @@ func TestResolveMCBlockSeqNoWithRetry(t *testing.T) {
 		_, err := lp.resolveMCBlockSeqNoWithRetry(context.Background(), shardBlock)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed after 3 attempts")
-		require.Equal(t, 3, liteClient.callCount, "should exhaust all retries")
+		require.Equal(t, 3, liteClient.CallCount, "should exhaust all retries")
 	})
 
 	t.Run("context cancellation stops retries", func(t *testing.T) {
 		t.Parallel()
 		callCount := 0
-		liteClient := &mockLiteClient{
-			queryFunc: func(_ context.Context, _, _ tl.Serializable) error {
+		liteClient := &tonmock.LiteClient{
+			QueryFunc: func(_ context.Context, _, _ tl.Serializable) error {
 				callCount++
 				return errors.New("transient error")
 			},
@@ -319,8 +276,8 @@ func TestResolveMCBlockSeqNoWithRetry(t *testing.T) {
 
 	t.Run("uses cache on subsequent calls", func(t *testing.T) {
 		t.Parallel()
-		liteClient := &mockLiteClient{
-			queryFunc: func(_ context.Context, _, resp tl.Serializable) error {
+		liteClient := &tonmock.LiteClient{
+			QueryFunc: func(_ context.Context, _, resp tl.Serializable) error {
 				ptr := resp.(*tl.Serializable)
 				*ptr = ton.ShardBlockProof{
 					MasterchainID: &ton.BlockIDExt{SeqNo: 77777},
@@ -335,12 +292,12 @@ func TestResolveMCBlockSeqNoWithRetry(t *testing.T) {
 		seqno1, err := lp.resolveMCBlockSeqNoWithRetry(context.Background(), shardBlock)
 		require.NoError(t, err)
 		require.Equal(t, uint32(77777), seqno1)
-		require.Equal(t, 1, liteClient.callCount)
+		require.Equal(t, 1, liteClient.CallCount)
 
 		// Second call - should use cache
 		seqno2, err := lp.resolveMCBlockSeqNoWithRetry(context.Background(), shardBlock)
 		require.NoError(t, err)
 		require.Equal(t, uint32(77777), seqno2)
-		require.Equal(t, 1, liteClient.callCount, "should not call liteserver again due to cache")
+		require.Equal(t, 1, liteClient.CallCount, "should not call liteserver again due to cache")
 	})
 }

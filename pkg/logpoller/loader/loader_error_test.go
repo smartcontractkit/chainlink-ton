@@ -14,37 +14,9 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/internal/tonmock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
-
-// mockAPIClient is a minimal ton.APIClientWrapped implementation for loader tests.
-type mockAPIClient struct {
-	ton.APIClientWrapped // embed to satisfy the interface
-	accountFunc          func(block *ton.BlockIDExt) (*tlb.Account, error)
-	liteClient           *mockLiteClient
-}
-
-func (m *mockAPIClient) GetAccount(_ context.Context, block *ton.BlockIDExt, _ *address.Address) (*tlb.Account, error) {
-	return m.accountFunc(block)
-}
-
-func (m *mockAPIClient) Client() ton.LiteClient {
-	return m.liteClient
-}
-
-func (m *mockAPIClient) WaitForBlock(_ uint32) ton.APIClientWrapped {
-	return m
-}
-
-// mockLiteClient mocks the LiteClient interface, letting tests control QueryLiteserver responses.
-type mockLiteClient struct {
-	ton.LiteClient
-	queryFunc func(ctx context.Context, req, resp tl.Serializable) error
-}
-
-func (m *mockLiteClient) QueryLiteserver(ctx context.Context, req tl.Serializable, resp tl.Serializable) error {
-	return m.queryFunc(ctx, req, resp)
-}
 
 // makeTestTx builds a serializable transaction with the given LT and previous-tx link.
 func makeTestTx(t *testing.T, lt uint64, prevTxLT uint64, prevTxHash []byte) (*tlb.Transaction, *cell.Cell) {
@@ -116,8 +88,8 @@ func TestLoadTxsForAddress_PageErrorIsReported(t *testing.T) {
 	}
 
 	var calls int
-	liteClient := &mockLiteClient{
-		queryFunc: func(_ context.Context, _ tl.Serializable, resp tl.Serializable) error {
+	liteClient := &tonmock.LiteClient{
+		QueryFunc: func(_ context.Context, _ tl.Serializable, resp tl.Serializable) error {
 			calls++
 			if calls == 1 {
 				*resp.(*tl.Serializable) = makeTransactionListResponse(t, firstPageCell)
@@ -127,8 +99,8 @@ func TestLoadTxsForAddress_PageErrorIsReported(t *testing.T) {
 		},
 	}
 
-	client := &mockAPIClient{
-		accountFunc: func(block *ton.BlockIDExt) (*tlb.Account, error) {
+	client := &tonmock.APIClient{
+		AccountFunc: func(block *ton.BlockIDExt) (*tlb.Account, error) {
 			if block.SeqNo == blockRange.To.SeqNo {
 				return &tlb.Account{
 					IsActive:   true,
@@ -139,7 +111,7 @@ func TestLoadTxsForAddress_PageErrorIsReported(t *testing.T) {
 			// prev block: account exists with an older last tx, so startLT < endLT
 			return &tlb.Account{IsActive: true, LastTxLT: 100}, nil
 		},
-		liteClient: liteClient,
+		LiteClient: liteClient,
 	}
 
 	l := &rawTxLoader{
@@ -177,21 +149,21 @@ func TestLoadTxsForAddress_NoTransactionsIsNotAnError(t *testing.T) {
 		To:   &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 10},
 	}
 
-	liteClient := &mockLiteClient{
-		queryFunc: func(_ context.Context, _ tl.Serializable, resp tl.Serializable) error {
+	liteClient := &tonmock.LiteClient{
+		QueryFunc: func(_ context.Context, _ tl.Serializable, resp tl.Serializable) error {
 			*resp.(*tl.Serializable) = ton.LSError{Code: 0}
 			return nil
 		},
 	}
 
-	client := &mockAPIClient{
-		accountFunc: func(block *ton.BlockIDExt) (*tlb.Account, error) {
+	client := &tonmock.APIClient{
+		AccountFunc: func(block *ton.BlockIDExt) (*tlb.Account, error) {
 			if block.SeqNo == blockRange.To.SeqNo {
 				return &tlb.Account{IsActive: true, LastTxLT: 200, LastTxHash: make([]byte, 32)}, nil
 			}
 			return &tlb.Account{IsActive: true, LastTxLT: 100}, nil
 		},
-		liteClient: liteClient,
+		LiteClient: liteClient,
 	}
 
 	l := &rawTxLoader{
