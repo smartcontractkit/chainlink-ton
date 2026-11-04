@@ -593,8 +593,8 @@ fun TokenPool<T>.addRemotePool(
 }
 
 /// Removes the remote pool address for a given chain selector.
-/// @dev All inflight txs from the remote pool will be rejected after it is removed. To ensure no loss of funds, there
-/// should be no inflight txs from the given pool.
+/// @dev All inflight txs from the remote pool will be rejected after it is removed.
+/// To ensure no loss of funds, there should be no inflight txs from the given pool.
 /// @param remoteChainSelector The remote chain selector.
 /// @param remotePoolAddress The remote pool address to remove.
 fun TokenPool<T>.removeRemotePool(

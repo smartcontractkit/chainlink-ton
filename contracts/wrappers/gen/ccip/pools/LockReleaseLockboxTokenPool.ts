@@ -6083,7 +6083,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
         'RateLimiter_Error.BucketOverfilled': 16300,
         'RateLimiter_Error.TokenMaxCapacityExceeded': 16301,
         'RateLimiter_Error.TokenRateLimitReached': 16302,
-        'RateLimiter_Error.InvalidRateLimitConfig': 16303,
+        'RateLimiter_Error.InvalidRateLimitRate': 16303,
         'RateLimiter_Error.DisabledNonZeroRateLimit': 16304,
         'LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured': 20900,
         'LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender': 20901,
