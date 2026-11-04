@@ -122,11 +122,12 @@ type GetTokenInfoFailed struct {
 
 // crc32('TokenAdminRegistry_RequestFailed')
 // Sent to the sender of an administration request the entry rejected, or to the root owner for an
-// OverridePendingAdministrator. Carries the unspent value.
+// OverridePendingAdministrator. Carries the unspent value and the request the root sent to the entry.
 type RequestFailed struct {
-	_        tlb.Magic `tlb:"#e73a39de" json:"-"` //nolint:revive // used by tlb reflection for encoding
-	QueryID  uint64    `tlb:"## 64"`
-	ExitCode int32     `tlb:"## 32"`
+	_        tlb.Magic                                    `tlb:"#e73a39de" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID  uint64                                       `tlb:"## 64"`
+	ExitCode int32                                        `tlb:"## 32"`
+	Request  tokenadminregistryentry.MessageFromRoot[any] `tlb:"^"`
 }
 
 // crc32('TokenAdminRegistry_EntryUpgradeRequest')

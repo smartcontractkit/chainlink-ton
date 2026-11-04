@@ -234,6 +234,13 @@ describe('TokenAdminRegistryEntry - Unit Tests', () => {
         tar.TokenAdminRegistry_RequestFailed.create({
           queryId: 0n,
           exitCode: BigInt(EntryErrors['TokenAdminRegistryEntry_Error.VersionUnavailable']),
+          request: messageFromRoot(
+            tare.TokenAdminRegistryEntry_SetPool.create({
+              actor: fx.administrator.address,
+              tokenPool: fx.replacementPool,
+            }),
+            ENTRY_VERSION + 1n,
+          ),
         }),
       ),
     })

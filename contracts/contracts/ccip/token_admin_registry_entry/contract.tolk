@@ -311,16 +311,17 @@ fun probePoolConfig(pool: address, queryId: uint64) {
 fun onPoolConfig(msg: TokenPool_Config, sender: address) {
     var st = lazy TokenRegistry_Storage.load();
     var tokenInfo = st.tokenInfo.load();
-    val previousPool = tokenInfo.tokenPool;
-    val fromPendingPool = st.pendingPool != null && sender == st.pendingPool!;
-    if (!fromPendingPool && (previousPool == null || sender != previousPool!)) {
+    val currentPool = tokenInfo.tokenPool;
+    val isPendingPool = sameAddress(st.pendingPool, sender);
+    val isCurrentPool = sameAddress(currentPool, sender);
+    if (!isPendingPool && !isCurrentPool) {
         return;
     }
     if (msg.token != st.tokenAddress) {
         // A mismatch from the current pool must not cancel a pending replacement.
-        return delist(msg.queryId, fromPendingPool);
+        return delist(msg.queryId, isPendingPool);
     }
-    if (fromPendingPool) {
+    if (isPendingPool) {
         st.pendingPool = null;
     }
 
@@ -331,8 +332,8 @@ fun onPoolConfig(msg: TokenPool_Config, sender: address) {
     st.tokenInfo = tokenInfo.toCell();
     st.store();
 
-    if (!sameAddress(previousPool, sender) || !sameAddress(previousTransferInitiator, msg.transferInitiator)) {
-        notifyPoolSet(msg.queryId, st.tokenAddress, previousPool, sender, msg.transferInitiator);
+    if (!sameAddress(currentPool, sender) || !sameAddress(previousTransferInitiator, msg.transferInitiator)) {
+        notifyPoolSet(msg.queryId, st.tokenAddress, currentPool, sender, msg.transferInitiator);
     }
 }
 

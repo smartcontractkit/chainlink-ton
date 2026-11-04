@@ -6,7 +6,7 @@ import { Blockchain } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
 import * as tare from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
-import { Costs, EventTopics } from '../../../wrappers/ccip/TokenAdminRegistry'
+import { Costs, ENTRY_VERSION, EventTopics } from '../../../wrappers/ccip/TokenAdminRegistry'
 import {
   EntryErrors,
   OPERATION_VALUE,
@@ -18,6 +18,7 @@ import {
   answerPoolProbe,
   entryFor,
   expectEntryFailure,
+  messageFromRoot,
   expectEntrySuccess,
   expectRootFailure,
   registerAndAccept,
@@ -282,6 +283,14 @@ describe('TokenAdminRegistry - Set Pool', () => {
           tar.TokenAdminRegistry_RequestFailed.create({
             queryId: 7n,
             exitCode: BigInt(EntryErrors['TokenAdminRegistryEntry_Error.Unauthorized']),
+            request: messageFromRoot(
+              tare.TokenAdminRegistryEntry_SetPool.create({
+                actor: actor.address,
+                tokenPool: fx.replacementPool,
+              }),
+              ENTRY_VERSION,
+              7n,
+            ),
           }),
         ),
       })

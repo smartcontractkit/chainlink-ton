@@ -140,12 +140,13 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val bounced = lazy TokenAdminRegistry_BouncedEntryMessage.fromCell(rich.originalBody);
-    var request: TokenAdminRegistryEntry_MessageFromRoot;
+    var requestCell: Cell<TokenAdminRegistryEntry_MessageFromRoot>;
     match (bounced) {
-        TokenAdminRegistryEntry_MessageFromRoot => { request = bounced; }
-        TokenAdminRegistryEntry_Resume => { request = bounced.request.load(); }
+        TokenAdminRegistryEntry_MessageFromRoot => { requestCell = rich.originalBody as Cell<TokenAdminRegistryEntry_MessageFromRoot>; }
+        TokenAdminRegistryEntry_Resume => { requestCell = bounced.request; }
         else => { return; }
     }
+    val request = requestCell.load();
     val content = request.content.load();
     if (content is TokenAdminRegistryEntry_GetTokenInfo) {
         createMessage({
@@ -166,6 +167,7 @@ fun onBouncedMessage(in: InMessageBounced) {
         body: TokenAdminRegistry_RequestFailed {
             queryId: request.queryId,
             exitCode: rich.exitCode,
+            request: requestCell,
         },
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -212,8 +214,10 @@ fun forwardToEntry(token: address, queryId: uint64, content: TokenAdminRegistryE
 /// Resume. TON delivers both in order, and the entry will not defer a Resume
 /// again, so a failed upgrade bounces the request instead of looping.
 ///
-/// The root's own balance pays for the upgrade. If it can't, the Resume still goes out and fails
-/// on the stale entry, so the request is reported as failed instead of left unanswered.
+/// The root's own balance pays for the upgrade. This is affordable for every entry because only the
+/// owner registers tokens, which keeps the number of entries limited until self-registration is
+/// rolled out. If the root can't pay, the Resume still goes out and fails on the stale entry, so
+/// the request is reported as failed instead of left unanswered.
 fun upgradeAndResume(entry: address, queryId: uint64, request: Cell<TokenAdminRegistryEntry_MessageFromRoot>, requestValue: coins) {
     val code = entryCode();
     val upgradeValue = TokenAdminRegistryEntry_upgradeCost(code);

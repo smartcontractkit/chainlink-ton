@@ -135,11 +135,12 @@ struct (0xe533c614) TokenAdminRegistry_GetTokenInfoFailed {
 }
 
 /// Sent to the sender of an administration request the entry rejected, or the root owner for an
-/// OverridePendingAdministrator. Carries the unspent value.
+/// OverridePendingAdministrator. Carries the unspent value and the request the root sent to the entry.
 // crc32('TokenAdminRegistry_RequestFailed')
 struct (0xe73a39de) TokenAdminRegistry_RequestFailed {
     queryId: uint64;
     exitCode: int32;
+    request: Cell<TokenAdminRegistryEntry_MessageFromRoot>;
 }
 
 /// Sent by a stale entry with the request it deferred. The root answers with an

@@ -14,8 +14,10 @@ import { ownable2StepSpec } from '../../lib/access/Ownable2StepSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as upgradeable from '../../../wrappers/libraries/versioning/Upgradeable'
 import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
+import * as tare from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
 import {
   CONTRACT_VERSION,
+  ENTRY_VERSION,
   ERROR_CODE,
   EventTopics,
   FACILITY_ID,
@@ -29,6 +31,7 @@ import {
   coverageConfig,
   createBlockchain,
   deployTokenAdminRegistry,
+  messageFromRoot,
   registerToken,
   setup,
   tokenInfo,
@@ -224,6 +227,22 @@ describe('TokenAdminRegistry - Unit Tests', () => {
         return tar.TokenAdminRegistry_RequestFailed.fromSlice(body.beginParse()).queryId === 5n
       },
     })
+    const failed = result.transactions
+      .flatMap((tx) => tx.outMessages.values())
+      .find(
+        (msg) =>
+          msg.info.dest?.toString() === fx.other.address.toString() &&
+          msg.body.beginParse().preloadUint(32) === tar.TokenAdminRegistry_RequestFailed.PREFIX,
+      )!
+    expect(
+      tar.TokenAdminRegistry_RequestFailed.fromSlice(failed.body.beginParse()).request,
+    ).toEqual(
+      messageFromRoot(
+        tare.TokenAdminRegistryEntry_VerifyToken.create({ requester: fx.other.address }),
+        ENTRY_VERSION,
+        5n,
+      ),
+    )
   })
 
   it('lets only the owner withdraw TON above the reserve', async () => {
