@@ -8,7 +8,7 @@ enum RateLimiter_Error {
     BucketOverfilled = RateLimiter_FACILITY_ID * 100
     TokenMaxCapacityExceeded // (uint256 capacity, uint256 requested, address tokenAddress);
     TokenRateLimitReached    // (uint256 minWaitInSeconds, uint256 available, address tokenAddress);
-    InvalidRateLimitConfig   // (Config rateLimiterConfig);
+    InvalidRateLimitRate   // (Config rateLimiterConfig);
     DisabledNonZeroRateLimit // (Config config);
 }
 
@@ -41,9 +41,8 @@ struct RateLimiter_TokenBucket {
 }
 
 fun RateLimiter_TokenBucket.fromConfig(config: RateLimiter_Config): RateLimiter_TokenBucket {
-    // Mirror EVM `_setTokenBucketConfig`: reject rate > capacity (enabled) and non-zero
-    // rate/capacity on a disabled limiter. Without this, misconfigured lanes could be stored.
     config.validate();
+
     return RateLimiter_TokenBucket {
         tokens: config.capacity,
         lastUpdated: blockchain.now(),
@@ -53,7 +52,7 @@ fun RateLimiter_TokenBucket.fromConfig(config: RateLimiter_Config): RateLimiter_
     };
 }
 
-/// @notice consume removes the given tokens from the pool, lowering the rate tokens allowed to be
+/// Removes the given tokens from the pool, lowering the rate tokens allowed to be
 /// consumed for subsequent calls.
 /// @param requestTokens The total tokens to be consumed from the bucket.
 /// @param tokenAddress The token to consume capacity for, use 0x0 to indicate aggregate value capacity.
@@ -99,7 +98,7 @@ fun RateLimiter_TokenBucket.consume(mutate self, requestTokens: uint256, tokenAd
     self.tokens = tokens as uint128;
 }
 
-/// @notice refund returns previously consumed tokens to the bucket. Used when an async
+/// Returns previously consumed tokens to the bucket. Used when an async
 /// operation that consumed capacity at admission later fails (e.g. a transfer bounces), so
 /// the reserved capacity must be made available again.
 /// @param refundTokens The number of tokens to return to the bucket.
@@ -124,8 +123,7 @@ fun RateLimiter_TokenBucket.refund(mutate self, refundTokens: uint256) {
     self.tokens = min(restored, capacity) as uint128;
 }
 
-/// @notice Gets the token bucket with its values for the block it was requested at.
-/// @return The token bucket.
+/// Returns the token bucket with its values for the block it was requested at.
 fun RateLimiter_TokenBucket.currentTokenBucketState(mutate self): RateLimiter_TokenBucket {
     // We update the bucket to reflect the status at the exact time of the call. This means we might need to refill a
     // part of the bucket based on the time that has passed since the last update.
@@ -139,10 +137,7 @@ fun RateLimiter_TokenBucket.currentTokenBucketState(mutate self): RateLimiter_To
     return self;
 }
 
-/// @notice Sets the rate limited config, reconfiguring the bucket in place.
-/// @dev Intentionally follows EVM v2.0 semantics (`tokens = capacity`), not v1.6
-/// (`min(newCapacity, tokens)`): TON token pools target CCIP 2.0, while CCIP core remains 1.6.
-/// @param config The new config.
+/// Sets the rate limited config, reconfiguring the bucket in place.
 fun RateLimiter_TokenBucket._setTokenBucketConfig(mutate self, config: RateLimiter_Config) {
     config.validate();
 
@@ -153,7 +148,7 @@ fun RateLimiter_TokenBucket._setTokenBucketConfig(mutate self, config: RateLimit
     self.lastUpdated = blockchain.now();
 }
 
-/// @notice Refills tokens for elapsed time and updates lastUpdated on the bucket.
+/// Refills tokens for elapsed time and updates lastUpdated on the bucket.
 /// @param bucket The token bucket to update.
 /// @param tokens The current (stale) token count.
 /// @param capacity The bucket capacity.
@@ -174,11 +169,11 @@ fun RateLimiter_TokenBucket._applyElapsedRefill(mutate self, tokens: uint256, ca
     return tokens;
 }
 
-/// @notice Validates the token bucket config.
+/// Validates the token bucket config.
 fun RateLimiter_Config.validate(self) {
     if (self.isEnabled) {
         if (self.rate > self.capacity) {
-            throw (RateLimiter_Error.InvalidRateLimitConfig, self);
+            throw (RateLimiter_Error.InvalidRateLimitRate, self);
         }
     } else {
         if (self.rate != 0 || self.capacity != 0) {
@@ -187,7 +182,7 @@ fun RateLimiter_Config.validate(self) {
     }
 }
 
-/// @notice Calculate refilled tokens.
+/// Calculate refilled tokens.
 /// @param capacity bucket capacity.
 /// @param tokens current bucket tokens.
 /// @param timeDiff block time difference since last refill.

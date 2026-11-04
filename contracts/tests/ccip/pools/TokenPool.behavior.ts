@@ -81,6 +81,25 @@ export function releaseRequest(
   })
 }
 
+function releaseRequestWithAmount(
+  ctx: TokenPoolBehaviorContext,
+  amount: bigint,
+  id = 1n,
+): TokenPool_ReleaseOrMintInV1 {
+  return releaseRequest(ctx, {
+    transfer: TokenPool_Transfer.create({
+      id,
+      details: TokenPool_TransferDetails.create({
+        originalSender: ctx.sourcePoolAddress,
+        remoteChainSelector: ctx.remoteChainSelector,
+        receiver: ctx.recipient.address,
+        amount,
+        localToken: ctx.localToken,
+      }),
+    }),
+  })
+}
+
 // TokenPool_Error codes are shared by every pool built on the TokenPool library.
 const TokenPoolErrors = BurnMintTokenPool.Errors
 
@@ -497,6 +516,155 @@ export function runTokenPoolBehaviorTests(
         to: ctx.pool.address,
         success: false,
       })
+    })
+
+    it('refills elapsed capacity and caps at capacity (EVM 2.0)', async () => {
+      const ctx = await setup()
+
+      await ctx.pool.sendTokenPoolSetRateLimitConfig(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 944n,
+        updates: [
+          TokenPool_RateLimitConfigArgs.create({
+            remoteChainSelector: ctx.remoteChainSelector,
+            fastFinality: false,
+            outboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 10n,
+              rate: 2n,
+            }),
+            inboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 10n,
+              rate: 2n,
+            }),
+          }),
+        ],
+      })
+
+      const release = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.deployer.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 945n,
+          request: releaseRequestWithAmount(ctx, 8n, 945n),
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
+        },
+      )
+      expect(release.transactions).toHaveTransaction({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+
+      const drained = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+      expect(drained.inbound.tokens).toEqual(2n)
+
+      ctx.blockchain.now = (ctx.blockchain.now ?? 0) + 5
+      const refilled = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+      expect(refilled.inbound.tokens).toEqual(10n)
+    })
+
+    it('applies EVM 2.0 rate-limit config semantics (tokens = capacity)', async () => {
+      const ctx = await setup()
+
+      await ctx.pool.sendTokenPoolSetRateLimitConfig(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 946n,
+        updates: [
+          TokenPool_RateLimitConfigArgs.create({
+            remoteChainSelector: ctx.remoteChainSelector,
+            fastFinality: false,
+            outboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 100n,
+              rate: 0n,
+            }),
+            inboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 100n,
+              rate: 0n,
+            }),
+          }),
+        ],
+      })
+
+      const release = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.deployer.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 947n,
+          request: releaseRequestWithAmount(ctx, 60n, 947n),
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
+        },
+      )
+      expect(release.transactions).toHaveTransaction({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+
+      const drained = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+      expect(drained.inbound.tokens).toEqual(40n)
+
+      await ctx.pool.sendTokenPoolSetRateLimitConfig(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 948n,
+        updates: [
+          TokenPool_RateLimitConfigArgs.create({
+            remoteChainSelector: ctx.remoteChainSelector,
+            fastFinality: false,
+            outboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 50n,
+              rate: 0n,
+            }),
+            inboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 50n,
+              rate: 0n,
+            }),
+          }),
+        ],
+      })
+
+      const afterTighten = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+      expect(afterTighten.inbound.capacity).toEqual(50n)
+      expect(afterTighten.inbound.tokens).toEqual(50n)
+    })
+
+    it('rejects invalid rate-limit configs (EVM 2.0 validation)', async () => {
+      const ctx = await setup()
+      const invalid = [
+        { isEnabled: true, capacity: 10n, rate: 11n },
+        { isEnabled: false, capacity: 1n, rate: 0n },
+        { isEnabled: false, capacity: 0n, rate: 1n },
+      ]
+
+      for (const [index, config] of invalid.entries()) {
+        const result = await ctx.pool.sendTokenPoolSetRateLimitConfig(
+          ctx.deployer.getSender(),
+          toNano('0.2'),
+          {
+            queryId: 960n + BigInt(index),
+            updates: [
+              TokenPool_RateLimitConfigArgs.create({
+                remoteChainSelector: ctx.remoteChainSelector,
+                fastFinality: false,
+                outboundRateLimiterConfig: RateLimiter_Config.create(config),
+                inboundRateLimiterConfig: RateLimiter_Config.create(config),
+              }),
+            ],
+          },
+        )
+
+        expect(result.transactions).toHaveTransaction({
+          from: ctx.deployer.address,
+          to: ctx.pool.address,
+          success: false,
+        })
+      }
     })
 
     it('emits DynamicConfigSet when the dynamic config changes (C-8)', async () => {
