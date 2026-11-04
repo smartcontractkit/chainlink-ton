@@ -18,6 +18,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/internal/tonmock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 )
@@ -78,9 +79,9 @@ func makeTestService(t *testing.T, loader TxLoader, logStore LogStore) *service 
 		lggr:    logger.Sugared(lggr),
 		chainID: "test",
 		clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
-			return &mockAPIClient{
-				liteClient: &mockLiteClient{
-					queryFunc: func(_ context.Context, _ tl.Serializable, resp tl.Serializable) error {
+			return &tonmock.APIClient{
+				LiteClient: &tonmock.LiteClient{
+					QueryFunc: func(_ context.Context, _ tl.Serializable, resp tl.Serializable) error {
 						ptr := resp.(*tl.Serializable)
 						*ptr = ton.ShardBlockProof{
 							MasterchainID: &ton.BlockIDExt{SeqNo: 50},
