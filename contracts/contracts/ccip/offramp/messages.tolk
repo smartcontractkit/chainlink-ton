@@ -47,7 +47,8 @@ type OffRamp_InMessageBounced =
     | ReceiveExecutor_InitExecute
     | Deployable_Initialize
     | Router_RelayReleaseOrMint
-    | Router_RouteMessage;
+    | Router_RouteMessage
+    | ReceiveExecutor_CCIPReceiveConfirm;
 
 struct (0x9d431905) OffRamp_Commit {
     queryID: uint64;

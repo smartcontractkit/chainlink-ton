@@ -1734,12 +1734,14 @@ export const NotEnoughDestGasAmountForTokenTransfer = {
  > struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
  >     queryID: uint64
  >     receiver: address
+ >     execId: ReceiveExecutorId
  > }
  */
 export interface ReceiveExecutor_CCIPReceiveConfirm {
     readonly $: 'ReceiveExecutor_CCIPReceiveConfirm'
     queryID: uint64
     receiver: c.Address
+    execId: ReceiveExecutorId
 }
 
 export const ReceiveExecutor_CCIPReceiveConfirm = {
@@ -1748,6 +1750,7 @@ export const ReceiveExecutor_CCIPReceiveConfirm = {
     create(args: {
         queryID?: uint64
         receiver: c.Address
+        execId: ReceiveExecutorId
     }): ReceiveExecutor_CCIPReceiveConfirm {
         return {
             $: 'ReceiveExecutor_CCIPReceiveConfirm',
@@ -1761,12 +1764,14 @@ export const ReceiveExecutor_CCIPReceiveConfirm = {
             $: 'ReceiveExecutor_CCIPReceiveConfirm',
             queryID: s.loadUintBig(64),
             receiver: s.loadAddress(),
+            execId: ReceiveExecutorId.fromSlice(s),
         }
     },
     store(self: ReceiveExecutor_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0xf0af71c5, 32);
         b.storeUint(self.queryID, 64);
         b.storeAddress(self.receiver);
+        ReceiveExecutorId.store(self.execId, b);
     },
     toCell(self: ReceiveExecutor_CCIPReceiveConfirm): c.Cell {
         return makeCellFrom<ReceiveExecutor_CCIPReceiveConfirm>(self, ReceiveExecutor_CCIPReceiveConfirm.store);
@@ -2489,6 +2494,7 @@ export class ReceiveExecutor implements c.Contract {
     static createCellOfReceiveExecutorCCIPReceiveConfirm(body: {
         queryID?: uint64
         receiver: c.Address
+        execId: ReceiveExecutorId
     }) {
         return ReceiveExecutor_CCIPReceiveConfirm.toCell(ReceiveExecutor_CCIPReceiveConfirm.create(body));
     }
@@ -2613,6 +2619,7 @@ export class ReceiveExecutor implements c.Contract {
     async sendReceiveExecutorCCIPReceiveConfirm(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryID?: uint64
         receiver: c.Address
+        execId: ReceiveExecutorId
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

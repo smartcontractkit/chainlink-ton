@@ -784,6 +784,56 @@ describe('OffRamp - Execute', () => {
       })
     })
 
+    it('should return the value of a confirmation the executor rejects to its sender', async () => {
+      const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
+      await setup.setupAndCommitMessage(message)
+      await setup.executeReport(setup.createExecuteReport([message]))
+
+      // The OffRamp's ReceiveExecutorId: the source chain, then the message ID's top 128 bits.
+      const messageId = generateMessageID(
+        message,
+        s.getDefaultMetadataHash(message.header.sourceChainSelector),
+      )
+      const execId =
+        (message.header.sourceChainSelector << 128n) | (messageId >> (256n - 128n))
+
+      // A stranger confirms the executed message: the executor rejects it.
+      const stranger = await blockchain.treasury('stranger')
+      const result = await setup.router.sendRouterCCIPReceiveConfirm(
+        stranger.getSender(),
+        toNano('0.1'),
+        { queryID: 9n, execId },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        op: rx.ReceiveExecutor_CCIPReceiveConfirm.PREFIX,
+        success: false,
+      })
+      expect(result.transactions).toHaveTransaction({
+        to: setup.offRamp.address,
+        op: 0xfffffffe,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.router.address,
+        op: rt.Router_CCIPReceiveConfirmRejectedByExecutor.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: stranger.address,
+        op: rt.Router_CCIPReceiveConfirmRejected.PREFIX,
+        inMessageBounceable: false,
+        value: (v) => v !== undefined && v > 0n,
+        body(x) {
+          if (!x) return false
+          return rt.Router_CCIPReceiveConfirmRejected.fromSlice(x.beginParse()).queryID === 9n
+        },
+      })
+    })
+
     it('should reject DispatchValidated from non-offramp address', async () => {
       const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
       const metadataHash = s.getDefaultMetadataHash(

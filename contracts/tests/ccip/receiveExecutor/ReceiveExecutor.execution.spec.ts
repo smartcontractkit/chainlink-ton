@@ -201,6 +201,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: deployer.address,
+          execId: 0n, // unused by the executor
         },
       )
       expect(result.transactions).toHaveTransaction({
@@ -223,6 +224,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: deployer.address,
+          execId: 0n, // unused by the executor
         },
       )
       expectFailedTransaction(
@@ -239,6 +241,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: deployer.address,
+          execId: 0n, // unused by the executor
         },
       )
       expectFailedTransaction(
@@ -257,6 +260,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: wrongReceiver,
+          execId: 0n, // unused by the executor
         },
       )
       expectFailedTransaction(
@@ -1450,6 +1454,7 @@ describe('ReceiveExecutor - Execution', () => {
           toNano('0.05'),
           {
             receiver: deployer.address,
+            execId: 0n, // unused by the executor
           },
         )
         expect(result.transactions).toHaveTransaction({

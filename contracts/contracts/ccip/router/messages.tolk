@@ -31,6 +31,7 @@ type Router_InMsg =
     | Router_WithdrawToTokenPool
     | Router_WithdrawToTokenPoolFailed
     | Router_CCIPReceiveConfirm
+    | Router_CCIPReceiveConfirmRejectedByExecutor
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
     | Router_RMNRemoteCurse
@@ -68,6 +69,23 @@ struct (0x7db6745d) Router_ApplyRampUpdates {
     onRampUpdates: OnRamps? = null;
     offRampAdds: OffRamps? = null;
     offRampRemoves: OffRamps? = null;
+}
+
+/// From the OffRamp: the ReceiveExecutor rejected the confirmation `receiver` sent. Relayed to
+/// `receiver` as Router_CCIPReceiveConfirmRejected. `sourceChainSelector` authenticates the OffRamp.
+struct (0xfe1f013c) Router_CCIPReceiveConfirmRejectedByExecutor {
+    queryID: uint64;
+    sourceChainSelector: uint64;
+    receiver: address;
+}
+
+/// Sent by the Router when the ReceiveExecutor rejected a Router_CCIPReceiveConfirm: the sender is
+/// not the message's receiver, or the message is not awaiting a confirmation. Carries the
+/// confirmation's remaining value back to its sender; the exit code is in the executor's
+/// transaction. Defined here, not in the receiver library: a correct receiver confirms its own
+/// messages and never gets it.
+struct (0xe3c98863) Router_CCIPReceiveConfirmRejected {
+    queryID: uint64;
 }
 
 struct (0xfc69c50b) Router_RouteMessage {

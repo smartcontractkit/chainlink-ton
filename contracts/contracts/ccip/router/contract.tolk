@@ -131,6 +131,13 @@ fun onInternalMessage(in: InMessage) {
             assert(in.valueCoins >= Router_Costs.receiveConfirm()) throw (Router_Error.InsufficientFee);
             onCCIPReceiveConfirm(msg, in.senderAddress);
         }
+        // Sender must be OffRamp
+        Router_CCIPReceiveConfirmRejectedByExecutor => {
+            val st = lazy Storage.load();
+            val expectedOffRamp = st.offRamps.mustGet(msg.sourceChainSelector, Router_Error.SourceChainNotEnabled);
+            assert (in.senderAddress == expectedOffRamp) throw (Router_Error.SenderIsNotOffRamp);
+            onCCIPReceiveConfirmRejected(msg);
+        }
         // Sender must hold the RMN curse role.
         Router_RMNRemoteCurse => {
             var st = lazy Storage.load();
@@ -698,6 +705,21 @@ fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
         },
     });
     confirmMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+// Relays the ReceiveExecutor's rejection of a confirmation to the receiver that sent it, with the
+// confirmation's remaining value. NoBounce: the rejection is final, and the receiver trusts it
+// because it comes from the Router.
+fun onCCIPReceiveConfirmRejected(msg: Router_CCIPReceiveConfirmRejectedByExecutor) {
+    val rejected = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: msg.receiver,
+        body: Router_CCIPReceiveConfirmRejected {
+            queryID: msg.queryID,
+        },
+    });
+    rejected.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // Sends a CCIP receive confirmation to the OffRamp contract corresponding to

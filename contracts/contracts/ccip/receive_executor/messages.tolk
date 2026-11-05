@@ -6,6 +6,7 @@ import "../offramp/types"
 import "../token_admin_registry/messages"
 import "../pools/lib/token_pool/messages"
 import "../accounts/deposit/messages"
+import "../lib/client/receiver/types"
 import "types"
 
 
@@ -65,6 +66,9 @@ struct (0xb304ecdf) NotEnoughDestGasAmountForTokenTransfer {}
 struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
     queryID: uint64;
     receiver: address
+    /// Unused by the executor; it lets the OffRamp relay a rejection to the Router. Last, so
+    /// executors deployed before it was added still accept the message.
+    execId: ReceiveExecutorId;
 }
 
 struct (0x8854993b) ReceiveExecutor_CCIPReceiveFailed {

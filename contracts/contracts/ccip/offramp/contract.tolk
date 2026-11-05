@@ -194,7 +194,30 @@ fun onBouncedMessage(in: InMessageBounced) {
         Router_RelayReleaseOrMint => {
             onBouncedRouterRelayReleaseOrMint(originalMessage, rich.exitCode)
         },
+        ReceiveExecutor_CCIPReceiveConfirm => {
+            onBouncedCCIPReceiveConfirm(originalMessage)
+        },
     }
+}
+
+// The ReceiveExecutor rejected a confirmation: its sender is not the message's receiver, or the
+// message is not awaiting one. An authorization error, so nothing changes here: the
+// confirmation's remaining value goes back to its sender through the Router, which it trusts.
+// The exit code is in the executor's failed transaction, so it is not relayed.
+fun onBouncedCCIPReceiveConfirm(msg: ReceiveExecutor_CCIPReceiveConfirm) {
+    val st = lazy Storage.load();
+    val sourceChainSelector = msg.execId.getSourceChainSelector();
+    val rejected = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: getRouterFromSelector(st, sourceChainSelector),
+        body: Router_CCIPReceiveConfirmRejectedByExecutor {
+            queryID: msg.queryID,
+            sourceChainSelector,
+            receiver: msg.receiver,
+        },
+    });
+    rejected.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // Handles bounced ReceiveExecutor_InitExecute messages. This should never
@@ -473,12 +496,13 @@ fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifySuccess/Failure
 fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
     val receiveConfirm = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest:  getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_CCIPReceiveConfirm {
             queryID: msg.queryID,
             receiver: msg.receiver,
+            execId: msg.execId,
         },
     });
     receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

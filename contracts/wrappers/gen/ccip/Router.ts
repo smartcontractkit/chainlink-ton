@@ -3178,6 +3178,92 @@ export const Router_ApplyRampUpdates = {
 }
 
 /**
+ > struct (0xfe1f013c) Router_CCIPReceiveConfirmRejectedByExecutor {
+ >     queryID: uint64
+ >     sourceChainSelector: uint64
+ >     receiver: address
+ > }
+ */
+export interface Router_CCIPReceiveConfirmRejectedByExecutor {
+    readonly $: 'Router_CCIPReceiveConfirmRejectedByExecutor'
+    queryID: uint64
+    sourceChainSelector: uint64
+    receiver: c.Address
+}
+
+export const Router_CCIPReceiveConfirmRejectedByExecutor = {
+    PREFIX: 0xfe1f013c,
+
+    create(args: {
+        queryID?: uint64
+        sourceChainSelector: uint64
+        receiver: c.Address
+    }): Router_CCIPReceiveConfirmRejectedByExecutor {
+        return {
+            $: 'Router_CCIPReceiveConfirmRejectedByExecutor',
+            ...args,
+            queryID: args.queryID ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_CCIPReceiveConfirmRejectedByExecutor {
+        loadAndCheckPrefix32(s, 0xfe1f013c, 'Router_CCIPReceiveConfirmRejectedByExecutor');
+        return {
+            $: 'Router_CCIPReceiveConfirmRejectedByExecutor',
+            queryID: s.loadUintBig(64),
+            sourceChainSelector: s.loadUintBig(64),
+            receiver: s.loadAddress(),
+        }
+    },
+    store(self: Router_CCIPReceiveConfirmRejectedByExecutor, b: c.Builder): void {
+        b.storeUint(0xfe1f013c, 32);
+        b.storeUint(self.queryID, 64);
+        b.storeUint(self.sourceChainSelector, 64);
+        b.storeAddress(self.receiver);
+    },
+    toCell(self: Router_CCIPReceiveConfirmRejectedByExecutor): c.Cell {
+        return makeCellFrom<Router_CCIPReceiveConfirmRejectedByExecutor>(self, Router_CCIPReceiveConfirmRejectedByExecutor.store);
+    }
+}
+
+/**
+ > struct (0xe3c98863) Router_CCIPReceiveConfirmRejected {
+ >     queryID: uint64
+ > }
+ */
+export interface Router_CCIPReceiveConfirmRejected {
+    readonly $: 'Router_CCIPReceiveConfirmRejected'
+    queryID: uint64
+}
+
+export const Router_CCIPReceiveConfirmRejected = {
+    PREFIX: 0xe3c98863,
+
+    create(args: {
+        queryID?: uint64
+    }): Router_CCIPReceiveConfirmRejected {
+        return {
+            $: 'Router_CCIPReceiveConfirmRejected',
+            ...args,
+            queryID: args.queryID ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_CCIPReceiveConfirmRejected {
+        loadAndCheckPrefix32(s, 0xe3c98863, 'Router_CCIPReceiveConfirmRejected');
+        return {
+            $: 'Router_CCIPReceiveConfirmRejected',
+            queryID: s.loadUintBig(64),
+        }
+    },
+    store(self: Router_CCIPReceiveConfirmRejected, b: c.Builder): void {
+        b.storeUint(0xe3c98863, 32);
+        b.storeUint(self.queryID, 64);
+    },
+    toCell(self: Router_CCIPReceiveConfirmRejected): c.Cell {
+        return makeCellFrom<Router_CCIPReceiveConfirmRejected>(self, Router_CCIPReceiveConfirmRejected.store);
+    }
+}
+
+/**
  > struct (0xfc69c50b) Router_RouteMessage {
  >     queryID: uint64
  >     message: Cell<Any2TVMMessage>
@@ -5400,6 +5486,14 @@ export class Router implements c.Contract {
         return Router_CCIPReceiveConfirm.toCell(Router_CCIPReceiveConfirm.create(body));
     }
 
+    static createCellOfRouterCCIPReceiveConfirmRejectedByExecutor(body: {
+        queryID?: uint64
+        sourceChainSelector: uint64
+        receiver: c.Address
+    }) {
+        return Router_CCIPReceiveConfirmRejectedByExecutor.toCell(Router_CCIPReceiveConfirmRejectedByExecutor.create(body));
+    }
+
     static createCellOfUpgradeableUpgrade(body: {
         queryID?: uint64
         code: c.Cell
@@ -5702,6 +5796,18 @@ export class Router implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: Router_CCIPReceiveConfirm.toCell(Router_CCIPReceiveConfirm.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendRouterCCIPReceiveConfirmRejectedByExecutor(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryID?: uint64
+        sourceChainSelector: uint64
+        receiver: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Router_CCIPReceiveConfirmRejectedByExecutor.toCell(Router_CCIPReceiveConfirmRejectedByExecutor.create(body)),
             ...extraOptions
         });
     }
