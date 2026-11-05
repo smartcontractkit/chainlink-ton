@@ -16,7 +16,7 @@ fun saveData(data: MerkleMultiProofCalculator) {
 
 
 struct(0x00000001) CalculateRoot {
-    queryId: uint64,
+    queryID: uint64,
     leaves: SnakedCell<uint256>,
     proofs: SnakedCell<uint256>,
     proofFlagBits: uint256,

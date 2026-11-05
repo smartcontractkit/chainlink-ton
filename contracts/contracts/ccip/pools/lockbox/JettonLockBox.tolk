@@ -111,16 +111,16 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
     // (SEND_MODE_PAY_FEES_SEPARATELY) instead of carrying all remaining inbound value.
     val returnExcess = false;
     var rbac = hookTrait__AccessControl(st);
-    rbac._setRoleAdmin(msg.queryId, sender, DEFAULT_ADMIN_ROLE, DEFAULT_ADMIN_ROLE, returnExcess);
-    rbac._setRoleAdmin(msg.queryId, sender, OPERATOR_ROLE, DEFAULT_ADMIN_ROLE, returnExcess);
+    rbac._setRoleAdmin(msg.queryID, sender, DEFAULT_ADMIN_ROLE, DEFAULT_ADMIN_ROLE, returnExcess);
+    rbac._setRoleAdmin(msg.queryID, sender, OPERATOR_ROLE, DEFAULT_ADMIN_ROLE, returnExcess);
 
     val adminAddress = msg.admin != null ? msg.admin! : sender;
-    rbac._grantRole(msg.queryId, sender, DEFAULT_ADMIN_ROLE, adminAddress, returnExcess);
+    rbac._grantRole(msg.queryID, sender, DEFAULT_ADMIN_ROLE, adminAddress, returnExcess);
 
     // TODO[REFACTOR]: [NONEVM-5336] add operators on init
     // var oo = operators.iter();
     // while (!oo.empty()) {
-    //     rbac._grantRole(queryId, sender, OPERATOR_ROLE, oo.next(), returnExcess);
+    //     rbac._grantRole(queryID, sender, OPERATOR_ROLE, oo.next(), returnExcess);
     // }
 
     st.rbac = rbac.data;
@@ -131,7 +131,7 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
         value: 0,
         dest: sender,
         body: JettonLockBox_Initialized {
-            queryId: msg.queryId,
+            queryID: msg.queryID,
             minterAddress: msg.minterAddress,
             walletAddress: msg.walletAddress,
             admin: adminAddress,
@@ -196,7 +196,7 @@ fun onDepositWithTransferNotification(
             value: 0,
             dest: msg.transferInitiator,
             body: JettonLockBox_Deposited {
-                queryId: deposit.queryId,
+                queryID: deposit.queryID,
                 token: deposit.token,
                 depositor: msg.transferInitiator,
                 amount: deposit.amount,
@@ -230,7 +230,7 @@ fun onDepositReturn(
         value: failureValue,
         dest: transferInitiator,
         body: JettonLockBox_DepositFailed {
-            queryId: deposit != null ? deposit!.queryId : msg.queryId,
+            queryID: deposit != null ? deposit!.queryID : msg.queryID,
             token: st.minterAddress,
             depositor: transferInitiator,
             amount: msg.jettonAmount,
@@ -262,7 +262,7 @@ fun onDepositReturn(
         value: 0,
         dest: st.walletAddress!, // sender
         body: AskToTransfer {
-            queryId: msg.queryId,
+            queryID: msg.queryID,
             jettonAmount: msg.jettonAmount,
             transferRecipient,
             sendExcessesTo,
@@ -335,7 +335,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
         value: 0,
         dest: st.walletAddress,
         body: AskToTransfer {
-            queryId: msg.queryId,
+            queryID: msg.queryID,
             jettonAmount: msg.amount,
             transferRecipient: msg.recipient,
             sendExcessesTo,
@@ -405,7 +405,7 @@ fun onBouncedMessage(in: InMessageBounced) {
                 value: 0,
                 dest: wrap.initiator,
                 body: JettonLockBox_WithdrawFailed {
-                    queryId: msg.queryId,
+                    queryID: msg.queryID,
                     token: st.minterAddress,
                     context: wrap.context as Cell<JettonLockBox_Withdraw>,
                 },

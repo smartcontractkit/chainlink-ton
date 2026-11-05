@@ -40,7 +40,7 @@ runTokenGasCalibration({
         return wallet.sendBurn(owner.getSender(), {
           value: opts.value,
           message: {
-            queryId: opts.queryId,
+            queryID: opts.queryID,
             jettonAmount: opts.jettonAmount,
             responseDestination: opts.responseDestination,
             customPayload: opts.customPayload,
@@ -90,7 +90,7 @@ describe('wGRAM fee-shape constants', () => {
     const transferBodyStats = cellStats(
       walletBuilder.messages.out.internalTransferStep
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           jettonAmount: toNano('0.7'),
           transferInitiator: alice.address,
           responseDestination: deployer.address,
@@ -104,7 +104,7 @@ describe('wGRAM fee-shape constants', () => {
         const b = beginCell()
         walletBuilder.messages.out.transferNotificationForRecipient.store(
           {
-            queryId: 1,
+            queryID: 1,
             jettonAmount: toNano('0.7'),
             senderAddress: alice.address,
             forwardPayload,
@@ -117,7 +117,7 @@ describe('wGRAM fee-shape constants', () => {
     const burnNotificationLiveStats = cellStats(
       walletBuilder.messages.out.burnNotificationForMinter
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           jettonAmount: toNano('0.3'),
           burnInitiator: bob.address,
           responseDestination: recipient.address,
@@ -127,7 +127,7 @@ describe('wGRAM fee-shape constants', () => {
     const burnNotificationWorstCaseStats = cellStats(
       walletBuilder.messages.out.burnNotificationForMinter
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           jettonAmount: maxCoins,
           burnInitiator: bob.address,
           responseDestination: recipient.address,
@@ -135,7 +135,7 @@ describe('wGRAM fee-shape constants', () => {
         .asCell(),
     )
     const returnExcessesStats = cellStats(
-      walletBuilder.messages.out.returnExcessesBack.encode({ queryId: 1n }).asCell(),
+      walletBuilder.messages.out.returnExcessesBack.encode({ queryID: 1n }).asCell(),
     )
 
     expect(burnNotificationWorstCaseStats).toEqual({
@@ -166,7 +166,7 @@ describe('wGRAM fee-shape constants', () => {
         const b = beginCell()
         walletBuilder.messages.in.askToTransfer.store(
           {
-            queryId: 1,
+            queryID: 1,
             jettonAmount: toNano('0.7'),
             // SMALLEST realistic incoming: customPayload is null (one bit, no ref). Any real call
             // is at least this big.
@@ -188,7 +188,7 @@ describe('wGRAM fee-shape constants', () => {
       minterBuilder.messages.in
         .mintNewJettons({ opcode: WGRAM_MINT_OPCODE })
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           destination: alice.address,
           tonAmount: toNano('0.3'),
           jettonAmount: toNano('0.7'),

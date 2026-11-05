@@ -257,7 +257,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
         const failure = rt.Router_WithdrawToTokenPoolFailed.fromSlice(x.beginParse())
         return (
           failure.queryID === 1n &&
-          failure.error === BigInt(or.OnRamp.Errors['OnRamp_Error.SourceTokenDataTooLarge'])
+          failure.errorCode === BigInt(or.OnRamp.Errors['OnRamp_Error.SourceTokenDataTooLarge'])
         )
       },
     })
@@ -287,7 +287,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
         const failure = rt.Router_WithdrawToTokenPoolFailed.fromSlice(x.beginParse())
         return (
           failure.queryID === 1n &&
-          failure.error === BigInt(or.OnRamp.Errors['OnRamp_Error.InvalidDestTokenAddress'])
+          failure.errorCode === BigInt(or.OnRamp.Errors['OnRamp_Error.InvalidDestTokenAddress'])
         )
       },
     })

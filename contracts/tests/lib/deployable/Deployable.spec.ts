@@ -113,7 +113,7 @@ describe('Deployable - Unit Tests', () => {
       deployer.getSender(),
       toNano('0.01'),
       {
-        queryId: 1n,
+        queryID: 1n,
         newCount: 42,
       },
     )
@@ -144,7 +144,7 @@ describe('Deployable - Unit Tests', () => {
         value: toNano('0.02'),
         body: counter.builder.message.in.setCount
           .encode({
-            queryId: 1n,
+            queryID: 1n,
             newCount: 42,
           })
           .asCell(),

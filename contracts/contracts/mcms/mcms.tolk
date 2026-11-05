@@ -67,7 +67,7 @@ contract MCMS {
 /// as we validate the correctness of signatures, this imposes no risk.
 struct (0xe7fabde3) MCMS_SetRoot {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// The new expiring root.
     root: uint256;
@@ -101,7 +101,7 @@ struct (0xe7fabde3) MCMS_SetRoot {
 /// We expect callees to revert if they run out of gas.
 struct (0x9b9ce96a) MCMS_Execute {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// The op to be executed.
     op: Cell<Op>; // @dev split out as cell to avoid size limits
@@ -128,7 +128,7 @@ struct (0x9b9ce96a) MCMS_Execute {
 /// some previous signers aren't trusted any more.
 struct (0x89277f4b) MCMS_SetConfig {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     signerAddresses: SnakedCell<uint160>; // EVM addresses
     signerGroups: SnakedCell<uint8>;
@@ -146,7 +146,7 @@ struct (0x89277f4b) MCMS_SetConfig {
 /// - the caller must be the owner
 struct (0x9dcbbab1) MCMS_UpdateOpFinalizationTimeout {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// The timeout required to finalize the currently executing op
     newOpFinalizationTimeout: uint32;
@@ -161,7 +161,7 @@ struct (0x9dcbbab1) MCMS_UpdateOpFinalizationTimeout {
 /// stale errors for operations that are no longer valid.
 struct (0x4b3af0b5) MCMS_SubmitErrorReport {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// The operation which produced the MCMS_Error.
     op: Cell<Op>;
@@ -185,7 +185,7 @@ struct (0x4b3af0b5) MCMS_SubmitErrorReport {
 /// - the caller must be the owner
 struct (0xf275742f) MCMS_TransferOracleRole {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// The address of the new oracle.
     newOracle: address;
@@ -200,7 +200,7 @@ struct (0xf275742f) MCMS_TransferOracleRole {
 /// - the caller must be the owner
 struct (0xa903c276) MCMS_CleanExpiredRoots {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// The roots to clean up - RootDescriptor{root, validUntil}
     roots: SnakedCell<RootDescriptor>;
@@ -225,7 +225,7 @@ type MCMS_InMessage =
 /// Sent back to sender when a new root is set.
 struct (0xa6533a3d) MCMS_NewRoot {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// The new expiring root.
     root: uint256;
@@ -238,7 +238,7 @@ struct (0xa6533a3d) MCMS_NewRoot {
 /// Sent back to sender when a new config is set.
 struct (0xd80be574) MCMS_ConfigSet {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// The new config.
     config: Config;
@@ -249,7 +249,7 @@ struct (0xd80be574) MCMS_ConfigSet {
 /// Sent back to sender when an op gets successfully executed.
 struct (0x7cf37cbf) MCMS_OpExecuted {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// The nonce of the operation.
     nonce: uint40;
@@ -264,7 +264,7 @@ struct (0x7cf37cbf) MCMS_OpExecuted {
 /// Replied to sender when the op finalization timeout is modified.
 struct (0x16fc10e6) MCMS_OpFinalizationTimeoutChange {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// Duration of the old timeout in seconds.
     oldDuration: uint32;
@@ -275,7 +275,7 @@ struct (0x16fc10e6) MCMS_OpFinalizationTimeoutChange {
 /// Sent back to sender when an error report is successfully submitted.
 struct (0xbbc4deb4) MCMS_ErrorReportSubmitted {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// The (merkle leaf) hash of the operation which produced the MCMS_Error.
     opLeafHash: uint256;
@@ -296,7 +296,7 @@ struct (0xbbc4deb4) MCMS_ErrorReportSubmitted {
 /// Sent back to sender when the oracle role is transferred.
 struct (0xff4176a3) MCMS_OracleRoleTransferred {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
     /// The address of the old oracle.
     oldOracle: address;
     /// The address of the new oracle.
@@ -306,7 +306,7 @@ struct (0xff4176a3) MCMS_OracleRoleTransferred {
 /// Sent back to sender once roots are cleaned from storage
 struct (0xa86846d5) MCMS_ExpiredRootsCleaned {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// The cleaned up roots - RootDescriptor{root, validUntil}
     roots: SnakedCell<RootDescriptor>;
@@ -728,7 +728,7 @@ fun MCMS<T>.setRoot(
     mutate self,
     sender: address,
     value: coins,
-    queryId: uint64,
+    queryID: uint64,
     root: uint256,
     validUntil: uint64,
     metadata: RootMetadata,
@@ -932,7 +932,7 @@ fun MCMS<T>.setRoot(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: MCMS_NewRoot{queryId, root, validUntil, metadata}
+        body: MCMS_NewRoot{queryID, root, validUntil, metadata}
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -958,7 +958,7 @@ fun MCMS<T>.execute(
     mutate self,
     sender: address,
     value: coins,
-    queryId: uint64,
+    queryID: uint64,
     op: Op,
     proof: SnakedCell<uint256>,
 ) {
@@ -1049,7 +1049,7 @@ fun MCMS<T>.execute(
         bounce: BounceMode.NoBounce,
         value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
-        body: MCMS_OpExecuted{queryId, nonce: op.nonce, to: op.to, data: op.data, value: op.value}
+        body: MCMS_OpExecuted{queryID, nonce: op.nonce, to: op.to, data: op.data, value: op.value}
     });
     reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
@@ -1075,7 +1075,7 @@ fun MCMS<T>.setConfig(
     mutate self,
     sender: address,
     value: coins,
-    queryId: uint64,
+    queryID: uint64,
     signerAddresses: SnakedCell<uint160>, // EVM addresses
     signerGroups: SnakedCell<uint8>,
     groupQuorums: map<uint8, uint8>, // indexed, iterable backwards
@@ -1252,7 +1252,7 @@ fun MCMS<T>.setConfig(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: MCMS_ConfigSet{ queryId, config, isRootCleared: clearRoot }
+        body: MCMS_ConfigSet{ queryID, config, isRootCleared: clearRoot }
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -1263,7 +1263,7 @@ fun MCMS<T>.updateOpFinalizationTimeout(
     mutate self,
     sender: address,
     _value: coins,
-    queryId: uint64,
+    queryID: uint64,
     newOpFinalizationTimeout: uint32
 ): void {
     // the caller owns funding; TODO: check min value
@@ -1291,7 +1291,7 @@ fun MCMS<T>.updateOpFinalizationTimeout(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: MCMS_OpFinalizationTimeoutChange{ queryId, oldDuration: currTimeout, newDuration: newOpFinalizationTimeout}
+        body: MCMS_OpFinalizationTimeoutChange{ queryID, oldDuration: currTimeout, newDuration: newOpFinalizationTimeout}
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -1303,7 +1303,7 @@ fun MCMS<T>.submitErrorReport(
     mutate self,
     sender: address,
     value: coins,
-    queryId: uint64,
+    queryID: uint64,
     op: Op,
     proof: SnakedCell<uint256>,
     opTxHash: uint256,
@@ -1366,7 +1366,7 @@ fun MCMS<T>.submitErrorReport(
         value: 0,
         dest: sender,
         body: MCMS_ErrorReportSubmitted{
-            queryId,
+            queryID,
             opLeafHash: hashedLeaf,
             opTxHash,
             errorTxHash,
@@ -1385,7 +1385,7 @@ fun MCMS<T>.transferOracleRole(
     mutate self,
     sender: address,
     _value: coins,
-    queryId: uint64,
+    queryID: uint64,
     newOracle: address
 ) {
     // the caller owns funding; TODO: check min value
@@ -1399,7 +1399,7 @@ fun MCMS<T>.transferOracleRole(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: MCMS_OracleRoleTransferred{ queryId, oldOracle, newOracle }
+        body: MCMS_OracleRoleTransferred{ queryID, oldOracle, newOracle }
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -1411,7 +1411,7 @@ fun MCMS<T>.cleanExpiredRoots(
     mutate self,
     sender: address,
     _value: coins,
-    queryId: uint64,
+    queryID: uint64,
     roots: SnakedCell<RootDescriptor>,
 ) {
     // TODO[VALUE]: [NONEVM-5766] no value gate; loops over roots; add a safety check
@@ -1432,7 +1432,7 @@ fun MCMS<T>.cleanExpiredRoots(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: MCMS_ExpiredRootsCleaned{queryId, roots}
+        body: MCMS_ExpiredRootsCleaned{queryID, roots}
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -1516,28 +1516,28 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
     val msg = lazy MCMS_InMessage.fromSlice(msgBody);
     match (msg) {
         MCMS_SetRoot => {
-            self.setRoot(msgSender, msgValue, msg.queryId, msg.root, msg.validUntil, msg.metadata,
+            self.setRoot(msgSender, msgValue, msg.queryID, msg.root, msg.validUntil, msg.metadata,
                 msg.metadataProof, msg.signatures);
         }
         MCMS_Execute => {
-            self.execute(msgSender, msgValue, msg.queryId, msg.op.load(), msg.proof);
+            self.execute(msgSender, msgValue, msg.queryID, msg.op.load(), msg.proof);
         }
         MCMS_SetConfig => {
-            self.setConfig(msgSender, msgValue, msg.queryId, msg.signerAddresses, msg.signerGroups,
+            self.setConfig(msgSender, msgValue, msg.queryID, msg.signerAddresses, msg.signerGroups,
                 msg.groupQuorums, msg.groupParents, msg.clearRoot);
         }
         MCMS_UpdateOpFinalizationTimeout => {
-            self.updateOpFinalizationTimeout(msgSender, msgValue, msg.queryId, msg.newOpFinalizationTimeout);
+            self.updateOpFinalizationTimeout(msgSender, msgValue, msg.queryID, msg.newOpFinalizationTimeout);
         }
         MCMS_SubmitErrorReport => {
-            self.submitErrorReport(msgSender, msgValue, msg.queryId, msg.op.load(),
+            self.submitErrorReport(msgSender, msgValue, msg.queryID, msg.op.load(),
                 msg.proof, msg.opTxHash, msg.errorTxHash, msg.errorCode);
         }
         MCMS_TransferOracleRole => {
-            self.transferOracleRole(msgSender, msgValue, msg.queryId, msg.newOracle);
+            self.transferOracleRole(msgSender, msgValue, msg.queryID, msg.newOracle);
         }
         MCMS_CleanExpiredRoots => {
-            self.cleanExpiredRoots(msgSender, msgValue, msg.queryId, msg.roots);
+            self.cleanExpiredRoots(msgSender, msgValue, msg.queryID, msg.roots);
         }
         // noop handlers (expected replies for ownable ops when owning self)
         MCMS_OracleRoleTransferred => {

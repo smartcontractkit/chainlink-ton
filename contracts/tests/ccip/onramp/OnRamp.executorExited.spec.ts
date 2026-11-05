@@ -215,7 +215,7 @@ describe('OnRamp - executor exit', () => {
       queryID: ccipSend.queryID,
       destChainSelector: ccipSend.destChainSelector,
       sender: senderAddress,
-      error: 42n,
+      errorCode: 42n,
       refund,
     })
 
@@ -235,7 +235,7 @@ describe('OnRamp - executor exit', () => {
         return (
           msgSent.sender.equals(senderAddress) &&
           msgSent.queryID === BigInt(ccipSend.queryID ?? 0) &&
-          msgSent.error === 42n
+          msgSent.errorCode === 42n
         )
       },
     })
@@ -263,7 +263,7 @@ describe('OnRamp - executor exit', () => {
       queryID: ccipSend.queryID,
       destChainSelector: ccipSend.destChainSelector,
       sender: senderAddress,
-      error: 42n,
+      errorCode: 42n,
       refund: fee,
     })
     expect(result.transactions).toHaveTransaction({
@@ -543,7 +543,7 @@ describe('OnRamp - executor exit', () => {
       queryID: ccipSend.queryID,
       destChainSelector: ccipSend.destChainSelector,
       sender: senderAddress,
-      error: 42n,
+      errorCode: 42n,
       refund: null,
     })
 
@@ -564,7 +564,7 @@ describe('OnRamp - executor exit', () => {
         queryID: ccipSend.queryID,
         destChainSelector: ccipSend.destChainSelector,
         sender: senderAddress,
-        error: 42n,
+        errorCode: 42n,
         refund: null,
       },
     )

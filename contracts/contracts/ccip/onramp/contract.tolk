@@ -253,7 +253,7 @@ fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed) {
         value: 0,
         dest: userAddress,
         body: OnRamp_MessageValidationFailed {
-            error: msg.error,
+            errorCode: msg.errorCode,
             msg: msg.msg,
             context: userContext,
         }
@@ -394,7 +394,7 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
                 queryID: msg.queryID,
                 destChainSelector: msg.destChainSelector,
                 withdrawRequest: msg.withdrawRequest,
-                error: e,
+                errorCode: e,
             }
         });
         failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -441,12 +441,12 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
-fun sendLockOrBurnFailed(executor: address, queryId: uint64, errorCode: int32) {
+fun sendLockOrBurnFailed(executor: address, queryID: uint64, errorCode: int32) {
     val failed = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: executor,
-        body: OnRamp_LockOrBurnFailed { queryId, errorCode },
+        body: OnRamp_LockOrBurnFailed { queryID, errorCode },
     });
     failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -578,10 +578,10 @@ fun onExecutorFinishedWithError(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorF
     // the counter (which would inflate the spendable balance).
     st.pendingFeeReservations = max(st.pendingFeeReservations - refund, 0);
 
-    rejectMessage(msg.error, router, msg.queryID, msg.destChainSelector, msg.sender, refund);
+    rejectMessage(msg.errorCode, router, msg.queryID, msg.destChainSelector, msg.sender, refund);
 }
 
-fun rejectMessage(error: int, router: address, queryID: uint64, destChainSelector: uint64, sender: address, refund: coins = 0) {
+fun rejectMessage(errorCode: int, router: address, queryID: uint64, destChainSelector: uint64, sender: address, refund: coins = 0) {
     val errorMsg = createMessage({
         bounce: BounceMode.NoBounce,
         // A charged fee is already reserved on this contract.
@@ -591,7 +591,7 @@ fun rejectMessage(error: int, router: address, queryID: uint64, destChainSelecto
             queryID,
             destChainSelector,
             sender,
-            error,
+            errorCode,
         },
     });
     errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

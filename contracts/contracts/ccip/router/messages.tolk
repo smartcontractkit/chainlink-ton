@@ -63,14 +63,14 @@ type Router_RichBouncedMessage =
 
 // update multiple chain selectors in batch to the same onramp/offramp address
 struct (0x7db6745d) Router_ApplyRampUpdates {
-    queryId: uint64;
+    queryID: uint64;
     onRampUpdates: OnRamps? = null;
     offRampAdds: OffRamps? = null;
     offRampRemoves: OffRamps? = null;
 }
 
 struct (0xfc69c50b) Router_RouteMessage {
-    queryId: uint64;
+    queryID: uint64;
     message: Cell<Any2TVMMessage>;
     execId: ReceiveExecutorId;
     receiver: address;
@@ -102,7 +102,7 @@ struct Router_WithdrawRequest {
 /// Router_OnRampAccountFailed otherwise (e.g. the token can't report the wallet, or another request
 /// for the same new account is still waiting for it).
 struct (0x0e24d5ba) Router_GetOnRampAccount {
-    queryId: uint64;
+    queryID: uint64;
     /// Jetton master the account will escrow. One account per (sender, token).
     token: address;
 }
@@ -110,15 +110,15 @@ struct (0x0e24d5ba) Router_GetOnRampAccount {
 /// Sent to a user once their onramp account confirmed initialization: `account` is the
 /// address the user must send `token` jettons to (via its jetton wallet).
 struct (0xf28658e0) Router_UseOnRampAccount {
-    queryId: uint64;
+    queryID: uint64;
     account: address;
     token: address;
 }
 
 /// Sent to a user whose Router_GetOnRampAccount failed. `error` is the failure's exit code.
 struct (0x2c734db9) Router_OnRampAccountFailed {
-    queryId: uint64;
-    error: uint256;
+    queryID: uint64;
+    errorCode: uint256;
 }
 
 /// Sent by the OnRamp when it rejects a `Router_WithdrawToTokenPool` request before the
@@ -128,35 +128,35 @@ struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
     queryID: uint64;
     destChainSelector: uint64;
     withdrawRequest: Cell<Router_WithdrawRequest>;
-    error: int32;                                   // Raw TVM exit code (signed).
+    errorCode: int32;                                   // Raw TVM exit code (signed).
 }
 
 // curse/uncurse/verify uncursed (also as getter)
 struct (0xf3388046) Router_RMNRemoteCurse {
-    queryId: uint64
+    queryID: uint64
     subjects: SnakedCell<uint128>
 }
 
 struct (0x3f153a31) Router_RMNRemoteUncurse {
-    queryId: uint64
+    queryID: uint64
     subjects: SnakedCell<uint128>
 }
 
 // Internal contracts can have their own cache, but external contracts will need to fetch the curse status via this method.
 struct (0x0b95aa4e) Router_RMNRemoteVerifyNotCursed {
-    queryId: uint64
+    queryID: uint64
     subject: uint128
 }
 
 struct (0x22ba83b3) Router_RMNRemoteVerifyNotCursedResponse {
-    queryId: uint64
+    queryID: uint64
     result: bool
 }
 
 /// Re-sends the current cursed subjects to every registered OffRamp, e.g. after
 /// adding a new OffRamp.
 struct (0x0fdd7b0f) Router_RMNRemoteSyncOffRamps {
-    queryId: uint64
+    queryID: uint64
 }
 
 struct (0x6513f8e1) Router_MessageSent {
@@ -170,7 +170,7 @@ struct (0x8ae25114) Router_MessageRejected {
     queryID: uint64;
     destChainSelector: uint64;
     sender: address;
-    error: uint256;
+    errorCode: uint256;
 }
 
 struct (0xaf7a9ac6) Router_RMNOwnableMessage {
@@ -190,7 +190,7 @@ struct (0x78d0f21e) Router_CCIPSendACK {
 
 struct (0x5a45d434) Router_CCIPSendNACK {
     queryID: uint64;
-    error: uint256;
+    errorCode: uint256;
 }
 
 @deprecated("use Router_GetValidatedFee instead")
@@ -231,7 +231,7 @@ struct (0xb19862a3) Router_RelayReleaseOrMint {
 /// Sent by the OffRamp once a ReceiveExecutor confirmed the released/minted tokens reached the
 /// receiver's deposit account. Relayed to the pool as `TokenPool_ReleaseOrMintDelivered`.
 struct (0xddfdefa8) Router_TokenTransferDelivered {
-    queryId: uint64;
+    queryID: uint64;
     tokenPool: address;
     replyTo: address;
     transfer: Cell<TokenPool_DeliveredTransfer>;
@@ -270,7 +270,7 @@ struct (0x9e2155ec) Router_MessageValidated_V1 {
 @deprecated("use Router_MessageValidationFailed instead")
 // nolint:opcode : crc32('Router_MessageValidationFailed')
 struct (0xec23c562) Router_MessageValidationFailed_V1 {
-    error: uint256,
+    errorCode: uint256,
     msg: Cell<Router_CCIPSend>,
     context: RemainingBitsAndRefs,
 }
@@ -286,7 +286,7 @@ struct (0x97ca8bd8) Router_MessageValidated {
 
 // nolint:opcode : crc32('Router_MessageValidationFailed_V2')
 struct (0xe32e5616) Router_MessageValidationFailed {
-    error: uint256,
+    errorCode: uint256,
     msg: Cell<Router_CCIPSend>,
     context: cell?
 }
@@ -296,7 +296,7 @@ struct (0xe32e5616) Router_MessageValidationFailed {
 struct (0xb76e3a84) Router_TokenPoolLockOrBurnFailed {
     queryID: uint64;
     tokenPool: address;
-    exitCode: int32;
+    errorCode: int32;
 }
 
 /// Canonical Router failure for an inbound release/mint that the Router could
@@ -310,7 +310,7 @@ struct (0xb980cb4e) Router_TokenPoolReleaseOrMintFailed {
     sourceChainSelector: uint64;
     replyTo: address;
     tokenPool: address;
-    exitCode: int32;
+    errorCode: int32;
 }
 
 // Costs associated with Router operations

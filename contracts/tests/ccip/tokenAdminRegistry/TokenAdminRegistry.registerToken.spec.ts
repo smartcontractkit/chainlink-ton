@@ -66,7 +66,7 @@ describe('TokenAdminRegistry - Register Token', () => {
   })
 
   it('relays the initial administrator proposal event through the root', async () => {
-    const result = await registerToken(fx, { queryId: 101n })
+    const result = await registerToken(fx, { queryID: 101n })
 
     expect(
       tar.TokenAdminRegistry_AdministratorTransferRequested.fromSlice(
@@ -74,7 +74,7 @@ describe('TokenAdminRegistry - Register Token', () => {
       ),
     ).toEqual(
       tar.TokenAdminRegistry_AdministratorTransferRequested.create({
-        queryId: 101n,
+        queryID: 101n,
         token: fx.token,
         currentAdministrator: null,
         newAdministrator: fx.administrator.address,
@@ -187,7 +187,7 @@ describe('TokenAdminRegistry - Register Token', () => {
       const result = await entry.sendTokenAdminRegistryEntryRegistrationInitialized(
         sender,
         toNano('0.05'),
-        { queryId: 1n },
+        { queryID: 1n },
       )
       expect(result.transactions).toHaveTransaction({
         to: entry.address,
@@ -200,7 +200,7 @@ describe('TokenAdminRegistry - Register Token', () => {
   describe('TEP-89 check', () => {
     const verifyToken = (token = fx.token, value = OPERATION_VALUE) =>
       fx.registry.sendTokenAdminRegistryVerifyToken(fx.other.getSender(), value, {
-        queryId: 9n,
+        queryID: 9n,
         tokenAddress: token,
       })
 
@@ -240,7 +240,7 @@ describe('TokenAdminRegistry - Register Token', () => {
       const result = await fx.registry.sendTokenAdminRegistryGetTokenInfo(
         fx.other.getSender(),
         OPERATION_VALUE,
-        { queryId: 1n, token: fx.token },
+        { queryID: 1n, token: fx.token },
       )
       const info = returnedTokenInfo(fx, result, fx.other.address)
       expect(info.poolInfo).toBeNull()

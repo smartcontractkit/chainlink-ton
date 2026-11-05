@@ -127,7 +127,7 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_TokenTransferDelivered => {
             val st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
-            relayTokenTransferDelivered(st, msg.queryId, msg.execId, in.senderAddress, msg.delivered, true);
+            relayTokenTransferDelivered(st, msg.queryID, msg.execId, in.senderAddress, msg.delivered, true);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifyFailure => {
@@ -253,8 +253,8 @@ fun onBouncedDeployableInitialize(msg: Deployable_Initialize, senderAddress: add
 // Handles a bounced Router_RelayReleaseOrMint: the Router rejected the relay
 // (e.g. this OffRamp is no longer registered, or it reverted). Fails the
 // executor through the usual rail.
-fun onBouncedRouterRelayReleaseOrMint(msg: Router_RelayReleaseOrMint, exitCode: int32) {
-    mintOrReleaseFailed(msg.replyTo, msg.queryID, ReleaseOrMintBounced { exitCode });
+fun onBouncedRouterRelayReleaseOrMint(msg: Router_RelayReleaseOrMint, errorCode: int32) {
+    mintOrReleaseFailed(msg.replyTo, msg.queryID, ReleaseOrMintBounced { errorCode });
 }
 
 // Handles bounced Router_RouteMessage messages. This should never happen; if
@@ -268,7 +268,7 @@ fun onBouncedRouterRouteMessage(msg: Router_RouteMessage, senderAddress: address
     });
 
     // Send ReceiveBounced to initiate the failure notification trace 
-    ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, msg.receiver, ReceiveExecutor_FailedReason.BouncedFromRouter)
+    ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryID, msg.receiver, ReceiveExecutor_FailedReason.BouncedFromRouter)
 }
 
 // Handles contract upgrade requests using the Upgradeable pattern. Invokes the
@@ -353,15 +353,15 @@ fun version(): slice { return CONTRACT_VERSION; }
 fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
     val st = Storage.load();
 
-    // queryId is not available on this path (OffRamp_CCIPReceiveBounced originates from a
+    // queryID is not available on this path (OffRamp_CCIPReceiveBounced originates from a
     // bounced Receiver_CCIPReceiveV2, where only the first 256 bits are returned). The
-    // ReceiveExecutor already stores the queryId in its own storage.
+    // ReceiveExecutor already stores the queryID in its own storage.
     val receiveBounced = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_CCIPReceiveFailed{ 
-            queryId: 0,
+            queryID: 0,
             receiver: msg.receiver,
             reason: ReceiveExecutor_FailedReason.BouncedFromReceiver,
         }
@@ -396,7 +396,7 @@ fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
 fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: address) {
     if (msg.delivered != null) {
         // Fixed value; the executor's leftover stays on the OffRamp.
-        relayTokenTransferDelivered(st, msg.queryId, msg.execId, receiveExecutor, msg.delivered!, false);
+        relayTokenTransferDelivered(st, msg.queryID, msg.execId, receiveExecutor, msg.delivered!, false);
     }
 
     val messageHeader = lazy msg.header.load();
@@ -419,14 +419,14 @@ fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: ad
 //     OffRamp         ->> Router:    Router_TokenTransferDelivered
 //     Router          ->> TokenPool: TokenPool_ReleaseOrMintDelivered
 //     TokenPool       ->> ReceiveExecutor: TokenPool_ReleaseOrMintFinalized
-fun relayTokenTransferDelivered(st: Storage, queryId: uint64, execId: ReceiveExecutorId, receiveExecutor: address, deliveredCell: Cell<OffRamp_DeliveredTransfer>, carryValue: bool) {
+fun relayTokenTransferDelivered(st: Storage, queryID: uint64, execId: ReceiveExecutorId, receiveExecutor: address, deliveredCell: Cell<OffRamp_DeliveredTransfer>, carryValue: bool) {
     val delivered = lazy deliveredCell.load();
     val relay = createMessage({
         bounce: BounceMode.NoBounce,
         value: carryValue ? 0 : OffRamp_Costs.tokenTransferDelivered(),
         dest: getRouterFromSelector(st, execId.getSourceChainSelector()),
         body: Router_TokenTransferDelivered {
-            queryId,
+            queryID,
             tokenPool: delivered.tokenPool,
             replyTo: receiveExecutor,
             transfer: delivered.transfer,
@@ -477,7 +477,7 @@ fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
         value: 0,
         dest:  getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_CCIPReceiveConfirm {
-            queryId: msg.queryId,
+            queryID: msg.queryID,
             receiver: msg.receiver,
         },
     });
@@ -504,14 +504,14 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
 
     if (msg.effectiveGasLimit < st.config.load().dynamicConfig.load().minGasLimit) {
-        return ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, message.receiver, ReceiveExecutor_FailedReason.NotEnoughGas);
+        return ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryID, message.receiver, ReceiveExecutor_FailedReason.NotEnoughGas);
     }
     val routeMessage = createMessage({
         bounce: BounceMode.RichBounce,
         value: msg.effectiveGasLimit + Router_Costs.routeMessage(),
         dest: router,
         body: Router_RouteMessage {
-            queryId: msg.queryId,
+            queryID: msg.queryID,
             message: Any2TVMMessage {
                 messageId: message.header.messageId,
                 sourceChainSelector: message.header.sourceChainSelector,
@@ -528,13 +528,13 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     routeMessage.send(SEND_MODE_REGULAR);
 }
 
-fun ccipReceiveFailed(receiveExecutor: address, queryId: uint64, receiver: address, reason: ReceiveExecutor_FailedReason) {
+fun ccipReceiveFailed(receiveExecutor: address, queryID: uint64, receiver: address, reason: ReceiveExecutor_FailedReason) {
     val receiveBounced = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: receiveExecutor,
         body: ReceiveExecutor_CCIPReceiveFailed{
-            queryId,
+            queryID,
             receiver,
             reason,
         }
@@ -543,13 +543,13 @@ fun ccipReceiveFailed(receiveExecutor: address, queryId: uint64, receiver: addre
 }
 
 // Send ReceiveBounced to initiate the failure notification trace
-fun mintOrReleaseFailed(receiveExecutor: address, queryId: uint64, reason: ReleaseOrMint_ReleaseOrMintFailedReason) {
+fun mintOrReleaseFailed(receiveExecutor: address, queryID: uint64, reason: ReleaseOrMint_ReleaseOrMintFailedReason) {
     val receiveBounced = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: receiveExecutor,
         body: ReceiveExecutor_ReleaseOrMintFailed {
-            queryId,
+            queryID,
             reason,
         }
     });
@@ -559,7 +559,7 @@ fun mintOrReleaseFailed(receiveExecutor: address, queryId: uint64, reason: Relea
 // Fails the executor after the Router reported a release/mint failure (lane
 // cursed, or the pool bounced the relay).
 fun onTokenPoolReleaseOrMintFailed(msg: Router_TokenPoolReleaseOrMintFailed) {
-    mintOrReleaseFailed(msg.replyTo, msg.queryID, ReleaseOrMintBounced { exitCode: msg.exitCode });
+    mintOrReleaseFailed(msg.replyTo, msg.queryID, ReleaseOrMintBounced { errorCode: msg.errorCode });
 }
 
 // Relays a release/mint request through the Router, the single access point of
@@ -569,7 +569,7 @@ fun onTokenPoolReleaseOrMintFailed(msg: Router_TokenPoolReleaseOrMintFailed) {
 fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMint) {
     if (msg.destGasAmount < st.config.load().dynamicConfig.load().minTTGasLimit) {
         val receiveExecutor = getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress();
-        return mintOrReleaseFailed(receiveExecutor, msg.queryId, NotEnoughDestGasAmountForTokenTransfer {});
+        return mintOrReleaseFailed(receiveExecutor, msg.queryID, NotEnoughDestGasAmountForTokenTransfer {});
     }
 
     val relayMsg = createMessage({
@@ -577,7 +577,7 @@ fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMi
         value: 0,
         dest: getRouterFromSelector(st, msg.execId.getSourceChainSelector()),
         body: Router_RelayReleaseOrMint {
-            queryID: msg.queryId,
+            queryID: msg.queryID,
             sourceChainSelector: msg.execId.getSourceChainSelector(),
             tokenPool: msg.tokenPool,
             request: msg.request,
@@ -755,7 +755,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
 //     Wallet  ->> OffRamp:    OffRamp_ManuallyExecute
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
 fun onManuallyExecute(msg: OffRamp_ManuallyExecute, value: coins) {
-    onExecuteSingleReport(msg.report, msg.gasOverride, value, msg.queryId);
+    onExecuteSingleReport(msg.report, msg.gasOverride, value, msg.queryID);
 }
 
 // Executes a single cross-chain execution report.
@@ -780,7 +780,7 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
         createEmptyCell(),
     );
 
-    onExecuteSingleReport(msg.report, null, value, msg.queryId);
+    onExecuteSingleReport(msg.report, null, value, msg.queryID);
 }
 
 // Executes a single cross-chain execution report. Verifies source chain
@@ -794,7 +794,7 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
 
 //     Wallet  ->> OffRamp:    OffRamp_Execute/ManuallyExecute
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
-fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, value: coins, queryId: uint64) {
+fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, value: coins, queryID: uint64) {
     var st = Storage.load();
 
     // check if chain was cursed by RMNRemote
@@ -896,7 +896,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
         value: 0,
         dest: getMerkleRootDeployAddress(st, root),
         body: MerkleRoot_Validate {
-            queryId,
+            queryID,
             message: report.messages as Cell<Any2TVMRampMessage>,
             metadataHash,
             permissionlessExecutionThresholdSeconds: st.config.load().dynamicConfig.load().permissionlessExecutionThresholdSeconds,
@@ -1012,7 +1012,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
     }
 
     var initExecuteMsg = ReceiveExecutor_InitExecute {
-        queryId: msg.queryId,
+        queryID: msg.queryID,
         effectiveGasLimit: message.gasLimit,
         root: sender,
         sequenceNumber: message.header.sequenceNumber,

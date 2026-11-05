@@ -57,9 +57,9 @@ func buildTestCalls(t *testing.T) common.SnakedCell[Call] {
 	addr2, err := address.ParseAddr(testAddress2)
 	require.NoError(t, err)
 
-	// Call 0: opcode 0x11111111, queryId 1, value 0.1 TON
+	// Call 0: opcode 0x11111111, queryID 1, value 0.1 TON
 	data0 := cell.BeginCell().MustStoreUInt(0x11111111, 32).MustStoreUInt(1, 64).EndCell()
-	// Call 1: opcode 0x22222222, queryId 2, value 0.2 TON
+	// Call 1: opcode 0x22222222, queryID 2, value 0.2 TON
 	data1 := cell.BeginCell().MustStoreUInt(0x22222222, 32).MustStoreUInt(2, 64).EndCell()
 
 	return common.SnakedCell[Call]{

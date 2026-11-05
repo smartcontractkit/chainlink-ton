@@ -236,14 +236,14 @@ export const TokenAdminRegistryEntry_RootMessage = {
 
 /**
  > struct (0x558e7559) TokenAdminRegistryEntry_MessageFromRoot {
- >     queryId: uint64
+ >     queryID: uint64
  >     minEntryVersion: uint16
  >     content: Cell<TokenAdminRegistryEntry_RootMessage>
  > }
  */
 export interface TokenAdminRegistryEntry_MessageFromRoot {
     readonly $: 'TokenAdminRegistryEntry_MessageFromRoot'
-    queryId: uint64
+    queryID: uint64
     minEntryVersion: uint16
     content: TokenAdminRegistryEntry_RootMessage
 }
@@ -252,28 +252,28 @@ export const TokenAdminRegistryEntry_MessageFromRoot = {
     PREFIX: 0x558e7559,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         minEntryVersion: uint16
         content: TokenAdminRegistryEntry_RootMessage
     }): TokenAdminRegistryEntry_MessageFromRoot {
         return {
             $: 'TokenAdminRegistryEntry_MessageFromRoot',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_MessageFromRoot {
         loadAndCheckPrefix32(s, 0x558e7559, 'TokenAdminRegistryEntry_MessageFromRoot');
         return {
             $: 'TokenAdminRegistryEntry_MessageFromRoot',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             minEntryVersion: s.loadUintBig(16),
             content: loadCellRef<TokenAdminRegistryEntry_RootMessage>(s, TokenAdminRegistryEntry_RootMessage.fromSlice),
         }
     },
     store(self: TokenAdminRegistryEntry_MessageFromRoot, b: c.Builder): void {
         b.storeUint(0x558e7559, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.minEntryVersion, 16);
         storeCellRef<TokenAdminRegistryEntry_RootMessage>(self.content, b, TokenAdminRegistryEntry_RootMessage.store);
     },
@@ -705,7 +705,7 @@ export class TokenAdminRegistryEntryUpgradeTarget implements c.Contract {
         return r.readWideNullable<TokenAdminRegistryEntry_MessageFromRoot>(4,
             (r) => ({
                 $: 'TokenAdminRegistryEntry_MessageFromRoot',
-                queryId: r.readBigInt(),
+                queryID: r.readBigInt(),
                 minEntryVersion: r.readBigInt(),
                 content: r.readCellRef<TokenAdminRegistryEntry_RootMessage>(TokenAdminRegistryEntry_RootMessage.fromSlice),
             })

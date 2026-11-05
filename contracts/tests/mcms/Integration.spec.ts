@@ -212,7 +212,7 @@ describe('MCMS - IntegrationTest', () => {
     {
       const body = rbactl.builder.message.in.init
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           minDelay: MIN_DELAY,
           admin: acc.deployer.address,
           proposers: [bind.mcmsPropose.address],
@@ -241,7 +241,7 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.05'),
         ac.builder.message.in.grantRole
           .encode({
-            queryId: 1n,
+            queryID: 1n,
             role: rbactl.roles.admin,
             account: bind.timelock.address,
           })
@@ -273,7 +273,7 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.2'),
         mcms.builder.message.in.setConfig
           .encode({
-            queryId: 1n,
+            queryID: 1n,
             signerAddresses: proposerKeyPairs().map((v) => BigInt(computeAddress(v))),
             signerGroups: Array(PROPOSE_COUNT).fill(0),
             groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
@@ -319,7 +319,7 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.2'),
         mcms.builder.message.in.setConfig
           .encode({
-            queryId: 1n,
+            queryID: 1n,
             signerAddresses: vetoKeyPairs().map((v) => BigInt(computeAddress(v))),
             signerGroups: Array(VETO_COUNT).fill(0),
             groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
@@ -366,7 +366,7 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.2'),
         mcms.builder.message.in.setConfig
           .encode({
-            queryId: 1n,
+            queryID: 1n,
             signerAddresses: signerKeyPairs.map((v) => BigInt(computeAddress(v))),
             signerGroups: Array(PROPOSE_COUNT + VETO_COUNT)
               .fill(1, 0, PROPOSE_COUNT)
@@ -424,7 +424,7 @@ describe('MCMS - IntegrationTest', () => {
       toNano('0.05'),
       ownable2step.builder.message.in.transferOwnership
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           newOwner: bind.timelock.address,
         })
         .asCell(),
@@ -436,14 +436,14 @@ describe('MCMS - IntegrationTest', () => {
       toNano('0.15'), // need 0.1 TON extra to reserve for rent
       rbactl.builder.message.in.bypasserExecuteBatch
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           // Notice: single call encoded as calls
           calls: rbactl.builder.data.call
             .encode({
               target: ownable.address,
               value: toNano('0.05'),
               data: ownable2step.builder.message.in.acceptOwnership
-                .encode({ queryId: 1n })
+                .encode({ queryID: 1n })
                 .asCell(),
             })
             .asCell(),
@@ -499,12 +499,12 @@ describe('MCMS - IntegrationTest', () => {
           {
             target: bind.counter.address,
             value: toNano('0.05'),
-            data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
+            data: counter.builder.message.in.increaseCount.encode({ queryID: 1n }).asCell(),
           },
           {
             target: bind.counter.address,
             value: toNano('0.05'),
-            data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }).asCell(),
+            data: counter.builder.message.in.increaseCount.encode({ queryID: 2n }).asCell(),
           },
         ],
         (c) => rbactl.builder.data.call.encode(c),
@@ -535,7 +535,7 @@ describe('MCMS - IntegrationTest', () => {
           value: toNano('0.05'),
           data: rbactl.builder.message.in.scheduleBatch
             .encode({
-              queryId: 1n,
+              queryID: 1n,
               calls,
               predecessor: proposePredecessor,
               salt: 0n,
@@ -563,7 +563,7 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.05'), // to cover execution fee
         mcms.builder.message.in.execute
           .encode({
-            queryId: 1n,
+            queryID: 1n,
             op: mcms.builder.data.op.encode(ops[0]).asCell(),
             proof: opProofs[0],
           })
@@ -583,7 +583,7 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.10'), // has enough reserve, no need for +1 TON
         rbactl.builder.message.in.executeBatch
           .encode({
-            queryId: 1n,
+            queryID: 1n,
             predecessor: proposePredecessor,
             salt: 0n,
             calls,
@@ -605,7 +605,7 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.10'), // has enough reserve, no need for +1 TON
         rbactl.builder.message.in.executeBatch
           .encode({
-            queryId: 2n,
+            queryID: 2n,
             predecessor: proposePredecessor,
             salt: 0n,
             calls,
@@ -652,7 +652,7 @@ describe('MCMS - IntegrationTest', () => {
           value: toNano('0.05'),
           data: rbactl.builder.message.in.scheduleBatch
             .encode({
-              queryId: 1n,
+              queryID: 1n,
               calls,
               predecessor: proposePredecessor,
               salt: 0n,
@@ -681,7 +681,7 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.05'), // to cover execution fee
         mcms.builder.message.in.execute
           .encode({
-            queryId: 1n,
+            queryID: 1n,
             op: mcms.builder.data.op.encode(ops[0]).asCell(),
             proof: opProofs[0],
           })
@@ -702,7 +702,7 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.10'), // has enough reserve, no need for +1 TON
         rbactl.builder.message.in.executeBatch
           .encode({
-            queryId: 2n,
+            queryID: 2n,
             predecessor: proposePredecessor + 1n, // wrong predecessor
             salt: 0n,
             calls,
@@ -721,7 +721,7 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.10'), // has enough reserve, no need for +1 TON
         rbactl.builder.message.in.executeBatch
           .encode({
-            queryId: 3n,
+            queryID: 3n,
             predecessor: proposePredecessor,
             salt: 0n,
             calls,
@@ -750,7 +750,7 @@ describe('MCMS - IntegrationTest', () => {
           {
             target: bind.timelock.address,
             value: toNano('0.05'),
-            data: rbactl.builder.message.in.updateDelay.encode({ queryId: 1n, newDelay }).asCell(),
+            data: rbactl.builder.message.in.updateDelay.encode({ queryID: 1n, newDelay }).asCell(),
           },
         ],
         (c) => rbactl.builder.data.call.encode(c),
@@ -780,7 +780,7 @@ describe('MCMS - IntegrationTest', () => {
           to: bind.timelock.address,
           value: toNano('0.05'), // has enough reserve, no need for +1 TON
           data: rbactl.builder.message.in.bypasserExecuteBatch
-            .encode({ queryId: 1n, calls })
+            .encode({ queryID: 1n, calls })
             .asCell(),
         },
       ]
@@ -804,7 +804,7 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.05'), // to cover execution fee
         mcms.builder.message.in.execute
           .encode({
-            queryId: 1n,
+            queryID: 1n,
             op: mcms.builder.data.op.encode(ops[0]).asCell(),
             proof: opProofs[0],
           })
@@ -862,7 +862,7 @@ describe('MCMS - IntegrationTest', () => {
             value: toNano('0.05'),
             data: ac.builder.message.in.grantRole
               .encode({
-                queryId: 1n,
+                queryID: 1n,
                 role: rbactl.roles.admin,
                 account: evil,
               })
@@ -897,7 +897,7 @@ describe('MCMS - IntegrationTest', () => {
           value: toNano('0.05'),
           data: rbactl.builder.message.in.scheduleBatch
             .encode({
-              queryId: 1n,
+              queryID: 1n,
               calls,
               predecessor: proposePredecessor,
               salt: 0n,
@@ -926,7 +926,7 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.05'), // to cover execution fee
         mcms.builder.message.in.execute
           .encode({
-            queryId: 1n,
+            queryID: 1n,
             op: mcms.builder.data.op.encode(ops[0]).asCell(),
             proof: opProofs[0],
           })
@@ -944,7 +944,7 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.10'),
         rbactl.builder.message.in.executeBatch
           .encode({
-            queryId: 1n,
+            queryID: 1n,
             predecessor: proposePredecessor,
             salt: 0n,
             calls,
@@ -978,7 +978,7 @@ describe('MCMS - IntegrationTest', () => {
             nonce: 0n,
             to: bind.timelock.address,
             value: toNano('0.05'),
-            data: rbactl.builder.message.in.cancel.encode({ queryId: 1n, id: callsHash }).asCell(),
+            data: rbactl.builder.message.in.cancel.encode({ queryID: 1n, id: callsHash }).asCell(),
           },
         ]
 
@@ -1001,7 +1001,7 @@ describe('MCMS - IntegrationTest', () => {
           toNano('0.05'), // to cover execution fee
           mcms.builder.message.in.execute
             .encode({
-              queryId: 1n,
+              queryID: 1n,
               op: mcms.builder.data.op.encode(ops[0]).asCell(),
               proof: opProofs[0],
             })
@@ -1029,7 +1029,7 @@ describe('MCMS - IntegrationTest', () => {
           body(x) {
             if (!x) return false
             const canceled = rbactl.builder.message.out.canceled.load(x.beginParse())
-            return canceled.queryId === 1 && canceled.id === callsHash
+            return canceled.queryID === 1 && canceled.id === callsHash
           },
         })
 
@@ -1040,7 +1040,7 @@ describe('MCMS - IntegrationTest', () => {
           toNano('0.10'),
           rbactl.builder.message.in.executeBatch
             .encode({
-              queryId: 1n,
+              queryID: 1n,
               predecessor: proposePredecessor,
               salt: 0n,
               calls,
@@ -1069,7 +1069,7 @@ describe('MCMS - IntegrationTest', () => {
             value: toNano('0.2'),
             data: mcms.builder.message.in.setConfig
               .encode({
-                queryId: 1n,
+                queryID: 1n,
                 signerAddresses: proposerKeyPairs().map((v) => BigInt(computeAddress(v))),
                 signerGroups: Array(PROPOSE_COUNT).fill(0),
                 groupQuorums: new Map(
@@ -1085,7 +1085,7 @@ describe('MCMS - IntegrationTest', () => {
             value: toNano('0.2'),
             data: mcms.builder.message.in.setConfig
               .encode({
-                queryId: 1n,
+                queryID: 1n,
                 signerAddresses: vetoKeyPairs().map((v) => BigInt(computeAddress(v))),
                 signerGroups: Array(VETO_COUNT).fill(0),
                 groupQuorums: new Map(
@@ -1125,7 +1125,7 @@ describe('MCMS - IntegrationTest', () => {
           value: toNano('0.05'),
           data: rbactl.builder.message.in.scheduleBatch
             .encode({
-              queryId: 1n,
+              queryID: 1n,
               calls,
               predecessor: proposePredecessor,
               salt: 0n,
@@ -1154,7 +1154,7 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.05'), // to cover execution fee
         mcms.builder.message.in.execute
           .encode({
-            queryId: 1n,
+            queryID: 1n,
             op: mcms.builder.data.op.encode(ops[0]).asCell(),
             proof: opProofs[0],
           })
@@ -1174,7 +1174,7 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.45'),
         rbactl.builder.message.in.executeBatch
           .encode({
-            queryId: 2n,
+            queryID: 2n,
             predecessor: proposePredecessor,
             salt: 0n,
             calls,

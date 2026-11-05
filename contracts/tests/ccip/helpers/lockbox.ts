@@ -80,7 +80,7 @@ export async function initJettonLockBox(opts: {
     deployer.getSender(),
     opts.initValue ?? toNano('0.2'),
     JettonLockBox_Init.create({
-      queryId: 1n,
+      queryID: 1n,
       minterAddress,
       walletAddress,
       admin: deployer.address,
@@ -106,7 +106,7 @@ export async function grantLockBoxOperatorRole(opts: {
     AccessControlClient.createFromAddress(opts.lockbox.address),
   )
   const grantResult = await acClient.sendGrantRole(opts.deployer.getSender(), toNano('0.1'), {
-    queryId: 0n,
+    queryID: 0n,
     role: OPERATOR_ROLE_VALUE,
     account: opts.operator,
   })

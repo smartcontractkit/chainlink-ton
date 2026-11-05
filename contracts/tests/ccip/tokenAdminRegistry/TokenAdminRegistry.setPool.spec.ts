@@ -53,7 +53,7 @@ describe('TokenAdminRegistry - Set Pool', () => {
       tar.TokenAdminRegistry_PoolSet.fromSlice(rootEvent(fx, result, EventTopics.PoolSet)),
     ).toEqual(
       tar.TokenAdminRegistry_PoolSet.create({
-        queryId: 104n,
+        queryID: 104n,
         token: fx.token,
         previousPool: fx.pool,
         newPool: fx.replacementPool,
@@ -73,7 +73,7 @@ describe('TokenAdminRegistry - Set Pool', () => {
       tar.TokenAdminRegistry_PoolSet.fromSlice(rootEvent(fx, result, EventTopics.PoolSet)),
     ).toEqual(
       tar.TokenAdminRegistry_PoolSet.create({
-        queryId: 105n,
+        queryID: 105n,
         token: fx.token,
         previousPool: fx.pool,
         newPool: fx.pool,
@@ -101,7 +101,7 @@ describe('TokenAdminRegistry - Set Pool', () => {
     expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx))
     expect(rootEvents(fx, result, EventTopics.PoolSet)).toHaveLength(0)
 
-    await answerPoolProbe(fx, { from: fx.replacementPool, queryId: 110n })
+    await answerPoolProbe(fx, { from: fx.replacementPool, queryID: 110n })
     expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx, fx.replacementPool))
   })
 
@@ -122,7 +122,7 @@ describe('TokenAdminRegistry - Set Pool', () => {
       tar.TokenAdminRegistry_PoolSet.fromSlice(rootEvent(fx, result, EventTopics.PoolSet)),
     ).toEqual(
       tar.TokenAdminRegistry_PoolSet.create({
-        queryId: 112n,
+        queryID: 112n,
         token: fx.token,
         previousPool: fx.pool,
         newPool: null,
@@ -141,7 +141,7 @@ describe('TokenAdminRegistry - Set Pool', () => {
     const answer = await answerPoolProbe(fx, {
       from: fx.replacementPool,
       poolToken: fx.otherToken,
-      queryId: 113n,
+      queryID: 113n,
     })
     expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx, null))
     expect(await entryFor(fx).getEnabled()).toBe(true)
@@ -149,7 +149,7 @@ describe('TokenAdminRegistry - Set Pool', () => {
       tar.TokenAdminRegistry_PoolSet.fromSlice(rootEvent(fx, answer, EventTopics.PoolSet)),
     ).toEqual(
       tar.TokenAdminRegistry_PoolSet.create({
-        queryId: 113n,
+        queryID: 113n,
         token: fx.token,
         previousPool: fx.pool,
         newPool: null,
@@ -170,7 +170,7 @@ describe('TokenAdminRegistry - Set Pool', () => {
     await answerPoolProbe(fx, { poolToken: fx.otherToken })
     expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx, null))
 
-    await answerPoolProbe(fx, { from: fx.replacementPool, queryId: 114n })
+    await answerPoolProbe(fx, { from: fx.replacementPool, queryID: 114n })
     expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx, fx.replacementPool))
   })
 
@@ -179,7 +179,7 @@ describe('TokenAdminRegistry - Set Pool', () => {
     const refresh = await fx.registry.sendTokenAdminRegistryRefreshPoolConfig(
       fx.other.getSender(),
       OPERATION_VALUE,
-      { queryId: 111n, tokenAddress: fx.token },
+      { queryID: 111n, tokenAddress: fx.token },
     )
     expect(refresh.transactions).toHaveTransaction({
       from: entryAddress(fx),
@@ -189,14 +189,14 @@ describe('TokenAdminRegistry - Set Pool', () => {
 
     const answer = await answerPoolProbe(fx, {
       transferInitiator: fx.other.address,
-      queryId: 111n,
+      queryID: 111n,
     })
     expect((await entryFor(fx).getTokenInfo()).transferInitiator).toEqualAddress(fx.other.address)
     expect(
       tar.TokenAdminRegistry_PoolSet.fromSlice(rootEvent(fx, answer, EventTopics.PoolSet)),
     ).toEqual(
       tar.TokenAdminRegistry_PoolSet.create({
-        queryId: 111n,
+        queryID: 111n,
         token: fx.token,
         previousPool: fx.pool,
         newPool: fx.pool,
@@ -211,7 +211,7 @@ describe('TokenAdminRegistry - Set Pool', () => {
     const refresh = await fx.registry.sendTokenAdminRegistryRefreshPoolConfig(
       fx.other.getSender(),
       OPERATION_VALUE,
-      { queryId: 113n, tokenAddress: fx.token },
+      { queryID: 113n, tokenAddress: fx.token },
     )
     expect(refresh.transactions).toHaveTransaction({
       from: entryAddress(fx),
@@ -281,8 +281,8 @@ describe('TokenAdminRegistry - Set Pool', () => {
         op: tar.TokenAdminRegistry_RequestFailed.PREFIX,
         body: tar.TokenAdminRegistry_RequestFailed.toCell(
           tar.TokenAdminRegistry_RequestFailed.create({
-            queryId: 7n,
-            exitCode: BigInt(EntryErrors['TokenAdminRegistryEntry_Error.Unauthorized']),
+            queryID: 7n,
+            errorCode: BigInt(EntryErrors['TokenAdminRegistryEntry_Error.Unauthorized']),
             request: messageFromRoot(
               tare.TokenAdminRegistryEntry_SetPool.create({
                 actor: actor.address,

@@ -23,24 +23,24 @@ struct Ownable2Step {
 
 /// Message sent by the owner to transfer ownership of a contract.
 struct (0xF21B7DA1) Ownable2Step_TransferOwnership {
-    queryId: uint64;
+    queryID: uint64;
     newOwner: address;
 }
 
 /// Message sent by the pending owner to accept ownership of a contract.
 struct (0xF9E29E4A) Ownable2Step_AcceptOwnership {
-    queryId: uint64;
+    queryID: uint64;
 }
 
 /// Event emitted by the contract confirming that ownership transfer has been requested.
 struct Ownable2Step_OwnershipTransferRequested {
-    queryId: uint64;
+    queryID: uint64;
     newOwner: address;
 }
 
 /// Event emitted by the contract to confirm acceptance of contract ownership.
 struct Ownable2Step_OwnershipTransferred {
-    queryId: uint64;
+    queryID: uint64;
     oldOwner: address;
     newOwner: address;
 }
@@ -63,7 +63,7 @@ fun Ownable2Step.onInternalMessage(mutate self, sender: address, body: slice): b
             val emitMsg = createExternalLogMessage({
                 dest: createAddressNone(),
                 body: Ownable2Step_OwnershipTransferRequested {
-                    queryId: msg.queryId,
+                    queryID: msg.queryID,
                     newOwner: msg.newOwner
                 }
             });
@@ -76,7 +76,7 @@ fun Ownable2Step.onInternalMessage(mutate self, sender: address, body: slice): b
             val emitMsg = createExternalLogMessage({
                 dest: createAddressNone(),
                 body: Ownable2Step_OwnershipTransferred {
-                    queryId: msg.queryId,
+                    queryID: msg.queryID,
                     oldOwner,
                     newOwner: sender
                 }

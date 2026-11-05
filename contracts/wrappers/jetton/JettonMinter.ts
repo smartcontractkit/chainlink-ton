@@ -52,7 +52,7 @@ export const MinterOpcodes = {
 }
 
 export type MintNewJettons = {
-  queryId: bigint
+  queryID: bigint
   destination: Address
   tonAmount: bigint
   jettonAmount: bigint
@@ -63,7 +63,7 @@ export type MintNewJettons = {
 }
 
 export type InternalTransferStep = {
-  queryId: bigint
+  queryID: bigint
   jettonAmount: bigint
   from: Maybe<Address>
   responseDestination: Maybe<Address>
@@ -72,31 +72,31 @@ export type InternalTransferStep = {
 }
 
 export type RequestWalletAddress = {
-  queryId: bigint
+  queryID: bigint
   ownerAddress: Address
   includeOwnerAddress: boolean
 }
 
 export type ChangeMinterAdmin = {
-  queryId: bigint
+  queryID: bigint
   newAdmin: Address
 }
 
 export type ChangeMinterMetadataUri = {
-  queryId: bigint
+  queryID: bigint
   content: Cell | JettonMinterContent
 }
 
 export type ClaimMinterAdmin = {
-  queryId: bigint
+  queryID: bigint
 }
 
 export type DropMinterAdmin = {
-  queryId: bigint
+  queryID: bigint
 }
 
 export type UpgradeMinterCode = {
-  queryId: bigint
+  queryID: bigint
   newData: Cell
   newCode: Cell
 }
@@ -119,7 +119,7 @@ function toContractData(config: JettonMinterConfig): JettonMinterData {
 
 function toInternalTransferStep(message: MintNewJettons): InternalTransferStep {
   return {
-    queryId: message.queryId,
+    queryID: message.queryID,
     jettonAmount: message.jettonAmount,
     from: message.from,
     responseDestination: message.responseDestination,
@@ -169,7 +169,7 @@ export const builder = {
           encode: (data: MintNewJettons): Builder => {
             return beginCell()
               .storeUint(opts.opcode ?? MinterOpcodes.MINT, 32)
-              .storeUint(data.queryId, 64)
+              .storeUint(data.queryID, 64)
               .storeAddress(data.destination)
               .storeCoins(data.tonAmount)
               .storeRef(
@@ -178,7 +178,7 @@ export const builder = {
           },
           load: (src: Slice): MintNewJettons => {
             src.skip(32)
-            const queryId = src.loadUintBig(64)
+            const queryID = src.loadUintBig(64)
             const destination = src.loadAddress()
             const tonAmount = src.loadCoins()
             const internalTransfer = builder.messages.out.internalTransferStep.load(
@@ -186,7 +186,7 @@ export const builder = {
             )
 
             return {
-              queryId,
+              queryID,
               destination,
               tonAmount,
               jettonAmount: internalTransfer.jettonAmount,
@@ -203,14 +203,14 @@ export const builder = {
           encode: (data: RequestWalletAddress): Builder => {
             return beginCell()
               .storeUint(MinterOpcodes.PROVIDE_WALLET_ADDRESS, 32)
-              .storeUint(data.queryId, 64)
+              .storeUint(data.queryID, 64)
               .storeAddress(data.ownerAddress)
               .storeBit(data.includeOwnerAddress)
           },
           load: (src: Slice): RequestWalletAddress => {
             src.skip(32)
             return {
-              queryId: src.loadUintBig(64),
+              queryID: src.loadUintBig(64),
               ownerAddress: src.loadAddress(),
               includeOwnerAddress: src.loadBit(),
             }
@@ -222,13 +222,13 @@ export const builder = {
           encode: (data: ChangeMinterAdmin): Builder => {
             return beginCell()
               .storeUint(MinterOpcodes.CHANGE_ADMIN, 32)
-              .storeUint(data.queryId, 64)
+              .storeUint(data.queryID, 64)
               .storeAddress(data.newAdmin)
           },
           load: (src: Slice): ChangeMinterAdmin => {
             src.skip(32)
             return {
-              queryId: src.loadUintBig(64),
+              queryID: src.loadUintBig(64),
               newAdmin: src.loadAddress(),
             }
           },
@@ -237,22 +237,22 @@ export const builder = {
       claimMinterAdmin: ((): CellCodec<ClaimMinterAdmin> => {
         return {
           encode: (data: ClaimMinterAdmin): Builder => {
-            return beginCell().storeUint(MinterOpcodes.CLAIM_ADMIN, 32).storeUint(data.queryId, 64)
+            return beginCell().storeUint(MinterOpcodes.CLAIM_ADMIN, 32).storeUint(data.queryID, 64)
           },
           load: (src: Slice): ClaimMinterAdmin => {
             src.skip(32)
-            return { queryId: src.loadUintBig(64) }
+            return { queryID: src.loadUintBig(64) }
           },
         }
       })(),
       dropMinterAdmin: ((): CellCodec<DropMinterAdmin> => {
         return {
           encode: (data: DropMinterAdmin): Builder => {
-            return beginCell().storeUint(MinterOpcodes.DROP_ADMIN, 32).storeUint(data.queryId, 64)
+            return beginCell().storeUint(MinterOpcodes.DROP_ADMIN, 32).storeUint(data.queryID, 64)
           },
           load: (src: Slice): DropMinterAdmin => {
             src.skip(32)
-            return { queryId: src.loadUintBig(64) }
+            return { queryID: src.loadUintBig(64) }
           },
         }
       })(),
@@ -266,13 +266,13 @@ export const builder = {
 
             return beginCell()
               .storeUint(MinterOpcodes.CHANGE_METADATA_URL, 32)
-              .storeUint(data.queryId, 64)
+              .storeUint(data.queryID, 64)
               .storeStringTail(content)
           },
           load: (src: Slice): ChangeMinterMetadataUri => {
             src.skip(32)
             return {
-              queryId: src.loadUintBig(64),
+              queryID: src.loadUintBig(64),
               content: { uri: src.loadStringTail() },
             }
           },
@@ -283,14 +283,14 @@ export const builder = {
           encode: (data: UpgradeMinterCode): Builder => {
             return beginCell()
               .storeUint(MinterOpcodes.UPGRADE, 32)
-              .storeUint(data.queryId, 64)
+              .storeUint(data.queryID, 64)
               .storeRef(data.newData)
               .storeRef(data.newCode)
           },
           load: (src: Slice): UpgradeMinterCode => {
             src.skip(32)
             return {
-              queryId: src.loadUintBig(64),
+              queryID: src.loadUintBig(64),
               newData: src.loadRef(),
               newCode: src.loadRef(),
             }
@@ -315,7 +315,7 @@ export const builder = {
           encode: (data: InternalTransferStep): Builder => {
             return beginCell()
               .storeUint(MinterOpcodes.INTERNAL_TRANSFER, 32)
-              .storeUint(data.queryId, 64)
+              .storeUint(data.queryID, 64)
               .storeCoins(data.jettonAmount)
               .storeAddress(data.from)
               .storeAddress(data.responseDestination)
@@ -325,7 +325,7 @@ export const builder = {
           load: (src: Slice): InternalTransferStep => {
             src.skip(32)
             return {
-              queryId: src.loadUintBig(64),
+              queryID: src.loadUintBig(64),
               jettonAmount: src.loadCoins(),
               from: src.loadMaybeAddress(),
               responseDestination: src.loadMaybeAddress(),
@@ -437,13 +437,13 @@ export class JettonMinter implements Contract {
     via: Sender,
     opts: {
       value?: bigint
-      queryId?: bigint
+      queryID?: bigint
     } = {},
   ) {
     await provider.internal(via, {
       value: opts.value ?? toNano('0.1'),
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.messages.in.claimMinterAdmin.encode({ queryId: opts.queryId ?? 0n }).asCell(),
+      body: builder.messages.in.claimMinterAdmin.encode({ queryID: opts.queryID ?? 0n }).asCell(),
     })
   }
 
@@ -452,13 +452,13 @@ export class JettonMinter implements Contract {
     via: Sender,
     opts: {
       value?: bigint
-      queryId?: bigint
+      queryID?: bigint
     } = {},
   ) {
     await provider.internal(via, {
       value: opts.value ?? toNano('0.05'),
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.messages.in.dropMinterAdmin.encode({ queryId: opts.queryId ?? 0n }).asCell(),
+      body: builder.messages.in.dropMinterAdmin.encode({ queryID: opts.queryID ?? 0n }).asCell(),
     })
   }
 
@@ -482,7 +482,7 @@ export class JettonMinter implements Contract {
     via: Sender,
     opts: {
       value?: bigint
-      queryId?: bigint
+      queryID?: bigint
       newData: Cell
       newCode: Cell
     },
@@ -491,7 +491,7 @@ export class JettonMinter implements Contract {
       value: opts.value ?? toNano('0.1'),
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.messages.in.upgradeMinterCode
-        .encode({ queryId: opts.queryId ?? 0n, newData: opts.newData, newCode: opts.newCode })
+        .encode({ queryID: opts.queryID ?? 0n, newData: opts.newData, newCode: opts.newCode })
         .asCell(),
     })
   }

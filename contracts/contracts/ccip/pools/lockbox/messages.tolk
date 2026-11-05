@@ -8,7 +8,7 @@ import "../../../lib/funding/jetton_withdrawable"
 /// Embedded in a jetton transfer's forwardPayload to identify the deposit context.
 /// The lockbox extracts this from `TransferNotificationForRecipient.forwardPayload` on deposit.
 struct (0x9e9ec361) JettonLockBox_Deposit {
-    queryId: uint64;
+    queryID: uint64;
     /// Jetton minter address being deposited.
     token: address;
     /// Destination chain selector for cross-chain routing.
@@ -43,7 +43,7 @@ struct JettonLockBox_WithdrawExtra {
 
 /// Sent by an authorized caller (pool) to withdraw jettons from the lockbox.
 struct (0xd065c306) JettonLockBox_Withdraw {
-    queryId: uint64;
+    queryID: uint64;
     /// Jetton minter address being withdrawn.
     token: address;
     /// Destination chain selector for cross-chain routing.
@@ -67,7 +67,7 @@ type JettonLockBox_BouncedMessage =
 
 /// Reply sent to the deposit initiator after a successful deposit.
 struct (0x6d077f2e) JettonLockBox_Deposited {
-    queryId: uint64;
+    queryID: uint64;
     token: address;
     depositor: address;
     amount: coins;
@@ -76,7 +76,7 @@ struct (0x6d077f2e) JettonLockBox_Deposited {
 
 /// Error message sent to the deposit initiator after a failed deposit.
 struct (0x5e28ebd8) JettonLockBox_DepositFailed {
-    queryId: uint64;
+    queryID: uint64;
     token: address;
     depositor: address;
     amount: coins;
@@ -88,7 +88,7 @@ struct (0x5e28ebd8) JettonLockBox_DepositFailed {
 /// One-time init message — sets jetton addresses and grants admin role.
 /// @dev Sent during deployment with stateInit. If `admin` is null, the sender becomes admin.
 struct (0xffa6eeb9) JettonLockBox_Init {
-    queryId: uint64;
+    queryID: uint64;
     /// Jetton minter address.
     minterAddress: address;
     /// Jetton wallet address for this lockbox.
@@ -99,7 +99,7 @@ struct (0xffa6eeb9) JettonLockBox_Init {
 
 /// Sent to the deployer after successful initialization.
 struct (0xe9f4e311) JettonLockBox_Initialized {
-    queryId: uint64;
+    queryID: uint64;
     minterAddress: address;
     walletAddress: address;
     admin: address;
@@ -108,7 +108,7 @@ struct (0xe9f4e311) JettonLockBox_Initialized {
 /// Sent to the withdraw caller when a bounced jetton transfer indicates failure.
 /// @dev The lockbox can't distinguish between jetton-level rejection and insufficient balance — both produce bounces.
 struct (0x60bae556) JettonLockBox_WithdrawFailed {
-    queryId: uint64;
+    queryID: uint64;
     token: address;
     /// Original withdrawal request, including extra.forwardPayload for caller recovery.
     context: Cell<JettonLockBox_Withdraw>?;

@@ -24,7 +24,7 @@ enum Withdrawable_Error {
 
 // Withdraw TON from the contract balance.
 struct (0xf343fc1b) Withdrawable_Withdraw {
-    queryId: uint64;
+    queryID: uint64;
     // address to send TON
     destination: address;
     // Amount to withdraw. Ignored if drain is true.

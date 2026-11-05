@@ -154,7 +154,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitExecute, value: coins) {
     val message = lazy st.message.load();
 
-    st.state.queryId = msg.queryId;
+    st.state.queryID = msg.queryID;
     st.state.effectiveGasLimit = msg.effectiveGasLimit;
     if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec(false)) {
         return endExecutionWithFailure(mutate st, message.header, 0);
@@ -197,7 +197,7 @@ fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
             value: TokenAdminRegistry_GetTokenInfo.cost(),
             dest: ttInfo.tokenAdminRegistry,
             body: TokenAdminRegistry_GetTokenInfo {
-                queryId: 0,
+                queryID: 0,
                 token: ttInfo.transfer.load().token,
             }
         }
@@ -243,7 +243,7 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
             value: transfer.destGasAmount + OffRamp_ReleaseOrMint.cost(),
             dest: st.owner,
             body: OffRamp_ReleaseOrMint {
-                queryId: st.state.queryId,
+                queryID: st.state.queryID,
                 execId: st.execId,
                 destGasAmount: transfer.destGasAmount,
                 tokenPool,
@@ -278,7 +278,7 @@ fun execute(mutate st: ReceiveExecutor_Storage) {
             value: OffRamp_Costs.dispatchValidated() + st.state.effectiveGasLimit,
             dest: st.owner,
             body: OffRamp_DispatchValidated {
-                queryId: st.state.queryId,
+                queryID: st.state.queryID,
                 message: st.message,
                 execId: st.execId,
                 effectiveGasLimit: st.state.effectiveGasLimit,
@@ -330,7 +330,7 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
         value: 0,
         dest: st.owner,
         body: OffRamp_NotifyFailure {
-            queryId: st.state.queryId,
+            queryID: st.state.queryID,
             header: messageHeader.toCell(),
             execId: st.execId,
             root: st.root,
@@ -397,7 +397,7 @@ fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: Receive
         value: 0,
         dest: st.owner,
         body: OffRamp_TokenTransferDelivered {
-            queryId: st.state.queryId,
+            queryID: st.state.queryID,
             execId: st.execId,
             delivered: delivered.toCell(),
         },
@@ -414,7 +414,7 @@ fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: 
         value: 0,
         dest: st.owner,
         body: OffRamp_NotifySuccess {
-            queryId: st.state.queryId,
+            queryID: st.state.queryID,
             header: messageHeader.toCell(),
             execId: st.execId,
             root: st.root,

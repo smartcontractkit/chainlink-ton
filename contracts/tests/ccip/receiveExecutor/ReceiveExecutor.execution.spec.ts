@@ -405,7 +405,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           notification: TransferNotificationForRecipient.create({
-            queryId: 0n,
+            queryID: 0n,
             jettonAmount: amount,
             transferInitiator: opts.initiator === undefined ? tokenPool.address : opts.initiator,
             forwardPayload: beginCell().storeMaybeRef(null).asSlice(),
@@ -936,7 +936,7 @@ describe('ReceiveExecutor - Execution', () => {
           deployer.getSender(),
           toNano('0.05'),
           {
-            reason: rx.ReleaseOrMintBounced.create({ exitCode: 1n }),
+            reason: rx.ReleaseOrMintBounced.create({ errorCode: 1n }),
           },
         )
         expect(result.transactions).toHaveTransaction({
@@ -959,7 +959,7 @@ describe('ReceiveExecutor - Execution', () => {
           nonOwner.getSender(),
           toNano('0.05'),
           {
-            reason: rx.ReleaseOrMintBounced.create({ exitCode: 1n }),
+            reason: rx.ReleaseOrMintBounced.create({ errorCode: 1n }),
           },
         )
         expectFailedTransaction(
@@ -975,7 +975,7 @@ describe('ReceiveExecutor - Execution', () => {
           deployer.getSender(),
           toNano('0.05'),
           {
-            reason: rx.ReleaseOrMintBounced.create({ exitCode: 1n }),
+            reason: rx.ReleaseOrMintBounced.create({ errorCode: 1n }),
           },
         )
         expectFailedTransaction(

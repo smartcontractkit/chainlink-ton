@@ -167,7 +167,7 @@ describe('OnRamp - ExecutorRequestsLockOrBurn', () => {
       success: true,
       op: 0xfffffffe,
     })
-    // The failure carries the request's queryId and the Router's exit code (the Bouncer throws
+    // The failure carries the request's queryID and the Router's exit code (the Bouncer throws
     // 0xFFFF).
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
@@ -176,7 +176,7 @@ describe('OnRamp - ExecutorRequestsLockOrBurn', () => {
       body(x) {
         if (!x) return false
         const failed = or.OnRamp_LockOrBurnFailed.fromSlice(x.beginParse())
-        return failed.queryId === 7n && failed.errorCode === 0xffffn
+        return failed.queryID === 7n && failed.errorCode === 0xffffn
       },
     })
   })

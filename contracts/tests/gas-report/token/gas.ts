@@ -27,7 +27,7 @@ export type MeasuredTokenGas = {
 
 export type BurnOptions = {
   value: bigint
-  queryId: bigint
+  queryID: bigint
   jettonAmount: bigint
   responseDestination: Address
   customPayload: Cell | null
@@ -130,11 +130,11 @@ export function runTokenGasCalibration(fixture: TokenGasFixture) {
         forwardPayload?: Cell | null
       } = {},
     ) {
-      const queryId = nextQueryId++
+      const queryID = nextQueryId++
       const body = minterBuilder.messages.in
         .mintNewJettons({ opcode: token.mintOpcode })
         .encode({
-          queryId,
+          queryID,
           destination,
           tonAmount,
           jettonAmount,
@@ -172,7 +172,7 @@ export function runTokenGasCalibration(fixture: TokenGasFixture) {
       const transferResult = await aliceWallet.sendTransfer(alice.getSender(), {
         value: toNano('0.8'),
         message: {
-          queryId: Number(nextQueryId++),
+          queryID: Number(nextQueryId++),
           jettonAmount: toNano('0.7'),
           destination: bob.address,
           responseDestination: alice.address,
@@ -184,7 +184,7 @@ export function runTokenGasCalibration(fixture: TokenGasFixture) {
 
       const burnResult = await token.sendBurn(bob, bobWallet.address, {
         value: toNano('0.2'),
-        queryId: nextQueryId++,
+        queryID: nextQueryId++,
         jettonAmount: toNano('0.3'),
         responseDestination: recipient.address,
         customPayload: burnCustomPayload,

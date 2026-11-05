@@ -123,7 +123,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
     await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
 
     await router.sendRouterApplyRampUpdates(deployer.getSender(), toNano('0.1'), {
-      queryId: 0n,
+      queryID: 0n,
       onRampUpdates: rt.OnRamps.create({
         destChainSelectors: [ChainSelectors.testnet.evm],
         onRamp: onRamp.address,

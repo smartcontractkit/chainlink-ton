@@ -179,7 +179,7 @@ describe('OnRamp - Get Fee', () => {
 
   it('should forward message validation failed', async () => {
     const validationFailedMsg = or.FeeQuoter_MessageValidationFailed.create({
-      error: 123n,
+      errorCode: 123n,
       msg: ccipSend,
       context: or.OnRamp_GetValidatedFeeContext.toCell(
         or.OnRamp_GetValidatedFeeContext.create({
@@ -208,7 +208,8 @@ describe('OnRamp - Get Fee', () => {
         if (!body) return false
         const decoded = or.OnRamp_MessageValidationFailed.fromSlice(body.beginParse())
         return (
-          decoded.error === validationFailedMsg.error && decoded.msg.queryID === ccipSend.queryID
+          decoded.errorCode === validationFailedMsg.errorCode &&
+          decoded.msg.queryID === ccipSend.queryID
         )
       },
     })

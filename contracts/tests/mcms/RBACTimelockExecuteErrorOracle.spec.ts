@@ -57,7 +57,7 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
       toNano('0.1'),
       ac.builder.message.in.grantRole
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           role: rbactl.roles.oracle,
           account: acc.oracle.address,
         })
@@ -87,7 +87,7 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
       toNano('0.12'),
       ac.builder.message.in.grantRole
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           role: rbactl.roles.oracle,
           account: baseTest.acc.deployer.address,
         })
@@ -111,14 +111,14 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
     const incrementCall: rbactl.Call = {
       target: baseTest.bind.counter.address,
       value: toNano('0.12'),
-      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
+      data: counter.builder.message.in.increaseCount.encode({ queryID: 1n }).asCell(),
     }
     const calls = BaseTestSetup.singletonCalls(incrementCall)
 
     // Schedule operation
     const scheduleBody = rbactl.builder.message.in.scheduleBatch
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
         salt: BaseTestSetup.EMPTY_SALT,
@@ -137,7 +137,7 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
 
     const executeBody = rbactl.builder.message.in.executeBatch
       .encode({
-        queryId: 2n,
+        queryID: 2n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
         salt: BaseTestSetup.EMPTY_SALT,
@@ -182,7 +182,7 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
       toNano('0.12'),
       rbactl.builder.message.in.submitErrorReport
         .encode({
-          queryId: 2n,
+          queryID: 2n,
           opBatch: operationBatch,
           opTxHash: txHash,
           errorTxHash: txHash,

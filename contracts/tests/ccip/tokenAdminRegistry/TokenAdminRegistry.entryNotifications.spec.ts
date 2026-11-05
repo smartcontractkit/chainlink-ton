@@ -26,7 +26,7 @@ const notifications: Record<string, Notification> = {
     body: (fx) =>
       tar.TokenAdminRegistry_AdministratorTransferRequested.toCell(
         tar.TokenAdminRegistry_AdministratorTransferRequested.create({
-          queryId: 11n,
+          queryID: 11n,
           token: fx.token,
           currentAdministrator: fx.administrator.address,
           newAdministrator: fx.replacementAdministrator.address,
@@ -38,7 +38,7 @@ const notifications: Record<string, Notification> = {
     body: (fx) =>
       tar.TokenAdminRegistry_AdministratorTransferred.toCell(
         tar.TokenAdminRegistry_AdministratorTransferred.create({
-          queryId: 12n,
+          queryID: 12n,
           token: fx.token,
           newAdministrator: fx.administrator.address,
         }),
@@ -49,7 +49,7 @@ const notifications: Record<string, Notification> = {
     body: (fx) =>
       tar.TokenAdminRegistry_PoolSet.toCell(
         tar.TokenAdminRegistry_PoolSet.create({
-          queryId: 13n,
+          queryID: 13n,
           token: fx.token,
           previousPool: fx.pool,
           newPool: null,

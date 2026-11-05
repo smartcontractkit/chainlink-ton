@@ -64,7 +64,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: msg.sendExcessesTo,
                 value: 0,
                 body: CCT_ReturnExcessesBack {
-                    queryId: msg.queryId,
+                    queryID: msg.queryID,
                     initiator: msg.burnInitiator,
                     forwardPayload: msg.forwardPayload,
                 }
@@ -88,7 +88,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: in.senderAddress,
                 value: 0,
                 body: ResponseWalletAddress {
-                    queryId: msg.queryId,
+                    queryID: msg.queryID,
                     jettonWalletAddress: walletAddress,
                     ownerAddress: ownerAddress,
                 }

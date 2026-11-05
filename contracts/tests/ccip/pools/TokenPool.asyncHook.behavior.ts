@@ -49,7 +49,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
         const costlyHooks = await deployMockHooks(ctx, MOCK_HOOKS_COSTLY_ID)
         await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
-          queryId: 9995n,
+          queryID: 9995n,
           advancedPoolHooks: costlyHooks.address,
         })
 
@@ -57,7 +57,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           ctx.deployer.getSender(),
           floor * 3n + toNano('0.01'),
           {
-            queryId: 2n, // The mock hook approves even query IDs.
+            queryID: 2n, // The mock hook approves even query IDs.
             request: lockOrBurnIn(ctx),
             requestedFinalityConfig: 0n,
             tokenArgs: null,
@@ -79,7 +79,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           to: ctx.deployer.address,
           body: TokenPool_LockOrBurnFailure.toCell({
             $: 'TokenPool_LockOrBurnFailure',
-            queryId: 2n,
+            queryID: 2n,
             errorCode: insufficientMessageValue,
           }),
         })
@@ -100,7 +100,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         const ctx = await setup()
         const costlyHooks = await deployMockHooks(ctx, MOCK_HOOKS_COSTLY_ID)
         await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
-          queryId: 9996n,
+          queryID: 9996n,
           advancedPoolHooks: costlyHooks.address,
         })
         const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
@@ -114,7 +114,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           ctx.deployer.getSender(),
           admission + floor,
           {
-            queryId: 2n,
+            queryID: 2n,
             request: releaseRequest(ctx),
             requestedFinalityConfig: 0n,
             replyTo: ctx.deployer.address,
@@ -134,7 +134,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           to: ctx.deployer.address,
           body: TokenPool_ReleaseOrMintFailure.toCell({
             $: 'TokenPool_ReleaseOrMintFailure',
-            queryId: 2n,
+            queryID: 2n,
             errorCode: insufficientMessageValue,
           }),
         })
@@ -214,7 +214,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       const fwdp = TokenPool_LockOrBurnForwardPayload.create({
         originalSender: ctx.deployer.address,
         requestMsg: TokenPool_LockOrBurn.create({
-          queryId: 0n,
+          queryID: 0n,
           request,
           requestedFinalityConfig: 0n,
           tokenArgs: null,
@@ -244,7 +244,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       const fwdp = TokenPool_ReleaseOrMintForwardPayload.create({
         originalSender: ctx.deployer.address,
         requestMsg: TokenPool_ReleaseOrMint.create({
-          queryId: 0n,
+          queryID: 0n,
           request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
@@ -264,7 +264,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         ctx.unauthorized.getSender(),
         toNano('0.2'),
         {
-          queryId: 6001n,
+          queryID: 6001n,
           advancedPoolHooks: ctx.hooks.address,
         },
       )
@@ -276,15 +276,15 @@ export function runTokenPoolAsyncHookBehaviorTests(
       })
     })
 
-    // === Preflight Check — Success Flow (queryId even) ===
+    // === Preflight Check — Success Flow (queryID even) ===
 
-    it('completes LockOrBurn after async preflight check succeeds (queryId=2)', async () => {
+    it('completes LockOrBurn after async preflight check succeeds (queryID=2)', async () => {
       const ctx = await setup()
 
       const request = lockOrBurnIn(ctx)
 
       const result = await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
-        queryId: 2n,
+        queryID: 2n,
         request,
         requestedFinalityConfig: 0n,
         tokenArgs: null,
@@ -308,15 +308,15 @@ export function runTokenPoolAsyncHookBehaviorTests(
       })
     })
 
-    // === Preflight Check — Failure Flow (queryId odd) ===
+    // === Preflight Check — Failure Flow (queryID odd) ===
 
-    it('sends LockOrBurnFailure and refunds rate limit on async preflight failure (queryId=1)', async () => {
+    it('sends LockOrBurnFailure and refunds rate limit on async preflight failure (queryID=1)', async () => {
       const ctx = await setup()
 
       const request = lockOrBurnIn(ctx)
 
       const result = await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
-        queryId: 1n,
+        queryID: 1n,
         request,
         requestedFinalityConfig: 0n,
         tokenArgs: null,
@@ -347,9 +347,9 @@ export function runTokenPoolAsyncHookBehaviorTests(
       })
     })
 
-    // === Postflight Check — Success Flow (queryId even) ===
+    // === Postflight Check — Success Flow (queryID even) ===
 
-    it('completes ReleaseOrMint after async postflight check succeeds (queryId=2)', async () => {
+    it('completes ReleaseOrMint after async postflight check succeeds (queryID=2)', async () => {
       const ctx = await setup()
 
       const request = releaseRequest(ctx)
@@ -358,7 +358,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         ctx.deployer.getSender(),
         toNano('1'),
         {
-          queryId: 2n,
+          queryID: 2n,
           request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
@@ -381,9 +381,9 @@ export function runTokenPoolAsyncHookBehaviorTests(
       })
     })
 
-    // === Postflight Check — Failure Flow (queryId odd) ===
+    // === Postflight Check — Failure Flow (queryID odd) ===
 
-    it('sends ReleaseOrMintFailure and refunds rate limit on async postflight failure (queryId=1)', async () => {
+    it('sends ReleaseOrMintFailure and refunds rate limit on async postflight failure (queryID=1)', async () => {
       const ctx = await setup()
 
       const request = releaseRequest(ctx)
@@ -392,7 +392,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         ctx.deployer.getSender(),
         toNano('1'),
         {
-          queryId: 1n,
+          queryID: 1n,
           request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
@@ -423,7 +423,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         body(body) {
           if (!body) return false
           const failure = TokenPool_ReleaseOrMintFailure.fromSlice(body.beginParse())
-          return failure.queryId === 1n
+          return failure.queryID === 1n
         },
       })
     })
@@ -437,7 +437,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         ctx.deployer.getSender(),
         toNano('1'),
         {
-          queryId: 3n,
+          queryID: 3n,
           request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
@@ -480,7 +480,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       const request = lockOrBurnIn(ctx)
 
       const result = await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
-        queryId: 100n,
+        queryID: 100n,
         request,
         requestedFinalityConfig: 0n,
         tokenArgs: null,
@@ -510,7 +510,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         ctx.deployer.getSender(),
         toNano('1'),
         {
-          queryId: 100n,
+          queryID: 100n,
           request,
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
@@ -527,7 +527,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
 
     // === QueryId-based branching verification ===
 
-    it('even queryId → PreflightCheckFinished, odd queryId → PreflightCheckFailed', async () => {
+    it('even queryID → PreflightCheckFinished, odd queryID → PreflightCheckFailed', async () => {
       const ctx = await setup()
 
       // Even → success path
@@ -536,7 +536,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         ctx.deployer.getSender(),
         toNano('1'),
         {
-          queryId: 4n,
+          queryID: 4n,
           request: requestEven,
           requestedFinalityConfig: 0n,
           tokenArgs: null,
@@ -558,7 +558,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         ctx.deployer.getSender(),
         toNano('1'),
         {
-          queryId: 5n,
+          queryID: 5n,
           request: requestOdd,
           requestedFinalityConfig: 0n,
           tokenArgs: null,
@@ -582,7 +582,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       })
     })
 
-    it('even queryId → PostflightCheckFinished, odd queryId → PostflightCheckFailed', async () => {
+    it('even queryID → PostflightCheckFinished, odd queryID → PostflightCheckFailed', async () => {
       const ctx = await setup()
 
       // Even → success
@@ -591,7 +591,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         ctx.deployer.getSender(),
         toNano('1'),
         {
-          queryId: 6n,
+          queryID: 6n,
           request: requestEven,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
@@ -611,7 +611,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         ctx.deployer.getSender(),
         toNano('1'),
         {
-          queryId: 7n,
+          queryID: 7n,
           request: requestOdd,
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
@@ -645,14 +645,14 @@ export function runTokenPoolAsyncHookBehaviorTests(
       // A hooks contract whose `id` makes it throw on PreflightCheck/PostflightCheck.
       const bounceHooks = await deployBounceHooks(ctx)
       await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
-        queryId: 9998n,
+        queryID: 9998n,
         advancedPoolHooks: bounceHooks.address,
       })
 
       const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
 
       const result = await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
-        queryId: 8n,
+        queryID: 8n,
         request: lockOrBurnIn(ctx),
         requestedFinalityConfig: 0n,
         tokenArgs: null,
@@ -686,7 +686,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
 
       const bounceHooks = await deployBounceHooks(ctx)
       await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
-        queryId: 9997n,
+        queryID: 9997n,
         advancedPoolHooks: bounceHooks.address,
       })
 
@@ -696,7 +696,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         ctx.deployer.getSender(),
         toNano('1'),
         {
-          queryId: 9n,
+          queryID: 9n,
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.offRamp.address,
@@ -726,7 +726,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
 
       const request = lockOrBurnIn(ctx)
       const requestMsg = TokenPool_LockOrBurn.create({
-        queryId: 9n,
+        queryID: 9n,
         request,
         requestedFinalityConfig: 0n,
         tokenArgs: null,
@@ -749,12 +749,12 @@ export function runTokenPoolAsyncHookBehaviorTests(
         prepared,
       })
 
-      // Consume the outbound rate limit through the real admission path: queryId=8 is even,
+      // Consume the outbound rate limit through the real admission path: queryID=8 is even,
       // so the mock hooks accept the preflight and the pool proceeds to the withdraw leg,
       // leaving the bucket debited. (Refunding into a full bucket would be capped and
       // prove nothing.)
       await ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), toNano('1'), {
-        queryId: 8n,
+        queryID: 8n,
         request,
         requestedFinalityConfig: 0n,
         tokenArgs: null,
@@ -769,7 +769,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         ctx.deployer.getSender(), // the pool's configured Router is the deployer in this setup
         toNano('1'),
         {
-          queryId: 9n,
+          queryID: 9n,
           forwardPayload: fwdp,
           errorCode: 4242n,
         },
@@ -789,7 +789,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         body(x) {
           if (!x) return false
           const failure = TokenPool_LockOrBurnFailure.fromSlice(x.beginParse())
-          return failure.queryId === 9n && failure.errorCode === 4242n
+          return failure.queryID === 9n && failure.errorCode === 4242n
         },
       })
     })
@@ -801,7 +801,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       const fwdp = TokenPool_LockOrBurnForwardPayload.create({
         originalSender: ctx.deployer.address,
         requestMsg: TokenPool_LockOrBurn.create({
-          queryId: 10n,
+          queryID: 10n,
           request,
           requestedFinalityConfig: 0n,
           tokenArgs: null,
@@ -823,7 +823,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         ctx.unauthorized.getSender(),
         toNano('1'),
         {
-          queryId: 10n,
+          queryID: 10n,
           forwardPayload: fwdp,
           errorCode: 1n,
         },

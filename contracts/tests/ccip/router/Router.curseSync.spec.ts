@@ -47,7 +47,7 @@ describe('Router.curseSync', () => {
 
   async function registerOffRamp() {
     const result = await router.sendRouterApplyRampUpdates(deployer.getSender(), toNano('1'), {
-      queryId: 0n,
+      queryID: 0n,
       offRampAdds: rt.OffRamps.create({
         sourceChainSelectors: [SUBJECT],
         offRamp: offRamp.address,
@@ -62,7 +62,7 @@ describe('Router.curseSync', () => {
 
   function curse(value: bigint) {
     return router.sendRouterRMNRemoteCurse(deployer.getSender(), value, {
-      queryId: 0n,
+      queryID: 0n,
       subjects: [SUBJECT],
     })
   }
@@ -123,7 +123,7 @@ describe('Router.curseSync', () => {
     await curse(fee)
 
     const underfunded = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), fee - 1n, {
-      queryId: 0n,
+      queryID: 0n,
       subjects: [SUBJECT],
     })
     expect(underfunded.transactions).toHaveTransaction({
@@ -135,7 +135,7 @@ describe('Router.curseSync', () => {
     expect(await offRamp.getVerifyNotCursed(SUBJECT)).toBe(false)
 
     const result = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), fee, {
-      queryId: 0n,
+      queryID: 0n,
       subjects: [SUBJECT],
     })
     expectPropagated(result)
@@ -152,7 +152,7 @@ describe('Router.curseSync', () => {
     const anyone = await blockchain.treasury('anyone')
 
     const underfunded = await router.sendRouterRMNRemoteSyncOffRamps(anyone.getSender(), fee - 1n, {
-      queryId: 0n,
+      queryID: 0n,
     })
     expect(underfunded.transactions).toHaveTransaction({
       from: anyone.address,
@@ -162,7 +162,7 @@ describe('Router.curseSync', () => {
     })
 
     const synced = await router.sendRouterRMNRemoteSyncOffRamps(anyone.getSender(), fee, {
-      queryId: 0n,
+      queryID: 0n,
     })
     expect(synced.transactions).toHaveTransaction({
       from: anyone.address,

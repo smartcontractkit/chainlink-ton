@@ -41,7 +41,7 @@ struct JettonWithdrawable_WithdrawFeeTransfer {
 /// Requests withdrawal of accrued fee jettons. The caller (a contract holding Jetton wallets)
 /// builds the exact `wallet` + `AskToTransfer` pairs to relay.
 struct (0x0d00995c) JettonWithdrawable_Withdraw {
-    queryId: uint64;
+    queryID: uint64;
     transfers: array<JettonWithdrawable_WithdrawFeeTransfer>;
 }
 
@@ -151,7 +151,7 @@ fun JettonWithdrawable.onWithdraw(
         };
 
         val taggedAsk = AskToTransfer {
-            queryId: ask.queryId,
+            queryID: ask.queryID,
             jettonAmount: ask.jettonAmount,
             transferRecipient: ask.transferRecipient,
             sendExcessesTo: ask.sendExcessesTo,

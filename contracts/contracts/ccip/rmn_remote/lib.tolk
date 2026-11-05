@@ -71,14 +71,14 @@ fun CursePolicy.onAccessControlMessage(mutate self, sender: address, body: slice
     match (msg) {
         AccessControl_GrantRole => {
             self.requireRoleAdmin(msg.role, sender);
-            rbac._grantRole(msg.queryId, sender, msg.role, msg.account, true);
+            rbac._grantRole(msg.queryID, sender, msg.role, msg.account, true);
         }
         AccessControl_RevokeRole => {
             self.requireRoleAdmin(msg.role, sender);
-            rbac._revokeRole(msg.queryId, sender, msg.role, msg.account, true);
+            rbac._revokeRole(msg.queryID, sender, msg.role, msg.account, true);
         }
         AccessControl_RenounceRole => {
-            rbac.renounceRole(msg.queryId, sender, msg.role, msg.callerConfirmation, true);
+            rbac.renounceRole(msg.queryID, sender, msg.role, msg.callerConfirmation, true);
         }
         else => {
             throw 0xFFFF;

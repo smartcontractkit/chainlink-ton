@@ -572,7 +572,7 @@ export class FeeQuoterSetup {
       if (errorCode === sx.FeeQuoter_MessageValidationFailed.PREFIX) {
         const failure = sx.FeeQuoter_MessageValidationFailed.fromSlice(resp.body.beginParse())
         throw new Error(
-          `Message validation failed with error ${printErrorName(Number(failure.error))}`,
+          `Message validation failed with error ${printErrorName(Number(failure.errorCode))}`,
         )
       } else {
         throw new Error(`Unexpected response opcode: ${errorCode}`)

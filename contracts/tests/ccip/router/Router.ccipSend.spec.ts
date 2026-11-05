@@ -144,7 +144,7 @@ describe('Router.ccipSend', () => {
         if (!x) return false
         const decoded = rt.Router_CCIPSendNACK.fromSlice(x.beginParse())
         return (
-          decoded.error ===
+          decoded.errorCode ===
           BigInt(rt.Router.Errors['Router_Error.FeePaymentsWithJettonsNotSupported'])
         )
       },
@@ -175,7 +175,7 @@ describe('Router.ccipSend', () => {
       body(x) {
         if (!x) return false
         const decoded = rt.Router_CCIPSendNACK.fromSlice(x.beginParse())
-        return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
+        return decoded.errorCode === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
       },
     })
   })
@@ -184,7 +184,7 @@ describe('Router.ccipSend', () => {
     // Disable the onRamp for the chain
     {
       const result = await router.sendRouterApplyRampUpdates(deployer.getSender(), toNano('1'), {
-        queryId: 1n,
+        queryID: 1n,
         onRampUpdates: rt.OnRamps.create({
           destChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
           onRamp: null,
@@ -212,7 +212,7 @@ describe('Router.ccipSend', () => {
       body(x) {
         if (!x) return false
         const decoded = rt.Router_CCIPSendNACK.fromSlice(x.beginParse())
-        return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
+        return decoded.errorCode === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
       },
     })
   })

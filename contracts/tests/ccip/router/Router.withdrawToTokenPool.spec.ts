@@ -90,7 +90,7 @@ describe('Router.withdrawToTokenPool', () => {
     const answer = await blockchain
       .openContract(deposit.DepositAccount.fromAddress(account))
       .sendResponseWalletAddress(blockchain.sender(jetton), toNano('0.05'), {
-        queryId: 0n,
+        queryID: 0n,
         jettonWalletAddress: new Address(0, beginCell().storeAddress(account).endCell().hash()),
         ownerAddress: null,
       })
@@ -134,7 +134,7 @@ describe('Router.withdrawToTokenPool', () => {
     rt.TokenPool_LockOrBurnForwardPayload.create({
       originalSender: sender.address,
       requestMsg: rt.TokenPool_LockOrBurn.create({
-        queryId: 0n,
+        queryID: 0n,
         request: rt.TokenPool_LockOrBurnInV1.create({
           transfer: {
             $: 'TokenPool_Transfer',
@@ -168,7 +168,7 @@ describe('Router.withdrawToTokenPool', () => {
   // in a DepositAccount_WithdrawFailed.
   const buildWithdraw = (tokenPool: Address): deposit.DepositAccount_Withdraw =>
     deposit.DepositAccount_Withdraw.create({
-      queryId: 0n,
+      queryID: 0n,
       ask: deposit.AskToTransfer.create({
         jettonAmount: toNano('5'),
         transferRecipient: tokenPool,
@@ -197,7 +197,7 @@ describe('Router.withdrawToTokenPool', () => {
         if (!body) return false
         const failed = rt.Router_TokenPoolLockOrBurnFailed.fromSlice(body.beginParse())
         return (
-          failed.tokenPool.equals(tokenPool) && failed.exitCode === BigInt(rt.Router.Errors[error])
+          failed.tokenPool.equals(tokenPool) && failed.errorCode === BigInt(rt.Router.Errors[error])
         )
       },
     })

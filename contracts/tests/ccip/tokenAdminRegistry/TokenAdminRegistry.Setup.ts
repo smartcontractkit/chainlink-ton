@@ -151,7 +151,7 @@ export async function registerToken(
   fx: Fixture,
   opt: {
     administrator?: Address
-    queryId?: bigint
+    queryID?: bigint
     token?: Address
     /** Answer the entry's TEP-89 query as the token, enabling it. */
     answerWalletQuery?: boolean
@@ -164,7 +164,7 @@ export async function registerToken(
     fx.owner.getSender(),
     OPERATION_VALUE,
     {
-      queryId: opt.queryId ?? 0n,
+      queryID: opt.queryID ?? 0n,
       tokenAddress: token,
       tokenInfo: tokenInfo(fx, fx.pool, token),
       administrator: opt.administrator ?? fx.administrator.address,
@@ -185,7 +185,7 @@ export async function registerToken(
     await answerWalletQuery(fx, { token })
   }
   if (opt.answerPoolProbe ?? true) {
-    await answerPoolProbe(fx, { token, queryId: opt.queryId })
+    await answerPoolProbe(fx, { token, queryID: opt.queryID })
   }
   return result
 }
@@ -198,7 +198,7 @@ export const answerPoolProbe = (
     from?: Address
     transferInitiator?: Address | null
     admission?: tare.TokenPool_AdmissionBudget
-    queryId?: bigint
+    queryID?: bigint
     /** Token the pool reports; defaults to the entry's token. */
     poolToken?: Address
   } = {},
@@ -207,7 +207,7 @@ export const answerPoolProbe = (
     fx.blockchain.sender(opt.from ?? fx.pool),
     toNano('0.02'),
     {
-      queryId: opt.queryId ?? 0n,
+      queryID: opt.queryID ?? 0n,
       token: opt.poolToken ?? opt.token ?? fx.token,
       transferInitiator: opt.transferInitiator ?? null,
       admission: opt.admission ?? POOL_ADMISSION,
@@ -229,7 +229,7 @@ export const answerWalletQuery = (
     fx.blockchain.sender(opt.from ?? opt.token ?? fx.token),
     toNano('0.02'),
     {
-      queryId: 0n,
+      queryID: 0n,
       jettonWalletAddress: opt.wallet === undefined ? fx.other.address : opt.wallet,
       ownerAddress: null,
     },
@@ -246,11 +246,11 @@ export const transferAdminRole = (
   fx: Fixture,
   actor: SandboxContract<TreasuryContract>,
   newAdministrator: Address | null,
-  queryId = 0n,
+  queryID = 0n,
   value = OPERATION_VALUE,
 ) =>
   fx.registry.sendTokenAdminRegistryTransferAdminRole(actor.getSender(), value, {
-    queryId,
+    queryID,
     tokenAddress: fx.token,
     newAdministrator,
   })
@@ -258,11 +258,11 @@ export const transferAdminRole = (
 export const acceptAdminRole = (
   fx: Fixture,
   actor: SandboxContract<TreasuryContract>,
-  queryId = 0n,
+  queryID = 0n,
   value = OPERATION_VALUE,
 ) =>
   fx.registry.sendTokenAdminRegistryAcceptAdminRole(actor.getSender(), value, {
-    queryId,
+    queryID,
     tokenAddress: fx.token,
   })
 
@@ -270,11 +270,11 @@ export const overridePendingAdministrator = (
   fx: Fixture,
   actor: SandboxContract<TreasuryContract>,
   administrator: Address,
-  queryId = 0n,
+  queryID = 0n,
   value = OPERATION_VALUE,
 ) =>
   fx.registry.sendTokenAdminRegistryOverridePendingAdministrator(actor.getSender(), value, {
-    queryId,
+    queryID,
     tokenAddress: fx.token,
     administrator,
   })
@@ -283,11 +283,11 @@ export const requestSetPool = (
   fx: Fixture,
   actor: SandboxContract<TreasuryContract>,
   tokenPool: Address | null,
-  queryId = 0n,
+  queryID = 0n,
   value = OPERATION_VALUE,
 ) =>
   fx.registry.sendTokenAdminRegistrySetPool(actor.getSender(), value, {
-    queryId,
+    queryID,
     tokenAddress: fx.token,
     tokenPool,
   })
@@ -297,15 +297,15 @@ export async function setPool(
   fx: Fixture,
   actor: SandboxContract<TreasuryContract>,
   tokenPool: Address | null,
-  queryId = 0n,
+  queryID = 0n,
   value = OPERATION_VALUE,
   transferInitiator: Address | null = null,
 ): Promise<Result> {
-  const request = await requestSetPool(fx, actor, tokenPool, queryId, value)
+  const request = await requestSetPool(fx, actor, tokenPool, queryID, value)
   if (tokenPool === null) {
     return request
   }
-  const answer = await answerPoolProbe(fx, { from: tokenPool, transferInitiator, queryId })
+  const answer = await answerPoolProbe(fx, { from: tokenPool, transferInitiator, queryID })
   return { transactions: [...request.transactions, ...answer.transactions] }
 }
 
@@ -379,5 +379,5 @@ export function failedTokenInfo(fx: Fixture, result: Result, requester: Address)
 export const messageFromRoot = (
   content: tare.TokenAdminRegistryEntry_RootMessage,
   minEntryVersion = 1n,
-  queryId = 0n,
-) => tare.TokenAdminRegistryEntry_MessageFromRoot.create({ queryId, minEntryVersion, content })
+  queryID = 0n,
+) => tare.TokenAdminRegistryEntry_MessageFromRoot.create({ queryID, minEntryVersion, content })

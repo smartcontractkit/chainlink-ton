@@ -280,7 +280,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onFeeReserved
         value: TokenAdminRegistry_GetTokenInfo.cost(),
         dest: tokenRegistry.load(),
         body: TokenAdminRegistry_GetTokenInfo {
-            queryId: 0,
+            queryID: 0,
             token: tokenAmount.token,
         }
     });
@@ -433,7 +433,7 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnR
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidationFailed(mutate self, msg: FeeQuoter_MessageValidationFailed) {
-    self.exitWithError(msg.error as uint256, NO_FEE_CHARGED);
+    self.exitWithError(msg.errorCode as uint256, NO_FEE_CHARGED);
 }
 
 const NO_FEE_CHARGED: coins = 0
@@ -477,7 +477,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onOnRampLockOr
     self.exitWithError(msg.errorCode as uint256, self.state.load().chargedFee.feeTokenAmount);
 }
 
-fun CCIPSendExecutor<T>.exitWithError(self, error: uint256, chargedFee: coins?) {
+fun CCIPSendExecutor<T>.exitWithError(self, errorCode: uint256, chargedFee: coins?) {
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_Finalized> {
         id: self.id,
         onrampSend: self.onrampSend,
@@ -497,7 +497,7 @@ fun CCIPSendExecutor<T>.exitWithError(self, error: uint256, chargedFee: coins?) 
             executorID: self.id,
             destChainSelector: msg.destChainSelector,
             sender: self.onrampSend.metadata.sender,
-            error,
+            errorCode,
             refund: chargedFee.toOptCell(),
         }
     });

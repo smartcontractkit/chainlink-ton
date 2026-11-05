@@ -196,7 +196,7 @@ describe.each(cases)(
               if (!x) return false
               const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
               return (
-                decoded.error ===
+                decoded.errorCode ===
                 BigInt(rt.Router.Errors['Router_Error.FeePaymentsWithJettonsNotSupported'])
               )
             },
@@ -246,7 +246,9 @@ describe.each(cases)(
             body(x) {
               if (!x) return false
               const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
-              return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
+              return (
+                decoded.errorCode === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
+              )
             },
           })
         })
@@ -258,7 +260,7 @@ describe.each(cases)(
               deployer.getSender(),
               toNano('1'),
               {
-                queryId: 1n,
+                queryID: 1n,
                 onRampUpdates: {
                   $: 'OnRamps',
                   destChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
@@ -311,7 +313,9 @@ describe.each(cases)(
             body(x) {
               if (!x) return false
               const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
-              return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
+              return (
+                decoded.errorCode === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
+              )
             },
           })
         })
@@ -383,7 +387,7 @@ describe.each(cases)(
             onRamp.getSender(),
             toNano('1'),
             {
-              error: 12345n,
+              errorCode: 12345n,
               msg,
               context: rt.Router_GetValidatedFeeContext.toCell(
                 rt.Router_GetValidatedFeeContext.create({
@@ -410,7 +414,7 @@ describe.each(cases)(
               const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
               return (
                 contextsEqual(decoded.context, context) &&
-                decoded.error === 12345n &&
+                decoded.errorCode === 12345n &&
                 decoded.msg.queryID === 1n &&
                 decoded.msg.data.equals(Cell.EMPTY) &&
                 decoded.msg.destChainSelector ===
@@ -428,7 +432,7 @@ describe.each(cases)(
             sender.getSender(),
             toNano('1'),
             {
-              error: 12345n,
+              errorCode: 12345n,
               msg,
               context: rt.Router_GetValidatedFeeContext.toCell(
                 rt.Router_GetValidatedFeeContext.create({
@@ -549,7 +553,7 @@ describe.each(cases)(
             onRamp.getSender(),
             toNano('1'),
             {
-              error: 12345n,
+              errorCode: 12345n,
               msg,
               context: rt.Router_GetValidatedFeeContext.toCell(
                 rt.Router_GetValidatedFeeContext.create({
@@ -586,7 +590,7 @@ describe.each(cases)(
               const decoded = rt.Router_MessageValidationFailed_V1.fromSlice(x.beginParse())
               return (
                 decoded.context.asCell().equals(context ?? Cell.EMPTY) &&
-                decoded.error === 12345n &&
+                decoded.errorCode === 12345n &&
                 decoded.msg.queryID === 1n &&
                 decoded.msg.data.equals(Cell.EMPTY) &&
                 decoded.msg.destChainSelector ===

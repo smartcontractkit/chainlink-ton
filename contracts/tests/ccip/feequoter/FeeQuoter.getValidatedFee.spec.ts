@@ -176,7 +176,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           [
             (msg) => {
               return (
-                msg.error ===
+                msg.errorCode ===
                 BigInt(feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.DestChainNotEnabled'])
               )
               // return true
@@ -223,7 +223,8 @@ describe('FeeQuoter GetValidatedFee', () => {
           [
             (msg) => {
               return (
-                msg.error === BigInt(feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.MsgDataTooLarge'])
+                msg.errorCode ===
+                BigInt(feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.MsgDataTooLarge'])
               )
             },
           ],
@@ -289,7 +290,8 @@ describe('FeeQuoter GetValidatedFee', () => {
           [
             (msg) => {
               return (
-                msg.error === BigInt(feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.GasLimitTooHigh'])
+                msg.errorCode ===
+                BigInt(feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.GasLimitTooHigh'])
               )
             },
           ],
@@ -336,7 +338,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           [
             (msg) => {
               return (
-                msg.error ===
+                msg.errorCode ===
                 BigInt(feeQuoter.FeeQuoter.Errors['FeeQuoter_Error.FeeTokenNotSupported'])
               )
             },

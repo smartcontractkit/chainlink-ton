@@ -246,7 +246,7 @@ describe('OnRamp - Send', () => {
         return (
           msg.destChainSelector === ccipSend.destChainSelector &&
           msg.sender.equals(senderAddress) &&
-          msg.error === BigInt(or.OnRamp.Errors['OnRamp_Error.SenderNotAllowed'])
+          msg.errorCode === BigInt(or.OnRamp.Errors['OnRamp_Error.SenderNotAllowed'])
         )
       },
     })
@@ -281,7 +281,8 @@ describe('OnRamp - Send', () => {
         return (
           msg.destChainSelector === jettonCCIPSend.destChainSelector &&
           msg.sender.equals(senderAddress) &&
-          msg.error === BigInt(or.OnRamp.Errors['OnRamp_Error.FeePaymentsWithJettonsNotSupported'])
+          msg.errorCode ===
+            BigInt(or.OnRamp.Errors['OnRamp_Error.FeePaymentsWithJettonsNotSupported'])
         )
       },
     })
@@ -322,7 +323,7 @@ describe('OnRamp - Send', () => {
         return (
           msg.destChainSelector === unknownChainCCIPSend.destChainSelector &&
           msg.sender.equals(senderAddress) &&
-          msg.error === BigInt(or.OnRamp.Errors['OnRamp_Error.UnknownDestChainSelector'])
+          msg.errorCode === BigInt(or.OnRamp.Errors['OnRamp_Error.UnknownDestChainSelector'])
         )
       },
     })

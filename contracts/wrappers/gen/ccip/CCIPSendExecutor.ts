@@ -353,7 +353,7 @@ export const Router_CCIPSend = {
 
 /**
  > struct (0xfa7da444) TokenPool_LockOrBurn {
- >     queryId: uint64
+ >     queryID: uint64
  >     request: Cell<TokenPool_LockOrBurnInV1>
  >     requestedFinalityConfig: uint32
  >     tokenArgs: cell?
@@ -365,7 +365,7 @@ export const Router_CCIPSend = {
  */
 export interface TokenPool_LockOrBurn {
     readonly $: 'TokenPool_LockOrBurn'
-    queryId: uint64
+    queryID: uint64
     request: TokenPool_LockOrBurnInV1
     requestedFinalityConfig: uint32
     tokenArgs: c.Cell | null
@@ -379,7 +379,7 @@ export const TokenPool_LockOrBurn = {
     PREFIX: 0xfa7da444,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
@@ -392,14 +392,14 @@ export const TokenPool_LockOrBurn = {
             $: 'TokenPool_LockOrBurn',
             extra: null,
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurn {
         loadAndCheckPrefix32(s, 0xfa7da444, 'TokenPool_LockOrBurn');
         return {
             $: 'TokenPool_LockOrBurn',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             request: loadCellRef<TokenPool_LockOrBurnInV1>(s, TokenPool_LockOrBurnInV1.fromSlice),
             requestedFinalityConfig: s.loadUintBig(32),
             tokenArgs: s.loadBoolean() ? s.loadRef() : null,
@@ -414,7 +414,7 @@ export const TokenPool_LockOrBurn = {
     },
     store(self: TokenPool_LockOrBurn, b: c.Builder): void {
         b.storeUint(0xfa7da444, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<TokenPool_LockOrBurnInV1>(self.request, b, TokenPool_LockOrBurnInV1.store);
         b.storeUint(self.requestedFinalityConfig, 32);
         storeTolkNullable<c.Cell>(self.tokenArgs, b,
@@ -523,14 +523,14 @@ export const TokenPool_LockOrBurnForwardPayload = {
 
 /**
  > struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
- >     queryId: uint64
+ >     queryID: uint64
  >     forwardTonAmount: coins
  >     forwardPayload: TokenPool_LockOrBurnForwardPayload
  > }
  */
 export interface TokenPool_LockOrBurnWithdraw {
     readonly $: 'TokenPool_LockOrBurnWithdraw'
-    queryId: uint64
+    queryID: uint64
     forwardTonAmount: coins
     forwardPayload: TokenPool_LockOrBurnForwardPayload
 }
@@ -539,28 +539,28 @@ export const TokenPool_LockOrBurnWithdraw = {
     PREFIX: 0xe7a35041,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         forwardTonAmount: coins
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }): TokenPool_LockOrBurnWithdraw {
         return {
             $: 'TokenPool_LockOrBurnWithdraw',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnWithdraw {
         loadAndCheckPrefix32(s, 0xe7a35041, 'TokenPool_LockOrBurnWithdraw');
         return {
             $: 'TokenPool_LockOrBurnWithdraw',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             forwardTonAmount: s.loadCoins(),
             forwardPayload: TokenPool_LockOrBurnForwardPayload.fromSlice(s),
         }
     },
     store(self: TokenPool_LockOrBurnWithdraw, b: c.Builder): void {
         b.storeUint(0xe7a35041, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeCoins(self.forwardTonAmount);
         TokenPool_LockOrBurnForwardPayload.store(self.forwardPayload, b);
     },
@@ -571,14 +571,14 @@ export const TokenPool_LockOrBurnWithdraw = {
 
 /**
  > struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
- >     queryId: uint64
+ >     queryID: uint64
  >     out: Cell<TokenPool_LockOrBurnOutV1>
  >     destTokenAmount: coins
  > }
  */
 export interface TokenPool_LockOrBurnFinished {
     readonly $: 'TokenPool_LockOrBurnFinished'
-    queryId: uint64
+    queryID: uint64
     out: TokenPool_LockOrBurnOutV1
     destTokenAmount: coins
 }
@@ -587,28 +587,28 @@ export const TokenPool_LockOrBurnFinished = {
     PREFIX: 0xf432a4e3,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         out: TokenPool_LockOrBurnOutV1
         destTokenAmount: coins
     }): TokenPool_LockOrBurnFinished {
         return {
             $: 'TokenPool_LockOrBurnFinished',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnFinished {
         loadAndCheckPrefix32(s, 0xf432a4e3, 'TokenPool_LockOrBurnFinished');
         return {
             $: 'TokenPool_LockOrBurnFinished',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             out: loadCellRef<TokenPool_LockOrBurnOutV1>(s, TokenPool_LockOrBurnOutV1.fromSlice),
             destTokenAmount: s.loadCoins(),
         }
     },
     store(self: TokenPool_LockOrBurnFinished, b: c.Builder): void {
         b.storeUint(0xf432a4e3, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<TokenPool_LockOrBurnOutV1>(self.out, b, TokenPool_LockOrBurnOutV1.store);
         b.storeCoins(self.destTokenAmount);
     },
@@ -619,13 +619,13 @@ export const TokenPool_LockOrBurnFinished = {
 
 /**
  > struct (0x3476ea72) TokenPool_LockOrBurnFailure {
- >     queryId: uint64
+ >     queryID: uint64
  >     errorCode: int32
  > }
  */
 export interface TokenPool_LockOrBurnFailure {
     readonly $: 'TokenPool_LockOrBurnFailure'
-    queryId: uint64
+    queryID: uint64
     errorCode: int32
 }
 
@@ -633,26 +633,26 @@ export const TokenPool_LockOrBurnFailure = {
     PREFIX: 0x3476ea72,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         errorCode: int32
     }): TokenPool_LockOrBurnFailure {
         return {
             $: 'TokenPool_LockOrBurnFailure',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnFailure {
         loadAndCheckPrefix32(s, 0x3476ea72, 'TokenPool_LockOrBurnFailure');
         return {
             $: 'TokenPool_LockOrBurnFailure',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             errorCode: s.loadIntBig(32),
         }
     },
     store(self: TokenPool_LockOrBurnFailure, b: c.Builder): void {
         b.storeUint(0x3476ea72, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeInt(self.errorCode, 32);
     },
     toCell(self: TokenPool_LockOrBurnFailure): c.Cell {
@@ -662,13 +662,13 @@ export const TokenPool_LockOrBurnFailure = {
 
 /**
  > struct (0xec5f855e) TokenAdminRegistry_GetTokenInfo {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  > }
  */
 export interface TokenAdminRegistry_GetTokenInfo {
     readonly $: 'TokenAdminRegistry_GetTokenInfo'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
 }
 
@@ -676,26 +676,26 @@ export const TokenAdminRegistry_GetTokenInfo = {
     PREFIX: 0xec5f855e,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
     }): TokenAdminRegistry_GetTokenInfo {
         return {
             $: 'TokenAdminRegistry_GetTokenInfo',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistry_GetTokenInfo {
         loadAndCheckPrefix32(s, 0xec5f855e, 'TokenAdminRegistry_GetTokenInfo');
         return {
             $: 'TokenAdminRegistry_GetTokenInfo',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
         }
     },
     store(self: TokenAdminRegistry_GetTokenInfo, b: c.Builder): void {
         b.storeUint(0xec5f855e, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
     },
     toCell(self: TokenAdminRegistry_GetTokenInfo): c.Cell {
@@ -705,7 +705,7 @@ export const TokenAdminRegistry_GetTokenInfo = {
 
 /**
  > struct (0x0a9bf5d1) TokenAdminRegistry_TokenInfo {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  >     version: uint32
  >     poolInfo: Cell<TokenAdminRegistry_PoolInfo>?
@@ -713,7 +713,7 @@ export const TokenAdminRegistry_GetTokenInfo = {
  */
 export interface TokenAdminRegistry_TokenInfo {
     readonly $: 'TokenAdminRegistry_TokenInfo'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
     version: uint32
     poolInfo: TokenAdminRegistry_PoolInfo | null /* = null */
@@ -723,7 +723,7 @@ export const TokenAdminRegistry_TokenInfo = {
     PREFIX: 0x0a9bf5d1,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         version: uint32
         poolInfo?: TokenAdminRegistry_PoolInfo | null /* = null */
@@ -732,14 +732,14 @@ export const TokenAdminRegistry_TokenInfo = {
             $: 'TokenAdminRegistry_TokenInfo',
             poolInfo: null,
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistry_TokenInfo {
         loadAndCheckPrefix32(s, 0x0a9bf5d1, 'TokenAdminRegistry_TokenInfo');
         return {
             $: 'TokenAdminRegistry_TokenInfo',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
             version: s.loadUintBig(32),
             poolInfo: s.loadBoolean() ? loadCellRef<TokenAdminRegistry_PoolInfo>(s, TokenAdminRegistry_PoolInfo.fromSlice) : null,
@@ -747,7 +747,7 @@ export const TokenAdminRegistry_TokenInfo = {
     },
     store(self: TokenAdminRegistry_TokenInfo, b: c.Builder): void {
         b.storeUint(0x0a9bf5d1, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
         b.storeUint(self.version, 32);
         storeTolkNullable<TokenAdminRegistry_PoolInfo>(self.poolInfo, b,
@@ -804,13 +804,13 @@ export const TokenAdminRegistry_PoolInfo = {
 
 /**
  > struct (0xe533c614) TokenAdminRegistry_GetTokenInfoFailed {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  > }
  */
 export interface TokenAdminRegistry_GetTokenInfoFailed {
     readonly $: 'TokenAdminRegistry_GetTokenInfoFailed'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
 }
 
@@ -818,26 +818,26 @@ export const TokenAdminRegistry_GetTokenInfoFailed = {
     PREFIX: 0xe533c614,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
     }): TokenAdminRegistry_GetTokenInfoFailed {
         return {
             $: 'TokenAdminRegistry_GetTokenInfoFailed',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistry_GetTokenInfoFailed {
         loadAndCheckPrefix32(s, 0xe533c614, 'TokenAdminRegistry_GetTokenInfoFailed');
         return {
             $: 'TokenAdminRegistry_GetTokenInfoFailed',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
         }
     },
     store(self: TokenAdminRegistry_GetTokenInfoFailed, b: c.Builder): void {
         b.storeUint(0xe533c614, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
     },
     toCell(self: TokenAdminRegistry_GetTokenInfoFailed): c.Cell {
@@ -954,14 +954,14 @@ export const FeeQuoter_MessageValidated = {
 
 /**
  > struct (0x4785cb72) FeeQuoter_MessageValidationFailed {
- >     error: uint256
+ >     errorCode: uint256
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
  > }
  */
 export interface FeeQuoter_MessageValidationFailed {
     readonly $: 'FeeQuoter_MessageValidationFailed'
-    error: uint256
+    errorCode: uint256
     msg: Router_CCIPSend
     context: c.Cell | null /* = null */
 }
@@ -970,7 +970,7 @@ export const FeeQuoter_MessageValidationFailed = {
     PREFIX: 0x4785cb72,
 
     create(args: {
-        error: uint256
+        errorCode: uint256
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }): FeeQuoter_MessageValidationFailed {
@@ -984,14 +984,14 @@ export const FeeQuoter_MessageValidationFailed = {
         loadAndCheckPrefix32(s, 0x4785cb72, 'FeeQuoter_MessageValidationFailed');
         return {
             $: 'FeeQuoter_MessageValidationFailed',
-            error: s.loadUintBig(256),
+            errorCode: s.loadUintBig(256),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: FeeQuoter_MessageValidationFailed, b: c.Builder): void {
         b.storeUint(0x4785cb72, 32);
-        b.storeUint(self.error, 256);
+        b.storeUint(self.errorCode, 256);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -1395,7 +1395,7 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
  >     executorID: CCIPSendExecutor_ID
  >     destChainSelector: uint64
  >     sender: address
- >     error: uint256
+ >     errorCode: uint256
  >     refund: Cell<coins>?
  > }
  */
@@ -1405,7 +1405,7 @@ export interface OnRamp_ExecutorFinishedWithError {
     executorID: CCIPSendExecutor_ID
     destChainSelector: uint64
     sender: c.Address
-    error: uint256
+    errorCode: uint256
     refund: coins | null
 }
 
@@ -1417,7 +1417,7 @@ export const OnRamp_ExecutorFinishedWithError = {
         executorID: CCIPSendExecutor_ID
         destChainSelector: uint64
         sender: c.Address
-        error: uint256
+        errorCode: uint256
         refund: coins | null
     }): OnRamp_ExecutorFinishedWithError {
         return {
@@ -1434,7 +1434,7 @@ export const OnRamp_ExecutorFinishedWithError = {
             executorID: CCIPSendExecutor_ID.fromSlice(s),
             destChainSelector: s.loadUintBig(64),
             sender: s.loadAddress(),
-            error: s.loadUintBig(256),
+            errorCode: s.loadUintBig(256),
             refund: s.loadBoolean() ? loadCellRef<coins>(s,
                 (s) => s.loadCoins()
             ) : null,
@@ -1446,7 +1446,7 @@ export const OnRamp_ExecutorFinishedWithError = {
         CCIPSendExecutor_ID.store(self.executorID, b);
         b.storeUint(self.destChainSelector, 64);
         b.storeAddress(self.sender);
-        b.storeUint(self.error, 256);
+        b.storeUint(self.errorCode, 256);
         storeTolkNullable<coins>(self.refund, b,
             (v,b) => { storeCellRef<coins>(v, b,
                 (v,b) => b.storeCoins(v)
@@ -1460,13 +1460,13 @@ export const OnRamp_ExecutorFinishedWithError = {
 
 /**
  > struct (0xdf46b714) OnRamp_LockOrBurnFailed {
- >     queryId: uint64
+ >     queryID: uint64
  >     errorCode: int32
  > }
  */
 export interface OnRamp_LockOrBurnFailed {
     readonly $: 'OnRamp_LockOrBurnFailed'
-    queryId: uint64
+    queryID: uint64
     errorCode: int32
 }
 
@@ -1474,26 +1474,26 @@ export const OnRamp_LockOrBurnFailed = {
     PREFIX: 0xdf46b714,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         errorCode: int32
     }): OnRamp_LockOrBurnFailed {
         return {
             $: 'OnRamp_LockOrBurnFailed',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): OnRamp_LockOrBurnFailed {
         loadAndCheckPrefix32(s, 0xdf46b714, 'OnRamp_LockOrBurnFailed');
         return {
             $: 'OnRamp_LockOrBurnFailed',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             errorCode: s.loadIntBig(32),
         }
     },
     store(self: OnRamp_LockOrBurnFailed, b: c.Builder): void {
         b.storeUint(0xdf46b714, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeInt(self.errorCode, 32);
     },
     toCell(self: OnRamp_LockOrBurnFailed): c.Cell {
@@ -1644,14 +1644,14 @@ export const Router_WithdrawRequest = {
  > struct (0xb76e3a84) Router_TokenPoolLockOrBurnFailed {
  >     queryID: uint64
  >     tokenPool: address
- >     exitCode: int32
+ >     errorCode: int32
  > }
  */
 export interface Router_TokenPoolLockOrBurnFailed {
     readonly $: 'Router_TokenPoolLockOrBurnFailed'
     queryID: uint64
     tokenPool: c.Address
-    exitCode: int32
+    errorCode: int32
 }
 
 export const Router_TokenPoolLockOrBurnFailed = {
@@ -1660,7 +1660,7 @@ export const Router_TokenPoolLockOrBurnFailed = {
     create(args: {
         queryID?: uint64
         tokenPool: c.Address
-        exitCode: int32
+        errorCode: int32
     }): Router_TokenPoolLockOrBurnFailed {
         return {
             $: 'Router_TokenPoolLockOrBurnFailed',
@@ -1674,14 +1674,14 @@ export const Router_TokenPoolLockOrBurnFailed = {
             $: 'Router_TokenPoolLockOrBurnFailed',
             queryID: s.loadUintBig(64),
             tokenPool: s.loadAddress(),
-            exitCode: s.loadIntBig(32),
+            errorCode: s.loadIntBig(32),
         }
     },
     store(self: Router_TokenPoolLockOrBurnFailed, b: c.Builder): void {
         b.storeUint(0xb76e3a84, 32);
         b.storeUint(self.queryID, 64);
         b.storeAddress(self.tokenPool);
-        b.storeInt(self.exitCode, 32);
+        b.storeInt(self.errorCode, 32);
     },
     toCell(self: Router_TokenPoolLockOrBurnFailed): c.Cell {
         return makeCellFrom<Router_TokenPoolLockOrBurnFailed>(self, Router_TokenPoolLockOrBurnFailed.store);
@@ -2900,7 +2900,7 @@ export class CCIPSendExecutor implements c.Contract {
     }
 
     static createCellOfFeeQuoterMessageValidationFailed(body: {
-        error: uint256
+        errorCode: uint256
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }) {
@@ -2914,7 +2914,7 @@ export class CCIPSendExecutor implements c.Contract {
     }
 
     static createCellOfTokenAdminRegistryTokenInfo(body: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         version: uint32
         poolInfo?: TokenAdminRegistry_PoolInfo | null /* = null */
@@ -2923,14 +2923,14 @@ export class CCIPSendExecutor implements c.Contract {
     }
 
     static createCellOfTokenAdminRegistryGetTokenInfoFailed(body: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
     }) {
         return TokenAdminRegistry_GetTokenInfoFailed.toCell(TokenAdminRegistry_GetTokenInfoFailed.create(body));
     }
 
     static createCellOfTokenPoolLockOrBurnWithdraw(body: {
-        queryId?: uint64
+        queryID?: uint64
         forwardTonAmount: coins
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }) {
@@ -2938,7 +2938,7 @@ export class CCIPSendExecutor implements c.Contract {
     }
 
     static createCellOfTokenPoolLockOrBurnFinished(body: {
-        queryId?: uint64
+        queryID?: uint64
         out: TokenPool_LockOrBurnOutV1
         destTokenAmount: coins
     }) {
@@ -2946,7 +2946,7 @@ export class CCIPSendExecutor implements c.Contract {
     }
 
     static createCellOfTokenPoolLockOrBurnFailure(body: {
-        queryId?: uint64
+        queryID?: uint64
         errorCode: int32
     }) {
         return TokenPool_LockOrBurnFailure.toCell(TokenPool_LockOrBurnFailure.create(body));
@@ -2955,13 +2955,13 @@ export class CCIPSendExecutor implements c.Contract {
     static createCellOfRouterTokenPoolLockOrBurnFailed(body: {
         queryID?: uint64
         tokenPool: c.Address
-        exitCode: int32
+        errorCode: int32
     }) {
         return Router_TokenPoolLockOrBurnFailed.toCell(Router_TokenPoolLockOrBurnFailed.create(body));
     }
 
     static createCellOfOnRampLockOrBurnFailed(body: {
-        queryId?: uint64
+        queryID?: uint64
         errorCode: int32
     }) {
         return OnRamp_LockOrBurnFailed.toCell(OnRamp_LockOrBurnFailed.create(body));
@@ -3009,7 +3009,7 @@ export class CCIPSendExecutor implements c.Contract {
     }
 
     async sendFeeQuoterMessageValidationFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        error: uint256
+        errorCode: uint256
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
@@ -3031,7 +3031,7 @@ export class CCIPSendExecutor implements c.Contract {
     }
 
     async sendTokenAdminRegistryTokenInfo(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         version: uint32
         poolInfo?: TokenAdminRegistry_PoolInfo | null /* = null */
@@ -3044,7 +3044,7 @@ export class CCIPSendExecutor implements c.Contract {
     }
 
     async sendTokenAdminRegistryGetTokenInfoFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3055,7 +3055,7 @@ export class CCIPSendExecutor implements c.Contract {
     }
 
     async sendTokenPoolLockOrBurnWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         forwardTonAmount: coins
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }, extraOptions?: ExtraSendOptions) {
@@ -3067,7 +3067,7 @@ export class CCIPSendExecutor implements c.Contract {
     }
 
     async sendTokenPoolLockOrBurnFinished(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         out: TokenPool_LockOrBurnOutV1
         destTokenAmount: coins
     }, extraOptions?: ExtraSendOptions) {
@@ -3079,7 +3079,7 @@ export class CCIPSendExecutor implements c.Contract {
     }
 
     async sendTokenPoolLockOrBurnFailure(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         errorCode: int32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -3092,7 +3092,7 @@ export class CCIPSendExecutor implements c.Contract {
     async sendRouterTokenPoolLockOrBurnFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryID?: uint64
         tokenPool: c.Address
-        exitCode: int32
+        errorCode: int32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -3102,7 +3102,7 @@ export class CCIPSendExecutor implements c.Contract {
     }
 
     async sendOnRampLockOrBurnFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         errorCode: int32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {

@@ -69,7 +69,7 @@ fun refundMintBounce(msg: InternalTransferStep) {
         dest: msg.sendExcessesTo!, // safe to unwrap as it is required and validated in the minting path
         value: 0,
         body: ReturnExcessesBack {
-            queryId: msg.queryId
+            queryID: msg.queryID
         }
     });
     // IGNORE_ERRORS is used in the mint-bounce refund path because we are already in
@@ -113,7 +113,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: msg.sendExcessesTo!,
                 value: 0,
                 body: ReturnExcessesBack {
-                    queryId: msg.queryId
+                    queryID: msg.queryID
                 }
             });
             // If the send action cannot be executed, the tx must fail and bounce back to the wallet to restore wGRAM.
@@ -136,7 +136,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: in.senderAddress,
                 value: 0,
                 body: ResponseWalletAddress {
-                    queryId: msg.queryId,
+                    queryID: msg.queryID,
                     jettonWalletAddress: walletAddress,
                     ownerAddress: ownerAddress,
                 }

@@ -48,7 +48,7 @@ export async function sendGetValidatedFee(
         resp.body.beginParse(),
       )
       throw new Error(
-        `Message validation failed with error code: ${msgValidationFailed.error.toString(16)}`,
+        `Message validation failed with error code: ${msgValidationFailed.errorCode.toString(16)}`,
       )
     }
     throw new Error('Unexpected response opcode')

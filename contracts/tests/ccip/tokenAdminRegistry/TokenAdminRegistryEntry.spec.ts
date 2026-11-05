@@ -149,7 +149,7 @@ describe('TokenAdminRegistryEntry - Unit Tests', () => {
     const result = await entryFor(fx).sendTokenAdminRegistryEntryRegistrationInitialized(
       asEntry(fx),
       toNano('0.05'),
-      { queryId: 1n },
+      { queryID: 1n },
     )
     expect(result.transactions).toHaveTransaction({
       from: entryAddress(fx),
@@ -232,8 +232,8 @@ describe('TokenAdminRegistryEntry - Unit Tests', () => {
       op: tar.TokenAdminRegistry_RequestFailed.PREFIX,
       body: tar.TokenAdminRegistry_RequestFailed.toCell(
         tar.TokenAdminRegistry_RequestFailed.create({
-          queryId: 0n,
-          exitCode: BigInt(EntryErrors['TokenAdminRegistryEntry_Error.VersionUnavailable']),
+          queryID: 0n,
+          errorCode: BigInt(EntryErrors['TokenAdminRegistryEntry_Error.VersionUnavailable']),
           request: messageFromRoot(
             tare.TokenAdminRegistryEntry_SetPool.create({
               actor: fx.administrator.address,

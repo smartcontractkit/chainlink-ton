@@ -2151,7 +2151,7 @@ describe('OffRamp - Execute', () => {
           sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
           replyTo: setup.deployer.address,
           tokenPool: setup.tokenPool.address,
-          exitCode: 0n,
+          errorCode: 0n,
         },
       )
 
@@ -2943,7 +2943,7 @@ describe('OffRamp - Execute', () => {
 
       // Raise the pool's release admission above the message's source destGasAmount (0.2 TON).
       await setup.tokenPool.sendTokenPoolSetBudget(setup.deployer.getSender(), toNano('0.1'), {
-        queryId: 900n,
+        queryID: 900n,
         budget: tp.TokenPool_Budget.create({
           lockOrBurn: tp.TokenPool_LockOrBurnBudget.create({ admission: 0n, safety: 0n }),
           releaseOrMint: tp.TokenPool_ReleaseOrMintBudget.create({
@@ -2955,7 +2955,7 @@ describe('OffRamp - Execute', () => {
       await setup.registry.sendTokenAdminRegistryRefreshPoolConfig(
         setup.deployer.getSender(),
         toNano('0.1'),
-        { queryId: 901n, tokenAddress: setup.token },
+        { queryID: 901n, tokenAddress: setup.token },
       )
       expect((await setup.tokenRegistry.getTokenInfo()).admission?.releaseOrMint).toEqual(
         toNano('0.5'),

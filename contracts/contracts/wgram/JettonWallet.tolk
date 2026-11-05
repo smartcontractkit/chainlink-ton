@@ -39,7 +39,7 @@ contract JettonWallet {
 
 // Lets the wallet owner withdraw any GRAM surplus sitting above the strict `jettonBalance + storage_fee`
 struct (0xf2ff646f) AskToWithdrawExcess {
-    queryId: uint64
+    queryID: uint64
     sendExcessesTo: address
 }
 
@@ -113,7 +113,7 @@ fun onInternalMessage(in: InMessage) {
                     dest: storage.ownerAddress,
                     value: msg.forwardTonAmount,
                     body: TransferNotificationForRecipient {
-                        queryId: msg.queryId,
+                        queryID: msg.queryID,
                         jettonAmount: msg.jettonAmount,
                         transferInitiator: msg.transferInitiator,
                         forwardPayload: msg.forwardPayload,
@@ -128,7 +128,7 @@ fun onInternalMessage(in: InMessage) {
                     dest: msg.sendExcessesTo,
                     value: 0,
                     body: ReturnExcessesBack {
-                        queryId: msg.queryId
+                        queryID: msg.queryID
                     }
                 });
                 excessesMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
@@ -155,7 +155,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: calcDeployedJettonWallet(msg.transferRecipient, storage.minterAddress, contract.getCode()),
                 value: 0,
                 body: InternalTransferStep {
-                    queryId: msg.queryId,
+                    queryID: msg.queryID,
                     jettonAmount: msg.jettonAmount,
                     transferInitiator: storage.ownerAddress,
                     sendExcessesTo: msg.sendExcessesTo,
@@ -186,7 +186,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: storage.minterAddress,
                 value: 0,
                 body: BurnNotificationForMinter {
-                    queryId: msg.queryId,
+                    queryID: msg.queryID,
                     jettonAmount: msg.jettonAmount,
                     burnInitiator: storage.ownerAddress,
                     sendExcessesTo: msg.sendExcessesTo,
@@ -212,7 +212,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: msg.sendExcessesTo,
                 value: 0,
                 body: ReturnExcessesBack {
-                    queryId: msg.queryId
+                    queryID: msg.queryID
                 }
             });
             excessMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);

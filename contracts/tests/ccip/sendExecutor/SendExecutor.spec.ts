@@ -510,7 +510,7 @@ describe('SendExecutor - Unit tests', () => {
         if (!x) return false
         const finished = or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse())
         return (
-          finished.error ===
+          finished.errorCode ===
           BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.InvalidValidatedFee'])
         )
       },
@@ -606,7 +606,7 @@ describe('SendExecutor - Unit tests', () => {
           x.beginParse(),
         )
         return (
-          executorFinishedWithError.error ===
+          executorFinishedWithError.errorCode ===
           BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.InsufficientFunds'])
         )
       },
@@ -670,7 +670,7 @@ describe('SendExecutor - Unit tests', () => {
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidationFailed.create({
-        error: 42n,
+        errorCode: 42n,
         msg: onrampSend.msg,
       }),
     )
@@ -686,7 +686,7 @@ describe('SendExecutor - Unit tests', () => {
           x.beginParse(),
         )
         return (
-          executorFinishedWithError.executorID === 0n && executorFinishedWithError.error === 42n
+          executorFinishedWithError.executorID === 0n && executorFinishedWithError.errorCode === 42n
         )
       },
     })
@@ -741,7 +741,7 @@ describe('SendExecutor - Unit tests', () => {
         feeQuoterMock.getSender(),
         toNano('0.3'),
         sx.FeeQuoter_MessageValidationFailed.create({
-          error: 42n,
+          errorCode: 42n,
           msg: onrampSend.msg,
         }),
       ),
@@ -790,7 +790,7 @@ describe('SendExecutor - Unit tests', () => {
         feeQuoterMock.getSender(),
         toNano('0.3'),
         sx.FeeQuoter_MessageValidationFailed.create({
-          error: 42n,
+          errorCode: 42n,
           msg: onrampSend.msg,
         }),
       ),
@@ -833,7 +833,7 @@ describe('SendExecutor - Unit tests', () => {
         )
         return (
           executorFinishedWithError.executorID === 0n &&
-          executorFinishedWithError.error ===
+          executorFinishedWithError.errorCode ===
             BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.FeeQuoterBounce'])
         )
       },
@@ -1042,7 +1042,7 @@ describe('SendExecutor - Unit tests', () => {
         )
         return (
           executorFinishedWithError.executorID === 0n &&
-          executorFinishedWithError.error ===
+          executorFinishedWithError.errorCode ===
             BigInt(
               sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.OnRampFeeReservationBounce'],
             ) &&
@@ -1088,7 +1088,7 @@ describe('SendExecutor - Unit tests', () => {
         )
         return (
           executorFinishedWithError.executorID === 0n &&
-          executorFinishedWithError.error ===
+          executorFinishedWithError.errorCode ===
             BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenRegistryBounce']) &&
           executorFinishedWithError.refund === FeeTokenAmount
         )
@@ -1108,7 +1108,7 @@ describe('SendExecutor - Unit tests', () => {
       tokenRegistryMock.getSender(),
       toNano('0.3'),
       {
-        queryId: 0n,
+        queryID: 0n,
         token: NATIVE_GRAM,
         version: 0n,
         poolInfo: null, // token not enabled
@@ -1127,7 +1127,7 @@ describe('SendExecutor - Unit tests', () => {
         )
         return (
           executorFinishedWithError.executorID === 0n &&
-          executorFinishedWithError.error ===
+          executorFinishedWithError.errorCode ===
             BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenNotEnabled']) &&
           executorFinishedWithError.refund === FeeTokenAmount
         )
@@ -1147,7 +1147,7 @@ describe('SendExecutor - Unit tests', () => {
       tokenRegistryMock.getSender(),
       toNano('0.3'),
       {
-        queryId: 0n,
+        queryID: 0n,
         token: NATIVE_GRAM,
         version: 0n,
         poolInfo: sx.TokenAdminRegistry_PoolInfo.create({
@@ -1172,7 +1172,7 @@ describe('SendExecutor - Unit tests', () => {
     const result = await sendExecutor.sendOnRampLockOrBurnFailed(
       onRampMock.getSender(),
       toNano('0.1'),
-      { queryId: 1n, errorCode: 0xffffn },
+      { queryID: 1n, errorCode: 0xffffn },
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -1185,7 +1185,7 @@ describe('SendExecutor - Unit tests', () => {
         const finished = or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse())
         return (
           finished.executorID === 0n &&
-          finished.error === 0xffffn &&
+          finished.errorCode === 0xffffn &&
           finished.refund === FeeTokenAmount
         )
       },
@@ -1198,7 +1198,7 @@ describe('SendExecutor - Unit tests', () => {
     const result = await sendExecutor.sendOnRampLockOrBurnFailed(
       routerMock.getSender(),
       toNano('0.1'),
-      { queryId: 1n, errorCode: 0xffffn },
+      { queryID: 1n, errorCode: 0xffffn },
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -1216,7 +1216,7 @@ describe('SendExecutor - Unit tests', () => {
       deployer.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidationFailed.create({
-        error: 42n,
+        errorCode: 42n,
         msg: onrampSend.msg,
       }),
     )
@@ -1236,7 +1236,7 @@ describe('SendExecutor - Unit tests', () => {
       deployer.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidationFailed.create({
-        error: 42n,
+        errorCode: 42n,
         msg: onrampSend.msg,
       }),
     )

@@ -647,7 +647,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
             dest: sender,
             body: FeeQuoter_MessageValidationFailed {
                 msg: payload.msg,
-                error: e,
+                errorCode: e,
                 context: payload.context,
             }
         });
