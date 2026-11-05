@@ -127,9 +127,10 @@ struct (0x9dc06185) OnRamp_UpdateAllowlists {
     updates: SnakedCell<UpdateAllowlist>;
 }
 
-// The OnRamp's sends whose bounces it handles: the executor deployment, and the requests it
-// relays to the Router for the executor.
+// The OnRamp's sends whose bounces it handles: the fee query, the executor deployment, and the
+// requests it relays to the Router for the executor.
 type OnRamp_RichBouncedMessage =
+    | FeeQuoter_GetValidatedFee
     | Deployable_InitializeAndSend
     | Router_LockOrBurn
     | Router_WithdrawToTokenPool;

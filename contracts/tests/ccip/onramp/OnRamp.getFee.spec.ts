@@ -1,5 +1,5 @@
 import { Address, beginCell, Cell, Message, toNano } from '@ton/core'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, internal, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import * as coverage from '../../coverage/coverage'
 
@@ -113,9 +113,7 @@ describe('OnRamp - Get Fee', () => {
     expect(decoded.feeToken).toEqual(ccipSend.feeToken)
   })
 
-  it('should throw on a legacy bounce other than the fee withdrawal', async () => {
-    // FeeQuoter_GetValidatedFee is sent with a 256-bit bounce; its non-empty bounced body is not
-    // the fee-aggregator withdrawal, so the OnRamp reports it as unhandled.
+  it('should reply MessageValidationFailed with the exit code when the FeeQuoter bounces', async () => {
     const feeQuoterBouncer = blockchain.openContract(
       bouncer.ContractClient.createFromConfig(await contractCode.ccip.local('tests.mock.Bouncer')),
     )
@@ -123,17 +121,54 @@ describe('OnRamp - Get Fee', () => {
     ;({ deployer, onramp } = await setup(blockchain, {
       config: { feeQuoter: feeQuoterBouncer.address },
     }))
+    const userContext = beginCell().storeUint(42, 32).endCell()
 
     const result = await onramp.sendOnRampGetValidatedFee(
       mockRouter.getSender(),
       toNano('0.5'),
-      or.OnRamp_GetValidatedFee.create({ ccipSend, context: null }),
+      or.OnRamp_GetValidatedFee.create({ ccipSend, context: userContext }),
     )
 
     expect(result.transactions).toHaveTransaction({
       from: feeQuoterBouncer.address,
       to: onramp.address,
-      inMessageBounced: true,
+      op: 0xfffffffe,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: mockRouter.address,
+      success: true,
+      op: or.OnRamp_MessageValidationFailed.PREFIX,
+      body(x) {
+        if (!x) return false
+        const failed = or.OnRamp_MessageValidationFailed.fromSlice(x.beginParse())
+        return (
+          failed.errorCode === 0xffffn && // the Bouncer throws 0xFFFF
+          failed.msg.queryID === ccipSend.queryID &&
+          failed.context !== null &&
+          failed.context.equals(userContext)
+        )
+      },
+    })
+  })
+
+  it('should throw on a legacy bounce other than the fee withdrawal', async () => {
+    // Every OnRamp send except the fee withdrawal is RichBounce or NoBounce, so a legacy bounce
+    // with a non-empty body is unexpected.
+    const result = await blockchain.sendMessage(
+      internal({
+        from: mockFeeQuoter.address,
+        to: onramp.address,
+        value: toNano('0.1'),
+        bounced: true,
+        body: beginCell().storeUint(0xffffffff, 32).storeUint(0x5eee82b8, 32).endCell(),
+      }),
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: mockFeeQuoter.address,
+      to: onramp.address,
       success: false,
       exitCode: or.OnRamp.Errors['OnRamp_Error.UnhandledLegacyBounce'],
     })

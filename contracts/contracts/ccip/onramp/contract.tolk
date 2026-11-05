@@ -186,7 +186,7 @@ fun onGetValidatedFee(msg: OnRamp_GetValidatedFee, sender: address) {
     val feeQuoter = config.feeQuoter;
 
     val getFeeMsg = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: feeQuoter,
         body: FeeQuoter_GetValidatedFee {
@@ -244,18 +244,26 @@ fun onMessageValidated(msg: FeeQuoter_MessageValidated) {
 //     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidationFailed
 //     OnRamp    ->> Router:    OnRamp_MessageValidationFailed
 fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed) {
-    val context = OnRamp_GetValidatedFeeContext.fromCell(msg.context!);
-    val userContext = context.userContext;
-    val userAddress = context.onrampContext;
+    sendMessageValidationFailed(msg.context!, msg.errorCode, msg.msg);
+}
+
+/// The FeeQuoter bounced the fee query. Replies to the requester as if the FeeQuoter had failed
+/// the validation, with its exit code. The context is this OnRamp's own, so it is always present.
+fun onGetValidatedFeeBounced(msg: FeeQuoter_GetValidatedFee, errorCode: int32) {
+    sendMessageValidationFailed(msg.context!, errorCode, msg.msg);
+}
+
+fun sendMessageValidationFailed(onrampContext: cell, errorCode: int32, ccipSend: Cell<Router_CCIPSend>) {
+    val context = OnRamp_GetValidatedFeeContext.fromCell(onrampContext);
 
     val rejection = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
-        dest: userAddress,
+        dest: context.onrampContext,
         body: OnRamp_MessageValidationFailed {
-            errorCode: msg.errorCode,
-            msg: msg.msg,
-            context: userContext,
+            errorCode,
+            msg: ccipSend,
+            context: context.userContext,
         }
     });
 
@@ -427,6 +435,9 @@ fun onBouncedMessage(in: InMessageBounced) {
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val bounced = lazy OnRamp_RichBouncedMessage.fromCell(rich.originalBody);
     match (bounced) {
+        FeeQuoter_GetValidatedFee => {
+            onGetValidatedFeeBounced(bounced, rich.exitCode);
+        }
         Deployable_InitializeAndSend => {
             onExecutorDeployBounced(bounced, rich.exitCode);
         }
@@ -445,7 +456,8 @@ fun onBouncedMessage(in: InMessageBounced) {
 }
 
 /// The only legacy (256-bit) bounce OnRamp expects is the fee-aggregator withdrawal's, whose body
-/// is empty: its value is back in the balance, so there is nothing else to do.
+/// is empty: its value is back in the balance, so there is nothing else to do. Every other send
+/// is RichBounce or NoBounce.
 fun onLegacyBounce(bouncedBody: slice) {
     val originalBody = bouncedBody.skipBouncedPrefix();
     assert (originalBody.isEmpty()) throw (OnRamp_Error.UnhandledLegacyBounce);
