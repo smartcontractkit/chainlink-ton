@@ -391,6 +391,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
     val ccipReceive: Receiver_CCIPReceiveV2 = {
         queryId: msg.queryId,
         execId: msg.execId,
+        confirmValue: ROUTER_RECEIVE_CONFIRM_VALUE,
         message,
     };
 
