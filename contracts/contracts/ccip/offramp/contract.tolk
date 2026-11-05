@@ -1028,7 +1028,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
     if (msg.executionState == ExecutionState.Untouched) {
         val deployMsg = createMessage({
             bounce: BounceMode.RichBounce,
-            value: DEPLOYABLE_INIT_VALUE,
+            value: RECEIVE_EXECUTOR_INIT_VALUE,
             dest: executorAddress,
             body: Deployable_Initialize {
                 stateInit: {
@@ -1203,6 +1203,7 @@ import "../../../gen/Deployable.code"
 import "../../../gen/MerkleRoot.code"
 import "../../../gen/ReceiveExecutor.code"
 import "../lib/cross_chain_address/types"
+import "../receive_executor/types"
 
 fun deployerCode(): cell {
     return deployableCompiledCode();

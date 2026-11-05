@@ -327,6 +327,9 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
 // TODO[ERROR]: [NONEVM-5463]: add reason
 fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, _errorCode: uint16 = 0) {
     // TODO[ERROR]: [NONEVM-5463]: propagate `_errorCode` through `OffRamp_NotifyFailure` so the reason is observable.
+
+    reserveGramsOnBalance(RECEIVE_EXECUTOR_INIT_VALUE, RESERVE_MODE_AT_MOST);
+
     val notifyFailure = createMessage({
         bounce: true,
         value: 0,
@@ -338,6 +341,8 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
             root: st.root,
         },
     });
+    // SAFETY: The excesses message carries all remaining balance above the
+    // reserved grams, which ensures that the contract doesn't freeze
     notifyFailure.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 

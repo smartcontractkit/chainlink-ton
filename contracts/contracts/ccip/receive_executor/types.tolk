@@ -1,3 +1,4 @@
+import "../../lib/deployable/types"
 import "../offramp/types"
 
 // SPDX-License-Identifier: BUSL-1.1
@@ -5,6 +6,8 @@ import "../offramp/types"
 const ReceiveExecutor_FACILITY_NAME = "link.chain.ton.ccip.ReceiveExecutor";
 const ReceiveExecutor_FACILITY_ID = ReceiveExecutor_FACILITY_NAME.crc32() % 640 + 10;  // 376
 // NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
+
+const RECEIVE_EXECUTOR_INIT_VALUE = DEPLOYABLE_INIT_VALUE
 
 // State stores the general state machine indicating which phase we're in
 struct ReceiveExecutor_State {
