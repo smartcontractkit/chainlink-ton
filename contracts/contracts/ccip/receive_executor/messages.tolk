@@ -23,7 +23,9 @@ type ReceiveExecutor_InMessage =
     ;
 
 type ReceiveExecutor_BouncedMessage =
-    | TokenAdminRegistry_GetTokenInfo;
+    | TokenAdminRegistry_GetTokenInfo
+    | OffRamp_ReleaseOrMint
+    | OffRamp_DispatchValidated;
 
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
     queryID: uint64;

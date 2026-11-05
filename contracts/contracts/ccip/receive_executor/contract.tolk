@@ -123,29 +123,54 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-// A bounced token admin registry query fails the execution so it can be retried (the retry
-// restarts from the registry query).
+// A bounced request fails the execution so it can be retried: the retry restarts from the step
+// that bounced. The final reports to the OffRamp are sent NoBounce, so every bounce is rich.
+// A request is in flight only while the state names its step, and a retry is refused meanwhile,
+// so each arm throws if the state does not match, like the inbound failure arms.
 fun onBouncedMessage(in: InMessageBounced) {
     assert (in.bouncedBody.preloadUint(32) == 0xfffffffe) throw (ReceiveExecutor_Error.UnhandledLegacyBounce);
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val bounced = lazy ReceiveExecutor_BouncedMessage.fromCell(rich.originalBody);
     var st = ReceiveExecutor_Storage.load();
-    var ttInfo = st.state.tokenTransfer.loadOpt();
-    if (ttInfo == null) {
-        return;
-    }
     match (bounced) {
         TokenAdminRegistry_GetTokenInfo => {
-            if (ttInfo.state !is ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery) {
-                return;
-            }
+            onGetTokenInfoBounced(mutate st);
+        }
+        OffRamp_ReleaseOrMint => {
+            onReleaseOrMintRequestBounced(mutate st);
+        }
+        OffRamp_DispatchValidated => {
+            onDispatchValidatedBounced(mutate st);
         }
     }
+    st.store();
+}
+
+/// The token admin registry did not answer. The retry restarts from the registry query.
+fun onGetTokenInfoBounced(mutate st: ReceiveExecutor_Storage) {
+    var ttInfo = st.state.tokenTransfer.loadOpt();
+    assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery) throw (ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse);
     ttInfo.state = ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {};
     st.state.tokenTransfer = ttInfo.toCell();
     val message = lazy st.message.load();
     endExecutionWithFailure(mutate st, message.header);
-    st.store();
+}
+
+/// The OffRamp rejected the release-or-mint request, so nothing reached the Router or the pool.
+/// Fails the transfer as a pool failure would; the retry restarts from the registry query.
+fun onReleaseOrMintRequestBounced(mutate st: ReceiveExecutor_Storage) {
+    val ttInfo = st.state.tokenTransfer.loadOpt();
+    assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_ReleaseOrMint) throw (ReceiveExecutor_Error.TokenPoolUnexpectedResponse);
+    onReleaseOrMintFailure(mutate st, ttInfo, ttInfo.state);
+}
+
+/// The OffRamp rejected the dispatch, so the receiver was never called. Fails the execution as a
+/// receiver failure would; the retry dispatches again.
+fun onDispatchValidatedBounced(mutate st: ReceiveExecutor_Storage) {
+    assert (st.state.messageExecution == ReceiveExecutor_MessageExecutionState.Execute) throw (ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage);
+    st.state.messageExecution = ReceiveExecutor_MessageExecutionState.ExecuteFailed;
+    val message = lazy st.message.load();
+    endExecutionWithFailure(mutate st, message.header);
 }
 
 // onInitExecute is called by the OffRamp to initiate the execution of a message in the ReceiveExecutor.
@@ -239,7 +264,7 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
     val rampMsg = lazy st.message.load();
     val releaseOrMint = createMessage(
         {
-            bounce: BounceMode.Only256BitsOfBody,
+            bounce: BounceMode.RichBounce,
             value: transfer.destGasAmount + OffRamp_ReleaseOrMint.cost(),
             dest: st.owner,
             body: OffRamp_ReleaseOrMint {
@@ -274,7 +299,7 @@ fun execute(mutate st: ReceiveExecutor_Storage) {
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.Execute;
     createMessage(
         {
-            bounce: BounceMode.Only256BitsOfBody,
+            bounce: BounceMode.RichBounce,
             value: OffRamp_Costs.dispatchValidated() + st.state.effectiveGasLimit,
             dest: st.owner,
             body: OffRamp_DispatchValidated {
@@ -326,7 +351,7 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
 fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, _errorCode: uint16 = 0) {
     // TODO[ERROR]: [NONEVM-5463]: propagate `_errorCode` through `OffRamp_NotifyFailure` so the reason is observable.
     val notifyFailure = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: st.owner,
         body: OffRamp_NotifyFailure {
@@ -410,7 +435,7 @@ fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: 
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.Success;
 
     val notifySuccess = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: st.owner,
         body: OffRamp_NotifySuccess {
