@@ -548,6 +548,7 @@ describe('SendExecutor - Unit tests', () => {
       to: onRampMock.address,
       success: true,
       op: or.OnRamp_ExecutorFinishedSuccessfully.PREFIX,
+      inMessageBounceable: false,
       body(x) {
         if (!x) return false
         const finished = or.OnRamp_ExecutorFinishedSuccessfully.fromSlice(x.beginParse())
@@ -1207,6 +1208,7 @@ describe('SendExecutor - Unit tests', () => {
       to: onRampMock.address,
       success: true,
       op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+      inMessageBounceable: false,
       body(x) {
         if (!x) return false
         const finished = or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse())

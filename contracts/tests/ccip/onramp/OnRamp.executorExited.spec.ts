@@ -320,6 +320,7 @@ describe('OnRamp - executor exit', () => {
         to: executorAddress,
         success: true,
         op: or.OnRamp_ExecutorFeeReserved.PREFIX,
+        inMessageBounceable: false,
         body(x) {
           if (!x) return false
           const confirmed = or.OnRamp_ExecutorFeeReserved.fromSlice(x.beginParse())

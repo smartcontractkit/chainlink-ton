@@ -485,7 +485,7 @@ fun onExecutorReserveFee(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorReserveF
 
     reserveGramsOnBalance(msg.fee, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
     val confirmation = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sendExecutor,
         body: OnRamp_ExecutorFeeReserved {

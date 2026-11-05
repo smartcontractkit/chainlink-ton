@@ -417,7 +417,7 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnR
     newState.store();
 
     val sendMsg = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedSuccessfully {
@@ -489,7 +489,7 @@ fun CCIPSendExecutor<T>.exitWithError(self, errorCode: int32, chargedFee: coins?
     
     val msg = lazy self.onrampSend.msg.load();
     val sendMsg = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedWithError {
