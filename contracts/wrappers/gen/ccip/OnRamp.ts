@@ -3147,6 +3147,49 @@ export const OnRamp_UpdateAllowlists = {
 }
 
 /**
+ > struct (0xdf46b714) OnRamp_LockOrBurnFailed {
+ >     queryId: uint64
+ >     errorCode: int32
+ > }
+ */
+export interface OnRamp_LockOrBurnFailed {
+    readonly $: 'OnRamp_LockOrBurnFailed'
+    queryId: uint64
+    errorCode: int32
+}
+
+export const OnRamp_LockOrBurnFailed = {
+    PREFIX: 0xdf46b714,
+
+    create(args: {
+        queryId?: uint64
+        errorCode: int32
+    }): OnRamp_LockOrBurnFailed {
+        return {
+            $: 'OnRamp_LockOrBurnFailed',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): OnRamp_LockOrBurnFailed {
+        loadAndCheckPrefix32(s, 0xdf46b714, 'OnRamp_LockOrBurnFailed');
+        return {
+            $: 'OnRamp_LockOrBurnFailed',
+            queryId: s.loadUintBig(64),
+            errorCode: s.loadIntBig(32),
+        }
+    },
+    store(self: OnRamp_LockOrBurnFailed, b: c.Builder): void {
+        b.storeUint(0xdf46b714, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeInt(self.errorCode, 32);
+    },
+    toCell(self: OnRamp_LockOrBurnFailed): c.Cell {
+        return makeCellFrom<OnRamp_LockOrBurnFailed>(self, OnRamp_LockOrBurnFailed.store);
+    }
+}
+
+/**
  > struct (0x2afb11bd) OnRamp_MessageValidated {
  >     fee: coins
  >     msg: Cell<Router_CCIPSend>

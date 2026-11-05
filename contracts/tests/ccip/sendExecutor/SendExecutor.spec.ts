@@ -1135,6 +1135,80 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
+  // Drives a token transfer to the lock-or-burn request: the registry reports a pool, so the
+  // executor asks the OnRamp to lock or burn and waits in the TokenPool_LockOrBurn state.
+  async function afterLockOrBurnRequested(): Promise<SandboxContract<sx.CCIPSendExecutor>> {
+    const { sendExecutor } = await afterFeeReserved({
+      send: tokenOnrampSend,
+      tokenRegistry: tokenRegistryMock.address,
+    })
+    const tokenPool = (await blockchain.treasury('tokenPoolMock')).address
+    const result = await sendExecutor.sendTokenAdminRegistryTokenInfo(
+      tokenRegistryMock.getSender(),
+      toNano('0.3'),
+      {
+        queryId: 0n,
+        token: NATIVE_GRAM,
+        version: 0n,
+        poolInfo: sx.TokenAdminRegistry_PoolInfo.create({
+          tokenPool,
+          transferInitiator: tokenPool,
+          admission: TEST_ADMISSION,
+        }),
+      },
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.OnRamp_ExecutorRequestsLockOrBurn.PREFIX,
+    })
+    return sendExecutor
+  }
+
+  it('should exit with the relayed error and refund the charged fee when the OnRamp reports a Router bounce', async () => {
+    const sendExecutor = await afterLockOrBurnRequested()
+
+    const result = await sendExecutor.sendOnRampLockOrBurnFailed(
+      onRampMock.getSender(),
+      toNano('0.1'),
+      { queryId: 1n, errorCode: 0xffffn },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+      body(x) {
+        if (!x) return false
+        const finished = or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse())
+        return (
+          finished.executorID === 0n &&
+          finished.error === 0xffffn &&
+          finished.refund === FeeTokenAmount
+        )
+      },
+    })
+  })
+
+  it('should throw on OnRamp_LockOrBurnFailed from non-onramp', async () => {
+    const sendExecutor = await afterLockOrBurnRequested()
+
+    const result = await sendExecutor.sendOnRampLockOrBurnFailed(
+      routerMock.getSender(),
+      toNano('0.1'),
+      { queryId: 1n, errorCode: 0xffffn },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: routerMock.address,
+      to: sendExecutor.address,
+      success: false,
+      exitCode: sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.Unauthorized'],
+    })
+  })
+
   it('should throw on message validation failed from non-feeQuoter after execute', async () => {
     const { sendExecutor } = await afterExecute()
 

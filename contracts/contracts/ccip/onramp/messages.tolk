@@ -126,7 +126,20 @@ struct (0x9dc06185) OnRamp_UpdateAllowlists {
     updates: SnakedCell<UpdateAllowlist>;
 }
 
+// The OnRamp's sends to the Router whose bounces it reports to the executor.
+type OnRamp_RichBouncedMessage =
+    | Router_LockOrBurn
+    | Router_WithdrawToTokenPool;
+
 // --- Outgoing messages ---
+
+/// Reports to the CCIPSendExecutor that the Router bounced its lock-or-burn request, so the
+/// executor fails the CCIPSend instead of waiting.
+// crc32('OnRamp_LockOrBurnFailed')
+struct (0xdf46b714) OnRamp_LockOrBurnFailed {
+    queryId: uint64,
+    errorCode: int32,
+}
 
 // crc32('OnRamp_MessageValidated')
 struct (0x2afb11bd) OnRamp_MessageValidated {

@@ -352,7 +352,7 @@ fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequest
     var destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector as int);
     val tokenAmount = msg.tokenAmount.load();
     val routerLockOrBurn = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: destChainConfig.router,
         body: Router_LockOrBurn {
@@ -402,7 +402,7 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
     }
 
     val routerWithdraw = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: destChainConfig.router,
         body: Router_WithdrawToTokenPool {
@@ -413,6 +413,42 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
         }
     });
     routerWithdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Reports a bounced Router_LockOrBurn to the executor that requested it, so the executor exits
+/// with an error and releases the fee reservation.
+///
+/// @dev Other bounces are ignored, as before this handler existed: legacy (256-bit) bounces of
+///      Deployable_InitializeAndSend and OnRamp_ExecutorFeeReserved carry no context to act on.
+fun onBouncedMessage(in: InMessageBounced) {
+    if (in.bouncedBody.preloadUint(32) != 0xfffffffe) {
+        return;
+    }
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val bounced = lazy OnRamp_RichBouncedMessage.fromCell(rich.originalBody);
+    match (bounced) {
+        Router_LockOrBurn => {
+            sendLockOrBurnFailed(bounced.executorAddress, bounced.queryID, rich.exitCode);
+        }
+        Router_WithdrawToTokenPool => {
+            // TODO: [NONEVM-6725] report the bounced withdraw. The pool has already consumed its outbound rate
+            // limit at this point, so this needs its own failure path (being worked on separately).
+            throw 0xFFFF;
+        }
+        else => {
+            return;
+        }
+    }
+}
+
+fun sendLockOrBurnFailed(executor: address, queryId: uint64, errorCode: int32) {
+    val failed = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: executor,
+        body: OnRamp_LockOrBurnFailed { queryId, errorCode },
+    });
+    failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun processPoolReturnData(msg: OnRamp_ExecutorRequestsWithdraw) {

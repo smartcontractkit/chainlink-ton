@@ -122,6 +122,12 @@ fun onInternalMessage(in: InMessage) {
                 this.exitWithError(CCIPSendExecutor_Error.TokenPoolBounce as uint256, state.chargedFee.feeTokenAmount);
             }
         }
+        // The OnRamp's lock-or-burn request bounced off the Router.
+        OnRamp_LockOrBurnFailed => {
+            var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
+            assert (this.addresses.load().onramp == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
+            this.exitWithError(msg.errorCode as uint256, this.state.load().chargedFee.feeTokenAmount);
+        }
         else => {
             assert (in.body.isEmpty()) throw (0xFFFF);
         },   
