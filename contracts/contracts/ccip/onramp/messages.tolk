@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../lib/utils"
 import "../../lib/versioning/upgradeable"
+import "../../lib/deployable/types"
 import "../lib/cross_chain_address/types"
 import "../lib/client/sender/messages"
 import "../lib/client/common/types"
@@ -126,8 +127,10 @@ struct (0x9dc06185) OnRamp_UpdateAllowlists {
     updates: SnakedCell<UpdateAllowlist>;
 }
 
-// The OnRamp's sends to the Router whose bounces it reports to the executor.
+// The OnRamp's sends whose bounces it handles: the executor deployment, and the requests it
+// relays to the Router for the executor.
 type OnRamp_RichBouncedMessage =
+    | Deployable_InitializeAndSend
     | Router_LockOrBurn
     | Router_WithdrawToTokenPool;
 

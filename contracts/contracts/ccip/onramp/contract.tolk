@@ -318,7 +318,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
     }
     val executorId = generateRandomSendExecutorId();
     val executeMsg = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: executorAutoDeployAddress(executorId),
         body: Deployable_InitializeAndSend {
@@ -427,6 +427,9 @@ fun onBouncedMessage(in: InMessageBounced) {
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val bounced = lazy OnRamp_RichBouncedMessage.fromCell(rich.originalBody);
     match (bounced) {
+        Deployable_InitializeAndSend => {
+            onExecutorDeployBounced(bounced, rich.exitCode);
+        }
         Router_LockOrBurn => {
             sendLockOrBurnFailed(bounced.executorAddress, bounced.queryID, rich.exitCode);
         }
@@ -439,6 +442,15 @@ fun onBouncedMessage(in: InMessageBounced) {
             return;
         }
     }
+}
+
+/// The executor deployment bounced, so nothing was reserved and no executor exists. Rejects the
+/// send through the lane's Router, forwarding the returned value to the user with the NACK.
+fun onExecutorDeployBounced(msg: Deployable_InitializeAndSend, errorCode: int32) {
+    val execute = lazy CCIPSendExecutor_Execute.fromCell(msg.selfMessage.body);
+    val ccipSend = lazy execute.onrampSend.msg.load();
+    val config = lazy execute.config.load();
+    rejectMessage(errorCode, config.router, ccipSend.queryID, ccipSend.destChainSelector, execute.onrampSend.metadata.sender);
 }
 
 fun sendLockOrBurnFailed(executor: address, queryID: uint64, errorCode: int32) {
