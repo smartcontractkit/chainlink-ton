@@ -44,6 +44,7 @@ async function deployReceiverContract(
 
 const ccipReceiveSampleMessage = r.Receiver_CCIPReceiveV2.create({
   execId: 1n,
+  confirmValue: toNano('0.015'),
   message: rt.Any2TVMMessage.create({
     messageId: 1n,
     sourceChainSelector: 2n,

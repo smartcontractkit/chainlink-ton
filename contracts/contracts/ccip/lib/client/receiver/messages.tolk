@@ -7,6 +7,8 @@ struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
     // it fits in the body of a bounced message
     execId: uint192;
     queryId: uint64;
+    /// Value to attach to Router_CCIPReceiveConfirm, set by the Router.
+    confirmValue: coins;
     message: Cell<Any2TVMMessage>;
 }
 
@@ -14,9 +16,6 @@ struct Receiver_InMessagePartial { // Tolk compiler doesn't allow passing builti
     senderAddress: address;
     valueCoins: coins;
 }
-
-/// Covers the Router's `Router_Costs.receiveConfirm()` with headroom for later changes.
-const Receiver_CONFIRM_VALUE = grams("0.015");
 
 struct Receiver_ValidateOptions {
     // Router address
@@ -31,8 +30,8 @@ struct Receiver_ValidateOptions {
 };
 
 struct Receiver_ConfirmOpts {
-    // Value to attach to the confirmation message
-    value: coins = Receiver_CONFIRM_VALUE;
+    // Value to attach to the confirmation message, defaults to the message's `confirmValue`
+    value: coins? = null;
     // Send mode for the confirmation message
     sendMode: uint8 = SEND_MODE_PAY_FEES_SEPARATELY;
 }
@@ -52,7 +51,7 @@ fun Receiver_CCIPReceiveV2.validateAndConfirm(self, opts: Receiver_ValidateOptio
     // 3. Enqueue CCIPReceiveConfirm to msg.callback
     val receiveConfirm = createMessage({
         bounce: true,
-        value: opts.confirmationMsg.value,
+        value: opts.confirmationMsg.value ?? self.confirmValue,
         dest: opts.inMsg.senderAddress,
         body: Router_CCIPReceiveConfirm {
             queryId: self.queryId,
