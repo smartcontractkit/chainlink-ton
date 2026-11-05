@@ -216,17 +216,17 @@ fun onBouncedReceiveExecutorInitExecute(msg: ReceiveExecutor_InitExecute, sender
 }
 
 fun messageExecutionFailed(msg: ReceiveExecutor_InitExecute) {
-    markStateOnRoot(
-        msg.root,
-        msg.sequenceNumber,
-        ExecutionState.Failure
-    );
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
         sourceChainSelector: msg.sourceChainSelector,
         sequenceNumber: msg.sequenceNumber,
         messageId: msg.messageId,
         state: ExecutionState.Failure
     });
+    markStateOnRoot(
+        msg.root,
+        msg.sequenceNumber,
+        ExecutionState.Failure
+    );
 }
 
 // Handles bounced Deployable_Initialize messages. This should never have
@@ -243,17 +243,17 @@ fun onBouncedDeployableInitialize(msg: Deployable_Initialize, senderAddress: add
     // If the deploy that failed is for a MerkleRoot contract this will fail and only the previously committed emit action will take place
     val storageData = ReceiveExecutor_Storage.fromCell(stateInit.data);
     val message = Any2TVMRampMessage.fromCell(storageData.message);
-    markStateOnRoot(
-        storageData.root,
-        message.header.sequenceNumber,
-        ExecutionState.Failure
-    );
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
         sourceChainSelector: message.header.sourceChainSelector,
         sequenceNumber: message.header.sequenceNumber,
         messageId: message.header.messageId,
         state: ExecutionState.Failure
     });
+    markStateOnRoot(
+        storageData.root,
+        message.header.sequenceNumber,
+        ExecutionState.Failure
+    );
 }
 
 // Handles a bounced Router_RelayReleaseOrMint: the Router rejected the relay
@@ -388,17 +388,23 @@ fun forwardValueToExecutor(executorAddress: AutoDeployAddress) {
 
 // Sends a MerkleRoot_MarkState message to update the execution state of a
 // specific sequence number in a MerkleRoot contract.
+//
+// MUST be the last action of the handler (after every emit and other send): it reserves the
+// original balance and carries everything above it, so the contract's balance is unchanged.
 fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
-    val markState= createMessage({
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+
+    val markState = createMessage({
         bounce: false,
-        value: MerkleRoot_Costs.markState(),
+        value: 0,
         dest: root,
         body: MerkleRoot_MarkState {
             seqNum,
             state,
         },
     });
-    markState.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    // SAFETY: reserveGramsOnBalance keeps the original balance, so only the value exceeding it is sent.
+    markState.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 // Received from ReceiveExecutor after validating that the confirm message
@@ -417,15 +423,15 @@ fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: ad
     }
 
     val messageHeader = lazy msg.header.load();
-    // propagate state change to root
-    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Success);
-
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
         sourceChainSelector: messageHeader.sourceChainSelector,
         sequenceNumber: messageHeader.sequenceNumber,
         messageId: messageHeader.messageId,
         state: ExecutionState.Success
     });
+
+    // propagate state change to root (must be last: carries the remaining balance)
+    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Success);
 }
 
 // Relays a ReceiveExecutor-confirmed token transfer delivery to the Router, which forwards it to
@@ -463,15 +469,15 @@ fun relayTokenTransferDelivered(st: Storage, queryId: uint64, execId: ReceiveExe
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifyFailure
 fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
     val messageHeader = lazy msg.header.load();
-    // propagate state change to root
-    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Failure);
-
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
         sourceChainSelector: messageHeader.sourceChainSelector,
         sequenceNumber: messageHeader.sequenceNumber,
         messageId: messageHeader.messageId,
         state: ExecutionState.Failure
     });
+
+    // propagate state change to root (must be last: reserves the original balance and carries the rest)
+    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Failure);
 }
 
 // Sent by the Receiver via the Router to confirm successful message receipt.
