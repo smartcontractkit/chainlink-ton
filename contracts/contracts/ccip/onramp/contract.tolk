@@ -581,7 +581,7 @@ fun onExecutorFinishedWithError(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorF
     rejectMessage(msg.errorCode, router, msg.queryID, msg.destChainSelector, msg.sender, refund);
 }
 
-fun rejectMessage(errorCode: int, router: address, queryID: uint64, destChainSelector: uint64, sender: address, refund: coins = 0) {
+fun rejectMessage(errorCode: int32, router: address, queryID: uint64, destChainSelector: uint64, sender: address, refund: coins = 0) {
     val errorMsg = createMessage({
         bounce: BounceMode.NoBounce,
         // A charged fee is already reserved on this contract.

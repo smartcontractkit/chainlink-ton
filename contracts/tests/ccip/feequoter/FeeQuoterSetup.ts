@@ -681,7 +681,7 @@ export class FeeQuoterSetup {
       if (parsed.remainingBits < 32) continue
       if (parsed.loadUint(32) === sx.FeeQuoter_MessageValidationFailed.PREFIX) {
         sawValidationFailed = true
-        actualError = parsed.loadUintBig(256)
+        actualError = parsed.loadIntBig(32)
         break
       }
     }

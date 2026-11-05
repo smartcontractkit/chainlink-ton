@@ -118,7 +118,7 @@ struct (0xf28658e0) Router_UseOnRampAccount {
 /// Sent to a user whose Router_GetOnRampAccount failed. `error` is the failure's exit code.
 struct (0x2c734db9) Router_OnRampAccountFailed {
     queryID: uint64;
-    errorCode: uint256;
+    errorCode: int32;
 }
 
 /// Sent by the OnRamp when it rejects a `Router_WithdrawToTokenPool` request before the
@@ -170,7 +170,7 @@ struct (0x8ae25114) Router_MessageRejected {
     queryID: uint64;
     destChainSelector: uint64;
     sender: address;
-    errorCode: uint256;
+    errorCode: int32;
 }
 
 struct (0xaf7a9ac6) Router_RMNOwnableMessage {
@@ -190,7 +190,7 @@ struct (0x78d0f21e) Router_CCIPSendACK {
 
 struct (0x5a45d434) Router_CCIPSendNACK {
     queryID: uint64;
-    errorCode: uint256;
+    errorCode: int32;
 }
 
 @deprecated("use Router_GetValidatedFee instead")
@@ -286,7 +286,7 @@ struct (0x97ca8bd8) Router_MessageValidated {
 
 // nolint:opcode : crc32('Router_MessageValidationFailed_V2')
 struct (0xe32e5616) Router_MessageValidationFailed {
-    errorCode: uint256,
+    errorCode: int32,
     msg: Cell<Router_CCIPSend>,
     context: cell?
 }

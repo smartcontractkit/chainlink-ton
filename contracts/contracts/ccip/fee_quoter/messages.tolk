@@ -46,7 +46,7 @@ struct (0xfbf78e40) FeeQuoter_MessageValidated {
 
 // nolint:opcode : crc32('FeeQuoter_MessageValidationFailed_V2')
 struct (0x4785cb72) FeeQuoter_MessageValidationFailed {
-    errorCode: uint256
+    errorCode: int32
     msg: Cell<Router_CCIPSend>
     context: cell? = null
 }

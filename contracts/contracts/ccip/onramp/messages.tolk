@@ -114,7 +114,7 @@ struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
     executorID: CCIPSendExecutor_ID
     destChainSelector: uint64
     sender: address
-    errorCode: uint256
+    errorCode: int32
     refund: Cell<coins>?
 }
 
@@ -150,7 +150,7 @@ struct (0x2afb11bd) OnRamp_MessageValidated {
 
 // crc32('OnRamp_MessageValidationFailed')
 struct (0xac1dd12e) OnRamp_MessageValidationFailed {
-    errorCode: uint256,
+    errorCode: int32,
     msg: Cell<Router_CCIPSend>,
     context: cell?
 }

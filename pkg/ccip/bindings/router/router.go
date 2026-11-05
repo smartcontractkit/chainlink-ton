@@ -156,7 +156,7 @@ type UseOnRampAccount struct {
 type OnRampAccountFailed struct {
 	_       tlb.Magic `tlb:"#2c734db9" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID uint64    `tlb:"## 64"`
-	Error   *big.Int  `tlb:"## 256"`
+	Error   int32     `tlb:"## 32"`
 }
 
 type RouteMessage struct {
@@ -187,7 +187,7 @@ type MessageRejected struct {
 	QueryID           uint64           `tlb:"## 64"`
 	DestChainSelector uint64           `tlb:"## 64"`
 	Sender            *address.Address `tlb:"addr"`
-	Error             *big.Int         `tlb:"## 256"`
+	Error             int32            `tlb:"## 32"`
 }
 
 type CCIPSendACK struct {
@@ -199,7 +199,7 @@ type CCIPSendACK struct {
 type CCIPSendNACK struct {
 	_       tlb.Magic `tlb:"#5a45d434" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID uint64    `tlb:"## 64"`
-	Error   *big.Int  `tlb:"## 256"`
+	Error   int32     `tlb:"## 32"`
 }
 
 // RMNRemoteCurse message type for cursing subjects on the router. The handler

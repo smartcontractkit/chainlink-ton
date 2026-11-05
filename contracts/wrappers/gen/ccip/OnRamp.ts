@@ -1357,7 +1357,7 @@ export const Router_MessageSent = {
  >     queryID: uint64
  >     destChainSelector: uint64
  >     sender: address
- >     errorCode: uint256
+ >     errorCode: int32
  > }
  */
 export interface Router_MessageRejected {
@@ -1365,7 +1365,7 @@ export interface Router_MessageRejected {
     queryID: uint64
     destChainSelector: uint64
     sender: c.Address
-    errorCode: uint256
+    errorCode: int32
 }
 
 export const Router_MessageRejected = {
@@ -1375,7 +1375,7 @@ export const Router_MessageRejected = {
         queryID?: uint64
         destChainSelector: uint64
         sender: c.Address
-        errorCode: uint256
+        errorCode: int32
     }): Router_MessageRejected {
         return {
             $: 'Router_MessageRejected',
@@ -1390,7 +1390,7 @@ export const Router_MessageRejected = {
             queryID: s.loadUintBig(64),
             destChainSelector: s.loadUintBig(64),
             sender: s.loadAddress(),
-            errorCode: s.loadUintBig(256),
+            errorCode: s.loadIntBig(32),
         }
     },
     store(self: Router_MessageRejected, b: c.Builder): void {
@@ -1398,7 +1398,7 @@ export const Router_MessageRejected = {
         b.storeUint(self.queryID, 64);
         b.storeUint(self.destChainSelector, 64);
         b.storeAddress(self.sender);
-        b.storeUint(self.errorCode, 256);
+        b.storeInt(self.errorCode, 32);
     },
     toCell(self: Router_MessageRejected): c.Cell {
         return makeCellFrom<Router_MessageRejected>(self, Router_MessageRejected.store);
@@ -1572,14 +1572,14 @@ export const FeeQuoter_MessageValidated = {
 
 /**
  > struct (0x4785cb72) FeeQuoter_MessageValidationFailed {
- >     errorCode: uint256
+ >     errorCode: int32
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
  > }
  */
 export interface FeeQuoter_MessageValidationFailed {
     readonly $: 'FeeQuoter_MessageValidationFailed'
-    errorCode: uint256
+    errorCode: int32
     msg: Router_CCIPSend
     context: c.Cell | null /* = null */
 }
@@ -1588,7 +1588,7 @@ export const FeeQuoter_MessageValidationFailed = {
     PREFIX: 0x4785cb72,
 
     create(args: {
-        errorCode: uint256
+        errorCode: int32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }): FeeQuoter_MessageValidationFailed {
@@ -1602,14 +1602,14 @@ export const FeeQuoter_MessageValidationFailed = {
         loadAndCheckPrefix32(s, 0x4785cb72, 'FeeQuoter_MessageValidationFailed');
         return {
             $: 'FeeQuoter_MessageValidationFailed',
-            errorCode: s.loadUintBig(256),
+            errorCode: s.loadIntBig(32),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: FeeQuoter_MessageValidationFailed, b: c.Builder): void {
         b.storeUint(0x4785cb72, 32);
-        b.storeUint(self.errorCode, 256);
+        b.storeInt(self.errorCode, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -3009,7 +3009,7 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
  >     executorID: CCIPSendExecutor_ID
  >     destChainSelector: uint64
  >     sender: address
- >     errorCode: uint256
+ >     errorCode: int32
  >     refund: Cell<coins>?
  > }
  */
@@ -3019,7 +3019,7 @@ export interface OnRamp_ExecutorFinishedWithError {
     executorID: CCIPSendExecutor_ID
     destChainSelector: uint64
     sender: c.Address
-    errorCode: uint256
+    errorCode: int32
     refund: coins | null
 }
 
@@ -3031,7 +3031,7 @@ export const OnRamp_ExecutorFinishedWithError = {
         executorID: CCIPSendExecutor_ID
         destChainSelector: uint64
         sender: c.Address
-        errorCode: uint256
+        errorCode: int32
         refund: coins | null
     }): OnRamp_ExecutorFinishedWithError {
         return {
@@ -3048,7 +3048,7 @@ export const OnRamp_ExecutorFinishedWithError = {
             executorID: CCIPSendExecutor_ID.fromSlice(s),
             destChainSelector: s.loadUintBig(64),
             sender: s.loadAddress(),
-            errorCode: s.loadUintBig(256),
+            errorCode: s.loadIntBig(32),
             refund: s.loadBoolean() ? loadCellRef<coins>(s,
                 (s) => s.loadCoins()
             ) : null,
@@ -3060,7 +3060,7 @@ export const OnRamp_ExecutorFinishedWithError = {
         CCIPSendExecutor_ID.store(self.executorID, b);
         b.storeUint(self.destChainSelector, 64);
         b.storeAddress(self.sender);
-        b.storeUint(self.errorCode, 256);
+        b.storeInt(self.errorCode, 32);
         storeTolkNullable<coins>(self.refund, b,
             (v,b) => { storeCellRef<coins>(v, b,
                 (v,b) => b.storeCoins(v)
@@ -3240,14 +3240,14 @@ export const OnRamp_MessageValidated = {
 
 /**
  > struct (0xac1dd12e) OnRamp_MessageValidationFailed {
- >     errorCode: uint256
+ >     errorCode: int32
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
  > }
  */
 export interface OnRamp_MessageValidationFailed {
     readonly $: 'OnRamp_MessageValidationFailed'
-    errorCode: uint256
+    errorCode: int32
     msg: Router_CCIPSend
     context: c.Cell | null
 }
@@ -3256,7 +3256,7 @@ export const OnRamp_MessageValidationFailed = {
     PREFIX: 0xac1dd12e,
 
     create(args: {
-        errorCode: uint256
+        errorCode: int32
         msg: Router_CCIPSend
         context: c.Cell | null
     }): OnRamp_MessageValidationFailed {
@@ -3269,14 +3269,14 @@ export const OnRamp_MessageValidationFailed = {
         loadAndCheckPrefix32(s, 0xac1dd12e, 'OnRamp_MessageValidationFailed');
         return {
             $: 'OnRamp_MessageValidationFailed',
-            errorCode: s.loadUintBig(256),
+            errorCode: s.loadIntBig(32),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: OnRamp_MessageValidationFailed, b: c.Builder): void {
         b.storeUint(0xac1dd12e, 32);
-        b.storeUint(self.errorCode, 256);
+        b.storeInt(self.errorCode, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -3860,7 +3860,7 @@ export class OnRamp implements c.Contract {
     }
 
     static createCellOfFeeQuoterMessageValidationFailed(body: {
-        errorCode: uint256
+        errorCode: int32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }) {
@@ -3912,7 +3912,7 @@ export class OnRamp implements c.Contract {
         executorID: CCIPSendExecutor_ID
         destChainSelector: uint64
         sender: c.Address
-        errorCode: uint256
+        errorCode: int32
         refund: coins | null
     }) {
         return OnRamp_ExecutorFinishedWithError.toCell(OnRamp_ExecutorFinishedWithError.create(body));
@@ -4021,7 +4021,7 @@ export class OnRamp implements c.Contract {
     }
 
     async sendFeeQuoterMessageValidationFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        errorCode: uint256
+        errorCode: int32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
@@ -4093,7 +4093,7 @@ export class OnRamp implements c.Contract {
         executorID: CCIPSendExecutor_ID
         destChainSelector: uint64
         sender: c.Address
-        errorCode: uint256
+        errorCode: int32
         refund: coins | null
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {

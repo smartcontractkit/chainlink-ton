@@ -298,6 +298,8 @@ function invokeCustomUnpackFromSlice<T>(typeName: string, s: c.Slice): T {
 
 type coins = bigint
 
+type int32 = bigint
+
 type uint8 = bigint
 type uint16 = bigint
 type uint32 = bigint
@@ -1450,14 +1452,14 @@ export const FeeQuoter_MessageValidated = {
 
 /**
  > struct (0x4785cb72) FeeQuoter_MessageValidationFailed {
- >     errorCode: uint256
+ >     errorCode: int32
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
  > }
  */
 export interface FeeQuoter_MessageValidationFailed {
     readonly $: 'FeeQuoter_MessageValidationFailed'
-    errorCode: uint256
+    errorCode: int32
     msg: Router_CCIPSend
     context: c.Cell | null /* = null */
 }
@@ -1466,7 +1468,7 @@ export const FeeQuoter_MessageValidationFailed = {
     PREFIX: 0x4785cb72,
 
     create(args: {
-        errorCode: uint256
+        errorCode: int32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }): FeeQuoter_MessageValidationFailed {
@@ -1480,14 +1482,14 @@ export const FeeQuoter_MessageValidationFailed = {
         loadAndCheckPrefix32(s, 0x4785cb72, 'FeeQuoter_MessageValidationFailed');
         return {
             $: 'FeeQuoter_MessageValidationFailed',
-            errorCode: s.loadUintBig(256),
+            errorCode: s.loadIntBig(32),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: FeeQuoter_MessageValidationFailed, b: c.Builder): void {
         b.storeUint(0x4785cb72, 32);
-        b.storeUint(self.errorCode, 256);
+        b.storeInt(self.errorCode, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)

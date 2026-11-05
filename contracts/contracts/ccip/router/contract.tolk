@@ -342,7 +342,7 @@ fun onBouncedMessage(in: InMessageBounced) {
                         sendDepositAccountInitFailure(context, rich.exitCode);
                     }
                     Router_OnRampAccountContext => {
-                        sendOnRampAccountFailed(context.user, richMsg.queryID, rich.exitCode as uint256);
+                        sendOnRampAccountFailed(context.user, richMsg.queryID, rich.exitCode);
                     }
                 }
             }
@@ -754,7 +754,7 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee, sender: address, isV1: bool) 
     var ccipSend = lazy msg.ccipSend.load();
     val onRampResult = st.onRamps.get(ccipSend.destChainSelector);
     if (!onRampResult.isFound) {
-        return sendMessageValidationFailed(sender, Router_Error.DestChainNotEnabled as uint256, msg.ccipSend, msg.context, isV1);
+        return sendMessageValidationFailed(sender, Router_Error.DestChainNotEnabled as int32, msg.ccipSend, msg.context, isV1);
     }
 
     if (ccipSend.feeToken == null) {
@@ -762,7 +762,7 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee, sender: address, isV1: bool) 
         // to save on gas, we only update ccipSendCell if necessary
         ccipSendCell = ccipSend.toCell();
     } else if (ccipSend.feeToken != NATIVE_GRAM) {
-        return sendMessageValidationFailed(sender, Router_Error.FeePaymentsWithJettonsNotSupported as uint256, msg.ccipSend, msg.context, isV1);
+        return sendMessageValidationFailed(sender, Router_Error.FeePaymentsWithJettonsNotSupported as int32, msg.ccipSend, msg.context, isV1);
     }
 
     val feeQuoterMsg = createMessage({
@@ -848,15 +848,17 @@ fun onMessageValidationFailedFromOnRamp(msg: OnRamp_MessageValidationFailed) {
     sendMessageValidationFailed(userAddress, msg.errorCode, msg.msg, context.userContext, context.oldContextVersion);
 }
 
-fun sendMessageValidationFailed(userAddress: address, errorCode: uint256, msg: Cell<Router_CCIPSend>, userContext: cell?, oldContextVersion: bool) {
+fun sendMessageValidationFailed(userAddress: address, errorCode: int32, msg: Cell<Router_CCIPSend>, userContext: cell?, oldContextVersion: bool) {
     var body: Router_MessageValidationFailed | Router_MessageValidationFailed_V1;
     if (oldContextVersion) {
         var contextV1: RemainingBitsAndRefs = createEmptySlice();
         if (userContext != null) {
             contextV1 = userContext.beginParse() as RemainingBitsAndRefs;
         }
+        // V1 keeps its uint256 field for old clients. The codes that reach here are thrown by
+        // Router, OnRamp or FeeQuoter, so they are never negative.
         body = Router_MessageValidationFailed_V1 {
-            errorCode,
+            errorCode: errorCode as uint256,
             msg,
             context: contextV1,
         };
@@ -890,12 +892,12 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
     if (msg.feeToken == null) {
         msg.feeToken = NATIVE_GRAM
     } else if (msg.feeToken != NATIVE_GRAM) {
-        return sendMessageRejected(sender, msg.queryID, Router_Error.FeePaymentsWithJettonsNotSupported as uint256);
+        return sendMessageRejected(sender, msg.queryID, Router_Error.FeePaymentsWithJettonsNotSupported as int32);
     }
 
     val onRampResult = st.onRamps.get(msg.destChainSelector);
     if (!onRampResult.isFound) {
-        return sendMessageRejected(sender, msg.queryID, Router_Error.DestChainNotEnabled as uint256);
+        return sendMessageRejected(sender, msg.queryID, Router_Error.DestChainNotEnabled as int32);
     }
     val sendMsg = createMessage({
         bounce: BounceMode.Only256BitsOfBody,
@@ -1010,7 +1012,7 @@ fun onSendNACK(msg: Router_MessageRejected) {
     sendMessageRejected(msg.sender, msg.queryID, msg.errorCode);
 }
 
-fun sendMessageRejected(sender: address, queryID: uint64, errorCode: uint256) {
+fun sendMessageRejected(sender: address, queryID: uint64, errorCode: int32) {
     val nackMsg = createMessage({
         bounce: BounceMode.Only256BitsOfBody,
         value: 0,
@@ -1179,12 +1181,12 @@ fun onDepositAccountWalletUnavailable(msg: DepositAccount_WalletUnavailable, sen
         }
         Router_OnRampAccountContext => {
             assert (sender == onRampAccountAddress(context.user, context.token)) throw (Router_Error.SenderIsNotOnRampAccount);
-            sendOnRampAccountFailed(context.user, msg.queryID, Router_Error.DepositAccountWalletUnavailable as uint256);
+            sendOnRampAccountFailed(context.user, msg.queryID, Router_Error.DepositAccountWalletUnavailable as int32);
         }
     }
 }
 
-fun sendOnRampAccountFailed(user: address, queryID: uint64, errorCode: uint256) {
+fun sendOnRampAccountFailed(user: address, queryID: uint64, errorCode: int32) {
     val failed = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
