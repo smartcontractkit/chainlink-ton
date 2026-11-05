@@ -19,6 +19,7 @@ import { generateMockTonAddress } from '../../../../src/utils'
 import { ChainSelectors } from '../../../utils/Selectors'
 import { AddressBook, GasReport, gasReportConfig } from '../../utils'
 import { createPayload, LANE_MAX_DATA_BYTES } from './config'
+import { offRampRetains } from '../offRampRetains'
 
 const jestConsole = console
 
@@ -38,6 +39,8 @@ describe('CCIP OffRamp Gas Estimation', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create({ config: await gasReportConfig() })
+    // Frozen time: no storage fees, so per-transaction balance deltas are exact.
+    blockchain.now = 1
     report = new GasReport('messaging-offramp', blockchain)
     setup = await OffRampTestSetup.Init(blockchain)
     await setup.SetupContracts()
@@ -80,6 +83,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
     const commit = await report.measure('OffRamp Commit (1 merkle root)', {
       run: () => setup.commitReport([root], Costs.commit(true, false), 1),
       book,
+      retains: offRampRetains.commit,
       budget: Costs.commit(true, false) - Costs.merkleRootDeployment,
     })
     expect(commit.result.transactions).toHaveTransaction({
@@ -93,6 +97,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
       run: () => setup.executeReport(setup.createExecuteReport([message]), 2),
       book,
       discover: nameReceiveExecutor,
+      retains: offRampRetains.execute.successful,
       budget: Costs.executeBudget(false),
     })
     expect(execute.result.transactions).toHaveTransaction({
@@ -138,6 +143,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
       run: () => setup.executeReport(executionReport, 4),
       book,
       discover: nameReceiveExecutor,
+      retains: offRampRetains.execute.reusedRoot,
       budget: Costs.executeBudget(false),
     })
     expect(result.transactions).toHaveTransaction({
@@ -186,6 +192,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
           },
         ),
       book,
+      retains: [],
       budget: Costs.commit(false, true),
     })
     expect(result.transactions).toHaveTransaction({
@@ -241,6 +248,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
           },
         ),
       book,
+      retains: offRampRetains.commit,
       budget: Costs.commit(true, true) - Costs.merkleRootDeployment,
     })
     expect(result.transactions).toHaveTransaction({
@@ -282,6 +290,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
       book,
       discover: nameReceiveExecutor,
       aborts: ['Router->Receiver'],
+      retains: offRampRetains.execute.rejected,
       budget: Costs.executeBudget(false),
     })
     await setBehavior(tr.TestReceiver_Behavior.Accept)

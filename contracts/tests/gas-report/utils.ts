@@ -5,8 +5,10 @@ import {
   fetchConfig,
   SendMessageResult,
 } from '@ton/sandbox'
-import { Address, Cell, fromNano } from '@ton/core'
+import { Address, Cell, fromNano, Slice } from '@ton/core'
 import { loadConfigParamsAsSlice, parseFullConfig } from '@ton/ton'
+import { flattenTransaction } from '@ton/test-utils'
+import type { FlatTransaction } from '@ton/test-utils'
 import * as fs from 'fs'
 import * as path from 'path'
 import { opName } from './ccip/opNames'
@@ -104,21 +106,34 @@ export interface HopSummary {
   from: string
   to: string
   owner: HopOwner
+  /** Incoming message op name; the raw opcode, phases and message value live on `tx`. */
   op: string
-  success: boolean
-  exitCode: number | null
-  actionResultCode: number | null
+  /** Bounce kind of the incoming message (`simple`/`rich`), or null for normal messages. */
+  bounce: BounceKind | null
+  /** The flattened transaction (@ton/test-utils): `tx.success`, `tx.exitCode`, `tx.value`, ... */
+  tx: FlatTransaction
+  /** Gas units burned by the compute phase. */
   gasUsed: bigint
+  /** Compute-fee component of the transaction, charged to the receiving contract. */
   computeFee: bigint
+  /** Storage fee collected from the receiving contract (0 with `blockchain.now` frozen). */
   storageFee: bigint
+  /**
+   * Full forward fees of the receiving contract's OUTGOING messages, paid from its balance
+   * (or from the outgoing messages' value, depending on the send mode). Not the forward fee
+   * of the incoming message — that one was paid by the sender of this hop.
+   */
   forwardFee: bigint
+  /** Part of `forwardFee` actually charged in the action phase (the rest is the sender's share). */
   actionFee: bigint
-  totalFee: bigint
   /** Sender-attributed: storage + compute + full forward fees of the outgoing messages. */
   cost: bigint
-  valueIn: bigint
+  /** TON carried by the receiving contract's outgoing internal messages. */
   valueOut: bigint
-  /** Balance change of the receiving contract */
+  /**
+   * Balance change of the receiving contract: `tx.value` (value in) minus `valueOut`, all fees
+   * and bounce fees. Positive = the contract kept value (a sink unless covered by a rule).
+   */
   retained: bigint
 }
 
@@ -179,6 +194,38 @@ export class AddressBook {
 
 const emptyTotals = (): OwnerTotals => ({ ccip: 0n, registry: 0n, token: 0n, external: 0n })
 
+/**
+ * Classifies a bounced message: `simple` (0xffffffff prefix, up to 256 bits of the original body
+ * follow) or `rich` (0xfffffffe prefix, a `RichBounceBody` ref carries the original body). The
+ * original op is recovered from the bounce body so rules can name the message that bounced.
+ */
+function classifyBounce(body: Slice): { bounce: BounceKind; op: string } {
+  const prefix = body.loadUint(32)
+  if (prefix === 0xfffffffe) {
+    // RichBounceBody { originalBody: cell, ... }: the original op is its first 32 bits.
+    const originalBody = body.loadRef().beginParse()
+    return {
+      bounce: 'rich',
+      op: originalBody.remainingBits >= 32 ? opName(originalBody.preloadUint(32)) : 'empty',
+    }
+  }
+  // Simple bounce: the original body (op first) follows the 0xffffffff prefix.
+  return { bounce: 'simple', op: body.remainingBits >= 32 ? opName(body.preloadUint(32)) : 'empty' }
+}
+
+/** Op name and bounce kind of a transaction's incoming message, shared by hops and violations. */
+function inMessageOp(tx: BlockchainTransaction): { op: string; bounce: BounceKind | null } {
+  const inMsg = tx.inMessage
+  const internal = inMsg?.info.type === 'internal' ? inMsg.info : null
+  const body = inMsg?.body.beginParse()
+  if (!internal) return { op: 'external', bounce: null }
+  if (internal.bounced) return classifyBounce(body!)
+  return {
+    op: body && body.remainingBits >= 32 ? opName(body.preloadUint(32)) : 'empty',
+    bounce: null,
+  }
+}
+
 function summarizeHop(
   tx: BlockchainTransaction,
   index: number,
@@ -189,15 +236,7 @@ function summarizeHop(
   const internal = inMsg?.info.type === 'internal' ? inMsg.info : null
   const dest = inMsg?.info.dest instanceof Address ? inMsg.info.dest : null
 
-  let opLabel = 'empty'
-  const body = inMsg?.body.beginParse()
-  if (!internal) {
-    opLabel = 'external'
-  } else if (internal.bounced) {
-    opLabel = 'bounced'
-  } else if (body && body.remainingBits >= 32) {
-    opLabel = opName(body.preloadUint(32))
-  }
+  const { op: opLabel, bounce } = inMessageOp(tx)
 
   let gasUsed = 0n
   let computeFee = 0n
@@ -205,25 +244,20 @@ function summarizeHop(
   let forwardFee = 0n
   let actionFee = 0n
   let bounceFee = 0n
-  let success = true
-  let exitCode: number | null = null
-  let actionResultCode: number | null = null
   if (tx.description.type === 'generic') {
-    const { computePhase, actionPhase, storagePhase, bouncePhase, aborted } = tx.description
+    const { computePhase, actionPhase, storagePhase, bouncePhase } = tx.description
     if (computePhase.type === 'vm') {
       gasUsed = computePhase.gasUsed
       computeFee = computePhase.gasFees
-      exitCode = computePhase.exitCode
     }
     storage = storagePhase?.storageFeesCollected ?? 0n
     forwardFee = actionPhase?.totalFwdFees ?? 0n
     actionFee = actionPhase?.totalActionFees ?? 0n
-    actionResultCode = actionPhase?.resultCode ?? null
     // The bounce message's forward fee is taken from the value and is not part of totalFees.
     if (bouncePhase?.type === 'ok') bounceFee = bouncePhase.forwardFees
-    success = !aborted
   }
 
+  // Inputs to `retained`; the flattened tx carries the message value and total fees themselves.
   const valueIn = internal?.value.coins ?? 0n
   const valueOut = tx.outMessages
     .values()
@@ -240,17 +274,14 @@ function summarizeHop(
     to: book.name(dest),
     owner: book.owner(dest),
     op: opLabel,
-    success,
-    exitCode,
-    actionResultCode,
+    bounce,
+    tx: flattenTransaction(tx),
     gasUsed,
     computeFee,
     storageFee: storage,
     forwardFee,
     actionFee,
-    totalFee,
     cost: storage + computeFee + forwardFee,
-    valueIn,
     valueOut,
     retained: valueIn - valueOut - totalFee - (forwardFee - actionFee) - bounceFee,
   }
@@ -284,7 +315,7 @@ export function analyzeFlow(
     retained[hop.to] = (retained[hop.to] ?? 0n) + hop.retained
   }
   const entrypoints = hops
-    .filter((hop) => hop.owner === 'ccip' && hop.op !== 'bounced')
+    .filter((hop) => hop.owner === 'ccip' && hop.bounce === null)
     .map((hop) => ({
       hop: hop.index,
       contract: hop.to,
@@ -302,8 +333,9 @@ export function formatRow(cells: string[], widths: number[]): string {
 const ton = (nano: bigint) => fromNano(nano)
 
 function failureCode(hop: HopSummary): string {
-  if (hop.exitCode !== null && hop.exitCode !== 0 && hop.exitCode !== 1) return String(hop.exitCode)
-  return `action ${hop.actionResultCode ?? '-'}`
+  const { exitCode, actionResultCode } = hop.tx
+  if (exitCode !== undefined && exitCode !== 0 && exitCode !== 1) return String(exitCode)
+  return `action ${actionResultCode ?? '-'}`
 }
 
 /** Basechain gas price from config param 21, in nanotons per 2^16 gas units. */
@@ -351,10 +383,10 @@ export function printFlowAnalysis(flow: FlowSummary, gasPrice: bigint): void {
           ton(hop.storageFee).padStart(widths[7]),
           ton(hop.forwardFee).padStart(widths[8]),
           ton(hop.cost).padStart(widths[9]),
-          ton(hop.valueIn).padStart(widths[10]),
+          ton(hop.tx.value ?? 0n).padStart(widths[10]),
           ton(hop.valueOut).padStart(widths[11]),
           ton(hop.retained).padStart(widths[12]),
-          hop.success ? String(hop.exitCode ?? '-') : `FAIL ${failureCode(hop)}`,
+          hop.tx.success ? String(hop.tx.exitCode ?? '-') : `FAIL ${failureCode(hop)}`,
         ],
         widths,
       ),
@@ -435,6 +467,166 @@ export function keepOnlyMeasuredMetrics(): void {
   store.push(...(measuredMetrics as typeof store))
 }
 
+/** A transaction whose receiving contract's balance changed without being whitelisted. */
+export interface BalanceViolation {
+  /** Raw address of the receiving contract; resolved to its book name after `discover`. */
+  address: string
+  op: string
+  /** Logical time of the violation's transaction; matches the hop's `tx.lt`. */
+  lt: bigint
+  /** Balance after minus before, in nanotons. */
+  delta: bigint
+  /** Receiving contract's balance after the transaction, in nanotons. */
+  balance: bigint
+  valueIn: bigint
+  /** How the incoming message was bounced, or `null` for a normal message. */
+  bounce: BounceKind | null
+}
+
+/**
+ * Bounce kinds, mirroring the Tolk `BounceMode` of the message that bounced back:
+ * - `simple`: `Only256BitsOfBody` (the default `bounce: true`) — the body is the 0xffffffff
+ *   prefix followed by up to 256 bits of the original outgoing body, so the original op can
+ *   be read right after the prefix.
+ * - `rich`: `RichBounceBody` (0xfffffffe prefix) — a struct carrying the original body as a
+ *   cell, plus exit codes.
+ */
+export type BounceKind = 'simple' | 'rich'
+
+/** Analyzed flow handed to amount callbacks, so a rule can reference other hops. */
+export interface BalanceContext {
+  /** All hops of the flow, in execution order. */
+  hops: HopSummary[]
+  /** The hop the rule is being evaluated against (same as the violation's hop). */
+  readonly current: HopSummary
+  /** The `occurrence`-th (0-based) hop with the given op; throws when absent. */
+  hop(op: string, occurrence?: number): HopSummary
+  /** Summed balance delta of the contract's hops, optionally filtered by op. */
+  delta(contract: string, op?: string): bigint
+}
+
+/**
+ * Allowed balance change of a hop, as an absolute amount or derived from the analyzed flow
+ * (e.g. `(ctx) => ctx.hop('MintNewJettons').valueOut`).
+ */
+export type BalanceAmount = bigint | ((ctx: BalanceContext) => bigint)
+
+/** Selector shared by every rule shape. */
+export interface BalanceRuleSelector {
+  /** AddressBook name of the receiving contract. */
+  contract: string
+  /**
+   * Bounce kind to match: `'simple'`/`'rich'` match only bounces of that kind (the rule's `op`
+   * names the ORIGINAL message that bounced), `null` matches only non-bounced messages, and
+   * omitted matches both. For a simple bounce the op is read from the 32 bits after the
+   * 0xffffffff prefix; for a rich bounce, from the original body cell.
+   */
+  bounce?: BounceKind | null
+  /** Incoming message op name; each rule matches exactly the one message it names. */
+  op: string
+  /** Sender name, to disambiguate repeated (contract, op) pairs. */
+  from?: string
+  /**
+   * The rule's amount constraint may go unexercised: no error when no balance violation matches
+   * it (the hop must still exist — use for hops that only sometimes retain value, e.g. a jetton
+   * wallet keeping its storage reserve on the transfer that deploys it).
+   */
+  optional?: boolean
+}
+
+/**
+ * A balance-change expectation for the hops of one contract, in exactly one of seven shapes:
+ * an exact delta, a delta range (`min` and/or `max`), an exact resulting balance, a balance
+ * range, a full drain (ending balance exactly 0), an exact outgoing send, keeping the whole
+ * incoming value, or a custom predicate. Amounts are absolute nanotons or derived from the
+ * analyzed flow (e.g. `(ctx) => ctx.hop('MintNewJettons').valueOut`). The `kind` discriminant
+ * makes mixing shapes (e.g. `deltaExact` with `min`) a type error; a `*Range` rule without any
+ * bound throws (it would match every hop).
+ */
+export type BalanceRule = BalanceRuleSelector &
+  (
+    | { kind: 'deltaExact'; delta: BalanceAmount }
+    | { kind: 'deltaRange'; min?: BalanceAmount; max?: BalanceAmount }
+    | { kind: 'balanceExact'; value: BalanceAmount }
+    | { kind: 'balanceRange'; min?: BalanceAmount; max?: BalanceAmount }
+    | { kind: 'drain' }
+    /**
+     * The handler ignores the incoming value and pays exactly `value` from its balance
+     * (e.g. a query sent with `SEND_MODE_PAY_FEES_SEPARATELY`). With
+     * `payForwardFromBalance`, the outgoing messages' forward fee is also paid from the
+     * balance and accounted for in the delta.
+     */
+    | { kind: 'sendExact'; value: BalanceAmount; payForwardFromBalance?: boolean }
+    /** The handler forwards nothing onward: it is a sink for the value, minus its own fees. */
+    | { kind: 'keep' }
+    | { kind: 'custom'; expect: (hop: HopSummary, ctx: BalanceContext) => boolean }
+  )
+
+type BalanceSnapshot = { balance: bigint; deployed: boolean }
+
+/**
+ * Steps through the flow one transaction at a time (the same per-message queue stepping
+ * `sendMessageIter` uses) and snapshots the receiving contract's balance before and after each
+ * transaction. With `blockchain.now` frozen no storage fees are charged, so a handler that passes
+ * the message value forward ends with a delta of exactly 0; anything else is recorded as a
+ * violation unless the hop is exempt (aborted, destroy, external owner or a `spec.retains`
+ * name). Bounces are NOT exempt: how a handler (or the TVM) routes the bounced value must be
+ * covered by a rule. Deployments are NOT exempt either: the deploy value a contract keeps must
+ * be covered by a rule (e.g. `deltaExact: Costs.executorDeployment`).
+ */
+async function watchBalances(
+  blockchain: Blockchain,
+  spec: FlowSpec,
+): Promise<[SendMessageResult, BalanceViolation[]]> {
+  const violations: BalanceViolation[] = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const queue = (blockchain as any).defaultQueueManager
+  const original = queue.processTx.bind(queue)
+  const snapshot = async (address: Address): Promise<BalanceSnapshot> => {
+    const contract = await blockchain.getContract(address)
+    return { balance: contract.balance, deployed: contract.accountState?.type === 'active' }
+  }
+  queue.processTx = async () => {
+    const pending = queue.messageQueue[0]
+    const dest =
+      pending?.type === 'message' && pending.info.type === 'internal' ? pending.info.dest : null
+    const before = dest ? await snapshot(dest) : null
+    const tx = await original()
+    if (dest && before && !tx.done) {
+      const after = await snapshot(dest)
+      const info = tx.value.inMessage?.info
+      const description = tx.value.description
+      const aborted = description.type === 'generic' && description.aborted
+      // Name-based exemptions (external owner, `retains`) are applied in `measure` after
+      // `discover` has registered addresses that only become known during the run.
+      // Bounces are checked like any other hop: the bounced value's routing must be covered
+      // by a rule. Deployments and destructions too: the value a contract keeps on deploy,
+      // or drains on destroy, must be covered by a rule.
+      if (!aborted && after.balance !== before.balance) {
+        // Bounces are checked like any other hop: the op is recovered from the bounce body so
+        // rules can name the message that bounced.
+        const { op: opLabel, bounce } = inMessageOp(tx.value)
+        violations.push({
+          address: dest.toRawString(),
+          op: opLabel,
+          lt: tx.value.lt,
+          delta: after.balance - before.balance,
+          balance: after.balance,
+          valueIn: info?.type === 'internal' ? info.value.coins : 0n,
+          bounce,
+        })
+      }
+    }
+    return tx
+  }
+  try {
+    const result = await measureFlow(spec.run)
+    return [result, violations]
+  } finally {
+    queue.processTx = original
+  }
+}
+
 export interface FlowSpec {
   run: () => Promise<SendMessageResult>
   book: AddressBook
@@ -442,17 +634,221 @@ export interface FlowSpec {
   discover?: (result: SendMessageResult, book: AddressBook) => void | Promise<void>
   /** Hops expected to abort, as `From->To`. */
   aborts?: string[]
+  /**
+   * Expected balance changes. Every hop whose receiving contract's balance changes must be
+   * covered by a rule satisfying its amount constraint, and every rule must match at least one
+   * hop — a rule that matches nothing fails the flow (catches silent drift after op renames).
+   */
+  retains?: BalanceRule[]
   /** CCIP part of the value the entrypoint was sent; when set, the CCIP subtree's min value basis must fit in it. */
   budget?: bigint
 }
 
 type Json = { [key: string]: Json } | Json[] | string | number | boolean | null
 
+const resolveAmount = (amount: BalanceAmount, ctx: BalanceContext): bigint =>
+  typeof amount === 'function' ? amount(ctx) : amount
+
+const ruleSelectorMatches = (
+  rule: BalanceRule,
+  hop: { to: string; from: string; op: string; bounce?: BounceKind | null },
+): boolean =>
+  rule.contract === hop.to &&
+  rule.op === hop.op &&
+  (rule.from === undefined || rule.from === hop.from) &&
+  // `bounce` omitted matches both bounces and normal messages; `null` matches only normal.
+  (rule.bounce === undefined || rule.bounce === (hop.bounce ?? null))
+
+const ruleAmountSatisfied = (
+  rule: BalanceRule,
+  v: { delta: bigint; balance: bigint; valueIn: bigint },
+  hop: HopSummary,
+  ctx: BalanceContext,
+): boolean => {
+  switch (rule.kind) {
+    case 'deltaExact':
+      return v.delta === resolveAmount(rule.delta, ctx)
+    case 'deltaRange':
+      if (rule.min !== undefined && v.delta < resolveAmount(rule.min, ctx)) return false
+      if (rule.max !== undefined && v.delta > resolveAmount(rule.max, ctx)) return false
+      return true
+    case 'balanceExact':
+      return v.balance === resolveAmount(rule.value, ctx)
+    case 'balanceRange':
+      if (rule.min !== undefined && v.balance < resolveAmount(rule.min, ctx)) return false
+      if (rule.max !== undefined && v.balance > resolveAmount(rule.max, ctx)) return false
+      return true
+    case 'drain':
+      return v.balance === 0n
+    case 'keep':
+      return hop.valueOut === 0n
+    case 'sendExact': {
+      const sent = resolveAmount(rule.value, ctx)
+      return (
+        v.delta ===
+        v.valueIn - sent - hop.computeFee - (rule.payForwardFromBalance ? hop.forwardFee : 0n)
+      )
+    }
+    case 'custom':
+      return rule.expect(hop, ctx)
+  }
+}
+
+/** Formats a nanoton amount for error messages: `0.084784658 TON (84784658n)`. */
+const amount = (nano: bigint): string => `${fromNano(nano)} TON (${nano}n)`
+
+/** The amount constraint of a rule, resolved and formatted for error messages. */
+function describeRuleAmount(rule: BalanceRule, ctx: BalanceContext): string {
+  const range = (min: BalanceAmount | undefined, max: BalanceAmount | undefined) =>
+    `[${min !== undefined ? amount(resolveAmount(min, ctx)) : '-inf'}, ${max !== undefined ? amount(resolveAmount(max, ctx)) : '+inf'}]`
+  switch (rule.kind) {
+    case 'deltaExact':
+      return `delta == ${amount(resolveAmount(rule.delta, ctx))}`
+    case 'deltaRange':
+      return `delta in ${range(rule.min, rule.max)}`
+    case 'balanceExact':
+      return `balance == ${amount(resolveAmount(rule.value, ctx))}`
+    case 'balanceRange':
+      return `balance in ${range(rule.min, rule.max)}`
+    case 'drain':
+      return 'balance == 0 TON (0n)'
+    case 'keep':
+      return 'forwards no value out (a value sink, keeping value in minus its own fees)'
+    case 'sendExact':
+      return `sends exactly ${amount(resolveAmount(rule.value, ctx))} from balance${
+        rule.payForwardFromBalance ? ' + forward fee' : ''
+      }`
+    case 'custom':
+      return 'custom predicate'
+  }
+}
+
+/**
+ * Checks the recorded balance changes against the spec's `retains` rules and returns one
+ * human-readable problem string per issue:
+ * - a hop whose balance changed without a satisfying rule (no rule matches its selector, or a
+ *   matching rule's amount constraint fails — the expectation is spelled out either way),
+ * - a rule that matched no hop at all (matched against every hop of the flow, not just the ones
+ *   that changed a balance — a rule for an op whose delta is 0, or whose hop is exempt as a
+ *   deploy, still counts as matched),
+ * - a rule that matched hops but never satisfied any violation — its amount constraint was
+ *   never exercised (e.g. a rule for a hop that only keeps value on some flows): redundant or
+ *   misplaced, since a flow variant where the hop retains value would fail it. `optional` rules
+ *   are exempt from this check (but must still match a hop).
+ * External-owned receivers (users, transmitters) are always exempt: they are value sinks by design.
+ */
+function checkBalanceRules(
+  violations: (BalanceViolation & { to: string; from: string })[],
+  spec: FlowSpec,
+  flow: FlowSummary,
+): string[] {
+  const rules = spec.retains ?? []
+  // A range rule without bounds matches every hop — always a typo.
+  for (const rule of rules) {
+    if (rule.kind === 'deltaRange' && rule.min === undefined && rule.max === undefined)
+      throw new Error(
+        `Invalid retains rule for ${rule.contract}: 'deltaRange' needs min and/or max`,
+      )
+    if (rule.kind === 'balanceRange' && rule.min === undefined && rule.max === undefined)
+      throw new Error(
+        `Invalid retains rule for ${rule.contract}: 'balanceRange' needs min and/or max`,
+      )
+  }
+  // Two rules with the same selector is an error: the weaker constraint satisfies whatever the
+  // stronger rejects, masking the regression the stronger rule was written to catch. Split the
+  // flows instead, so each selector names exactly one expectation.
+  const selectorKey = (rule: BalanceRule) =>
+    `${rule.contract}:${rule.op}:${rule.from ?? '*'}:${rule.bounce ?? '*'}:${rule.optional ? 'optional' : 'required'}`
+  const seen = new Map<string, BalanceRule>()
+  for (const rule of rules) {
+    const key = selectorKey(rule)
+    const previous = seen.get(key)
+    if (previous)
+      throw new Error(
+        `Overlapping retains rules for ${rule.contract}:${rule.op} (${rule.kind} and ${previous.kind}): both match the same (contract, op, from, bounce) selector — the weaker constraint masks the stronger. Split the flows instead.`,
+      )
+    seen.set(key, rule)
+  }
+  // A fresh context per violation, so amount callbacks read `ctx.current` as the hop the rule
+  // is being evaluated against.
+  const makeCtx = (current: HopSummary): BalanceContext => ({
+    hops: flow.hops,
+    current,
+    hop: (op, occurrence = 0) => {
+      const matches = flow.hops.filter((h) => h.op === op)
+      const hit = matches[occurrence]
+      if (!hit) throw new Error(`No hop with op ${op} (occurrence ${occurrence})`)
+      return hit
+    },
+    delta: (contract, op) =>
+      flow.hops
+        .filter((h) => h.to === contract && (op === undefined || h.op === op))
+        .reduce((sum, h) => sum + h.retained, 0n),
+  })
+
+  const matched = new Set<number>()
+  for (const hop of flow.hops) {
+    rules.forEach((rule, i) => {
+      if (ruleSelectorMatches(rule, hop)) matched.add(i)
+    })
+  }
+
+  const problems: string[] = []
+  const satisfied = new Set<number>()
+  for (const v of violations) {
+    const address = Address.parseRaw(v.address)
+    if (spec.book.owner(address) === 'external') continue
+    // The violation carries its transaction's lt, so the hop match is exact even when several
+    // hops share the same (contract, op) pair.
+    const hop = flow.hops.find((h) => h.tx.lt === v.lt)
+    if (!hop) continue
+    const ctx = makeCtx(hop)
+    const where = `${v.to}:${v.op} (from ${v.from})`
+    const facts = `kept ${amount(v.delta)}; balance after ${amount(v.balance)}, value in ${amount(v.valueIn)}`
+    const covering = rules.filter((rule) => ruleSelectorMatches(rule, v))
+    const satisfying = covering.filter((rule) => ruleAmountSatisfied(rule, v, hop, ctx))
+    if (satisfying.length > 0) {
+      satisfying.forEach((rule) => satisfied.add(rules.indexOf(rule)))
+      continue
+    }
+    if (covering.length === 0) {
+      problems.push(
+        `${where} ${facts}. No retains rule matches this hop — add one for ${v.to}:${v.op}.`,
+      )
+    } else {
+      const expectations = covering
+        .map((rule) => `${rule.kind} (${describeRuleAmount(rule, ctx)})`)
+        .join(' or ')
+      problems.push(
+        `${where} ${facts}. A rule matches but none is satisfied — expected ${expectations}.`,
+      )
+    }
+  }
+  for (const [i, rule] of rules.entries()) {
+    if (!matched.has(i)) {
+      problems.push(
+        `retains rule ${rule.contract}:${rule.op} (${rule.kind}) matched no hop of this flow — the op was renamed, the flow changed, or the hop is exempt (deploy/bounce/abort).`,
+      )
+    } else if (!satisfied.has(i) && !rule.optional) {
+      problems.push(
+        `retains rule ${rule.contract}:${rule.op} (${rule.kind}) never satisfied a balance change — its constraint is not exercised by this flow (redundant, or belongs in a flow-specific fragment).`,
+      )
+    }
+  }
+  return problems
+}
+
 function toJson(value: unknown): Json {
   if (typeof value === 'bigint') return value.toString()
+  if (value instanceof Address) return value.toString()
   if (Array.isArray(value)) return value.map(toJson)
   if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, toJson(v)]))
+    // Cells (message bodies, init code) are noise in the snapshot; undefined drops the key.
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, v]) => v !== undefined && !(v instanceof Cell))
+        .map(([k, v]) => [k, toJson(v)]),
+    )
   }
   return value as Json
 }
@@ -482,7 +878,7 @@ export class GasReport {
     spec: FlowSpec,
   ): Promise<{ result: SendMessageResult; flow: FlowSummary }> {
     const before = await this.balances(spec.book)
-    const result = await measureFlow(spec.run)
+    const [result, balanceViolations] = await watchBalances(this.blockchain, spec)
     await spec.discover?.(result, spec.book)
     const flow = analyzeFlow(label, result, spec.book)
     printFlowAnalysis(flow, this.gasPrice)
@@ -491,7 +887,9 @@ export class GasReport {
     const unknown = flow.hops.filter((hop) => hop.owner === 'unknown').map((hop) => hop.to)
     expect({ unknownAddresses: [...new Set(unknown)] }).toEqual({ unknownAddresses: [] })
 
-    const aborted = flow.hops.filter((hop) => !hop.success).map((hop) => `${hop.from}->${hop.to}`)
+    const aborted = flow.hops
+      .filter((hop) => !hop.tx.success)
+      .map((hop) => `${hop.from}->${hop.to}`)
     expect({ aborted }).toEqual({ aborted: spec.aborts ?? [] })
 
     // `retained` must match the real balance change, and no CCIP contract may fund the flow beyond
@@ -519,6 +917,22 @@ export class GasReport {
       }
     }
     expect({ losses }).toEqual({ losses: {} })
+
+    // Every message handler must pass the value it received forward; a balance change on a
+    // non-exempt hop means the contract is silently keeping (or funding) value. Expected
+    // changes are declared as `retains` rules; names resolve after `discover` so addresses
+    // that only became known during the run are matched too.
+    const balanceChanges = balanceViolations.map((v) => {
+      const address = Address.parseRaw(v.address)
+      const hop = flow.hops.find((h) => h.tx.lt === v.lt)
+      return { ...v, to: spec.book.name(address), from: hop?.from ?? 'External' }
+    })
+    const problems = checkBalanceRules(balanceChanges, spec, flow)
+    if (problems.length > 0) {
+      throw new Error(
+        `Balance rules violated in flow "${label}":\n${problems.map((p) => `  - ${p}`).join('\n')}`,
+      )
+    }
 
     if (spec.budget !== undefined) {
       const basis = minValueBasis(flow.hops, flow.entrypoints[0].hop)

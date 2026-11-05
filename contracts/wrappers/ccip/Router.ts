@@ -147,8 +147,10 @@ export const Costs = (() => {
     toNano('0.0025') +
     toNano('0.0025') +
     toNano('0.001')
+  const executorRequestsLockOrBurnWithoutDefaultPoolAdmission =
+    lockOrBurnRelay + tokenPoolFinalization
   const executorRequestsLockOrBurn =
-    lockOrBurnRelay + poolLockOrBurnAdmission + tokenPoolFinalization
+    executorRequestsLockOrBurnWithoutDefaultPoolAdmission + poolLockOrBurnAdmission
   const executorTokenTransfer =
     RegistryCosts.getTokenInfo + toNano('0.003') + executorRequestsLockOrBurn
   const executorReserve = (hasTokens: boolean) =>
@@ -178,6 +180,7 @@ export const Costs = (() => {
     tokenPoolFinalization,
     lockOrBurnRelay,
     executorRequestsLockOrBurn,
+    executorRequestsLockOrBurnWithoutDefaultPoolAdmission,
     onRampSend: onRampSend(false),
     onRampSendWithTokens: onRampSend(true),
     ccipSend: ccipSend(false),
