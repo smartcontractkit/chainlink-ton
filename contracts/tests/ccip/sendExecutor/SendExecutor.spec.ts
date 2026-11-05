@@ -1,4 +1,10 @@
-import { Blockchain, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox'
+import {
+  Blockchain,
+  createShardAccount,
+  SandboxContract,
+  SendMessageResult,
+  TreasuryContract,
+} from '@ton/sandbox'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 import { crc32 } from 'zlib'
@@ -1219,6 +1225,73 @@ describe('SendExecutor - Unit tests', () => {
         )
       },
     })
+  })
+
+  it('should exit with the OnRamp error and refund the charged fee when the OnRamp bounces the lock-or-burn request', async () => {
+    const { sendExecutor } = await afterFeeReserved({
+      send: tokenOnrampSend,
+      tokenRegistry: tokenRegistryMock.address,
+    })
+    // The OnRamp rejects everything from here on; restored at the end for the following tests.
+    const snapshot = blockchain.snapshot()
+    try {
+      const onRampBalance = (await blockchain.getContract(onRampMock.address)).balance
+      await blockchain.setShardAccount(
+        onRampMock.address,
+        createShardAccount({
+          address: onRampMock.address,
+          code: await contractCode.ccip.local('tests.mock.Bouncer'),
+          data: Cell.EMPTY,
+          balance: onRampBalance,
+        }),
+      )
+      const tokenPool = (await blockchain.treasury('tokenPoolMock')).address
+
+      const result = await sendExecutor.sendTokenAdminRegistryTokenInfo(
+        tokenRegistryMock.getSender(),
+        toNano('0.3'),
+        {
+          queryID: 0n,
+          token: NATIVE_GRAM,
+          version: 0n,
+          poolInfo: sx.TokenAdminRegistry_PoolInfo.create({
+            tokenPool,
+            transferInitiator: tokenPool,
+            admission: TEST_ADMISSION,
+          }),
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: sendExecutor.address,
+        to: onRampMock.address,
+        success: false,
+        op: or.OnRamp_ExecutorRequestsLockOrBurn.PREFIX,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: onRampMock.address,
+        to: sendExecutor.address,
+        success: true,
+        op: 0xfffffffe,
+      })
+      // The report itself also reaches the Bouncer; what matters is what the executor sent.
+      expect(result.transactions).toHaveTransaction({
+        from: sendExecutor.address,
+        to: onRampMock.address,
+        op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+        body(x) {
+          if (!x) return false
+          const finished = or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse())
+          return (
+            finished.executorID === 0n &&
+            finished.errorCode === 0xffffn && // the Bouncer throws 0xFFFF
+            finished.refund === FeeTokenAmount
+          )
+        },
+      })
+    } finally {
+      await blockchain.loadFrom(snapshot)
+    }
   })
 
   it('should throw on OnRamp_LockOrBurnFailed from non-onramp', async () => {

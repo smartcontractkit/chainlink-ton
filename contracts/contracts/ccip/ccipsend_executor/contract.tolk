@@ -151,6 +151,10 @@ fun onBouncedMessage(in: InMessageBounced) {
             val this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
             this.onGetTokenInfoBounced();
         }
+        OnRamp_ExecutorRequestsLockOrBurn => {
+            val this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
+            this.onLockOrBurnRequestBounced(rich.exitCode);
+        }
     }
 }
 
@@ -318,7 +322,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
     val tokenAmount = ccipSend.tokenAmounts.iter().next();
     val addresses = lazy self.addresses.load();
     val requestLockOrBurn = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: OnRamp_Costs.ExecutorRequestsLockOrBurn(lockOrBurnAdmission),
         dest: addresses.onramp,
         body: OnRamp_ExecutorRequestsLockOrBurn {
@@ -452,6 +456,12 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onReserveFeeB
 /// OnRamp, so finalize with an error and refund it.
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onGetTokenInfoBounced(self) {
     self.exitWithError(CCIPSendExecutor_Error.TokenRegistryBounce, self.state.load().chargedFee.feeTokenAmount);
+}
+
+/// OnRamp rejected the lock-or-burn request (authorization or destination chain lookup), so
+/// nothing reached the Router or the pool. Forward OnRamp's exit code and refund the reserved fee.
+fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onLockOrBurnRequestBounced(self, errorCode: int32) {
+    self.exitWithError(errorCode, self.state.load().chargedFee.feeTokenAmount);
 }
 
 /// The token registry has no pool for the token. Refund the reserved fee.

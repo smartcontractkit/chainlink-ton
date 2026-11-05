@@ -94,4 +94,5 @@ type CCIPSendExecutor_BouncedMessage =
     | FeeQuoter_GetValidatedFee
     | OnRamp_ExecutorReserveFee
     | TokenAdminRegistry_GetTokenInfo
+    | OnRamp_ExecutorRequestsLockOrBurn
     ;
