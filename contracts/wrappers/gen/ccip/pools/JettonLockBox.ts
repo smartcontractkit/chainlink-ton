@@ -11,6 +11,8 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 
 type RemainingBitsAndRefs = c.Slice
 
+type array<T> = T[]
+
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
@@ -84,6 +86,35 @@ function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallbac
         b.storeUint(1, 1);
         storeFn_T(v, b);
     }
+}
+
+function storeArrayOf<T>(v: array<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    // the compiler stores array<T> in chunks; in TypeScript, for simplicity, store "1 elem = 1 ref"
+    let tail = null as c.Cell | null;
+    for (let i = 0; i < v.length; ++i) {
+        let chunkB = beginCell().storeMaybeRef(tail);
+        storeFn_T(v[v.length - 1 - i], chunkB);
+        tail = chunkB.endCell();
+    }
+    b.storeUint(v.length, 8);
+    b.storeMaybeRef(tail);
+}
+
+function loadArrayOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): array<T> {
+    let len = s.loadUint(8);
+    let head = s.loadMaybeRef();
+    let outArr = [] as array<T>;
+    while (head != null) {
+        let s = head.beginParse();
+        head = s.loadMaybeRef();
+        while (s.remainingBits || s.remainingRefs) {
+            outArr.push(loadFn_T(s));
+        }
+    }
+    if (len !== outArr.length) {
+        throw new Error(`mismatch array binary data: expected ${len} elements, got ${outArr.length}`);
+    }
+    return outArr;
 }
 
 function createDictionaryValue<V>(loadFn_V: LoadCallback<V>, storeFn_V: StoreCallback<V>): c.DictionaryValue<V> {
@@ -283,6 +314,76 @@ export const ForwardPayloadRemainder = {
 }
 
 /**
+ > struct (0x0f8a7ea5) AskToTransfer {
+ >     queryId: uint64
+ >     jettonAmount: coins
+ >     transferRecipient: address
+ >     sendExcessesTo: address?
+ >     customPayload: cell?
+ >     forwardTonAmount: coins
+ >     forwardPayload: ForwardPayloadRemainder
+ > }
+ */
+export interface AskToTransfer {
+    readonly $: 'AskToTransfer'
+    queryId: uint64
+    jettonAmount: coins
+    transferRecipient: c.Address
+    sendExcessesTo: c.Address | null
+    customPayload: c.Cell | null
+    forwardTonAmount: coins
+    forwardPayload: ForwardPayloadRemainder
+}
+
+export const AskToTransfer = {
+    PREFIX: 0x0f8a7ea5,
+
+    create(args: {
+        queryId?: uint64
+        jettonAmount: coins
+        transferRecipient: c.Address
+        sendExcessesTo: c.Address | null
+        customPayload: c.Cell | null
+        forwardTonAmount: coins
+        forwardPayload: ForwardPayloadRemainder
+    }): AskToTransfer {
+        return {
+            $: 'AskToTransfer',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AskToTransfer {
+        loadAndCheckPrefix32(s, 0x0f8a7ea5, 'AskToTransfer');
+        return {
+            $: 'AskToTransfer',
+            queryId: s.loadUintBig(64),
+            jettonAmount: s.loadCoins(),
+            transferRecipient: s.loadAddress(),
+            sendExcessesTo: s.loadMaybeAddress(),
+            customPayload: s.loadBoolean() ? s.loadRef() : null,
+            forwardTonAmount: s.loadCoins(),
+            forwardPayload: ForwardPayloadRemainder.fromSlice(s),
+        }
+    },
+    store(self: AskToTransfer, b: c.Builder): void {
+        b.storeUint(0x0f8a7ea5, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeCoins(self.jettonAmount);
+        b.storeAddress(self.transferRecipient);
+        b.storeAddress(self.sendExcessesTo);
+        storeTolkNullable<c.Cell>(self.customPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+        b.storeCoins(self.forwardTonAmount);
+        ForwardPayloadRemainder.store(self.forwardPayload, b);
+    },
+    toCell(self: AskToTransfer): c.Cell {
+        return makeCellFrom<AskToTransfer>(self, AskToTransfer.store);
+    }
+}
+
+/**
  > struct (0x7362d09c) TransferNotificationForRecipient {
  >     queryId: uint64
  >     jettonAmount: coins
@@ -332,6 +433,190 @@ export const TransferNotificationForRecipient = {
     },
     toCell(self: TransferNotificationForRecipient): c.Cell {
         return makeCellFrom<TransferNotificationForRecipient>(self, TransferNotificationForRecipient.store);
+    }
+}
+
+/**
+ > struct (0xf343fc1b) Withdrawable_Withdraw {
+ >     queryId: uint64
+ >     destination: address
+ >     amount: coins
+ >     reserve: coins?
+ >     drainAllAvailable: bool
+ > }
+ */
+export interface Withdrawable_Withdraw {
+    readonly $: 'Withdrawable_Withdraw'
+    queryId: uint64
+    destination: c.Address
+    amount: coins
+    reserve: coins | null
+    drainAllAvailable: boolean
+}
+
+export const Withdrawable_Withdraw = {
+    PREFIX: 0xf343fc1b,
+
+    create(args: {
+        queryId?: uint64
+        destination: c.Address
+        amount: coins
+        reserve: coins | null
+        drainAllAvailable: boolean
+    }): Withdrawable_Withdraw {
+        return {
+            $: 'Withdrawable_Withdraw',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Withdrawable_Withdraw {
+        loadAndCheckPrefix32(s, 0xf343fc1b, 'Withdrawable_Withdraw');
+        return {
+            $: 'Withdrawable_Withdraw',
+            queryId: s.loadUintBig(64),
+            destination: s.loadAddress(),
+            amount: s.loadCoins(),
+            reserve: s.loadBoolean() ? s.loadCoins() : null,
+            drainAllAvailable: s.loadBoolean(),
+        }
+    },
+    store(self: Withdrawable_Withdraw, b: c.Builder): void {
+        b.storeUint(0xf343fc1b, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.destination);
+        b.storeCoins(self.amount);
+        storeTolkNullable<coins>(self.reserve, b,
+            (v,b) => b.storeCoins(v)
+        );
+        b.storeBit(self.drainAllAvailable);
+    },
+    toCell(self: Withdrawable_Withdraw): c.Cell {
+        return makeCellFrom<Withdrawable_Withdraw>(self, Withdrawable_Withdraw.store);
+    }
+}
+
+/**
+ > struct JettonWithdrawable_WithdrawFeeTransfer {
+ >     wallet: address
+ >     value: coins
+ >     msg: AskToTransfer
+ > }
+ */
+export interface JettonWithdrawable_WithdrawFeeTransfer {
+    readonly $: 'JettonWithdrawable_WithdrawFeeTransfer'
+    wallet: c.Address
+    value: coins
+    msg: AskToTransfer
+}
+
+export const JettonWithdrawable_WithdrawFeeTransfer = {
+    create(args: {
+        wallet: c.Address
+        value: coins
+        msg: AskToTransfer
+    }): JettonWithdrawable_WithdrawFeeTransfer {
+        return {
+            $: 'JettonWithdrawable_WithdrawFeeTransfer',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): JettonWithdrawable_WithdrawFeeTransfer {
+        return {
+            $: 'JettonWithdrawable_WithdrawFeeTransfer',
+            wallet: s.loadAddress(),
+            value: s.loadCoins(),
+            msg: AskToTransfer.fromSlice(s),
+        }
+    },
+    store(self: JettonWithdrawable_WithdrawFeeTransfer, b: c.Builder): void {
+        b.storeAddress(self.wallet);
+        b.storeCoins(self.value);
+        AskToTransfer.store(self.msg, b);
+    },
+    toCell(self: JettonWithdrawable_WithdrawFeeTransfer): c.Cell {
+        return makeCellFrom<JettonWithdrawable_WithdrawFeeTransfer>(self, JettonWithdrawable_WithdrawFeeTransfer.store);
+    }
+}
+
+/**
+ > struct (0x0d00995c) JettonWithdrawable_Withdraw {
+ >     queryId: uint64
+ >     transfers: array<JettonWithdrawable_WithdrawFeeTransfer>
+ > }
+ */
+export interface JettonWithdrawable_Withdraw {
+    readonly $: 'JettonWithdrawable_Withdraw'
+    queryId: uint64
+    transfers: array<JettonWithdrawable_WithdrawFeeTransfer>
+}
+
+export const JettonWithdrawable_Withdraw = {
+    PREFIX: 0x0d00995c,
+
+    create(args: {
+        queryId?: uint64
+        transfers: array<JettonWithdrawable_WithdrawFeeTransfer>
+    }): JettonWithdrawable_Withdraw {
+        return {
+            $: 'JettonWithdrawable_Withdraw',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): JettonWithdrawable_Withdraw {
+        loadAndCheckPrefix32(s, 0x0d00995c, 'JettonWithdrawable_Withdraw');
+        return {
+            $: 'JettonWithdrawable_Withdraw',
+            queryId: s.loadUintBig(64),
+            transfers: loadArrayOf<JettonWithdrawable_WithdrawFeeTransfer>(s, JettonWithdrawable_WithdrawFeeTransfer.fromSlice),
+        }
+    },
+    store(self: JettonWithdrawable_Withdraw, b: c.Builder): void {
+        b.storeUint(0x0d00995c, 32);
+        b.storeUint(self.queryId, 64);
+        storeArrayOf<JettonWithdrawable_WithdrawFeeTransfer>(self.transfers, b, JettonWithdrawable_WithdrawFeeTransfer.store);
+    },
+    toCell(self: JettonWithdrawable_Withdraw): c.Cell {
+        return makeCellFrom<JettonWithdrawable_Withdraw>(self, JettonWithdrawable_Withdraw.store);
+    }
+}
+
+/**
+ > struct JettonWithdrawable_FeeTokenWithdrawn {
+ >     wallet: address
+ >     amount: coins
+ > }
+ */
+export interface JettonWithdrawable_FeeTokenWithdrawn {
+    readonly $: 'JettonWithdrawable_FeeTokenWithdrawn'
+    wallet: c.Address
+    amount: coins
+}
+
+export const JettonWithdrawable_FeeTokenWithdrawn = {
+    create(args: {
+        wallet: c.Address
+        amount: coins
+    }): JettonWithdrawable_FeeTokenWithdrawn {
+        return {
+            $: 'JettonWithdrawable_FeeTokenWithdrawn',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): JettonWithdrawable_FeeTokenWithdrawn {
+        return {
+            $: 'JettonWithdrawable_FeeTokenWithdrawn',
+            wallet: s.loadAddress(),
+            amount: s.loadCoins(),
+        }
+    },
+    store(self: JettonWithdrawable_FeeTokenWithdrawn, b: c.Builder): void {
+        b.storeAddress(self.wallet);
+        b.storeCoins(self.amount);
+    },
+    toCell(self: JettonWithdrawable_FeeTokenWithdrawn): c.Cell {
+        return makeCellFrom<JettonWithdrawable_FeeTokenWithdrawn>(self, JettonWithdrawable_FeeTokenWithdrawn.store);
     }
 }
 
@@ -609,6 +894,43 @@ export const JettonLockBox_Withdraw = {
     },
     toCell(self: JettonLockBox_Withdraw): c.Cell {
         return makeCellFrom<JettonLockBox_Withdraw>(self, JettonLockBox_Withdraw.store);
+    }
+}
+
+/**
+ > struct (0x0440d11a) JettonLockBox_WithdrawRescue {
+ >     withdrawMsg: JettonWithdrawable_Withdraw
+ > }
+ */
+export interface JettonLockBox_WithdrawRescue {
+    readonly $: 'JettonLockBox_WithdrawRescue'
+    withdrawMsg: JettonWithdrawable_Withdraw
+}
+
+export const JettonLockBox_WithdrawRescue = {
+    PREFIX: 0x0440d11a,
+
+    create(args: {
+        withdrawMsg: JettonWithdrawable_Withdraw
+    }): JettonLockBox_WithdrawRescue {
+        return {
+            $: 'JettonLockBox_WithdrawRescue',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): JettonLockBox_WithdrawRescue {
+        loadAndCheckPrefix32(s, 0x0440d11a, 'JettonLockBox_WithdrawRescue');
+        return {
+            $: 'JettonLockBox_WithdrawRescue',
+            withdrawMsg: JettonWithdrawable_Withdraw.fromSlice(s),
+        }
+    },
+    store(self: JettonLockBox_WithdrawRescue, b: c.Builder): void {
+        b.storeUint(0x0440d11a, 32);
+        JettonWithdrawable_Withdraw.store(self.withdrawMsg, b);
+    },
+    toCell(self: JettonLockBox_WithdrawRescue): c.Cell {
+        return makeCellFrom<JettonLockBox_WithdrawRescue>(self, JettonLockBox_WithdrawRescue.store);
     }
 }
 
@@ -932,11 +1254,14 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class JettonLockBox implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
+    static CodeCell = c.Cell.fromBase64('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');
 
     static Errors = {
         'AccessControl_Error.UnauthorizedAccount': 47400,
         'AccessControl_Error.BadConfirmation': 47401,
+        'JettonWithdrawable_Error.ZeroAddressNotAllowed': 55700,
+        'JettonWithdrawable_Error.UnallowedRecipient': 55701,
+        'JettonWithdrawable_Error.MaxAmountExceeded': 55702,
         'JettonLockBox_Error.TokenAmountCannotBeZero': 56700,
         'JettonLockBox_Error.RecipientCannotBeZeroAddress': 56701,
         'JettonLockBox_Error.UnsupportedToken': 56702,
@@ -945,6 +1270,9 @@ export class JettonLockBox implements c.Contract {
         'JettonLockBox_Error.MissingOrMalformedForwardPayload': 56705,
         'JettonLockBox_Error.UnauthorizedInitializer': 56706,
         'JettonLockBox_Error.NotEnoughValue': 56707,
+        'Withdrawable_Error.InsufficientBalance': 57100,
+        'Withdrawable_Error.HitReserve': 57101,
+        'Withdrawable_Error.InvalidRequest': 57102,
     }
 
     readonly address: c.Address
@@ -992,6 +1320,22 @@ export class JettonLockBox implements c.Contract {
         extra: JettonLockBox_WithdrawExtra | null
     }) {
         return JettonLockBox_Withdraw.toCell(JettonLockBox_Withdraw.create(body));
+    }
+
+    static createCellOfJettonLockBoxWithdrawRescue(body: {
+        withdrawMsg: JettonWithdrawable_Withdraw
+    }) {
+        return JettonLockBox_WithdrawRescue.toCell(JettonLockBox_WithdrawRescue.create(body));
+    }
+
+    static createCellOfWithdrawableWithdraw(body: {
+        queryId?: uint64
+        destination: c.Address
+        amount: coins
+        reserve: coins | null
+        drainAllAvailable: boolean
+    }) {
+        return Withdrawable_Withdraw.toCell(Withdrawable_Withdraw.create(body));
     }
 
     static createCellOfTransferNotificationForRecipient(body: {
@@ -1043,6 +1387,30 @@ export class JettonLockBox implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: JettonLockBox_Withdraw.toCell(JettonLockBox_Withdraw.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendJettonLockBoxWithdrawRescue(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        withdrawMsg: JettonWithdrawable_Withdraw
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: JettonLockBox_WithdrawRescue.toCell(JettonLockBox_WithdrawRescue.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendWithdrawableWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        destination: c.Address
+        amount: coins
+        reserve: coins | null
+        drainAllAvailable: boolean
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Withdrawable_Withdraw.toCell(Withdrawable_Withdraw.create(body)),
             ...extraOptions
         });
     }

@@ -243,10 +243,8 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
 
 fun DestChainConfig.getValidatedGasPrice(self): uint112 {
     val price = self.usdPerUnitGas.load();
-    val threshold = self.config.gasPriceStalenessThreshold as int64;
-    val elapsedTime = blockchain.now() - price.timestamp;
 
-    assert(threshold == 0 || threshold > elapsedTime, FeeQuoter_Error.StaleGasPrice);
+    assert(price.timestamp != 0, FeeQuoter_Error.NoGasPriceAvailable);
 
     return price.executionGasPrice;
 }
@@ -780,7 +778,10 @@ fun migrate(storage: cell, version: slice): cell {
     val NEW_THRESHOLD = 24 * 60 * 60; //  86400 seconds = 24 hours
     requireSupportedVersion(version);
     var st = Storage.fromCell(storage);
-    st.tokenPriceStalenessThreshold = NEW_THRESHOLD;
+    // 1.6.3 already applied this reset on its own upgrade; keep any value tuned since.
+    if (!version.bitsEqual("1.6.3".literalSlice())) {
+        st.tokenPriceStalenessThreshold = NEW_THRESHOLD;
+    }
     return st.toCell();
 }
 

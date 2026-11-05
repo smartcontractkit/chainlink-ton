@@ -37,6 +37,7 @@ type OffRamp_InMessage =
     | OffRamp_UpdateCursedSubjects
     | OffRamp_TokenTransferDelivered
     | OffRamp_SetDynamicConfig
+    | OffRamp_SetTokenAdminRegistry
     | OCR3Base_SetOCR3Config
     | Upgradeable_Upgrade
     | ReturnExcessesBack
@@ -146,6 +147,12 @@ struct (0x4ca1bcb3) OffRamp_UpdateCursedSubjects {
 struct (0x95bc5a5c) OffRamp_SetDynamicConfig {
     queryId: uint64;
     config: OffRamp_DynamicConfig,
+}
+
+/// One-time setter for contracts migrated from 1.6.x, which had no token admin registry.
+struct (0x453736a5) OffRamp_SetTokenAdminRegistry {
+    queryId: uint64;
+    tokenAdminRegistry: address;
 }
 
 struct (0x7deaf076) OffRamp_ReleaseOrMint {

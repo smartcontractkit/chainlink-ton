@@ -1509,6 +1509,7 @@ export const TokenPool_AdminConfig = {
  >     remoteChainConfigs: map<uint64, TokenPool_RemoteChainConfig>
  >     tokenTransferFeeConfigs: map<uint64, TokenPool_TokenTransferFeeConfig>
  >     budget: TokenPool_Budget
+ >     accruedFees: coins
  > }
  */
 export interface TokenPool_Data {
@@ -1519,6 +1520,7 @@ export interface TokenPool_Data {
     remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
     tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
     budget: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins, 0 as coins } as TokenPool_ReleaseOrMintBudget } */
+    accruedFees: coins /* = 0 */
 }
 
 export const TokenPool_Data = {
@@ -1529,10 +1531,12 @@ export const TokenPool_Data = {
         remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
         budget?: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins, 0 as coins } as TokenPool_ReleaseOrMintBudget } */
+        accruedFees?: coins /* = 0 */
     }): TokenPool_Data {
         return {
             $: 'TokenPool_Data',
             budget: { $: 'TokenPool_Budget', lockOrBurn: { $: 'TokenPool_LockOrBurnBudget', admission: 0n, safety: 0n }, releaseOrMint: { $: 'TokenPool_ReleaseOrMintBudget', admission: 0n, safety: 0n } },
+            accruedFees: 0n,
             ...args
         }
     },
@@ -1545,6 +1549,7 @@ export const TokenPool_Data = {
             remoteChainConfigs: dictToMap(c.Dictionary.load<uint64, TokenPool_RemoteChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_RemoteChainConfig>(TokenPool_RemoteChainConfig.fromSlice, TokenPool_RemoteChainConfig.store), s)),
             tokenTransferFeeConfigs: dictToMap(c.Dictionary.load<uint64, TokenPool_TokenTransferFeeConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store), s)),
             budget: TokenPool_Budget.fromSlice(s),
+            accruedFees: s.loadCoins(),
         }
     },
     store(self: TokenPool_Data, b: c.Builder): void {
@@ -1554,6 +1559,7 @@ export const TokenPool_Data = {
         b.storeDict<uint64, TokenPool_RemoteChainConfig>(mapToDict(self.remoteChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_RemoteChainConfig>(TokenPool_RemoteChainConfig.fromSlice, TokenPool_RemoteChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_RemoteChainConfig>(TokenPool_RemoteChainConfig.fromSlice, TokenPool_RemoteChainConfig.store));
         b.storeDict<uint64, TokenPool_TokenTransferFeeConfig>(mapToDict(self.tokenTransferFeeConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store));
         TokenPool_Budget.store(self.budget, b);
+        b.storeCoins(self.accruedFees);
     },
     toCell(self: TokenPool_Data): c.Cell {
         return makeCellFrom<TokenPool_Data>(self, TokenPool_Data.store);
@@ -3775,6 +3781,7 @@ export const TokenPool_GetConfig = {
 /**
  > struct (0x1c8a40b8) TokenPool_Config {
  >     queryId: uint64
+ >     token: address
  >     transferInitiator: address?
  >     admission: TokenPool_AdmissionBudget
  > }
@@ -3782,6 +3789,7 @@ export const TokenPool_GetConfig = {
 export interface TokenPool_Config {
     readonly $: 'TokenPool_Config'
     queryId: uint64
+    token: c.Address
     transferInitiator: c.Address | null
     admission: TokenPool_AdmissionBudget
 }
@@ -3791,6 +3799,7 @@ export const TokenPool_Config = {
 
     create(args: {
         queryId?: uint64
+        token: c.Address
         transferInitiator: c.Address | null
         admission: TokenPool_AdmissionBudget
     }): TokenPool_Config {
@@ -3805,6 +3814,7 @@ export const TokenPool_Config = {
         return {
             $: 'TokenPool_Config',
             queryId: s.loadUintBig(64),
+            token: s.loadAddress(),
             transferInitiator: s.loadMaybeAddress(),
             admission: TokenPool_AdmissionBudget.fromSlice(s),
         }
@@ -3812,11 +3822,49 @@ export const TokenPool_Config = {
     store(self: TokenPool_Config, b: c.Builder): void {
         b.storeUint(0x1c8a40b8, 32);
         b.storeUint(self.queryId, 64);
+        b.storeAddress(self.token);
         b.storeAddress(self.transferInitiator);
         TokenPool_AdmissionBudget.store(self.admission, b);
     },
     toCell(self: TokenPool_Config): c.Cell {
         return makeCellFrom<TokenPool_Config>(self, TokenPool_Config.store);
+    }
+}
+
+/**
+ > struct (0x3f9b99ae) TokenPool_WithdrawRescue {
+ >     withdrawMsg: JettonWithdrawable_Withdraw
+ > }
+ */
+export interface TokenPool_WithdrawRescue {
+    readonly $: 'TokenPool_WithdrawRescue'
+    withdrawMsg: JettonWithdrawable_Withdraw
+}
+
+export const TokenPool_WithdrawRescue = {
+    PREFIX: 0x3f9b99ae,
+
+    create(args: {
+        withdrawMsg: JettonWithdrawable_Withdraw
+    }): TokenPool_WithdrawRescue {
+        return {
+            $: 'TokenPool_WithdrawRescue',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_WithdrawRescue {
+        loadAndCheckPrefix32(s, 0x3f9b99ae, 'TokenPool_WithdrawRescue');
+        return {
+            $: 'TokenPool_WithdrawRescue',
+            withdrawMsg: JettonWithdrawable_Withdraw.fromSlice(s),
+        }
+    },
+    store(self: TokenPool_WithdrawRescue, b: c.Builder): void {
+        b.storeUint(0x3f9b99ae, 32);
+        JettonWithdrawable_Withdraw.store(self.withdrawMsg, b);
+    },
+    toCell(self: TokenPool_WithdrawRescue): c.Cell {
+        return makeCellFrom<TokenPool_WithdrawRescue>(self, TokenPool_WithdrawRescue.store);
     }
 }
 
@@ -5222,6 +5270,66 @@ export const JettonWithdrawable_Withdraw = {
 }
 
 /**
+ > struct (0xf343fc1b) Withdrawable_Withdraw {
+ >     queryId: uint64
+ >     destination: address
+ >     amount: coins
+ >     reserve: coins?
+ >     drainAllAvailable: bool
+ > }
+ */
+export interface Withdrawable_Withdraw {
+    readonly $: 'Withdrawable_Withdraw'
+    queryId: uint64
+    destination: c.Address
+    amount: coins
+    reserve: coins | null
+    drainAllAvailable: boolean
+}
+
+export const Withdrawable_Withdraw = {
+    PREFIX: 0xf343fc1b,
+
+    create(args: {
+        queryId?: uint64
+        destination: c.Address
+        amount: coins
+        reserve: coins | null
+        drainAllAvailable: boolean
+    }): Withdrawable_Withdraw {
+        return {
+            $: 'Withdrawable_Withdraw',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Withdrawable_Withdraw {
+        loadAndCheckPrefix32(s, 0xf343fc1b, 'Withdrawable_Withdraw');
+        return {
+            $: 'Withdrawable_Withdraw',
+            queryId: s.loadUintBig(64),
+            destination: s.loadAddress(),
+            amount: s.loadCoins(),
+            reserve: s.loadBoolean() ? s.loadCoins() : null,
+            drainAllAvailable: s.loadBoolean(),
+        }
+    },
+    store(self: Withdrawable_Withdraw, b: c.Builder): void {
+        b.storeUint(0xf343fc1b, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.destination);
+        b.storeCoins(self.amount);
+        storeTolkNullable<coins>(self.reserve, b,
+            (v,b) => b.storeCoins(v)
+        );
+        b.storeBit(self.drainAllAvailable);
+    },
+    toCell(self: Withdrawable_Withdraw): c.Cell {
+        return makeCellFrom<Withdrawable_Withdraw>(self, Withdrawable_Withdraw.store);
+    }
+}
+
+/**
  > struct (0x95cd540f) AccessControl_GrantRole {
  >     queryId: uint64
  >     role: uint256
@@ -5522,7 +5630,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECQgEAAcMAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAGBwIBICwtAgEgCAkCASAYGQIBIAoLAgEgFBUCASAMDQIBIBARAgFmDg8ADa3Iwgf5eEAAC6BeED/LwgALocYQP8vCAgEgEhMADa3YQgf5eEAADKlfhA/y8AAMqtCED/LwAgFuFhcADbAfIQP8vCAAC6dRCB/l4QALpFEIH+XhAgEgGhsCASAoKQIBIBwdAgEgJCUCASAeHwIBYiIjAAyqh4QP8vACASAgIQALpjsIH+XhAAulCwgf5eEAC6H6ED/LwgALoH4QP8vCAgEgJicADazjQgf5eEAADKm6hA/y8AAMqoqED/LwAgFYKisADbK64QP8vCAADKl6hA/y8AAMqraED/LwAgFYLi8CASAwMQANs3ohA/y8IAANs7nhA/y8IAIBIDIzAgEgODkCAWY0NQIBZjY3AAuk2wgf5eEAC6bxCB/l4QALp98IH+XhAAumKwgf5eECASA6OwIBIEBBAA2vAcIH+XhAAgFIPD0AC6VfCB/l4QIBWD4/AAu+eED/LwgAC7gYQP8vCAANrGvCB/l4QAANrDjCB/l4QA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECRAEAAdAAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAcHQIBIAYHAgFYCAkCASAKCwANs3ohA/y8IAANs7nhA/y8IAIBIAwNAgEgEhMCAWYODwIBZhARAAuk2wgf5eEAC6bxCB/l4QALp98IH+XhAAumKwgf5eECASAUFQIBIBobAA2vAcIH+XhAAgFIFhcAC6VfCB/l4QIBWBgZAAu+eED/LwgAC7gYQP8vCAANrGvCB/l4QAANrDjCB/l4QAIBIB4fAgEgMDECASAgIQIBICwtAgEgIiMCASAoKQIBICQlAA2tyMIH+XhAAgFYJicADKpbhA/y8AALoF4QP8vCAAuhxhA/y8ICASAqKwANrdhCB/l4QAAMqV+ED/LwAAyq0IQP8vACAW4uLwANsB8hA/y8IAALp1EIH+XhAAukUQgf5eECASAyMwIBIEBBAgEgNDUCASA8PQIBIDY3AgFiOjsADKqHhA/y8AIBIDg5AAumOwgf5eEAC6ULCB/l4QALofoQP8vCAAugfhA/y8ICASA+PwANrONCB/l4QAAMqbqED/LwAAyqioQP8vACAVhCQwANsrrhA/y8IAAMqXqED/LwAAyqtoQP8vA=');
 
     static Errors = {
         'TokenPool_Error.InvalidTransferFeeBps': 51700,
@@ -5583,6 +5691,7 @@ export class TokenPool implements c.Contract {
         remoteChainConfigs: Map<uint64, TokenPool_RemoteChainConfig> /* = [] as map<uint64, TokenPool_RemoteChainConfig> */
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
         budget?: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins, 0 as coins } as TokenPool_ReleaseOrMintBudget } */
+        accruedFees?: coins /* = 0 */
     }, deployedOptions?: DeployedAddrOptions) {
         const initialState = {
             code: deployedOptions?.overrideContractCode ?? TokenPool.CodeCell,
@@ -5811,6 +5920,22 @@ export class TokenPool implements c.Contract {
         transfers: array<JettonWithdrawable_WithdrawFeeTransfer>
     }) {
         return JettonWithdrawable_Withdraw.toCell(JettonWithdrawable_Withdraw.create(body));
+    }
+
+    static createCellOfTokenPoolWithdrawRescue(body: {
+        withdrawMsg: JettonWithdrawable_Withdraw
+    }) {
+        return TokenPool_WithdrawRescue.toCell(TokenPool_WithdrawRescue.create(body));
+    }
+
+    static createCellOfWithdrawableWithdraw(body: {
+        queryId?: uint64
+        destination: c.Address
+        amount: coins
+        reserve: coins | null
+        drainAllAvailable: boolean
+    }) {
+        return Withdrawable_Withdraw.toCell(Withdrawable_Withdraw.create(body));
     }
 
     static createCellOfOwnable2StepTransferOwnership(body: {
@@ -6171,6 +6296,30 @@ export class TokenPool implements c.Contract {
         });
     }
 
+    async sendTokenPoolWithdrawRescue(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        withdrawMsg: JettonWithdrawable_Withdraw
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_WithdrawRescue.toCell(TokenPool_WithdrawRescue.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendWithdrawableWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        destination: c.Address
+        amount: coins
+        reserve: coins | null
+        drainAllAvailable: boolean
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Withdrawable_Withdraw.toCell(Withdrawable_Withdraw.create(body)),
+            ...extraOptions
+        });
+    }
+
     async sendOwnable2StepTransferOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         newOwner: c.Address
@@ -6510,5 +6659,10 @@ export class TokenPool implements c.Contract {
                 safety: r.readBigInt(),
             }),
         });
+    }
+
+    async getAccruedFees(provider: ContractProvider): Promise<coins> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getAccruedFees', []));
+        return r.readBigInt();
     }
 }

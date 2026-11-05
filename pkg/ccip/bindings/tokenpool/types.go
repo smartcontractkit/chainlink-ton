@@ -14,6 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/jetton_withdrawable"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/withdrawable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	pkgtlbe "github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
@@ -30,6 +31,8 @@ type ChainSelector struct {
 type (
 	// JettonWithdrawableWithdraw mirrors the Tolk JettonWithdrawable_Withdraw message.
 	JettonWithdrawableWithdraw = jetton_withdrawable.Withdraw
+	// WithdrawableWithdraw mirrors the Tolk Withdrawable_Withdraw message.
+	WithdrawableWithdraw = withdrawable.Withdraw
 	// JettonWithdrawableWithdrawFeeTransfer is one wallet + AskToTransfer step.
 	JettonWithdrawableWithdrawFeeTransfer = jetton_withdrawable.WithdrawFeeTransfer
 	// FeeTokenWithdrawn is emitted when jettons are withdrawn from a pool wallet.
@@ -301,6 +304,7 @@ type Storage struct {
 	RemoteChainConfigs      *cell.Dictionary `tlb:"dict 64"`
 	TokenTransferFeeConfigs *cell.Dictionary `tlb:"dict 64"`
 	Budget                  Budget           `tlb:"."`
+	AccruedFees             tlb.Coins        `tlb:"."`
 }
 
 // --- Messages - incoming ---
@@ -444,6 +448,7 @@ type GetConfig struct {
 type Config struct {
 	_                 tlb.Magic        `tlb:"#1c8a40b8" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID           uint64           `tlb:"## 64"`
+	Token             *address.Address `tlb:"addr"`
 	TransferInitiator *address.Address `tlb:"addr"`
 	Admission         AdmissionBudget  `tlb:"."`
 }
@@ -453,6 +458,13 @@ type SetBudget struct {
 	_       tlb.Magic `tlb:"#1e54ab8b" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 	Budget  Budget    `tlb:"."`
+}
+
+// WithdrawRescue is the explicit owner-only recovery withdrawal. It is intentionally uncapped
+// and may sweep in-flight custody; the owner is responsible for the outcome.
+type WithdrawRescue struct {
+	_           tlb.Magic                  `tlb:"#3f9b99ae" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	WithdrawMsg JettonWithdrawableWithdraw `tlb:"."`
 }
 
 // BudgetSet answers SetBudget with the effective budget.
@@ -870,6 +882,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	// Notice: T as any to register once for all generic instances of RMNAccessControlMessage
 	RMNAccessControlMessage[any]{Content: nil},
 	JettonWithdrawableWithdraw{},
+	WithdrawableWithdraw{},
+	WithdrawRescue{},
 	LockOrBurn{},
 	ReleaseOrMint{},
 	PreflightCheckFinished{},

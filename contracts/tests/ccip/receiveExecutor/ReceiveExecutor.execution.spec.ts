@@ -366,7 +366,6 @@ describe('ReceiveExecutor - Execution', () => {
         REGISTRY_REPLY_VALUE,
         {
           token: messageWithTT.tokenAmounts![0].token,
-          minterAddress: deployer.address,
           version: 1n,
           poolInfo: rx.TokenAdminRegistry_PoolInfo.create({
             tokenPool: pool,
@@ -513,7 +512,6 @@ describe('ReceiveExecutor - Execution', () => {
           toNano('0.05'),
           {
             token: messageWithTT.tokenAmounts![0].token,
-            minterAddress: deployer.address,
             version: 1n,
             poolInfo: rx.TokenAdminRegistry_PoolInfo.create({
               tokenPool: tokenPool.address,
@@ -544,7 +542,6 @@ describe('ReceiveExecutor - Execution', () => {
           REGISTRY_REPLY_VALUE,
           {
             token: messageWithTT.tokenAmounts![0].token,
-            minterAddress: deployer.address,
             version: 1n,
             poolInfo: null,
           },
@@ -610,7 +607,6 @@ describe('ReceiveExecutor - Execution', () => {
           toNano('0.05'),
           {
             token: messageWithTT.tokenAmounts![0].token,
-            minterAddress: deployer.address,
             version: 1n,
             poolInfo: rx.TokenAdminRegistry_PoolInfo.create({
               tokenPool: tokenPool.address,
@@ -633,7 +629,6 @@ describe('ReceiveExecutor - Execution', () => {
           toNano('0.05'),
           {
             token: messageWithTT.tokenAmounts![0].token,
-            minterAddress: deployer.address,
             version: 1n,
             poolInfo: rx.TokenAdminRegistry_PoolInfo.create({
               tokenPool: tokenPool.address,
@@ -1001,7 +996,6 @@ describe('ReceiveExecutor - Execution', () => {
           toNano('0.05'),
           {
             token: messageWithTT.tokenAmounts![0].token,
-            minterAddress: deployer.address,
             version: 1n,
             poolInfo: null,
           },
@@ -1348,7 +1342,6 @@ describe('ReceiveExecutor - Execution', () => {
           toNano('0.05'),
           {
             token: messageWithTT.tokenAmounts![0].token,
-            minterAddress: deployer.address,
             version: 1n,
             poolInfo: null,
           },

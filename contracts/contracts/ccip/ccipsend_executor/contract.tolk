@@ -301,12 +301,6 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
         return;
     }
 
-    if (msg.minterAddress != state.token) {
-        self.exitWithError(CCIPSendExecutor_Error.TokenMinterMismatch as uint256, state.chargedFee.feeTokenAmount);
-
-        return;
-    }
-
     val poolInfo = msg.poolInfo!.load();
     val lockOrBurnAdmission = poolInfo.admission.load().lockOrBurn;
     // The Router checked the entry value against the pool-type default admission; a pool that

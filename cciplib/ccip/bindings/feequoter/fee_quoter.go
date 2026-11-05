@@ -59,7 +59,7 @@ const (
 	ErrorTooManySVMExtraArgsAccounts
 	ErrorInvalidSVMExtraArgsWritableBitmap
 	ErrorMsgDataTooLarge
-	ErrorStaleGasPrice
+	ErrorNoGasPriceAvailable
 	ErrorDestChainNotEnabled
 	ErrorFeeTokenNotSupported
 	ErrorInvalidMsgData

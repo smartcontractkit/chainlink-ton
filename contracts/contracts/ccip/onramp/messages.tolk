@@ -24,6 +24,7 @@ type OnRamp_InMessage =
     | OnRamp_ExecutorFinishedSuccessfully
     | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
+    | OnRamp_SetTokenAdminRegistry
     | OnRamp_UpdateDestChainConfigs
     | OnRamp_UpdateAllowlists
     | OnRamp_WithdrawFeeTokens
@@ -90,6 +91,11 @@ struct OnRamp_GetValidatedFeeContext {
 
 struct (0xa178c62e) OnRamp_SetDynamicConfig {
     config: OnRamp_DynamicConfig
+}
+
+/// One-time setter for contracts migrated from 1.6.x, which had no token admin registry.
+struct (0x1c3f167d) OnRamp_SetTokenAdminRegistry {
+    tokenAdminRegistry: address
 }
 
 struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {

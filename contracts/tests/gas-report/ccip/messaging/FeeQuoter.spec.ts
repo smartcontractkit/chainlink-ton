@@ -68,6 +68,22 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
       ],
     })
 
+    // Seed a gas price for the dest chain: getValidatedGasPrice requires a timestamped
+    // (non-zero) price entry, regardless of the staleness threshold.
+    await feeQuoter.sendFeeQuoterUpdatePrices(deployer.getSender(), toNano('1'), {
+      updates: fq.PriceUpdates.create({
+        tokenPriceUpdates: [],
+        gasPriceUpdates: [
+          fq.GasPriceUpdate.create({
+            destChainSelector: ChainSelectors.testnet.evm,
+            executionGasPrice: 1n,
+            dataAvailabilityGasPrice: 1n,
+          }),
+        ],
+      }),
+      sendExcessesTo: deployer.address,
+    })
+
     const routerCode = await contractCode.ccip.local('Router')
     const routerData = rt.Storage.create({
       id: 0n,

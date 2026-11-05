@@ -127,6 +127,7 @@ describe('TokenAdminRegistry flow fees', () => {
       tokenDecimals: 9n,
       remoteChainConfigs: new Map(),
       tokenTransferFeeConfigs: new Map(),
+      accruedFees: 0n,
     })
     const burnMint = blockchain.openContract(
       BurnMintTokenPool.fromStorage(
@@ -523,10 +524,11 @@ describe('TokenAdminRegistry flow fees', () => {
   // The entry already runs the root's entry code, so this skips the reinstall.
   it('UpgradeEntry', async () => {
     await register()
+    const upgradeCost = await fx.registry.getEntryUpgradeCost()
     await measure('UpgradeEntry', {
       initiator: fx.other.address,
-      value: Costs.upgrade,
-      ownBudget: Costs.upgrade,
+      value: upgradeCost,
+      ownBudget: upgradeCost,
       run: (via, value) =>
         fx.registry.sendTokenAdminRegistryUpgradeEntry(via, value, {
           queryId: 0n,

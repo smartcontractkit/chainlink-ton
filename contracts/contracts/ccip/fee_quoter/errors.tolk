@@ -15,7 +15,7 @@ enum FeeQuoter_Error {
     TooManySVMExtraArgsAccounts
     InvalidSVMExtraArgsWritableBitmap
     MsgDataTooLarge
-    StaleGasPrice
+    NoGasPriceAvailable
     DestChainNotEnabled
     FeeTokenNotSupported
     InvalidMsgData

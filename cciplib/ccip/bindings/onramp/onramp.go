@@ -21,6 +21,7 @@ const (
 	OpcodeOnRampExecutorFinishedSuccessfully = 0xCFA6B336
 	OpcodeOnRampExecutorFinishedWithError    = 0xC4068E21
 	OpcodeSetDynamicConfig                   = 0xa178c62e
+	OpcodeSetTokenAdminRegistry              = 0x1c3f167d
 	OpcodeUpdateDestChainConfigs             = 0x1a246b6c
 	OpcodeUpdateAllowlists                   = 0x9dc06185
 	OpcodeUpdateSendExecutor                 = 0x82901c45
@@ -182,6 +183,13 @@ type SetDynamicConfigMessage struct {
 	Config DynamicConfig `tlb:"."`
 }
 
+// SetTokenAdminRegistryMessage sets the token admin registry once on an OnRamp
+// migrated from 1.6.x, where it is left as the zero address.
+type SetTokenAdminRegistryMessage struct {
+	_                  tlb.Magic        `tlb:"#1c3f167d" json:"-"` //nolint:revive // Ignore opcode tag
+	TokenAdminRegistry *address.Address `tlb:"addr"`
+}
+
 // UpdateSendExecutorMessage is the legacy (contracts 1.6.x) OnRamp message that
 // replaces the CCIPSendExecutor's deployable code.
 //
@@ -200,6 +208,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	ExecutorFinishedSuccessfully{},
 	ExecutorFinishedWithError{},
 	SetDynamicConfigMessage{},
+	SetTokenAdminRegistryMessage{},
 	UpdateDestChainConfigsMessage{},
 	UpdateSendExecutorMessage{},
 	WithdrawFeeTokens{},
@@ -281,7 +290,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(UnknownDestChainSelector)
-		ecMax = int32(FeePaymentsWithJettonsNotSupported)
+		ecMax = int32(TokenAdminRegistryAlreadySet)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -297,4 +306,6 @@ const (
 	SourceTokenDataTooLarge
 	PendingFeeReservationsUnderflow
 	FeePaymentsWithJettonsNotSupported
+	TokenAdminRegistryNotSet
+	TokenAdminRegistryAlreadySet
 )
