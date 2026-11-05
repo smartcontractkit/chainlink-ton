@@ -899,8 +899,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class DepositAccount implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECJgEABYIAART/APSkE/S88sgLAQIBYgIDAgLNBAUCASAYGQIBIAYHAgEgEhMC90+JGO9dcsJ/////Tyv9dM0NcsIHxT9SzjAtcsIWO1y5wxjlXtRND6SPpI+kj0BPQE9ATRIG6SXwaOPdDTP/QE0W2CCJiWgHD7AsjPhQhSgPpSghCSk9aOzwuOE8s/9ADJgwb7AAXI+lIU+lIS+lL0APQA9ADJ7VTi4OAggICQH3XtRND6SPpI+kj0BPQE9ATRggDNFFOmxwXy9CFugghMS0BccOMEoIIAzRr4J28QggiYloAjoL6UC7vDAJMxOnDiGvL0CI4lXwUyggiYloBw+wLIz4UIE/pSghB4TZjpzwuOEss/9ADJgwb7AOE4ggDNFwduF/L0JMjLPxSBEB/tM/+gAx+kgx+lAx9AQx+gAx+JLtRNAC9AQhbpgxIMcAkjBt4JLR0OIgbpUwbW1tcI4X1ywhawsAZJn6SPQE9AWBAITgMG1tbXDiMZaCAM0c8vDhggDNHCFus/L0A/pIMfpI+kgwyM+SlG2y6hbLP/pSFPpS+lLMycjPhQgS+lIKA36J1yecMdM/9AX4kviXWvAD4NcsIMm2iJTjAtcsI5sWhOSb0z/6APpQ+JIF8ATg1ywmi5qgBOMCMIQPAccA8vQLDA0AFHHPC27MyYBA+wAACGiQogUB/tM/1ywgfFP1LPK/0z8x+gD6SPpQ9AT6APiSCMjOye1E0PpIMfpIMfpIMfQE9AUqggDNFQOBAQv0Cm+hMRLy9IIAzRshbrPy9ND6SNEC9AQhbpgxIMcAkjBt4JLR0OIgbrOTyM7JkjBt4sjPkLWFgDIa+lL0ABj0AMnI9ADPUMgOAfox0z8x+lAw+JLtRND6SPpI+kj0BPQE9ATRggDNGFF0xwUX8vSCAM0ZJm6z8vQmbpYwJcj6UsnfBm6zBdDTP/QE0W2CCJiWgHD7AgeOG8jPhQhSYPpSghCSk9aOzwuOEss/9ADJgwb7AOMNA8j6UhL6UvpS9AAS9AD0AMntVBABWonPFhfLP1AF+gIT+lL6VPQAAfoCzsnIz4WIEvpSz4QQc/oCcc8LZczJgFD7AA8ACA+KfqUANsjPhQhSYPpSghB4TZjpzwuOEss/9ADJgwb7AACE9ADJAsj6UvpSUiD6UhT0ABT0ABL0AMntVIIITEtA+CjIz4WIFPpSAfoCz4Fz+gKCECx2uXPPC4XLP/pSz4HJcfsAAgEgFBUADUIW6RMeAwgB9ztRND6SDH6SPpIMfQB9AUgbpIwf5rQ+kjRJ8cFs8MA4o47bCEhbrNZ4wRtbcj0AM9QyM+QPin6lhXLP1AD+gJSEPpS+lT0AM+EIM7JyM+FCBL6UnHPC27MyYBC+wDgbDMzAfGABdohWPAGAcjOycjPhQgS+lKCELT+XAyAWASs7aLt+5VbbdsxMO3juortQe3xAfL/gFwASzwuOzMmAQPsAAN4g9AQhbpgxIMcAkjBt4JLR0OIgbrOTyM7JkjBt4gH0BCFumDEgxwCSMG3gktHQ4iBulTBtbW1wjhfXLCFrCwBkmfpI9AT0BYEAhOAwbW1tcOJsIpExkTDiIG6UMG3bMeDQ1ywkRwd59PK/+kjR2zECASAaGwIBICAhAgEgHB0CAUgeHwBttivxoVNjS3NZcxtDC0txc6N7cXMbG0uBcwsbG3urc6FyIyuDe5tLogsbG3urc6QRamBcYlxhEAAbtcUQQBmilAQQgfd+UJAAC7GhYECDYAAhs0I7UTQ+kgx+kgx+kgx9AWAAEbjontRND6SDCAIBICIjAgHLJCUAO7YKPaiaH0kGP0kGP0kGPoA+gKQN0kYNspofSRo8UAAbuF7UTQ+kgx+kgx+kgwgAFb6+1E0PpIMfpIMI');
-
     static Errors = {
         'DepositAccount_Error.OnlyOwner': 52500,
         'DepositAccount_Error.OnlyBeneficiary': 52501,
@@ -932,8 +930,11 @@ export class DepositAccount implements c.Contract {
         wallet?: c.Address | null /* = null */
         pendingInit?: DepositAccount_PendingInit | null /* = null */
     }, deployedOptions?: DeployedAddrOptions) {
+        if (!deployedOptions?.overrideContractCode) {
+            throw new Error('DepositAccount.fromStorage requires deployedOptions.overrideContractCode');
+        }
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? DepositAccount.CodeCell,
+            code: deployedOptions.overrideContractCode,
             data: DepositAccount_Data.toCell(DepositAccount_Data.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
