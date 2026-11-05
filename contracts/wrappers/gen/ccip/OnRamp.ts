@@ -2504,7 +2504,7 @@ export const OnRamp_Storage = {
 }
 
 /**
- > enum OnRamp_Error { 12 variants }
+ > enum OnRamp_Error { 13 variants }
  */
 export type OnRamp_Error = bigint
 
@@ -2521,6 +2521,7 @@ export const OnRamp_Error = {
     FeePaymentsWithJettonsNotSupported: 13409n,
     TokenAdminRegistryNotSet: 13410n,
     TokenAdminRegistryAlreadySet: 13411n,
+    UnhandledLegacyBounce: 13412n,
 
     fromSlice(s: c.Slice): OnRamp_Error {
         return s.loadUintBig(14);
@@ -3787,6 +3788,7 @@ export class OnRamp implements c.Contract {
         'OnRamp_Error.FeePaymentsWithJettonsNotSupported': 13409,
         'OnRamp_Error.TokenAdminRegistryNotSet': 13410,
         'OnRamp_Error.TokenAdminRegistryAlreadySet': 13411,
+        'OnRamp_Error.UnhandledLegacyBounce': 13412,
         'Upgradeable_Error.VersionMismatch': 19900,
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
         'Ownable2Step_Error.CannotTransferToSelf': 49801,

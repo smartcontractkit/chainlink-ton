@@ -421,8 +421,8 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
 /// @dev Other bounces are ignored, as before this handler existed: legacy (256-bit) bounces of
 ///      Deployable_InitializeAndSend and OnRamp_ExecutorFeeReserved carry no context to act on.
 fun onBouncedMessage(in: InMessageBounced) {
-    if (in.bouncedBody.preloadUint(32) != 0xfffffffe) {
-        return;
+    if (in.bouncedBody.preloadUint(32) == 0xffffffff) {
+        return onLegacyBounce(in.bouncedBody);
     }
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val bounced = lazy OnRamp_RichBouncedMessage.fromCell(rich.originalBody);
@@ -442,6 +442,13 @@ fun onBouncedMessage(in: InMessageBounced) {
             return;
         }
     }
+}
+
+/// The only legacy (256-bit) bounce OnRamp expects is the fee-aggregator withdrawal's, whose body
+/// is empty: its value is back in the balance, so there is nothing else to do.
+fun onLegacyBounce(bouncedBody: slice) {
+    val originalBody = bouncedBody.skipBouncedPrefix();
+    assert (originalBody.isEmpty()) throw (OnRamp_Error.UnhandledLegacyBounce);
 }
 
 /// The executor deployment bounced, so nothing was reserved and no executor exists. Rejects the

@@ -7,6 +7,7 @@ import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import { setup } from './OnRamp.Setup'
+import * as bouncer from '../../../wrappers/test/mock/Bouncer'
 import { NATIVE_GRAM } from '../../../src/utils'
 import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
@@ -110,6 +111,32 @@ describe('OnRamp - Get Fee', () => {
     expect(decoded.queryID).toBe(ccipSend.queryID)
     expect(decoded.destChainSelector).toBe(ccipSend.destChainSelector)
     expect(decoded.feeToken).toEqual(ccipSend.feeToken)
+  })
+
+  it('should throw on a legacy bounce other than the fee withdrawal', async () => {
+    // FeeQuoter_GetValidatedFee is sent with a 256-bit bounce; its non-empty bounced body is not
+    // the fee-aggregator withdrawal, so the OnRamp reports it as unhandled.
+    const feeQuoterBouncer = blockchain.openContract(
+      bouncer.ContractClient.createFromConfig(await contractCode.ccip.local('tests.mock.Bouncer')),
+    )
+    await feeQuoterBouncer.sendDeploy(deployer.getSender(), toNano('0.05'))
+    ;({ deployer, onramp } = await setup(blockchain, {
+      config: { feeQuoter: feeQuoterBouncer.address },
+    }))
+
+    const result = await onramp.sendOnRampGetValidatedFee(
+      mockRouter.getSender(),
+      toNano('0.5'),
+      or.OnRamp_GetValidatedFee.create({ ccipSend, context: null }),
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: feeQuoterBouncer.address,
+      to: onramp.address,
+      inMessageBounced: true,
+      success: false,
+      exitCode: or.OnRamp.Errors['OnRamp_Error.UnhandledLegacyBounce'],
+    })
   })
 
   it('should throw error if message validated comes from non-feequoter', async () => {
