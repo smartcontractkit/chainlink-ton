@@ -359,9 +359,10 @@ fun Router_Costs.MessageValidationFailed(): int {
 }
 
 // Minimum value for calling Router_RouteMessage: the Router pays the receiver's forward fee
-// (2000-byte message) from this.
+// (2000-byte message) from this, and returns the rest to the executor via the OffRamp
+// (OffRamp_ReturnExcessToExecutor and its forward to the executor).
 fun Router_Costs.routeMessage(): int {
-    val baseFee = grams("0.004");
+    val baseFee = grams("0.007");
     return baseFee + Router_Costs.receiveConfirm();
 }
 
