@@ -9,7 +9,6 @@ enum CCIPSendExecutor_Error {
     FeeQuoterBounce
     OnRampFeeReservationBounce
     TokenNotEnabled
-    TokenPoolBounce
     UnsupportedNumberOfTokens
     InvalidValidatedFee
     TokenRegistryBounce

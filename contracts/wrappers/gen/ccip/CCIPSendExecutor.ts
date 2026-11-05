@@ -2266,7 +2266,7 @@ export const CCIPSendExecutor_Execute = {
 }
 
 /**
- > enum CCIPSendExecutor_Error { 13 variants }
+ > enum CCIPSendExecutor_Error { 12 variants }
  */
 export type CCIPSendExecutor_Error = bigint
 
@@ -2278,12 +2278,11 @@ export const CCIPSendExecutor_Error = {
     FeeQuoterBounce: 17804n,
     OnRampFeeReservationBounce: 17805n,
     TokenNotEnabled: 17806n,
-    TokenPoolBounce: 17807n,
-    UnsupportedNumberOfTokens: 17808n,
-    InvalidValidatedFee: 17809n,
-    TokenRegistryBounce: 17810n,
-    MissingDestOverhead: 17811n,
-    UnhandledLegacyBounce: 17812n,
+    UnsupportedNumberOfTokens: 17807n,
+    InvalidValidatedFee: 17808n,
+    TokenRegistryBounce: 17809n,
+    MissingDestOverhead: 17810n,
+    UnhandledLegacyBounce: 17811n,
 
     fromSlice(s: c.Slice): CCIPSendExecutor_Error {
         return s.loadUintBig(15);
@@ -2836,12 +2835,11 @@ export class CCIPSendExecutor implements c.Contract {
         'CCIPSendExecutor_Error.FeeQuoterBounce': 17804,
         'CCIPSendExecutor_Error.OnRampFeeReservationBounce': 17805,
         'CCIPSendExecutor_Error.TokenNotEnabled': 17806,
-        'CCIPSendExecutor_Error.TokenPoolBounce': 17807,
-        'CCIPSendExecutor_Error.UnsupportedNumberOfTokens': 17808,
-        'CCIPSendExecutor_Error.InvalidValidatedFee': 17809,
-        'CCIPSendExecutor_Error.TokenRegistryBounce': 17810,
-        'CCIPSendExecutor_Error.MissingDestOverhead': 17811,
-        'CCIPSendExecutor_Error.UnhandledLegacyBounce': 17812,
+        'CCIPSendExecutor_Error.UnsupportedNumberOfTokens': 17807,
+        'CCIPSendExecutor_Error.InvalidValidatedFee': 17808,
+        'CCIPSendExecutor_Error.TokenRegistryBounce': 17809,
+        'CCIPSendExecutor_Error.MissingDestOverhead': 17810,
+        'CCIPSendExecutor_Error.UnhandledLegacyBounce': 17811,
     }
 
     readonly address: c.Address

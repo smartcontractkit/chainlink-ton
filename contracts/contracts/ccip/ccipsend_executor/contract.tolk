@@ -468,7 +468,7 @@ fun CCIPSendExecutor<T>.onLockOrBurnFailure(self, msg: TokenPool_LockOrBurnFailu
 /// The Router reports a policy rejection, a pre-admission pool bounce or a bounced withdrawal.
 /// Refund the reserved fee. Arrives in the LockOrBurn or the Withdraw state.
 fun CCIPSendExecutor<T>.onRouterLockOrBurnFailed(self, msg: Router_TokenPoolLockOrBurnFailed) {
-    self.exitWithError(CCIPSendExecutor_Error.TokenPoolBounce as int32, self.state.load().chargedFee.feeTokenAmount);
+    self.exitWithError(msg.errorCode, self.state.load().chargedFee.feeTokenAmount);
 }
 
 /// The OnRamp's lock-or-burn request bounced off the Router. Forward the Router's exit code and

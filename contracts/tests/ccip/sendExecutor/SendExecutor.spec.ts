@@ -1192,6 +1192,33 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
+  it('should exit with the Router error and refund the charged fee when the Router reports a lock-or-burn failure', async () => {
+    const sendExecutor = await afterLockOrBurnRequested()
+    const tokenPool = (await blockchain.treasury('tokenPoolMock')).address
+
+    const result = await sendExecutor.sendRouterTokenPoolLockOrBurnFailed(
+      routerMock.getSender(),
+      toNano('0.1'),
+      { queryID: 1n, tokenPool, errorCode: -14n },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+      body(x) {
+        if (!x) return false
+        const finished = or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse())
+        return (
+          finished.executorID === 0n &&
+          finished.errorCode === -14n &&
+          finished.refund === FeeTokenAmount
+        )
+      },
+    })
+  })
+
   it('should throw on OnRamp_LockOrBurnFailed from non-onramp', async () => {
     const sendExecutor = await afterLockOrBurnRequested()
 
