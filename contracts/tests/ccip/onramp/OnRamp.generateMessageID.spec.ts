@@ -54,7 +54,12 @@ describe('OnRamp - generate message id', () => {
     // TestMsgHasher is stateless and deploys to a deterministic address, so it only
     // needs to be deployed once for the whole suite.
     const deployerTreasury = await blockchain.treasury('msgHasherDeployer')
-    msgHasher = blockchain.openContract(tmh.TestMsgHasher.fromStorage({}))
+    msgHasher = blockchain.openContract(
+      tmh.TestMsgHasher.fromStorage(
+        {},
+        { overrideContractCode: await contractCode.ccip.local('TestMsgHasher') },
+      ),
+    )
     const resultDeployMsgHasher = await msgHasher.sendDeploy(
       deployerTreasury.getSender(),
       toNano('0.2'),

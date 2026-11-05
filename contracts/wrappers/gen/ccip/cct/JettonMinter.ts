@@ -958,8 +958,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class JettonMinter implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECEQEAA68AART/APSkE/S88sgLAQIBYgIDBPbQ+JGOI9MfMe1E0AHXLCC8aijM8r/TPzH6ADAB+gACocgB+gLOye1U4NcsI97svvTjAtcsIWO1y5zjAtcsIAAAAKzjAtcsIygPmqSOJu1E0PoA+lD6UDH4kiLHBfLgSQPTPzH6SDDIUAP6AvpU+lTOye1U4NcsJ9xHCMwEBQYHAgEgDA0AzO1E0AHTP/oA+kj6UPQFBfoAINdM+JL4KCbIz4QC+lL6UslYyM+E0MzM+RbIz4oAQMv/z1DHBfLgSgShyAH6AhPOye1UIW6SXwTgyM+FCBL6UoIQ1TJ2288LjhLLP/pS9ADJgEL7AAC60z/6SNcKAJUgyPpSyZFt4m0i+kQwkTKOJjDtRNDXTPgoyM+EAhT6UhP6UslYyM+E0MzM+RbIz4oAQMv/z1AB4viSyM+FCPpSghDRc1QAzwuOE8s/+lT0AMmAUPsAAfbtRND6ACD6UNdM+JJYxwXy4EkD0z8x+kj6ANdMIvpEMPLRTSDQ1ywgvGoozPLgSNM/MfoA+lAx+lAx+gD0BAFukTCR0eL4k3D4OiFyceME+DkgboEYJiLjBCFugR05WAPjBFAjqHOBA6Nw+DygAXD4NqABcPg2oHOBBAkIA/6OIzDtRND6APpQMfpQ+JIixwXy4EltyFAE+gIS+lQS+lTOye1U4NcsI6GPkQyOIzDtRND6APpQ+lAx+JJYxwXy4EltbchQBPoC+lQS+lTOye1U4NcsJlwxSBTjAtcsIShGs1SOGO1E0PoAMfpQMPiSxwXy4EnU10wB7VT7BOCJCQoLAKaCEAlmAYBw+DegoCO58rAVoMgB+gITzsntVIIImJaAcPsC+CjIz4QCEvpS+lLJyM+JiAFTFMjPhNDMzPkWzwv/WPoCgQCNzwtwE8wSzMzJgBH7AABU7UTQ+gD6UPpQ10z4kiPHBfLgSQTTPzHIzsnIUAT6AhL6VPpUEszMye1UAAjTchWMABDXJzHchA/y8AAdvZrfaiaH0AGP0oGP0oGEAgJxDg8ATa289qJoa6Z8FGRnwgEJ/SkJfSlkgORnwmhmZnyLZGfFACBl/+eoQAHvrxb2omg2gP0AfShqa6ZBeDhy69tRTZyXwoO38K5ReQKeK2EZw5RicZ5PRu2PdBPmZGfCAQlmZKAKwYP6C8F4d0B+l48BpAcRQRsay3c6lr3ZP6g7tcqENQE8jEs6yR9EZGfCAWZkgUGD+gu/5GfCAQl6AGSoAYJAEAACOQ==');
-
     static Errors = {
         'ERROR_NOT_ENOUGH_GAS': 48,
         'ERROR_INVALID_OP': 72,
@@ -987,8 +985,11 @@ export class JettonMinter implements c.Contract {
         jettonWalletCode: c.Cell
         metadataUri: string
     }, deployedOptions?: DeployedAddrOptions) {
+        if (!deployedOptions?.overrideContractCode) {
+            throw new Error('JettonMinter.fromStorage requires deployedOptions.overrideContractCode');
+        }
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? JettonMinter.CodeCell,
+            code: deployedOptions.overrideContractCode,
             data: MinterStorage.toCell(MinterStorage.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});

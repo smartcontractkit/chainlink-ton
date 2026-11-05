@@ -10,6 +10,7 @@ import { ChainSelectors } from '../../utils/Selectors'
 import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
 import { EVM_ONRAMP_ADDRESS_TEST, EVM_SENDER_ADDRESS_TEST } from './OffRamp.Setup'
 import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 // Single source of truth for the expected MessageIDs of the fixed messages below, shared
 // with the Go implementation (cciplib/ccip/codec/msghasher_test.go). Golden values are
@@ -69,7 +70,12 @@ describe('OffRamp - Message ID', () => {
     blockchain = await Blockchain.create()
     deployer = await blockchain.treasury('deployer')
 
-    msgHasher = blockchain.openContract(tmh.TestMsgHasher.fromStorage({}))
+    msgHasher = blockchain.openContract(
+      tmh.TestMsgHasher.fromStorage(
+        {},
+        { overrideContractCode: await contractCode.ccip.local('TestMsgHasher') },
+      ),
+    )
     const result = await msgHasher.sendDeploy(deployer.getSender(), toNano('0.2'))
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
