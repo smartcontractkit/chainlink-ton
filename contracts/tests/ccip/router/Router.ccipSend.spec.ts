@@ -109,6 +109,7 @@ describe('Router.ccipSend', () => {
       to: sender.address,
       success: true,
       op: rt.Router_CCIPSendNACK.PREFIX,
+      inMessageBounceable: false,
       body(x) {
         if (!x) return false
         const nack = rt.Router_CCIPSendNACK.fromSlice(x.beginParse())

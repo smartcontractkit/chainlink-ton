@@ -1024,7 +1024,7 @@ fun onSendNACK(msg: Router_MessageRejected) {
 
 fun sendMessageRejected(sender: address, queryID: uint64, errorCode: int32) {
     val nackMsg = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: Router_CCIPSendNACK {
