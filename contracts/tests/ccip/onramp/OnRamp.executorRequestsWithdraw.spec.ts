@@ -25,7 +25,7 @@ const DEST_CHAIN_SELECTOR = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000
 // Builds the pool-supplied forward payload the CCIPSendExecutor would relay inside the
 // withdraw request. Only `prepared.out.destTokenAddress` and `destPoolData` matter here.
 function buildWithdrawRequest(opts: {
-  depositAccount: Address
+  token: Address
   tokenPool: Address
   destTokenAddress: Buffer
   destPoolData: Cell
@@ -63,7 +63,10 @@ function buildWithdrawRequest(opts: {
   })
 
   return rt.Router_WithdrawRequest.create({
-    depositAccount: opts.depositAccount,
+    onRampAccount: rt.Router_DepositAccountID.create({
+      user: opts.originalSender,
+      token: opts.token,
+    }),
     amount: 1n,
     tokenPool: opts.tokenPool,
     forwardTonAmount: 0n,
@@ -81,7 +84,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
   let onramp: SandboxContract<or.OnRamp>
   let mockRouter: SandboxContract<TreasuryContract>
   let mockTokenPool: SandboxContract<TreasuryContract>
-  let mockDepositAccount: SandboxContract<TreasuryContract>
+  let mockToken: SandboxContract<TreasuryContract>
   let executorSender: Sender
   let executorID: bigint
 
@@ -100,7 +103,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
     deployer = await blockchain.treasury('deployer')
     mockRouter = await blockchain.treasury('mockRouter')
     mockTokenPool = await blockchain.treasury('mockTokenPool')
-    mockDepositAccount = await blockchain.treasury('mockDepositAccount')
+    mockToken = await blockchain.treasury('mockToken')
     executorID = BigInt(generateRandomContractId())
     ;({ deployer, onramp } = await setup(blockchain, {
       config: {
@@ -189,7 +192,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
       chainFamilySelector,
       destBytesOverhead,
       withdrawRequest: buildWithdrawRequest({
-        depositAccount: mockDepositAccount.address,
+        token: mockToken.address,
         tokenPool: mockTokenPool.address,
         destTokenAddress,
         destPoolData,

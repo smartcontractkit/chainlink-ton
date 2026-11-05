@@ -88,8 +88,8 @@ struct (0x19f0098f) Router_WithdrawToTokenPool {
 }
 
 struct Router_WithdrawRequest {
-    /// The sender's on-ramp account for the token, the withdraw is forwarded to.
-    depositAccount: address;
+    /// The Router derives the on-ramp account to withdraw from.
+    onRampAccount: Cell<Router_DepositAccountID>;
     amount: coins;
     tokenPool: address;
     /// TON the pool's custody notification carries (`TokenPool_LockOrBurnWithdraw.forwardTonAmount`).
