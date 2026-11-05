@@ -6,6 +6,9 @@ type MerkleRoot_InMessage =
     | MerkleRoot_Validate
     | MerkleRoot_MarkState;
 
+type MerkleRoot_BouncedMessage =
+    | OffRamp_ExecuteValidated;
+
 struct (0x038ede91) MerkleRoot_Validate {
     queryID: uint64,
     message: Cell<Any2TVMRampMessage>,

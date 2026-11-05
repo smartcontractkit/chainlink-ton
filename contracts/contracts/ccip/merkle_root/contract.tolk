@@ -12,11 +12,11 @@ tolk 1.4.2
 // MerkleRoot contract
 // Root is commited on Commit Reports and the existence of this contract is used to validate Execute Reports
 
-const CONTRACT_VERSION = "1.6.1".literalSlice();
+const CONTRACT_VERSION = "1.7.0".literalSlice();
 
 contract MerkleRoot {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.6.1"
+    version: "1.7.0"
     description: "link.chain.ton.ccip.MerkleRoot"
 
     storage: MerkleRoot_Storage
@@ -48,6 +48,29 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
+fun onBouncedMessage(in: InMessageBounced) {
+    assert (in.bouncedBody.preloadUint(32) == 0xfffffffe) throw (MerkleRoot_Error.UnhandledLegacyBounce);
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val bounced = lazy MerkleRoot_BouncedMessage.fromCell(rich.originalBody);
+    var st = lazy MerkleRoot_Storage.load();
+    match (bounced) {
+        OffRamp_ExecuteValidated => {
+            onExecuteValidatedBounced(mutate st, bounced);
+        }
+    }
+    st.store();
+}
+
+/// The OffRamp rejected the validated message, so no ReceiveExecutor was started. Marks it
+/// Failure instead of leaving it InProgress, so it can be manually executed again. Nothing else
+/// moves the message off InProgress before the OffRamp answers, so any other state is a bug.
+fun onExecuteValidatedBounced(mutate st: MerkleRoot_Storage, msg: OffRamp_ExecuteValidated) {
+    val message = lazy msg.message.load();
+    val seqNum = message.header.sequenceNumber;
+    assert (st.getMessageState(seqNum) == ExecutionState.InProgress) throw (MerkleRoot_Error.InvalidState);
+    st.setMessageState(seqNum, ExecutionState.Failure);
+}
+
 /*
 Marks the execution state of a message in a MerkleRoot contract.
 Ensures valid state transitions and finalizes the root once all messages are
@@ -67,9 +90,10 @@ fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
     }
 
     if (st.deliveredMessageCount == st.expectedMessages()) {
-        // if this is the last message from the root we return all the balance to the OffRamp and freeze the contract
+        // if this is the last message from the root we return all the balance to the OffRamp and freeze the contract.
+        // Final report: the root is drained, so a bounce could not unwind anything.
         val freezeRoot = createMessage({
-            bounce: BounceMode.Only256BitsOfBody,
+            bounce: BounceMode.NoBounce,
             value: 0,
             dest: st.owner,
             body: createEmptyCell()
@@ -105,7 +129,7 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
     st.setMessageState(message.header.sequenceNumber, ExecutionState.InProgress);
 
     val executeValidated = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: st.owner,
         body: OffRamp_ExecuteValidated {
