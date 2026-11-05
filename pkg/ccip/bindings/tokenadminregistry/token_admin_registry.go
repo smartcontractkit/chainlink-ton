@@ -139,6 +139,13 @@ type EntryUpgradeRequest struct {
 	Request tokenadminregistryentry.MessageFromRoot[any] `tlb:"^"`
 }
 
+// crc32('TokenAdminRegistry_UpgradeRefund')
+// Returns the value of an upgrade that an entry already running that code skipped.
+type UpgradeRefund struct {
+	_       tlb.Magic `tlb:"#85f1f9f0" json:"-"` //nolint:revive // used by tlb reflection for encoding
+	QueryID uint64    `tlb:"## 64"`
+}
+
 // crc32('TokenAdminRegistry_UpgradeEntry')
 // Permissionless: upgrades the derived entry to the root's entry code.
 type UpgradeEntry struct {
@@ -196,6 +203,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	GetTokenInfoFailed{},
 	RequestFailed{},
 	EntryUpgradeRequest{},
+	UpgradeRefund{},
 	UpgradeEntry{},
 	upgradeable.Upgrade{},
 	AdministratorTransferRequested{},

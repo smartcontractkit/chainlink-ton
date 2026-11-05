@@ -135,15 +135,6 @@ describe('TokenAdminRegistryEntry - Unit Tests', () => {
     })
   })
 
-  const fromRootToEntry = (result: { transactions: any[] }, op: number) =>
-    result.transactions.filter(
-      (tx) =>
-        tx.inMessage?.info.type === 'internal' &&
-        tx.inMessage.info.src.equals(fx.registry.address) &&
-        tx.inMessage.info.dest.equals(entryAddress(fx)) &&
-        tx.inMessage.body.beginParse().preloadUint(32) === op,
-    )
-
   it('rejects a self-sent registration-initialized once the administrator has accepted', async () => {
     expectEntrySuccess(fx, await acceptAdminRole(fx, fx.administrator))
     const result = await entryFor(fx).sendTokenAdminRegistryEntryRegistrationInitialized(
@@ -160,9 +151,10 @@ describe('TokenAdminRegistryEntry - Unit Tests', () => {
     expect(rootEvents(fx, result, EventTopics.AdministratorTransferRequested)).toHaveLength(0)
   })
 
-  it('skips an upgrade to the code it already runs', async () => {
+  it('skips an upgrade to the code it already runs and returns its value to the root', async () => {
     const before = await accountState(fx)
     const result = await entryFor(fx).sendUpgradeableUpgrade(asRoot(fx), toNano('0.05'), {
+      queryId: 3n,
       code: before.code,
     })
     expect(result.transactions).toHaveTransaction({
@@ -170,8 +162,14 @@ describe('TokenAdminRegistryEntry - Unit Tests', () => {
       to: entryAddress(fx),
       success: true,
     })
-    const [upgradeTx] = fromRootToEntry(result, tare.Upgradeable_Upgrade.PREFIX)
-    expect(upgradeTx.outMessages.size).toBe(0)
+    expect(result.transactions).toHaveTransaction({
+      from: entryAddress(fx),
+      to: fx.registry.address,
+      body: tar.TokenAdminRegistry_UpgradeRefund.toCell(
+        tar.TokenAdminRegistry_UpgradeRefund.create({ queryId: 3n }),
+      ),
+      success: true,
+    })
     expect(await accountState(fx)).toEqual(before)
   })
 

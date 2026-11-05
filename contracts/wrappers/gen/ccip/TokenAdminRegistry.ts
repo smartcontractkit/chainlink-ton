@@ -794,6 +794,44 @@ export const TokenAdminRegistry_EntryUpgradeRequest = {
 }
 
 /**
+ > struct (0x85f1f9f0) TokenAdminRegistry_UpgradeRefund {
+ >     queryId: uint64
+ > }
+ */
+export interface TokenAdminRegistry_UpgradeRefund {
+    readonly $: 'TokenAdminRegistry_UpgradeRefund'
+    queryId: uint64
+}
+
+export const TokenAdminRegistry_UpgradeRefund = {
+    PREFIX: 0x85f1f9f0,
+
+    create(args: {
+        queryId?: uint64
+    }): TokenAdminRegistry_UpgradeRefund {
+        return {
+            $: 'TokenAdminRegistry_UpgradeRefund',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenAdminRegistry_UpgradeRefund {
+        loadAndCheckPrefix32(s, 0x85f1f9f0, 'TokenAdminRegistry_UpgradeRefund');
+        return {
+            $: 'TokenAdminRegistry_UpgradeRefund',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: TokenAdminRegistry_UpgradeRefund, b: c.Builder): void {
+        b.storeUint(0x85f1f9f0, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: TokenAdminRegistry_UpgradeRefund): c.Cell {
+        return makeCellFrom<TokenAdminRegistry_UpgradeRefund>(self, TokenAdminRegistry_UpgradeRefund.store);
+    }
+}
+
+/**
  > struct (0x4d52f09d) TokenAdminRegistry_UpgradeEntry {
  >     queryId: uint64
  >     tokenAddress: address
@@ -2297,6 +2335,12 @@ export class TokenAdminRegistry implements c.Contract {
         return TokenAdminRegistry_RefreshPoolConfig.toCell(TokenAdminRegistry_RefreshPoolConfig.create(body));
     }
 
+    static createCellOfTokenAdminRegistryUpgradeRefund(body: {
+        queryId?: uint64
+    }) {
+        return TokenAdminRegistry_UpgradeRefund.toCell(TokenAdminRegistry_UpgradeRefund.create(body));
+    }
+
     static createCellOfWithdrawableWithdraw(body: {
         queryId?: uint64
         destination: c.Address
@@ -2511,6 +2555,16 @@ export class TokenAdminRegistry implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: TokenAdminRegistry_RefreshPoolConfig.toCell(TokenAdminRegistry_RefreshPoolConfig.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendTokenAdminRegistryUpgradeRefund(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenAdminRegistry_UpgradeRefund.toCell(TokenAdminRegistry_UpgradeRefund.create(body)),
             ...extraOptions
         });
     }

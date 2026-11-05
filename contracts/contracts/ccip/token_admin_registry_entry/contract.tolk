@@ -128,11 +128,20 @@ fun deferToRoot(msg: TokenAdminRegistryEntry_MessageFromRoot) {
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// Several requests may be deferred concurrently; only the first one upgrades.
+/// Several requests may be deferred concurrently, each funding an upgrade from the root's balance.
+/// Only the first one upgrades; the rest return their value to the root.
 fun onUpgrade(msg: Upgradeable_Upgrade) {
-    if (!contract.getCode().hashEqual(msg.code)) {
-        Upgradeable { migrate, version }.upgrade(msg);
+    if (contract.getCode().hashEqual(msg.code)) {
+        val st = lazy TokenRegistry_Storage.load();
+        createMessage({
+            bounce: false,
+            value: 0,
+            dest: st.adminConfig.load().tokenAdminRegistry,
+            body: TokenAdminRegistry_UpgradeRefund { queryId: msg.queryId },
+        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        return;
     }
+    Upgradeable { migrate, version }.upgrade(msg);
 }
 
 fun onGetTokenInfo(queryId: uint64, msg: TokenAdminRegistryEntry_GetTokenInfo) {
