@@ -16,13 +16,21 @@ struct (0x038ede91) MerkleRoot_Validate {
     excessesTo: address,
 }
 
-//crc32('MerkleRoot_MarkState')
 struct (0x019f4cd2) MerkleRoot_MarkState {
     seqNum: uint64,
     state: ExecutionState,
     /// Caller of the execution. Once the state is marked, the excesses carried by this message
     /// are returned to the OffRamp, which refunds them to this address.
     excessesTo: address,
+}
+
+// -- Outgoing messages --
+
+/// Sent by a MerkleRoot after marking a message state: carries the execution excesses back to
+/// the OffRamp, which refunds them to the execution caller.
+struct (0x150acf6c) MerkleRoot_StateMarked {
+    root: MerkleRootId;
+    excessesTo: address;
 }
 
 struct MerkleRoot_Costs{}
@@ -32,7 +40,7 @@ fun MerkleRoot_Costs.validate(hasTokens: bool): int {
     return baseFee + OffRamp_Costs.executeValidated(hasTokens);
 }
 
-/// State update, the OffRamp_ReturnExecuteExcess relay of the excesses to the caller and, on the
+/// State update, the MerkleRoot_StateMarked relay of the excesses to the caller and, on the
 /// last message of the root, the empty reply that returns the root balance.
 fun MerkleRoot_Costs.markState(): int {
     return MERKLE_ROOT_COSTS_MARK_STATE_FEE;

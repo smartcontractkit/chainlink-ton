@@ -73,7 +73,7 @@ fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
         bounce: false,
         value: 0,
         dest: st.owner,
-        body: OffRamp_ReturnExecuteExcess {
+        body: MerkleRoot_StateMarked {
             root: st.root,
             excessesTo: msg.excessesTo,
         },

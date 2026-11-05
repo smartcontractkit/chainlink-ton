@@ -164,7 +164,7 @@ fun onInternalMessage(in:InMessage) {
             onUpgrade(msg);
         }
         // Sender must be MerkleRoot
-        OffRamp_ReturnExecuteExcess => {
+        MerkleRoot_StateMarked => {
             val st = lazy Storage.load();
             assertSenderIsMerkleRoot(st, msg.root, in.senderAddress);
             onReturnExecuteExcess(msg);
@@ -406,9 +406,9 @@ fun forwardValueToExecutor(executorAddress: AutoDeployAddress) {
 //     participant Caller
 //
 //     OffRamp    ->> MerkleRoot: MerkleRoot_MarkState
-//     MerkleRoot ->> OffRamp:    OffRamp_ReturnExecuteExcess
+//     MerkleRoot ->> OffRamp:    MerkleRoot_StateMarked
 //     OffRamp    ->> Caller:     excesses
-fun onReturnExecuteExcess(msg: OffRamp_ReturnExecuteExcess) {
+fun onReturnExecuteExcess(msg: MerkleRoot_StateMarked) {
     val excesses = createMessage({
         bounce: false,
         value: 0,
@@ -421,7 +421,7 @@ fun onReturnExecuteExcess(msg: OffRamp_ReturnExecuteExcess) {
 // Sends a MerkleRoot_MarkState message to update the execution state of a
 // specific sequence number in a MerkleRoot contract. The message carries all the excesses of
 // the flow; once the state is marked, the root returns them to the OffRamp
-// (OffRamp_ReturnExecuteExcess), which refunds them to `excessesTo`.
+// (MerkleRoot_StateMarked), which refunds them to `excessesTo`.
 //
 // MUST be the last action of the handler (after every emit and other send): it reserves the
 // original balance (plus `keep`) and carries everything above it, so the contract's balance only
