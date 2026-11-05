@@ -759,6 +759,19 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
         TOPIC_COMMIT_REPORT_ACCEPTED,
         CommitReportAccepted { merkleRoot: root, priceUpdates: report.priceUpdates }
     );
+
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+
+    val excesses = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: createEmptyCell(),
+    });
+    // SAFETY: The excesses message carries all remaining balance above the
+    // reserved grams, which ensures that the contract keeps the same balance
+    // as before receiving the Commit message.
+    excesses.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 // Manually executes a single cross-chain execution report.
@@ -903,7 +916,6 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
 
     val root = merkleRoot(ArrayIterator<uint256>.new(leaves), report.proofs.iter(), report.proofFlagBits);
 
-    // emit slowly drains the balance
     reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
 
     // send message to MerkleRoot (execute)
