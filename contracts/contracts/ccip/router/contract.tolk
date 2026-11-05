@@ -306,6 +306,9 @@ fun onBouncedMessage(in: InMessageBounced) {
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val richMsg = lazy Router_RichBouncedMessage.fromCell(rich.originalBody);
     match (richMsg) {
+        OnRamp_Send => {
+            onOnRampSendBounced(richMsg, rich.exitCode);
+        }
         TokenPool_LockOrBurn => {
             sendLockOrBurnRelayFailure(
                 richMsg.replyTo,
@@ -900,12 +903,19 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
         return sendMessageRejected(sender, msg.queryID, Router_Error.DestChainNotEnabled as int32);
     }
     val sendMsg = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: onRampResult.loadValue(),
         body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender, value }},
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// OnRamp rejected the send by throwing, so nothing was reserved. NACKs the user with OnRamp's
+/// exit code, forwarding the returned value.
+fun onOnRampSendBounced(msg: OnRamp_Send, errorCode: int32) {
+    val ccipSend = lazy msg.msg.load();
+    sendMessageRejected(msg.metadata.sender, ccipSend.queryID, errorCode);
 }
 
 /*

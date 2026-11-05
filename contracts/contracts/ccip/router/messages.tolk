@@ -52,6 +52,7 @@ type Router_InMsg =
     | ReturnExcessesBack;
 
 type Router_RichBouncedMessage =
+    | OnRamp_Send
     | TokenPool_LockOrBurn
     | TokenPool_ReleaseOrMint
     | Deployable_Initialize
