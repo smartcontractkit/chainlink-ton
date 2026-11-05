@@ -13,12 +13,16 @@ struct (0x038ede91) MerkleRoot_Validate {
     metadataHash: uint256,
     gasOverride: GasOverride?,
     offchainTokenData: lisp_list<lisp_list<cell>>,
+    excessesTo: address,
 }
 
 //crc32('MerkleRoot_MarkState')
 struct (0x019f4cd2) MerkleRoot_MarkState {
     seqNum: uint64,
-    state: ExecutionState
+    state: ExecutionState,
+    /// Caller of the execution. Once the state is marked, the excesses carried by this message
+    /// are returned to the OffRamp, which refunds them to this address.
+    excessesTo: address,
 }
 
 struct MerkleRoot_Costs{}

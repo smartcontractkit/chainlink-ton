@@ -44,6 +44,7 @@ describe('ReceiveExecutor - Execution', () => {
     sourceChainSelector: bigint
     messageId: bigint
     effectiveGasLimit: bigint
+    excesses: rx.ReceiveExecutor_Excesses
   }
 
   beforeAll(async () => {
@@ -77,6 +78,10 @@ describe('ReceiveExecutor - Execution', () => {
         sourceChainSelector: arbMessage.header.sourceChainSelector,
         messageId: arbMessage.header.messageId,
         effectiveGasLimit: arbMessage.gasLimit,
+        excesses: rx.ReceiveExecutor_Excesses.create({
+          to: deployer.address,
+          includesInitValue: true,
+        }),
       }
     })
 
@@ -445,6 +450,10 @@ describe('ReceiveExecutor - Execution', () => {
           sourceChainSelector: messageWithTT.header.sourceChainSelector,
           messageId: messageWithTT.header.messageId,
           effectiveGasLimit: messageWithTT.gasLimit,
+          excesses: rx.ReceiveExecutor_Excesses.create({
+            to: deployer.address,
+            includesInitValue: true,
+          }),
         }
       })
 
@@ -730,6 +739,10 @@ describe('ReceiveExecutor - Execution', () => {
           sourceChainSelector: messageWithTT.header.sourceChainSelector,
           messageId: messageWithTT.header.messageId,
           effectiveGasLimit: messageWithTT.gasLimit,
+          excesses: rx.ReceiveExecutor_Excesses.create({
+            to: deployer.address,
+            includesInitValue: true,
+          }),
         }
 
         await transitionToReleaseOrMint(receiveExecutorGas)
@@ -1144,6 +1157,10 @@ describe('ReceiveExecutor - Execution', () => {
           sourceChainSelector: messageWithTT.header.sourceChainSelector,
           messageId: messageWithTT.header.messageId,
           effectiveGasLimit: messageWithTT.gasLimit,
+          excesses: rx.ReceiveExecutor_Excesses.create({
+            to: deployer.address,
+            includesInitValue: true,
+          }),
         }
       })
 
@@ -1214,6 +1231,10 @@ describe('ReceiveExecutor - Execution', () => {
           sourceChainSelector: messageWithTT.header.sourceChainSelector,
           messageId: messageWithTT.header.messageId,
           effectiveGasLimit: messageWithTT.gasLimit,
+          excesses: rx.ReceiveExecutor_Excesses.create({
+            to: deployer.address,
+            includesInitValue: true,
+          }),
         }
 
         await transitionToReleaseOrMint(receiveExecutorPtt)

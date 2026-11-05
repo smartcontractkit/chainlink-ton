@@ -17,6 +17,17 @@ struct ReceiveExecutor_State {
     effectiveGasLimit: coins
     /// queryId propagated from the OffRamp execution flow, used in outgoing messages
     queryId: uint64 = 0
+    /// Refund target of the latest execute call, echoed back to the OffRamp when execution ends
+    excesses: Cell<ReceiveExecutor_Excesses>?
+}
+
+/// Who is refunded with the excesses of an execution attempt.
+struct ReceiveExecutor_Excesses {
+    /// Caller of the OffRamp execute (or manual execute) that started this attempt
+    to: address
+    /// True when this attempt deployed the executor, so its init value was funded by `to`.
+    /// Retries reuse the executor funded by an earlier caller, whose init value is not refunded.
+    includesInitValue: bool
 }
 
 struct ReceiveExecutor_TokenTransferInfo {

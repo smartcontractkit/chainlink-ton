@@ -1465,6 +1465,7 @@ export const FeeQuoter_UpdatePrices = {
  >     metadataHash: uint256
  >     gasOverride: GasOverride?
  >     offchainTokenData: lisp_list<lisp_list<cell>>
+ >     excessesTo: address
  > }
  */
 export interface MerkleRoot_Validate {
@@ -1475,6 +1476,7 @@ export interface MerkleRoot_Validate {
     metadataHash: uint256
     gasOverride: GasOverride | null
     offchainTokenData: lisp_list<lisp_list<c.Cell>>
+    excessesTo: c.Address
 }
 
 export const MerkleRoot_Validate = {
@@ -1487,6 +1489,7 @@ export const MerkleRoot_Validate = {
         metadataHash: uint256
         gasOverride: GasOverride | null
         offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        excessesTo: c.Address
     }): MerkleRoot_Validate {
         return {
             $: 'MerkleRoot_Validate',
@@ -1508,6 +1511,7 @@ export const MerkleRoot_Validate = {
                     (s) => s.loadRef()
                 )
             ),
+            excessesTo: s.loadAddress(),
         }
     },
     store(self: MerkleRoot_Validate, b: c.Builder): void {
@@ -1522,6 +1526,7 @@ export const MerkleRoot_Validate = {
                 (v,b) => b.storeRef(v)
             ); }
         );
+        b.storeAddress(self.excessesTo);
     },
     toCell(self: MerkleRoot_Validate): c.Cell {
         return makeCellFrom<MerkleRoot_Validate>(self, MerkleRoot_Validate.store);
@@ -1532,12 +1537,14 @@ export const MerkleRoot_Validate = {
  > struct (0x019f4cd2) MerkleRoot_MarkState {
  >     seqNum: uint64
  >     state: ExecutionState
+ >     excessesTo: address
  > }
  */
 export interface MerkleRoot_MarkState {
     readonly $: 'MerkleRoot_MarkState'
     seqNum: uint64
     state: ExecutionState
+    excessesTo: c.Address
 }
 
 export const MerkleRoot_MarkState = {
@@ -1546,6 +1553,7 @@ export const MerkleRoot_MarkState = {
     create(args: {
         seqNum: uint64
         state: ExecutionState
+        excessesTo: c.Address
     }): MerkleRoot_MarkState {
         return {
             $: 'MerkleRoot_MarkState',
@@ -1558,12 +1566,14 @@ export const MerkleRoot_MarkState = {
             $: 'MerkleRoot_MarkState',
             seqNum: s.loadUintBig(64),
             state: ExecutionState.fromSlice(s),
+            excessesTo: s.loadAddress(),
         }
     },
     store(self: MerkleRoot_MarkState, b: c.Builder): void {
         b.storeUint(0x019f4cd2, 32);
         b.storeUint(self.seqNum, 64);
         ExecutionState.store(self.state, b);
+        b.storeAddress(self.excessesTo);
     },
     toCell(self: MerkleRoot_MarkState): c.Cell {
         return makeCellFrom<MerkleRoot_MarkState>(self, MerkleRoot_MarkState.store);
@@ -1579,6 +1589,7 @@ export const MerkleRoot_MarkState = {
  >     sourceChainSelector: uint64
  >     messageId: uint256
  >     tokenTransfer: Cell<ReceiveExecutor_TokenTransfer>?
+ >     excesses: Cell<ReceiveExecutor_Excesses>
  > }
  */
 export interface ReceiveExecutor_InitExecute {
@@ -1590,6 +1601,7 @@ export interface ReceiveExecutor_InitExecute {
     sourceChainSelector: uint64
     messageId: uint256
     tokenTransfer: ReceiveExecutor_TokenTransfer | null /* = null */
+    excesses: ReceiveExecutor_Excesses
 }
 
 export const ReceiveExecutor_InitExecute = {
@@ -1603,6 +1615,7 @@ export const ReceiveExecutor_InitExecute = {
         sourceChainSelector: uint64
         messageId: uint256
         tokenTransfer?: ReceiveExecutor_TokenTransfer | null /* = null */
+        excesses: ReceiveExecutor_Excesses
     }): ReceiveExecutor_InitExecute {
         return {
             $: 'ReceiveExecutor_InitExecute',
@@ -1622,6 +1635,7 @@ export const ReceiveExecutor_InitExecute = {
             sourceChainSelector: s.loadUintBig(64),
             messageId: s.loadUintBig(256),
             tokenTransfer: s.loadBoolean() ? loadCellRef<ReceiveExecutor_TokenTransfer>(s, ReceiveExecutor_TokenTransfer.fromSlice) : null,
+            excesses: loadCellRef<ReceiveExecutor_Excesses>(s, ReceiveExecutor_Excesses.fromSlice),
         }
     },
     store(self: ReceiveExecutor_InitExecute, b: c.Builder): void {
@@ -1635,6 +1649,7 @@ export const ReceiveExecutor_InitExecute = {
         storeTolkNullable<ReceiveExecutor_TokenTransfer>(self.tokenTransfer, b,
             (v,b) => storeCellRef<ReceiveExecutor_TokenTransfer>(v, b, ReceiveExecutor_TokenTransfer.store)
         );
+        storeCellRef<ReceiveExecutor_Excesses>(self.excesses, b, ReceiveExecutor_Excesses.store);
     },
     toCell(self: ReceiveExecutor_InitExecute): c.Cell {
         return makeCellFrom<ReceiveExecutor_InitExecute>(self, ReceiveExecutor_InitExecute.store);
@@ -2331,6 +2346,7 @@ export const OffRamp_Execute = {
  >     gasOverride: GasOverride?
  >     executionState: ExecutionState
  >     offchainTokenData: lisp_list<lisp_list<cell>>
+ >     excessesTo: address
  > }
  */
 export interface OffRamp_ExecuteValidated {
@@ -2342,6 +2358,7 @@ export interface OffRamp_ExecuteValidated {
     gasOverride: GasOverride | null /* = null */
     executionState: ExecutionState
     offchainTokenData: lisp_list<lisp_list<c.Cell>>
+    excessesTo: c.Address
 }
 
 export const OffRamp_ExecuteValidated = {
@@ -2355,6 +2372,7 @@ export const OffRamp_ExecuteValidated = {
         gasOverride?: GasOverride | null /* = null */
         executionState: ExecutionState
         offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        excessesTo: c.Address
     }): OffRamp_ExecuteValidated {
         return {
             $: 'OffRamp_ExecuteValidated',
@@ -2378,6 +2396,7 @@ export const OffRamp_ExecuteValidated = {
                     (s) => s.loadRef()
                 )
             ),
+            excessesTo: s.loadAddress(),
         }
     },
     store(self: OffRamp_ExecuteValidated, b: c.Builder): void {
@@ -2393,6 +2412,7 @@ export const OffRamp_ExecuteValidated = {
                 (v,b) => b.storeRef(v)
             ); }
         );
+        b.storeAddress(self.excessesTo);
     },
     toCell(self: OffRamp_ExecuteValidated): c.Cell {
         return makeCellFrom<OffRamp_ExecuteValidated>(self, OffRamp_ExecuteValidated.store);
@@ -2683,6 +2703,7 @@ export const OffRamp_CCIPReceiveBounced = {
  >     execId: ReceiveExecutorId
  >     root: address
  >     delivered: Cell<OffRamp_DeliveredTransfer>?
+ >     excesses: Cell<ReceiveExecutor_Excesses>
  > }
  */
 export interface OffRamp_NotifySuccess {
@@ -2692,6 +2713,7 @@ export interface OffRamp_NotifySuccess {
     execId: ReceiveExecutorId
     root: c.Address
     delivered: OffRamp_DeliveredTransfer | null /* = null */
+    excesses: ReceiveExecutor_Excesses
 }
 
 export const OffRamp_NotifySuccess = {
@@ -2703,6 +2725,7 @@ export const OffRamp_NotifySuccess = {
         execId: ReceiveExecutorId
         root: c.Address
         delivered?: OffRamp_DeliveredTransfer | null /* = null */
+        excesses: ReceiveExecutor_Excesses
     }): OffRamp_NotifySuccess {
         return {
             $: 'OffRamp_NotifySuccess',
@@ -2720,6 +2743,7 @@ export const OffRamp_NotifySuccess = {
             execId: ReceiveExecutorId.fromSlice(s),
             root: s.loadAddress(),
             delivered: s.loadBoolean() ? loadCellRef<OffRamp_DeliveredTransfer>(s, OffRamp_DeliveredTransfer.fromSlice) : null,
+            excesses: loadCellRef<ReceiveExecutor_Excesses>(s, ReceiveExecutor_Excesses.fromSlice),
         }
     },
     store(self: OffRamp_NotifySuccess, b: c.Builder): void {
@@ -2731,6 +2755,7 @@ export const OffRamp_NotifySuccess = {
         storeTolkNullable<OffRamp_DeliveredTransfer>(self.delivered, b,
             (v,b) => storeCellRef<OffRamp_DeliveredTransfer>(v, b, OffRamp_DeliveredTransfer.store)
         );
+        storeCellRef<ReceiveExecutor_Excesses>(self.excesses, b, ReceiveExecutor_Excesses.store);
     },
     toCell(self: OffRamp_NotifySuccess): c.Cell {
         return makeCellFrom<OffRamp_NotifySuccess>(self, OffRamp_NotifySuccess.store);
@@ -2829,6 +2854,7 @@ export const OffRamp_DeliveredTransfer = {
  >     header: Cell<RampMessageHeader>
  >     execId: ReceiveExecutorId
  >     root: address
+ >     excesses: Cell<ReceiveExecutor_Excesses>
  > }
  */
 export interface OffRamp_NotifyFailure {
@@ -2837,6 +2863,7 @@ export interface OffRamp_NotifyFailure {
     header: RampMessageHeader
     execId: ReceiveExecutorId
     root: c.Address
+    excesses: ReceiveExecutor_Excesses
 }
 
 export const OffRamp_NotifyFailure = {
@@ -2847,6 +2874,7 @@ export const OffRamp_NotifyFailure = {
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
+        excesses: ReceiveExecutor_Excesses
     }): OffRamp_NotifyFailure {
         return {
             $: 'OffRamp_NotifyFailure',
@@ -2862,6 +2890,7 @@ export const OffRamp_NotifyFailure = {
             header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
             execId: ReceiveExecutorId.fromSlice(s),
             root: s.loadAddress(),
+            excesses: loadCellRef<ReceiveExecutor_Excesses>(s, ReceiveExecutor_Excesses.fromSlice),
         }
     },
     store(self: OffRamp_NotifyFailure, b: c.Builder): void {
@@ -2870,6 +2899,7 @@ export const OffRamp_NotifyFailure = {
         storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
         ReceiveExecutorId.store(self.execId, b);
         b.storeAddress(self.root);
+        storeCellRef<ReceiveExecutor_Excesses>(self.excesses, b, ReceiveExecutor_Excesses.store);
     },
     toCell(self: OffRamp_NotifyFailure): c.Cell {
         return makeCellFrom<OffRamp_NotifyFailure>(self, OffRamp_NotifyFailure.store);
@@ -3102,6 +3132,48 @@ export const OffRamp_ReturnExcessToExecutor = {
     },
     toCell(self: OffRamp_ReturnExcessToExecutor): c.Cell {
         return makeCellFrom<OffRamp_ReturnExcessToExecutor>(self, OffRamp_ReturnExcessToExecutor.store);
+    }
+}
+
+/**
+ > struct (0x0d4102ec) OffRamp_ReturnExecuteExcess {
+ >     root: MerkleRootId
+ >     excessesTo: address
+ > }
+ */
+export interface OffRamp_ReturnExecuteExcess {
+    readonly $: 'OffRamp_ReturnExecuteExcess'
+    root: MerkleRootId
+    excessesTo: c.Address
+}
+
+export const OffRamp_ReturnExecuteExcess = {
+    PREFIX: 0x0d4102ec,
+
+    create(args: {
+        root: MerkleRootId
+        excessesTo: c.Address
+    }): OffRamp_ReturnExecuteExcess {
+        return {
+            $: 'OffRamp_ReturnExecuteExcess',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): OffRamp_ReturnExecuteExcess {
+        loadAndCheckPrefix32(s, 0x0d4102ec, 'OffRamp_ReturnExecuteExcess');
+        return {
+            $: 'OffRamp_ReturnExecuteExcess',
+            root: MerkleRootId.fromSlice(s),
+            excessesTo: s.loadAddress(),
+        }
+    },
+    store(self: OffRamp_ReturnExecuteExcess, b: c.Builder): void {
+        b.storeUint(0x0d4102ec, 32);
+        MerkleRootId.store(self.root, b);
+        b.storeAddress(self.excessesTo);
+    },
+    toCell(self: OffRamp_ReturnExecuteExcess): c.Cell {
+        return makeCellFrom<OffRamp_ReturnExecuteExcess>(self, OffRamp_ReturnExecuteExcess.store);
     }
 }
 
@@ -4330,6 +4402,44 @@ export const CrossChainAddress = {
 }
 
 /**
+ > struct ReceiveExecutor_Excesses {
+ >     to: address
+ >     includesInitValue: bool
+ > }
+ */
+export interface ReceiveExecutor_Excesses {
+    readonly $: 'ReceiveExecutor_Excesses'
+    to: c.Address
+    includesInitValue: boolean
+}
+
+export const ReceiveExecutor_Excesses = {
+    create(args: {
+        to: c.Address
+        includesInitValue: boolean
+    }): ReceiveExecutor_Excesses {
+        return {
+            $: 'ReceiveExecutor_Excesses',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): ReceiveExecutor_Excesses {
+        return {
+            $: 'ReceiveExecutor_Excesses',
+            to: s.loadAddress(),
+            includesInitValue: s.loadBoolean(),
+        }
+    },
+    store(self: ReceiveExecutor_Excesses, b: c.Builder): void {
+        b.storeAddress(self.to);
+        b.storeBit(self.includesInitValue);
+    },
+    toCell(self: ReceiveExecutor_Excesses): c.Cell {
+        return makeCellFrom<ReceiveExecutor_Excesses>(self, ReceiveExecutor_Excesses.store);
+    }
+}
+
+/**
  > struct TokenAmount {
  >     amount: coins
  >     token: address
@@ -4903,6 +5013,7 @@ export class OffRamp implements c.Contract {
         gasOverride?: GasOverride | null /* = null */
         executionState: ExecutionState
         offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        excessesTo: c.Address
     }) {
         return OffRamp_ExecuteValidated.toCell(OffRamp_ExecuteValidated.create(body));
     }
@@ -4973,6 +5084,7 @@ export class OffRamp implements c.Contract {
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
+        excesses: ReceiveExecutor_Excesses
     }) {
         return OffRamp_NotifyFailure.toCell(OffRamp_NotifyFailure.create(body));
     }
@@ -4983,6 +5095,7 @@ export class OffRamp implements c.Contract {
         execId: ReceiveExecutorId
         root: c.Address
         delivered?: OffRamp_DeliveredTransfer | null /* = null */
+        excesses: ReceiveExecutor_Excesses
     }) {
         return OffRamp_NotifySuccess.toCell(OffRamp_NotifySuccess.create(body));
     }
@@ -5057,6 +5170,13 @@ export class OffRamp implements c.Contract {
         return OffRamp_ReturnExcessToExecutor.toCell(OffRamp_ReturnExcessToExecutor.create(body));
     }
 
+    static createCellOfOffRampReturnExecuteExcess(body: {
+        root: MerkleRootId
+        excessesTo: c.Address
+    }) {
+        return OffRamp_ReturnExecuteExcess.toCell(OffRamp_ReturnExecuteExcess.create(body));
+    }
+
     static createCellOfOwnable2StepTransferOwnership(body: {
         queryId?: uint64
         newOwner: c.Address
@@ -5119,6 +5239,7 @@ export class OffRamp implements c.Contract {
         gasOverride?: GasOverride | null /* = null */
         executionState: ExecutionState
         offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        excessesTo: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -5221,6 +5342,7 @@ export class OffRamp implements c.Contract {
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
+        excesses: ReceiveExecutor_Excesses
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -5235,6 +5357,7 @@ export class OffRamp implements c.Contract {
         execId: ReceiveExecutorId
         root: c.Address
         delivered?: OffRamp_DeliveredTransfer | null /* = null */
+        excesses: ReceiveExecutor_Excesses
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -5345,6 +5468,17 @@ export class OffRamp implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: OffRamp_ReturnExcessToExecutor.toCell(OffRamp_ReturnExcessToExecutor.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOffRampReturnExecuteExcess(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        root: MerkleRootId
+        excessesTo: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: OffRamp_ReturnExecuteExcess.toCell(OffRamp_ReturnExecuteExcess.create(body)),
             ...extraOptions
         });
     }

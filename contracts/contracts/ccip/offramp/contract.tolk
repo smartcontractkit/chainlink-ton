@@ -79,7 +79,7 @@ fun onInternalMessage(in:InMessage) {
         }
         // Permissionless
         OffRamp_ManuallyExecute => {
-            onManuallyExecute(msg, in.valueCoins)
+            onManuallyExecute(msg, in.senderAddress, in.valueCoins)
         }
         // Sender must be owner
         OCR3Base_SetOCR3Config => {
@@ -163,6 +163,12 @@ fun onInternalMessage(in:InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             onUpgrade(msg);
         }
+        // Sender must be MerkleRoot
+        OffRamp_ReturnExecuteExcess => {
+            val st = lazy Storage.load();
+            assertSenderIsMerkleRoot(st, msg.root, in.senderAddress);
+            onReturnExecuteExcess(msg);
+        }
         // Sender must be the Router
         OffRamp_ReturnExcessToExecutor => {
             val st = lazy Storage.load();
@@ -222,10 +228,13 @@ fun messageExecutionFailed(msg: ReceiveExecutor_InitExecute) {
         messageId: msg.messageId,
         state: ExecutionState.Failure
     });
+    // The executor's init value (if deployed) stays in the executor for retries, so the caller is
+    // refunded everything else.
     markStateOnRoot(
         msg.root,
         msg.sequenceNumber,
-        ExecutionState.Failure
+        ExecutionState.Failure,
+        msg.excesses.load().to,
     );
 }
 
@@ -249,10 +258,12 @@ fun onBouncedDeployableInitialize(msg: Deployable_Initialize, senderAddress: add
         messageId: message.header.messageId,
         state: ExecutionState.Failure
     });
+    // The executor's initial storage carries the caller of the execution that deployed it.
     markStateOnRoot(
         storageData.root,
         message.header.sequenceNumber,
-        ExecutionState.Failure
+        ExecutionState.Failure,
+        storageData.state.excesses!.load().to,
     );
 }
 
@@ -386,24 +397,50 @@ fun forwardValueToExecutor(executorAddress: AutoDeployAddress) {
     excess.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+// Refunds the execution caller with the excesses returned by the MerkleRoot after marking the
+// message state.
+//
+// sequenceDiagram
+//     participant OffRamp
+//     participant MerkleRoot
+//     participant Caller
+//
+//     OffRamp    ->> MerkleRoot: MerkleRoot_MarkState
+//     MerkleRoot ->> OffRamp:    OffRamp_ReturnExecuteExcess
+//     OffRamp    ->> Caller:     excesses
+fun onReturnExecuteExcess(msg: OffRamp_ReturnExecuteExcess) {
+    val excesses = createMessage({
+        bounce: false,
+        value: 0,
+        dest: msg.excessesTo,
+        body: createEmptyCell(),
+    });
+    excesses.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
 // Sends a MerkleRoot_MarkState message to update the execution state of a
-// specific sequence number in a MerkleRoot contract.
+// specific sequence number in a MerkleRoot contract. The message carries all the excesses of
+// the flow; once the state is marked, the root returns them to the OffRamp
+// (OffRamp_ReturnExecuteExcess), which refunds them to `excessesTo`.
 //
 // MUST be the last action of the handler (after every emit and other send): it reserves the
-// original balance and carries everything above it, so the contract's balance is unchanged.
-fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
-    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+// original balance (plus `keep`) and carries everything above it, so the contract's balance only
+// grows by `keep`.
+//
+// @param excessesTo: caller of the execution, refunded with the excesses.
+// @param keep: value retained by the OffRamp on top of its original balance (at most what is
+// available).
+fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState, excessesTo: address, keep: coins = 0) {
+    reserveGramsOnBalance(keep, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_AT_MOST);
 
     val markState = createMessage({
         bounce: false,
         value: 0,
         dest: root,
-        body: MerkleRoot_MarkState {
-            seqNum,
-            state,
-        },
+        body: MerkleRoot_MarkState { seqNum, state, excessesTo },
     });
-    // SAFETY: reserveGramsOnBalance keeps the original balance, so only the value exceeding it is sent.
+    // SAFETY: reserveGramsOnBalance keeps the original balance (plus `keep`), so only the value
+    // exceeding it is sent.
     markState.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
@@ -430,8 +467,14 @@ fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: ad
         state: ExecutionState.Success
     });
 
-    // propagate state change to root (must be last: carries the remaining balance)
-    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Success);
+    // The executor drained its whole balance, init value included. On a retry that init value
+    // was funded by an earlier caller (the node that first executed the message), so the OffRamp
+    // keeps it instead of handing it to this caller.
+    val excesses = msg.excesses.load();
+    val keep: coins = excesses.includesInitValue ? 0 as coins : RECEIVE_EXECUTOR_INIT_VALUE;
+
+    // propagate state change to root and refund the caller (must be last: carries the remaining balance)
+    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Success, excesses.to, keep);
 }
 
 // Relays a ReceiveExecutor-confirmed token transfer delivery to the Router, which forwards it to
@@ -476,8 +519,10 @@ fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
         state: ExecutionState.Failure
     });
 
-    // propagate state change to root (must be last: reserves the original balance and carries the rest)
-    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Failure);
+    // The executor retains its init value on failure (for retries), so the caller is refunded
+    // everything it sent back.
+    // propagate state change to root and refund the caller (must be last: carries the remaining balance)
+    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Failure, msg.excesses.load().to);
 }
 
 // Sent by the Receiver via the Router to confirm successful message receipt.
@@ -789,8 +834,8 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
 
 //     Wallet  ->> OffRamp:    OffRamp_ManuallyExecute
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
-fun onManuallyExecute(msg: OffRamp_ManuallyExecute, value: coins) {
-    onExecuteSingleReport(msg.report, msg.gasOverride, value, msg.queryId);
+fun onManuallyExecute(msg: OffRamp_ManuallyExecute, sender: address, value: coins) {
+    onExecuteSingleReport(msg.report, msg.gasOverride, value, msg.queryId, sender);
 }
 
 // Executes a single cross-chain execution report.
@@ -815,7 +860,7 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
         createEmptyCell(),
     );
 
-    onExecuteSingleReport(msg.report, null, value, msg.queryId);
+    onExecuteSingleReport(msg.report, null, value, msg.queryId, sender);
 }
 
 // Executes a single cross-chain execution report. Verifies source chain
@@ -829,7 +874,9 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
 
 //     Wallet  ->> OffRamp:    OffRamp_Execute/ManuallyExecute
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
-fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, value: coins, queryId: uint64) {
+//
+// @param excessesTo: caller of the execution, refunded with the excesses when the flow ends.
+fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, value: coins, queryId: uint64, excessesTo: address) {
     var st = Storage.load();
 
     // check if chain was cursed by RMNRemote
@@ -936,6 +983,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
             permissionlessExecutionThresholdSeconds: st.config.load().dynamicConfig.load().permissionlessExecutionThresholdSeconds,
             gasOverride,
             offchainTokenData: report.offchainTokenData,
+            excessesTo,
         },
     });
     // SAFETY: We use reserveToncoinsOnBalance so we only send the value exceeding from the emits
@@ -1022,6 +1070,11 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 
     val executorAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execId);
 
+    val excesses = ReceiveExecutor_Excesses {
+        to: msg.excessesTo,
+        // Only the attempt that deploys the executor funds its init value.
+        includesInitValue: msg.executionState == ExecutionState.Untouched,
+    }.toCell();
 
     // Check if this is the first time the exec flow is running given that in that case we need to
     // initialize the executor
@@ -1038,6 +1091,14 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
                         message: message.toCell(),
                         root: sender,
                         execId,
+                        // Set at deploy so a bounced deploy can still refund the caller.
+                        state: ReceiveExecutor_State {
+                            tokenTransfer: null,
+                            messageExecution: ReceiveExecutor_MessageExecutionState.Untouched,
+                            effectiveGasLimit: 0,
+                            queryId: msg.queryId,
+                            excesses,
+                        },
                     }.toCell(),
                 }
             },
@@ -1052,6 +1113,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         sequenceNumber: message.header.sequenceNumber,
         sourceChainSelector: message.header.sourceChainSelector,
         messageId: message.header.messageId,
+        excesses,
     };
 
     // TODO[ERROR]: [NONEVM-5463] this hides the validation error that caused the message to fail.

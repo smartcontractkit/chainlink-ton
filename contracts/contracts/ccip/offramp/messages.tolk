@@ -16,6 +16,7 @@ import "../merkle_root/messages"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
 import "../receive_executor/messages"
+import "../receive_executor/types"
 import "../rmn_remote/lib"
 import "../router/messages"
 
@@ -42,7 +43,8 @@ type OffRamp_InMessage =
     | Upgradeable_Upgrade
     | ReturnExcessesBack
     | Withdrawable_Withdraw
-    | OffRamp_ReturnExcessToExecutor;
+    | OffRamp_ReturnExcessToExecutor
+    | OffRamp_ReturnExecuteExcess;
 
 type OffRamp_InMessageBounced = 
     | ReceiveExecutor_InitExecute
@@ -71,6 +73,8 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     gasOverride: GasOverride? = null;
     executionState: ExecutionState;
     offchainTokenData: lisp_list<lisp_list<cell>>;
+    /// Caller of the execution, refunded with the flow's excesses
+    excessesTo: address;
 }
 
 struct (0xa00785cf) OffRamp_ManuallyExecute {
@@ -119,6 +123,8 @@ struct (0x59e56170) OffRamp_NotifySuccess {
     root: address;
     /// Set for token-only messages: the token transfer delivery to relay to the pool.
     delivered: Cell<OffRamp_DeliveredTransfer>? = null;
+    /// Caller of the execution attempt and whether it funded the executor's init value.
+    excesses: Cell<ReceiveExecutor_Excesses>;
 }
 
 /// Sent by the ReceiveExecutor of a message with data when its token transfer was delivered
@@ -139,6 +145,8 @@ struct (0x177ebd03) OffRamp_NotifyFailure {
     header: Cell<RampMessageHeader>;
     execId: ReceiveExecutorId;
     root: address;
+    /// Caller of the execution attempt and whether it funded the executor's init value.
+    excesses: Cell<ReceiveExecutor_Excesses>;
 }
 
 struct (0x4ca1bcb3) OffRamp_UpdateCursedSubjects {
@@ -168,6 +176,13 @@ struct (0x7deaf076) OffRamp_ReleaseOrMint {
 struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
     queryId: uint64;
     execId: ReceiveExecutorId;
+}
+
+/// Sent by a MerkleRoot after marking a message state: carries the execution excesses back to
+/// the OffRamp, which refunds them to the execution caller.
+struct (0x0d4102ec) OffRamp_ReturnExecuteExcess {
+    root: MerkleRootId;
+    excessesTo: address;
 }
 
 /// Relays between the executor and the pool, on top of `destGasAmount`: the OffRamp and Router

@@ -158,6 +158,7 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
 
     st.state.queryId = msg.queryId;
     st.state.effectiveGasLimit = msg.effectiveGasLimit;
+    st.state.excesses = msg.excesses;
     if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec(false)) {
         return endExecutionWithFailure(mutate st, message.header, 0);
     }
@@ -339,6 +340,7 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
             header: messageHeader.toCell(),
             execId: st.execId,
             root: st.root,
+            excesses: st.state.excesses!,
         },
     });
     // SAFETY: The excesses message carries all remaining balance above the
@@ -426,6 +428,7 @@ fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: 
             execId: st.execId,
             root: st.root,
             delivered,
+            excesses: st.state.excesses!,
         },
     });
     notifySuccess.send(SEND_MODE_CARRY_ALL_BALANCE);
