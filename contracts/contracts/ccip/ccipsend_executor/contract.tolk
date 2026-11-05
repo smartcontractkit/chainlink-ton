@@ -75,7 +75,7 @@ fun onInternalMessage(in: InMessage) {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
             assert (this.addresses.load().tokenRegistry!.load() == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
             assert (msg.token == this.state.load().token) throw (CCIPSendExecutor_Error.Unauthorized);
-            this.exitWithError(CCIPSendExecutor_Error.TokenNotEnabled as uint256, this.state.load().chargedFee.feeTokenAmount);
+            this.onTokenInfoFailed(msg);
         }
         // Sender must be the TokenPool
         TokenPool_LockOrBurnWithdraw => {
@@ -95,11 +95,11 @@ fun onInternalMessage(in: InMessage) {
             if (st.state is Cell<CCIPSendExecutor_State_TokenPool_LockOrBurn>) {
                 var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
                 assert (this.state.load().tokenPool == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
-                this.exitWithError(msg.errorCode as uint256, this.state.load().chargedFee.feeTokenAmount);
+                this.onLockOrBurnFailure(msg);
             } else {
                 var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.load();
                 assert (this.state.load().tokenPool == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
-                this.exitWithError(msg.errorCode as uint256, this.state.load().chargedFee.feeTokenAmount);
+                this.onLockOrBurnFailure(msg);
             }
         }
         // Router policy rejection, a pre-admission pool bounce, or a bounced
@@ -112,21 +112,21 @@ fun onInternalMessage(in: InMessage) {
                 val addresses = lazy this.addresses.load();
                 assert (addresses.router == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
                 assert (state.tokenPool == msg.tokenPool) throw (CCIPSendExecutor_Error.Unauthorized);
-                this.exitWithError(CCIPSendExecutor_Error.TokenPoolBounce as uint256, state.chargedFee.feeTokenAmount);
+                this.onRouterLockOrBurnFailed(msg);
             } else {
                 var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.load();
                 val state = lazy this.state.load();
                 val addresses = lazy this.addresses.load();
                 assert (addresses.router == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
                 assert (state.tokenPool == msg.tokenPool) throw (CCIPSendExecutor_Error.Unauthorized);
-                this.exitWithError(CCIPSendExecutor_Error.TokenPoolBounce as uint256, state.chargedFee.feeTokenAmount);
+                this.onRouterLockOrBurnFailed(msg);
             }
         }
         // The OnRamp's lock-or-burn request bounced off the Router.
         OnRamp_LockOrBurnFailed => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
             assert (this.addresses.load().onramp == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
-            this.exitWithError(msg.errorCode as uint256, this.state.load().chargedFee.feeTokenAmount);
+            this.onOnRampLockOrBurnFailed(msg);
         }
         else => {
             assert (in.body.isEmpty()) throw (0xFFFF);
@@ -141,17 +141,15 @@ fun onBouncedMessage(in: InMessageBounced) {
     match (msg) {
         FeeQuoter_GetValidatedFee => {
             val this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
-            this.exitWithError(CCIPSendExecutor_Error.FeeQuoterBounce, NO_FEE_CHARGED);
+            this.onGetValidatedFeeBounced();
         }
         OnRamp_ExecutorReserveFee => {
             val this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.load();
-            this.exitWithError(CCIPSendExecutor_Error.OnRampFeeReservationBounce, NO_FEE_CHARGED);
+            this.onReserveFeeBounced();
         }
-        // The token registry failed to answer the token-info query. The fee is
-        // already reserved on the OnRamp, so finalize with an error and refund it.
         TokenAdminRegistry_GetTokenInfo => {
             val this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
-            this.exitWithError(CCIPSendExecutor_Error.TokenRegistryBounce, this.state.load().chargedFee.feeTokenAmount);
+            this.onGetTokenInfoBounced();
         }
     }
 }
@@ -439,6 +437,45 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
 }
 
 const NO_FEE_CHARGED: coins = 0
+
+/// FeeQuoter_GetValidatedFee bounced. Nothing is charged yet.
+fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onGetValidatedFeeBounced(self) {
+    self.exitWithError(CCIPSendExecutor_Error.FeeQuoterBounce, NO_FEE_CHARGED);
+}
+
+/// OnRamp_ExecutorReserveFee bounced, so OnRamp rolled back the reservation. Nothing is charged.
+fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onReserveFeeBounced(self) {
+    self.exitWithError(CCIPSendExecutor_Error.OnRampFeeReservationBounce, NO_FEE_CHARGED);
+}
+
+/// The token registry failed to answer the token-info query. The fee is already reserved on the
+/// OnRamp, so finalize with an error and refund it.
+fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onGetTokenInfoBounced(self) {
+    self.exitWithError(CCIPSendExecutor_Error.TokenRegistryBounce, self.state.load().chargedFee.feeTokenAmount);
+}
+
+/// The token registry has no pool for the token. Refund the reserved fee.
+fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoFailed(self, msg: TokenAdminRegistry_GetTokenInfoFailed) {
+    self.exitWithError(CCIPSendExecutor_Error.TokenNotEnabled as uint256, self.state.load().chargedFee.feeTokenAmount);
+}
+
+/// The pool failed the lock-or-burn and restored its own rate limit. Forward its error and refund
+/// the reserved fee. Arrives in the LockOrBurn or the Withdraw state.
+fun CCIPSendExecutor<T>.onLockOrBurnFailure(self, msg: TokenPool_LockOrBurnFailure) {
+    self.exitWithError(msg.errorCode as uint256, self.state.load().chargedFee.feeTokenAmount);
+}
+
+/// The Router reports a policy rejection, a pre-admission pool bounce or a bounced withdrawal.
+/// Refund the reserved fee. Arrives in the LockOrBurn or the Withdraw state.
+fun CCIPSendExecutor<T>.onRouterLockOrBurnFailed(self, msg: Router_TokenPoolLockOrBurnFailed) {
+    self.exitWithError(CCIPSendExecutor_Error.TokenPoolBounce as uint256, self.state.load().chargedFee.feeTokenAmount);
+}
+
+/// The OnRamp's lock-or-burn request bounced off the Router. Forward the Router's exit code and
+/// refund the reserved fee.
+fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onOnRampLockOrBurnFailed(self, msg: OnRamp_LockOrBurnFailed) {
+    self.exitWithError(msg.errorCode as uint256, self.state.load().chargedFee.feeTokenAmount);
+}
 
 fun CCIPSendExecutor<T>.exitWithError(self, error: uint256, chargedFee: coins?) {
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_Finalized> {
