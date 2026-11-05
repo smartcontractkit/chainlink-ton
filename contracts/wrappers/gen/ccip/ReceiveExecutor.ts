@@ -562,6 +562,7 @@ export const OffRamp_DispatchValidated = {
  >     execId: ReceiveExecutorId
  >     root: address
  >     delivered: Cell<OffRamp_DeliveredTransfer>?
+ >     excesses: Cell<ReceiveExecutor_Excesses>
  > }
  */
 export interface OffRamp_NotifySuccess {
@@ -571,6 +572,7 @@ export interface OffRamp_NotifySuccess {
     execId: ReceiveExecutorId
     root: c.Address
     delivered: OffRamp_DeliveredTransfer | null /* = null */
+    excesses: ReceiveExecutor_Excesses
 }
 
 export const OffRamp_NotifySuccess = {
@@ -582,6 +584,7 @@ export const OffRamp_NotifySuccess = {
         execId: ReceiveExecutorId
         root: c.Address
         delivered?: OffRamp_DeliveredTransfer | null /* = null */
+        excesses: ReceiveExecutor_Excesses
     }): OffRamp_NotifySuccess {
         return {
             $: 'OffRamp_NotifySuccess',
@@ -599,6 +602,7 @@ export const OffRamp_NotifySuccess = {
             execId: ReceiveExecutorId.fromSlice(s),
             root: s.loadAddress(),
             delivered: s.loadBoolean() ? loadCellRef<OffRamp_DeliveredTransfer>(s, OffRamp_DeliveredTransfer.fromSlice) : null,
+            excesses: loadCellRef<ReceiveExecutor_Excesses>(s, ReceiveExecutor_Excesses.fromSlice),
         }
     },
     store(self: OffRamp_NotifySuccess, b: c.Builder): void {
@@ -610,6 +614,7 @@ export const OffRamp_NotifySuccess = {
         storeTolkNullable<OffRamp_DeliveredTransfer>(self.delivered, b,
             (v,b) => storeCellRef<OffRamp_DeliveredTransfer>(v, b, OffRamp_DeliveredTransfer.store)
         );
+        storeCellRef<ReceiveExecutor_Excesses>(self.excesses, b, ReceiveExecutor_Excesses.store);
     },
     toCell(self: OffRamp_NotifySuccess): c.Cell {
         return makeCellFrom<OffRamp_NotifySuccess>(self, OffRamp_NotifySuccess.store);
@@ -708,6 +713,7 @@ export const OffRamp_DeliveredTransfer = {
  >     header: Cell<RampMessageHeader>
  >     execId: ReceiveExecutorId
  >     root: address
+ >     excesses: Cell<ReceiveExecutor_Excesses>
  > }
  */
 export interface OffRamp_NotifyFailure {
@@ -716,6 +722,7 @@ export interface OffRamp_NotifyFailure {
     header: RampMessageHeader
     execId: ReceiveExecutorId
     root: c.Address
+    excesses: ReceiveExecutor_Excesses
 }
 
 export const OffRamp_NotifyFailure = {
@@ -726,6 +733,7 @@ export const OffRamp_NotifyFailure = {
         header: RampMessageHeader
         execId: ReceiveExecutorId
         root: c.Address
+        excesses: ReceiveExecutor_Excesses
     }): OffRamp_NotifyFailure {
         return {
             $: 'OffRamp_NotifyFailure',
@@ -741,6 +749,7 @@ export const OffRamp_NotifyFailure = {
             header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
             execId: ReceiveExecutorId.fromSlice(s),
             root: s.loadAddress(),
+            excesses: loadCellRef<ReceiveExecutor_Excesses>(s, ReceiveExecutor_Excesses.fromSlice),
         }
     },
     store(self: OffRamp_NotifyFailure, b: c.Builder): void {
@@ -749,6 +758,7 @@ export const OffRamp_NotifyFailure = {
         storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
         ReceiveExecutorId.store(self.execId, b);
         b.storeAddress(self.root);
+        storeCellRef<ReceiveExecutor_Excesses>(self.excesses, b, ReceiveExecutor_Excesses.store);
     },
     toCell(self: OffRamp_NotifyFailure): c.Cell {
         return makeCellFrom<OffRamp_NotifyFailure>(self, OffRamp_NotifyFailure.store);
@@ -815,6 +825,49 @@ export const OffRamp_ReleaseOrMint = {
     },
     toCell(self: OffRamp_ReleaseOrMint): c.Cell {
         return makeCellFrom<OffRamp_ReleaseOrMint>(self, OffRamp_ReleaseOrMint.store);
+    }
+}
+
+/**
+ > struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
+ >     queryId: uint64
+ >     execId: ReceiveExecutorId
+ > }
+ */
+export interface OffRamp_ReturnExcessToExecutor {
+    readonly $: 'OffRamp_ReturnExcessToExecutor'
+    queryId: uint64
+    execId: ReceiveExecutorId
+}
+
+export const OffRamp_ReturnExcessToExecutor = {
+    PREFIX: 0x5397c75e,
+
+    create(args: {
+        queryId?: uint64
+        execId: ReceiveExecutorId
+    }): OffRamp_ReturnExcessToExecutor {
+        return {
+            $: 'OffRamp_ReturnExcessToExecutor',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): OffRamp_ReturnExcessToExecutor {
+        loadAndCheckPrefix32(s, 0x5397c75e, 'OffRamp_ReturnExcessToExecutor');
+        return {
+            $: 'OffRamp_ReturnExcessToExecutor',
+            queryId: s.loadUintBig(64),
+            execId: ReceiveExecutorId.fromSlice(s),
+        }
+    },
+    store(self: OffRamp_ReturnExcessToExecutor, b: c.Builder): void {
+        b.storeUint(0x5397c75e, 32);
+        b.storeUint(self.queryId, 64);
+        ReceiveExecutorId.store(self.execId, b);
+    },
+    toCell(self: OffRamp_ReturnExcessToExecutor): c.Cell {
+        return makeCellFrom<OffRamp_ReturnExcessToExecutor>(self, OffRamp_ReturnExcessToExecutor.store);
     }
 }
 
@@ -1426,7 +1479,7 @@ export interface ReceiveExecutor_Storage {
     message: Any2TVMRampMessage
     root: c.Address
     execId: uint192
-    state: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState, 0 as coins, 0 as uint64 } */
+    state: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState, 0 as coins, 0 as uint64, null as null as Cell<ReceiveExecutor_Excesses>? } */
     lastExecutionTimestamp: uint64 /* = 0 */
 }
 
@@ -1436,12 +1489,12 @@ export const ReceiveExecutor_Storage = {
         message: Any2TVMRampMessage
         root: c.Address
         execId: uint192
-        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState, 0 as coins, 0 as uint64 } */
+        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState, 0 as coins, 0 as uint64, null as null as Cell<ReceiveExecutor_Excesses>? } */
         lastExecutionTimestamp?: uint64 /* = 0 */
     }): ReceiveExecutor_Storage {
         return {
             $: 'ReceiveExecutor_Storage',
-            state: { $: 'ReceiveExecutor_State', tokenTransfer: null, messageExecution: 0n, effectiveGasLimit: 0n, queryId: 0n },
+            state: { $: 'ReceiveExecutor_State', tokenTransfer: null, messageExecution: 0n, effectiveGasLimit: 0n, queryId: 0n, excesses: null },
             lastExecutionTimestamp: 0n,
             ...args
         }
@@ -1479,6 +1532,7 @@ export const ReceiveExecutor_Storage = {
  >     sourceChainSelector: uint64
  >     messageId: uint256
  >     tokenTransfer: Cell<ReceiveExecutor_TokenTransfer>?
+ >     excesses: Cell<ReceiveExecutor_Excesses>
  > }
  */
 export interface ReceiveExecutor_InitExecute {
@@ -1490,6 +1544,7 @@ export interface ReceiveExecutor_InitExecute {
     sourceChainSelector: uint64
     messageId: uint256
     tokenTransfer: ReceiveExecutor_TokenTransfer | null /* = null */
+    excesses: ReceiveExecutor_Excesses
 }
 
 export const ReceiveExecutor_InitExecute = {
@@ -1503,6 +1558,7 @@ export const ReceiveExecutor_InitExecute = {
         sourceChainSelector: uint64
         messageId: uint256
         tokenTransfer?: ReceiveExecutor_TokenTransfer | null /* = null */
+        excesses: ReceiveExecutor_Excesses
     }): ReceiveExecutor_InitExecute {
         return {
             $: 'ReceiveExecutor_InitExecute',
@@ -1522,6 +1578,7 @@ export const ReceiveExecutor_InitExecute = {
             sourceChainSelector: s.loadUintBig(64),
             messageId: s.loadUintBig(256),
             tokenTransfer: s.loadBoolean() ? loadCellRef<ReceiveExecutor_TokenTransfer>(s, ReceiveExecutor_TokenTransfer.fromSlice) : null,
+            excesses: loadCellRef<ReceiveExecutor_Excesses>(s, ReceiveExecutor_Excesses.fromSlice),
         }
     },
     store(self: ReceiveExecutor_InitExecute, b: c.Builder): void {
@@ -1535,6 +1592,7 @@ export const ReceiveExecutor_InitExecute = {
         storeTolkNullable<ReceiveExecutor_TokenTransfer>(self.tokenTransfer, b,
             (v,b) => storeCellRef<ReceiveExecutor_TokenTransfer>(v, b, ReceiveExecutor_TokenTransfer.store)
         );
+        storeCellRef<ReceiveExecutor_Excesses>(self.excesses, b, ReceiveExecutor_Excesses.store);
     },
     toCell(self: ReceiveExecutor_InitExecute): c.Cell {
         return makeCellFrom<ReceiveExecutor_InitExecute>(self, ReceiveExecutor_InitExecute.store);
@@ -1848,6 +1906,7 @@ export const ReceiveExecutor_FailedReason = {
  >     messageExecution: ReceiveExecutor_MessageExecutionState
  >     effectiveGasLimit: coins
  >     queryId: uint64
+ >     excesses: Cell<ReceiveExecutor_Excesses>?
  > }
  */
 export interface ReceiveExecutor_State {
@@ -1856,6 +1915,7 @@ export interface ReceiveExecutor_State {
     messageExecution: ReceiveExecutor_MessageExecutionState
     effectiveGasLimit: coins
     queryId: uint64 /* = 0 */
+    excesses: ReceiveExecutor_Excesses | null
 }
 
 export const ReceiveExecutor_State = {
@@ -1864,6 +1924,7 @@ export const ReceiveExecutor_State = {
         messageExecution: ReceiveExecutor_MessageExecutionState
         effectiveGasLimit: coins
         queryId?: uint64 /* = 0 */
+        excesses: ReceiveExecutor_Excesses | null
     }): ReceiveExecutor_State {
         return {
             $: 'ReceiveExecutor_State',
@@ -1878,6 +1939,7 @@ export const ReceiveExecutor_State = {
             messageExecution: ReceiveExecutor_MessageExecutionState.fromSlice(s),
             effectiveGasLimit: s.loadCoins(),
             queryId: s.loadUintBig(64),
+            excesses: s.loadBoolean() ? loadCellRef<ReceiveExecutor_Excesses>(s, ReceiveExecutor_Excesses.fromSlice) : null,
         }
     },
     store(self: ReceiveExecutor_State, b: c.Builder): void {
@@ -1887,9 +1949,50 @@ export const ReceiveExecutor_State = {
         ReceiveExecutor_MessageExecutionState.store(self.messageExecution, b);
         b.storeCoins(self.effectiveGasLimit);
         b.storeUint(self.queryId, 64);
+        storeTolkNullable<ReceiveExecutor_Excesses>(self.excesses, b,
+            (v,b) => storeCellRef<ReceiveExecutor_Excesses>(v, b, ReceiveExecutor_Excesses.store)
+        );
     },
     toCell(self: ReceiveExecutor_State): c.Cell {
         return makeCellFrom<ReceiveExecutor_State>(self, ReceiveExecutor_State.store);
+    }
+}
+
+/**
+ > struct ReceiveExecutor_Excesses {
+ >     to: address
+ >     includesInitValue: bool
+ > }
+ */
+export interface ReceiveExecutor_Excesses {
+    readonly $: 'ReceiveExecutor_Excesses'
+    to: c.Address
+    includesInitValue: boolean
+}
+
+export const ReceiveExecutor_Excesses = {
+    create(args: {
+        to: c.Address
+        includesInitValue: boolean
+    }): ReceiveExecutor_Excesses {
+        return {
+            $: 'ReceiveExecutor_Excesses',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): ReceiveExecutor_Excesses {
+        return {
+            $: 'ReceiveExecutor_Excesses',
+            to: s.loadAddress(),
+            includesInitValue: s.loadBoolean(),
+        }
+    },
+    store(self: ReceiveExecutor_Excesses, b: c.Builder): void {
+        b.storeAddress(self.to);
+        b.storeBit(self.includesInitValue);
+    },
+    toCell(self: ReceiveExecutor_Excesses): c.Cell {
+        return makeCellFrom<ReceiveExecutor_Excesses>(self, ReceiveExecutor_Excesses.store);
     }
 }
 
@@ -2407,7 +2510,7 @@ export class ReceiveExecutor implements c.Contract {
         message: Any2TVMRampMessage
         root: c.Address
         execId: uint192
-        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState, 0 as coins, 0 as uint64 } */
+        state?: ReceiveExecutor_State /* = ReceiveExecutor_State { null as null as Cell<ReceiveExecutor_TokenTransferInfo>?, 0 as ReceiveExecutor_MessageExecutionState, 0 as coins, 0 as uint64, null as null as Cell<ReceiveExecutor_Excesses>? } */
         lastExecutionTimestamp?: uint64 /* = 0 */
     }, deployedOptions?: DeployedAddrOptions) {
         if (!deployedOptions?.overrideContractCode) {
@@ -2429,6 +2532,7 @@ export class ReceiveExecutor implements c.Contract {
         sourceChainSelector: uint64
         messageId: uint256
         tokenTransfer?: ReceiveExecutor_TokenTransfer | null /* = null */
+        excesses: ReceiveExecutor_Excesses
     }) {
         return ReceiveExecutor_InitExecute.toCell(ReceiveExecutor_InitExecute.create(body));
     }
@@ -2497,6 +2601,13 @@ export class ReceiveExecutor implements c.Contract {
         return ReturnExcessesBack.toCell(ReturnExcessesBack.create(body));
     }
 
+    static createCellOfOffRampReturnExcessToExecutor(body: {
+        queryId?: uint64
+        execId: ReceiveExecutorId
+    }) {
+        return OffRamp_ReturnExcessToExecutor.toCell(OffRamp_ReturnExcessToExecutor.create(body));
+    }
+
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -2521,6 +2632,7 @@ export class ReceiveExecutor implements c.Contract {
         sourceChainSelector: uint64
         messageId: uint256
         tokenTransfer?: ReceiveExecutor_TokenTransfer | null /* = null */
+        excesses: ReceiveExecutor_Excesses
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -2625,6 +2737,17 @@ export class ReceiveExecutor implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: ReturnExcessesBack.toCell(ReturnExcessesBack.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendOffRampReturnExcessToExecutor(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        execId: ReceiveExecutorId
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: OffRamp_ReturnExcessToExecutor.toCell(OffRamp_ReturnExcessToExecutor.create(body)),
             ...extraOptions
         });
     }

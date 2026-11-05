@@ -2167,6 +2167,49 @@ export const OffRamp_UpdateCursedSubjects = {
 }
 
 /**
+ > struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
+ >     queryId: uint64
+ >     execId: ReceiveExecutorId
+ > }
+ */
+export interface OffRamp_ReturnExcessToExecutor {
+    readonly $: 'OffRamp_ReturnExcessToExecutor'
+    queryId: uint64
+    execId: ReceiveExecutorId
+}
+
+export const OffRamp_ReturnExcessToExecutor = {
+    PREFIX: 0x5397c75e,
+
+    create(args: {
+        queryId?: uint64
+        execId: ReceiveExecutorId
+    }): OffRamp_ReturnExcessToExecutor {
+        return {
+            $: 'OffRamp_ReturnExcessToExecutor',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): OffRamp_ReturnExcessToExecutor {
+        loadAndCheckPrefix32(s, 0x5397c75e, 'OffRamp_ReturnExcessToExecutor');
+        return {
+            $: 'OffRamp_ReturnExcessToExecutor',
+            queryId: s.loadUintBig(64),
+            execId: ReceiveExecutorId.fromSlice(s),
+        }
+    },
+    store(self: OffRamp_ReturnExcessToExecutor, b: c.Builder): void {
+        b.storeUint(0x5397c75e, 32);
+        b.storeUint(self.queryId, 64);
+        ReceiveExecutorId.store(self.execId, b);
+    },
+    toCell(self: OffRamp_ReturnExcessToExecutor): c.Cell {
+        return makeCellFrom<OffRamp_ReturnExcessToExecutor>(self, OffRamp_ReturnExcessToExecutor.store);
+    }
+}
+
+/**
  > struct CursePolicy {
  >     admin: Ownable2Step
  >     rbac: Cell<AccessControl_Data>

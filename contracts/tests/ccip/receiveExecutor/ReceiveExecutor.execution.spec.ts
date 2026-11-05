@@ -20,6 +20,7 @@ import {
   Costs as OffRampCosts,
   OFFRAMP_NOTIFY_COST,
   OFFRAMP_RELEASE_OR_MINT_COST,
+  Costs,
 } from '../../../wrappers/ccip/OffRamp'
 import { Costs as RegistryCosts } from '../../../wrappers/ccip/TokenAdminRegistry'
 
@@ -43,6 +44,7 @@ describe('ReceiveExecutor - Execution', () => {
     sourceChainSelector: bigint
     messageId: bigint
     effectiveGasLimit: bigint
+    excesses: rx.ReceiveExecutor_Excesses
   }
 
   beforeAll(async () => {
@@ -76,6 +78,10 @@ describe('ReceiveExecutor - Execution', () => {
         sourceChainSelector: arbMessage.header.sourceChainSelector,
         messageId: arbMessage.header.messageId,
         effectiveGasLimit: arbMessage.gasLimit,
+        excesses: rx.ReceiveExecutor_Excesses.create({
+          to: deployer.address,
+          includesInitValue: true,
+        }),
       }
     })
 
@@ -444,6 +450,10 @@ describe('ReceiveExecutor - Execution', () => {
           sourceChainSelector: messageWithTT.header.sourceChainSelector,
           messageId: messageWithTT.header.messageId,
           effectiveGasLimit: messageWithTT.gasLimit,
+          excesses: rx.ReceiveExecutor_Excesses.create({
+            to: deployer.address,
+            includesInitValue: true,
+          }),
         }
       })
 
@@ -559,7 +569,9 @@ describe('ReceiveExecutor - Execution', () => {
           op: of.OffRamp_NotifyFailure.PREFIX,
           value: (v) => v! >= OFFRAMP_NOTIFY_COST,
         })
-        expect((await blockchain.getContract(receiveExecutorWithToken.address)).balance).toBe(0n)
+        expect((await blockchain.getContract(receiveExecutorWithToken.address)).balance).toBe(
+          Costs.executorDeployment,
+        )
       })
 
       it('should send NotifyFailure when TokenAdminRegistry reports the token is not registered', async () => {
@@ -582,7 +594,9 @@ describe('ReceiveExecutor - Execution', () => {
           op: of.OffRamp_NotifyFailure.PREFIX,
           value: (v) => v! >= OFFRAMP_NOTIFY_COST,
         })
-        expect((await blockchain.getContract(receiveExecutorWithToken.address)).balance).toBe(0n)
+        expect((await blockchain.getContract(receiveExecutorWithToken.address)).balance).toBe(
+          Costs.executorDeployment,
+        )
       })
 
       it('should reject GetTokenInfoFailed from non-tokenAdminRegistry', async () => {
@@ -725,6 +739,10 @@ describe('ReceiveExecutor - Execution', () => {
           sourceChainSelector: messageWithTT.header.sourceChainSelector,
           messageId: messageWithTT.header.messageId,
           effectiveGasLimit: messageWithTT.gasLimit,
+          excesses: rx.ReceiveExecutor_Excesses.create({
+            to: deployer.address,
+            includesInitValue: true,
+          }),
         }
 
         await transitionToReleaseOrMint(receiveExecutorGas)
@@ -1139,6 +1157,10 @@ describe('ReceiveExecutor - Execution', () => {
           sourceChainSelector: messageWithTT.header.sourceChainSelector,
           messageId: messageWithTT.header.messageId,
           effectiveGasLimit: messageWithTT.gasLimit,
+          excesses: rx.ReceiveExecutor_Excesses.create({
+            to: deployer.address,
+            includesInitValue: true,
+          }),
         }
       })
 
@@ -1209,6 +1231,10 @@ describe('ReceiveExecutor - Execution', () => {
           sourceChainSelector: messageWithTT.header.sourceChainSelector,
           messageId: messageWithTT.header.messageId,
           effectiveGasLimit: messageWithTT.gasLimit,
+          excesses: rx.ReceiveExecutor_Excesses.create({
+            to: deployer.address,
+            includesInitValue: true,
+          }),
         }
 
         await transitionToReleaseOrMint(receiveExecutorPtt)
