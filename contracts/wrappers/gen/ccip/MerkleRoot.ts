@@ -779,8 +779,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MerkleRoot implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECDwEAAuUAART/APSkE/S88sgLAQIBYgIDAkDQ+JHyQCDXLCAcdvSM4wLXLCAM+maU4wIwhA8BxwDy9AQFAgFICwwB/jHtRNDT//pI0z/TP9M/03/XCw+BSKn4kifHBfL0B9M/1NMf0//TAAGf0wABkvoAkm0B4vQEgQCKlG1tWHDibQLXTNCUIMcAs44e1G0B1AHQlCDHALOZ1NTRUANvAgLQ6DDRUANvAgLQ6DAG0CDT/zHTPzHTPzHXCz+BSK1THL4GAf4x7UTQ0//6SNM/0z/TP9N/1wsPgUip+JInxwXy9AfTP9cLByDCA/JFgUitUyW+lVMku8MAkXDi8vRTFKGBSK0hwUDy9HMhqgCsJLABqgCtgUisAcMC8vSBSKwhwAKRf5UhwAPDAOLy9IFIrVMlvpVTJLvDAJFw4vL0URShgUitCQH+lVMbu8MAkXDi8vRTC6GBSK0hwUDy9HMhqgCsK7ABqgCtgUirIcADkX+VIcAAwwDi8vQowwCOFvgjLqFQCLyBSKoBkX+VJ8ADwwDi8vSXN4FIqCfy8uKBSK1THL6VUxu7wwCRcOLy9CuhgUitIcFA8vRzIaoArLMasAmqAK4ZsQcD/gjIzsnIz5Mc9WoqGMs/F8wszwv/E8v/BI4VA8+DI26UMwLPgZbPg1AD+gLiEvQAlFsBz4HiyweIkyJus46YyMwCbyKIkyJus5jIzAJvIgPMyegyA8zJ6DLMycjPhYhSYPpScc8LbszJgED7AAXIy/8U+lISyz/LP8s/y3/LD8kKCggABO1UAZwhwUDy9HMhqgCssxOwAqoAUhCsErEBwAKTBqQG3lMSoaQnuo6TiMjPhYhSYPpScc8LbszJgwb7AN4FyMv/FPpSEss/yz/LP8t/yw/J7VQKAAACASANDgALuGhYEAuoAFW2K/Gg82NLc1lzG0MLS3Fzo3txcxsbS4FyayuTW2Mqk3t7pBFqYlxsXGMQABm1xRApFRQEEIH3flCQ');
-
     static Errors = {
         'MerkleRoot_Error.AlreadyExecuted': 18600,
         'MerkleRoot_Error.NotOwner': 18601,
@@ -822,8 +820,11 @@ export class MerkleRoot implements c.Contract {
         messageStates: uint128
         deliveredMessageCount?: uint16 /* = 0 */
     }, deployedOptions?: DeployedAddrOptions) {
+        if (!deployedOptions?.overrideContractCode) {
+            throw new Error('MerkleRoot.fromStorage requires deployedOptions.overrideContractCode');
+        }
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? MerkleRoot.CodeCell,
+            code: deployedOptions.overrideContractCode,
             data: MerkleRoot_Storage.toCell(MerkleRoot_Storage.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});

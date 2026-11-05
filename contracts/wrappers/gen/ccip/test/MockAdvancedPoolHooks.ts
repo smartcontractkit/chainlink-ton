@@ -272,8 +272,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MockAdvancedPoolHooks implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECCAEAAdIAART/APSkE/S88sgLAQIC0QIDAgEgBAUAz0bDPtRNDTB9GEB7qUhA/y8OAjqTgAncjPkIecdh4Uyz8SzMmdyM+SeKmtmhTLPxLMyeLtRNDTB9GBAP26jhYBqwDIz4UIE/pSWPoCcc8LaszJcfsA4DHIz4UIEvpScc8LbszJgED7AIAZk+JHyQCDXLCIJTohMjhIx0z/U0x/0BPoA9AX4l/iS8AHg1ywjgeFaxI4QMdM/1PoA0x/0BfiX+JLwAuDXLCYqO2lc4wIwhA8BxwDy9IAYAyxsMzPtRNDTB9GEB7qUhA/y8OAjqTgAnMjPkpt+mI4Uyz/MyZzIz5Ajy/7eFMs/zMni7UTQ0wfRgQD9uo4WAqsAyM+FCBL6UgH6AnHPC2rMyXH7AOAyyM+FCPpScc8LbszJgED7AIAH8MdM/+kgx0z8x+gAx0x8x0wchwgFsEvJF9AQx+lAx9AX4ku1E0NMH0SCEB7qUhA/y8OAggQD+upSAZPgB3m8AAZMhb4zeyM+QwYSsXhTLPyNviHNtVHIhqQaOGwHI9ABTIbYIUSKhIplTgG+BWPpSAaTkAckCoeQwMTXPCwcTBwAs9AD0AMnIz4UIEvpScc8LbszJgED7AA==');
-
     static Errors = {
     }
 
@@ -292,8 +290,11 @@ export class MockAdvancedPoolHooks implements c.Contract {
     static fromStorage(emptyStorage: {
         id: uint8
     }, deployedOptions?: DeployedAddrOptions) {
+        if (!deployedOptions?.overrideContractCode) {
+            throw new Error('MockAdvancedPoolHooks.fromStorage requires deployedOptions.overrideContractCode');
+        }
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? MockAdvancedPoolHooks.CodeCell,
+            code: deployedOptions.overrideContractCode,
             data: MockAdvancedPoolHooks_Data.toCell(MockAdvancedPoolHooks_Data.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});

@@ -785,8 +785,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TestMsgHasher implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECCgEAAVcAART/APSkE/S88sgLAQIBYgIDABjQ+JHyQIQPAccA8vQCASAEBQDPv58wDoaf/pn5jpn5jpn+mf6mp9JH0AegJoxoQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAEZGX/if0pC2WfqAL9AQnln+TkEuul+STBg915RIrnCuX/ieYJ5mZ6AHyLQCASAGBwIBSAgJAGG5bryI0INAZHTxx0URWYcBjzZ2aJQM1S08gD22SEq0SvqktqKO+gzxYTyz/LP8z5FoAGOwwPIjQgNrmuA7oAWlLcAn3tWi59feKrE4r0HoKT+knzixGfrXSDPFhPLP8s/+lL5FoACpsUuAdDT/zHTPzHTPzHTP9M/+kjU018x0Y0IAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgyCHXS/JJgwe68onOFcv/+lISyz/LP8z5FoA==');
-
     static Errors = {
     }
 
@@ -815,8 +813,11 @@ export class TestMsgHasher implements c.Contract {
 
     static fromStorage(emptyStorage: {
     }, deployedOptions?: DeployedAddrOptions) {
+        if (!deployedOptions?.overrideContractCode) {
+            throw new Error('TestMsgHasher.fromStorage requires deployedOptions.overrideContractCode');
+        }
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? TestMsgHasher.CodeCell,
+            code: deployedOptions.overrideContractCode,
             data: Storage.toCell(Storage.create()),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});

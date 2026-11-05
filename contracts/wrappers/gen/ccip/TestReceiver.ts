@@ -770,8 +770,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TestReceiver implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAApkAART/APSkE/S88sgLAQIBYgIDAgLGBAUCASAMDQO70/Ej5IBBrlhFtLx6acYFrlhJ9eSJ+RxWY/SQYfEl2omhrD/0kfSh9JBjBAGFEKKnjgor5egFkZ30pfSoJfSlnZPaqcGuWEz4ehR5xgWuWECqgR7ZxgRhCB4DjgHl6QYHCAIDo9IKCwH8Me1E0IEVGfiXggnJw4C+8vTTHzH6SDH6UDH6SNcLByDCAvJFgRUY+JJQA8cFEvL0AdO/0z/6ADHXTCOOFV8DIMABlYFKnPLw4MACk3DrpODyBeAzAtDT/9M/0wchwUHyiAGqAtcY1PQE0XAFyMv/FMs/ItdJIKk4AvJIqwIgCQBwMdcLByDCAvJF+JLtRNDWH/pI+lD6SNcLByDCAjHyRYIAwohRU8cFFfL0AsjO+lL6VPpSywfJ7VQAvjHtRNDTHzH6SDD4koIAwogCxwXy9NM/MddMk/ED6ACT8QPpACDaASP7BCPQ7R7tU+1EQBPaIe1UIfkAAdoBcAPIzBLL/87JyM+PGAAEghCjO0mOzwv3cc8LYczJAfsAAIjBQfKIzwsHEs7M9ADJyM+PGAAEghDFpAqzzwv3cc8LYczJAfsAcHT7AviSyM+FiPpSghAeVbv2zwuOEss/y7/Jgwb7AAAfIFNvAGLUxLjYuMIxwXy9IAAPItTEuNi4xiACASAODwAjv7UXaiaGmPmP0kGP0oGP0kGEAgEgEBEAC7hoWBAL+AIBIBITABm1xRApU5QEEIH3flCQAgEgFBUAW7BX40IWxpbmsuY2hhaW4udG9uLmNjaXAudGVzdC5SZWNlaXZlcoItTEuNi4xiAAEa4Q9qJoa4WPwAAzr0V2omhpj5j9JBj9KBj9JBjrhYOQYQF5IsA=');
-
     static Errors = {
         'TVMError.CellOverflow': 8,
         'Receiver_Error.Unauthorized': 5400,
@@ -810,8 +808,11 @@ export class TestReceiver implements c.Contract {
         authorizedCaller: c.Address
         behavior: TestReceiver_Behavior
     }, deployedOptions?: DeployedAddrOptions) {
+        if (!deployedOptions?.overrideContractCode) {
+            throw new Error('TestReceiver.fromStorage requires deployedOptions.overrideContractCode');
+        }
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? TestReceiver.CodeCell,
+            code: deployedOptions.overrideContractCode,
             data: Storage.toCell(Storage.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});

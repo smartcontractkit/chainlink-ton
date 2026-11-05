@@ -1245,8 +1245,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenAdminRegistryEntry implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
-
     static Errors = {
         'Upgradeable_Error.VersionMismatch': 19900,
         'TokenAdminRegistryEntry_Error.Unauthorized': 45000,
@@ -1275,8 +1273,11 @@ export class TokenAdminRegistryEntry implements c.Contract {
         tokenVerified?: boolean /* = false */
         pendingPool?: c.Address | null /* = null */
     }, deployedOptions?: DeployedAddrOptions) {
+        if (!deployedOptions?.overrideContractCode) {
+            throw new Error('TokenAdminRegistryEntry.fromStorage requires deployedOptions.overrideContractCode');
+        }
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? TokenAdminRegistryEntry.CodeCell,
+            code: deployedOptions.overrideContractCode,
             data: TokenRegistry_Storage.toCell(TokenRegistry_Storage.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});

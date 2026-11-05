@@ -632,8 +632,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenAdminRegistryEntryUpgradeTarget implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBCgEAwwABFP8A9KQT9LzyyAsBAgFiAgMCAsYEBQIBIAgJAIfT8SPkgdqJoanoCGOiQaH0kGOoY6mkAGP0oGOjCB/xJAWh9JH0oGP0oGOiJY4L5egDrlhEfWOmSeV/rpgDkZnoAZPaqQIDo9IGBwAtIFNvAGLUxLjYuMIxwXy9G0ByMz0AMmAADyLUyLjAuMIgABW+U/9qJoanoCGOjABRv6HHaiaGoY+gJokDdKmDa2trhHCehrlhFWOdVmeV/pn+mH6mjAgERxQ=');
-
     static Errors = {
         'Upgradeable_Error.VersionMismatch': 19900,
     }
@@ -654,8 +652,11 @@ export class TokenAdminRegistryEntryUpgradeTarget implements c.Contract {
         previousStorage: c.Cell
         resumed: TokenAdminRegistryEntry_MessageFromRoot | null
     }, deployedOptions?: DeployedAddrOptions) {
+        if (!deployedOptions?.overrideContractCode) {
+            throw new Error('TokenAdminRegistryEntryUpgradeTarget.fromStorage requires deployedOptions.overrideContractCode');
+        }
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? TokenAdminRegistryEntryUpgradeTarget.CodeCell,
+            code: deployedOptions.overrideContractCode,
             data: UpgradeTarget_Storage.toCell(UpgradeTarget_Storage.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});

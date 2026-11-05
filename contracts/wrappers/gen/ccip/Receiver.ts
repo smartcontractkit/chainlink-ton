@@ -434,8 +434,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class Receiver implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBAgEAGQABFP8A9KQT9LzyyAsBABTTMPiR8kCED/Lw');
-
     static Errors = {
     }
 
@@ -464,8 +462,11 @@ export class Receiver implements c.Contract {
 
     static fromStorage(emptyStorage: {
     }, deployedOptions?: DeployedAddrOptions) {
+        if (!deployedOptions?.overrideContractCode) {
+            throw new Error('Receiver.fromStorage requires deployedOptions.overrideContractCode');
+        }
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? Receiver.CodeCell,
+            code: deployedOptions.overrideContractCode,
             data: MockCCIPReceiver_Storage.toCell(MockCCIPReceiver_Storage.create()),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
