@@ -778,16 +778,18 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee, sender: address, isV1: bool) 
     var ccipSendCell = msg.ccipSend;
     var ccipSend = lazy msg.ccipSend.load();
     val onRampResult = st.onRamps.get(ccipSend.destChainSelector);
-    if (!onRampResult.isFound) {
-        return sendMessageValidationFailed(sender, Router_Error.DestChainNotEnabled as int32, msg.ccipSend, msg.context, isV1);
-    }
+    try {
+        assert (onRampResult.isFound) throw (Router_Error.DestChainNotEnabled);
 
-    if (ccipSend.feeToken == null) {
-        ccipSend.feeToken = NATIVE_GRAM;
-        // to save on gas, we only update ccipSendCell if necessary
-        ccipSendCell = ccipSend.toCell();
-    } else if (ccipSend.feeToken != NATIVE_GRAM) {
-        return sendMessageValidationFailed(sender, Router_Error.FeePaymentsWithJettonsNotSupported as int32, msg.ccipSend, msg.context, isV1);
+        if (ccipSend.feeToken == null) {
+            ccipSend.feeToken = NATIVE_GRAM;
+            // to save on gas, we only update ccipSendCell if necessary
+            ccipSendCell = ccipSend.toCell();
+        } else {
+            assert (ccipSend.feeToken == NATIVE_GRAM) throw (Router_Error.FeePaymentsWithJettonsNotSupported);
+        }
+    } catch (e) {
+        return sendMessageValidationFailed(sender, e as int32, msg.ccipSend, msg.context, isV1);
     }
 
     val feeQuoterMsg = createMessage({

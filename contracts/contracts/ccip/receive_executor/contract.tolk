@@ -181,17 +181,22 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
 
     st.state.queryID = msg.queryID;
     st.state.effectiveGasLimit = msg.effectiveGasLimit;
-    if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec(false)) {
+
+    // Gas guards: the value must cover the execution, plus the token transfer's destGasAmount when
+    // there is one. Both failures end the execution the same way.
+    try {
+        assert (value >= st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec(false)) throw (0);
+        if (msg.tokenTransfer != null) { // Message has token transfer
+            val transfer = lazy msg.tokenTransfer.load().transfer.load();
+            assert (value >= st.state.effectiveGasLimit + transfer.destGasAmount + ReceiveExecutor_Costs.initExec(true)) throw (0);
+        }
+    } catch {
         return endExecutionWithFailure(mutate st, message.header, 0);
     }
 
     if (msg.tokenTransfer != null) { // Message has token transfer
         val tokenTransfer = lazy msg.tokenTransfer.load();
         var ttInfo = st.state.tokenTransfer.loadOpt();
-        val transfer = lazy tokenTransfer.transfer.load();
-        if (value < st.state.effectiveGasLimit + transfer.destGasAmount + ReceiveExecutor_Costs.initExec(true)) {
-            return endExecutionWithFailure(mutate st, message.header, 0);
-        }
         ttInfo = ttInfo.init(tokenTransfer.transfer, tokenTransfer.tokenAdminRegistry, tokenTransfer.receiverAccount, tokenTransfer.offchainTokenData);
 
         if (ttInfo.state !is ReceiveExecutor_TokenTransferState_Success) {

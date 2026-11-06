@@ -1,6 +1,7 @@
 import "@stdlib/gas-payments"
 
 import "../../lib/utils"
+import "../lib/client/common/types"
 import "../lib/client/sender/messages"
 
 import "../pools/lib/token_pool/messages"
@@ -205,27 +206,26 @@ fun senderOnRampAccount(sender: address, token: address, router: address): addre
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated) {
     val hasTokens = !self.onrampSend.msg.load().tokenAmounts.empty();
-    if (msg.fee.feeTokenAmount + Router_Costs.CCIPSend(hasTokens) > self.onrampSend.metadata.value) {
-        self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds, NO_FEE_CHARGED);
-        return;
-    }
-
-    self.onrampSend.msg = msg.msg;
 
     // The FeeQuoter only reports destOverheads for token-transfer messages; a tokenless
     // message legitimately carries null there, so the single-overhead requirement below
     // applies to the token path only. It must hold BEFORE the fee is locked: a malformed
     // validated fee is a validation failure, not a post-reservation refund.
     var destOverhead: FeeQuoter_DestOverhead? = null;
-    if (!self.onrampSend.msg.load().tokenAmounts.empty()) {
-        if (msg.destOverheads == null) {
-            return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee, NO_FEE_CHARGED);
+    try {
+        assert (msg.fee.feeTokenAmount + Router_Costs.CCIPSend(hasTokens) <= self.onrampSend.metadata.value) throw (CCIPSendExecutor_Error.InsufficientFunds);
+        if (hasTokens) {
+            assert (msg.destOverheads != null) throw (CCIPSendExecutor_Error.InvalidValidatedFee);
+            destOverhead = msg.destOverheads.asSingle();
+            assert (destOverhead != null) throw (CCIPSendExecutor_Error.InvalidValidatedFee);
         }
-        destOverhead = msg.destOverheads.asSingle();
-        if (destOverhead == null) {
-            return self.exitWithError(CCIPSendExecutor_Error.InvalidValidatedFee, NO_FEE_CHARGED);
-        }
+    } catch (e) {
+        // Nothing is charged or committed yet.
+        self.exitWithError(e as int32, NO_FEE_CHARGED);
+        return;
     }
+
+    self.onrampSend.msg = msg.msg;
 
     val reserveFee = createMessage({
         bounce: BounceMode.RichBounce,
@@ -264,15 +264,13 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onFeeReserved
         return;
     }
 
-    if (state.destOverhead == null) {
-        self.exitWithError(CCIPSendExecutor_Error.MissingDestOverhead, chargedFee.feeTokenAmount);
-        return;
-    }
-
     // Else if there are token transfers continue querying the TokenAdminRegistry
-    val tokenAmount = tokenAmounts.asSingle();
-    if (tokenAmount == null) {
-        self.exitWithError(CCIPSendExecutor_Error.UnsupportedNumberOfTokens as int32, chargedFee.feeTokenAmount);
+    var tokenAmount: TokenAmount? = null;
+    try {
+        assert (state.destOverhead != null) throw (CCIPSendExecutor_Error.MissingDestOverhead);
+        tokenAmount = tokenAmounts.asSingle().unwrap(CCIPSendExecutor_Error.UnsupportedNumberOfTokens);
+    } catch (e) {
+        self.exitWithError(e as int32, chargedFee.feeTokenAmount);
         return;
     }
     // Token transfers always carry exactly one destGasOverhead (validated before the fee
@@ -305,18 +303,18 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onFeeReserved
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoReceived(mutate self, msg: TokenAdminRegistry_TokenInfo) {
     val state = self.state.load();
-    if (msg.poolInfo == null) {
-        self.exitWithError(CCIPSendExecutor_Error.TokenNotEnabled, state.chargedFee.feeTokenAmount);
-
+    var lockOrBurnAdmission: coins = 0;
+    var tokenPool: address = ZERO_ADDRESS;
+    try {
+        val poolInfo = msg.poolInfo.unwrap(CCIPSendExecutor_Error.TokenNotEnabled).load();
+        tokenPool = poolInfo.tokenPool;
+        lockOrBurnAdmission = poolInfo.admission.load().lockOrBurn;
+        // The Router checked the entry value against the pool-type default admission; a pool that
+        // raised its budget is only known here.
+        assert (contract.getOriginalBalance() >= OnRamp_Costs.ExecutorRequestsLockOrBurn(lockOrBurnAdmission) + SendExecutor_Costs.Finalize()) throw (CCIPSendExecutor_Error.InsufficientFunds);
+    } catch (e) {
+        self.exitWithError(e as int32, state.chargedFee.feeTokenAmount);
         return;
-    }
-
-    val poolInfo = msg.poolInfo!.load();
-    val lockOrBurnAdmission = poolInfo.admission.load().lockOrBurn;
-    // The Router checked the entry value against the pool-type default admission; a pool that
-    // raised its budget is only known here.
-    if (contract.getOriginalBalance() < OnRamp_Costs.ExecutorRequestsLockOrBurn(lockOrBurnAdmission) + SendExecutor_Costs.Finalize()) {
-        return self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds, state.chargedFee.feeTokenAmount);
     }
     val ccipSend = lazy self.onrampSend.msg.load();
     val tokenAmount = ccipSend.tokenAmounts.iter().next();
@@ -328,7 +326,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
         body: OnRamp_ExecutorRequestsLockOrBurn {
             queryID: ccipSend.queryID,
             tokenAmount: tokenAmount.toCell(),
-            tokenPool: poolInfo.tokenPool,
+            tokenPool,
             destChainSelector: ccipSend.destChainSelector,
             executorID: self.id,
             receiver: ccipSend.receiver.toCell(),
@@ -344,7 +342,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
             chargedFee: state.chargedFee,
             destOverhead: state.destOverhead,
             chainFamilySelector: state.chainFamilySelector,
-            tokenPool: poolInfo.tokenPool,
+            tokenPool,
         }.toCell(),
     };
     newState.store();
