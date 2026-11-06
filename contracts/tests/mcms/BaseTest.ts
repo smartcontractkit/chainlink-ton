@@ -171,6 +171,7 @@ export class BaseTestSetup {
 
     const data = {
       id: Number(generateRandomContractId()),
+      initializer: this.acc.deployer.address,
       minDelay: BaseTestSetup.MIN_DELAY,
       executorRoleCheckEnabled: true,
       opPendingInfo: {

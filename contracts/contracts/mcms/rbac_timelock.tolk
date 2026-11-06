@@ -486,6 +486,8 @@ struct Timelock<T> {
 struct Timelock_Data {
     /// ID allows multiple independent instances, since contract address depends on initial state.
     id: uint32;
+    /// Address allowed to initialize this timelock, bound at deployment (stateInit).
+    initializer: address;
 
     /// Minimum delay for operations in seconds
     minDelay: uint32;
@@ -624,6 +626,9 @@ enum Timelock_Error {
 
     /// Value attached to incoming message is not enough to pay for handler execution
     InsufficientFee
+
+    /// Thrown when the caller is not the configured initializer.
+    UnauthorizedInitializer
 }
 
 // --- Constants - storage ---
@@ -743,9 +748,10 @@ fun Timelock<T>.init(
     executorRoleCheckEnabled: bool = true,
     opFinalizationTimeout: uint32 = DEFAULT_FINALIZATION_TIMEOUT,
 ): void {
-    // @dev: anyone can call init, but only once. The deployer should send init message with stateInit (deployment).
+    // @dev: only the initializer configured at deployment can initialize the contract.
     // Check that the contract is not already initialized
     assert(!self.isInitialized()) throw Timelock_Error.ContractAlreadyInitialized;
+    assert(sender == self.data.initializer) throw Timelock_Error.UnauthorizedInitializer;
 
     assert(value >= Timelock_Costs.init(), Timelock_Error.InsufficientFee);
 

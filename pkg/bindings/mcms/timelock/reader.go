@@ -23,6 +23,11 @@ var GetMinDelay = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint64]{
 	}),
 })
 
+var GetIsInitialized = tvm.NewNoArgsGetter(tvm.NoArgsOpts[bool]{
+	Name:    "isInitialized",
+	Decoder: BoolRes,
+})
+
 var GetRoleMemberCount = tvm.Getter[*big.Int, uint64]{
 	Name: "getRoleMemberCount",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint64, error) {

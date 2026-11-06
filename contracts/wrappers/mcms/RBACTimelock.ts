@@ -170,6 +170,9 @@ export type ContractData = {
   // ID allows multiple independent instances, since contract address depends on initial state.
   id: number // uint32
 
+  // Address allowed to initialize the contract.
+  initializer: Address
+
   // Minimum delay for operations in seconds
   minDelay: number
   // Map of operation id to timestamp
@@ -704,6 +707,7 @@ export const builder = {
       encode: (data: ContractData): Builder => {
         return beginCell()
           .storeUint(data.id, 32)
+          .storeAddress(data.initializer)
           .storeUint(data.minDelay, 32)
           .storeDict(data.timestamps)
           .storeUint(data.blockedFnSelectorsLen || 0, 32) // blocked_fn_selectors_len
@@ -806,6 +810,8 @@ export enum Error {
   ContractNotInitialized,
   // Value attached to incoming message is not enough to pay for handler execution
   InsufficientFee,
+  // Thrown when the caller is not the configured initializer.
+  UnauthorizedInitializer,
 }
 
 export class ContractClient implements Contract {

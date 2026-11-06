@@ -1,15 +1,23 @@
 package timelock
 
 import (
+	"errors"
 	"math/big"
+
+	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 )
 
-func EmptyDataFrom(id uint32) Data {
+func EmptyDataFrom(id uint32, initializer *address.Address) (Data, error) {
+	if initializer == nil || initializer.IsAddrNone() {
+		return Data{}, errors.New("timelock initializer is required")
+	}
+
 	return Data{
 		ID:                       id,
+		Initializer:              initializer,
 		MinDelay:                 0,
 		Timestamps:               tlbe.NewEmptyDict[tlbe.Uint256, uint64](),
 		BlockedFnSelectorsLen:    0,
@@ -24,5 +32,5 @@ func EmptyDataFrom(id uint32) Data {
 		RBAC: rbac.Data{
 			Roles: tlbe.NewEmptyDict[tlbe.Uint256, rbac.RoleRef](),
 		},
-	}
+	}, nil
 }
