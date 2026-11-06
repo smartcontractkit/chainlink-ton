@@ -105,8 +105,8 @@ struct (0x19f0098f) Router_WithdrawToTokenPool {
 }
 
 struct Router_WithdrawRequest {
-    /// The sender's on-ramp account for the token, the withdraw is forwarded to.
-    depositAccount: address;
+    /// The Router derives the on-ramp account to withdraw from.
+    onRampAccount: Cell<Router_DepositAccountID>;
     amount: coins;
     tokenPool: address;
     /// TON the pool's custody notification carries (`TokenPool_LockOrBurnWithdraw.forwardTonAmount`).
@@ -376,9 +376,10 @@ fun Router_Costs.MessageValidationFailed(): int {
 }
 
 // Minimum value for calling Router_RouteMessage: the Router pays the receiver's forward fee
-// (2000-byte message) from this.
+// (2000-byte message) from this, and returns the rest to the executor via the OffRamp
+// (OffRamp_ReturnExcessToExecutor and its forward to the executor).
 fun Router_Costs.routeMessage(): int {
-    val baseFee = grams("0.004");
+    val baseFee = grams("0.007");
     return baseFee + Router_Costs.receiveConfirm();
 }
 

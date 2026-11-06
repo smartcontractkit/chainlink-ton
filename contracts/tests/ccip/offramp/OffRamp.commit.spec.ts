@@ -14,6 +14,7 @@ import { RMNREMOTE_GLOBAL_CURSE_SUBJECT } from '../../../wrappers/ccip/Router'
 
 import * as s from './OffRamp.Setup'
 import { Costs as OffRampCosts } from '../../../wrappers/ccip/OffRamp'
+import { findTransactionRequired } from '@ton/test-utils'
 
 export const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = BigInt(60)
 describe('OffRamp - Commit and OCR3 validations', () => {
@@ -92,6 +93,66 @@ describe('OffRamp - Commit and OCR3 validations', () => {
         of.OffRamp.Errors['OffRamp_Error.InsufficientFee'],
       )
       await setup.commitReport([root], OffRampCosts.commit(true, false), 0x01)
+    })
+
+    it('returns the commit excesses to the sender, keeping the OffRamp balance', async () => {
+      const message = setup.createTestMessage()
+      const metadataHash = s.getDefaultMetadataHash(
+        ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      )
+      const root = setup.createMerkleRoot(1n, 1n, generateMessageID(message, metadataHash))
+      await setup.setupOCRConfig()
+      await setup.setupSourceChainConfig()
+
+      const balanceBefore = (await blockchain.getContract(setup.offRamp.address)).balance
+      const result = await setup.commitReport([root], OffRampCosts.commit(true, false), 0x01)
+      const balanceAfter = (await blockchain.getContract(setup.offRamp.address)).balance
+
+      const commitTx = findTransactionRequired(result.transactions, {
+        from: setup.transmitters[0].address,
+        to: setup.offRamp.address,
+        op: of.OffRamp_Commit.PREFIX,
+      })
+      const excess = [...commitTx.outMessages.values()].find(
+        (m) => m.info.type === 'internal' && m.info.dest.equals(setup.transmitters[0].address),
+      )
+      // The trailing excesses message returns everything above the pre-transaction balance.
+      expect(excess?.info.type === 'internal' ? excess.info.value.coins : 0n).toBeGreaterThan(0n)
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.transmitters[0].address,
+        success: true,
+      })
+      expect(balanceAfter).toEqual(balanceBefore)
+    })
+
+    it('keeps the OffRamp balance when the commit value is one nanogram short', async () => {
+      const message = setup.createTestMessage()
+      const metadataHash = s.getDefaultMetadataHash(
+        ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+      )
+      const root = setup.createMerkleRoot(1n, 1n, generateMessageID(message, metadataHash))
+      await setup.setupOCRConfig()
+      await setup.setupSourceChainConfig()
+
+      const balanceBefore = (await blockchain.getContract(setup.offRamp.address)).balance
+      const result = await setup.commitReport(
+        [root],
+        OffRampCosts.commit(true, false) - 1n,
+        0x01,
+        null,
+        false,
+        of.OffRamp.Errors['OffRamp_Error.InsufficientFee'],
+      )
+      const balanceAfter = (await blockchain.getContract(setup.offRamp.address)).balance
+
+      // The aborted transaction bounces the value back, so the OffRamp keeps its balance.
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.transmitters[0].address,
+        success: true,
+      })
+      expect(balanceAfter).toEqual(balanceBefore)
     })
 
     it('requires the price update value only when the report carries prices', async () => {

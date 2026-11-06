@@ -2167,6 +2167,49 @@ export const OffRamp_UpdateCursedSubjects = {
 }
 
 /**
+ > struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
+ >     queryID: uint64
+ >     execId: ReceiveExecutorId
+ > }
+ */
+export interface OffRamp_ReturnExcessToExecutor {
+    readonly $: 'OffRamp_ReturnExcessToExecutor'
+    queryID: uint64
+    execId: ReceiveExecutorId
+}
+
+export const OffRamp_ReturnExcessToExecutor = {
+    PREFIX: 0x5397c75e,
+
+    create(args: {
+        queryID?: uint64
+        execId: ReceiveExecutorId
+    }): OffRamp_ReturnExcessToExecutor {
+        return {
+            $: 'OffRamp_ReturnExcessToExecutor',
+            ...args,
+            queryID: args.queryID ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): OffRamp_ReturnExcessToExecutor {
+        loadAndCheckPrefix32(s, 0x5397c75e, 'OffRamp_ReturnExcessToExecutor');
+        return {
+            $: 'OffRamp_ReturnExcessToExecutor',
+            queryID: s.loadUintBig(64),
+            execId: ReceiveExecutorId.fromSlice(s),
+        }
+    },
+    store(self: OffRamp_ReturnExcessToExecutor, b: c.Builder): void {
+        b.storeUint(0x5397c75e, 32);
+        b.storeUint(self.queryID, 64);
+        ReceiveExecutorId.store(self.execId, b);
+    },
+    toCell(self: OffRamp_ReturnExcessToExecutor): c.Cell {
+        return makeCellFrom<OffRamp_ReturnExcessToExecutor>(self, OffRamp_ReturnExcessToExecutor.store);
+    }
+}
+
+/**
  > struct CursePolicy {
  >     admin: Ownable2Step
  >     rbac: Cell<AccessControl_Data>
@@ -3122,6 +3165,44 @@ export const OffRamps = {
 }
 
 /**
+ > struct Router_DepositAccountID {
+ >     user: address
+ >     token: address
+ > }
+ */
+export interface Router_DepositAccountID {
+    readonly $: 'Router_DepositAccountID'
+    user: c.Address
+    token: c.Address
+}
+
+export const Router_DepositAccountID = {
+    create(args: {
+        user: c.Address
+        token: c.Address
+    }): Router_DepositAccountID {
+        return {
+            $: 'Router_DepositAccountID',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Router_DepositAccountID {
+        return {
+            $: 'Router_DepositAccountID',
+            user: s.loadAddress(),
+            token: s.loadAddress(),
+        }
+    },
+    store(self: Router_DepositAccountID, b: c.Builder): void {
+        b.storeAddress(self.user);
+        b.storeAddress(self.token);
+    },
+    toCell(self: Router_DepositAccountID): c.Cell {
+        return makeCellFrom<Router_DepositAccountID>(self, Router_DepositAccountID.store);
+    }
+}
+
+/**
  > struct (0x7db6745d) Router_ApplyRampUpdates {
  >     queryID: uint64
  >     onRampUpdates: OnRamps?
@@ -3376,7 +3457,7 @@ export const Router_WithdrawToTokenPool = {
 
 /**
  > struct Router_WithdrawRequest {
- >     depositAccount: address
+ >     onRampAccount: Cell<Router_DepositAccountID>
  >     amount: coins
  >     tokenPool: address
  >     forwardTonAmount: coins
@@ -3385,7 +3466,7 @@ export const Router_WithdrawToTokenPool = {
  */
 export interface Router_WithdrawRequest {
     readonly $: 'Router_WithdrawRequest'
-    depositAccount: c.Address
+    onRampAccount: Router_DepositAccountID
     amount: coins
     tokenPool: c.Address
     forwardTonAmount: coins
@@ -3394,7 +3475,7 @@ export interface Router_WithdrawRequest {
 
 export const Router_WithdrawRequest = {
     create(args: {
-        depositAccount: c.Address
+        onRampAccount: Router_DepositAccountID
         amount: coins
         tokenPool: c.Address
         forwardTonAmount: coins
@@ -3408,7 +3489,7 @@ export const Router_WithdrawRequest = {
     fromSlice(s: c.Slice): Router_WithdrawRequest {
         return {
             $: 'Router_WithdrawRequest',
-            depositAccount: s.loadAddress(),
+            onRampAccount: loadCellRef<Router_DepositAccountID>(s, Router_DepositAccountID.fromSlice),
             amount: s.loadCoins(),
             tokenPool: s.loadAddress(),
             forwardTonAmount: s.loadCoins(),
@@ -3416,7 +3497,7 @@ export const Router_WithdrawRequest = {
         }
     },
     store(self: Router_WithdrawRequest, b: c.Builder): void {
-        b.storeAddress(self.depositAccount);
+        storeCellRef<Router_DepositAccountID>(self.onRampAccount, b, Router_DepositAccountID.store);
         b.storeCoins(self.amount);
         b.storeAddress(self.tokenPool);
         b.storeCoins(self.forwardTonAmount);

@@ -224,6 +224,33 @@ describe('DepositAccount', () => {
     return { ...deployed, answerRes }
   }
 
+  const expectReturned = (
+    res: { transactions: BlockchainTransaction[] },
+    account: Address,
+    wallet: Address,
+    amount: bigint,
+    recipient: Address,
+  ) => {
+    expect(res.transactions).toHaveTransaction({
+      from: account,
+      to: wallet,
+      op: da.AskToTransfer.PREFIX,
+      body(body) {
+        if (!body) return false
+        const ask = da.AskToTransfer.fromSlice(body.beginParse())
+        return (
+          ask.jettonAmount === amount &&
+          ask.transferRecipient.equals(recipient) &&
+          ask.sendExcessesTo?.equals(recipient) === true
+        )
+      },
+    })
+    expect(res.transactions).not.toHaveTransaction({
+      from: account,
+      op: da.DepositAccount_ForwardNotification.PREFIX,
+    })
+  }
+
   it('deploys with owner, user and token', async () => {
     const { depositAccount } = await deployViaDeployable()
     expect((await depositAccount.getOwner()).equals(owner())).toBe(true)
@@ -418,7 +445,7 @@ describe('DepositAccount', () => {
   })
 
   it('forwards a jetton notification without a routing envelope to the user', async () => {
-    const { depositAccount } = await deployViaDeployable()
+    const { depositAccount } = await deployWithLearnedWallet()
 
     // The account's jetton wallet sends a plain Jetton notification to the account.
     const notificationBody = buildNotificationBody(3n, toNano('2'), user.address)
@@ -441,23 +468,36 @@ describe('DepositAccount', () => {
     })
   })
 
-  it('forwards a jetton notification from a non-account wallet sender to the user', async () => {
-    const { depositAccount } = await deployViaDeployable()
+  it('returns a notification from a wallet other than the learned one to its initiator', async () => {
+    const { depositAccount } = await deployWithLearnedWallet()
+    const initiator = await blockchain.treasury('initiator')
 
-    // Without a routing envelope, notifications from any sender are forwarded to the user.
-    const notificationBody = buildNotificationBody(3n, toNano('2'), user.address)
+    // Covers both a forged notification and jettons of another token.
     const res = await attacker.send({
       to: depositAccount.address,
       value: toNano('0.2'),
       bounce: false,
-      body: notificationBody,
+      body: buildNotificationBody(3n, toNano('2'), initiator.address),
     })
-    expect(res.transactions).toHaveTransaction({
-      from: depositAccount.address,
-      to: user.address,
-      success: true,
-      op: da.DepositAccount_ForwardNotification.PREFIX,
+    expectReturned(res, depositAccount.address, attacker.address, toNano('2'), initiator.address)
+  })
+
+  it('returns a minted notification from a wallet other than the learned one to the user', async () => {
+    const { depositAccount } = await deployWithLearnedWallet()
+    const res = await attacker.send({
+      to: depositAccount.address,
+      value: toNano('0.2'),
+      bounce: false,
+      body: TransferNotificationForRecipient.toCell(
+        TransferNotificationForRecipient.create({
+          queryID: 3n,
+          jettonAmount: toNano('2'),
+          transferInitiator: null,
+          forwardPayload: beginCell().storeMaybeRef(null).asSlice(),
+        }),
+      ),
     })
+    expectReturned(res, depositAccount.address, attacker.address, toNano('2'), user.address)
   })
 
   it('bounces unrecognized messages (only jetton notifications are forwarded)', async () => {
@@ -592,11 +632,7 @@ describe('DepositAccount', () => {
       bounce: false,
       body: buildNotifyNotificationBody(toNano('3'), target.address),
     })
-    expect(res.transactions).toHaveTransaction({
-      from: depositAccount.address,
-      to: user.address,
-      op: da.DepositAccount_ForwardNotification.PREFIX,
-    })
+    expectReturned(res, depositAccount.address, attacker.address, toNano('3'), user.address)
     expect(res.transactions).not.toHaveTransaction({
       from: depositAccount.address,
       to: target.address,
@@ -612,11 +648,7 @@ describe('DepositAccount', () => {
       bounce: false,
       body: buildNotifyNotificationBody(toNano('3'), target.address),
     })
-    expect(res.transactions).toHaveTransaction({
-      from: depositAccount.address,
-      to: user.address,
-      op: da.DepositAccount_ForwardNotification.PREFIX,
-    })
+    expectReturned(res, depositAccount.address, notifier.address, toNano('3'), user.address)
     expect(res.transactions).not.toHaveTransaction({
       from: depositAccount.address,
       to: target.address,
@@ -751,7 +783,7 @@ describe('DepositAccount', () => {
   })
 
   it('falls back to the user when the forward payload is not a DepositAccount_Notify envelope', async () => {
-    const { depositAccount } = await deployViaDeployable()
+    const { depositAccount } = await deployWithLearnedWallet()
     const notificationBody = TransferNotificationForRecipient.toCell(
       TransferNotificationForRecipient.create({
         queryID: 5n,

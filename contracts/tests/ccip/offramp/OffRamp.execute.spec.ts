@@ -260,7 +260,7 @@ describe('OffRamp - Execute', () => {
     })
 
     // R5: when the MerkleRoot rejects MerkleRoot_Validate, the OffRamp refunds the caller
-    // (replyTo) with OffRamp_MerkleRootValidateRejected { queryID }, NoBounce.
+    // (excessesTo) with OffRamp_MerkleRootValidateRejected { queryID }, NoBounce.
     describe('MerkleRoot_Validate rejection refunds the caller', () => {
       // Asserts the MerkleRoot rejected the validate, the OffRamp handled the rich bounce, and
       // the caller got a non-bounceable OffRamp_MerkleRootValidateRejected carrying the queryID

@@ -15,6 +15,7 @@ struct ReceiveExecutor_Storage {
         effectiveGasLimit: 0,
         // queryID is initialized in `onInitExecute`.
         queryID: 0,
+        excesses: null,
     };
     lastExecutionTimestamp: uint64 = 0;
 }

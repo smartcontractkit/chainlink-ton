@@ -1,3 +1,4 @@
+import "../../lib/deployable/types"
 import "../offramp/types"
 
 // SPDX-License-Identifier: BUSL-1.1
@@ -5,6 +6,8 @@ import "../offramp/types"
 const ReceiveExecutor_FACILITY_NAME = "link.chain.ton.ccip.ReceiveExecutor";
 const ReceiveExecutor_FACILITY_ID = ReceiveExecutor_FACILITY_NAME.crc32() % 640 + 10;  // 376
 // NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
+
+const RECEIVE_EXECUTOR_INIT_VALUE = DEPLOYABLE_INIT_VALUE
 
 // State stores the general state machine indicating which phase we're in
 struct ReceiveExecutor_State {
@@ -14,6 +17,17 @@ struct ReceiveExecutor_State {
     effectiveGasLimit: coins
     /// queryID propagated from the OffRamp execution flow, used in outgoing messages
     queryID: uint64 = 0
+    /// Refund target of the latest execute call, echoed back to the OffRamp when execution ends
+    excesses: Cell<ReceiveExecutor_Excesses>?
+}
+
+/// Who is refunded with the excesses of an execution attempt.
+struct ReceiveExecutor_Excesses {
+    /// Caller of the OffRamp execute (or manual execute) that started this attempt
+    to: address
+    /// True when this attempt deployed the executor, so its init value was funded by `to`.
+    /// Retries reuse the executor funded by an earlier caller, whose init value is not refunded.
+    includesInitValue: bool
 }
 
 struct ReceiveExecutor_TokenTransferInfo {

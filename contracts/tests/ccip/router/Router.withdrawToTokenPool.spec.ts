@@ -111,13 +111,13 @@ describe('Router.withdrawToTokenPool', () => {
   }
 
   const buildWithdrawRequest = (opts: {
-    depositAccount: Address
+    user: Address
     amount: bigint
     tokenPool: Address
     replyTo?: Address
   }): rt.Router_WithdrawRequest =>
     rt.Router_WithdrawRequest.create({
-      depositAccount: opts.depositAccount,
+      onRampAccount: rt.Router_DepositAccountID.create({ user: opts.user, token }),
       amount: opts.amount,
       tokenPool: opts.tokenPool,
       forwardTonAmount: toNano('0.05'),
@@ -207,7 +207,7 @@ describe('Router.withdrawToTokenPool', () => {
     const accountAddress = await deployDepositAccount(sender)
 
     const withdrawRequest = buildWithdrawRequest({
-      depositAccount: accountAddress,
+      user: sender.address,
       amount: toNano('5'),
       tokenPool: tokenPool.address,
     })
@@ -255,7 +255,7 @@ describe('Router.withdrawToTokenPool', () => {
       destChainSelector: destChainSelector + 1n, // never registered
       executor: executor.address,
       withdrawRequest: buildWithdrawRequest({
-        depositAccount: accountAddress,
+        user: sender.address,
         amount: toNano('5'),
         tokenPool: tokenPool.address,
       }),
@@ -319,7 +319,7 @@ describe('Router.withdrawToTokenPool', () => {
       destChainSelector,
       executor: executor.address,
       withdrawRequest: buildWithdrawRequest({
-        depositAccount: accountAddress,
+        user: sender.address,
         amount: toNano('5'),
         tokenPool: tokenPool.address,
       }),
@@ -342,7 +342,7 @@ describe('Router.withdrawToTokenPool', () => {
       destChainSelector,
       executor: executor.address,
       withdrawRequest: buildWithdrawRequest({
-        depositAccount: accountAddress,
+        user: sender.address,
         amount: toNano('5'),
         tokenPool: tokenPool.address,
       }),
@@ -369,7 +369,7 @@ describe('Router.withdrawToTokenPool', () => {
       destChainSelector,
       executor: executor.address,
       withdrawRequest: buildWithdrawRequest({
-        depositAccount: accountAddress,
+        user: sender.address,
         amount: toNano('5'),
         tokenPool: tokenPool.address,
         replyTo: otherExecutor.address,

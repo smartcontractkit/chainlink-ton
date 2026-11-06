@@ -179,7 +179,7 @@ describe('MerkleRoot - Message Handling', () => {
         metadataHash: METADATA_HASH,
         offchainTokenData: [[]],
         gasOverride: null,
-        replyTo: owner.address,
+        excessesTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -242,7 +242,7 @@ describe('MerkleRoot - Message Handling', () => {
             metadataHash: METADATA_HASH,
             offchainTokenData: [[]],
             gasOverride: null,
-            replyTo: owner.address,
+            excessesTo: owner.address,
           },
         )
         await blockchain.setShardAccount(owner.address, ownerAccount)
@@ -274,7 +274,7 @@ describe('MerkleRoot - Message Handling', () => {
           metadataHash: METADATA_HASH,
           offchainTokenData: [[]],
           gasOverride: buildGasOverride(),
-          replyTo: owner.address,
+          excessesTo: owner.address,
         })
         expect(retry.transactions).toHaveTransaction({
           from: merkleRoot.address,
@@ -329,7 +329,7 @@ describe('MerkleRoot - Message Handling', () => {
         metadataHash: METADATA_HASH,
         offchainTokenData: [[]],
         gasOverride: null,
-        replyTo: owner.address,
+        excessesTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -354,7 +354,7 @@ describe('MerkleRoot - Message Handling', () => {
         metadataHash: METADATA_HASH,
         offchainTokenData: [[]],
         gasOverride: null,
-        replyTo: owner.address,
+        excessesTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -379,7 +379,7 @@ describe('MerkleRoot - Message Handling', () => {
         metadataHash: METADATA_HASH,
         offchainTokenData: [[]],
         gasOverride: null,
-        replyTo: owner.address,
+        excessesTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -403,7 +403,7 @@ describe('MerkleRoot - Message Handling', () => {
         metadataHash: METADATA_HASH,
         offchainTokenData: [[]],
         gasOverride: buildGasOverride(),
-        replyTo: owner.address,
+        excessesTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -429,7 +429,7 @@ describe('MerkleRoot - Message Handling', () => {
         metadataHash: METADATA_HASH,
         offchainTokenData: [[]],
         gasOverride: buildGasOverride(),
-        replyTo: owner.address,
+        excessesTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -468,7 +468,7 @@ describe('MerkleRoot - Message Handling', () => {
         metadataHash: METADATA_HASH,
         offchainTokenData: [[]],
         gasOverride: buildGasOverride(),
-        replyTo: owner.address,
+        excessesTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -502,6 +502,7 @@ describe('MerkleRoot - Message Handling', () => {
       const result = await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
         seqNum: 1n,
         state: mr.ExecutionState.Success,
+        excessesTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -525,6 +526,7 @@ describe('MerkleRoot - Message Handling', () => {
       const result = await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
         seqNum: 1n,
         state: mr.ExecutionState.Failure,
+        excessesTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -548,6 +550,7 @@ describe('MerkleRoot - Message Handling', () => {
       const result = await merkleRoot.sendMerkleRootMarkState(nonOwner.getSender(), toNano('0.1'), {
         seqNum: 1n,
         state: mr.ExecutionState.Success,
+        excessesTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -568,6 +571,7 @@ describe('MerkleRoot - Message Handling', () => {
       const result = await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
         seqNum: 1n,
         state: mr.ExecutionState.Failure,
+        excessesTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -587,6 +591,7 @@ describe('MerkleRoot - Message Handling', () => {
       const result = await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
         seqNum: 1n,
         state: mr.ExecutionState.InProgress,
+        excessesTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -606,6 +611,7 @@ describe('MerkleRoot - Message Handling', () => {
       const result = await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
         seqNum: 42n,
         state: mr.ExecutionState.Success,
+        excessesTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -619,6 +625,7 @@ describe('MerkleRoot - Message Handling', () => {
     it('should freeze the contract and return the balance to owner when all messages are delivered', async () => {
       // Single-message range so a single Success finalizes the root.
       const merkleRoot = await deployMerkleRootContract(blockchain, owner, {
+        root: ROOT,
         minMsgNr: 1n,
         maxMsgNr: 1n,
         messageStates: encodeState(1n, mr.ExecutionState.InProgress, 1n),
@@ -627,6 +634,7 @@ describe('MerkleRoot - Message Handling', () => {
       const body = mr.MerkleRoot.createCellOfMerkleRootMarkState({
         seqNum: 1n,
         state: mr.ExecutionState.Success,
+        excessesTo: owner.address,
       })
 
       const txs = await sendMessageAsync(blockchain, owner.address, {
@@ -655,12 +663,29 @@ describe('MerkleRoot - Message Handling', () => {
       const snap = accountSnapshots.get(markStateSuccessTX.lt)
       if (!snap) throw new Error('Account snapshot not found for MerkleRoot_MarkState transaction')
 
-      // Freeze-return: merkleRoot sends its entire balance (CARRY_ALL_BALANCE) to owner.
-      // Final report: sent NoBounce, the root has nothing left to unwind.
+      // The excesses carried by MarkState go back to the owner first (mode 64), to be refunded
+      // to the execution caller.
+      const excessTX = findTransaction(transactions, {
+        from: merkleRoot.address,
+        to: owner.address,
+        op: mr.OffRamp_ReturnExecuteExcess.PREFIX,
+      })
+      if (!excessTX) throw new Error('ReturnExecuteExcess transaction not found')
+      const excessValue = flattenTransaction(excessTX).value
+      if (excessValue == undefined) throw new Error('Value not found in excess transaction')
+      const excess = mr.OffRamp_ReturnExecuteExcess.fromSlice(excessTX.inMessage!.body.beginParse())
+      expect(excess.root).toEqual(ROOT)
+      expect(excess.excessesTo.equals(owner.address)).toBe(true)
+      // Trigger value minus the MarkState fees.
+      expect(excessValue).toBeLessThan(toNano('0.1'))
+      expect(excessValue).toBeGreaterThan(toNano('0.09'))
+
+      // Final report, sent NoBounce: merkleRoot then sends the rest of its own balance (CARRY_ALL_BALANCE) to owner.
       const freezeTX = findTransaction(transactions, {
         from: merkleRoot.address,
         to: owner.address,
         inMessageBounceable: false,
+        body: (b) => b !== undefined && b.bits.length === 0 && b.refs.length === 0,
       })
       if (!freezeTX) throw new Error('Freeze return transaction not found')
       const returnedValue = flattenTransaction(freezeTX).value
@@ -668,10 +693,11 @@ describe('MerkleRoot - Message Handling', () => {
         throw new Error('Returned value not found in freeze transaction')
 
       expect(snap.before.balance).toBeGreaterThan(0n)
-      expect(returnedValue).toBeGreaterThan(snap.before.balance)
       expect(snap.after.balance).toEqual(0n)
-      // Returned value covers merkleRoot's pre-tx reserve plus most of the trigger value, minus fees.
-      expect(returnedValue).toBeGreaterThan(snap.before.balance)
+      // The freeze only carries the root's own pre-tx balance (minus forward fees), not the
+      // trigger value, which was returned as excess.
+      expect(returnedValue).toBeGreaterThan(0n)
+      expect(returnedValue).toBeLessThanOrEqual(snap.before.balance)
     })
   })
 })

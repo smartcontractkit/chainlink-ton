@@ -73,8 +73,9 @@ fun onExecuteValidatedBounced(mutate st: MerkleRoot_Storage, msg: OffRamp_Execut
 
 /*
 Marks the execution state of a message in a MerkleRoot contract.
-Ensures valid state transitions and finalizes the root once all messages are
-delivered by sending remaining balance back to the OffRamp owner.
+Ensures valid state transitions, returns the excesses carried by the message to the OffRamp
+(which refunds the execution caller), and finalizes the root once all messages are delivered by
+sending remaining balance back to the OffRamp owner.
 */
 fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
     // validate we're transitioning states correctly: success is final
@@ -89,9 +90,23 @@ fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
         st.deliveredMessageCount += 1;
     }
 
+    // Return the excesses carried by this message (inbound value minus this transaction's fees)
+    // to the OffRamp, which refunds them to the execution caller.
+    val excesses = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: st.owner,
+        body: OffRamp_ReturnExecuteExcess {
+            root: st.root,
+            excessesTo: msg.excessesTo,
+        },
+    });
+    excesses.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+
     if (st.deliveredMessageCount == st.expectedMessages()) {
-        // if this is the last message from the root we return all the balance to the OffRamp and freeze the contract.
-        // Final report: the root is drained, so a bounce could not unwind anything.
+        // If this is the last message from the root we return the rest of the balance to the
+        // OffRamp and freeze the contract. This is the root's own balance (funded by the commit),
+        // not the caller's: the caller's excesses were already returned above.
         val freezeRoot = createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
@@ -140,6 +155,7 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
             gasOverride: msg.gasOverride,
             executionState: state,
             offchainTokenData: msg.offchainTokenData,
+            excessesTo: msg.excessesTo,
         }
     });
     executeValidated.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);

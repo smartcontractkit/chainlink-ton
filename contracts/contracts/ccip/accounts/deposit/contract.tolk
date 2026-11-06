@@ -203,13 +203,14 @@ fun onWithdrawBounced(wallet: address, ask: AskToTransfer) {
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
-/// Notifications from any sender are forwarded to `user`; only those from the account's learned
-/// jetton wallet may be redirected through a `DepositAccount_Notify`.
+/// Only notifications from the learned jetton wallet are forwarded. Any other sender is asked to
+/// return the jettons, so a forged notification only gets back its own value.
 fun onTransferNotification(sender: address, msg: TransferNotificationForRecipient, body: slice) {
     val data = lazy DepositAccount_Data.load();
-    val notifyTarget = data.wallet != null && sender == data.wallet.load()
-        ? parseNotifyTarget(msg.forwardPayload)
-        : null;
+    if (data.wallet == null || sender != data.wallet.load()) {
+        return returnForeignTransfer(sender, msg, data.user);
+    }
+    val notifyTarget = parseNotifyTarget(msg.forwardPayload);
     val notification = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
@@ -219,6 +220,25 @@ fun onTransferNotification(sender: address, msg: TransferNotificationForRecipien
         },
     });
     notification.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+}
+
+/// Jettons minted to the account have no initiator and go to `user`.
+fun returnForeignTransfer(wallet: address, msg: TransferNotificationForRecipient, user: address) {
+    val recipient = msg.transferInitiator != null ? msg.transferInitiator! : user;
+    createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: wallet,
+        body: AskToTransfer {
+            queryID: msg.queryID,
+            jettonAmount: msg.jettonAmount,
+            transferRecipient: recipient,
+            sendExcessesTo: recipient,
+            customPayload: null,
+            forwardTonAmount: 0,
+            forwardPayload: beginCell().storeMaybeRef(null).endCell().beginParse(),
+        },
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
 }
 
 /// Returns the `DepositAccount_Notify` target in `forwardPayload`, directly or inside a

@@ -12,13 +12,12 @@ import "../fee_quoter/types"
 import "../onramp/messages"
 import "../onramp/types"
 import "../router/messages"
-import "../router/utils"
+import "../router/types"
 
 import "types"
 import "messages"
 import "storage"
 import "errors"
-import "../../../gen/Deployable.code"
 
 tolk 1.4.2
 
@@ -197,11 +196,6 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
         }
     });
     getValidatedFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-}
-
-/// The original sender's on-ramp account for `token`, holding the jettons to transfer.
-fun senderOnRampAccount(sender: address, token: address, router: address): address {
-    return Router.onRampAccount(router, sender, token, deployableCompiledCode()).calculateAddress();
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated) {
@@ -383,7 +377,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
             chainFamilySelector: state.chainFamilySelector,
             destBytesOverhead: state.destOverhead.destBytesOverhead,
             withdrawRequest: Router_WithdrawRequest {
-                depositAccount: senderOnRampAccount(self.onrampSend.metadata.sender, tokenAmount.token, self.addresses.load().router),
+                onRampAccount: Router_DepositAccountID { user: self.onrampSend.metadata.sender, token: tokenAmount.token }.toCell(),
                 amount: tokenAmount.amount,
                 tokenPool: state.tokenPool,
                 forwardTonAmount: msg.forwardTonAmount,

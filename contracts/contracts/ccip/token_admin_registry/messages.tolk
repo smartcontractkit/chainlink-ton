@@ -20,6 +20,7 @@ type TokenAdminRegistry_InMessage =
     | TokenAdminRegistry_PoolSet
     | TokenAdminRegistry_VerifyToken
     | TokenAdminRegistry_RefreshPoolConfig
+    | TokenAdminRegistry_UpgradeRefund
     | Withdrawable_Withdraw;
 
 /// Root messages to an entry that may come back as rich bounces.
@@ -150,6 +151,12 @@ struct (0x55b8b654) TokenAdminRegistry_EntryUpgradeRequest {
     queryID: uint64;
     token: address;
     request: Cell<TokenAdminRegistryEntry_MessageFromRoot>;
+}
+
+/// Returns the value of an Upgradeable_Upgrade that an entry already running that code skipped.
+// crc32('TokenAdminRegistry_UpgradeRefund')
+struct (0x85f1f9f0) TokenAdminRegistry_UpgradeRefund {
+    queryID: uint64;
 }
 
 /// Permissionless: upgrades the derived entry to the root's entry code.

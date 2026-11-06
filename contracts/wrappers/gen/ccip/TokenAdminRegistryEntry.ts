@@ -977,6 +977,44 @@ export const TokenAdminRegistry_EntryUpgradeRequest = {
 }
 
 /**
+ > struct (0x85f1f9f0) TokenAdminRegistry_UpgradeRefund {
+ >     queryID: uint64
+ > }
+ */
+export interface TokenAdminRegistry_UpgradeRefund {
+    readonly $: 'TokenAdminRegistry_UpgradeRefund'
+    queryID: uint64
+}
+
+export const TokenAdminRegistry_UpgradeRefund = {
+    PREFIX: 0x85f1f9f0,
+
+    create(args: {
+        queryID?: uint64
+    }): TokenAdminRegistry_UpgradeRefund {
+        return {
+            $: 'TokenAdminRegistry_UpgradeRefund',
+            ...args,
+            queryID: args.queryID ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenAdminRegistry_UpgradeRefund {
+        loadAndCheckPrefix32(s, 0x85f1f9f0, 'TokenAdminRegistry_UpgradeRefund');
+        return {
+            $: 'TokenAdminRegistry_UpgradeRefund',
+            queryID: s.loadUintBig(64),
+        }
+    },
+    store(self: TokenAdminRegistry_UpgradeRefund, b: c.Builder): void {
+        b.storeUint(0x85f1f9f0, 32);
+        b.storeUint(self.queryID, 64);
+    },
+    toCell(self: TokenAdminRegistry_UpgradeRefund): c.Cell {
+        return makeCellFrom<TokenAdminRegistry_UpgradeRefund>(self, TokenAdminRegistry_UpgradeRefund.store);
+    }
+}
+
+/**
  > struct (0x2c76b973) RequestWalletAddress {
  >     queryID: uint64
  >     ownerAddress: address

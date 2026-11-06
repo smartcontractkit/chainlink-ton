@@ -81,6 +81,7 @@ fun onInternalMessage(in: InMessage) {
             requireEntrySender(st, msg.token, in.senderAddress);
             upgradeAndResume(in.senderAddress, msg.queryID, msg.request, in.valueCoins);
         }
+        TokenAdminRegistry_UpgradeRefund => {}
         TokenAdminRegistry_UpgradeEntry => {
             assert(in.valueCoins >= TokenAdminRegistryEntry_upgradeCost(entryCode())) throw (TokenAdminRegistry_Error.InsufficientValue);
             sendUpgrade(entryAddress(msg.tokenAddress).calculateAddress(), msg.queryID, 0, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);

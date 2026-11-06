@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 
-import { Cell, Message, toNano } from '@ton/core'
+import { Address, Cell, Message, toNano } from '@ton/core'
 import { Blockchain } from '@ton/sandbox'
 
 import * as coverage from '../../coverage/coverage'
@@ -111,7 +111,6 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
 
   it('answers an upgrade request with an Upgradeable_Upgrade followed by the request as a Resume', async () => {
     const before = await accountState(fx)
-    const rootBalanceBefore = (await blockchain.getContract(fx.registry.address)).balance
     const request = resolveTokenInfo(ENTRY_VERSION)
     const result = await fx.registry.sendTokenAdminRegistryEntryUpgradeRequest(
       asEntry(fx),
@@ -147,10 +146,42 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
       fx.pool,
     )
     expect(await accountState(fx)).toEqual(before)
-    // The root balance funds the Upgrade, so the request keeps its own value.
-    const rootSpent =
-      rootBalanceBefore - (await blockchain.getContract(fx.registry.address)).balance
-    expect(rootSpent).toBeGreaterThanOrEqual(await fx.registry.getEntryUpgradeCost())
+  })
+
+  it('returns the funding of upgrades the entry skips to the root', async () => {
+    const upgradeCost = await fx.registry.getEntryUpgradeCost()
+    const balance = async (addr: Address) => (await blockchain.getContract(addr)).balance
+    const rootBefore = await balance(fx.registry.address)
+    const entryBefore = await balance(entryAddress(fx))
+
+    // A burst of deferred requests, each answered with a root-funded Upgrade.
+    const requests = 3
+    for (let i = 0; i < requests; i++) {
+      const result = await fx.registry.sendTokenAdminRegistryEntryUpgradeRequest(
+        asEntry(fx),
+        Costs.getTokenInfo,
+        { queryID: BigInt(30 + i), token: fx.token, request: resolveTokenInfo(ENTRY_VERSION) },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: fx.registry.address,
+        to: entryAddress(fx),
+        op: tare.Upgradeable_Upgrade.PREFIX,
+        value: upgradeCost,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: entryAddress(fx),
+        to: fx.registry.address,
+        op: tar.TokenAdminRegistry_UpgradeRefund.PREFIX,
+        success: true,
+      })
+    }
+
+    // The entry keeps none of the funding; the root only pays the fees.
+    expect(await balance(entryAddress(fx))).toBeLessThanOrEqual(entryBefore)
+    expect(rootBefore - (await balance(fx.registry.address))).toBeLessThan(
+      upgradeCost * BigInt(requests),
+    )
   })
 
   it('answers a request that only carries its own cost, funding the upgrade from the root', async () => {
