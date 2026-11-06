@@ -23,15 +23,15 @@ sequenceDiagram
     participant U as User
 
     activate R
-    Note over R: RECEIVES Receiver_CCIPReceiveV2 { execId,<br>message: { messageId,<br>sourceChain, sender, data }
-    R ->> U: Receiver_CCIPReceiveV2 { execId,<br>message: { messageId,<br>sourceChain, sender, data }
+    Note over R: RECEIVES Receiver_CCIPReceiveV2 { execID,<br>message: { messageId,<br>sourceChain, sender, data }
+    R ->> U: Receiver_CCIPReceiveV2 { execID,<br>message: { messageId,<br>sourceChain, sender, data }
     deactivate R
 
 
 
     activate U
     Note over U: Verifies sender is Router
-    U ->> R: CCIPReceiveConfirm<br>{ execId }
+    U ->> R: CCIPReceiveConfirm<br>{ execID }
     Note over U: Process message data [...]
     deactivate U
 ```
@@ -44,17 +44,17 @@ sequenceDiagram
     participant U as User
 
     activate R
-    Note over R: RECEIVES Receiver_CCIPReceiveV2 { execId,<br>message: { messageId,<br>sourceChain, sender, data }
-    R ->> U: Receiver_CCIPReceiveV2 { execId,<br>message: { messageId,<br>sourceChain, sender, data }
+    Note over R: RECEIVES Receiver_CCIPReceiveV2 { execID,<br>message: { messageId,<br>sourceChain, sender, data }
+    R ->> U: Receiver_CCIPReceiveV2 { execID,<br>message: { messageId,<br>sourceChain, sender, data }
     deactivate R
 
 
 
     activate U
     Note over U: Verifies sender is Router
-    U -x R: CCIPReceiveConfirm<br>{ execId }
+    U -x R: CCIPReceiveConfirm<br>{ execID }
     Note over U: Fails on processing message data [...]
-    U ->> R: Bounced Receiver_CCIPReceiveV2 { execId }
+    U ->> R: Bounced Receiver_CCIPReceiveV2 { execID }
     deactivate U
 ```
 

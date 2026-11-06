@@ -98,7 +98,7 @@ struct SourceChainConfigUpdate {
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
     queryId: uint64;
     message: Cell<Any2TVMRampMessage>;
-    execId: uint192;
+    execID: uint192;
     // Gas limit to use for the message execution
     effectiveGasLimit: coins;
     // Token amounts delivered to the receiver, denominated in local token decimals.
@@ -107,19 +107,19 @@ struct (0x58cfcb02) OffRamp_DispatchValidated {
 
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
     queryId: uint64;
-    execId: ReceiveExecutorId;
+    execID: ReceiveExecutionID;
     receiver: address;
 }
 
 struct (0x2dcf2a43) OffRamp_CCIPReceiveBounced {
-    execId: ReceiveExecutorId;
+    execID: ReceiveExecutionID;
     receiver: address;
 }
 
 struct (0x59e56170) OffRamp_NotifySuccess {
     queryId: uint64;
     header: Cell<RampMessageHeader>;
-    execId: ReceiveExecutorId;
+    execID: ReceiveExecutionID;
     root: address;
     /// Set for token-only messages: the token transfer delivery to relay to the pool.
     delivered: Cell<OffRamp_DeliveredTransfer>? = null;
@@ -131,7 +131,7 @@ struct (0x59e56170) OffRamp_NotifySuccess {
 /// (messages without data carry this in `OffRamp_NotifySuccess` instead).
 struct (0xb4b39784) OffRamp_TokenTransferDelivered {
     queryId: uint64;
-    execId: ReceiveExecutorId;
+    execID: ReceiveExecutionID;
     delivered: Cell<OffRamp_DeliveredTransfer>;
 }
 
@@ -143,7 +143,7 @@ struct OffRamp_DeliveredTransfer {
 struct (0x177ebd03) OffRamp_NotifyFailure {
     queryId: uint64;
     header: Cell<RampMessageHeader>;
-    execId: ReceiveExecutorId;
+    execID: ReceiveExecutionID;
     root: address;
     /// Caller of the execution attempt and whether it funded the executor's init value.
     excesses: Cell<ReceiveExecutor_Excesses>;
@@ -166,7 +166,7 @@ struct (0x453736a5) OffRamp_SetTokenAdminRegistry {
 
 struct (0x7deaf076) OffRamp_ReleaseOrMint {
     queryId: uint64
-    execId: ReceiveExecutorId
+    execID: ReceiveExecutionID
     tokenPool: address
     destGasAmount: coins
     requestedFinalityConfig: uint32
@@ -175,7 +175,7 @@ struct (0x7deaf076) OffRamp_ReleaseOrMint {
 
 struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
     queryId: uint64;
-    execId: ReceiveExecutorId;
+    execID: ReceiveExecutionID;
 }
 
 /// Sent by a MerkleRoot after marking a message state: carries the execution excesses back to

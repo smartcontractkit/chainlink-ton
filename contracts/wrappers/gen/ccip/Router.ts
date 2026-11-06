@@ -1416,7 +1416,7 @@ export const Router_CCIPSend = {
 
 /**
  > struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
- >     execId: uint192
+ >     execID: uint192
  >     queryId: uint64
  >     confirmValue: coins
  >     message: Cell<Any2TVMMessage>
@@ -1424,7 +1424,7 @@ export const Router_CCIPSend = {
  */
 export interface Receiver_CCIPReceiveV2 {
     readonly $: 'Receiver_CCIPReceiveV2'
-    execId: uint192
+    execID: uint192
     queryId: uint64
     confirmValue: coins
     message: Any2TVMMessage
@@ -1434,7 +1434,7 @@ export const Receiver_CCIPReceiveV2 = {
     PREFIX: 0x5b4bc7a6,
 
     create(args: {
-        execId: uint192
+        execID: uint192
         queryId?: uint64
         confirmValue: coins
         message: Any2TVMMessage
@@ -1449,7 +1449,7 @@ export const Receiver_CCIPReceiveV2 = {
         loadAndCheckPrefix32(s, 0x5b4bc7a6, 'Receiver_CCIPReceiveV2');
         return {
             $: 'Receiver_CCIPReceiveV2',
-            execId: s.loadUintBig(192),
+            execID: s.loadUintBig(192),
             queryId: s.loadUintBig(64),
             confirmValue: s.loadCoins(),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
@@ -1457,7 +1457,7 @@ export const Receiver_CCIPReceiveV2 = {
     },
     store(self: Receiver_CCIPReceiveV2, b: c.Builder): void {
         b.storeUint(0x5b4bc7a6, 32);
-        b.storeUint(self.execId, 192);
+        b.storeUint(self.execID, 192);
         b.storeUint(self.queryId, 64);
         b.storeCoins(self.confirmValue);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
@@ -1470,13 +1470,13 @@ export const Receiver_CCIPReceiveV2 = {
 /**
  > struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
  >     queryId: uint64
- >     execId: ReceiveExecutorId
+ >     execID: ReceiveExecutionID
  > }
  */
 export interface Router_CCIPReceiveConfirm {
     readonly $: 'Router_CCIPReceiveConfirm'
     queryId: uint64
-    execId: ReceiveExecutorId
+    execID: ReceiveExecutionID
 }
 
 export const Router_CCIPReceiveConfirm = {
@@ -1484,7 +1484,7 @@ export const Router_CCIPReceiveConfirm = {
 
     create(args: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
     }): Router_CCIPReceiveConfirm {
         return {
             $: 'Router_CCIPReceiveConfirm',
@@ -1497,13 +1497,13 @@ export const Router_CCIPReceiveConfirm = {
         return {
             $: 'Router_CCIPReceiveConfirm',
             queryId: s.loadUintBig(64),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execID: ReceiveExecutionID.fromSlice(s),
         }
     },
     store(self: Router_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0x1e55bbf6, 32);
         b.storeUint(self.queryId, 64);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execID, b);
     },
     toCell(self: Router_CCIPReceiveConfirm): c.Cell {
         return makeCellFrom<Router_CCIPReceiveConfirm>(self, Router_CCIPReceiveConfirm.store);
@@ -1564,19 +1564,19 @@ export const Any2TVMMessage = {
 }
 
 /**
- > type ReceiveExecutorId = uint192
+ > type ReceiveExecutionID = uint192
  */
-export type ReceiveExecutorId = uint192
+export type ReceiveExecutionID = uint192
 
-export const ReceiveExecutorId = {
-    fromSlice(s: c.Slice): ReceiveExecutorId {
+export const ReceiveExecutionID = {
+    fromSlice(s: c.Slice): ReceiveExecutionID {
         return s.loadUintBig(192);
     },
-    store(self: ReceiveExecutorId, b: c.Builder): void {
+    store(self: ReceiveExecutionID, b: c.Builder): void {
         b.storeUint(self, 192);
     },
-    toCell(self: ReceiveExecutorId): c.Cell {
-        return makeCellFrom<ReceiveExecutorId>(self, ReceiveExecutorId.store);
+    toCell(self: ReceiveExecutionID): c.Cell {
+        return makeCellFrom<ReceiveExecutionID>(self, ReceiveExecutionID.store);
     }
 }
 
@@ -2042,14 +2042,14 @@ export const Metadata = {
 /**
  > struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
  >     queryId: uint64
- >     execId: ReceiveExecutorId
+ >     execID: ReceiveExecutionID
  >     receiver: address
  > }
  */
 export interface OffRamp_CCIPReceiveConfirm {
     readonly $: 'OffRamp_CCIPReceiveConfirm'
     queryId: uint64
-    execId: ReceiveExecutorId
+    execID: ReceiveExecutionID
     receiver: c.Address
 }
 
@@ -2058,7 +2058,7 @@ export const OffRamp_CCIPReceiveConfirm = {
 
     create(args: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         receiver: c.Address
     }): OffRamp_CCIPReceiveConfirm {
         return {
@@ -2072,14 +2072,14 @@ export const OffRamp_CCIPReceiveConfirm = {
         return {
             $: 'OffRamp_CCIPReceiveConfirm',
             queryId: s.loadUintBig(64),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execID: ReceiveExecutionID.fromSlice(s),
             receiver: s.loadAddress(),
         }
     },
     store(self: OffRamp_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0x28f4166f, 32);
         b.storeUint(self.queryId, 64);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execID, b);
         b.storeAddress(self.receiver);
     },
     toCell(self: OffRamp_CCIPReceiveConfirm): c.Cell {
@@ -2089,13 +2089,13 @@ export const OffRamp_CCIPReceiveConfirm = {
 
 /**
  > struct (0x2dcf2a43) OffRamp_CCIPReceiveBounced {
- >     execId: ReceiveExecutorId
+ >     execID: ReceiveExecutionID
  >     receiver: address
  > }
  */
 export interface OffRamp_CCIPReceiveBounced {
     readonly $: 'OffRamp_CCIPReceiveBounced'
-    execId: ReceiveExecutorId
+    execID: ReceiveExecutionID
     receiver: c.Address
 }
 
@@ -2103,7 +2103,7 @@ export const OffRamp_CCIPReceiveBounced = {
     PREFIX: 0x2dcf2a43,
 
     create(args: {
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         receiver: c.Address
     }): OffRamp_CCIPReceiveBounced {
         return {
@@ -2115,13 +2115,13 @@ export const OffRamp_CCIPReceiveBounced = {
         loadAndCheckPrefix32(s, 0x2dcf2a43, 'OffRamp_CCIPReceiveBounced');
         return {
             $: 'OffRamp_CCIPReceiveBounced',
-            execId: ReceiveExecutorId.fromSlice(s),
+            execID: ReceiveExecutionID.fromSlice(s),
             receiver: s.loadAddress(),
         }
     },
     store(self: OffRamp_CCIPReceiveBounced, b: c.Builder): void {
         b.storeUint(0x2dcf2a43, 32);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execID, b);
         b.storeAddress(self.receiver);
     },
     toCell(self: OffRamp_CCIPReceiveBounced): c.Cell {
@@ -2169,13 +2169,13 @@ export const OffRamp_UpdateCursedSubjects = {
 /**
  > struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
  >     queryId: uint64
- >     execId: ReceiveExecutorId
+ >     execID: ReceiveExecutionID
  > }
  */
 export interface OffRamp_ReturnExcessToExecutor {
     readonly $: 'OffRamp_ReturnExcessToExecutor'
     queryId: uint64
-    execId: ReceiveExecutorId
+    execID: ReceiveExecutionID
 }
 
 export const OffRamp_ReturnExcessToExecutor = {
@@ -2183,7 +2183,7 @@ export const OffRamp_ReturnExcessToExecutor = {
 
     create(args: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
     }): OffRamp_ReturnExcessToExecutor {
         return {
             $: 'OffRamp_ReturnExcessToExecutor',
@@ -2196,13 +2196,13 @@ export const OffRamp_ReturnExcessToExecutor = {
         return {
             $: 'OffRamp_ReturnExcessToExecutor',
             queryId: s.loadUintBig(64),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execID: ReceiveExecutionID.fromSlice(s),
         }
     },
     store(self: OffRamp_ReturnExcessToExecutor, b: c.Builder): void {
         b.storeUint(0x5397c75e, 32);
         b.storeUint(self.queryId, 64);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execID, b);
     },
     toCell(self: OffRamp_ReturnExcessToExecutor): c.Cell {
         return makeCellFrom<OffRamp_ReturnExcessToExecutor>(self, OffRamp_ReturnExcessToExecutor.store);
@@ -3262,7 +3262,7 @@ export const Router_ApplyRampUpdates = {
  > struct (0xfc69c50b) Router_RouteMessage {
  >     queryId: uint64
  >     message: Cell<Any2TVMMessage>
- >     execId: ReceiveExecutorId
+ >     execID: ReceiveExecutionID
  >     receiver: address
  >     gasLimit: coins
  > }
@@ -3271,7 +3271,7 @@ export interface Router_RouteMessage {
     readonly $: 'Router_RouteMessage'
     queryId: uint64
     message: Any2TVMMessage
-    execId: ReceiveExecutorId
+    execID: ReceiveExecutionID
     receiver: c.Address
     gasLimit: coins
 }
@@ -3282,7 +3282,7 @@ export const Router_RouteMessage = {
     create(args: {
         queryId?: uint64
         message: Any2TVMMessage
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         receiver: c.Address
         gasLimit: coins
     }): Router_RouteMessage {
@@ -3298,7 +3298,7 @@ export const Router_RouteMessage = {
             $: 'Router_RouteMessage',
             queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execID: ReceiveExecutionID.fromSlice(s),
             receiver: s.loadAddress(),
             gasLimit: s.loadCoins(),
         }
@@ -3307,7 +3307,7 @@ export const Router_RouteMessage = {
         b.storeUint(0xfc69c50b, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execID, b);
         b.storeAddress(self.receiver);
         b.storeCoins(self.gasLimit);
     },
@@ -4988,19 +4988,19 @@ export const OffRampRemoved = {
 /**
  > struct MessageToOffRampBounced {
  >     offRamp: address
- >     execId: uint192
+ >     execID: uint192
  > }
  */
 export interface MessageToOffRampBounced {
     readonly $: 'MessageToOffRampBounced'
     offRamp: c.Address
-    execId: uint192
+    execID: uint192
 }
 
 export const MessageToOffRampBounced = {
     create(args: {
         offRamp: c.Address
-        execId: uint192
+        execID: uint192
     }): MessageToOffRampBounced {
         return {
             $: 'MessageToOffRampBounced',
@@ -5011,12 +5011,12 @@ export const MessageToOffRampBounced = {
         return {
             $: 'MessageToOffRampBounced',
             offRamp: s.loadAddress(),
-            execId: s.loadUintBig(192),
+            execID: s.loadUintBig(192),
         }
     },
     store(self: MessageToOffRampBounced, b: c.Builder): void {
         b.storeAddress(self.offRamp);
-        b.storeUint(self.execId, 192);
+        b.storeUint(self.execID, 192);
     },
     toCell(self: MessageToOffRampBounced): c.Cell {
         return makeCellFrom<MessageToOffRampBounced>(self, MessageToOffRampBounced.store);
@@ -5469,7 +5469,7 @@ export class Router implements c.Contract {
     static createCellOfRouterRouteMessage(body: {
         queryId?: uint64
         message: Any2TVMMessage
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         receiver: c.Address
         gasLimit: coins
     }) {
@@ -5496,7 +5496,7 @@ export class Router implements c.Contract {
 
     static createCellOfRouterCCIPReceiveConfirm(body: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
     }) {
         return Router_CCIPReceiveConfirm.toCell(Router_CCIPReceiveConfirm.create(body));
     }
@@ -5760,7 +5760,7 @@ export class Router implements c.Contract {
     async sendRouterRouteMessage(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         message: Any2TVMMessage
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         receiver: c.Address
         gasLimit: coins
     }, extraOptions?: ExtraSendOptions) {
@@ -5799,7 +5799,7 @@ export class Router implements c.Contract {
 
     async sendRouterCCIPReceiveConfirm(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

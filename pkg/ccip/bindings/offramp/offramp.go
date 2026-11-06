@@ -100,7 +100,7 @@ type ConfigInfo struct {
 // CCIPReceiveV2 represents the CCIP message received on TON
 type CCIPReceiveV2 struct {
 	_            tlb.Magic      `tlb:"#5b4bc7a6" json:"-"` //nolint:revive // Ignore opcode tag
-	RootID       []byte         `tlb:"bits 192"`
+	ExecID       []byte         `tlb:"bits 192"`
 	QueryID      uint64         `tlb:"## 64"`
 	ConfirmValue tlb.Coins      `tlb:"."`
 	Message      Any2TVMMessage `tlb:"^"`

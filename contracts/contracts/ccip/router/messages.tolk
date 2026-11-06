@@ -74,7 +74,7 @@ struct (0x7db6745d) Router_ApplyRampUpdates {
 struct (0xfc69c50b) Router_RouteMessage {
     queryId: uint64;
     message: Cell<Any2TVMMessage>;
-    execId: ReceiveExecutorId;
+    execID: ReceiveExecutionID;
     receiver: address;
     gasLimit: coins;
 }

@@ -1398,19 +1398,19 @@ export const Any2TVMMessage = {
 }
 
 /**
- > type ReceiveExecutorId = uint192
+ > type ReceiveExecutionID = uint192
  */
-export type ReceiveExecutorId = uint192
+export type ReceiveExecutionID = uint192
 
-export const ReceiveExecutorId = {
-    fromSlice(s: c.Slice): ReceiveExecutorId {
+export const ReceiveExecutionID = {
+    fromSlice(s: c.Slice): ReceiveExecutionID {
         return s.loadUintBig(192);
     },
-    store(self: ReceiveExecutorId, b: c.Builder): void {
+    store(self: ReceiveExecutionID, b: c.Builder): void {
         b.storeUint(self, 192);
     },
-    toCell(self: ReceiveExecutorId): c.Cell {
-        return makeCellFrom<ReceiveExecutorId>(self, ReceiveExecutorId.store);
+    toCell(self: ReceiveExecutionID): c.Cell {
+        return makeCellFrom<ReceiveExecutionID>(self, ReceiveExecutionID.store);
     }
 }
 
@@ -2003,7 +2003,7 @@ export const CursedSubjects = {
  > struct (0xfc69c50b) Router_RouteMessage {
  >     queryId: uint64
  >     message: Cell<Any2TVMMessage>
- >     execId: ReceiveExecutorId
+ >     execID: ReceiveExecutionID
  >     receiver: address
  >     gasLimit: coins
  > }
@@ -2012,7 +2012,7 @@ export interface Router_RouteMessage {
     readonly $: 'Router_RouteMessage'
     queryId: uint64
     message: Any2TVMMessage
-    execId: ReceiveExecutorId
+    execID: ReceiveExecutionID
     receiver: c.Address
     gasLimit: coins
 }
@@ -2023,7 +2023,7 @@ export const Router_RouteMessage = {
     create(args: {
         queryId?: uint64
         message: Any2TVMMessage
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         receiver: c.Address
         gasLimit: coins
     }): Router_RouteMessage {
@@ -2039,7 +2039,7 @@ export const Router_RouteMessage = {
             $: 'Router_RouteMessage',
             queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execID: ReceiveExecutionID.fromSlice(s),
             receiver: s.loadAddress(),
             gasLimit: s.loadCoins(),
         }
@@ -2048,7 +2048,7 @@ export const Router_RouteMessage = {
         b.storeUint(0xfc69c50b, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execID, b);
         b.storeAddress(self.receiver);
         b.storeCoins(self.gasLimit);
     },
@@ -2552,7 +2552,7 @@ export const SourceChainConfigUpdate = {
  > struct (0x58cfcb02) OffRamp_DispatchValidated {
  >     queryId: uint64
  >     message: Cell<Any2TVMRampMessage>
- >     execId: uint192
+ >     execID: uint192
  >     effectiveGasLimit: coins
  >     tokenAmounts: SnakedCell<TokenAmount>?
  > }
@@ -2561,7 +2561,7 @@ export interface OffRamp_DispatchValidated {
     readonly $: 'OffRamp_DispatchValidated'
     queryId: uint64
     message: Any2TVMRampMessage
-    execId: uint192
+    execID: uint192
     effectiveGasLimit: coins
     tokenAmounts: SnakedCell<TokenAmount> | null
 }
@@ -2572,7 +2572,7 @@ export const OffRamp_DispatchValidated = {
     create(args: {
         queryId?: uint64
         message: Any2TVMRampMessage
-        execId: uint192
+        execID: uint192
         effectiveGasLimit: coins
         tokenAmounts: SnakedCell<TokenAmount> | null
     }): OffRamp_DispatchValidated {
@@ -2588,7 +2588,7 @@ export const OffRamp_DispatchValidated = {
             $: 'OffRamp_DispatchValidated',
             queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
-            execId: s.loadUintBig(192),
+            execID: s.loadUintBig(192),
             effectiveGasLimit: s.loadCoins(),
             tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, TokenAmount.fromSlice) : null,
         }
@@ -2597,7 +2597,7 @@ export const OffRamp_DispatchValidated = {
         b.storeUint(0x58cfcb02, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
-        b.storeUint(self.execId, 192);
+        b.storeUint(self.execID, 192);
         b.storeCoins(self.effectiveGasLimit);
         storeTolkNullable<SnakedCell<TokenAmount>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, TokenAmount.store));
     },
@@ -2609,14 +2609,14 @@ export const OffRamp_DispatchValidated = {
 /**
  > struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
  >     queryId: uint64
- >     execId: ReceiveExecutorId
+ >     execID: ReceiveExecutionID
  >     receiver: address
  > }
  */
 export interface OffRamp_CCIPReceiveConfirm {
     readonly $: 'OffRamp_CCIPReceiveConfirm'
     queryId: uint64
-    execId: ReceiveExecutorId
+    execID: ReceiveExecutionID
     receiver: c.Address
 }
 
@@ -2625,7 +2625,7 @@ export const OffRamp_CCIPReceiveConfirm = {
 
     create(args: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         receiver: c.Address
     }): OffRamp_CCIPReceiveConfirm {
         return {
@@ -2639,14 +2639,14 @@ export const OffRamp_CCIPReceiveConfirm = {
         return {
             $: 'OffRamp_CCIPReceiveConfirm',
             queryId: s.loadUintBig(64),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execID: ReceiveExecutionID.fromSlice(s),
             receiver: s.loadAddress(),
         }
     },
     store(self: OffRamp_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0x28f4166f, 32);
         b.storeUint(self.queryId, 64);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execID, b);
         b.storeAddress(self.receiver);
     },
     toCell(self: OffRamp_CCIPReceiveConfirm): c.Cell {
@@ -2656,13 +2656,13 @@ export const OffRamp_CCIPReceiveConfirm = {
 
 /**
  > struct (0x2dcf2a43) OffRamp_CCIPReceiveBounced {
- >     execId: ReceiveExecutorId
+ >     execID: ReceiveExecutionID
  >     receiver: address
  > }
  */
 export interface OffRamp_CCIPReceiveBounced {
     readonly $: 'OffRamp_CCIPReceiveBounced'
-    execId: ReceiveExecutorId
+    execID: ReceiveExecutionID
     receiver: c.Address
 }
 
@@ -2670,7 +2670,7 @@ export const OffRamp_CCIPReceiveBounced = {
     PREFIX: 0x2dcf2a43,
 
     create(args: {
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         receiver: c.Address
     }): OffRamp_CCIPReceiveBounced {
         return {
@@ -2682,13 +2682,13 @@ export const OffRamp_CCIPReceiveBounced = {
         loadAndCheckPrefix32(s, 0x2dcf2a43, 'OffRamp_CCIPReceiveBounced');
         return {
             $: 'OffRamp_CCIPReceiveBounced',
-            execId: ReceiveExecutorId.fromSlice(s),
+            execID: ReceiveExecutionID.fromSlice(s),
             receiver: s.loadAddress(),
         }
     },
     store(self: OffRamp_CCIPReceiveBounced, b: c.Builder): void {
         b.storeUint(0x2dcf2a43, 32);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execID, b);
         b.storeAddress(self.receiver);
     },
     toCell(self: OffRamp_CCIPReceiveBounced): c.Cell {
@@ -2700,7 +2700,7 @@ export const OffRamp_CCIPReceiveBounced = {
  > struct (0x59e56170) OffRamp_NotifySuccess {
  >     queryId: uint64
  >     header: Cell<RampMessageHeader>
- >     execId: ReceiveExecutorId
+ >     execID: ReceiveExecutionID
  >     root: address
  >     delivered: Cell<OffRamp_DeliveredTransfer>?
  >     excesses: Cell<ReceiveExecutor_Excesses>
@@ -2710,7 +2710,7 @@ export interface OffRamp_NotifySuccess {
     readonly $: 'OffRamp_NotifySuccess'
     queryId: uint64
     header: RampMessageHeader
-    execId: ReceiveExecutorId
+    execID: ReceiveExecutionID
     root: c.Address
     delivered: OffRamp_DeliveredTransfer | null /* = null */
     excesses: ReceiveExecutor_Excesses
@@ -2722,7 +2722,7 @@ export const OffRamp_NotifySuccess = {
     create(args: {
         queryId?: uint64
         header: RampMessageHeader
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         root: c.Address
         delivered?: OffRamp_DeliveredTransfer | null /* = null */
         excesses: ReceiveExecutor_Excesses
@@ -2740,7 +2740,7 @@ export const OffRamp_NotifySuccess = {
             $: 'OffRamp_NotifySuccess',
             queryId: s.loadUintBig(64),
             header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execID: ReceiveExecutionID.fromSlice(s),
             root: s.loadAddress(),
             delivered: s.loadBoolean() ? loadCellRef<OffRamp_DeliveredTransfer>(s, OffRamp_DeliveredTransfer.fromSlice) : null,
             excesses: loadCellRef<ReceiveExecutor_Excesses>(s, ReceiveExecutor_Excesses.fromSlice),
@@ -2750,7 +2750,7 @@ export const OffRamp_NotifySuccess = {
         b.storeUint(0x59e56170, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execID, b);
         b.storeAddress(self.root);
         storeTolkNullable<OffRamp_DeliveredTransfer>(self.delivered, b,
             (v,b) => storeCellRef<OffRamp_DeliveredTransfer>(v, b, OffRamp_DeliveredTransfer.store)
@@ -2765,14 +2765,14 @@ export const OffRamp_NotifySuccess = {
 /**
  > struct (0xb4b39784) OffRamp_TokenTransferDelivered {
  >     queryId: uint64
- >     execId: ReceiveExecutorId
+ >     execID: ReceiveExecutionID
  >     delivered: Cell<OffRamp_DeliveredTransfer>
  > }
  */
 export interface OffRamp_TokenTransferDelivered {
     readonly $: 'OffRamp_TokenTransferDelivered'
     queryId: uint64
-    execId: ReceiveExecutorId
+    execID: ReceiveExecutionID
     delivered: OffRamp_DeliveredTransfer
 }
 
@@ -2781,7 +2781,7 @@ export const OffRamp_TokenTransferDelivered = {
 
     create(args: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         delivered: OffRamp_DeliveredTransfer
     }): OffRamp_TokenTransferDelivered {
         return {
@@ -2795,14 +2795,14 @@ export const OffRamp_TokenTransferDelivered = {
         return {
             $: 'OffRamp_TokenTransferDelivered',
             queryId: s.loadUintBig(64),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execID: ReceiveExecutionID.fromSlice(s),
             delivered: loadCellRef<OffRamp_DeliveredTransfer>(s, OffRamp_DeliveredTransfer.fromSlice),
         }
     },
     store(self: OffRamp_TokenTransferDelivered, b: c.Builder): void {
         b.storeUint(0xb4b39784, 32);
         b.storeUint(self.queryId, 64);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execID, b);
         storeCellRef<OffRamp_DeliveredTransfer>(self.delivered, b, OffRamp_DeliveredTransfer.store);
     },
     toCell(self: OffRamp_TokenTransferDelivered): c.Cell {
@@ -2852,7 +2852,7 @@ export const OffRamp_DeliveredTransfer = {
  > struct (0x177ebd03) OffRamp_NotifyFailure {
  >     queryId: uint64
  >     header: Cell<RampMessageHeader>
- >     execId: ReceiveExecutorId
+ >     execID: ReceiveExecutionID
  >     root: address
  >     excesses: Cell<ReceiveExecutor_Excesses>
  > }
@@ -2861,7 +2861,7 @@ export interface OffRamp_NotifyFailure {
     readonly $: 'OffRamp_NotifyFailure'
     queryId: uint64
     header: RampMessageHeader
-    execId: ReceiveExecutorId
+    execID: ReceiveExecutionID
     root: c.Address
     excesses: ReceiveExecutor_Excesses
 }
@@ -2872,7 +2872,7 @@ export const OffRamp_NotifyFailure = {
     create(args: {
         queryId?: uint64
         header: RampMessageHeader
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         root: c.Address
         excesses: ReceiveExecutor_Excesses
     }): OffRamp_NotifyFailure {
@@ -2888,7 +2888,7 @@ export const OffRamp_NotifyFailure = {
             $: 'OffRamp_NotifyFailure',
             queryId: s.loadUintBig(64),
             header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execID: ReceiveExecutionID.fromSlice(s),
             root: s.loadAddress(),
             excesses: loadCellRef<ReceiveExecutor_Excesses>(s, ReceiveExecutor_Excesses.fromSlice),
         }
@@ -2897,7 +2897,7 @@ export const OffRamp_NotifyFailure = {
         b.storeUint(0x177ebd03, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execID, b);
         b.storeAddress(self.root);
         storeCellRef<ReceiveExecutor_Excesses>(self.excesses, b, ReceiveExecutor_Excesses.store);
     },
@@ -3032,7 +3032,7 @@ export const OffRamp_SetTokenAdminRegistry = {
 /**
  > struct (0x7deaf076) OffRamp_ReleaseOrMint {
  >     queryId: uint64
- >     execId: ReceiveExecutorId
+ >     execID: ReceiveExecutionID
  >     tokenPool: address
  >     destGasAmount: coins
  >     requestedFinalityConfig: uint32
@@ -3042,7 +3042,7 @@ export const OffRamp_SetTokenAdminRegistry = {
 export interface OffRamp_ReleaseOrMint {
     readonly $: 'OffRamp_ReleaseOrMint'
     queryId: uint64
-    execId: ReceiveExecutorId
+    execID: ReceiveExecutionID
     tokenPool: c.Address
     destGasAmount: coins
     requestedFinalityConfig: uint32
@@ -3054,7 +3054,7 @@ export const OffRamp_ReleaseOrMint = {
 
     create(args: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         tokenPool: c.Address
         destGasAmount: coins
         requestedFinalityConfig: uint32
@@ -3071,7 +3071,7 @@ export const OffRamp_ReleaseOrMint = {
         return {
             $: 'OffRamp_ReleaseOrMint',
             queryId: s.loadUintBig(64),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execID: ReceiveExecutionID.fromSlice(s),
             tokenPool: s.loadAddress(),
             destGasAmount: s.loadCoins(),
             requestedFinalityConfig: s.loadUintBig(32),
@@ -3081,7 +3081,7 @@ export const OffRamp_ReleaseOrMint = {
     store(self: OffRamp_ReleaseOrMint, b: c.Builder): void {
         b.storeUint(0x7deaf076, 32);
         b.storeUint(self.queryId, 64);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execID, b);
         b.storeAddress(self.tokenPool);
         b.storeCoins(self.destGasAmount);
         b.storeUint(self.requestedFinalityConfig, 32);
@@ -3095,13 +3095,13 @@ export const OffRamp_ReleaseOrMint = {
 /**
  > struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
  >     queryId: uint64
- >     execId: ReceiveExecutorId
+ >     execID: ReceiveExecutionID
  > }
  */
 export interface OffRamp_ReturnExcessToExecutor {
     readonly $: 'OffRamp_ReturnExcessToExecutor'
     queryId: uint64
-    execId: ReceiveExecutorId
+    execID: ReceiveExecutionID
 }
 
 export const OffRamp_ReturnExcessToExecutor = {
@@ -3109,7 +3109,7 @@ export const OffRamp_ReturnExcessToExecutor = {
 
     create(args: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
     }): OffRamp_ReturnExcessToExecutor {
         return {
             $: 'OffRamp_ReturnExcessToExecutor',
@@ -3122,13 +3122,13 @@ export const OffRamp_ReturnExcessToExecutor = {
         return {
             $: 'OffRamp_ReturnExcessToExecutor',
             queryId: s.loadUintBig(64),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execID: ReceiveExecutionID.fromSlice(s),
         }
     },
     store(self: OffRamp_ReturnExcessToExecutor, b: c.Builder): void {
         b.storeUint(0x5397c75e, 32);
         b.storeUint(self.queryId, 64);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execID, b);
     },
     toCell(self: OffRamp_ReturnExcessToExecutor): c.Cell {
         return makeCellFrom<OffRamp_ReturnExcessToExecutor>(self, OffRamp_ReturnExcessToExecutor.store);
@@ -4349,19 +4349,19 @@ export const OffRamp_DeployableInitializeBounced = {
 /**
  > struct OffRamp_RouteMessageBounced {
  >     router: address
- >     execId: uint192
+ >     execID: uint192
  > }
  */
 export interface OffRamp_RouteMessageBounced {
     readonly $: 'OffRamp_RouteMessageBounced'
     router: c.Address
-    execId: uint192
+    execID: uint192
 }
 
 export const OffRamp_RouteMessageBounced = {
     create(args: {
         router: c.Address
-        execId: uint192
+        execID: uint192
     }): OffRamp_RouteMessageBounced {
         return {
             $: 'OffRamp_RouteMessageBounced',
@@ -4372,12 +4372,12 @@ export const OffRamp_RouteMessageBounced = {
         return {
             $: 'OffRamp_RouteMessageBounced',
             router: s.loadAddress(),
-            execId: s.loadUintBig(192),
+            execID: s.loadUintBig(192),
         }
     },
     store(self: OffRamp_RouteMessageBounced, b: c.Builder): void {
         b.storeAddress(self.router);
-        b.storeUint(self.execId, 192);
+        b.storeUint(self.execID, 192);
     },
     toCell(self: OffRamp_RouteMessageBounced): c.Cell {
         return makeCellFrom<OffRamp_RouteMessageBounced>(self, OffRamp_RouteMessageBounced.store);
@@ -5029,7 +5029,7 @@ export class OffRamp implements c.Contract {
     static createCellOfOffRampDispatchValidated(body: {
         queryId?: uint64
         message: Any2TVMRampMessage
-        execId: uint192
+        execID: uint192
         effectiveGasLimit: coins
         tokenAmounts: SnakedCell<TokenAmount> | null
     }) {
@@ -5038,7 +5038,7 @@ export class OffRamp implements c.Contract {
 
     static createCellOfOffRampReleaseOrMint(body: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         tokenPool: c.Address
         destGasAmount: coins
         requestedFinalityConfig: uint32
@@ -5056,14 +5056,14 @@ export class OffRamp implements c.Contract {
 
     static createCellOfOffRampCCIPReceiveConfirm(body: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         receiver: c.Address
     }) {
         return OffRamp_CCIPReceiveConfirm.toCell(OffRamp_CCIPReceiveConfirm.create(body));
     }
 
     static createCellOfOffRampCCIPReceiveBounced(body: {
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         receiver: c.Address
     }) {
         return OffRamp_CCIPReceiveBounced.toCell(OffRamp_CCIPReceiveBounced.create(body));
@@ -5082,7 +5082,7 @@ export class OffRamp implements c.Contract {
     static createCellOfOffRampNotifyFailure(body: {
         queryId?: uint64
         header: RampMessageHeader
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         root: c.Address
         excesses: ReceiveExecutor_Excesses
     }) {
@@ -5092,7 +5092,7 @@ export class OffRamp implements c.Contract {
     static createCellOfOffRampNotifySuccess(body: {
         queryId?: uint64
         header: RampMessageHeader
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         root: c.Address
         delivered?: OffRamp_DeliveredTransfer | null /* = null */
         excesses: ReceiveExecutor_Excesses
@@ -5108,7 +5108,7 @@ export class OffRamp implements c.Contract {
 
     static createCellOfOffRampTokenTransferDelivered(body: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         delivered: OffRamp_DeliveredTransfer
     }) {
         return OffRamp_TokenTransferDelivered.toCell(OffRamp_TokenTransferDelivered.create(body));
@@ -5165,7 +5165,7 @@ export class OffRamp implements c.Contract {
 
     static createCellOfOffRampReturnExcessToExecutor(body: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
     }) {
         return OffRamp_ReturnExcessToExecutor.toCell(OffRamp_ReturnExcessToExecutor.create(body));
     }
@@ -5263,7 +5263,7 @@ export class OffRamp implements c.Contract {
     async sendOffRampDispatchValidated(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         message: Any2TVMRampMessage
-        execId: uint192
+        execID: uint192
         effectiveGasLimit: coins
         tokenAmounts: SnakedCell<TokenAmount> | null
     }, extraOptions?: ExtraSendOptions) {
@@ -5276,7 +5276,7 @@ export class OffRamp implements c.Contract {
 
     async sendOffRampReleaseOrMint(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         tokenPool: c.Address
         destGasAmount: coins
         requestedFinalityConfig: uint32
@@ -5302,7 +5302,7 @@ export class OffRamp implements c.Contract {
 
     async sendOffRampCCIPReceiveConfirm(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         receiver: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -5313,7 +5313,7 @@ export class OffRamp implements c.Contract {
     }
 
     async sendOffRampCCIPReceiveBounced(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         receiver: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -5340,7 +5340,7 @@ export class OffRamp implements c.Contract {
     async sendOffRampNotifyFailure(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         header: RampMessageHeader
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         root: c.Address
         excesses: ReceiveExecutor_Excesses
     }, extraOptions?: ExtraSendOptions) {
@@ -5354,7 +5354,7 @@ export class OffRamp implements c.Contract {
     async sendOffRampNotifySuccess(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         header: RampMessageHeader
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         root: c.Address
         delivered?: OffRamp_DeliveredTransfer | null /* = null */
         excesses: ReceiveExecutor_Excesses
@@ -5378,7 +5378,7 @@ export class OffRamp implements c.Contract {
 
     async sendOffRampTokenTransferDelivered(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
         delivered: OffRamp_DeliveredTransfer
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -5463,7 +5463,7 @@ export class OffRamp implements c.Contract {
 
     async sendOffRampReturnExcessToExecutor(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

@@ -57,7 +57,7 @@ describe('Router', () => {
   it('should route message from OffRamp to receiver', async () => {
     const result = await router.sendRouterRouteMessage(offRamp.getSender(), toNano('1'), {
       message: any2tvmMessage,
-      execId: genExecID({
+      execID: genExecID({
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         messageID: 1n,
       }),
@@ -94,7 +94,7 @@ describe('Router', () => {
         ...any2tvmMessage,
         sourceChainSelector: any2tvmMessage.sourceChainSelector + 1n,
       },
-      execId: genExecID({
+      execID: genExecID({
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         messageID: 2n,
       }),
@@ -113,7 +113,7 @@ describe('Router', () => {
   it('should throw on routeMessage from non OffRamp', async () => {
     const result = await router.sendRouterRouteMessage(deployer.getSender(), toNano('1'), {
       message: any2tvmMessage,
-      execId: genExecID({
+      execID: genExecID({
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         messageID: 3n,
       }),
@@ -137,7 +137,7 @@ describe('Router', () => {
 
     const result = await router.sendRouterRouteMessage(offRamp.getSender(), toNano('1'), {
       message: any2tvmMessage,
-      execId: genExecID({
+      execID: genExecID({
         sourceChainSelector: any2tvmMessage.sourceChainSelector,
         messageID: 4n,
       }),

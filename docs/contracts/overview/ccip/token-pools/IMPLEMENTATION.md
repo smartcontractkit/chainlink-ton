@@ -179,7 +179,7 @@ Severity: 🔴 fund-safety/correctness · 🟠 protocol completeness · 🟡 par
 - **TON-TP/1 — Executor/caller authentication incomplete (blocked on §3.3).**
   `onLockOrBurn` sets `transferInitiator = sender` with `// TODO: fixme`
   (`token_pool.tolk:767-768`). The design's Executor-by-address-derivation trust
-  (verify caller == `autoDeployAddress(execId).calculateAddress()`, the same pattern
+  (verify caller == `autoDeployAddress(execID).calculateAddress()`, the same pattern
   as `onramp/contract.tolk:78`) is not implemented. Pool currently trusts the
   message sender. **Entangled with the mock/unbuilt outbound integration (§3.3):**
   the authorized sender of `TokenPool_LockOrBurn` and the `replyTo` Executor are
