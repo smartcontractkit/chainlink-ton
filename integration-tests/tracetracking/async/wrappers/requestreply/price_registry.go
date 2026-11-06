@@ -40,7 +40,7 @@ func (p *PriceRegistryProvider) Deploy(ctx context.Context, initData PriceRegist
 		return PriceRegistry{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	body := tvm.EmptyCell
-	contract, _, err := wrappers.Deploy(ctx, &p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
+	contract, _, err := wrappers.DeployActivateOnly(ctx, &p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return PriceRegistry{}, err
 	}
