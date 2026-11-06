@@ -164,7 +164,7 @@ type uint256 = bigint
 
 /**
  > struct (0x4982fcfd) Timelock_Init {
- >     queryId: uint64
+ >     queryID: uint64
  >     minDelay: uint32
  >     admin: address
  >     proposers: SnakedCell<address>
@@ -177,7 +177,7 @@ type uint256 = bigint
  */
 export interface Timelock_Init {
     readonly $: 'Timelock_Init'
-    queryId: uint64
+    queryID: uint64
     minDelay: uint32
     admin: c.Address
     proposers: SnakedCell<c.Address>
@@ -192,7 +192,7 @@ export const Timelock_Init = {
     PREFIX: 0x4982fcfd,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         minDelay: uint32
         admin: c.Address
         proposers: SnakedCell<c.Address>
@@ -205,14 +205,14 @@ export const Timelock_Init = {
         return {
             $: 'Timelock_Init',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_Init {
         loadAndCheckPrefix32(s, 0x4982fcfd, 'Timelock_Init');
         return {
             $: 'Timelock_Init',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             minDelay: s.loadUintBig(32),
             admin: s.loadAddress(),
             proposers: loadSnakedCellOf(s, (s) => s.loadAddress()),
@@ -225,7 +225,7 @@ export const Timelock_Init = {
     },
     store(self: Timelock_Init, b: c.Builder): void {
         b.storeUint(0x4982fcfd, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.minDelay, 32);
         b.storeAddress(self.admin);
         storeSnakedCellOf(self.proposers, b, (v, b) => b.storeAddress(v));
@@ -242,7 +242,7 @@ export const Timelock_Init = {
 
 /**
  > struct (0x094718f4) Timelock_ScheduleBatch {
- >     queryId: uint64
+ >     queryID: uint64
  >     calls: SnakedCell<Timelock_Call>
  >     predecessor: uint256
  >     salt: uint256
@@ -251,7 +251,7 @@ export const Timelock_Init = {
  */
 export interface Timelock_ScheduleBatch {
     readonly $: 'Timelock_ScheduleBatch'
-    queryId: uint64
+    queryID: uint64
     calls: SnakedCell<Timelock_Call>
     predecessor: uint256
     salt: uint256
@@ -262,7 +262,7 @@ export const Timelock_ScheduleBatch = {
     PREFIX: 0x094718f4,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         calls: SnakedCell<Timelock_Call>
         predecessor: uint256
         salt: uint256
@@ -271,14 +271,14 @@ export const Timelock_ScheduleBatch = {
         return {
             $: 'Timelock_ScheduleBatch',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_ScheduleBatch {
         loadAndCheckPrefix32(s, 0x094718f4, 'Timelock_ScheduleBatch');
         return {
             $: 'Timelock_ScheduleBatch',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             calls: loadSnakedCellOf(s, Timelock_Call.fromSlice),
             predecessor: s.loadUintBig(256),
             salt: s.loadUintBig(256),
@@ -287,7 +287,7 @@ export const Timelock_ScheduleBatch = {
     },
     store(self: Timelock_ScheduleBatch, b: c.Builder): void {
         b.storeUint(0x094718f4, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeSnakedCellOf(self.calls, b, Timelock_Call.store);
         b.storeUint(self.predecessor, 256);
         b.storeUint(self.salt, 256);
@@ -300,13 +300,13 @@ export const Timelock_ScheduleBatch = {
 
 /**
  > struct (0xaf3bf1d0) Timelock_Cancel {
- >     queryId: uint64
+ >     queryID: uint64
  >     id: uint256
  > }
  */
 export interface Timelock_Cancel {
     readonly $: 'Timelock_Cancel'
-    queryId: uint64
+    queryID: uint64
     id: uint256
 }
 
@@ -314,26 +314,26 @@ export const Timelock_Cancel = {
     PREFIX: 0xaf3bf1d0,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         id: uint256
     }): Timelock_Cancel {
         return {
             $: 'Timelock_Cancel',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_Cancel {
         loadAndCheckPrefix32(s, 0xaf3bf1d0, 'Timelock_Cancel');
         return {
             $: 'Timelock_Cancel',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             id: s.loadUintBig(256),
         }
     },
     store(self: Timelock_Cancel, b: c.Builder): void {
         b.storeUint(0xaf3bf1d0, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.id, 256);
     },
     toCell(self: Timelock_Cancel): c.Cell {
@@ -343,7 +343,7 @@ export const Timelock_Cancel = {
 
 /**
  > struct (0x6e9bf263) Timelock_ExecuteBatch {
- >     queryId: uint64
+ >     queryID: uint64
  >     calls: SnakedCell<Timelock_Call>
  >     predecessor: uint256
  >     salt: uint256
@@ -351,7 +351,7 @@ export const Timelock_Cancel = {
  */
 export interface Timelock_ExecuteBatch {
     readonly $: 'Timelock_ExecuteBatch'
-    queryId: uint64
+    queryID: uint64
     calls: SnakedCell<Timelock_Call>
     predecessor: uint256
     salt: uint256
@@ -361,7 +361,7 @@ export const Timelock_ExecuteBatch = {
     PREFIX: 0x6e9bf263,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         calls: SnakedCell<Timelock_Call>
         predecessor: uint256
         salt: uint256
@@ -369,14 +369,14 @@ export const Timelock_ExecuteBatch = {
         return {
             $: 'Timelock_ExecuteBatch',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_ExecuteBatch {
         loadAndCheckPrefix32(s, 0x6e9bf263, 'Timelock_ExecuteBatch');
         return {
             $: 'Timelock_ExecuteBatch',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             calls: loadSnakedCellOf(s, Timelock_Call.fromSlice),
             predecessor: s.loadUintBig(256),
             salt: s.loadUintBig(256),
@@ -384,7 +384,7 @@ export const Timelock_ExecuteBatch = {
     },
     store(self: Timelock_ExecuteBatch, b: c.Builder): void {
         b.storeUint(0x6e9bf263, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeSnakedCellOf(self.calls, b, Timelock_Call.store);
         b.storeUint(self.predecessor, 256);
         b.storeUint(self.salt, 256);
@@ -396,13 +396,13 @@ export const Timelock_ExecuteBatch = {
 
 /**
  > struct (0x7a57a45c) Timelock_UpdateDelay {
- >     queryId: uint64
+ >     queryID: uint64
  >     newDelay: uint32
  > }
  */
 export interface Timelock_UpdateDelay {
     readonly $: 'Timelock_UpdateDelay'
-    queryId: uint64
+    queryID: uint64
     newDelay: uint32
 }
 
@@ -410,26 +410,26 @@ export const Timelock_UpdateDelay = {
     PREFIX: 0x7a57a45c,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         newDelay: uint32
     }): Timelock_UpdateDelay {
         return {
             $: 'Timelock_UpdateDelay',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_UpdateDelay {
         loadAndCheckPrefix32(s, 0x7a57a45c, 'Timelock_UpdateDelay');
         return {
             $: 'Timelock_UpdateDelay',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             newDelay: s.loadUintBig(32),
         }
     },
     store(self: Timelock_UpdateDelay, b: c.Builder): void {
         b.storeUint(0x7a57a45c, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.newDelay, 32);
     },
     toCell(self: Timelock_UpdateDelay): c.Cell {
@@ -439,13 +439,13 @@ export const Timelock_UpdateDelay = {
 
 /**
  > struct (0x94278d4f) Timelock_UpdateOpFinalizationTimeout {
- >     queryId: uint64
+ >     queryID: uint64
  >     newOpFinalizationTimeout: uint32
  > }
  */
 export interface Timelock_UpdateOpFinalizationTimeout {
     readonly $: 'Timelock_UpdateOpFinalizationTimeout'
-    queryId: uint64
+    queryID: uint64
     newOpFinalizationTimeout: uint32
 }
 
@@ -453,26 +453,26 @@ export const Timelock_UpdateOpFinalizationTimeout = {
     PREFIX: 0x94278d4f,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         newOpFinalizationTimeout: uint32
     }): Timelock_UpdateOpFinalizationTimeout {
         return {
             $: 'Timelock_UpdateOpFinalizationTimeout',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_UpdateOpFinalizationTimeout {
         loadAndCheckPrefix32(s, 0x94278d4f, 'Timelock_UpdateOpFinalizationTimeout');
         return {
             $: 'Timelock_UpdateOpFinalizationTimeout',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             newOpFinalizationTimeout: s.loadUintBig(32),
         }
     },
     store(self: Timelock_UpdateOpFinalizationTimeout, b: c.Builder): void {
         b.storeUint(0x94278d4f, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.newOpFinalizationTimeout, 32);
     },
     toCell(self: Timelock_UpdateOpFinalizationTimeout): c.Cell {
@@ -482,13 +482,13 @@ export const Timelock_UpdateOpFinalizationTimeout = {
 
 /**
  > struct (0x2637af77) Timelock_BlockFunctionSelector {
- >     queryId: uint64
+ >     queryID: uint64
  >     selector: uint32
  > }
  */
 export interface Timelock_BlockFunctionSelector {
     readonly $: 'Timelock_BlockFunctionSelector'
-    queryId: uint64
+    queryID: uint64
     selector: uint32
 }
 
@@ -496,26 +496,26 @@ export const Timelock_BlockFunctionSelector = {
     PREFIX: 0x2637af77,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         selector: uint32
     }): Timelock_BlockFunctionSelector {
         return {
             $: 'Timelock_BlockFunctionSelector',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_BlockFunctionSelector {
         loadAndCheckPrefix32(s, 0x2637af77, 'Timelock_BlockFunctionSelector');
         return {
             $: 'Timelock_BlockFunctionSelector',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             selector: s.loadUintBig(32),
         }
     },
     store(self: Timelock_BlockFunctionSelector, b: c.Builder): void {
         b.storeUint(0x2637af77, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.selector, 32);
     },
     toCell(self: Timelock_BlockFunctionSelector): c.Cell {
@@ -525,13 +525,13 @@ export const Timelock_BlockFunctionSelector = {
 
 /**
  > struct (0x26f19f4e) Timelock_UnblockFunctionSelector {
- >     queryId: uint64
+ >     queryID: uint64
  >     selector: uint32
  > }
  */
 export interface Timelock_UnblockFunctionSelector {
     readonly $: 'Timelock_UnblockFunctionSelector'
-    queryId: uint64
+    queryID: uint64
     selector: uint32
 }
 
@@ -539,26 +539,26 @@ export const Timelock_UnblockFunctionSelector = {
     PREFIX: 0x26f19f4e,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         selector: uint32
     }): Timelock_UnblockFunctionSelector {
         return {
             $: 'Timelock_UnblockFunctionSelector',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_UnblockFunctionSelector {
         loadAndCheckPrefix32(s, 0x26f19f4e, 'Timelock_UnblockFunctionSelector');
         return {
             $: 'Timelock_UnblockFunctionSelector',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             selector: s.loadUintBig(32),
         }
     },
     store(self: Timelock_UnblockFunctionSelector, b: c.Builder): void {
         b.storeUint(0x26f19f4e, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.selector, 32);
     },
     toCell(self: Timelock_UnblockFunctionSelector): c.Cell {
@@ -568,13 +568,13 @@ export const Timelock_UnblockFunctionSelector = {
 
 /**
  > struct (0xbb0e9f7d) Timelock_BypasserExecuteBatch {
- >     queryId: uint64
+ >     queryID: uint64
  >     calls: SnakedCell<Timelock_Call>
  > }
  */
 export interface Timelock_BypasserExecuteBatch {
     readonly $: 'Timelock_BypasserExecuteBatch'
-    queryId: uint64
+    queryID: uint64
     calls: SnakedCell<Timelock_Call>
 }
 
@@ -582,26 +582,26 @@ export const Timelock_BypasserExecuteBatch = {
     PREFIX: 0xbb0e9f7d,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         calls: SnakedCell<Timelock_Call>
     }): Timelock_BypasserExecuteBatch {
         return {
             $: 'Timelock_BypasserExecuteBatch',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_BypasserExecuteBatch {
         loadAndCheckPrefix32(s, 0xbb0e9f7d, 'Timelock_BypasserExecuteBatch');
         return {
             $: 'Timelock_BypasserExecuteBatch',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             calls: loadSnakedCellOf(s, Timelock_Call.fromSlice),
         }
     },
     store(self: Timelock_BypasserExecuteBatch, b: c.Builder): void {
         b.storeUint(0xbb0e9f7d, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeSnakedCellOf(self.calls, b, Timelock_Call.store);
     },
     toCell(self: Timelock_BypasserExecuteBatch): c.Cell {
@@ -611,13 +611,13 @@ export const Timelock_BypasserExecuteBatch = {
 
 /**
  > struct (0x34d98baa) Timelock_UpdateExecutorRoleCheck {
- >     queryId: uint64
+ >     queryID: uint64
  >     enabled: bool
  > }
  */
 export interface Timelock_UpdateExecutorRoleCheck {
     readonly $: 'Timelock_UpdateExecutorRoleCheck'
-    queryId: uint64
+    queryID: uint64
     enabled: boolean
 }
 
@@ -625,26 +625,26 @@ export const Timelock_UpdateExecutorRoleCheck = {
     PREFIX: 0x34d98baa,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         enabled: boolean
     }): Timelock_UpdateExecutorRoleCheck {
         return {
             $: 'Timelock_UpdateExecutorRoleCheck',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_UpdateExecutorRoleCheck {
         loadAndCheckPrefix32(s, 0x34d98baa, 'Timelock_UpdateExecutorRoleCheck');
         return {
             $: 'Timelock_UpdateExecutorRoleCheck',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             enabled: s.loadBoolean(),
         }
     },
     store(self: Timelock_UpdateExecutorRoleCheck, b: c.Builder): void {
         b.storeUint(0x34d98baa, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeBit(self.enabled);
     },
     toCell(self: Timelock_UpdateExecutorRoleCheck): c.Cell {
@@ -654,7 +654,7 @@ export const Timelock_UpdateExecutorRoleCheck = {
 
 /**
  > struct (0xf4538b79) Timelock_SubmitErrorReport {
- >     queryId: uint64
+ >     queryID: uint64
  >     opBatch: Cell<Timelock_OperationBatch>
  >     opTxHash: uint256
  >     errorTxHash: uint256
@@ -663,7 +663,7 @@ export const Timelock_UpdateExecutorRoleCheck = {
  */
 export interface Timelock_SubmitErrorReport {
     readonly $: 'Timelock_SubmitErrorReport'
-    queryId: uint64
+    queryID: uint64
     opBatch: Timelock_OperationBatch
     opTxHash: uint256
     errorTxHash: uint256
@@ -674,7 +674,7 @@ export const Timelock_SubmitErrorReport = {
     PREFIX: 0xf4538b79,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         opBatch: Timelock_OperationBatch
         opTxHash: uint256
         errorTxHash: uint256
@@ -683,14 +683,14 @@ export const Timelock_SubmitErrorReport = {
         return {
             $: 'Timelock_SubmitErrorReport',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_SubmitErrorReport {
         loadAndCheckPrefix32(s, 0xf4538b79, 'Timelock_SubmitErrorReport');
         return {
             $: 'Timelock_SubmitErrorReport',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             opBatch: loadCellRef<Timelock_OperationBatch>(s, Timelock_OperationBatch.fromSlice),
             opTxHash: s.loadUintBig(256),
             errorTxHash: s.loadUintBig(256),
@@ -699,7 +699,7 @@ export const Timelock_SubmitErrorReport = {
     },
     store(self: Timelock_SubmitErrorReport, b: c.Builder): void {
         b.storeUint(0xf4538b79, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<Timelock_OperationBatch>(self.opBatch, b, Timelock_OperationBatch.store);
         b.storeUint(self.opTxHash, 256);
         b.storeUint(self.errorTxHash, 256);
@@ -764,14 +764,14 @@ export const Timelock_BounceHandled = {
 
 /**
  > struct (0xdf65b59e) Timelock_BatchScheduled {
- >     queryId: uint64
+ >     queryID: uint64
  >     id: uint256
  >     delay: uint32
  > }
  */
 export interface Timelock_BatchScheduled {
     readonly $: 'Timelock_BatchScheduled'
-    queryId: uint64
+    queryID: uint64
     id: uint256
     delay: uint32
 }
@@ -780,28 +780,28 @@ export const Timelock_BatchScheduled = {
     PREFIX: 0xdf65b59e,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         id: uint256
         delay: uint32
     }): Timelock_BatchScheduled {
         return {
             $: 'Timelock_BatchScheduled',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_BatchScheduled {
         loadAndCheckPrefix32(s, 0xdf65b59e, 'Timelock_BatchScheduled');
         return {
             $: 'Timelock_BatchScheduled',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             id: s.loadUintBig(256),
             delay: s.loadUintBig(32),
         }
     },
     store(self: Timelock_BatchScheduled, b: c.Builder): void {
         b.storeUint(0xdf65b59e, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.id, 256);
         b.storeUint(self.delay, 32);
     },
@@ -812,7 +812,7 @@ export const Timelock_BatchScheduled = {
 
 /**
  > struct (0xc55fca54) Timelock_CallScheduled {
- >     queryId: uint64
+ >     queryID: uint64
  >     id: uint256
  >     index: uint64
  >     call: Cell<Timelock_Call>
@@ -823,7 +823,7 @@ export const Timelock_BatchScheduled = {
  */
 export interface Timelock_CallScheduled {
     readonly $: 'Timelock_CallScheduled'
-    queryId: uint64
+    queryID: uint64
     id: uint256
     index: uint64
     call: Timelock_Call
@@ -836,7 +836,7 @@ export const Timelock_CallScheduled = {
     PREFIX: 0xc55fca54,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         id: uint256
         index: uint64
         call: Timelock_Call
@@ -847,14 +847,14 @@ export const Timelock_CallScheduled = {
         return {
             $: 'Timelock_CallScheduled',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_CallScheduled {
         loadAndCheckPrefix32(s, 0xc55fca54, 'Timelock_CallScheduled');
         return {
             $: 'Timelock_CallScheduled',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             id: s.loadUintBig(256),
             index: s.loadUintBig(64),
             call: loadCellRef<Timelock_Call>(s, Timelock_Call.fromSlice),
@@ -865,7 +865,7 @@ export const Timelock_CallScheduled = {
     },
     store(self: Timelock_CallScheduled, b: c.Builder): void {
         b.storeUint(0xc55fca54, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.id, 256);
         b.storeUint(self.index, 64);
         storeCellRef<Timelock_Call>(self.call, b, Timelock_Call.store);
@@ -880,13 +880,13 @@ export const Timelock_CallScheduled = {
 
 /**
  > struct (0xa941ea1a) Timelock_BatchExecuted {
- >     queryId: uint64
+ >     queryID: uint64
  >     id: uint256
  > }
  */
 export interface Timelock_BatchExecuted {
     readonly $: 'Timelock_BatchExecuted'
-    queryId: uint64
+    queryID: uint64
     id: uint256
 }
 
@@ -894,26 +894,26 @@ export const Timelock_BatchExecuted = {
     PREFIX: 0xa941ea1a,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         id: uint256
     }): Timelock_BatchExecuted {
         return {
             $: 'Timelock_BatchExecuted',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_BatchExecuted {
         loadAndCheckPrefix32(s, 0xa941ea1a, 'Timelock_BatchExecuted');
         return {
             $: 'Timelock_BatchExecuted',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             id: s.loadUintBig(256),
         }
     },
     store(self: Timelock_BatchExecuted, b: c.Builder): void {
         b.storeUint(0xa941ea1a, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.id, 256);
     },
     toCell(self: Timelock_BatchExecuted): c.Cell {
@@ -923,7 +923,7 @@ export const Timelock_BatchExecuted = {
 
 /**
  > struct (0x49ea5d0e) Timelock_CallExecuted {
- >     queryId: uint64
+ >     queryID: uint64
  >     id: uint256
  >     index: uint64
  >     target: address
@@ -933,7 +933,7 @@ export const Timelock_BatchExecuted = {
  */
 export interface Timelock_CallExecuted {
     readonly $: 'Timelock_CallExecuted'
-    queryId: uint64
+    queryID: uint64
     id: uint256
     index: uint64
     target: c.Address
@@ -945,7 +945,7 @@ export const Timelock_CallExecuted = {
     PREFIX: 0x49ea5d0e,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         id: uint256
         index: uint64
         target: c.Address
@@ -955,14 +955,14 @@ export const Timelock_CallExecuted = {
         return {
             $: 'Timelock_CallExecuted',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_CallExecuted {
         loadAndCheckPrefix32(s, 0x49ea5d0e, 'Timelock_CallExecuted');
         return {
             $: 'Timelock_CallExecuted',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             id: s.loadUintBig(256),
             index: s.loadUintBig(64),
             target: s.loadAddress(),
@@ -972,7 +972,7 @@ export const Timelock_CallExecuted = {
     },
     store(self: Timelock_CallExecuted, b: c.Builder): void {
         b.storeUint(0x49ea5d0e, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.id, 256);
         b.storeUint(self.index, 64);
         b.storeAddress(self.target);
@@ -986,36 +986,36 @@ export const Timelock_CallExecuted = {
 
 /**
  > struct (0x539b4214) Timelock_BypasserBatchExecuted {
- >     queryId: uint64
+ >     queryID: uint64
  > }
  */
 export interface Timelock_BypasserBatchExecuted {
     readonly $: 'Timelock_BypasserBatchExecuted'
-    queryId: uint64
+    queryID: uint64
 }
 
 export const Timelock_BypasserBatchExecuted = {
     PREFIX: 0x539b4214,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
     }): Timelock_BypasserBatchExecuted {
         return {
             $: 'Timelock_BypasserBatchExecuted',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_BypasserBatchExecuted {
         loadAndCheckPrefix32(s, 0x539b4214, 'Timelock_BypasserBatchExecuted');
         return {
             $: 'Timelock_BypasserBatchExecuted',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
         }
     },
     store(self: Timelock_BypasserBatchExecuted, b: c.Builder): void {
         b.storeUint(0x539b4214, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
     },
     toCell(self: Timelock_BypasserBatchExecuted): c.Cell {
         return makeCellFrom<Timelock_BypasserBatchExecuted>(self, Timelock_BypasserBatchExecuted.store);
@@ -1024,7 +1024,7 @@ export const Timelock_BypasserBatchExecuted = {
 
 /**
  > struct (0x9c7f3010) Timelock_BypasserCallExecuted {
- >     queryId: uint64
+ >     queryID: uint64
  >     index: uint64
  >     target: address
  >     value: coins
@@ -1033,7 +1033,7 @@ export const Timelock_BypasserBatchExecuted = {
  */
 export interface Timelock_BypasserCallExecuted {
     readonly $: 'Timelock_BypasserCallExecuted'
-    queryId: uint64
+    queryID: uint64
     index: uint64
     target: c.Address
     value: coins
@@ -1044,7 +1044,7 @@ export const Timelock_BypasserCallExecuted = {
     PREFIX: 0x9c7f3010,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         index: uint64
         target: c.Address
         value: coins
@@ -1053,14 +1053,14 @@ export const Timelock_BypasserCallExecuted = {
         return {
             $: 'Timelock_BypasserCallExecuted',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_BypasserCallExecuted {
         loadAndCheckPrefix32(s, 0x9c7f3010, 'Timelock_BypasserCallExecuted');
         return {
             $: 'Timelock_BypasserCallExecuted',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             index: s.loadUintBig(64),
             target: s.loadAddress(),
             value: s.loadCoins(),
@@ -1069,7 +1069,7 @@ export const Timelock_BypasserCallExecuted = {
     },
     store(self: Timelock_BypasserCallExecuted, b: c.Builder): void {
         b.storeUint(0x9c7f3010, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.index, 64);
         b.storeAddress(self.target);
         b.storeCoins(self.value);
@@ -1082,13 +1082,13 @@ export const Timelock_BypasserCallExecuted = {
 
 /**
  > struct (0x580e80f2) Timelock_Canceled {
- >     queryId: uint64
+ >     queryID: uint64
  >     id: uint256
  > }
  */
 export interface Timelock_Canceled {
     readonly $: 'Timelock_Canceled'
-    queryId: uint64
+    queryID: uint64
     id: uint256
 }
 
@@ -1096,26 +1096,26 @@ export const Timelock_Canceled = {
     PREFIX: 0x580e80f2,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         id: uint256
     }): Timelock_Canceled {
         return {
             $: 'Timelock_Canceled',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_Canceled {
         loadAndCheckPrefix32(s, 0x580e80f2, 'Timelock_Canceled');
         return {
             $: 'Timelock_Canceled',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             id: s.loadUintBig(256),
         }
     },
     store(self: Timelock_Canceled, b: c.Builder): void {
         b.storeUint(0x580e80f2, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.id, 256);
     },
     toCell(self: Timelock_Canceled): c.Cell {
@@ -1125,14 +1125,14 @@ export const Timelock_Canceled = {
 
 /**
  > struct (0x904b14e0) Timelock_MinDelayChange {
- >     queryId: uint64
+ >     queryID: uint64
  >     oldDuration: uint32
  >     newDuration: uint32
  > }
  */
 export interface Timelock_MinDelayChange {
     readonly $: 'Timelock_MinDelayChange'
-    queryId: uint64
+    queryID: uint64
     oldDuration: uint32
     newDuration: uint32
 }
@@ -1141,28 +1141,28 @@ export const Timelock_MinDelayChange = {
     PREFIX: 0x904b14e0,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         oldDuration: uint32
         newDuration: uint32
     }): Timelock_MinDelayChange {
         return {
             $: 'Timelock_MinDelayChange',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_MinDelayChange {
         loadAndCheckPrefix32(s, 0x904b14e0, 'Timelock_MinDelayChange');
         return {
             $: 'Timelock_MinDelayChange',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             oldDuration: s.loadUintBig(32),
             newDuration: s.loadUintBig(32),
         }
     },
     store(self: Timelock_MinDelayChange, b: c.Builder): void {
         b.storeUint(0x904b14e0, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.oldDuration, 32);
         b.storeUint(self.newDuration, 32);
     },
@@ -1173,14 +1173,14 @@ export const Timelock_MinDelayChange = {
 
 /**
  > struct (0x1f102718) Timelock_OpFinalizationTimeoutChange {
- >     queryId: uint64
+ >     queryID: uint64
  >     oldDuration: uint32
  >     newDuration: uint32
  > }
  */
 export interface Timelock_OpFinalizationTimeoutChange {
     readonly $: 'Timelock_OpFinalizationTimeoutChange'
-    queryId: uint64
+    queryID: uint64
     oldDuration: uint32
     newDuration: uint32
 }
@@ -1189,28 +1189,28 @@ export const Timelock_OpFinalizationTimeoutChange = {
     PREFIX: 0x1f102718,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         oldDuration: uint32
         newDuration: uint32
     }): Timelock_OpFinalizationTimeoutChange {
         return {
             $: 'Timelock_OpFinalizationTimeoutChange',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_OpFinalizationTimeoutChange {
         loadAndCheckPrefix32(s, 0x1f102718, 'Timelock_OpFinalizationTimeoutChange');
         return {
             $: 'Timelock_OpFinalizationTimeoutChange',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             oldDuration: s.loadUintBig(32),
             newDuration: s.loadUintBig(32),
         }
     },
     store(self: Timelock_OpFinalizationTimeoutChange, b: c.Builder): void {
         b.storeUint(0x1f102718, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.oldDuration, 32);
         b.storeUint(self.newDuration, 32);
     },
@@ -1221,13 +1221,13 @@ export const Timelock_OpFinalizationTimeoutChange = {
 
 /**
  > struct (0xc6d451e2) Timelock_ExecutorRoleCheckUpdated {
- >     queryId: uint64
+ >     queryID: uint64
  >     enabled: bool
  > }
  */
 export interface Timelock_ExecutorRoleCheckUpdated {
     readonly $: 'Timelock_ExecutorRoleCheckUpdated'
-    queryId: uint64
+    queryID: uint64
     enabled: boolean
 }
 
@@ -1235,26 +1235,26 @@ export const Timelock_ExecutorRoleCheckUpdated = {
     PREFIX: 0xc6d451e2,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         enabled: boolean
     }): Timelock_ExecutorRoleCheckUpdated {
         return {
             $: 'Timelock_ExecutorRoleCheckUpdated',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_ExecutorRoleCheckUpdated {
         loadAndCheckPrefix32(s, 0xc6d451e2, 'Timelock_ExecutorRoleCheckUpdated');
         return {
             $: 'Timelock_ExecutorRoleCheckUpdated',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             enabled: s.loadBoolean(),
         }
     },
     store(self: Timelock_ExecutorRoleCheckUpdated, b: c.Builder): void {
         b.storeUint(0xc6d451e2, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeBit(self.enabled);
     },
     toCell(self: Timelock_ExecutorRoleCheckUpdated): c.Cell {
@@ -1264,7 +1264,7 @@ export const Timelock_ExecutorRoleCheckUpdated = {
 
 /**
  > struct (0xdbd4c8ee) Timelock_ErrorReportSubmitted {
- >     queryId: uint64
+ >     queryID: uint64
  >     id: uint256
  >     opTxHash: uint256
  >     errorTxHash: uint256
@@ -1274,7 +1274,7 @@ export const Timelock_ExecutorRoleCheckUpdated = {
  */
 export interface Timelock_ErrorReportSubmitted {
     readonly $: 'Timelock_ErrorReportSubmitted'
-    queryId: uint64
+    queryID: uint64
     id: uint256
     opTxHash: uint256
     errorTxHash: uint256
@@ -1286,7 +1286,7 @@ export const Timelock_ErrorReportSubmitted = {
     PREFIX: 0xdbd4c8ee,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         id: uint256
         opTxHash: uint256
         errorTxHash: uint256
@@ -1296,14 +1296,14 @@ export const Timelock_ErrorReportSubmitted = {
         return {
             $: 'Timelock_ErrorReportSubmitted',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Timelock_ErrorReportSubmitted {
         loadAndCheckPrefix32(s, 0xdbd4c8ee, 'Timelock_ErrorReportSubmitted');
         return {
             $: 'Timelock_ErrorReportSubmitted',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             id: s.loadUintBig(256),
             opTxHash: s.loadUintBig(256),
             errorTxHash: s.loadUintBig(256),
@@ -1313,7 +1313,7 @@ export const Timelock_ErrorReportSubmitted = {
     },
     store(self: Timelock_ErrorReportSubmitted, b: c.Builder): void {
         b.storeUint(0xdbd4c8ee, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.id, 256);
         b.storeUint(self.opTxHash, 256);
         b.storeUint(self.errorTxHash, 256);
@@ -1579,7 +1579,7 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
 
 /**
  > struct (0xcf3ca837) AccessControl_RoleGranted {
- >     queryId: uint64
+ >     queryID: uint64
  >     role: uint256
  >     account: address
  >     sender: address
@@ -1587,7 +1587,7 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
  */
 export interface AccessControl_RoleGranted {
     readonly $: 'AccessControl_RoleGranted'
-    queryId: uint64
+    queryID: uint64
     role: uint256
     account: c.Address
     sender: c.Address
@@ -1597,7 +1597,7 @@ export const AccessControl_RoleGranted = {
     PREFIX: 0xcf3ca837,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         role: uint256
         account: c.Address
         sender: c.Address
@@ -1605,14 +1605,14 @@ export const AccessControl_RoleGranted = {
         return {
             $: 'AccessControl_RoleGranted',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): AccessControl_RoleGranted {
         loadAndCheckPrefix32(s, 0xcf3ca837, 'AccessControl_RoleGranted');
         return {
             $: 'AccessControl_RoleGranted',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             role: s.loadUintBig(256),
             account: s.loadAddress(),
             sender: s.loadAddress(),
@@ -1620,7 +1620,7 @@ export const AccessControl_RoleGranted = {
     },
     store(self: AccessControl_RoleGranted, b: c.Builder): void {
         b.storeUint(0xcf3ca837, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.role, 256);
         b.storeAddress(self.account);
         b.storeAddress(self.sender);
@@ -1632,7 +1632,7 @@ export const AccessControl_RoleGranted = {
 
 /**
  > struct (0x990fe1c7) AccessControl_RoleRevoked {
- >     queryId: uint64
+ >     queryID: uint64
  >     role: uint256
  >     account: address
  >     sender: address
@@ -1640,7 +1640,7 @@ export const AccessControl_RoleGranted = {
  */
 export interface AccessControl_RoleRevoked {
     readonly $: 'AccessControl_RoleRevoked'
-    queryId: uint64
+    queryID: uint64
     role: uint256
     account: c.Address
     sender: c.Address
@@ -1650,7 +1650,7 @@ export const AccessControl_RoleRevoked = {
     PREFIX: 0x990fe1c7,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         role: uint256
         account: c.Address
         sender: c.Address
@@ -1658,14 +1658,14 @@ export const AccessControl_RoleRevoked = {
         return {
             $: 'AccessControl_RoleRevoked',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): AccessControl_RoleRevoked {
         loadAndCheckPrefix32(s, 0x990fe1c7, 'AccessControl_RoleRevoked');
         return {
             $: 'AccessControl_RoleRevoked',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             role: s.loadUintBig(256),
             account: s.loadAddress(),
             sender: s.loadAddress(),
@@ -1673,7 +1673,7 @@ export const AccessControl_RoleRevoked = {
     },
     store(self: AccessControl_RoleRevoked, b: c.Builder): void {
         b.storeUint(0x990fe1c7, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.role, 256);
         b.storeAddress(self.account);
         b.storeAddress(self.sender);
@@ -1685,7 +1685,7 @@ export const AccessControl_RoleRevoked = {
 
 /**
  > struct (0xbd7e8bce) AccessControl_RoleAdminChanged {
- >     queryId: uint64
+ >     queryID: uint64
  >     role: uint256
  >     previousAdminRole: uint256
  >     newAdminRole: uint256
@@ -1693,7 +1693,7 @@ export const AccessControl_RoleRevoked = {
  */
 export interface AccessControl_RoleAdminChanged {
     readonly $: 'AccessControl_RoleAdminChanged'
-    queryId: uint64
+    queryID: uint64
     role: uint256
     previousAdminRole: uint256
     newAdminRole: uint256
@@ -1703,7 +1703,7 @@ export const AccessControl_RoleAdminChanged = {
     PREFIX: 0xbd7e8bce,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         role: uint256
         previousAdminRole: uint256
         newAdminRole: uint256
@@ -1711,14 +1711,14 @@ export const AccessControl_RoleAdminChanged = {
         return {
             $: 'AccessControl_RoleAdminChanged',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): AccessControl_RoleAdminChanged {
         loadAndCheckPrefix32(s, 0xbd7e8bce, 'AccessControl_RoleAdminChanged');
         return {
             $: 'AccessControl_RoleAdminChanged',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             role: s.loadUintBig(256),
             previousAdminRole: s.loadUintBig(256),
             newAdminRole: s.loadUintBig(256),
@@ -1726,7 +1726,7 @@ export const AccessControl_RoleAdminChanged = {
     },
     store(self: AccessControl_RoleAdminChanged, b: c.Builder): void {
         b.storeUint(0xbd7e8bce, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.role, 256);
         b.storeUint(self.previousAdminRole, 256);
         b.storeUint(self.newAdminRole, 256);
@@ -1912,7 +1912,7 @@ export class Timelock implements c.Contract {
     }
 
     static createCellOfTimelockInit(body: {
-        queryId?: uint64
+        queryID?: uint64
         minDelay: uint32
         admin: c.Address
         proposers: SnakedCell<c.Address>
@@ -1926,7 +1926,7 @@ export class Timelock implements c.Contract {
     }
 
     static createCellOfTimelockScheduleBatch(body: {
-        queryId?: uint64
+        queryID?: uint64
         calls: SnakedCell<Timelock_Call>
         predecessor: uint256
         salt: uint256
@@ -1936,14 +1936,14 @@ export class Timelock implements c.Contract {
     }
 
     static createCellOfTimelockCancel(body: {
-        queryId?: uint64
+        queryID?: uint64
         id: uint256
     }) {
         return Timelock_Cancel.toCell(Timelock_Cancel.create(body));
     }
 
     static createCellOfTimelockExecuteBatch(body: {
-        queryId?: uint64
+        queryID?: uint64
         calls: SnakedCell<Timelock_Call>
         predecessor: uint256
         salt: uint256
@@ -1952,49 +1952,49 @@ export class Timelock implements c.Contract {
     }
 
     static createCellOfTimelockUpdateDelay(body: {
-        queryId?: uint64
+        queryID?: uint64
         newDelay: uint32
     }) {
         return Timelock_UpdateDelay.toCell(Timelock_UpdateDelay.create(body));
     }
 
     static createCellOfTimelockUpdateOpFinalizationTimeout(body: {
-        queryId?: uint64
+        queryID?: uint64
         newOpFinalizationTimeout: uint32
     }) {
         return Timelock_UpdateOpFinalizationTimeout.toCell(Timelock_UpdateOpFinalizationTimeout.create(body));
     }
 
     static createCellOfTimelockBlockFunctionSelector(body: {
-        queryId?: uint64
+        queryID?: uint64
         selector: uint32
     }) {
         return Timelock_BlockFunctionSelector.toCell(Timelock_BlockFunctionSelector.create(body));
     }
 
     static createCellOfTimelockUnblockFunctionSelector(body: {
-        queryId?: uint64
+        queryID?: uint64
         selector: uint32
     }) {
         return Timelock_UnblockFunctionSelector.toCell(Timelock_UnblockFunctionSelector.create(body));
     }
 
     static createCellOfTimelockBypasserExecuteBatch(body: {
-        queryId?: uint64
+        queryID?: uint64
         calls: SnakedCell<Timelock_Call>
     }) {
         return Timelock_BypasserExecuteBatch.toCell(Timelock_BypasserExecuteBatch.create(body));
     }
 
     static createCellOfTimelockUpdateExecutorRoleCheck(body: {
-        queryId?: uint64
+        queryID?: uint64
         enabled: boolean
     }) {
         return Timelock_UpdateExecutorRoleCheck.toCell(Timelock_UpdateExecutorRoleCheck.create(body));
     }
 
     static createCellOfTimelockSubmitErrorReport(body: {
-        queryId?: uint64
+        queryID?: uint64
         opBatch: Timelock_OperationBatch
         opTxHash: uint256
         errorTxHash: uint256
@@ -2020,7 +2020,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockInit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         minDelay: uint32
         admin: c.Address
         proposers: SnakedCell<c.Address>
@@ -2038,7 +2038,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockScheduleBatch(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         calls: SnakedCell<Timelock_Call>
         predecessor: uint256
         salt: uint256
@@ -2052,7 +2052,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockCancel(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         id: uint256
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2063,7 +2063,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockExecuteBatch(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         calls: SnakedCell<Timelock_Call>
         predecessor: uint256
         salt: uint256
@@ -2076,7 +2076,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockUpdateDelay(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         newDelay: uint32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2087,7 +2087,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockUpdateOpFinalizationTimeout(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         newOpFinalizationTimeout: uint32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2098,7 +2098,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockBlockFunctionSelector(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         selector: uint32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2109,7 +2109,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockUnblockFunctionSelector(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         selector: uint32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2120,7 +2120,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockBypasserExecuteBatch(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         calls: SnakedCell<Timelock_Call>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2131,7 +2131,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockUpdateExecutorRoleCheck(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         enabled: boolean
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2142,7 +2142,7 @@ export class Timelock implements c.Contract {
     }
 
     async sendTimelockSubmitErrorReport(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         opBatch: Timelock_OperationBatch
         opTxHash: uint256
         errorTxHash: uint256

@@ -294,7 +294,7 @@ fun TokenPool<T>.releaseOrMintForward(self, finalizationValue: coins): coins {
 /// Flat floor for admin, config and query handlers: a visible error instead of an out-of-gas
 /// failure. These handlers are atomic, so this is not part of the flow budget.
 fun TokenPool<T>.requireMinValue(self, msgValue: coins) {
-    assert(msgValue >= TokenPool_Costs.admin(), TokenPool_Error.InsufficientMessageValue);
+    assert (msgValue >= TokenPool_Costs.admin()) throw (TokenPool_Error.InsufficientMessageValue);
 }
 
 /// Return the JettonClient for the pool, which contains the
@@ -415,7 +415,7 @@ fun TokenPool<T>.getRemotePools(self, remoteChainSelector: uint64): lisp_list<Ce
 /// admission always covers the custody forward. Owner-only.
 /// @dev Changing the admission budget requires a registry refresh (`RefreshPoolConfig`) so CCIP
 ///      funds the new value.
-fun TokenPool<T>.setBudget(mutate self, sender: address, msgValue: coins, queryId: uint64, budget: TokenPool_Budget) {
+fun TokenPool<T>.setBudget(mutate self, sender: address, msgValue: coins, queryID: uint64, budget: TokenPool_Budget) {
     self.requireMinValue(msgValue);
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
 
@@ -425,14 +425,14 @@ fun TokenPool<T>.setBudget(mutate self, sender: address, msgValue: coins, queryI
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: TokenPool_BudgetSet { queryId, budget: self.budget() },
+        body: TokenPool_BudgetSet { queryID, budget: self.budget() },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Answers the registry probe with the configuration it caches. No value gate: the answer
 /// carries the probe's own value back and changes no state.
-fun TokenPool<T>.onGetConfig(self, sender: address, queryId: uint64) {
+fun TokenPool<T>.onGetConfig(self, sender: address, queryID: uint64) {
     val transferInitiator = self.hooks != null && self.hooks.transferInitiator != null
         ? self.hooks.transferInitiator(self.context)
         : null;
@@ -440,9 +440,9 @@ fun TokenPool<T>.onGetConfig(self, sender: address, queryId: uint64) {
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: TokenPool_Config { queryId, token: self.data.token(), transferInitiator, admission: self.budget().admission() },
+        body: TokenPool_Config { queryID, token: self.data.token(), transferInitiator, admission: self.budget().admission() },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// @param feeAdmin An additional address that can withdraw fees from this contract.
@@ -452,7 +452,7 @@ fun TokenPool<T>.setDynamicConfig(
     mutate self,
     sender: address,
     msgValue: coins,
-    queryId: uint64,
+    queryID: uint64,
     router: address,
     rateLimitAdmin: address?,
     feeAdmin: address?,
@@ -463,9 +463,9 @@ fun TokenPool<T>.setDynamicConfig(
     adminConfig.ownable.load().requireOwner(sender);
 
     // The router must be a real address; zero would break routeMessage forwarding.
-    assert(!isZeroAddress(router), TokenPool_Error.ZeroAddressInvalid);
+    assert (!isZeroAddress(router)) throw (TokenPool_Error.ZeroAddressInvalid);
     // feeAdmin: `null` means owner-only; the zero address is never a valid fee admin.
-    assert(feeAdmin == null || !isZeroAddress(feeAdmin), TokenPool_Error.ZeroAddressInvalid);
+    assert (feeAdmin == null || !isZeroAddress(feeAdmin)) throw (TokenPool_Error.ZeroAddressInvalid);
 
     var dynamicConfig = adminConfig.dynamicConfig.load();
     dynamicConfig.router = router;
@@ -479,18 +479,18 @@ fun TokenPool<T>.setDynamicConfig(
         value: 0,
         dest: sender,
         body: TokenPool_DynamicConfigSet {
-            queryId,
+            queryID,
             router,
             rateLimitAdmin,
             feeAdmin,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Sets the finality config according to the FinalityCodec library encoding.
 /// @param allowedFinality The finality settings allowed in this pool, according to the FinalityCodec encoding.  
-fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, msgValue: coins, queryId: uint64, allowedFinalityConfig: uint32) {
+fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, msgValue: coins, queryID: uint64, allowedFinalityConfig: uint32) {
     self.requireMinValue(msgValue);
 
     var adminConfig = self.data.adminConfig.load();
@@ -505,18 +505,18 @@ fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, msgValue
         value: 0,
         dest: sender,
         body: TokenPool_FinalityConfigSet {
-            queryId,
+            queryID,
             allowedFinalityConfig,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun TokenPool<T>.setAdvancedPoolHooks(
     mutate self,
     sender: address,
     msgValue: coins,
-    queryId: uint64,
+    queryID: uint64,
     advancedPoolHooks: address?,
 ) {
     self.requireMinValue(msgValue);
@@ -532,11 +532,11 @@ fun TokenPool<T>.setAdvancedPoolHooks(
         value: 0,
         dest: sender,
         body: TokenPool_AdvancedPoolHooksSet {
-            queryId,
+            queryID,
             advancedPoolHooks,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Adds a remote pool for a given chain selector. This could be due to a pool being upgraded on the remote
@@ -548,14 +548,14 @@ fun TokenPool<T>.addRemotePool(
     mutate self,
     sender: address,
     msgValue: coins,
-    queryId: uint64,
+    queryID: uint64,
     remoteChainSelector: uint64,
     remotePoolAddress: Cell<CrossChainAddress>,
 ) {
     self.requireMinValue(msgValue);
 
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
-    assert(self.isSupportedChain(remoteChainSelector), TokenPool_Error.NonExistentChain);
+    assert (self.isSupportedChain(remoteChainSelector)) throw (TokenPool_Error.NonExistentChain);
 
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     self._setRemotePool(mutate config, remoteChainSelector, remotePoolAddress);
@@ -566,12 +566,12 @@ fun TokenPool<T>.addRemotePool(
         value: 0,
         dest: sender,
         body: TokenPool_RemotePoolAddedNotification {
-            queryId,
+            queryID,
             remoteChainSelector,
             remotePoolAddress,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Removes the remote pool address for a given chain selector.
@@ -583,18 +583,18 @@ fun TokenPool<T>.removeRemotePool(
     mutate self,
     sender: address,
     msgValue: coins,
-    queryId: uint64,
+    queryID: uint64,
     remoteChainSelector: uint64,
     remotePoolAddress: Cell<CrossChainAddress>,
 ) {
     self.requireMinValue(msgValue);
 
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
-    assert(self.isSupportedChain(remoteChainSelector), TokenPool_Error.NonExistentChain);
+    assert (self.isSupportedChain(remoteChainSelector)) throw (TokenPool_Error.NonExistentChain);
 
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     val deleted = config.remotePools.delete(remotePoolAddress.hash());
-    assert(deleted, TokenPool_Error.InvalidRemotePoolForChain);
+    assert (deleted) throw (TokenPool_Error.InvalidRemotePoolForChain);
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
     // We emit in addition to reply to sender, to stay consistent with TokenPool_RemotePoolAdded event
@@ -608,12 +608,12 @@ fun TokenPool<T>.removeRemotePool(
         value: 0,
         dest: sender,
         body: TokenPool_RemotePoolRemovedNotification {
-            queryId,
+            queryID,
             remoteChainSelector,
             remotePoolAddress,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Sets the permissions for a list of chains selectors. Actual senders for these chains
@@ -626,7 +626,7 @@ fun TokenPool<T>.applyChainUpdates(
     mutate self,
     sender: address,
     msgValue: coins,
-    queryId: uint64,
+    queryID: uint64,
     remoteChainSelectorsToRemove: SnakedCell<uint64>,
     chainsToAdd: SnakedCell<TokenPool_ChainUpdate>,
 ) {
@@ -639,7 +639,7 @@ fun TokenPool<T>.applyChainUpdates(
     while (!rmIter.empty()) {
         val remoteChainSelector = rmIter.next();
         val deleted = self.data.remoteChainConfigs.delete(remoteChainSelector);
-        assert(deleted, TokenPool_Error.NonExistentChain);
+        assert (deleted) throw (TokenPool_Error.NonExistentChain);
 
         emit(TOPIC_TOKEN_POOL_CHAIN_REMOVED, TokenPool_ChainRemoved { remoteChainSelector });
     }
@@ -648,10 +648,10 @@ fun TokenPool<T>.applyChainUpdates(
     while (!addIter.empty()) {
         val newChain = addIter.next();
         val remoteTokenAddress = newChain.remoteTokenAddress;
-        assert(!TokenPool<T>.isEmptyCrossChainAddress(remoteTokenAddress), TokenPool_Error.ZeroAddressInvalid);
+        assert (!TokenPool<T>.isEmptyCrossChainAddress(remoteTokenAddress)) throw (TokenPool_Error.ZeroAddressInvalid);
 
         val remoteChainSelector = newChain.remoteChainSelector;
-        assert(!self.data.remoteChainConfigs.get(remoteChainSelector).isFound, TokenPool_Error.ChainAlreadyExists);
+        assert (!self.data.remoteChainConfigs.get(remoteChainSelector).isFound) throw (TokenPool_Error.ChainAlreadyExists);
 
         val rlConfigDefault = RateLimiter_Config {
             isEnabled: false,
@@ -693,9 +693,9 @@ fun TokenPool<T>.applyChainUpdates(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: TokenPool_ChainUpdatesApplied { queryId },
+        body: TokenPool_ChainUpdatesApplied { queryID },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Curses `subjects` in the pool-local `CursePolicy`. Sender must hold
@@ -730,7 +730,7 @@ fun TokenPool<T>.onCursePolicyOwnableMessage(mutate self, sender: address, msgVa
     self.requireMinValue(msgValue);
 
     var policy = self.data.localPolicy.load();
-    assert(policy.cursePolicy.onOwnableMessage(sender, body)) throw 0xFFFF;
+    assert(policy.cursePolicy.onOwnableMessage(sender, body)) throw (0xFFFF);
     self.data.localPolicy = policy.toCell();
 }
 
@@ -779,28 +779,28 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.onQueryCCVsReply(msgSender, msgValue, msg);
         }
          TokenPool_ApplyChainUpdates => {
-            self.applyChainUpdates(msgSender, msgValue, msg.queryId, msg.remoteChainSelectorsToRemove, msg.chainsToAdd);
+            self.applyChainUpdates(msgSender, msgValue, msg.queryID, msg.remoteChainSelectorsToRemove, msg.chainsToAdd);
         }
         TokenPool_AddRemotePool => {
-            self.addRemotePool(msgSender, msgValue, msg.queryId, msg.remoteChainSelector, msg.remotePoolAddress);
+            self.addRemotePool(msgSender, msgValue, msg.queryID, msg.remoteChainSelector, msg.remotePoolAddress);
         }
         TokenPool_RemoveRemotePool => {
-            self.removeRemotePool(msgSender, msgValue, msg.queryId, msg.remoteChainSelector, msg.remotePoolAddress);
+            self.removeRemotePool(msgSender, msgValue, msg.queryID, msg.remoteChainSelector, msg.remotePoolAddress);
         }
         TokenPool_SetDynamicConfig => {
-            self.setDynamicConfig(msgSender, msgValue, msg.queryId, msg.router, msg.rateLimitAdmin, msg.feeAdmin);
+            self.setDynamicConfig(msgSender, msgValue, msg.queryID, msg.router, msg.rateLimitAdmin, msg.feeAdmin);
         }
         TokenPool_SetAllowedFinalityConfig => {
-            self.setAllowedFinalityConfig(msgSender, msgValue, msg.queryId, msg.allowedFinalityConfig);
+            self.setAllowedFinalityConfig(msgSender, msgValue, msg.queryID, msg.allowedFinalityConfig);
         }
         TokenPool_SetAdvancedPoolHooks => {
-            self.setAdvancedPoolHooks(msgSender, msgValue, msg.queryId, msg.advancedPoolHooks);
+            self.setAdvancedPoolHooks(msgSender, msgValue, msg.queryID, msg.advancedPoolHooks);
         }
         TokenPool_SetRateLimitConfig => {
-            self.setRateLimitConfig(msgSender, msgValue, msg.queryId, msg.updates);
+            self.setRateLimitConfig(msgSender, msgValue, msg.queryID, msg.updates);
         }
         TokenPool_ApplyTokenTransferFeeConfigUpdates => {
-            self.applyTokenTransferFeeConfigUpdates(msgSender, msgValue, msg.queryId, msg.updates, msg.disableChainSelectors);
+            self.applyTokenTransferFeeConfigUpdates(msgSender, msgValue, msg.queryID, msg.updates, msg.disableChainSelectors);
         }
         TokenPool_Curse => {
             self.curse(msgSender, msgValue, msg.subjects);
@@ -824,10 +824,10 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.onWithdrawableWithdraw(msgSender, msg);
         }
         TokenPool_SetBudget => {
-            self.setBudget(msgSender, msgValue, msg.queryId, msg.budget);
+            self.setBudget(msgSender, msgValue, msg.queryID, msg.budget);
         }
         TokenPool_GetConfig => {
-            self.onGetConfig(msgSender, msg.queryId);
+            self.onGetConfig(msgSender, msg.queryID);
         }
         else => {
             var adminConfig = self.data.adminConfig.load();
@@ -863,21 +863,21 @@ fun TokenPool<T>.onBouncedMessage(mutate self, bouncedSender: address, msgValue:
             return true;
         }
         TokenPool_GetCCVs => {
-            assert(msg.forwardPayload != null, TokenPool_Error.MissingForwardPayload);
+            assert(msg.forwardPayload != null) throw (TokenPool_Error.MissingForwardPayload);
             val context = lazy (msg.forwardPayload as Cell<TokenPool_GetCCVsContext>).load();
-            self.sendCCVsFailed(context.replyTo, msg.queryId, context.forwardPayload, rich.exitCode);
+            self.sendCCVsFailed(context.replyTo, msg.queryID, context.forwardPayload, rich.exitCode);
             return true;
         }
         TokenPool_PreflightCheck => {
             // Fail by notifying the target (replyTo); reimburse any consumed rate limit
-            assert(msg.forwardPayload != null, TokenPool_Error.MissingForwardPayload);
+            assert(msg.forwardPayload != null) throw (TokenPool_Error.MissingForwardPayload);
             val fwdp = (msg.forwardPayload as Cell<TokenPool_LockOrBurnForwardPayload>).load();
             self.recoverLockOrBurnFailure(fwdp, rich.exitCode, msgValue);
             return true;
         }
         TokenPool_PostflightCheck => {
             // Fail by notifying the target (replyTo); reimburse any consumed rate limit
-            assert(msg.forwardPayload != null, TokenPool_Error.MissingForwardPayload);
+            assert(msg.forwardPayload != null) throw (TokenPool_Error.MissingForwardPayload);
             val fwdp = (msg.forwardPayload as Cell<TokenPool_ReleaseOrMintForwardPayload>).load();
             self.recoverReleaseOrMintFailure(fwdp, rich.exitCode, msgValue);
             return true;
@@ -919,7 +919,7 @@ fun TokenPool<T>.onPreflightCheckFinished(
         // withdraw relay, `2S + F` is forwarded to the deposit account.
         val custodyMoves = LB_CUSTODY_MOVES_BEFORE_WITHDRAW;
         val minValue = self.custodyForward(custodyMoves, requestMsg.finalizationValue);
-        assert(msgValue >= minValue, TokenPool_Error.InsufficientMessageValue);
+        assert (msgValue >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
     } catch (errorCode) {
         self.recoverLockOrBurnFailure(fwdp, errorCode, msgValue);
         return;
@@ -975,7 +975,7 @@ fun TokenPool<T>.onPostflightCheckFinished(
     try {
         // The reply carries the rest of the flow; it must still cover the delivery and finalization.
         val minValue = self.releaseOrMintForward(requestMsg.finalizationValue());
-        assert(msgValue >= minValue, TokenPool_Error.InsufficientMessageValue);
+        assert (msgValue >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
 
         self.onReleaseOrMintContinue(fwdp.originalSender, msgValue, requestMsg, prepared);
     } catch (errorCode) {
@@ -1056,7 +1056,7 @@ fun TokenPool<T>.recoverLockOrBurnFailure(
         bounce: BounceMode.NoBounce,
         value: failureValue,
         dest: requestMsg.replyTo,
-        body: TokenPool_LockOrBurnFailure { queryId: requestMsg.queryId, errorCode },
+        body: TokenPool_LockOrBurnFailure { queryID: requestMsg.queryID, errorCode },
     });
 
     if (custodyReturn != null) {
@@ -1076,19 +1076,19 @@ fun TokenPool<T>.recoverLockOrBurnFailure(
         val failureCost = failureValue + failure.estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
         if (failureValue > 0 && msgValue > failureCost) {
             reserveBalanceBeforeInMessage(msgValue);
-            failure.send(SEND_MODE_PAY_FEES_SEPARATELY);
-            transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
+            failure.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+            transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
             return;
         }
 
-        transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
+        transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
 
     // No custody to return
     // Reserve the pre-message balance, then carry the remaining inbound value
     reserveBalanceBeforeInMessage(msgValue);
-    failure.send(SEND_MODE_CARRY_ALL_BALANCE);
+    failure.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Unwinds an admitted release/mint that failed downstream: refunds the inbound capacity consumed
@@ -1107,12 +1107,12 @@ fun TokenPool<T>.recoverReleaseOrMintFailure(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: requestMsg.replyTo,
-        body: TokenPool_ReleaseOrMintFailure { queryId: requestMsg.queryId, errorCode},
+        body: TokenPool_ReleaseOrMintFailure { queryID: requestMsg.queryID, errorCode},
     });
 
     // Reserve the pre-message balance, then carry the remaining inbound value
     reserveBalanceBeforeInMessage(msgValue);
-    failure.send(SEND_MODE_CARRY_ALL_BALANCE);
+    failure.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Updates the token transfer fee configurations for specified destination chains.
@@ -1122,7 +1122,7 @@ fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
     mutate self,
     sender: address,
     msgValue: coins,
-    queryId: uint64,
+    queryID: uint64,
     updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>,
     disableChainSelectors: SnakedCell<uint64>,
 ) {
@@ -1134,14 +1134,14 @@ fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
     var iter = updates.iter();
     while (!iter.empty()) {
         val update = iter.next();
-        assert(self.isSupportedChain(update.destChainSelector), TokenPool_Error.NonExistentChain);
+        assert (self.isSupportedChain(update.destChainSelector)) throw (TokenPool_Error.NonExistentChain);
 
         // Reject configs with isEnabled: false - use disableChainSelectors parameter instead.
-        assert(update.tokenTransferFeeConfig.isEnabled, TokenPool_Error.InvalidTokenTransferFeeConfig);
-        assert((update.tokenTransferFeeConfig.finalityTransferFeeBps as uint256) < TOKEN_POOL_BPS_DIVIDER, TokenPool_Error.InvalidTransferFeeBps);
-        assert((update.tokenTransferFeeConfig.fastFinalityTransferFeeBps as uint256) < TOKEN_POOL_BPS_DIVIDER, TokenPool_Error.InvalidTransferFeeBps);
+        assert (update.tokenTransferFeeConfig.isEnabled) throw (TokenPool_Error.InvalidTokenTransferFeeConfig);
+        assert ((update.tokenTransferFeeConfig.finalityTransferFeeBps as uint256) < TOKEN_POOL_BPS_DIVIDER) throw (TokenPool_Error.InvalidTransferFeeBps);
+        assert ((update.tokenTransferFeeConfig.fastFinalityTransferFeeBps as uint256) < TOKEN_POOL_BPS_DIVIDER) throw (TokenPool_Error.InvalidTransferFeeBps);
         // Gas overhead must be non-zero for proper fee accounting.
-        assert(update.tokenTransferFeeConfig.destGasOverhead > 0, TokenPool_Error.InvalidTokenTransferFeeConfig);
+        assert (update.tokenTransferFeeConfig.destGasOverhead > 0) throw (TokenPool_Error.InvalidTokenTransferFeeConfig);
 
         self.data.tokenTransferFeeConfigs.set(update.destChainSelector, update.tokenTransferFeeConfig);
         emit(TOPIC_TOKEN_POOL_FEE_CONFIG_UPDATED, TokenPool_TokenTransferFeeConfigUpdated {
@@ -1161,9 +1161,9 @@ fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: TokenPool_FeeConfigApplied { queryId },
+        body: TokenPool_FeeConfigApplied { queryID },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun TokenPool<T>.getTokenTransferFeeConfig(self, destChainSelector: uint64): TokenPool_TokenTransferFeeConfig? {
@@ -1239,7 +1239,7 @@ fun TokenPool<T>.getFeeAmount(
         transferFeeBps = feeConfig.fastFinalityTransferFeeBps;
     }
 
-    assert(transferFeeBps < TOKEN_POOL_BPS_DIVIDER, TokenPool_Error.InvalidTransferFeeBps); // Unexpected since it is validated in config update
+    assert (transferFeeBps < TOKEN_POOL_BPS_DIVIDER) throw (TokenPool_Error.InvalidTransferFeeBps); // Unexpected since it is validated in config update
     // SAFETY: Temporarily cast to int so compiler doesn't complain (all integers are `257`-bit signed `int`s in TVM's stack).
     // This product can't overflow because `details.amount` is 120 bits and `transferFeeBps` is 16 bits, so the product is at most 136 bits
     // const c = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF * 0xFFFF // MAX_UINT120 * MAX_UINT16 // Evaluated value: 0xFFFEFFFFFFFFFFFFFFFFFFFFFFFFFF0001 (136 bits)
@@ -1300,7 +1300,7 @@ fun TokenPool<T>.getFeeParamsAndPostFeeAmount(
         if (requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
             transferFeeBps = feeConfig.fastFinalityTransferFeeBps;
         }
-        assert(transferFeeBps < TOKEN_POOL_BPS_DIVIDER, TokenPool_Error.InvalidTransferFeeBps);
+        assert (transferFeeBps < TOKEN_POOL_BPS_DIVIDER) throw (TokenPool_Error.InvalidTransferFeeBps);
         // SAFETY: `transferFeeBps` < TOKEN_POOL_BPS_DIVIDER (asserted), so the fee fraction is
         // < 1 and the subtraction is neither negative nor overflowing: still `coins`.
         amountPostFee = sourceDenominatedAmount - (sourceDenominatedAmount * transferFeeBps) / TOKEN_POOL_BPS_DIVIDER;
@@ -1342,7 +1342,7 @@ fun TokenPool<T>.validateGetCCVsRequest(
 ): void {
     val adminConfig = lazy self.data.adminConfig.load();
     TokenPool<T>.ensureRequestedFinalityAllowed(requestedFinalityConfig, adminConfig.allowedFinalityConfig);
-    assert(self.isSupportedToken(localToken), TokenPool_Error.InvalidToken);
+    assert (self.isSupportedToken(localToken)) throw (TokenPool_Error.InvalidToken);
     self.requireSupportedChain(remoteChainSelector);
 }
 
@@ -1376,7 +1376,7 @@ fun TokenPool<T>.onGetCCVs(
             value: 0,
             dest: hooks,
             body: TokenPool_GetCCVs {
-                queryId: msg.queryId,
+                queryID: msg.queryID,
                 localToken: msg.localToken,
                 remoteChainSelector: msg.remoteChainSelector,
                 amount: ccvAmount,
@@ -1387,14 +1387,14 @@ fun TokenPool<T>.onGetCCVs(
                 forwardPayload: context.toCell(),
             },
         });
-        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
         return; // reply is assembled on the async callback.
     }
 
     // No hooks -> empty CCV set (callers fall back to lane defaults).
     var emptyCCVs: array<address> = [];
-    self.sendCCVsReply(replyTo, msg.queryId, emptyCCVs, context);
+    self.sendCCVsReply(replyTo, msg.queryID, emptyCCVs, context);
 }
 
 /// Handles an on-chain `TokenPool_GetCCVsAndFees` query: validates, then computes the fee
@@ -1414,7 +1414,7 @@ fun TokenPool<T>.onGetCCVsAndFees(
     ).toCell();
 
     self.onGetCCVs(sender, msgValue, TokenPool_GetCCVs {
-        queryId: msg.queryId,
+        queryID: msg.queryID,
         localToken: msg.localToken,
         remoteChainSelector: msg.remoteChainSelector,
         amount: msg.amount,
@@ -1431,18 +1431,18 @@ fun TokenPool<T>.onGetCCVsAndFees(
 fun TokenPool<T>.sendCCVsReply(
     self,
     replyTo: address,
-    queryId: uint64,
+    queryID: uint64,
     requiredCCVs: array<address>,
     context: TokenPool_GetCCVsContext,
 ): void {
     var body: cell;
     if (context.fees == null) {
         val forwardPayload = context.forwardPayload;
-        body = TokenPool_CCVs { queryId, requiredCCVs, forwardPayload }.toCell();
+        body = TokenPool_CCVs { queryID, requiredCCVs, forwardPayload }.toCell();
     } else {
         val fees = context.fees as Cell<TokenPool_FeeContext>;
         val forwardPayload = context.forwardPayload;
-        body = TokenPool_CCVsAndFees { queryId, requiredCCVs, fees, forwardPayload}.toCell();
+        body = TokenPool_CCVsAndFees { queryID, requiredCCVs, fees, forwardPayload}.toCell();
     }
 
     val reply = createMessage({
@@ -1451,7 +1451,7 @@ fun TokenPool<T>.sendCCVsReply(
         dest: replyTo,
         body,
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Sends `TokenPool_GetCCVsFailed` to the original requester, echoing their `forwardPayload`.
@@ -1459,7 +1459,7 @@ fun TokenPool<T>.sendCCVsReply(
 fun TokenPool<T>.sendCCVsFailed(
     self,
     replyTo: address,
-    queryId: uint64,
+    queryID: uint64,
     forwardPayload: cell?,
     errorCode: int32,
 ): void {
@@ -1467,9 +1467,9 @@ fun TokenPool<T>.sendCCVsFailed(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: replyTo,
-        body: TokenPool_GetCCVsFailed { queryId, errorCode, forwardPayload },
+        body: TokenPool_GetCCVsFailed { queryID, errorCode, forwardPayload },
     });
-    failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Handles the async `TokenPool_QueryCCVsReply` from `advancedPoolHooks`, assembling the final
@@ -1482,18 +1482,18 @@ fun TokenPool<T>.onQueryCCVsReply(
 ): void {
     val adminConfig = lazy self.data.adminConfig.load();
     val hooks = adminConfig.advancedPoolHooks;
-    assert(hooks != null && hooks == sender, TokenPool_Error.Unauthorized);
-    assert(msg.forwardPayload != null, TokenPool_Error.MissingForwardPayload);
+    assert(hooks != null && hooks == sender) throw (TokenPool_Error.Unauthorized);
+    assert(msg.forwardPayload != null) throw (TokenPool_Error.MissingForwardPayload);
 
     val context = lazy (msg.forwardPayload as Cell<TokenPool_GetCCVsContext>).load();
     try {
         self.requireMinValue(msgValue);
     } catch (errorCode) {
-        self.sendCCVsFailed(context.replyTo, msg.queryId, context.forwardPayload, errorCode as int32);
+        self.sendCCVsFailed(context.replyTo, msg.queryID, context.forwardPayload, errorCode as int32);
         return;
     }
 
-    self.sendCCVsReply(context.replyTo, msg.queryId, msg.requiredCCVs, context);
+    self.sendCCVsReply(context.replyTo, msg.queryID, msg.requiredCCVs, context);
 }
 
 /// Validates the lock or burn input for correctness on
@@ -1523,7 +1523,7 @@ fun TokenPool<T>.validateLockOrBurn(
 
     val request = lazy msg.request.load();
     val details: TokenPool_TransferDetails<address, Cell<CrossChainAddress>, coins> = lazy request.transfer.details.load();
-    assert(self.isSupportedToken(details.localToken), TokenPool_Error.InvalidToken);
+    assert (self.isSupportedToken(details.localToken)) throw (TokenPool_Error.InvalidToken);
     self.requireSupportedChain(details.remoteChainSelector);
     self.ensureNotCursed(details.remoteChainSelector);
     self.onlyRouter(sender);
@@ -1569,17 +1569,15 @@ fun TokenPool<T>.onLockOrBurn(
 ): void {
     // The inbound value must cover admission plus the caller-provided finalization
     // @dev `budget()` clamps `A >= 3S`, so this is also the pre-withdraw `3S + F` gate.
-    assert(
-        msgValue >= self.budget().lockOrBurn.admission + msg.finalizationValue,
-        TokenPool_Error.InsufficientMessageValue
-    );
+    assert (
+        msgValue >= self.budget().lockOrBurn.admission + msg.finalizationValue
+    ) throw (TokenPool_Error.InsufficientMessageValue);
 
     // The caller's success/failure continuation completes the flow,
     // so it must carry (minimum) value.
-    assert(
-        msg.finalizationValue >= TokenPool_Costs.callerFinalization(),
-        TokenPool_Error.InsufficientMessageValue
-    );
+    assert (
+        msg.finalizationValue >= TokenPool_Costs.callerFinalization()
+    ) throw (TokenPool_Error.InsufficientMessageValue);
 
     if (self.hooks != null && self.hooks.onLockOrBurn != null) {
         self.context = self.hooks.onLockOrBurn(self.context!, sender, msg);
@@ -1632,14 +1630,14 @@ fun TokenPool<T>.onLockOrBurnWithdraw(
         prepared: prepared.toCell(),
     };
 
-    val queryId = msg.queryId;
+    val queryID = msg.queryID;
     val custodyMoves = LB_CUSTODY_MOVES_BEFORE_LOCK_BURN; // = 2; expected budget before final lock/burn
     val forwardTonAmount = self.custodyForward(custodyMoves, msg.finalizationValue);
     val withdrawalMsg = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
         dest: msg.replyTo,
-        body: TokenPool_LockOrBurnWithdraw { queryId, forwardTonAmount, forwardPayload},
+        body: TokenPool_LockOrBurnWithdraw { queryID, forwardTonAmount, forwardPayload},
     });
 
     // Reserve the pre-message balance, then carry the remaining inbound value
@@ -1665,7 +1663,7 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     // This is a trust boundary, rather than a recoverable transfer failure.
     // Never return tokens in response to a notification from an arbitrary
     // contract: only this pool's Jetton wallet can have credited custody.
-    assert(self.data.jettonClient().isWallet(sender), TokenPool_Error.Unauthorized);
+    assert (self.data.jettonClient().isWallet(sender)) throw (TokenPool_Error.Unauthorized);
 
     try {
         // Only callable by authorized router-owned deployables (see assertAuthorizedDepositInitiator).
@@ -1689,7 +1687,7 @@ fun TokenPool<T>.onLockOrBurnTransfer(
             body: returnTransfer,
         });
 
-        transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
+        transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     }
 }
 
@@ -1706,7 +1704,7 @@ fun TokenPool<T>.processLockOrBurnTransfer(
     val request = lazy requestMsg.request.load();
     val details = lazy request.transfer.details.load();
 
-    assert(msg.transferInitiator != null, TokenPool_Error.MissingTransferInitiator);
+    assert (msg.transferInitiator != null) throw (TokenPool_Error.MissingTransferInitiator);
     self.assertAuthorizedDepositInitiator(msg.transferInitiator, withdrawalInitiator, details.originalSender);
 
     try {
@@ -1714,11 +1712,11 @@ fun TokenPool<T>.processLockOrBurnTransfer(
         // We expect a budget of two custody moves before lock/burn (`2S + F`).
         val custodyMoves = LB_CUSTODY_MOVES_BEFORE_LOCK_BURN;
         val minValue = self.custodyForward(custodyMoves, requestMsg.finalizationValue);
-        assert(msgValue >= minValue, TokenPool_Error.InsufficientMessageValue);
+        assert (msgValue >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
 
-        assert(details.amount == msg.jettonAmount, TokenPool_Error.AmountMismatch);
+        assert (details.amount == msg.jettonAmount) throw (TokenPool_Error.AmountMismatch);
         val prepared = lazy fwdp.prepared.load();
-        assert(prepared.feeAmount + prepared.destTokenAmount == details.amount, TokenPool_Error.AmountMismatch);
+        assert (prepared.feeAmount + prepared.destTokenAmount == details.amount) throw (TokenPool_Error.AmountMismatch);
 
         self.onLockOrBurnTransferContinue(sender, msgValue, msg, fwdp);
     } catch (errorCode) {
@@ -1764,7 +1762,7 @@ fun TokenPool<T>.assertAuthorizedDepositInitiator(
             // Once we have verified that the transfer initiator matches a derived deposit account,
             // we must ensure that the withdrawal initiator is the Router itself so we can trust the
             // forward payload
-            assert (withdrawalInitiator == router) throw TokenPool_Error.Unauthorized;
+            assert (withdrawalInitiator == router) throw (TokenPool_Error.Unauthorized);
             return;
         }
 
@@ -1824,7 +1822,7 @@ fun TokenPool<T>.createCustodyReturn(
         : details.originalSender; // default
 
     return AskToTransfer {
-        queryId: requestMsg.queryId,
+        queryID: requestMsg.queryID,
         jettonAmount: details.amount,
         transferRecipient,
         sendExcessesTo,
@@ -1842,7 +1840,7 @@ fun TokenPool<T>.buildReturnTransfer(msg: TransferNotificationForRecipient): Ask
     }
 
     val transfer = AskToTransfer {
-        queryId: msg.queryId,
+        queryID: msg.queryID,
         jettonAmount: msg.jettonAmount,
         transferRecipient: msg.transferInitiator,
         sendExcessesTo: msg.transferInitiator,
@@ -1884,7 +1882,7 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
         value: 0,
         dest: requestMsg.replyTo,
         body: TokenPool_LockOrBurnFinished {
-            queryId: requestMsg.queryId,
+            queryID: requestMsg.queryID,
             out: prepared.out.toCell(),
             destTokenAmount: prepared.destTokenAmount,
         },
@@ -1892,7 +1890,7 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
 
     // Reserve the pre-message balance, then carry the remaining inbound value
     reserveBalanceBeforeInMessage(msgValue);
-    finished.send(SEND_MODE_CARRY_ALL_BALANCE);
+    finished.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Validates the release or mint input for correctness on
@@ -1922,11 +1920,11 @@ fun TokenPool<T>.validateReleaseOrMint(
 
     val request = lazy msg.request.load();
     val details = lazy request.transfer.details.load();
-    assert(self.isSupportedToken(details.localToken), TokenPool_Error.InvalidToken);
+    assert (self.isSupportedToken(details.localToken)) throw (TokenPool_Error.InvalidToken);
     self.requireSupportedChain(details.remoteChainSelector);
     self.ensureNotCursed(details.remoteChainSelector);
     self.onlyRouter(sender);
-    assert(self.isRemotePool(details.remoteChainSelector, request.sourcePoolAddress), TokenPool_Error.InvalidRemotePoolForChain);
+    assert (self.isRemotePool(details.remoteChainSelector, request.sourcePoolAddress)) throw (TokenPool_Error.InvalidRemotePoolForChain);
 
     val remoteDecimals = self.parseRemoteDecimals(request.sourcePoolData);
     val localAmount = self.calculateLocalAmount(details.amount, remoteDecimals);
@@ -1970,11 +1968,11 @@ fun TokenPool<T>.onReleaseOrMint(
     // The message value is checked for admission plus the caller's finalization.
     // @dev `budget()` clamps `A >= 2S`, so this is also the pre-withdraw `2S + F` gate.
     var minValue = self.budget().releaseOrMint.admission + msg.finalizationValue();
-    assert(msgValue >= minValue, TokenPool_Error.InsufficientMessageValue);
+    assert (msgValue >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
 
     // The recipient's notification completes a delivery, so it must carry value.
     minValue = TokenPool_Costs.callerFinalization();
-    assert(msg.finalizationValue() >= minValue, TokenPool_Error.InsufficientMessageValue);
+    assert (msg.finalizationValue() >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
 
     if (self.hooks != null && self.hooks.onReleaseOrMint != null) {
         self.context = self.hooks.onReleaseOrMint(self.context!, msg);
@@ -2020,7 +2018,7 @@ fun TokenPool<T>.onReleaseOrMintDelivered(
     self.onlyRouter(sender);
 
     val transfer = lazy msg.transfer.load();
-    assert(self.isSupportedToken(transfer.localToken), TokenPool_Error.InvalidToken);
+    assert (self.isSupportedToken(transfer.localToken)) throw (TokenPool_Error.InvalidToken);
 
     emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
         remoteChainSelector: transfer.remoteChainSelector,
@@ -2037,14 +2035,14 @@ fun TokenPool<T>.onReleaseOrMintDelivered(
         value: 0,
         dest: msg.replyTo,
         body: TokenPool_ReleaseOrMintFinalized {
-            queryId: msg.queryId,
+            queryID: msg.queryID,
             out: TokenPool_ReleaseOrMintOutV1 { destinationAmount: transfer.amount }.toCell(),
         },
     });
 
     // Reserve the pre-message balance, then carry the remaining inbound value
     reserveBalanceBeforeInMessage(msgValue);
-    finalized.send(SEND_MODE_CARRY_ALL_BALANCE);
+    finalized.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun TokenPool<T>.encodeLocalDecimals(self): cell {
@@ -2058,10 +2056,10 @@ fun TokenPool<T>.parseRemoteDecimals(self, sourcePoolData: cell?): uint8 {
     }
 
     var s = sourcePoolData.beginParse();
-    assert(s.remainingBitsCount() == 256 && s.remainingRefsCount() == 0, TokenPool_Error.InvalidRemoteChainDecimals);
+    assert (s.remainingBitsCount() == 256 && s.remainingRefsCount() == 0) throw (TokenPool_Error.InvalidRemoteChainDecimals);
     val remoteDecimals = s.loadUint(256);
     s.assertEnd();
-    assert(remoteDecimals <= MAX_UINT8, TokenPool_Error.InvalidRemoteChainDecimals);
+    assert (remoteDecimals <= MAX_UINT8) throw (TokenPool_Error.InvalidRemoteChainDecimals);
 
     return remoteDecimals as uint8;
 }
@@ -2092,7 +2090,7 @@ fun TokenPool<T>.calculateLocalAmount(self, remoteAmount: uint256, remoteDecimal
 }
 
 fun TokenPool<T>.requireSupportedChain(self, remoteChainSelector: uint64) {
-    assert(self.isSupportedChain(remoteChainSelector), TokenPool_Error.ChainNotAllowed);
+    assert (self.isSupportedChain(remoteChainSelector)) throw (TokenPool_Error.ChainNotAllowed);
 }
 
 /// Checks whether the msg.sender is either the owner or the rate limit admin.
@@ -2104,10 +2102,9 @@ fun TokenPool<T>.onlyOwnerOrRateLimitAdmin(self, sender: address) {
         return dynamicConfig.rateLimitAdmin != null
             && sender == dynamicConfig.rateLimitAdmin;
     };
-    assert(
-        sender == ownable.owner || senderIsRateLimitAdmin(),
-        TokenPool_Error.Unauthorized
-    );
+    assert (
+        sender == ownable.owner || senderIsRateLimitAdmin()
+    ) throw (TokenPool_Error.Unauthorized);
 }
 
 /// Restricts CCIP token operations to the configured Router. The Router owns ramp authentication
@@ -2115,7 +2112,7 @@ fun TokenPool<T>.onlyOwnerOrRateLimitAdmin(self, sender: address) {
 fun TokenPool<T>.onlyRouter(self, sender: address) {
     val adminConfig = lazy self.data.adminConfig.load();
     val dynamicConfig = lazy adminConfig.dynamicConfig.load();
-    assert(sender == dynamicConfig.router, TokenPool_Error.Unauthorized);
+    assert (sender == dynamicConfig.router) throw (TokenPool_Error.Unauthorized);
 }
 
 /// Authenticates asynchronous pool-hook continuations. Without this boundary,
@@ -2124,7 +2121,7 @@ fun TokenPool<T>.onlyRouter(self, sender: address) {
 fun TokenPool<T>.onlyAdvancedPoolHooks(self, sender: address) {
     val adminConfig = lazy self.data.adminConfig.load();
     val hooks = adminConfig.advancedPoolHooks;
-    assert(hooks != null && sender == hooks, TokenPool_Error.Unauthorized);
+    assert (hooks != null && sender == hooks) throw (TokenPool_Error.Unauthorized);
 }
 
 /// Checks the pool-local RMN policy at admission.
@@ -2133,7 +2130,7 @@ fun TokenPool<T>.onlyAdvancedPoolHooks(self, sender: address) {
 /// (owner-configurable). It is evaluated only when the Router admits the operation; async
 /// continuations deliberately do not re-check.
 fun TokenPool<T>.ensureNotCursed(self, remoteChainSelector: uint64) {
-    assert(self.verifyNotCursed(remoteChainSelector as uint128), TokenPool_Error.CursedByRMN);
+    assert (self.verifyNotCursed(remoteChainSelector as uint128)) throw (TokenPool_Error.CursedByRMN);
 
     if (self.hooks != null && self.hooks.ensureNotCursed != null) {
         return self.hooks.ensureNotCursed(self.context, remoteChainSelector);
@@ -2164,7 +2161,7 @@ fun TokenPool<T>.preflightCheck(
             value: 0,
             dest: hooks,
             body: TokenPool_PreflightCheck {
-                queryId: msg.queryId,
+                queryID: msg.queryID,
                 request: msg.request,
                 requestedFinalityConfig: msg.requestedFinalityConfig,
                 tokenArgs: msg.tokenArgs,
@@ -2172,7 +2169,7 @@ fun TokenPool<T>.preflightCheck(
                 forwardPayload: forwardPayload.toCell(),
             },
         });
-        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
         return true; // wait for async callback
     }
@@ -2204,14 +2201,14 @@ fun TokenPool<T>.postflightCheck(
             value: 0,
             dest: hooks,
             body: TokenPool_PostflightCheck {
-                queryId: msg.queryId,
+                queryID: msg.queryID,
                 request: msg.request,
                 localAmount: prepared.localAmount,
                 requestedFinalityConfig: msg.requestedFinalityConfig,
                 forwardPayload: forwardPayload.toCell(),
             },
         });
-        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
         return true; // wait for async callback
     }
@@ -2469,7 +2466,7 @@ fun TokenPool<T>.setRateLimitConfig(
     mutate self,
     sender: address,
     msgValue: coins,
-    queryId: uint64,
+    queryID: uint64,
     updates: SnakedCell<TokenPool_RateLimitConfigArgs>,
 ) {
     // TODO[VALUE]: [NONEVM-5766] A/dynamic - loops over updates; a static S does not bound large inputs
@@ -2495,9 +2492,9 @@ fun TokenPool<T>.setRateLimitConfig(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: TokenPool_RateLimitConfiguredNotification { queryId },
+        body: TokenPool_RateLimitConfiguredNotification { queryID },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// @notice Updates the rate limiters for a given rate limiter pair.
@@ -2522,10 +2519,10 @@ fun TokenPool<T>._setRemotePool(
     remoteChainSelector: uint64,
     remotePoolAddress: Cell<CrossChainAddress>
 ) {
-    assert(!TokenPool<T>.isEmptyCrossChainAddress(remotePoolAddress), TokenPool_Error.ZeroAddressInvalid);
+    assert (!TokenPool<T>.isEmptyCrossChainAddress(remotePoolAddress)) throw (TokenPool_Error.ZeroAddressInvalid);
     // Check if the pool already exists.
     val poolHash = remotePoolAddress.hash();
-    assert(!config.remotePools.get(poolHash).isFound, TokenPool_Error.PoolAlreadyAdded);
+    assert (!config.remotePools.get(poolHash).isFound) throw (TokenPool_Error.PoolAlreadyAdded);
     // Add the pool to the mapping to be able to un-hash it later.
     config.remotePools.set(poolHash, remotePoolAddress);
 
@@ -2627,7 +2624,7 @@ fun TokenPool<T>.ensureRequestedFinalityAllowed(requestedFinalityConfig: uint32,
     if (requestedFinalityConfig == TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
         return;
     }
-    assert(allowedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG && requestedFinalityConfig == allowedFinalityConfig, TokenPool_Error.InvalidRequestedFinality);
+    assert (allowedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG && requestedFinalityConfig == allowedFinalityConfig) throw (TokenPool_Error.InvalidRequestedFinality);
 }
 
 fun TokenPool<T>.isEmptyCrossChainAddress(value: Cell<CrossChainAddress>): bool {
@@ -2640,7 +2637,7 @@ fun TokenPool<T>.isEmptyCrossChainAddress(value: Cell<CrossChainAddress>): bool 
 fun TokenPool<T>.boxCrossChainAddress(addressBytes: CrossChainAddress): Cell<CrossChainAddress> {
     var addressSlice = addressBytes;
     val bits = addressSlice.remainingBitsCount();
-    assert(bits % 8 == 0, TokenPool_Error.OverflowDetected);
+    assert (bits % 8 == 0) throw (TokenPool_Error.OverflowDetected);
     val pureAddressBits = addressSlice.loadBits(bits);
     return beginCell()
         .storeUint(bits / 8, 8)

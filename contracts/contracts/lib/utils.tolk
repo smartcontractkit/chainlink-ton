@@ -21,7 +21,7 @@ fun getFacilityId(crc32Key: int): uint16 {
 /// Returns an error code composed from facility and local code (max 2^16-1).
 fun getErrorCode(crc32Key: int, local: uint16): uint16 {
     val code = getFacilityId(crc32Key) * 100 + local;
-    assert(code <= 65535, 4); // exit code 4: Integer overflow
+    assert (code <= 65535) throw (4); // exit code 4: Integer overflow
     return code
 }
 
@@ -47,15 +47,15 @@ fun snakedBytesLen(data: cell): int {
     var done = false;
     while (!done) {
         cellsCount += 1;
-        assert(cellsCount <= maxCells, Utils_Error.InvalidData);
+        assert (cellsCount <= maxCells) throw (Utils_Error.InvalidData);
         val (bits, refs) = s.remainingBitsAndRefsCount();
-        assert(bits % 8 == 0, Utils_Error.InvalidData);
+        assert (bits % 8 == 0) throw (Utils_Error.InvalidData);
         totalBits += bits;
         if (refs == 0) {
             done = true;
         } else {
             // Strict chain: exactly one ref, pointing to the next cell.
-            assert(refs == 1, Utils_Error.InvalidData);
+            assert (refs == 1) throw (Utils_Error.InvalidData);
             s = s.loadRef().beginParse();
         }
     }
@@ -155,7 +155,7 @@ fun Iterator<T>.new(data: cell): Iterator<T> {
 fun Iterator<T>.parsed(self): slice {
     if (self.buffer == null) {
         val (data, isExotic) = self.root.beginParseSpecial();
-        assert(!isExotic, Utils_Error.InvalidData);
+        assert (!isExotic) throw (Utils_Error.InvalidData);
         return data;
     }
     return self.buffer;
@@ -172,9 +172,9 @@ fun Iterator<T>.next(mutate self): T {
     val (bits, refs) = data.remainingBitsAndRefsCount();
     if (bits == 0) {
         // for snakeData to be well formed, there should only be one reference
-        assert(refs == 1, Utils_Error.InvalidData);
+        assert (refs == 1) throw (Utils_Error.InvalidData);
         val (nextSlice, isExotic) = data.loadRef().beginParseSpecial();
-        assert(!isExotic, Utils_Error.InvalidData);
+        assert (!isExotic) throw (Utils_Error.InvalidData);
         data = nextSlice;
     }
     val value = data.loadAny<T>();
@@ -188,7 +188,7 @@ fun Iterator<T>.next(mutate self): T {
 fun Iterator<T>.countBytes(self): int {
     val maxCells = MAX_DATA_CELLS;
     val (_cellsCount, dataBitsSize, _cellRefs) = self.parsed().calculateSizeStrict(maxCells);
-    assert(dataBitsSize % 8 == 0, Utils_Error.InvalidData);
+    assert (dataBitsSize % 8 == 0) throw (Utils_Error.InvalidData);
     return dataBitsSize / 8;
 }
 
@@ -217,19 +217,19 @@ fun Iterator<T>.countBytesSafe(self): (int, int) {
 ///
 /// Returns the number of complete elements.
 fun Iterator<T>.size(self, elemBits: int): int {
-    assert (elemBits > 0 && elemBits <= 1023, Utils_Error.InvalidData);
+    assert (elemBits > 0 && elemBits <= 1023) throw (Utils_Error.InvalidData);
     var curr: slice = self.parsed();
     var totalElements = 0;
     var cells = 0;
     while (true) {
         cells += 1;
-        assert (cells <= SNAKE_MAX_CELLS, 8); // cell-overflow exit code
+        assert (cells <= SNAKE_MAX_CELLS) throw (8); // cell-overflow exit code
 
         // a partial trailing element would straddle the cell boundary
         val bits = curr.remainingBitsCount();
         val refs = curr.remainingRefsCount();
-        assert (bits % elemBits == 0, Utils_Error.InvalidData);
-        assert (refs == 0 || refs == 1, Utils_Error.InvalidData);
+        assert (bits % elemBits == 0) throw (Utils_Error.InvalidData);
+        assert (refs == 0 || refs == 1) throw (Utils_Error.InvalidData);
 
         totalElements += bits / elemBits;
         if (refs == 0) {
@@ -237,7 +237,7 @@ fun Iterator<T>.size(self, elemBits: int): int {
         }
         val next = curr.loadRef();
         val (nextSlice, isExotic) = next.beginParseSpecial();
-        assert (!isExotic, Utils_Error.InvalidData);
+        assert (!isExotic) throw (Utils_Error.InvalidData);
         curr = nextSlice;
     }
 }
@@ -262,19 +262,19 @@ fun cell.assertCanonicalByteSnake(self): int {
         cells += 1;
         // Exit code 8 matches the `CDATASIZE` cell-overflow signal used by
         // `Iterator.countBytes`, preserving the caller's error-code mapping.
-        assert (cells <= SNAKE_MAX_CELLS, 8);
+        assert (cells <= SNAKE_MAX_CELLS) throw (8);
 
         var (s, isExotic) = curr.beginParseSpecial();
-        assert (!isExotic, Utils_Error.InvalidData);
+        assert (!isExotic) throw (Utils_Error.InvalidData);
 
         val bits = s.remainingBitsCount();
         val refs = s.remainingRefsCount();
         if (refs == 0) {
             // only the terminal cell may be partial, and only by whole bytes
-            assert (bits % 8 == 0, Utils_Error.InvalidData);
+            assert (bits % 8 == 0) throw (Utils_Error.InvalidData);
         } else {
-            assert (refs == 1, Utils_Error.InvalidData);
-            assert (bits == SNAKE_CELL_MAX_BYTES * 8, Utils_Error.InvalidData);
+            assert (refs == 1) throw (Utils_Error.InvalidData);
+            assert (bits == SNAKE_CELL_MAX_BYTES * 8) throw (Utils_Error.InvalidData);
         }
 
         totalBytes += bits / 8;
@@ -350,13 +350,13 @@ fun Bitmap256.new(): Bitmap256 {
 
 @inline
 fun Bitmap256.set(mutate self, index: int): void {
-    assert(index >= 0 && index < 256, Utils_Error.BitmapOutOfBounds);
+    assert (index >= 0 && index < 256) throw (Utils_Error.BitmapOutOfBounds);
     self.bits = self.bits | (1 << index);
 }
 
 @inline
 fun Bitmap256.has(self, index: int): bool {
-    assert(index >= 0 && index < 256, Utils_Error.BitmapOutOfBounds);
+    assert (index >= 0 && index < 256) throw (Utils_Error.BitmapOutOfBounds);
     return (self.bits & (1 << index)) != 0;
 }
 
@@ -365,7 +365,7 @@ fun Bitmap256.has(self, index: int): bool {
 fun countAddresses(data: cell): int {
     val maxCells = MAX_DATA_CELLS;
     val (_cellsCount, dataBitsSize, _cellRefs) = data.calculateSizeStrict(maxCells);
-    assert(dataBitsSize % ADDR_KEY_LEN == 0, Utils_Error.InvalidData);
+    assert (dataBitsSize % ADDR_KEY_LEN == 0) throw (Utils_Error.InvalidData);
     return dataBitsSize / ADDR_KEY_LEN;
 }
 

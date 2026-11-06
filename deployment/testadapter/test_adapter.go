@@ -564,7 +564,7 @@ func (a *TONAdapter) deployOnRampAccount(ctx context.Context, routerAddr, tokenA
 	if err := tlb.LoadFromCell(&use, reply.InternalMsg.Body.MustBeginParse()); err != nil {
 		var failed router.OnRampAccountFailed
 		if failErr := tlb.LoadFromCell(&failed, reply.InternalMsg.Body.MustBeginParse()); failErr == nil {
-			return nil, fmt.Errorf("router rejected GetOnRampAccount with error %s", failed.Error.String())
+			return nil, fmt.Errorf("router rejected GetOnRampAccount with error %d", failed.Error)
 		}
 		return nil, fmt.Errorf("failed to parse GetOnRampAccount reply: %w", err)
 	}

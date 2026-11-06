@@ -40,7 +40,7 @@ struct OCR3Base_Transmitted {
 /// && len(transmitters) <= len(signers) [if sig verification is enabled].
 // 0x2B78359F = crc32('OCR3Base_SetOCR3Config')
 struct (0x2B78359F) OCR3Base_SetOCR3Config {
-    queryId: uint64;
+    queryID: uint64;
     configDigest: uint256;
     ocrPluginType: uint16;
     bigF: uint8;
@@ -73,7 +73,7 @@ fun OCR3Base.getConfig(self, ocrPluginType: uint16): OCRConfig? {
 }
 
 fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
-	assert(msg.bigF > 0, MultiOCR3Base_Error.BigFMustBePositive);
+	assert (msg.bigF > 0) throw (MultiOCR3Base_Error.BigFMustBePositive);
 
 	var ocrConfig = self.getConfig(msg.ocrPluginType);
 	if (ocrConfig == null) {
@@ -85,23 +85,22 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 	if (ocrConfig.configInfo.bigF == 0) {
 		ocrConfig.configInfo.isSignatureVerificationEnabled = msg.isSignatureVerificationEnabled;
 	} else {
-		assert(
-			ocrConfig.configInfo.isSignatureVerificationEnabled == msg.isSignatureVerificationEnabled,
-			MultiOCR3Base_Error.StaticConfigCannotBeChanged
-		);
+		assert (
+			ocrConfig.configInfo.isSignatureVerificationEnabled == msg.isSignatureVerificationEnabled
+		) throw (MultiOCR3Base_Error.StaticConfigCannotBeChanged);
 	}
 	val transmitters_length = countAddresses(msg.transmitters);
 	// val transmitters_length = msg.transmitters.iter().size(ADDR_KEY_LEN);
 
-	assert(transmitters_length <= MAX_NUM_ORACLES, MultiOCR3Base_Error.TooManyTransmitters);
-	assert(transmitters_length > 0, MultiOCR3Base_Error.NoTransmitters);
+	assert (transmitters_length <= MAX_NUM_ORACLES) throw (MultiOCR3Base_Error.TooManyTransmitters);
+	assert (transmitters_length > 0) throw (MultiOCR3Base_Error.NoTransmitters);
 	
 	if (msg.isSignatureVerificationEnabled) {
 		val signers_length = msg.signers.iter().countBytes() / 32;
-		assert(signers_length > 0, MultiOCR3Base_Error.NoSigners);
-		assert(signers_length <= MAX_NUM_ORACLES, MultiOCR3Base_Error.TooManySigners);
-		assert(signers_length > 3 * msg.bigF, MultiOCR3Base_Error.BigFTooHigh);
-		assert(signers_length >= transmitters_length, MultiOCR3Base_Error.TooManyTransmitters);
+		assert (signers_length > 0) throw (MultiOCR3Base_Error.NoSigners);
+		assert (signers_length <= MAX_NUM_ORACLES) throw (MultiOCR3Base_Error.TooManySigners);
+		assert (signers_length > 3 * msg.bigF) throw (MultiOCR3Base_Error.BigFTooHigh);
+		assert (signers_length >= transmitters_length) throw (MultiOCR3Base_Error.TooManyTransmitters);
 		ocrConfig.configInfo.n = signers_length;
 		ocrConfig.assignSignerOracles(msg.signers);
 	}
@@ -134,24 +133,24 @@ fun OCR3Base.transmit(
     signatures: SnakedCell<SignatureEd25519>,
 ) {
     var ocrConfig = self.getConfig(ocrPluginType);
-    assert(ocrConfig != null, MultiOCR3Base_Error.NonExistentOcrPluginType);
+    assert (ocrConfig != null) throw (MultiOCR3Base_Error.NonExistentOcrPluginType);
     ocrConfig = ocrConfig!;
     val configInfo: ConfigInfo = ocrConfig.configInfo;
     
     // EVM checks transaction data length here, it's probably too expensive to do this in TON 
     
-    assert(reportContext.configDigest == configInfo.configDigest, MultiOCR3Base_Error.ConfigDigestMismatch);
+    assert (reportContext.configDigest == configInfo.configDigest) throw (MultiOCR3Base_Error.ConfigDigestMismatch);
     
     // EVM checks assert_chain_not_forked, this is not necessary in TON
     
     val pluginTransmitters = ocrConfig.transmitters;
 
-    assert(pluginTransmitters.get(transmitter).isFound, MultiOCR3Base_Error.UnauthorizedTransmitter);
+    assert (pluginTransmitters.get(transmitter).isFound) throw (MultiOCR3Base_Error.UnauthorizedTransmitter);
 
     if (configInfo.isSignatureVerificationEnabled) {
     	val expectedSignatures = configInfo.bigF + 1;
 		val signatures_length = signatures.iter().countBytes() / 96; //expensive
-    	assert(signatures_length == expectedSignatures, MultiOCR3Base_Error.WrongNumberOfSignatures);
+    	assert (signatures_length == expectedSignatures) throw (MultiOCR3Base_Error.WrongNumberOfSignatures);
     	val hashedReport = self.hashReport(report, reportContext);
     	val pluginSigners = ocrConfig.signers;
 
@@ -189,11 +188,11 @@ fun OCR3Base.verifySignature(
 
 		val entry = signers.get(signer);
 		val authorized= entry.isFound;
-		assert(authorized, MultiOCR3Base_Error.UnauthorizedSigner);
+		assert (authorized) throw (MultiOCR3Base_Error.UnauthorizedSigner);
 		val signerIndex = entry.loadValue();
-		assert(isSignatureValid(hashedReport,signature.toCell().beginParse().skipBits(256), signer), MultiOCR3Base_Error.InvalidSignature);
+		assert (isSignatureValid(hashedReport,signature.toCell().beginParse().skipBits(256), signer)) throw (MultiOCR3Base_Error.InvalidSignature);
 
-		assert(!seen.has(signerIndex!), MultiOCR3Base_Error.NonUniqueSignatures);
+		assert (!seen.has(signerIndex!)) throw (MultiOCR3Base_Error.NonUniqueSignatures);
 		seen.set(signerIndex!);
 	}
 }

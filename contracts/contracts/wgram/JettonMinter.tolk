@@ -61,7 +61,7 @@ fun requiredMinterReserve() {
 fun refundMintBounce(msg: InternalTransferStep) {
     // We're already in the mint recovery path after supply rollback, so keep the minter reserve
     // if possible but never fail the bounce handler itself.
-    reserveGramsOnBalance(requiredMinterReserve(), RESERVE_MODE_AT_MOST);
+    reserveGramsOnBalance(requiredMinterReserve(), RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
     val refundMsg = createMessage({
         // The mint-bounce refund is a forced GRAM deposit to the caller-chosen refund address.
@@ -69,7 +69,7 @@ fun refundMintBounce(msg: InternalTransferStep) {
         dest: msg.sendExcessesTo!, // safe to unwrap as it is required and validated in the minting path
         value: 0,
         body: ReturnExcessesBack {
-            queryId: msg.queryId
+            queryID: msg.queryID
         }
     });
     // IGNORE_ERRORS is used in the mint-bounce refund path because we are already in
@@ -97,10 +97,10 @@ fun onInternalMessage(in: InMessage) {
         BurnNotificationForMinter => {
             var storage = lazy MinterStorage.load();
             val calcAddress = calcAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode);
-            assert (in.senderAddress == calcAddress) throw ERROR_NOT_VALID_WALLET;
+            assert (in.senderAddress == calcAddress) throw (ERROR_NOT_VALID_WALLET);
             // Reject burns without a refund destination so the withdrawn GRAM never gets stranded here.
-            assert (msg.sendExcessesTo != null) throw ERROR_INVALID_EXCESSES_DESTINATION;
-            assert (msg.sendExcessesTo!.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
+            assert (msg.sendExcessesTo != null) throw (ERROR_INVALID_EXCESSES_DESTINATION);
+            assert (msg.sendExcessesTo!.getWorkchain() == MY_WORKCHAIN) throw (ERROR_WRONG_WORKCHAIN);
             storage.totalSupply -= msg.jettonAmount;
             storage.save();
 
@@ -113,7 +113,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: msg.sendExcessesTo!,
                 value: 0,
                 body: ReturnExcessesBack {
-                    queryId: msg.queryId
+                    queryID: msg.queryID
                 }
             });
             // If the send action cannot be executed, the tx must fail and bounce back to the wallet to restore wGRAM.
@@ -136,7 +136,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: in.senderAddress,
                 value: 0,
                 body: ResponseWalletAddress {
-                    queryId: msg.queryId,
+                    queryID: msg.queryID,
                     jettonWalletAddress: walletAddress,
                     ownerAddress: ownerAddress,
                 }
@@ -146,8 +146,8 @@ fun onInternalMessage(in: InMessage) {
 
         MintNewJettons => {
             var storage = lazy MinterStorage.load();
-            assert (msg.mintRecipient.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
-            assert (msg.mintRecipient != contract.getAddress()) throw ERROR_INVALID_RECIPIENT;
+            assert (msg.mintRecipient.getWorkchain() == MY_WORKCHAIN) throw (ERROR_WRONG_WORKCHAIN);
+            assert (msg.mintRecipient != contract.getAddress()) throw (ERROR_INVALID_RECIPIENT);
 
             val internalTransferMsg = lazy msg.internalTransferMsg.load({
                 throwIfOpcodeDoesNotMatch: ERROR_INVALID_OP
@@ -157,11 +157,11 @@ fun onInternalMessage(in: InMessage) {
 
             val jettonAmount = internalTransferMsg.jettonAmount;
             // Mint must name the same excess/refund destination for both the happy path and a bounced wallet deployment.
-            assert (internalTransferMsg.sendExcessesTo != null) throw ERROR_INVALID_EXCESSES_DESTINATION;
-            assert (internalTransferMsg.sendExcessesTo!.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
-            assert (internalTransferMsg.sendExcessesTo! != contract.getAddress()) throw ERROR_INVALID_RECIPIENT;
+            assert (internalTransferMsg.sendExcessesTo != null) throw (ERROR_INVALID_EXCESSES_DESTINATION);
+            assert (internalTransferMsg.sendExcessesTo!.getWorkchain() == MY_WORKCHAIN) throw (ERROR_WRONG_WORKCHAIN);
+            assert (internalTransferMsg.sendExcessesTo! != contract.getAddress()) throw (ERROR_INVALID_RECIPIENT);
             // Minting must not impersonate a peer wallet transfer initiator.
-            assert (internalTransferMsg.transferInitiator == null) throw ERROR_INVALID_OP;
+            assert (internalTransferMsg.transferInitiator == null) throw (ERROR_INVALID_OP);
             // The caller must fund the hosted GRAM backing, the extra transfer budget, and the
             // minter's own outbound deploy/forward fee rather than borrowing it from minter surplus.
             checkAmountIsEnoughToMint(in.valueCoins, jettonAmount, msg.tonAmount, in.originalForwardFee);
@@ -170,7 +170,7 @@ fun onInternalMessage(in: InMessage) {
             checkAmountIsEnoughToTransfer(msg.tonAmount, forwardTonAmount, in.originalForwardFee);
             // Keep the minter rent reserve intact so minting cannot drain operational GRAM.
             val requiredReserve = requiredMinterReserve();
-            assert (contract.getOriginalBalance() >= requiredReserve + jettonAmount + msg.tonAmount) throw ERROR_UNSUFFICIENT_AMOUNT;
+            assert (contract.getOriginalBalance() >= requiredReserve + jettonAmount + msg.tonAmount) throw (ERROR_UNSUFFICIENT_AMOUNT);
 
             storage.totalSupply += jettonAmount;
             storage.save();

@@ -40,7 +40,7 @@ fun assertSenderIsAdmin(senderAddress: address, adminAddress: address?) {
     // assert (adminAddress != null) throw ERROR_NOT_OWNER;
     // ```
     // but in practice, the above assertion is reduntant, we just bypass the nullability check:
-    assert (senderAddress == adminAddress!) throw ERROR_NOT_OWNER;
+    assert (senderAddress == adminAddress!) throw (ERROR_NOT_OWNER);
     // then, if admin is `null`, error code 7 will be thrown (while executing operator `==`),
     // it's suitable for current implementation
 }
@@ -51,7 +51,7 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         CCT_BurnNotificationForMinter => {
             var storage = lazy MinterStorage.load();
-            assert (in.senderAddress == calcAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode)) throw ERROR_NOT_VALID_WALLET;
+            assert (in.senderAddress == calcAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode)) throw (ERROR_NOT_VALID_WALLET);
             storage.totalSupply -= msg.jettonAmount;
             storage.save();
 
@@ -64,7 +64,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: msg.sendExcessesTo,
                 value: 0,
                 body: CCT_ReturnExcessesBack {
-                    queryId: msg.queryId,
+                    queryID: msg.queryID,
                     initiator: msg.burnInitiator,
                     forwardPayload: msg.forwardPayload,
                 }
@@ -88,7 +88,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: in.senderAddress,
                 value: 0,
                 body: ResponseWalletAddress {
-                    queryId: msg.queryId,
+                    queryID: msg.queryID,
                     jettonWalletAddress: walletAddress,
                     ownerAddress: ownerAddress,
                 }
@@ -99,7 +99,7 @@ fun onInternalMessage(in: InMessage) {
         MintNewJettons => {
             var storage = lazy MinterStorage.load();
             assertSenderIsAdmin(in.senderAddress, storage.adminAddress);
-            assert (msg.mintRecipient.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
+            assert (msg.mintRecipient.getWorkchain() == MY_WORKCHAIN) throw (ERROR_WRONG_WORKCHAIN);
 
             val internalTransferMsg = lazy msg.internalTransferMsg.load({
                 throwIfOpcodeDoesNotMatch: ERROR_INVALID_OP

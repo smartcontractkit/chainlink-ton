@@ -115,7 +115,7 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
     const result = await fx.registry.sendTokenAdminRegistryEntryUpgradeRequest(
       asEntry(fx),
       toNano('0.1'),
-      { queryId: 21n, token: fx.token, request },
+      { queryID: 21n, token: fx.token, request },
     )
 
     const rootTx = result.transactions.find(
@@ -129,7 +129,7 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
     }
     const [upgradeMsg, resumeMsg] = rootTx.outMessages.values()
     const upgrade = tare.Upgradeable_Upgrade.fromSlice(upgradeMsg.body.beginParse())
-    expect(upgrade.queryId).toBe(21n)
+    expect(upgrade.queryID).toBe(21n)
     expect(upgrade.code).toEqualCell(entryCode)
     expect(
       tare.TokenAdminRegistryEntry_Resume.fromSlice(resumeMsg.body.beginParse()).request,
@@ -160,7 +160,7 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
       const result = await fx.registry.sendTokenAdminRegistryEntryUpgradeRequest(
         asEntry(fx),
         Costs.getTokenInfo,
-        { queryId: BigInt(30 + i), token: fx.token, request: resolveTokenInfo(ENTRY_VERSION) },
+        { queryID: BigInt(30 + i), token: fx.token, request: resolveTokenInfo(ENTRY_VERSION) },
       )
       expect(result.transactions).toHaveTransaction({
         from: fx.registry.address,
@@ -188,7 +188,7 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
     const result = await fx.registry.sendTokenAdminRegistryEntryUpgradeRequest(
       asEntry(fx),
       Costs.getTokenInfo,
-      { queryId: 21n, token: fx.token, request: resolveTokenInfo(ENTRY_VERSION) },
+      { queryID: 21n, token: fx.token, request: resolveTokenInfo(ENTRY_VERSION) },
     )
     expect(result.transactions).toHaveTransaction({
       from: fx.registry.address,
@@ -204,7 +204,7 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
 
   it('still resumes the request when the root cannot fund the upgrade', async () => {
     await fx.registry.sendWithdrawableWithdraw(fx.owner.getSender(), toNano('0.05'), {
-      queryId: 0n,
+      queryID: 0n,
       destination: fx.owner.address,
       amount: 0n,
       reserve: 0n,
@@ -213,7 +213,7 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
     const result = await fx.registry.sendTokenAdminRegistryEntryUpgradeRequest(
       asEntry(fx),
       Costs.getTokenInfo,
-      { queryId: 21n, token: fx.token, request: resolveTokenInfo(ENTRY_VERSION) },
+      { queryID: 21n, token: fx.token, request: resolveTokenInfo(ENTRY_VERSION) },
     )
     expect(result.transactions).not.toHaveTransaction({
       from: fx.registry.address,
@@ -277,7 +277,7 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
       success: true,
     })
     expect(failedTokenInfo(fx, result, fx.other.address)).toEqual(
-      tar.TokenAdminRegistry_GetTokenInfoFailed.create({ queryId: 9n, token: fx.token }),
+      tar.TokenAdminRegistry_GetTokenInfoFailed.create({ queryID: 9n, token: fx.token }),
     )
     expect(
       result.transactions.filter(

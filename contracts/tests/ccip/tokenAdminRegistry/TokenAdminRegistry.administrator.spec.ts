@@ -70,7 +70,7 @@ describe('TokenAdminRegistry - Administrator', () => {
         ),
       ).toEqual(
         tar.TokenAdminRegistry_AdministratorTransferRequested.create({
-          queryId: 7n,
+          queryID: 7n,
           token: fx.token,
           currentAdministrator: null,
           newAdministrator: fx.replacementAdministrator.address,
@@ -145,7 +145,7 @@ describe('TokenAdminRegistry - Administrator', () => {
         ),
       ).toEqual(
         tar.TokenAdminRegistry_AdministratorTransferred.create({
-          queryId: 102n,
+          queryID: 102n,
           token: fx.token,
           newAdministrator: fx.administrator.address,
         }),
@@ -209,7 +209,7 @@ describe('TokenAdminRegistry - Administrator', () => {
         ),
       ).toEqual(
         tar.TokenAdminRegistry_AdministratorTransferRequested.create({
-          queryId: 103n,
+          queryID: 103n,
           token: fx.token,
           currentAdministrator: fx.administrator.address,
           newAdministrator: fx.replacementAdministrator.address,

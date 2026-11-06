@@ -21,14 +21,14 @@ export const CONTRACT_VERSION = '1.1.3'
 /// @dev Message to set the counter value.
 export type SetCount = {
   // Query ID of the change request.
-  queryId: bigint
+  queryID: bigint
   newCount: number
 }
 
 /// Message to increase the counter value.
 export type IncreaseCount = {
   // Query ID of the change request.
-  queryId: bigint
+  queryID: bigint
 }
 
 export const opcodes = {
@@ -60,13 +60,13 @@ export const builder = {
         encode: (msg: SetCount): Builder => {
           return beginCell() // break line
             .storeUint(opcodes.in.SetCount, 32)
-            .storeUint(msg.queryId, 64)
+            .storeUint(msg.queryID, 64)
             .storeUint(msg.newCount, 32)
         },
         load: (src: Slice): SetCount => {
           src.skip(32) // skip opcode
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
             newCount: src.loadUint(32),
           }
         },
@@ -74,12 +74,12 @@ export const builder = {
       // Creates a new `IncreaseCount` message.
       const increaseCount: CellCodec<IncreaseCount> = {
         encode: (msg: IncreaseCount): Builder => {
-          return beginCell().storeUint(opcodes.in.IncreaseCount, 32).storeUint(msg.queryId, 64)
+          return beginCell().storeUint(opcodes.in.IncreaseCount, 32).storeUint(msg.queryID, 64)
         },
         load: (src: Slice): IncreaseCount => {
           src.skip(32) // skip opcode
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
           }
         },
       }
@@ -154,7 +154,7 @@ export class ContractClient implements Contract, typeAndVersion.Interface {
     via: Sender,
     opts: {
       value: bigint
-      queryId?: number
+      queryID?: number
       newCount: number
     },
   ): Promise<void> {
@@ -163,7 +163,7 @@ export class ContractClient implements Contract, typeAndVersion.Interface {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
         .storeUint(opcodes.in.SetCount, 32)
-        .storeUint(opts.queryId ?? 0, 64)
+        .storeUint(opts.queryID ?? 0, 64)
         .endCell(),
     })
   }

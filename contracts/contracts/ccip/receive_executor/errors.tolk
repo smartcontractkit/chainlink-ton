@@ -13,4 +13,6 @@ enum ReceiveExecutor_Error {
     TokenNotEnabledInTokenRegistry
     /// The source's destGasAmount is below the pool's release admission.
     TokenAdmissionNotMet
+    /// A legacy 256-bit bounce. Every executor send is RichBounce or NoBounce, so none is expected.
+    UnhandledLegacyBounce
 }

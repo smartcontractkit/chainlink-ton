@@ -49,3 +49,9 @@ struct OffRamp_RouteMessageBounced {
     router: address;
     execId: uint192;
 }
+
+const UPDATE_PRICES_BOUNCED_TOPIC: int = "UpdatePricesBounced".crc32();
+struct OffRamp_UpdatePricesBounced {
+    feeQuoter: address;
+    errorCode: int32;
+}

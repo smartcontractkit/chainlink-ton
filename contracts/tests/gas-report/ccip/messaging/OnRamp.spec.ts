@@ -130,7 +130,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
       deployer.getSender(),
       toNano('0.1'),
       rt.Router_ApplyRampUpdates.create({
-        queryId: 0n,
+        queryID: 0n,
         onRampUpdates: rt.OnRamps.create({
           destChainSelectors: [ChainSelectors.testnet.evm],
           onRamp: onRamp.address,

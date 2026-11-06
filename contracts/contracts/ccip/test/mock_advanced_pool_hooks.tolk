@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Stateless mock AdvancedPoolHooks for testing async preflight/postflight flows.
-// Uses the incoming message queryId to determine reply behavior:
-//   queryId % 2 == 0  → Finished  (success)
-//   queryId % 2 == 1  → Failed    (failure)
+// Uses the incoming message queryID to determine reply behavior:
+//   queryID % 2 == 0  → Finished  (success)
+//   queryID % 2 == 1  → Failed    (failure)
 //
 // It always replies to the sender, so it cannot be used as a generic echo to forge
 // continuations. This is a test double, not a production hook template; see the
@@ -50,7 +50,7 @@ fun onInternalMessage(in: InMessage) {
         }
         else => {
             // Accept empty messages (top-up), reject everything else.
-            assert(in.body.isEmpty()) throw 0xFFFF;
+            assert(in.body.isEmpty()) throw (0xFFFF);
         }
     }
 }
@@ -89,16 +89,16 @@ fun replyGetCCVs(msg: TokenPool_GetCCVs, sender: address) {
     }
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: TokenPool_QueryCCVsReply {
-            queryId: msg.queryId,
+            queryID: msg.queryID,
             requiredCCVs: requiredCCVs,
             forwardPayload: msg.forwardPayload,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun replyPreflight(msg: TokenPool_PreflightCheck, msgValue: coins, sender: address) {
@@ -108,34 +108,34 @@ fun replyPreflight(msg: TokenPool_PreflightCheck, msgValue: coins, sender: addre
         throw 0xFFFF;
     }
 
-    val queryId = msg.queryId;
+    val queryID = msg.queryID;
     val fwd = msg.forwardPayload!;
 
     var body: cell;
-    if (queryId % 2 == 0) {
+    if (queryID % 2 == 0) {
         body = TokenPool_PreflightCheckFinished {
-            queryId: queryId,
+            queryID: queryID,
             forwardPayload: fwd as Cell<TokenPool_LockOrBurnForwardPayload>,
         }.toCell();
     } else {
         body = TokenPool_PreflightCheckFailed {
-            queryId: queryId,
+            queryID: queryID,
             forwardPayload: fwd as Cell<TokenPool_LockOrBurnForwardPayload>,
         }.toCell();
     }
 
     if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_COSTLY_ID) {
-        createMessage({ bounce: false, value: msgValue / 2, dest: sender, body: body })
-            .send(SEND_MODE_PAY_FEES_SEPARATELY);
+        createMessage({ bounce: BounceMode.NoBounce, value: msgValue / 2, dest: sender, body: body })
+            .send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: body,
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun replyPostflight(msg: TokenPool_PostflightCheck, msgValue: coins, sender: address) {
@@ -145,32 +145,32 @@ fun replyPostflight(msg: TokenPool_PostflightCheck, msgValue: coins, sender: add
         throw 0xFFFF;
     }
 
-    val queryId = msg.queryId;
+    val queryID = msg.queryID;
     val fwd: cell = msg.forwardPayload!;
 
     var body: cell;
-    if (queryId % 2 == 0) {
+    if (queryID % 2 == 0) {
         body = TokenPool_PostflightCheckFinished {
-            queryId: queryId,
+            queryID: queryID,
             forwardPayload: fwd as Cell<TokenPool_ReleaseOrMintForwardPayload>,
         }.toCell();
     } else {
         body = TokenPool_PostflightCheckFailed {
-            queryId: queryId,
+            queryID: queryID,
             forwardPayload: fwd as Cell<TokenPool_ReleaseOrMintForwardPayload>,
         }.toCell();
     }
 
     if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_COSTLY_ID) {
-        createMessage({ bounce: false, value: msgValue / 2, dest: sender, body: body })
-            .send(SEND_MODE_PAY_FEES_SEPARATELY);
+        createMessage({ bounce: BounceMode.NoBounce, value: msgValue / 2, dest: sender, body: body })
+            .send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: body,
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }

@@ -44,7 +44,7 @@ export const opcodes = {
 }
 
 export type AskToTransfer = {
-  queryId: number
+  queryID: number
   jettonAmount: bigint
   destination: Address
   responseDestination: Address | null
@@ -54,7 +54,7 @@ export type AskToTransfer = {
 }
 
 export type AskToTransferWithFwdPayload<T> = {
-  queryId: number
+  queryID: number
   jettonAmount: bigint
   destination: Address
   responseDestination: Address | null
@@ -64,14 +64,14 @@ export type AskToTransferWithFwdPayload<T> = {
 }
 
 export type AskToBurn = {
-  queryId: bigint
+  queryID: bigint
   jettonAmount: bigint
   responseDestination: Address | null
   customPayload: Cell | null
 }
 
 export type InternalTransferStep = {
-  queryId: bigint
+  queryID: bigint
   jettonAmount: bigint
   transferInitiator: Address | null
   responseDestination: Address | null
@@ -80,40 +80,40 @@ export type InternalTransferStep = {
 }
 
 export type TransferNotificationForRecipient = {
-  queryId: number | bigint
+  queryID: number | bigint
   jettonAmount: bigint
   senderAddress: Address | null
   forwardPayload: Cell | null
 }
 
 export type TransferNotificationWithFwdPayload<T> = {
-  queryId: number | bigint
+  queryID: number | bigint
   jettonAmount: bigint
   senderAddress: Address | null
   forwardPayload: T
 }
 
 export type BurnNotificationForMinter = {
-  queryId: bigint
+  queryID: bigint
   jettonAmount: bigint
   burnInitiator: Address
   responseDestination: Address | null
 }
 
 export type ReturnExcessesBack = {
-  queryId: bigint
+  queryID: bigint
 }
 
 export type TopUpTons = Record<never, never>
 
 export type WithdrawTonsMessage = {
-  queryId: bigint
+  queryID: bigint
 }
 
 // wGRAM-specific extension: lets the wallet owner withdraw any GRAM surplus
 // sitting above the strict `jettonBalance + storage_fee`
 export type AskToWithdrawExcess = {
-  queryId: bigint
+  queryID: bigint
   sendExcessesTo: Address
 }
 
@@ -206,7 +206,7 @@ export class JettonWallet implements Contract {
     await provider.internal(via, {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.messages.in.withdrawTons.encode({ queryId: 0n }).asCell(),
+      body: builder.messages.in.withdrawTons.encode({ queryID: 0n }).asCell(),
     })
   }
 
@@ -304,7 +304,7 @@ export const builder = {
             throw new Error(`Invalid opcode, expected ${opcodes.in.TRANSFER}, got ${op}`)
           }
           const parsed = {
-            queryId: src.loadUint(64),
+            queryID: src.loadUint(64),
             jettonAmount: src.loadCoins(),
             destination: src.loadAddress(),
             responseDestination: src.loadAddress(),
@@ -349,7 +349,7 @@ export const builder = {
         encode: function (data: AskToBurn): Builder {
           return beginCell()
             .storeUint(opcodes.in.BURN, 32)
-            .storeUint(data.queryId, 64)
+            .storeUint(data.queryID, 64)
             .storeCoins(data.jettonAmount)
             .storeAddress(data.responseDestination)
             .storeMaybeRef(data.customPayload)
@@ -360,7 +360,7 @@ export const builder = {
             throw new Error(`Invalid opcode, expected ${opcodes.in.BURN}, got ${op}`)
           }
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
             jettonAmount: src.loadCoins(),
             responseDestination: src.loadMaybeAddress(),
             customPayload: src.loadMaybeRef(),
@@ -381,21 +381,21 @@ export const builder = {
       }
       const withdrawTons: CellCodec<WithdrawTonsMessage> = {
         encode: function (data: WithdrawTonsMessage): Builder {
-          return beginCell().storeUint(opcodes.in.WITHDRAW_TONS, 32).storeUint(data.queryId, 64)
+          return beginCell().storeUint(opcodes.in.WITHDRAW_TONS, 32).storeUint(data.queryID, 64)
         },
         load: function (src: Slice): WithdrawTonsMessage {
           const op = src.loadUint(32)
           if (op !== opcodes.in.WITHDRAW_TONS) {
             throw new Error(`Invalid opcode, expected ${opcodes.in.WITHDRAW_TONS}, got ${op}`)
           }
-          return { queryId: src.loadUintBig(64) }
+          return { queryID: src.loadUintBig(64) }
         },
       }
       const askToWithdrawExcess = (opts: { opcode: number }): CellCodec<AskToWithdrawExcess> => ({
         encode: function (data: AskToWithdrawExcess): Builder {
           return beginCell()
             .storeUint(opts.opcode, 32)
-            .storeUint(data.queryId, 64)
+            .storeUint(data.queryID, 64)
             .storeAddress(data.sendExcessesTo)
         },
         load: function (src: Slice): AskToWithdrawExcess {
@@ -404,7 +404,7 @@ export const builder = {
             throw new Error(`Invalid opcode, expected ${opts.opcode}, got ${op}`)
           }
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
             sendExcessesTo: src.loadAddress(),
           }
         },
@@ -432,7 +432,7 @@ export const builder = {
         fromSlice: function (src: Slice): TransferNotificationForRecipient {
           const tn = jetton.TransferNotificationForRecipient.fromSlice(src)
           return {
-            queryId: tn.queryId,
+            queryID: tn.queryID,
             jettonAmount: tn.jettonAmount,
             senderAddress: tn.transferInitiator ?? new Address(0, Buffer.alloc(32)),
             forwardPayload: tn.forwardPayload.loadMaybeRef(),
@@ -473,7 +473,7 @@ export const builder = {
         encode: function (data: BurnNotificationForMinter): Builder {
           return beginCell()
             .storeUint(opcodes.in.BURN_NOTIFICATION, 32)
-            .storeUint(data.queryId, 64)
+            .storeUint(data.queryID, 64)
             .storeCoins(data.jettonAmount)
             .storeAddress(data.burnInitiator)
             .storeAddress(data.responseDestination)
@@ -484,7 +484,7 @@ export const builder = {
             throw new Error(`Invalid opcode, expected ${opcodes.in.BURN_NOTIFICATION}, got ${op}`)
           }
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
             jettonAmount: src.loadCoins(),
             burnInitiator: src.loadAddress(),
             responseDestination: src.loadMaybeAddress(),
@@ -493,21 +493,21 @@ export const builder = {
       }
       const returnExcessesBack: CellCodec<ReturnExcessesBack> = {
         encode: function (data: ReturnExcessesBack): Builder {
-          return beginCell().storeUint(opcodes.in.EXCESSES, 32).storeUint(data.queryId, 64)
+          return beginCell().storeUint(opcodes.in.EXCESSES, 32).storeUint(data.queryID, 64)
         },
         load: function (src: Slice): ReturnExcessesBack {
           const op = src.loadUint(32)
           if (op !== opcodes.in.EXCESSES) {
             throw new Error(`Invalid opcode, expected ${opcodes.in.EXCESSES}, got ${op}`)
           }
-          return { queryId: src.loadUintBig(64) }
+          return { queryID: src.loadUintBig(64) }
         },
       }
       const internalTransferStep: CellCodec<InternalTransferStep> = {
         encode: function (data: InternalTransferStep): Builder {
           const body = beginCell()
             .storeUint(opcodes.in.INTERNAL_TRANSFER, 32)
-            .storeUint(data.queryId, 64)
+            .storeUint(data.queryID, 64)
             .storeCoins(data.jettonAmount)
             .storeAddress(data.transferInitiator)
             .storeAddress(data.responseDestination)
@@ -530,7 +530,7 @@ export const builder = {
             throw new Error(`Invalid opcode, expected ${opcodes.in.INTERNAL_TRANSFER}, got ${op}`)
           }
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
             jettonAmount: src.loadCoins(),
             transferInitiator: src.loadMaybeAddress(),
             responseDestination: src.loadMaybeAddress(),

@@ -22,13 +22,13 @@ struct OnrampMock {
 
 // Event emitted when fee is insufficient
 struct InsufficientFee {
-    queryId: uint64
+    queryID: uint64
     sender: address
 }
 
 // Event emitted when request is accepted
 struct AcceptedRequest {
-    queryId: uint64
+    queryID: uint64
     sender: address
     payload: cell
 }
@@ -47,18 +47,18 @@ fun OnrampMock.handleJettonTransferNotification(
     sender: address,
 ) {
     // Check if the sender is our jetton wallet
-    assert(sender == self.JettonClient.walletAddress(), INCORRECT_SENDER_ERROR);
+    assert (sender == self.JettonClient.walletAddress()) throw (INCORRECT_SENDER_ERROR);
 
     var forwardPayloadCell = loadForwardPayloadAsCell(msg.forwardPayload);
 
     // Handle the jetton transfer
     if (msg.jettonAmount < FEE) {
-        emit(JETTON_TOPIC, InsufficientFee { queryId: msg.queryId, sender: msg.transferInitiator! });
+        emit(JETTON_TOPIC, InsufficientFee { queryID: msg.queryID, sender: msg.transferInitiator! });
     } else {
         emit(
             JETTON_TOPIC,
             AcceptedRequest {
-                queryId: msg.queryId,
+                queryID: msg.queryID,
                 sender: msg.transferInitiator!,
                 payload: forwardPayloadCell!,
             }
@@ -80,7 +80,7 @@ fun onInternalMessage(in: InMessage) {
         }
         else => {
             // ignore empty messages, "wrong opcode" for others  
-            assert (in.body.isEmpty()) throw 0xFFFF;
+            assert (in.body.isEmpty()) throw (0xFFFF);
         }
     }
 }

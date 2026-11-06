@@ -224,7 +224,7 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
 
 /**
  > struct (0xc73d5a8a) OffRamp_ExecuteValidated {
- >     queryId: uint64
+ >     queryID: uint64
  >     message: Cell<Any2TVMRampMessage>
  >     root: MerkleRootId
  >     metadataHash: uint256
@@ -236,7 +236,7 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
  */
 export interface OffRamp_ExecuteValidated {
     readonly $: 'OffRamp_ExecuteValidated'
-    queryId: uint64
+    queryID: uint64
     message: Any2TVMRampMessage
     root: MerkleRootId
     metadataHash: uint256
@@ -250,7 +250,7 @@ export const OffRamp_ExecuteValidated = {
     PREFIX: 0xc73d5a8a,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
@@ -263,14 +263,14 @@ export const OffRamp_ExecuteValidated = {
             $: 'OffRamp_ExecuteValidated',
             gasOverride: null,
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): OffRamp_ExecuteValidated {
         loadAndCheckPrefix32(s, 0xc73d5a8a, 'OffRamp_ExecuteValidated');
         return {
             $: 'OffRamp_ExecuteValidated',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             root: MerkleRootId.fromSlice(s),
             metadataHash: s.loadUintBig(256),
@@ -286,7 +286,7 @@ export const OffRamp_ExecuteValidated = {
     },
     store(self: OffRamp_ExecuteValidated, b: c.Builder): void {
         b.storeUint(0xc73d5a8a, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         MerkleRootId.store(self.root, b);
         b.storeUint(self.metadataHash, 256);
@@ -500,7 +500,7 @@ export const ExecutionState = {
 
 /**
  > struct (0x038ede91) MerkleRoot_Validate {
- >     queryId: uint64
+ >     queryID: uint64
  >     message: Cell<Any2TVMRampMessage>
  >     permissionlessExecutionThresholdSeconds: uint32
  >     metadataHash: uint256
@@ -511,7 +511,7 @@ export const ExecutionState = {
  */
 export interface MerkleRoot_Validate {
     readonly $: 'MerkleRoot_Validate'
-    queryId: uint64
+    queryID: uint64
     message: Any2TVMRampMessage
     permissionlessExecutionThresholdSeconds: uint32
     metadataHash: uint256
@@ -524,7 +524,7 @@ export const MerkleRoot_Validate = {
     PREFIX: 0x038ede91,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
@@ -535,14 +535,14 @@ export const MerkleRoot_Validate = {
         return {
             $: 'MerkleRoot_Validate',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MerkleRoot_Validate {
         loadAndCheckPrefix32(s, 0x038ede91, 'MerkleRoot_Validate');
         return {
             $: 'MerkleRoot_Validate',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
             metadataHash: s.loadUintBig(256),
@@ -557,7 +557,7 @@ export const MerkleRoot_Validate = {
     },
     store(self: MerkleRoot_Validate, b: c.Builder): void {
         b.storeUint(0x038ede91, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
         b.storeUint(self.metadataHash, 256);
@@ -843,6 +843,7 @@ export class MerkleRoot implements c.Contract {
         'MerkleRoot_Error.SkippedAlreadyExecutedMessage': 18603,
         'MerkleRoot_Error.InvalidState': 18604,
         'MerkleRoot_Error.SeqNumOutOfBounds': 18605,
+        'MerkleRoot_Error.UnhandledLegacyBounce': 18606,
     }
 
     readonly address: c.Address
@@ -889,7 +890,7 @@ export class MerkleRoot implements c.Contract {
     }
 
     static createCellOfMerkleRootValidate(body: {
-        queryId?: uint64
+        queryID?: uint64
         message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
@@ -925,7 +926,7 @@ export class MerkleRoot implements c.Contract {
     }
 
     async sendMerkleRootValidate(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256

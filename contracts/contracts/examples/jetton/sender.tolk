@@ -14,7 +14,7 @@ struct JettonSender {
 // Send jettons fast message (basic transfer)
 // 0x4C169F42 == crc32('SendJettonsFast')
 struct (0x4C169F42) SendJettonsFast {
-    queryId: uint64
+    queryID: uint64
     amount: coins
     destination: address
 }
@@ -22,7 +22,7 @@ struct (0x4C169F42) SendJettonsFast {
 // Send jettons extended message (with additional parameters)
 // 0x7FDA8110 == crc32('SendJettonsExtended')
 struct (0x7FDA8110) SendJettonsExtended {
-    queryId: uint64
+    queryID: uint64
     amount: coins
     destination: address
     customPayload: cell
@@ -45,7 +45,7 @@ fun JettonSender.sendJettons(self, msg: SendJettonsFast) {
     self.JettonClient.sendSimple(
         { bounce: true, value: 0 },
         SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
-        msg.queryId,
+        msg.queryID,
         msg.amount,
         msg.destination,
         contract.getAddress()
@@ -57,7 +57,7 @@ fun JettonSender.sendJettonsExtended(self, msg: SendJettonsExtended) {
     self.JettonClient.sendExtended(
         { bounce: true, value: 0 },
         SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
-        msg.queryId,
+        msg.queryID,
         msg.amount,
         msg.destination,
         contract.getAddress(),

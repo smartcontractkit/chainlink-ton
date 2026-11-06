@@ -23,24 +23,24 @@ struct Ownable2Step {
 
 /// Message sent by the owner to transfer ownership of a contract.
 struct (0xF21B7DA1) Ownable2Step_TransferOwnership {
-    queryId: uint64;
+    queryID: uint64;
     newOwner: address;
 }
 
 /// Message sent by the pending owner to accept ownership of a contract.
 struct (0xF9E29E4A) Ownable2Step_AcceptOwnership {
-    queryId: uint64;
+    queryID: uint64;
 }
 
 /// Event emitted by the contract confirming that ownership transfer has been requested.
 struct Ownable2Step_OwnershipTransferRequested {
-    queryId: uint64;
+    queryID: uint64;
     newOwner: address;
 }
 
 /// Event emitted by the contract to confirm acceptance of contract ownership.
 struct Ownable2Step_OwnershipTransferred {
-    queryId: uint64;
+    queryID: uint64;
     oldOwner: address;
     newOwner: address;
 }
@@ -63,11 +63,11 @@ fun Ownable2Step.onInternalMessage(mutate self, sender: address, body: slice): b
             val emitMsg = createExternalLogMessage({
                 dest: createAddressNone(),
                 body: Ownable2Step_OwnershipTransferRequested {
-                    queryId: msg.queryId,
+                    queryID: msg.queryID,
                     newOwner: msg.newOwner
                 }
             });
-            emitMsg.send(SEND_MODE_REGULAR);
+            emitMsg.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         },
 
         Ownable2Step_AcceptOwnership => {
@@ -76,12 +76,12 @@ fun Ownable2Step.onInternalMessage(mutate self, sender: address, body: slice): b
             val emitMsg = createExternalLogMessage({
                 dest: createAddressNone(),
                 body: Ownable2Step_OwnershipTransferred {
-                    queryId: msg.queryId,
+                    queryID: msg.queryID,
                     oldOwner,
                     newOwner: sender
                 }
             });
-            emitMsg.send(SEND_MODE_REGULAR);
+            emitMsg.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
         else => {
             return false; // Not an Ownable2Step message
@@ -99,7 +99,7 @@ fun Ownable2Step.onInternalMessage(mutate self, sender: address, body: slice): b
 /// #### Exit codes
 /// * 132: ERROR_ONLY_CALLABLE_BY_OWNER
 fun Ownable2Step.requireOwner(self, sender: address) {
-    assert(sender == self.owner, Ownable2Step_Error.OnlyCallableByOwner);
+    assert (sender == self.owner) throw (Ownable2Step_Error.OnlyCallableByOwner);
 }
 
 /// Initiates ownership transfer to a new address.
@@ -109,7 +109,7 @@ fun Ownable2Step.requireOwner(self, sender: address) {
 /// * 1001: ERROR_CANNOT_TRANSFER_TO_SELF
 fun Ownable2Step.transferOwnership(mutate self, sender: address, to: address) {
     self.requireOwner(sender);
-    assert(to != self.owner, Ownable2Step_Error.CannotTransferToSelf);
+    assert (to != self.owner) throw (Ownable2Step_Error.CannotTransferToSelf);
 
     self.pendingOwner = to;
 }
@@ -119,8 +119,8 @@ fun Ownable2Step.transferOwnership(mutate self, sender: address, to: address) {
 /// #### Exit codes
 /// * 1002: ERROR_MUST_BE_PROPOSED_OWNER
 fun Ownable2Step.acceptOwnership(mutate self, sender: address) {
-    assert(self.pendingOwner != null, Ownable2Step_Error.MustBeProposedOwner);
-    assert(sender == self.pendingOwner, Ownable2Step_Error.MustBeProposedOwner);
+    assert (self.pendingOwner != null) throw (Ownable2Step_Error.MustBeProposedOwner);
+    assert (sender == self.pendingOwner) throw (Ownable2Step_Error.MustBeProposedOwner);
 
     self.owner = sender;
     self.pendingOwner = null;

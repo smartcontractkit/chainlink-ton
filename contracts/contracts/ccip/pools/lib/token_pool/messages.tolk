@@ -11,60 +11,60 @@ import "types"
 import "budget"
 
 struct (0x56f73d37) TokenPool_ApplyChainUpdates {
-    queryId: uint64;
+    queryID: uint64;
     remoteChainSelectorsToRemove: SnakedCell<uint64>;
     chainsToAdd: SnakedCell<TokenPool_ChainUpdate>;
 }
 
 struct (0x17c242dc) TokenPool_AddRemotePool {
-    queryId: uint64;
+    queryID: uint64;
     remoteChainSelector: uint64;
     remotePoolAddress: Cell<CrossChainAddress>;
 }
 
 struct (0x426b8cc4) TokenPool_RemoveRemotePool {
-    queryId: uint64;
+    queryID: uint64;
     remoteChainSelector: uint64;
     remotePoolAddress: Cell<CrossChainAddress>;
 }
 
 struct (0xd7712810) TokenPool_SetDynamicConfig {
-    queryId: uint64;
+    queryID: uint64;
     router: address;
     rateLimitAdmin: address? = null;
     feeAdmin: address? = null;
 }
 
 struct (0x3c50a39b) TokenPool_SetAllowedFinalityConfig {
-    queryId: uint64;
+    queryID: uint64;
     allowedFinalityConfig: uint32;
 }
 
 struct (0x3f5c9f57) TokenPool_SetAdvancedPoolHooks {
-    queryId: uint64;
+    queryID: uint64;
     advancedPoolHooks: address?;
 }
 
 struct (0x4fe2d26c) TokenPool_SetRateLimitConfig {
-    queryId: uint64;
+    queryID: uint64;
     updates: SnakedCell<TokenPool_RateLimitConfigArgs>;
 }
 
 struct (0x30a1d1f7) TokenPool_ApplyTokenTransferFeeConfigUpdates {
-    queryId: uint64;
+    queryID: uint64;
     updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>;
     disableChainSelectors: SnakedCell<uint64>;
 }
 
 /// Curses the given subjects in the pool-local curse policy. Sender must hold `CURSE_ROLE`.
 struct (0xfdd0edc0) TokenPool_Curse {
-    queryId: uint64;
+    queryID: uint64;
     subjects: SnakedCell<uint128>;
 }
 
 /// Uncurses the given subjects in the pool-local curse policy. Sender must hold `UNCURSE_ROLE`.
 struct (0x61cf16f1) TokenPool_Uncurse {
-    queryId: uint64;
+    queryID: uint64;
     subjects: SnakedCell<uint128>;
 }
 
@@ -88,7 +88,7 @@ struct (0x2e7a1790) TokenPool_RMNAccessControlMessage {
 /// @param onRampNamespaces The Router's accepted deposit-account namespaces, relayed on every
 ///        request so the pool can refresh its deposit-auth cache.
 struct (0xfa7da444) TokenPool_LockOrBurn {
-    queryId: uint64;
+    queryID: uint64;
     request: Cell<TokenPool_LockOrBurnInV1>; // TODO[REFACTOR]: [NONEVM-5336] consider renaming
     requestedFinalityConfig: uint32;
     tokenArgs: cell?;
@@ -133,7 +133,7 @@ struct TokenPool_LockOrBurnForwardPayload {
 /// @param requestedFinalityConfig Requested finality encoding (see `FinalityCodec`).
 /// @param delivery Where the Router wants the released/minted tokens sent.
 struct (0x351f77e3) TokenPool_ReleaseOrMint {
-    queryId: uint64;
+    queryID: uint64;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
     requestedFinalityConfig: uint32;
 
@@ -165,7 +165,7 @@ struct TokenPool_ReleaseOrMintDelivery {
 /// receiver's deposit account. The pool answers `replyTo` (the ReceiveExecutor) with
 /// `TokenPool_ReleaseOrMintFinalized`.
 struct (0x81d45b24) TokenPool_ReleaseOrMintDelivered {
-    queryId: uint64;
+    queryID: uint64;
     replyTo: address;
     transfer: Cell<TokenPool_DeliveredTransfer>;
 }
@@ -179,13 +179,13 @@ struct TokenPool_DeliveredTransfer {
 
 /// Sent by advanced hooks contract (via bounce or direct reply) to notify preflight check success.
 struct (0x08f2ffb7) TokenPool_PreflightCheckFinished {
-    queryId: uint64;
+    queryID: uint64;
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
 /// Sent by advanced hooks contract (via bounce or direct reply) to notify preflight check failure.
 struct (0xa6dfa623) TokenPool_PreflightCheckFailed {
-    queryId: uint64;
+    queryID: uint64;
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
@@ -198,19 +198,19 @@ struct TokenPool_ReleaseOrMintForwardPayload {
 
 /// Sent by advanced hooks contract to notify postflight check success
 struct (0x9e2a6b66) TokenPool_PostflightCheckFinished {
-    queryId: uint64;
+    queryID: uint64;
     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
 }
 
 /// Sent by advanced hooks contract to notify postflight check failure
 struct (0x21e71d87) TokenPool_PostflightCheckFailed {
-    queryId: uint64;
+    queryID: uint64;
     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
 }
 
 /// Sent from TokenPool to AdvancedPoolHooks to request an async preflight check.
 struct (0x4129d109) TokenPool_PreflightCheck {
-    queryId: uint64;
+    queryID: uint64;
     request: Cell<TokenPool_LockOrBurnInV1>;
     requestedFinalityConfig: uint32;
     tokenArgs: cell?;
@@ -220,7 +220,7 @@ struct (0x4129d109) TokenPool_PreflightCheck {
 
 /// Sent from TokenPool to AdvancedPoolHooks to request an async postflight check.
 struct (0x703c2b58) TokenPool_PostflightCheck {
-    queryId: uint64;
+    queryID: uint64;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
     localAmount: coins;
     requestedFinalityConfig: uint32;
@@ -239,7 +239,7 @@ struct TokenPool_FeeContext {
 /// Requests the pool's required CCVs for a transfer (no fees).
 /// This same message is used for the pool→hooks hop with `replyTo = null` (reply to pool);
 struct (0xc5476d2b) TokenPool_GetCCVs {
-    queryId: uint64;
+    queryID: uint64;
     localToken: address;                            // The pool's local token.
     remoteChainSelector: uint64;                    // The remote lane for this transfer.
     amount: coins;                                  // Source-denominated amount.
@@ -254,7 +254,7 @@ struct (0xc5476d2b) TokenPool_GetCCVs {
 /// additionally computes the fees (`TokenPool_FeeContext`) and replies with `TokenPool_CCVsAndFees`.
 /// TON-native, asynchronous replacement for EVM `getRequiredCCVs` + `getFee`.
 struct (0xd22944d5) TokenPool_GetCCVsAndFees {
-    queryId: uint64;
+    queryID: uint64;
     localToken: address;
     remoteChainSelector: uint64;
     amount: coins;
@@ -267,14 +267,14 @@ struct (0xd22944d5) TokenPool_GetCCVsAndFees {
 
 /// Reply to `TokenPool_GetCCVs`: required CCVs only; `forwardPayload` echoes the caller's context.
 struct (0x6c70b2dd) TokenPool_CCVs {
-    queryId: uint64;
+    queryID: uint64;
     requiredCCVs: array<address>;                   // Max 255; empty = use lane defaults.
     forwardPayload: cell?;
 }
 
 /// Reply to `TokenPool_GetCCVsAndFees`: required CCVs plus pool-computed `fees`.
 struct (0x158dd7d5) TokenPool_CCVsAndFees {
-    queryId: uint64;
+    queryID: uint64;
     requiredCCVs: array<address>;                   // Max 255; empty = use lane defaults.
     fees: Cell<TokenPool_FeeContext>;
     forwardPayload: cell?;
@@ -283,7 +283,7 @@ struct (0x158dd7d5) TokenPool_CCVsAndFees {
 /// Failure reply finalizing a CCV query that could not complete (e.g. the hooks bounced),
 /// so the caller can abort/resume using the echoed `forwardPayload`.
 struct (0x0449d467) TokenPool_GetCCVsFailed {
-    queryId: uint64;
+    queryID: uint64;
     errorCode: int32;                               // Raw TVM exit code; signed, can be negative (OOG is -14).
     forwardPayload: cell?;
 }
@@ -300,7 +300,7 @@ struct TokenPool_GetCCVsContext {
 /// Reply from AdvancedPoolHooks carrying the required CCV set for a `TokenPool_GetCCVs`
 /// forwarded by the pool. An empty `requiredCCVs` list signals "use the lane defaults".
 struct (0x30612b17) TokenPool_QueryCCVsReply {
-    queryId: uint64;
+    queryID: uint64;
     requiredCCVs: array<address>;                   // Max 255.
     forwardPayload: cell?;                          // Cell<TokenPool_GetCCVsContext> echoed back.
 }
@@ -337,7 +337,7 @@ type TokenPool_InMessage =
     | Withdrawable_Withdraw;
 
 struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
-    queryId: uint64;
+    queryID: uint64;
     /// TON the custody notification must carry to the pool (`TokenPool.custodyForward`). The
     /// sender's wallet forwards exactly this and rejects an underfunded transfer before custody
     /// moves.
@@ -346,13 +346,13 @@ struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
 }
 
 struct (0x9643c08d) TokenPool_LockOrBurnWithdrawFailed {
-    queryId: uint64;
+    queryID: uint64;
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
     errorCode: int32;                               // Raw TVM exit code (signed); see TokenPool_GetCCVsFailed.
 }
 
 struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
-    queryId: uint64;
+    queryID: uint64;
     // TODO[REFACTOR]: [NONEVM-5336] can we remove this if executor is not going to use it anyway?
     // TODO[REFACTOR]: [NONEVM-5336] unwrap and inline this type
     out: Cell<TokenPool_LockOrBurnOutV1>;
@@ -362,43 +362,43 @@ struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
 }
 
 struct (0x3476ea72) TokenPool_LockOrBurnFailure {
-    queryId: uint64;
+    queryID: uint64;
     errorCode: int32;                               // Raw TVM exit code (signed); see TokenPool_GetCCVsFailed.
 }
 
 /// Sent to the ReceiveExecutor once the pool processed `TokenPool_ReleaseOrMintDelivered`.
 struct (0xedd4948a) TokenPool_ReleaseOrMintFinalized {
-    queryId: uint64;
+    queryID: uint64;
     out: Cell<TokenPool_ReleaseOrMintOutV1>;
 }
 
 struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
-    queryId: uint64;
+    queryID: uint64;
     errorCode: int32;                               // Raw TVM exit code (signed); see TokenPool_GetCCVsFailed.
 }
 
 /// Replied on `TokenPool_AddRemotePool` to confirm tx and return excess to sender.
 struct (0x12cc4985) TokenPool_RemotePoolAddedNotification {
-    queryId: uint64;
+    queryID: uint64;
     remoteChainSelector: uint64;
     remotePoolAddress: Cell<CrossChainAddress>;
 }
 
 /// Replied on `TokenPool_RemoveRemotePool` to confirm tx and return excess to sender.
 struct (0xe17bf3cc) TokenPool_RemotePoolRemovedNotification {
-    queryId: uint64;
+    queryID: uint64;
     remoteChainSelector: uint64;
     remotePoolAddress: Cell<CrossChainAddress>;
 }
 
 struct (0x426a713b) TokenPool_FinalityConfigSet {
-    queryId: uint64;
+    queryID: uint64;
     allowedFinalityConfig: uint32;
 }
 
 /// Replied on `TokenPool_SetDynamicConfig` to confirm tx and return excess to sender.
 struct (0xb735e30c) TokenPool_DynamicConfigSet {
-    queryId: uint64;
+    queryID: uint64;
     router: address;
     rateLimitAdmin: address?;
     feeAdmin: address?;
@@ -406,21 +406,21 @@ struct (0xb735e30c) TokenPool_DynamicConfigSet {
 
 /// Replied on `TokenPool_SetRateLimitConfig` to confirm tx and return excess to sender.
 struct (0xdd7b0c71) TokenPool_RateLimitConfiguredNotification {
-    queryId: uint64;
+    queryID: uint64;
 }
 
 /// Replied on `TokenPool_ApplyChainUpdates` to confirm tx and return excess to sender.
 struct (0xad7833d7) TokenPool_ChainUpdatesApplied {
-    queryId: uint64;
+    queryID: uint64;
 }
 
 /// Replied on `TokenPool_ApplyTokenTransferFeeConfigUpdates` to confirm tx and return excess to sender.
 struct (0x28cbcc64) TokenPool_FeeConfigApplied {
-    queryId: uint64;
+    queryID: uint64;
 }
 
 struct (0x3c869d80) TokenPool_AdvancedPoolHooksSet {
-    queryId: uint64;
+    queryID: uint64;
     advancedPoolHooks: address?;
 }
 
@@ -456,12 +456,12 @@ type TokenPool_BouncedMessage =
 /// release/mint deliveries and its admission budgets. Sent when a pool is set or refreshed, e.g.
 /// after the pool owner changed its budget or hooks.
 struct (0x480060f1) TokenPool_GetConfig {
-    queryId: uint64;
+    queryID: uint64;
 }
 
 /// Answer to `TokenPool_GetConfig`. A null initiator means the pool delivers by minting.
 struct (0x1c8a40b8) TokenPool_Config {
-    queryId: uint64;
+    queryID: uint64;
     token: address;
     transferInitiator: address?;
     admission: TokenPool_AdmissionBudget;
@@ -478,12 +478,12 @@ struct (0x3f9b99ae) TokenPool_WithdrawRescue {
 /// Sets the pool's per-instance budget. Values only raise the pool-type defaults; zero keeps the
 /// default. Owner-only. Refresh the registry afterwards so CCIP funds the new admission budget.
 struct (0x1e54ab8b) TokenPool_SetBudget {
-    queryId: uint64;
+    queryID: uint64;
     budget: TokenPool_Budget;
 }
 
 /// Replied on `TokenPool_SetBudget` with the resulting effective budget.
 struct (0xfa704988) TokenPool_BudgetSet {
-    queryId: uint64;
+    queryID: uint64;
     budget: TokenPool_Budget;
 }

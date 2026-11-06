@@ -6,7 +6,7 @@ struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
     // execId lets us calculate where to send CCIPReceiveConfirm and CCIPReceiveFailed
     // it fits in the body of a bounced message
     execId: uint192;
-    queryId: uint64;
+    queryID: uint64;
     /// Value to attach to Router_CCIPReceiveConfirm, set by the Router.
     confirmValue: coins;
     message: Cell<Any2TVMMessage>;
@@ -50,19 +50,19 @@ fun Receiver_CCIPReceiveV2.validateAndConfirm(self, opts: Receiver_ValidateOptio
 
     // 3. Enqueue CCIPReceiveConfirm to msg.callback
     val receiveConfirm = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: opts.confirmationMsg.value ?? self.confirmValue,
         dest: opts.inMsg.senderAddress,
         body: Router_CCIPReceiveConfirm {
-            queryId: self.queryId,
+            queryID: self.queryID,
             execId: self.execId,
         }
     });
-    receiveConfirm.send(opts.confirmationMsg.sendMode);
+    receiveConfirm.send(opts.confirmationMsg.sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Confirmation message sent back to the router after accepting a CCIP message
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
-    queryId: uint64;
+    queryID: uint64;
     execId: ReceiveExecutorId;
 }

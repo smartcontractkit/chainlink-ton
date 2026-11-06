@@ -23,7 +23,7 @@ import * as ownable2step from '../libraries/access/Ownable2Step'
 // @dev Sets a new expiring root.
 export type SetRoot = {
   // Query ID of the change request.
-  queryId: bigint
+  queryID: bigint
 
   // The new expiring root.
   root: bigint // uint256
@@ -40,7 +40,7 @@ export type SetRoot = {
 // @dev Executes an operation authenticated by the Merkle tree.
 export type Execute = {
   // Query ID of the execute request.
-  queryId: bigint
+  queryID: bigint
 
   // The operation to be executed, stored as a Cell to avoid size limits.
   op: Cell // Cell<Op>
@@ -51,7 +51,7 @@ export type Execute = {
 // @dev Sets the configuration for the contract.
 export type SetConfig = {
   // Query ID of the change request.
-  queryId: bigint
+  queryID: bigint
 
   // List of signer EVM addresses.
   signerAddresses: bigint[] // vec<uint256>
@@ -74,7 +74,7 @@ export type SetConfig = {
 /// - the caller must be the owner
 export type UpdateOpFinalizationTimeout = {
   // Query ID of the change request.
-  queryId: bigint
+  queryID: bigint
 
   // The timeout required to finalize the currently executing op
   newOpFinalizationTimeout: number
@@ -89,7 +89,7 @@ export type UpdateOpFinalizationTimeout = {
 /// stale errors for operations that are no longer valid.
 export type SubmitErrorReport = {
   /// Query ID of the change request.
-  queryId: bigint
+  queryID: bigint
 
   /// The operation which produced the error.
   op: Cell // Cell<Op>
@@ -107,7 +107,7 @@ export type SubmitErrorReport = {
 /// Message sent by the owner to transfer the oracle role.
 export type TransferOracleRole = {
   /// Query ID of the change request.
-  queryId: bigint
+  queryID: bigint
   /// The address of the new oracle.
   newOracle: Address
 }
@@ -115,7 +115,7 @@ export type TransferOracleRole = {
 /// Delete expired roots from storage map to reduce rent
 export type CleanExpiredRoots = {
   /// Query ID of the change request.
-  queryId: bigint
+  queryID: bigint
 
   /// The roots to clean up - RootDescriptor{root, validUntil}
   roots: RootDescriptor[]
@@ -497,7 +497,7 @@ export const builder = {
         encode: (msg: SetRoot): Builder => {
           return beginCell()
             .storeUint(opcodes.in.SetRoot, 32)
-            .storeUint(msg.queryId, 64)
+            .storeUint(msg.queryID, 64)
             .storeUint(msg.root, 256)
             .storeUint(msg.validUntil, 64)
             .storeBuilder(rootMetadata.encode(msg.metadata))
@@ -507,7 +507,7 @@ export const builder = {
         load: (src: Slice): SetRoot => {
           src.skip(32) // skip opcode
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
             root: src.loadUintBig(256),
             validUntil: src.loadUintBig(64),
             metadata: src.loadRef().beginParse() as unknown as RootMetadata, // TODO[TEST]: decode metadata properly
@@ -521,14 +521,14 @@ export const builder = {
         encode: (msg: Execute): Builder => {
           return beginCell()
             .storeUint(opcodes.in.Execute, 32)
-            .storeUint(msg.queryId, 64)
+            .storeUint(msg.queryID, 64)
             .storeRef(msg.op)
             .storeRef(asSnakedCell<bigint>(msg.proof, (v) => beginCell().storeUint(v, 256)))
         },
         load: (src: Slice): Execute => {
           src.skip(32) // skip opcode
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
             op: src.loadRef(),
             proof: fromSnakeData(src.loadRef(), (a) => a.loadUintBig(256)),
           }
@@ -539,7 +539,7 @@ export const builder = {
         encode: (msg: SetConfig): Builder => {
           return beginCell()
             .storeUint(opcodes.in.SetConfig, 32)
-            .storeUint(msg.queryId, 64)
+            .storeUint(msg.queryID, 64)
             .storeRef(
               asSnakedCell<bigint>(msg.signerAddresses, (a) => beginCell().storeUint(a, 160)), // 20 byte EVM address
             )
@@ -555,7 +555,7 @@ export const builder = {
         load: (src: Slice): SetConfig => {
           src.skip(32) // skip opcode
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
             signerAddresses: fromSnakeData<bigint>(src.loadRef(), (a) => a.loadUintBig(160)),
             signerGroups: fromSnakeData<number>(src.loadRef(), (g) => g.loadUint(8)),
             groupQuorums: loadDict(
@@ -580,13 +580,13 @@ export const builder = {
         encode: (msg: UpdateOpFinalizationTimeout): Builder => {
           return beginCell()
             .storeUint(opcodes.in.UpdateOpFinalizationTimeout, 32)
-            .storeUint(msg.queryId, 64)
+            .storeUint(msg.queryID, 64)
             .storeUint(msg.newOpFinalizationTimeout, 32)
         },
         load: (src: Slice): UpdateOpFinalizationTimeout => {
           src.skip(32) // skip opcode
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
             newOpFinalizationTimeout: src.loadUint(32),
           }
         },
@@ -595,7 +595,7 @@ export const builder = {
         encode: (msg: SubmitErrorReport): Builder => {
           return beginCell()
             .storeUint(opcodes.in.SubmitErrorReport, 32)
-            .storeUint(msg.queryId, 64)
+            .storeUint(msg.queryID, 64)
             .storeRef(msg.op)
             .storeRef(asSnakedCell<bigint>(msg.proof, (v) => beginCell().storeUint(v, 256)))
             .storeUint(msg.opTxHash, 256)
@@ -605,7 +605,7 @@ export const builder = {
         load: (src: Slice): SubmitErrorReport => {
           src.skip(32) // skip opcode
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
             op: src.loadRef(),
             proof: fromSnakeData(src.loadRef(), (a) => a.loadUintBig(256)),
             opTxHash: src.loadUintBig(256),
@@ -618,13 +618,13 @@ export const builder = {
         encode: (msg: TransferOracleRole): Builder => {
           return beginCell()
             .storeUint(opcodes.in.TransferOracleRole, 32)
-            .storeUint(msg.queryId, 64)
+            .storeUint(msg.queryID, 64)
             .storeAddress(msg.newOracle)
         },
         load: (src: Slice): TransferOracleRole => {
           src.skip(32) // skip opcode
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
             newOracle: src.loadAddress(),
           }
         },
@@ -633,7 +633,7 @@ export const builder = {
         encode: (msg: CleanExpiredRoots): Builder => {
           return beginCell()
             .storeUint(opcodes.in.CleanExpiredRoots, 32)
-            .storeUint(msg.queryId, 64)
+            .storeUint(msg.queryID, 64)
             .storeRef(
               asSnakedCell<RootDescriptor>(msg.roots, (v) =>
                 beginCell().storeUint(v.root, 256).storeUint(v.validUntil, 64),
@@ -643,7 +643,7 @@ export const builder = {
         load: (src: Slice): CleanExpiredRoots => {
           src.skip(32) // skip opcode
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
             roots: fromSnakeData(src.loadRef(), (a) => ({
               root: a.loadUintBig(256),
               validUntil: a.loadUintBig(64),

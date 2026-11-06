@@ -113,7 +113,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       value: TOKEN_AMOUNT + toNano('1') + toNano('0.3'),
       mintOpcode: WGRAM_MINT_OPCODE,
       message: {
-        queryId: 0n,
+        queryID: 0n,
         destination: sender.address,
         tonAmount: toNano('1'),
         jettonAmount: TOKEN_AMOUNT,
@@ -377,7 +377,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       const result = await senderWallet.sendTransfer(sender.getSender(), {
         value: toNano('2'),
         message: {
-          queryId: 1,
+          queryID: 1,
           jettonAmount: TOKEN_AMOUNT,
           destination: onRampAcccount.address,
           responseDestination: sender.address,
@@ -647,7 +647,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       body(x) {
         if (!x) return false
         return (
-          or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse()).error ===
+          or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse()).errorCode ===
           BigInt(exe.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenNotEnabled'])
         )
       },

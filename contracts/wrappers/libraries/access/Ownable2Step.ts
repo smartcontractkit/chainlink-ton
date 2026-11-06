@@ -26,7 +26,7 @@ export enum Errors {
 // @dev Message sent by the owner to transfer ownership of a contract.
 export type TransferOwnership = {
   // Query ID of the change request.
-  queryId: bigint
+  queryID: bigint
   // New owner address.
   newOwner: Address
 }
@@ -34,7 +34,7 @@ export type TransferOwnership = {
 /// Message sent by the pending owner to accept ownership of a contract.
 export type AcceptOwnership = {
   // Query ID of the change request.
-  queryId: bigint
+  queryID: bigint
 }
 
 // TODO[REFACTOR]: crc32 opcode resolution
@@ -61,7 +61,7 @@ export const builder = {
             return beginCell() // break line
               .storeUint(prefix ?? 0, prefix ? 32 : 0)
               .storeUint(opcodes.in.TransferOwnership, 32)
-              .storeUint(msg.queryId, 64)
+              .storeUint(msg.queryID, 64)
               .storeAddress(msg.newOwner)
           },
           load: (src: Slice): TransferOwnership => {
@@ -70,7 +70,7 @@ export const builder = {
             }
             src.skip(32) // skip opcode
             return {
-              queryId: src.loadUintBig(64),
+              queryID: src.loadUintBig(64),
               newOwner: src.loadAddress(),
             }
           },
@@ -82,7 +82,7 @@ export const builder = {
             return beginCell() // break line
               .storeUint(prefix ?? 0, prefix ? 32 : 0)
               .storeUint(opcodes.in.AcceptOwnership, 32)
-              .storeUint(msg.queryId, 64)
+              .storeUint(msg.queryID, 64)
           },
           load: (src: Slice): AcceptOwnership => {
             if (prefix) {
@@ -90,7 +90,7 @@ export const builder = {
             }
             src.skip(32) // skip opcode
             return {
-              queryId: src.loadUintBig(64),
+              queryID: src.loadUintBig(64),
             }
           },
         }

@@ -210,7 +210,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(suiteSetup.nonOwner.getSender(), withdrawValue, {
-          queryId: 0n,
+          queryID: 0n,
           destination: suiteSetup.recipient.address,
           amount: toNano('1'),
           reserve: null,
@@ -241,7 +241,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-          queryId: 1n,
+          queryID: 1n,
           destination: suiteSetup.recipient.address,
           amount: withdrawAmount,
           reserve: null,
@@ -282,7 +282,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-          queryId: 2n,
+          queryID: 2n,
           destination: suiteSetup.recipient.address,
           amount: tooMuchAmount,
           reserve: null,
@@ -313,7 +313,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-          queryId: 3n,
+          queryID: 3n,
           destination: suiteSetup.recipient.address,
           amount: attemptedAmount,
           reserve: null,
@@ -344,7 +344,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-          queryId: 4n,
+          queryID: 4n,
           destination: suiteSetup.recipient.address,
           amount: attemptedAmount,
           reserve: toNano('0'), // Disable reserve protection
@@ -373,7 +373,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
       const testDrain = async (
         initialBalance: bigint,
         customReserve: bigint | null,
-        queryId: bigint,
+        queryID: bigint,
         testSetup: TestSetup<TContract>,
         contract: SandboxContract<TContract & withdrawable.Interface>,
       ) => {
@@ -381,7 +381,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(testSetup.owner.getSender(), withdrawValue, {
-          queryId: queryId,
+          queryID: queryID,
           destination: testSetup.recipient.address,
           amount: 0n,
           reserve: customReserve,
@@ -466,7 +466,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-          queryId: 6n,
+          queryID: 6n,
           destination: suiteSetup.recipient.address,
           amount: 0n,
           reserve: toNano('0'), // Disable reserve protection
@@ -505,7 +505,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-          queryId: 7n,
+          queryID: 7n,
           destination: suiteSetup.recipient.address,
           amount: toNano('1'),
           reserve: null,
@@ -533,7 +533,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-          queryId: 8n,
+          queryID: 8n,
           destination: suiteSetup.recipient.address,
           amount: 0n,
           reserve: null,
@@ -565,7 +565,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
           const result = await (
             contract as SandboxContract<withdrawable.Interface>
           ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-            queryId: 9n,
+            queryID: 9n,
             destination: suiteSetup.recipient.address,
             amount: withdrawAmount,
             reserve: toNano('0'), // TODO[TEST]: call drain all with custom reserve instead
@@ -589,7 +589,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-          queryId: 10n,
+          queryID: 10n,
           destination: suiteSetup.recipient.address,
           amount: 0n,
           reserve: null,
@@ -621,7 +621,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-          queryId: 11n,
+          queryID: 11n,
           destination: suiteSetup.recipient.address,
           amount: withdrawAmount,
           reserve: customReserve,
@@ -668,7 +668,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-          queryId: 12n,
+          queryID: 12n,
           destination: suiteSetup.recipient.address,
           amount: withdrawAmount,
           reserve: customReserve,
@@ -713,7 +713,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-          queryId: 13n,
+          queryID: 13n,
           destination: suiteSetup.recipient.address,
           amount: attemptedAmount,
           reserve: customReserve,
@@ -746,7 +746,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-          queryId: 14n,
+          queryID: 14n,
           destination: suiteSetup.recipient.address,
           amount: attemptedAmount,
           reserve: customReserve,
@@ -783,7 +783,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
           const result = await (
             contract as SandboxContract<withdrawable.Interface>
           ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-            queryId: 17n,
+            queryID: 17n,
             destination: suiteSetup.recipient.address,
             amount: withdrawAmount,
             reserve: toNano('0'), // TODO[TEST]: call drain all with custom reserve instead
@@ -807,7 +807,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-          queryId: 18n,
+          queryID: 18n,
           destination: suiteSetup.recipient.address,
           amount: 0n,
           reserve: customReserve,
@@ -842,7 +842,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
           const result = await (
             contract as SandboxContract<withdrawable.Interface>
           ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-            queryId: 19n,
+            queryID: 19n,
             destination: suiteSetup.recipient.address,
             amount: withdrawAmount,
             reserve: toNano('0'), // TODO[TEST]: call drain all with custom reserve instead
@@ -872,7 +872,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const result = await (
           contract as SandboxContract<withdrawable.Interface>
         ).sendWithdrawableWithdraw(suiteSetup.owner.getSender(), withdrawValue, {
-          queryId: 20n,
+          queryID: 20n,
           destination: suiteSetup.recipient.address,
           amount: 0n,
           reserve: customReserve,

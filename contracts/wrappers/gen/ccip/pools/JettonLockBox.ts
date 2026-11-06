@@ -315,7 +315,7 @@ export const ForwardPayloadRemainder = {
 
 /**
  > struct (0x0f8a7ea5) AskToTransfer {
- >     queryId: uint64
+ >     queryID: uint64
  >     jettonAmount: coins
  >     transferRecipient: address
  >     sendExcessesTo: address?
@@ -326,7 +326,7 @@ export const ForwardPayloadRemainder = {
  */
 export interface AskToTransfer {
     readonly $: 'AskToTransfer'
-    queryId: uint64
+    queryID: uint64
     jettonAmount: coins
     transferRecipient: c.Address
     sendExcessesTo: c.Address | null
@@ -339,7 +339,7 @@ export const AskToTransfer = {
     PREFIX: 0x0f8a7ea5,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         jettonAmount: coins
         transferRecipient: c.Address
         sendExcessesTo: c.Address | null
@@ -350,14 +350,14 @@ export const AskToTransfer = {
         return {
             $: 'AskToTransfer',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): AskToTransfer {
         loadAndCheckPrefix32(s, 0x0f8a7ea5, 'AskToTransfer');
         return {
             $: 'AskToTransfer',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             jettonAmount: s.loadCoins(),
             transferRecipient: s.loadAddress(),
             sendExcessesTo: s.loadMaybeAddress(),
@@ -368,7 +368,7 @@ export const AskToTransfer = {
     },
     store(self: AskToTransfer, b: c.Builder): void {
         b.storeUint(0x0f8a7ea5, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeCoins(self.jettonAmount);
         b.storeAddress(self.transferRecipient);
         b.storeAddress(self.sendExcessesTo);
@@ -385,7 +385,7 @@ export const AskToTransfer = {
 
 /**
  > struct (0x7362d09c) TransferNotificationForRecipient {
- >     queryId: uint64
+ >     queryID: uint64
  >     jettonAmount: coins
  >     transferInitiator: address?
  >     forwardPayload: ForwardPayloadRemainder
@@ -393,7 +393,7 @@ export const AskToTransfer = {
  */
 export interface TransferNotificationForRecipient {
     readonly $: 'TransferNotificationForRecipient'
-    queryId: uint64
+    queryID: uint64
     jettonAmount: coins
     transferInitiator: c.Address | null
     forwardPayload: ForwardPayloadRemainder
@@ -403,7 +403,7 @@ export const TransferNotificationForRecipient = {
     PREFIX: 0x7362d09c,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
@@ -411,14 +411,14 @@ export const TransferNotificationForRecipient = {
         return {
             $: 'TransferNotificationForRecipient',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TransferNotificationForRecipient {
         loadAndCheckPrefix32(s, 0x7362d09c, 'TransferNotificationForRecipient');
         return {
             $: 'TransferNotificationForRecipient',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             jettonAmount: s.loadCoins(),
             transferInitiator: s.loadMaybeAddress(),
             forwardPayload: ForwardPayloadRemainder.fromSlice(s),
@@ -426,7 +426,7 @@ export const TransferNotificationForRecipient = {
     },
     store(self: TransferNotificationForRecipient, b: c.Builder): void {
         b.storeUint(0x7362d09c, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeCoins(self.jettonAmount);
         b.storeAddress(self.transferInitiator);
         ForwardPayloadRemainder.store(self.forwardPayload, b);
@@ -438,7 +438,7 @@ export const TransferNotificationForRecipient = {
 
 /**
  > struct (0xf343fc1b) Withdrawable_Withdraw {
- >     queryId: uint64
+ >     queryID: uint64
  >     destination: address
  >     amount: coins
  >     reserve: coins?
@@ -447,7 +447,7 @@ export const TransferNotificationForRecipient = {
  */
 export interface Withdrawable_Withdraw {
     readonly $: 'Withdrawable_Withdraw'
-    queryId: uint64
+    queryID: uint64
     destination: c.Address
     amount: coins
     reserve: coins | null
@@ -458,7 +458,7 @@ export const Withdrawable_Withdraw = {
     PREFIX: 0xf343fc1b,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -467,14 +467,14 @@ export const Withdrawable_Withdraw = {
         return {
             $: 'Withdrawable_Withdraw',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Withdrawable_Withdraw {
         loadAndCheckPrefix32(s, 0xf343fc1b, 'Withdrawable_Withdraw');
         return {
             $: 'Withdrawable_Withdraw',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             destination: s.loadAddress(),
             amount: s.loadCoins(),
             reserve: s.loadBoolean() ? s.loadCoins() : null,
@@ -483,7 +483,7 @@ export const Withdrawable_Withdraw = {
     },
     store(self: Withdrawable_Withdraw, b: c.Builder): void {
         b.storeUint(0xf343fc1b, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.destination);
         b.storeCoins(self.amount);
         storeTolkNullable<coins>(self.reserve, b,
@@ -541,13 +541,13 @@ export const JettonWithdrawable_WithdrawFeeTransfer = {
 
 /**
  > struct (0x0d00995c) JettonWithdrawable_Withdraw {
- >     queryId: uint64
+ >     queryID: uint64
  >     transfers: array<JettonWithdrawable_WithdrawFeeTransfer>
  > }
  */
 export interface JettonWithdrawable_Withdraw {
     readonly $: 'JettonWithdrawable_Withdraw'
-    queryId: uint64
+    queryID: uint64
     transfers: array<JettonWithdrawable_WithdrawFeeTransfer>
 }
 
@@ -555,26 +555,26 @@ export const JettonWithdrawable_Withdraw = {
     PREFIX: 0x0d00995c,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         transfers: array<JettonWithdrawable_WithdrawFeeTransfer>
     }): JettonWithdrawable_Withdraw {
         return {
             $: 'JettonWithdrawable_Withdraw',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonWithdrawable_Withdraw {
         loadAndCheckPrefix32(s, 0x0d00995c, 'JettonWithdrawable_Withdraw');
         return {
             $: 'JettonWithdrawable_Withdraw',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             transfers: loadArrayOf<JettonWithdrawable_WithdrawFeeTransfer>(s, JettonWithdrawable_WithdrawFeeTransfer.fromSlice),
         }
     },
     store(self: JettonWithdrawable_Withdraw, b: c.Builder): void {
         b.storeUint(0x0d00995c, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeArrayOf<JettonWithdrawable_WithdrawFeeTransfer>(self.transfers, b, JettonWithdrawable_WithdrawFeeTransfer.store);
     },
     toCell(self: JettonWithdrawable_Withdraw): c.Cell {
@@ -675,7 +675,7 @@ export const Storage = {
 
 /**
  > struct (0x9e9ec361) JettonLockBox_Deposit {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  >     remoteChainSelector: uint64
  >     amount: coins
@@ -685,7 +685,7 @@ export const Storage = {
  */
 export interface JettonLockBox_Deposit {
     readonly $: 'JettonLockBox_Deposit'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
     remoteChainSelector: uint64
     amount: coins
@@ -697,7 +697,7 @@ export const JettonLockBox_Deposit = {
     PREFIX: 0x9e9ec361,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
@@ -708,14 +708,14 @@ export const JettonLockBox_Deposit = {
             $: 'JettonLockBox_Deposit',
             extra: null,
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Deposit {
         loadAndCheckPrefix32(s, 0x9e9ec361, 'JettonLockBox_Deposit');
         return {
             $: 'JettonLockBox_Deposit',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
             remoteChainSelector: s.loadUintBig(64),
             amount: s.loadCoins(),
@@ -725,7 +725,7 @@ export const JettonLockBox_Deposit = {
     },
     store(self: JettonLockBox_Deposit, b: c.Builder): void {
         b.storeUint(0x9e9ec361, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
         b.storeUint(self.remoteChainSelector, 64);
         b.storeCoins(self.amount);
@@ -834,7 +834,7 @@ export const JettonLockBox_WithdrawExtra = {
 
 /**
  > struct (0xd065c306) JettonLockBox_Withdraw {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  >     remoteChainSelector: uint64
  >     amount: coins
@@ -844,7 +844,7 @@ export const JettonLockBox_WithdrawExtra = {
  */
 export interface JettonLockBox_Withdraw {
     readonly $: 'JettonLockBox_Withdraw'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
     remoteChainSelector: uint64
     amount: coins
@@ -856,7 +856,7 @@ export const JettonLockBox_Withdraw = {
     PREFIX: 0xd065c306,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
@@ -866,14 +866,14 @@ export const JettonLockBox_Withdraw = {
         return {
             $: 'JettonLockBox_Withdraw',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Withdraw {
         loadAndCheckPrefix32(s, 0xd065c306, 'JettonLockBox_Withdraw');
         return {
             $: 'JettonLockBox_Withdraw',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
             remoteChainSelector: s.loadUintBig(64),
             amount: s.loadCoins(),
@@ -883,7 +883,7 @@ export const JettonLockBox_Withdraw = {
     },
     store(self: JettonLockBox_Withdraw, b: c.Builder): void {
         b.storeUint(0xd065c306, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
         b.storeUint(self.remoteChainSelector, 64);
         b.storeCoins(self.amount);
@@ -936,7 +936,7 @@ export const JettonLockBox_WithdrawRescue = {
 
 /**
  > struct (0x6d077f2e) JettonLockBox_Deposited {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  >     depositor: address
  >     amount: coins
@@ -945,7 +945,7 @@ export const JettonLockBox_WithdrawRescue = {
  */
 export interface JettonLockBox_Deposited {
     readonly $: 'JettonLockBox_Deposited'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
     depositor: c.Address
     amount: coins
@@ -956,7 +956,7 @@ export const JettonLockBox_Deposited = {
     PREFIX: 0x6d077f2e,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         depositor: c.Address
         amount: coins
@@ -965,14 +965,14 @@ export const JettonLockBox_Deposited = {
         return {
             $: 'JettonLockBox_Deposited',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Deposited {
         loadAndCheckPrefix32(s, 0x6d077f2e, 'JettonLockBox_Deposited');
         return {
             $: 'JettonLockBox_Deposited',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
             depositor: s.loadAddress(),
             amount: s.loadCoins(),
@@ -981,7 +981,7 @@ export const JettonLockBox_Deposited = {
     },
     store(self: JettonLockBox_Deposited, b: c.Builder): void {
         b.storeUint(0x6d077f2e, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
         b.storeAddress(self.depositor);
         b.storeCoins(self.amount);
@@ -996,7 +996,7 @@ export const JettonLockBox_Deposited = {
 
 /**
  > struct (0x5e28ebd8) JettonLockBox_DepositFailed {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  >     depositor: address
  >     amount: coins
@@ -1006,7 +1006,7 @@ export const JettonLockBox_Deposited = {
  */
 export interface JettonLockBox_DepositFailed {
     readonly $: 'JettonLockBox_DepositFailed'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
     depositor: c.Address
     amount: coins
@@ -1018,7 +1018,7 @@ export const JettonLockBox_DepositFailed = {
     PREFIX: 0x5e28ebd8,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         depositor: c.Address
         amount: coins
@@ -1028,14 +1028,14 @@ export const JettonLockBox_DepositFailed = {
         return {
             $: 'JettonLockBox_DepositFailed',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_DepositFailed {
         loadAndCheckPrefix32(s, 0x5e28ebd8, 'JettonLockBox_DepositFailed');
         return {
             $: 'JettonLockBox_DepositFailed',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
             depositor: s.loadAddress(),
             amount: s.loadCoins(),
@@ -1045,7 +1045,7 @@ export const JettonLockBox_DepositFailed = {
     },
     store(self: JettonLockBox_DepositFailed, b: c.Builder): void {
         b.storeUint(0x5e28ebd8, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
         b.storeAddress(self.depositor);
         b.storeCoins(self.amount);
@@ -1061,7 +1061,7 @@ export const JettonLockBox_DepositFailed = {
 
 /**
  > struct (0xffa6eeb9) JettonLockBox_Init {
- >     queryId: uint64
+ >     queryID: uint64
  >     minterAddress: address
  >     walletAddress: address
  >     admin: address?
@@ -1069,7 +1069,7 @@ export const JettonLockBox_DepositFailed = {
  */
 export interface JettonLockBox_Init {
     readonly $: 'JettonLockBox_Init'
-    queryId: uint64
+    queryID: uint64
     minterAddress: c.Address
     walletAddress: c.Address
     admin: c.Address | null
@@ -1079,7 +1079,7 @@ export const JettonLockBox_Init = {
     PREFIX: 0xffa6eeb9,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         minterAddress: c.Address
         walletAddress: c.Address
         admin: c.Address | null
@@ -1087,14 +1087,14 @@ export const JettonLockBox_Init = {
         return {
             $: 'JettonLockBox_Init',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Init {
         loadAndCheckPrefix32(s, 0xffa6eeb9, 'JettonLockBox_Init');
         return {
             $: 'JettonLockBox_Init',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             minterAddress: s.loadAddress(),
             walletAddress: s.loadAddress(),
             admin: s.loadMaybeAddress(),
@@ -1102,7 +1102,7 @@ export const JettonLockBox_Init = {
     },
     store(self: JettonLockBox_Init, b: c.Builder): void {
         b.storeUint(0xffa6eeb9, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.minterAddress);
         b.storeAddress(self.walletAddress);
         b.storeAddress(self.admin);
@@ -1114,7 +1114,7 @@ export const JettonLockBox_Init = {
 
 /**
  > struct (0xe9f4e311) JettonLockBox_Initialized {
- >     queryId: uint64
+ >     queryID: uint64
  >     minterAddress: address
  >     walletAddress: address
  >     admin: address
@@ -1122,7 +1122,7 @@ export const JettonLockBox_Init = {
  */
 export interface JettonLockBox_Initialized {
     readonly $: 'JettonLockBox_Initialized'
-    queryId: uint64
+    queryID: uint64
     minterAddress: c.Address
     walletAddress: c.Address
     admin: c.Address
@@ -1132,7 +1132,7 @@ export const JettonLockBox_Initialized = {
     PREFIX: 0xe9f4e311,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         minterAddress: c.Address
         walletAddress: c.Address
         admin: c.Address
@@ -1140,14 +1140,14 @@ export const JettonLockBox_Initialized = {
         return {
             $: 'JettonLockBox_Initialized',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Initialized {
         loadAndCheckPrefix32(s, 0xe9f4e311, 'JettonLockBox_Initialized');
         return {
             $: 'JettonLockBox_Initialized',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             minterAddress: s.loadAddress(),
             walletAddress: s.loadAddress(),
             admin: s.loadAddress(),
@@ -1155,7 +1155,7 @@ export const JettonLockBox_Initialized = {
     },
     store(self: JettonLockBox_Initialized, b: c.Builder): void {
         b.storeUint(0xe9f4e311, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.minterAddress);
         b.storeAddress(self.walletAddress);
         b.storeAddress(self.admin);
@@ -1167,14 +1167,14 @@ export const JettonLockBox_Initialized = {
 
 /**
  > struct (0x60bae556) JettonLockBox_WithdrawFailed {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  >     context: Cell<JettonLockBox_Withdraw>?
  > }
  */
 export interface JettonLockBox_WithdrawFailed {
     readonly $: 'JettonLockBox_WithdrawFailed'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
     context: JettonLockBox_Withdraw | null
 }
@@ -1183,28 +1183,28 @@ export const JettonLockBox_WithdrawFailed = {
     PREFIX: 0x60bae556,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         context: JettonLockBox_Withdraw | null
     }): JettonLockBox_WithdrawFailed {
         return {
             $: 'JettonLockBox_WithdrawFailed',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_WithdrawFailed {
         loadAndCheckPrefix32(s, 0x60bae556, 'JettonLockBox_WithdrawFailed');
         return {
             $: 'JettonLockBox_WithdrawFailed',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
             context: s.loadBoolean() ? loadCellRef<JettonLockBox_Withdraw>(s, JettonLockBox_Withdraw.fromSlice) : null,
         }
     },
     store(self: JettonLockBox_WithdrawFailed, b: c.Builder): void {
         b.storeUint(0x60bae556, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
         storeTolkNullable<JettonLockBox_Withdraw>(self.context, b,
             (v,b) => storeCellRef<JettonLockBox_Withdraw>(v, b, JettonLockBox_Withdraw.store)
@@ -1304,7 +1304,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     static createCellOfJettonLockBoxInit(body: {
-        queryId?: uint64
+        queryID?: uint64
         minterAddress: c.Address
         walletAddress: c.Address
         admin: c.Address | null
@@ -1313,7 +1313,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     static createCellOfJettonLockBoxWithdraw(body: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
@@ -1330,7 +1330,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     static createCellOfWithdrawableWithdraw(body: {
-        queryId?: uint64
+        queryID?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -1340,7 +1340,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     static createCellOfTransferNotificationForRecipient(body: {
-        queryId?: uint64
+        queryID?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
@@ -1365,7 +1365,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     async sendJettonLockBoxInit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         minterAddress: c.Address
         walletAddress: c.Address
         admin: c.Address | null
@@ -1378,7 +1378,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     async sendJettonLockBoxWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
@@ -1403,7 +1403,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     async sendWithdrawableWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -1417,7 +1417,7 @@ export class JettonLockBox implements c.Contract {
     }
 
     async sendTransferNotificationForRecipient(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder

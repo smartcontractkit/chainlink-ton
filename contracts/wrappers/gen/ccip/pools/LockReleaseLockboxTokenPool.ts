@@ -381,14 +381,14 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
 
 /**
  > struct (0x95cd540f) AccessControl_GrantRole {
- >     queryId: uint64
+ >     queryID: uint64
  >     role: uint256
  >     account: address
  > }
  */
 export interface AccessControl_GrantRole {
     readonly $: 'AccessControl_GrantRole'
-    queryId: uint64
+    queryID: uint64
     role: uint256
     account: c.Address
 }
@@ -397,28 +397,28 @@ export const AccessControl_GrantRole = {
     PREFIX: 0x95cd540f,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         role: uint256
         account: c.Address
     }): AccessControl_GrantRole {
         return {
             $: 'AccessControl_GrantRole',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): AccessControl_GrantRole {
         loadAndCheckPrefix32(s, 0x95cd540f, 'AccessControl_GrantRole');
         return {
             $: 'AccessControl_GrantRole',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             role: s.loadUintBig(256),
             account: s.loadAddress(),
         }
     },
     store(self: AccessControl_GrantRole, b: c.Builder): void {
         b.storeUint(0x95cd540f, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.role, 256);
         b.storeAddress(self.account);
     },
@@ -429,14 +429,14 @@ export const AccessControl_GrantRole = {
 
 /**
  > struct (0x969b0db9) AccessControl_RevokeRole {
- >     queryId: uint64
+ >     queryID: uint64
  >     role: uint256
  >     account: address
  > }
  */
 export interface AccessControl_RevokeRole {
     readonly $: 'AccessControl_RevokeRole'
-    queryId: uint64
+    queryID: uint64
     role: uint256
     account: c.Address
 }
@@ -445,28 +445,28 @@ export const AccessControl_RevokeRole = {
     PREFIX: 0x969b0db9,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         role: uint256
         account: c.Address
     }): AccessControl_RevokeRole {
         return {
             $: 'AccessControl_RevokeRole',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): AccessControl_RevokeRole {
         loadAndCheckPrefix32(s, 0x969b0db9, 'AccessControl_RevokeRole');
         return {
             $: 'AccessControl_RevokeRole',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             role: s.loadUintBig(256),
             account: s.loadAddress(),
         }
     },
     store(self: AccessControl_RevokeRole, b: c.Builder): void {
         b.storeUint(0x969b0db9, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.role, 256);
         b.storeAddress(self.account);
     },
@@ -477,14 +477,14 @@ export const AccessControl_RevokeRole = {
 
 /**
  > struct (0x39452c46) AccessControl_RenounceRole {
- >     queryId: uint64
+ >     queryID: uint64
  >     role: uint256
  >     callerConfirmation: address
  > }
  */
 export interface AccessControl_RenounceRole {
     readonly $: 'AccessControl_RenounceRole'
-    queryId: uint64
+    queryID: uint64
     role: uint256
     callerConfirmation: c.Address
 }
@@ -493,28 +493,28 @@ export const AccessControl_RenounceRole = {
     PREFIX: 0x39452c46,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         role: uint256
         callerConfirmation: c.Address
     }): AccessControl_RenounceRole {
         return {
             $: 'AccessControl_RenounceRole',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): AccessControl_RenounceRole {
         loadAndCheckPrefix32(s, 0x39452c46, 'AccessControl_RenounceRole');
         return {
             $: 'AccessControl_RenounceRole',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             role: s.loadUintBig(256),
             callerConfirmation: s.loadAddress(),
         }
     },
     store(self: AccessControl_RenounceRole, b: c.Builder): void {
         b.storeUint(0x39452c46, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.role, 256);
         b.storeAddress(self.callerConfirmation);
     },
@@ -699,7 +699,7 @@ export const ForwardPayloadRemainder = {
 
 /**
  > struct (0x0f8a7ea5) AskToTransfer {
- >     queryId: uint64
+ >     queryID: uint64
  >     jettonAmount: coins
  >     transferRecipient: address
  >     sendExcessesTo: address?
@@ -710,7 +710,7 @@ export const ForwardPayloadRemainder = {
  */
 export interface AskToTransfer {
     readonly $: 'AskToTransfer'
-    queryId: uint64
+    queryID: uint64
     jettonAmount: coins
     transferRecipient: c.Address
     sendExcessesTo: c.Address | null
@@ -723,7 +723,7 @@ export const AskToTransfer = {
     PREFIX: 0x0f8a7ea5,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         jettonAmount: coins
         transferRecipient: c.Address
         sendExcessesTo: c.Address | null
@@ -734,14 +734,14 @@ export const AskToTransfer = {
         return {
             $: 'AskToTransfer',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): AskToTransfer {
         loadAndCheckPrefix32(s, 0x0f8a7ea5, 'AskToTransfer');
         return {
             $: 'AskToTransfer',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             jettonAmount: s.loadCoins(),
             transferRecipient: s.loadAddress(),
             sendExcessesTo: s.loadMaybeAddress(),
@@ -752,7 +752,7 @@ export const AskToTransfer = {
     },
     store(self: AskToTransfer, b: c.Builder): void {
         b.storeUint(0x0f8a7ea5, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeCoins(self.jettonAmount);
         b.storeAddress(self.transferRecipient);
         b.storeAddress(self.sendExcessesTo);
@@ -769,7 +769,7 @@ export const AskToTransfer = {
 
 /**
  > struct (0x7362d09c) TransferNotificationForRecipient {
- >     queryId: uint64
+ >     queryID: uint64
  >     jettonAmount: coins
  >     transferInitiator: address?
  >     forwardPayload: ForwardPayloadRemainder
@@ -777,7 +777,7 @@ export const AskToTransfer = {
  */
 export interface TransferNotificationForRecipient {
     readonly $: 'TransferNotificationForRecipient'
-    queryId: uint64
+    queryID: uint64
     jettonAmount: coins
     transferInitiator: c.Address | null
     forwardPayload: ForwardPayloadRemainder
@@ -787,7 +787,7 @@ export const TransferNotificationForRecipient = {
     PREFIX: 0x7362d09c,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
@@ -795,14 +795,14 @@ export const TransferNotificationForRecipient = {
         return {
             $: 'TransferNotificationForRecipient',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TransferNotificationForRecipient {
         loadAndCheckPrefix32(s, 0x7362d09c, 'TransferNotificationForRecipient');
         return {
             $: 'TransferNotificationForRecipient',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             jettonAmount: s.loadCoins(),
             transferInitiator: s.loadMaybeAddress(),
             forwardPayload: ForwardPayloadRemainder.fromSlice(s),
@@ -810,7 +810,7 @@ export const TransferNotificationForRecipient = {
     },
     store(self: TransferNotificationForRecipient, b: c.Builder): void {
         b.storeUint(0x7362d09c, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeCoins(self.jettonAmount);
         b.storeAddress(self.transferInitiator);
         ForwardPayloadRemainder.store(self.forwardPayload, b);
@@ -822,36 +822,36 @@ export const TransferNotificationForRecipient = {
 
 /**
  > struct (0xd53276db) ReturnExcessesBack {
- >     queryId: uint64
+ >     queryID: uint64
  > }
  */
 export interface ReturnExcessesBack {
     readonly $: 'ReturnExcessesBack'
-    queryId: uint64
+    queryID: uint64
 }
 
 export const ReturnExcessesBack = {
     PREFIX: 0xd53276db,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
     }): ReturnExcessesBack {
         return {
             $: 'ReturnExcessesBack',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): ReturnExcessesBack {
         loadAndCheckPrefix32(s, 0xd53276db, 'ReturnExcessesBack');
         return {
             $: 'ReturnExcessesBack',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
         }
     },
     store(self: ReturnExcessesBack, b: c.Builder): void {
         b.storeUint(0xd53276db, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
     },
     toCell(self: ReturnExcessesBack): c.Cell {
         return makeCellFrom<ReturnExcessesBack>(self, ReturnExcessesBack.store);
@@ -2100,14 +2100,14 @@ export const TokenPool_ReleaseOrMintOutV1 = {
 
 /**
  > struct (0x56f73d37) TokenPool_ApplyChainUpdates {
- >     queryId: uint64
+ >     queryID: uint64
  >     remoteChainSelectorsToRemove: SnakedCell<uint64>
  >     chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
  > }
  */
 export interface TokenPool_ApplyChainUpdates {
     readonly $: 'TokenPool_ApplyChainUpdates'
-    queryId: uint64
+    queryID: uint64
     remoteChainSelectorsToRemove: SnakedCell<uint64>
     chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
 }
@@ -2116,28 +2116,28 @@ export const TokenPool_ApplyChainUpdates = {
     PREFIX: 0x56f73d37,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         remoteChainSelectorsToRemove: SnakedCell<uint64>
         chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
     }): TokenPool_ApplyChainUpdates {
         return {
             $: 'TokenPool_ApplyChainUpdates',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_ApplyChainUpdates {
         loadAndCheckPrefix32(s, 0x56f73d37, 'TokenPool_ApplyChainUpdates');
         return {
             $: 'TokenPool_ApplyChainUpdates',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             remoteChainSelectorsToRemove: loadSnakedCellOf(s, (s) => s.loadUintBig(64)),
             chainsToAdd: loadSnakedCellOf(s, TokenPool_ChainUpdate.fromSlice),
         }
     },
     store(self: TokenPool_ApplyChainUpdates, b: c.Builder): void {
         b.storeUint(0x56f73d37, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeSnakedCellOf(self.remoteChainSelectorsToRemove, b, (v, b) => b.storeUint(v, 64));
         storeSnakedCellOf(self.chainsToAdd, b, TokenPool_ChainUpdate.store);
     },
@@ -2148,14 +2148,14 @@ export const TokenPool_ApplyChainUpdates = {
 
 /**
  > struct (0x17c242dc) TokenPool_AddRemotePool {
- >     queryId: uint64
+ >     queryID: uint64
  >     remoteChainSelector: uint64
  >     remotePoolAddress: Cell<CrossChainAddress>
  > }
  */
 export interface TokenPool_AddRemotePool {
     readonly $: 'TokenPool_AddRemotePool'
-    queryId: uint64
+    queryID: uint64
     remoteChainSelector: uint64
     remotePoolAddress: CrossChainAddress
 }
@@ -2164,28 +2164,28 @@ export const TokenPool_AddRemotePool = {
     PREFIX: 0x17c242dc,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }): TokenPool_AddRemotePool {
         return {
             $: 'TokenPool_AddRemotePool',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_AddRemotePool {
         loadAndCheckPrefix32(s, 0x17c242dc, 'TokenPool_AddRemotePool');
         return {
             $: 'TokenPool_AddRemotePool',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             remoteChainSelector: s.loadUintBig(64),
             remotePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
         }
     },
     store(self: TokenPool_AddRemotePool, b: c.Builder): void {
         b.storeUint(0x17c242dc, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.remoteChainSelector, 64);
         storeCellRef<CrossChainAddress>(self.remotePoolAddress, b, CrossChainAddress.store);
     },
@@ -2196,14 +2196,14 @@ export const TokenPool_AddRemotePool = {
 
 /**
  > struct (0x426b8cc4) TokenPool_RemoveRemotePool {
- >     queryId: uint64
+ >     queryID: uint64
  >     remoteChainSelector: uint64
  >     remotePoolAddress: Cell<CrossChainAddress>
  > }
  */
 export interface TokenPool_RemoveRemotePool {
     readonly $: 'TokenPool_RemoveRemotePool'
-    queryId: uint64
+    queryID: uint64
     remoteChainSelector: uint64
     remotePoolAddress: CrossChainAddress
 }
@@ -2212,28 +2212,28 @@ export const TokenPool_RemoveRemotePool = {
     PREFIX: 0x426b8cc4,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }): TokenPool_RemoveRemotePool {
         return {
             $: 'TokenPool_RemoveRemotePool',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_RemoveRemotePool {
         loadAndCheckPrefix32(s, 0x426b8cc4, 'TokenPool_RemoveRemotePool');
         return {
             $: 'TokenPool_RemoveRemotePool',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             remoteChainSelector: s.loadUintBig(64),
             remotePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
         }
     },
     store(self: TokenPool_RemoveRemotePool, b: c.Builder): void {
         b.storeUint(0x426b8cc4, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.remoteChainSelector, 64);
         storeCellRef<CrossChainAddress>(self.remotePoolAddress, b, CrossChainAddress.store);
     },
@@ -2244,7 +2244,7 @@ export const TokenPool_RemoveRemotePool = {
 
 /**
  > struct (0xd7712810) TokenPool_SetDynamicConfig {
- >     queryId: uint64
+ >     queryID: uint64
  >     router: address
  >     rateLimitAdmin: address?
  >     feeAdmin: address?
@@ -2252,7 +2252,7 @@ export const TokenPool_RemoveRemotePool = {
  */
 export interface TokenPool_SetDynamicConfig {
     readonly $: 'TokenPool_SetDynamicConfig'
-    queryId: uint64
+    queryID: uint64
     router: c.Address
     rateLimitAdmin: c.Address | null /* = null */
     feeAdmin: c.Address | null /* = null */
@@ -2262,7 +2262,7 @@ export const TokenPool_SetDynamicConfig = {
     PREFIX: 0xd7712810,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         router: c.Address
         rateLimitAdmin?: c.Address | null /* = null */
         feeAdmin?: c.Address | null /* = null */
@@ -2272,14 +2272,14 @@ export const TokenPool_SetDynamicConfig = {
             rateLimitAdmin: null,
             feeAdmin: null,
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetDynamicConfig {
         loadAndCheckPrefix32(s, 0xd7712810, 'TokenPool_SetDynamicConfig');
         return {
             $: 'TokenPool_SetDynamicConfig',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             router: s.loadAddress(),
             rateLimitAdmin: s.loadMaybeAddress(),
             feeAdmin: s.loadMaybeAddress(),
@@ -2287,7 +2287,7 @@ export const TokenPool_SetDynamicConfig = {
     },
     store(self: TokenPool_SetDynamicConfig, b: c.Builder): void {
         b.storeUint(0xd7712810, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.router);
         b.storeAddress(self.rateLimitAdmin);
         b.storeAddress(self.feeAdmin);
@@ -2299,13 +2299,13 @@ export const TokenPool_SetDynamicConfig = {
 
 /**
  > struct (0x3c50a39b) TokenPool_SetAllowedFinalityConfig {
- >     queryId: uint64
+ >     queryID: uint64
  >     allowedFinalityConfig: uint32
  > }
  */
 export interface TokenPool_SetAllowedFinalityConfig {
     readonly $: 'TokenPool_SetAllowedFinalityConfig'
-    queryId: uint64
+    queryID: uint64
     allowedFinalityConfig: uint32
 }
 
@@ -2313,26 +2313,26 @@ export const TokenPool_SetAllowedFinalityConfig = {
     PREFIX: 0x3c50a39b,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         allowedFinalityConfig: uint32
     }): TokenPool_SetAllowedFinalityConfig {
         return {
             $: 'TokenPool_SetAllowedFinalityConfig',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetAllowedFinalityConfig {
         loadAndCheckPrefix32(s, 0x3c50a39b, 'TokenPool_SetAllowedFinalityConfig');
         return {
             $: 'TokenPool_SetAllowedFinalityConfig',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             allowedFinalityConfig: s.loadUintBig(32),
         }
     },
     store(self: TokenPool_SetAllowedFinalityConfig, b: c.Builder): void {
         b.storeUint(0x3c50a39b, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.allowedFinalityConfig, 32);
     },
     toCell(self: TokenPool_SetAllowedFinalityConfig): c.Cell {
@@ -2342,13 +2342,13 @@ export const TokenPool_SetAllowedFinalityConfig = {
 
 /**
  > struct (0x3f5c9f57) TokenPool_SetAdvancedPoolHooks {
- >     queryId: uint64
+ >     queryID: uint64
  >     advancedPoolHooks: address?
  > }
  */
 export interface TokenPool_SetAdvancedPoolHooks {
     readonly $: 'TokenPool_SetAdvancedPoolHooks'
-    queryId: uint64
+    queryID: uint64
     advancedPoolHooks: c.Address | null
 }
 
@@ -2356,26 +2356,26 @@ export const TokenPool_SetAdvancedPoolHooks = {
     PREFIX: 0x3f5c9f57,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         advancedPoolHooks: c.Address | null
     }): TokenPool_SetAdvancedPoolHooks {
         return {
             $: 'TokenPool_SetAdvancedPoolHooks',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetAdvancedPoolHooks {
         loadAndCheckPrefix32(s, 0x3f5c9f57, 'TokenPool_SetAdvancedPoolHooks');
         return {
             $: 'TokenPool_SetAdvancedPoolHooks',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             advancedPoolHooks: s.loadMaybeAddress(),
         }
     },
     store(self: TokenPool_SetAdvancedPoolHooks, b: c.Builder): void {
         b.storeUint(0x3f5c9f57, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.advancedPoolHooks);
     },
     toCell(self: TokenPool_SetAdvancedPoolHooks): c.Cell {
@@ -2385,13 +2385,13 @@ export const TokenPool_SetAdvancedPoolHooks = {
 
 /**
  > struct (0x4fe2d26c) TokenPool_SetRateLimitConfig {
- >     queryId: uint64
+ >     queryID: uint64
  >     updates: SnakedCell<TokenPool_RateLimitConfigArgs>
  > }
  */
 export interface TokenPool_SetRateLimitConfig {
     readonly $: 'TokenPool_SetRateLimitConfig'
-    queryId: uint64
+    queryID: uint64
     updates: SnakedCell<TokenPool_RateLimitConfigArgs>
 }
 
@@ -2399,26 +2399,26 @@ export const TokenPool_SetRateLimitConfig = {
     PREFIX: 0x4fe2d26c,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         updates: SnakedCell<TokenPool_RateLimitConfigArgs>
     }): TokenPool_SetRateLimitConfig {
         return {
             $: 'TokenPool_SetRateLimitConfig',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetRateLimitConfig {
         loadAndCheckPrefix32(s, 0x4fe2d26c, 'TokenPool_SetRateLimitConfig');
         return {
             $: 'TokenPool_SetRateLimitConfig',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             updates: loadSnakedCellOf(s, TokenPool_RateLimitConfigArgs.fromSlice),
         }
     },
     store(self: TokenPool_SetRateLimitConfig, b: c.Builder): void {
         b.storeUint(0x4fe2d26c, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeSnakedCellOf(self.updates, b, TokenPool_RateLimitConfigArgs.store);
     },
     toCell(self: TokenPool_SetRateLimitConfig): c.Cell {
@@ -2428,14 +2428,14 @@ export const TokenPool_SetRateLimitConfig = {
 
 /**
  > struct (0x30a1d1f7) TokenPool_ApplyTokenTransferFeeConfigUpdates {
- >     queryId: uint64
+ >     queryID: uint64
  >     updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>
  >     disableChainSelectors: SnakedCell<uint64>
  > }
  */
 export interface TokenPool_ApplyTokenTransferFeeConfigUpdates {
     readonly $: 'TokenPool_ApplyTokenTransferFeeConfigUpdates'
-    queryId: uint64
+    queryID: uint64
     updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>
     disableChainSelectors: SnakedCell<uint64>
 }
@@ -2444,28 +2444,28 @@ export const TokenPool_ApplyTokenTransferFeeConfigUpdates = {
     PREFIX: 0x30a1d1f7,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>
         disableChainSelectors: SnakedCell<uint64>
     }): TokenPool_ApplyTokenTransferFeeConfigUpdates {
         return {
             $: 'TokenPool_ApplyTokenTransferFeeConfigUpdates',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_ApplyTokenTransferFeeConfigUpdates {
         loadAndCheckPrefix32(s, 0x30a1d1f7, 'TokenPool_ApplyTokenTransferFeeConfigUpdates');
         return {
             $: 'TokenPool_ApplyTokenTransferFeeConfigUpdates',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             updates: loadSnakedCellOf(s, TokenPool_TokenTransferFeeConfigArgs.fromSlice),
             disableChainSelectors: loadSnakedCellOf(s, (s) => s.loadUintBig(64)),
         }
     },
     store(self: TokenPool_ApplyTokenTransferFeeConfigUpdates, b: c.Builder): void {
         b.storeUint(0x30a1d1f7, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeSnakedCellOf(self.updates, b, TokenPool_TokenTransferFeeConfigArgs.store);
         storeSnakedCellOf(self.disableChainSelectors, b, (v, b) => b.storeUint(v, 64));
     },
@@ -2476,13 +2476,13 @@ export const TokenPool_ApplyTokenTransferFeeConfigUpdates = {
 
 /**
  > struct (0xfdd0edc0) TokenPool_Curse {
- >     queryId: uint64
+ >     queryID: uint64
  >     subjects: SnakedCell<uint128>
  > }
  */
 export interface TokenPool_Curse {
     readonly $: 'TokenPool_Curse'
-    queryId: uint64
+    queryID: uint64
     subjects: SnakedCell<uint128>
 }
 
@@ -2490,26 +2490,26 @@ export const TokenPool_Curse = {
     PREFIX: 0xfdd0edc0,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         subjects: SnakedCell<uint128>
     }): TokenPool_Curse {
         return {
             $: 'TokenPool_Curse',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_Curse {
         loadAndCheckPrefix32(s, 0xfdd0edc0, 'TokenPool_Curse');
         return {
             $: 'TokenPool_Curse',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             subjects: loadSnakedCellOf(s, (s) => s.loadUintBig(128)),
         }
     },
     store(self: TokenPool_Curse, b: c.Builder): void {
         b.storeUint(0xfdd0edc0, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
     },
     toCell(self: TokenPool_Curse): c.Cell {
@@ -2519,13 +2519,13 @@ export const TokenPool_Curse = {
 
 /**
  > struct (0x61cf16f1) TokenPool_Uncurse {
- >     queryId: uint64
+ >     queryID: uint64
  >     subjects: SnakedCell<uint128>
  > }
  */
 export interface TokenPool_Uncurse {
     readonly $: 'TokenPool_Uncurse'
-    queryId: uint64
+    queryID: uint64
     subjects: SnakedCell<uint128>
 }
 
@@ -2533,26 +2533,26 @@ export const TokenPool_Uncurse = {
     PREFIX: 0x61cf16f1,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         subjects: SnakedCell<uint128>
     }): TokenPool_Uncurse {
         return {
             $: 'TokenPool_Uncurse',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_Uncurse {
         loadAndCheckPrefix32(s, 0x61cf16f1, 'TokenPool_Uncurse');
         return {
             $: 'TokenPool_Uncurse',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             subjects: loadSnakedCellOf(s, (s) => s.loadUintBig(128)),
         }
     },
     store(self: TokenPool_Uncurse, b: c.Builder): void {
         b.storeUint(0x61cf16f1, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeSnakedCellOf(self.subjects, b, (v, b) => b.storeUint(v, 128));
     },
     toCell(self: TokenPool_Uncurse): c.Cell {
@@ -2636,7 +2636,7 @@ export const TokenPool_RMNAccessControlMessage = {
 
 /**
  > struct (0xfa7da444) TokenPool_LockOrBurn {
- >     queryId: uint64
+ >     queryID: uint64
  >     request: Cell<TokenPool_LockOrBurnInV1>
  >     requestedFinalityConfig: uint32
  >     tokenArgs: cell?
@@ -2648,7 +2648,7 @@ export const TokenPool_RMNAccessControlMessage = {
  */
 export interface TokenPool_LockOrBurn {
     readonly $: 'TokenPool_LockOrBurn'
-    queryId: uint64
+    queryID: uint64
     request: TokenPool_LockOrBurnInV1
     requestedFinalityConfig: uint32
     tokenArgs: c.Cell | null
@@ -2662,7 +2662,7 @@ export const TokenPool_LockOrBurn = {
     PREFIX: 0xfa7da444,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
@@ -2675,14 +2675,14 @@ export const TokenPool_LockOrBurn = {
             $: 'TokenPool_LockOrBurn',
             extra: null,
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurn {
         loadAndCheckPrefix32(s, 0xfa7da444, 'TokenPool_LockOrBurn');
         return {
             $: 'TokenPool_LockOrBurn',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             request: loadCellRef<TokenPool_LockOrBurnInV1>(s, TokenPool_LockOrBurnInV1.fromSlice),
             requestedFinalityConfig: s.loadUintBig(32),
             tokenArgs: s.loadBoolean() ? s.loadRef() : null,
@@ -2697,7 +2697,7 @@ export const TokenPool_LockOrBurn = {
     },
     store(self: TokenPool_LockOrBurn, b: c.Builder): void {
         b.storeUint(0xfa7da444, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<TokenPool_LockOrBurnInV1>(self.request, b, TokenPool_LockOrBurnInV1.store);
         b.storeUint(self.requestedFinalityConfig, 32);
         storeTolkNullable<c.Cell>(self.tokenArgs, b,
@@ -2806,7 +2806,7 @@ export const TokenPool_LockOrBurnForwardPayload = {
 
 /**
  > struct (0x351f77e3) TokenPool_ReleaseOrMint {
- >     queryId: uint64
+ >     queryID: uint64
  >     request: Cell<TokenPool_ReleaseOrMintInV1>
  >     requestedFinalityConfig: uint32
  >     replyTo: address
@@ -2816,7 +2816,7 @@ export const TokenPool_LockOrBurnForwardPayload = {
  */
 export interface TokenPool_ReleaseOrMint {
     readonly $: 'TokenPool_ReleaseOrMint'
-    queryId: uint64
+    queryID: uint64
     request: TokenPool_ReleaseOrMintInV1
     requestedFinalityConfig: uint32
     replyTo: c.Address
@@ -2828,7 +2828,7 @@ export const TokenPool_ReleaseOrMint = {
     PREFIX: 0x351f77e3,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo: c.Address
@@ -2839,14 +2839,14 @@ export const TokenPool_ReleaseOrMint = {
             $: 'TokenPool_ReleaseOrMint',
             sendExcessesTo: null,
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_ReleaseOrMint {
         loadAndCheckPrefix32(s, 0x351f77e3, 'TokenPool_ReleaseOrMint');
         return {
             $: 'TokenPool_ReleaseOrMint',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             request: loadCellRef<TokenPool_ReleaseOrMintInV1>(s, TokenPool_ReleaseOrMintInV1.fromSlice),
             requestedFinalityConfig: s.loadUintBig(32),
             replyTo: s.loadAddress(),
@@ -2856,7 +2856,7 @@ export const TokenPool_ReleaseOrMint = {
     },
     store(self: TokenPool_ReleaseOrMint, b: c.Builder): void {
         b.storeUint(0x351f77e3, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<TokenPool_ReleaseOrMintInV1>(self.request, b, TokenPool_ReleaseOrMintInV1.store);
         b.storeUint(self.requestedFinalityConfig, 32);
         b.storeAddress(self.replyTo);
@@ -2915,14 +2915,14 @@ export const TokenPool_ReleaseOrMintDelivery = {
 
 /**
  > struct (0x81d45b24) TokenPool_ReleaseOrMintDelivered {
- >     queryId: uint64
+ >     queryID: uint64
  >     replyTo: address
  >     transfer: Cell<TokenPool_DeliveredTransfer>
  > }
  */
 export interface TokenPool_ReleaseOrMintDelivered {
     readonly $: 'TokenPool_ReleaseOrMintDelivered'
-    queryId: uint64
+    queryID: uint64
     replyTo: c.Address
     transfer: TokenPool_DeliveredTransfer
 }
@@ -2931,28 +2931,28 @@ export const TokenPool_ReleaseOrMintDelivered = {
     PREFIX: 0x81d45b24,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         replyTo: c.Address
         transfer: TokenPool_DeliveredTransfer
     }): TokenPool_ReleaseOrMintDelivered {
         return {
             $: 'TokenPool_ReleaseOrMintDelivered',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_ReleaseOrMintDelivered {
         loadAndCheckPrefix32(s, 0x81d45b24, 'TokenPool_ReleaseOrMintDelivered');
         return {
             $: 'TokenPool_ReleaseOrMintDelivered',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             replyTo: s.loadAddress(),
             transfer: loadCellRef<TokenPool_DeliveredTransfer>(s, TokenPool_DeliveredTransfer.fromSlice),
         }
     },
     store(self: TokenPool_ReleaseOrMintDelivered, b: c.Builder): void {
         b.storeUint(0x81d45b24, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.replyTo);
         storeCellRef<TokenPool_DeliveredTransfer>(self.transfer, b, TokenPool_DeliveredTransfer.store);
     },
@@ -3011,13 +3011,13 @@ export const TokenPool_DeliveredTransfer = {
 
 /**
  > struct (0x08f2ffb7) TokenPool_PreflightCheckFinished {
- >     queryId: uint64
+ >     queryID: uint64
  >     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>
  > }
  */
 export interface TokenPool_PreflightCheckFinished {
     readonly $: 'TokenPool_PreflightCheckFinished'
-    queryId: uint64
+    queryID: uint64
     forwardPayload: TokenPool_LockOrBurnForwardPayload
 }
 
@@ -3025,26 +3025,26 @@ export const TokenPool_PreflightCheckFinished = {
     PREFIX: 0x08f2ffb7,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }): TokenPool_PreflightCheckFinished {
         return {
             $: 'TokenPool_PreflightCheckFinished',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_PreflightCheckFinished {
         loadAndCheckPrefix32(s, 0x08f2ffb7, 'TokenPool_PreflightCheckFinished');
         return {
             $: 'TokenPool_PreflightCheckFinished',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             forwardPayload: loadCellRef<TokenPool_LockOrBurnForwardPayload>(s, TokenPool_LockOrBurnForwardPayload.fromSlice),
         }
     },
     store(self: TokenPool_PreflightCheckFinished, b: c.Builder): void {
         b.storeUint(0x08f2ffb7, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<TokenPool_LockOrBurnForwardPayload>(self.forwardPayload, b, TokenPool_LockOrBurnForwardPayload.store);
     },
     toCell(self: TokenPool_PreflightCheckFinished): c.Cell {
@@ -3054,13 +3054,13 @@ export const TokenPool_PreflightCheckFinished = {
 
 /**
  > struct (0xa6dfa623) TokenPool_PreflightCheckFailed {
- >     queryId: uint64
+ >     queryID: uint64
  >     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>
  > }
  */
 export interface TokenPool_PreflightCheckFailed {
     readonly $: 'TokenPool_PreflightCheckFailed'
-    queryId: uint64
+    queryID: uint64
     forwardPayload: TokenPool_LockOrBurnForwardPayload
 }
 
@@ -3068,26 +3068,26 @@ export const TokenPool_PreflightCheckFailed = {
     PREFIX: 0xa6dfa623,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }): TokenPool_PreflightCheckFailed {
         return {
             $: 'TokenPool_PreflightCheckFailed',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_PreflightCheckFailed {
         loadAndCheckPrefix32(s, 0xa6dfa623, 'TokenPool_PreflightCheckFailed');
         return {
             $: 'TokenPool_PreflightCheckFailed',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             forwardPayload: loadCellRef<TokenPool_LockOrBurnForwardPayload>(s, TokenPool_LockOrBurnForwardPayload.fromSlice),
         }
     },
     store(self: TokenPool_PreflightCheckFailed, b: c.Builder): void {
         b.storeUint(0xa6dfa623, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<TokenPool_LockOrBurnForwardPayload>(self.forwardPayload, b, TokenPool_LockOrBurnForwardPayload.store);
     },
     toCell(self: TokenPool_PreflightCheckFailed): c.Cell {
@@ -3140,13 +3140,13 @@ export const TokenPool_ReleaseOrMintForwardPayload = {
 
 /**
  > struct (0x9e2a6b66) TokenPool_PostflightCheckFinished {
- >     queryId: uint64
+ >     queryID: uint64
  >     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>
  > }
  */
 export interface TokenPool_PostflightCheckFinished {
     readonly $: 'TokenPool_PostflightCheckFinished'
-    queryId: uint64
+    queryID: uint64
     forwardPayload: TokenPool_ReleaseOrMintForwardPayload
 }
 
@@ -3154,26 +3154,26 @@ export const TokenPool_PostflightCheckFinished = {
     PREFIX: 0x9e2a6b66,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }): TokenPool_PostflightCheckFinished {
         return {
             $: 'TokenPool_PostflightCheckFinished',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_PostflightCheckFinished {
         loadAndCheckPrefix32(s, 0x9e2a6b66, 'TokenPool_PostflightCheckFinished');
         return {
             $: 'TokenPool_PostflightCheckFinished',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             forwardPayload: loadCellRef<TokenPool_ReleaseOrMintForwardPayload>(s, TokenPool_ReleaseOrMintForwardPayload.fromSlice),
         }
     },
     store(self: TokenPool_PostflightCheckFinished, b: c.Builder): void {
         b.storeUint(0x9e2a6b66, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<TokenPool_ReleaseOrMintForwardPayload>(self.forwardPayload, b, TokenPool_ReleaseOrMintForwardPayload.store);
     },
     toCell(self: TokenPool_PostflightCheckFinished): c.Cell {
@@ -3183,13 +3183,13 @@ export const TokenPool_PostflightCheckFinished = {
 
 /**
  > struct (0x21e71d87) TokenPool_PostflightCheckFailed {
- >     queryId: uint64
+ >     queryID: uint64
  >     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>
  > }
  */
 export interface TokenPool_PostflightCheckFailed {
     readonly $: 'TokenPool_PostflightCheckFailed'
-    queryId: uint64
+    queryID: uint64
     forwardPayload: TokenPool_ReleaseOrMintForwardPayload
 }
 
@@ -3197,26 +3197,26 @@ export const TokenPool_PostflightCheckFailed = {
     PREFIX: 0x21e71d87,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }): TokenPool_PostflightCheckFailed {
         return {
             $: 'TokenPool_PostflightCheckFailed',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_PostflightCheckFailed {
         loadAndCheckPrefix32(s, 0x21e71d87, 'TokenPool_PostflightCheckFailed');
         return {
             $: 'TokenPool_PostflightCheckFailed',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             forwardPayload: loadCellRef<TokenPool_ReleaseOrMintForwardPayload>(s, TokenPool_ReleaseOrMintForwardPayload.fromSlice),
         }
     },
     store(self: TokenPool_PostflightCheckFailed, b: c.Builder): void {
         b.storeUint(0x21e71d87, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<TokenPool_ReleaseOrMintForwardPayload>(self.forwardPayload, b, TokenPool_ReleaseOrMintForwardPayload.store);
     },
     toCell(self: TokenPool_PostflightCheckFailed): c.Cell {
@@ -3269,7 +3269,7 @@ export const TokenPool_FeeContext = {
 
 /**
  > struct (0xc5476d2b) TokenPool_GetCCVs {
- >     queryId: uint64
+ >     queryID: uint64
  >     localToken: address
  >     remoteChainSelector: uint64
  >     amount: coins
@@ -3282,7 +3282,7 @@ export const TokenPool_FeeContext = {
  */
 export interface TokenPool_GetCCVs {
     readonly $: 'TokenPool_GetCCVs'
-    queryId: uint64
+    queryID: uint64
     localToken: c.Address
     remoteChainSelector: uint64
     amount: coins
@@ -3297,7 +3297,7 @@ export const TokenPool_GetCCVs = {
     PREFIX: 0xc5476d2b,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         localToken: c.Address
         remoteChainSelector: uint64
         amount: coins
@@ -3311,14 +3311,14 @@ export const TokenPool_GetCCVs = {
             $: 'TokenPool_GetCCVs',
             replyTo: null,
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_GetCCVs {
         loadAndCheckPrefix32(s, 0xc5476d2b, 'TokenPool_GetCCVs');
         return {
             $: 'TokenPool_GetCCVs',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             localToken: s.loadAddress(),
             remoteChainSelector: s.loadUintBig(64),
             amount: s.loadCoins(),
@@ -3331,7 +3331,7 @@ export const TokenPool_GetCCVs = {
     },
     store(self: TokenPool_GetCCVs, b: c.Builder): void {
         b.storeUint(0xc5476d2b, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.localToken);
         b.storeUint(self.remoteChainSelector, 64);
         b.storeCoins(self.amount);
@@ -3352,7 +3352,7 @@ export const TokenPool_GetCCVs = {
 
 /**
  > struct (0xd22944d5) TokenPool_GetCCVsAndFees {
- >     queryId: uint64
+ >     queryID: uint64
  >     localToken: address
  >     remoteChainSelector: uint64
  >     amount: coins
@@ -3365,7 +3365,7 @@ export const TokenPool_GetCCVs = {
  */
 export interface TokenPool_GetCCVsAndFees {
     readonly $: 'TokenPool_GetCCVsAndFees'
-    queryId: uint64
+    queryID: uint64
     localToken: c.Address
     remoteChainSelector: uint64
     amount: coins
@@ -3380,7 +3380,7 @@ export const TokenPool_GetCCVsAndFees = {
     PREFIX: 0xd22944d5,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         localToken: c.Address
         remoteChainSelector: uint64
         amount: coins
@@ -3394,14 +3394,14 @@ export const TokenPool_GetCCVsAndFees = {
             $: 'TokenPool_GetCCVsAndFees',
             replyTo: null,
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_GetCCVsAndFees {
         loadAndCheckPrefix32(s, 0xd22944d5, 'TokenPool_GetCCVsAndFees');
         return {
             $: 'TokenPool_GetCCVsAndFees',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             localToken: s.loadAddress(),
             remoteChainSelector: s.loadUintBig(64),
             amount: s.loadCoins(),
@@ -3414,7 +3414,7 @@ export const TokenPool_GetCCVsAndFees = {
     },
     store(self: TokenPool_GetCCVsAndFees, b: c.Builder): void {
         b.storeUint(0xd22944d5, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.localToken);
         b.storeUint(self.remoteChainSelector, 64);
         b.storeCoins(self.amount);
@@ -3435,14 +3435,14 @@ export const TokenPool_GetCCVsAndFees = {
 
 /**
  > struct (0x6c70b2dd) TokenPool_CCVs {
- >     queryId: uint64
+ >     queryID: uint64
  >     requiredCCVs: array<address>
  >     forwardPayload: cell?
  > }
  */
 export interface TokenPool_CCVs {
     readonly $: 'TokenPool_CCVs'
-    queryId: uint64
+    queryID: uint64
     requiredCCVs: array<c.Address>
     forwardPayload: c.Cell | null
 }
@@ -3451,21 +3451,21 @@ export const TokenPool_CCVs = {
     PREFIX: 0x6c70b2dd,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         requiredCCVs: array<c.Address>
         forwardPayload: c.Cell | null
     }): TokenPool_CCVs {
         return {
             $: 'TokenPool_CCVs',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_CCVs {
         loadAndCheckPrefix32(s, 0x6c70b2dd, 'TokenPool_CCVs');
         return {
             $: 'TokenPool_CCVs',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             requiredCCVs: loadArrayOf<c.Address>(s,
                 (s) => s.loadAddress()
             ),
@@ -3474,7 +3474,7 @@ export const TokenPool_CCVs = {
     },
     store(self: TokenPool_CCVs, b: c.Builder): void {
         b.storeUint(0x6c70b2dd, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeArrayOf<c.Address>(self.requiredCCVs, b,
             (v,b) => b.storeAddress(v)
         );
@@ -3489,7 +3489,7 @@ export const TokenPool_CCVs = {
 
 /**
  > struct (0x158dd7d5) TokenPool_CCVsAndFees {
- >     queryId: uint64
+ >     queryID: uint64
  >     requiredCCVs: array<address>
  >     fees: Cell<TokenPool_FeeContext>
  >     forwardPayload: cell?
@@ -3497,7 +3497,7 @@ export const TokenPool_CCVs = {
  */
 export interface TokenPool_CCVsAndFees {
     readonly $: 'TokenPool_CCVsAndFees'
-    queryId: uint64
+    queryID: uint64
     requiredCCVs: array<c.Address>
     fees: TokenPool_FeeContext
     forwardPayload: c.Cell | null
@@ -3507,7 +3507,7 @@ export const TokenPool_CCVsAndFees = {
     PREFIX: 0x158dd7d5,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         requiredCCVs: array<c.Address>
         fees: TokenPool_FeeContext
         forwardPayload: c.Cell | null
@@ -3515,14 +3515,14 @@ export const TokenPool_CCVsAndFees = {
         return {
             $: 'TokenPool_CCVsAndFees',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_CCVsAndFees {
         loadAndCheckPrefix32(s, 0x158dd7d5, 'TokenPool_CCVsAndFees');
         return {
             $: 'TokenPool_CCVsAndFees',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             requiredCCVs: loadArrayOf<c.Address>(s,
                 (s) => s.loadAddress()
             ),
@@ -3532,7 +3532,7 @@ export const TokenPool_CCVsAndFees = {
     },
     store(self: TokenPool_CCVsAndFees, b: c.Builder): void {
         b.storeUint(0x158dd7d5, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeArrayOf<c.Address>(self.requiredCCVs, b,
             (v,b) => b.storeAddress(v)
         );
@@ -3548,14 +3548,14 @@ export const TokenPool_CCVsAndFees = {
 
 /**
  > struct (0x0449d467) TokenPool_GetCCVsFailed {
- >     queryId: uint64
+ >     queryID: uint64
  >     errorCode: int32
  >     forwardPayload: cell?
  > }
  */
 export interface TokenPool_GetCCVsFailed {
     readonly $: 'TokenPool_GetCCVsFailed'
-    queryId: uint64
+    queryID: uint64
     errorCode: int32
     forwardPayload: c.Cell | null
 }
@@ -3564,28 +3564,28 @@ export const TokenPool_GetCCVsFailed = {
     PREFIX: 0x0449d467,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         errorCode: int32
         forwardPayload: c.Cell | null
     }): TokenPool_GetCCVsFailed {
         return {
             $: 'TokenPool_GetCCVsFailed',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_GetCCVsFailed {
         loadAndCheckPrefix32(s, 0x0449d467, 'TokenPool_GetCCVsFailed');
         return {
             $: 'TokenPool_GetCCVsFailed',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             errorCode: s.loadIntBig(32),
             forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: TokenPool_GetCCVsFailed, b: c.Builder): void {
         b.storeUint(0x0449d467, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeInt(self.errorCode, 32);
         storeTolkNullable<c.Cell>(self.forwardPayload, b,
             (v,b) => b.storeRef(v)
@@ -3598,14 +3598,14 @@ export const TokenPool_GetCCVsFailed = {
 
 /**
  > struct (0x30612b17) TokenPool_QueryCCVsReply {
- >     queryId: uint64
+ >     queryID: uint64
  >     requiredCCVs: array<address>
  >     forwardPayload: cell?
  > }
  */
 export interface TokenPool_QueryCCVsReply {
     readonly $: 'TokenPool_QueryCCVsReply'
-    queryId: uint64
+    queryID: uint64
     requiredCCVs: array<c.Address>
     forwardPayload: c.Cell | null
 }
@@ -3614,21 +3614,21 @@ export const TokenPool_QueryCCVsReply = {
     PREFIX: 0x30612b17,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         requiredCCVs: array<c.Address>
         forwardPayload: c.Cell | null
     }): TokenPool_QueryCCVsReply {
         return {
             $: 'TokenPool_QueryCCVsReply',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_QueryCCVsReply {
         loadAndCheckPrefix32(s, 0x30612b17, 'TokenPool_QueryCCVsReply');
         return {
             $: 'TokenPool_QueryCCVsReply',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             requiredCCVs: loadArrayOf<c.Address>(s,
                 (s) => s.loadAddress()
             ),
@@ -3637,7 +3637,7 @@ export const TokenPool_QueryCCVsReply = {
     },
     store(self: TokenPool_QueryCCVsReply, b: c.Builder): void {
         b.storeUint(0x30612b17, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeArrayOf<c.Address>(self.requiredCCVs, b,
             (v,b) => b.storeAddress(v)
         );
@@ -3652,14 +3652,14 @@ export const TokenPool_QueryCCVsReply = {
 
 /**
  > struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
- >     queryId: uint64
+ >     queryID: uint64
  >     forwardTonAmount: coins
  >     forwardPayload: TokenPool_LockOrBurnForwardPayload
  > }
  */
 export interface TokenPool_LockOrBurnWithdraw {
     readonly $: 'TokenPool_LockOrBurnWithdraw'
-    queryId: uint64
+    queryID: uint64
     forwardTonAmount: coins
     forwardPayload: TokenPool_LockOrBurnForwardPayload
 }
@@ -3668,28 +3668,28 @@ export const TokenPool_LockOrBurnWithdraw = {
     PREFIX: 0xe7a35041,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         forwardTonAmount: coins
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }): TokenPool_LockOrBurnWithdraw {
         return {
             $: 'TokenPool_LockOrBurnWithdraw',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnWithdraw {
         loadAndCheckPrefix32(s, 0xe7a35041, 'TokenPool_LockOrBurnWithdraw');
         return {
             $: 'TokenPool_LockOrBurnWithdraw',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             forwardTonAmount: s.loadCoins(),
             forwardPayload: TokenPool_LockOrBurnForwardPayload.fromSlice(s),
         }
     },
     store(self: TokenPool_LockOrBurnWithdraw, b: c.Builder): void {
         b.storeUint(0xe7a35041, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeCoins(self.forwardTonAmount);
         TokenPool_LockOrBurnForwardPayload.store(self.forwardPayload, b);
     },
@@ -3700,14 +3700,14 @@ export const TokenPool_LockOrBurnWithdraw = {
 
 /**
  > struct (0x9643c08d) TokenPool_LockOrBurnWithdrawFailed {
- >     queryId: uint64
+ >     queryID: uint64
  >     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>
  >     errorCode: int32
  > }
  */
 export interface TokenPool_LockOrBurnWithdrawFailed {
     readonly $: 'TokenPool_LockOrBurnWithdrawFailed'
-    queryId: uint64
+    queryID: uint64
     forwardPayload: TokenPool_LockOrBurnForwardPayload
     errorCode: int32
 }
@@ -3716,28 +3716,28 @@ export const TokenPool_LockOrBurnWithdrawFailed = {
     PREFIX: 0x9643c08d,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
         errorCode: int32
     }): TokenPool_LockOrBurnWithdrawFailed {
         return {
             $: 'TokenPool_LockOrBurnWithdrawFailed',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnWithdrawFailed {
         loadAndCheckPrefix32(s, 0x9643c08d, 'TokenPool_LockOrBurnWithdrawFailed');
         return {
             $: 'TokenPool_LockOrBurnWithdrawFailed',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             forwardPayload: loadCellRef<TokenPool_LockOrBurnForwardPayload>(s, TokenPool_LockOrBurnForwardPayload.fromSlice),
             errorCode: s.loadIntBig(32),
         }
     },
     store(self: TokenPool_LockOrBurnWithdrawFailed, b: c.Builder): void {
         b.storeUint(0x9643c08d, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<TokenPool_LockOrBurnForwardPayload>(self.forwardPayload, b, TokenPool_LockOrBurnForwardPayload.store);
         b.storeInt(self.errorCode, 32);
     },
@@ -3748,14 +3748,14 @@ export const TokenPool_LockOrBurnWithdrawFailed = {
 
 /**
  > struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
- >     queryId: uint64
+ >     queryID: uint64
  >     out: Cell<TokenPool_LockOrBurnOutV1>
  >     destTokenAmount: coins
  > }
  */
 export interface TokenPool_LockOrBurnFinished {
     readonly $: 'TokenPool_LockOrBurnFinished'
-    queryId: uint64
+    queryID: uint64
     out: TokenPool_LockOrBurnOutV1
     destTokenAmount: coins
 }
@@ -3764,28 +3764,28 @@ export const TokenPool_LockOrBurnFinished = {
     PREFIX: 0xf432a4e3,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         out: TokenPool_LockOrBurnOutV1
         destTokenAmount: coins
     }): TokenPool_LockOrBurnFinished {
         return {
             $: 'TokenPool_LockOrBurnFinished',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnFinished {
         loadAndCheckPrefix32(s, 0xf432a4e3, 'TokenPool_LockOrBurnFinished');
         return {
             $: 'TokenPool_LockOrBurnFinished',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             out: loadCellRef<TokenPool_LockOrBurnOutV1>(s, TokenPool_LockOrBurnOutV1.fromSlice),
             destTokenAmount: s.loadCoins(),
         }
     },
     store(self: TokenPool_LockOrBurnFinished, b: c.Builder): void {
         b.storeUint(0xf432a4e3, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<TokenPool_LockOrBurnOutV1>(self.out, b, TokenPool_LockOrBurnOutV1.store);
         b.storeCoins(self.destTokenAmount);
     },
@@ -3796,13 +3796,13 @@ export const TokenPool_LockOrBurnFinished = {
 
 /**
  > struct (0x3476ea72) TokenPool_LockOrBurnFailure {
- >     queryId: uint64
+ >     queryID: uint64
  >     errorCode: int32
  > }
  */
 export interface TokenPool_LockOrBurnFailure {
     readonly $: 'TokenPool_LockOrBurnFailure'
-    queryId: uint64
+    queryID: uint64
     errorCode: int32
 }
 
@@ -3810,26 +3810,26 @@ export const TokenPool_LockOrBurnFailure = {
     PREFIX: 0x3476ea72,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         errorCode: int32
     }): TokenPool_LockOrBurnFailure {
         return {
             $: 'TokenPool_LockOrBurnFailure',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurnFailure {
         loadAndCheckPrefix32(s, 0x3476ea72, 'TokenPool_LockOrBurnFailure');
         return {
             $: 'TokenPool_LockOrBurnFailure',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             errorCode: s.loadIntBig(32),
         }
     },
     store(self: TokenPool_LockOrBurnFailure, b: c.Builder): void {
         b.storeUint(0x3476ea72, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeInt(self.errorCode, 32);
     },
     toCell(self: TokenPool_LockOrBurnFailure): c.Cell {
@@ -3839,13 +3839,13 @@ export const TokenPool_LockOrBurnFailure = {
 
 /**
  > struct (0xedd4948a) TokenPool_ReleaseOrMintFinalized {
- >     queryId: uint64
+ >     queryID: uint64
  >     out: Cell<TokenPool_ReleaseOrMintOutV1>
  > }
  */
 export interface TokenPool_ReleaseOrMintFinalized {
     readonly $: 'TokenPool_ReleaseOrMintFinalized'
-    queryId: uint64
+    queryID: uint64
     out: TokenPool_ReleaseOrMintOutV1
 }
 
@@ -3853,26 +3853,26 @@ export const TokenPool_ReleaseOrMintFinalized = {
     PREFIX: 0xedd4948a,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         out: TokenPool_ReleaseOrMintOutV1
     }): TokenPool_ReleaseOrMintFinalized {
         return {
             $: 'TokenPool_ReleaseOrMintFinalized',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_ReleaseOrMintFinalized {
         loadAndCheckPrefix32(s, 0xedd4948a, 'TokenPool_ReleaseOrMintFinalized');
         return {
             $: 'TokenPool_ReleaseOrMintFinalized',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             out: loadCellRef<TokenPool_ReleaseOrMintOutV1>(s, TokenPool_ReleaseOrMintOutV1.fromSlice),
         }
     },
     store(self: TokenPool_ReleaseOrMintFinalized, b: c.Builder): void {
         b.storeUint(0xedd4948a, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<TokenPool_ReleaseOrMintOutV1>(self.out, b, TokenPool_ReleaseOrMintOutV1.store);
     },
     toCell(self: TokenPool_ReleaseOrMintFinalized): c.Cell {
@@ -3882,13 +3882,13 @@ export const TokenPool_ReleaseOrMintFinalized = {
 
 /**
  > struct (0xef0cb36e) TokenPool_ReleaseOrMintFailure {
- >     queryId: uint64
+ >     queryID: uint64
  >     errorCode: int32
  > }
  */
 export interface TokenPool_ReleaseOrMintFailure {
     readonly $: 'TokenPool_ReleaseOrMintFailure'
-    queryId: uint64
+    queryID: uint64
     errorCode: int32
 }
 
@@ -3896,26 +3896,26 @@ export const TokenPool_ReleaseOrMintFailure = {
     PREFIX: 0xef0cb36e,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         errorCode: int32
     }): TokenPool_ReleaseOrMintFailure {
         return {
             $: 'TokenPool_ReleaseOrMintFailure',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_ReleaseOrMintFailure {
         loadAndCheckPrefix32(s, 0xef0cb36e, 'TokenPool_ReleaseOrMintFailure');
         return {
             $: 'TokenPool_ReleaseOrMintFailure',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             errorCode: s.loadIntBig(32),
         }
     },
     store(self: TokenPool_ReleaseOrMintFailure, b: c.Builder): void {
         b.storeUint(0xef0cb36e, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeInt(self.errorCode, 32);
     },
     toCell(self: TokenPool_ReleaseOrMintFailure): c.Cell {
@@ -3925,14 +3925,14 @@ export const TokenPool_ReleaseOrMintFailure = {
 
 /**
  > struct (0x12cc4985) TokenPool_RemotePoolAddedNotification {
- >     queryId: uint64
+ >     queryID: uint64
  >     remoteChainSelector: uint64
  >     remotePoolAddress: Cell<CrossChainAddress>
  > }
  */
 export interface TokenPool_RemotePoolAddedNotification {
     readonly $: 'TokenPool_RemotePoolAddedNotification'
-    queryId: uint64
+    queryID: uint64
     remoteChainSelector: uint64
     remotePoolAddress: CrossChainAddress
 }
@@ -3941,28 +3941,28 @@ export const TokenPool_RemotePoolAddedNotification = {
     PREFIX: 0x12cc4985,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }): TokenPool_RemotePoolAddedNotification {
         return {
             $: 'TokenPool_RemotePoolAddedNotification',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_RemotePoolAddedNotification {
         loadAndCheckPrefix32(s, 0x12cc4985, 'TokenPool_RemotePoolAddedNotification');
         return {
             $: 'TokenPool_RemotePoolAddedNotification',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             remoteChainSelector: s.loadUintBig(64),
             remotePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
         }
     },
     store(self: TokenPool_RemotePoolAddedNotification, b: c.Builder): void {
         b.storeUint(0x12cc4985, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.remoteChainSelector, 64);
         storeCellRef<CrossChainAddress>(self.remotePoolAddress, b, CrossChainAddress.store);
     },
@@ -3973,14 +3973,14 @@ export const TokenPool_RemotePoolAddedNotification = {
 
 /**
  > struct (0xe17bf3cc) TokenPool_RemotePoolRemovedNotification {
- >     queryId: uint64
+ >     queryID: uint64
  >     remoteChainSelector: uint64
  >     remotePoolAddress: Cell<CrossChainAddress>
  > }
  */
 export interface TokenPool_RemotePoolRemovedNotification {
     readonly $: 'TokenPool_RemotePoolRemovedNotification'
-    queryId: uint64
+    queryID: uint64
     remoteChainSelector: uint64
     remotePoolAddress: CrossChainAddress
 }
@@ -3989,28 +3989,28 @@ export const TokenPool_RemotePoolRemovedNotification = {
     PREFIX: 0xe17bf3cc,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }): TokenPool_RemotePoolRemovedNotification {
         return {
             $: 'TokenPool_RemotePoolRemovedNotification',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_RemotePoolRemovedNotification {
         loadAndCheckPrefix32(s, 0xe17bf3cc, 'TokenPool_RemotePoolRemovedNotification');
         return {
             $: 'TokenPool_RemotePoolRemovedNotification',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             remoteChainSelector: s.loadUintBig(64),
             remotePoolAddress: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
         }
     },
     store(self: TokenPool_RemotePoolRemovedNotification, b: c.Builder): void {
         b.storeUint(0xe17bf3cc, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.remoteChainSelector, 64);
         storeCellRef<CrossChainAddress>(self.remotePoolAddress, b, CrossChainAddress.store);
     },
@@ -4021,13 +4021,13 @@ export const TokenPool_RemotePoolRemovedNotification = {
 
 /**
  > struct (0x426a713b) TokenPool_FinalityConfigSet {
- >     queryId: uint64
+ >     queryID: uint64
  >     allowedFinalityConfig: uint32
  > }
  */
 export interface TokenPool_FinalityConfigSet {
     readonly $: 'TokenPool_FinalityConfigSet'
-    queryId: uint64
+    queryID: uint64
     allowedFinalityConfig: uint32
 }
 
@@ -4035,26 +4035,26 @@ export const TokenPool_FinalityConfigSet = {
     PREFIX: 0x426a713b,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         allowedFinalityConfig: uint32
     }): TokenPool_FinalityConfigSet {
         return {
             $: 'TokenPool_FinalityConfigSet',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_FinalityConfigSet {
         loadAndCheckPrefix32(s, 0x426a713b, 'TokenPool_FinalityConfigSet');
         return {
             $: 'TokenPool_FinalityConfigSet',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             allowedFinalityConfig: s.loadUintBig(32),
         }
     },
     store(self: TokenPool_FinalityConfigSet, b: c.Builder): void {
         b.storeUint(0x426a713b, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.allowedFinalityConfig, 32);
     },
     toCell(self: TokenPool_FinalityConfigSet): c.Cell {
@@ -4064,7 +4064,7 @@ export const TokenPool_FinalityConfigSet = {
 
 /**
  > struct (0xb735e30c) TokenPool_DynamicConfigSet {
- >     queryId: uint64
+ >     queryID: uint64
  >     router: address
  >     rateLimitAdmin: address?
  >     feeAdmin: address?
@@ -4072,7 +4072,7 @@ export const TokenPool_FinalityConfigSet = {
  */
 export interface TokenPool_DynamicConfigSet {
     readonly $: 'TokenPool_DynamicConfigSet'
-    queryId: uint64
+    queryID: uint64
     router: c.Address
     rateLimitAdmin: c.Address | null
     feeAdmin: c.Address | null
@@ -4082,7 +4082,7 @@ export const TokenPool_DynamicConfigSet = {
     PREFIX: 0xb735e30c,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         router: c.Address
         rateLimitAdmin: c.Address | null
         feeAdmin: c.Address | null
@@ -4090,14 +4090,14 @@ export const TokenPool_DynamicConfigSet = {
         return {
             $: 'TokenPool_DynamicConfigSet',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_DynamicConfigSet {
         loadAndCheckPrefix32(s, 0xb735e30c, 'TokenPool_DynamicConfigSet');
         return {
             $: 'TokenPool_DynamicConfigSet',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             router: s.loadAddress(),
             rateLimitAdmin: s.loadMaybeAddress(),
             feeAdmin: s.loadMaybeAddress(),
@@ -4105,7 +4105,7 @@ export const TokenPool_DynamicConfigSet = {
     },
     store(self: TokenPool_DynamicConfigSet, b: c.Builder): void {
         b.storeUint(0xb735e30c, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.router);
         b.storeAddress(self.rateLimitAdmin);
         b.storeAddress(self.feeAdmin);
@@ -4117,36 +4117,36 @@ export const TokenPool_DynamicConfigSet = {
 
 /**
  > struct (0xdd7b0c71) TokenPool_RateLimitConfiguredNotification {
- >     queryId: uint64
+ >     queryID: uint64
  > }
  */
 export interface TokenPool_RateLimitConfiguredNotification {
     readonly $: 'TokenPool_RateLimitConfiguredNotification'
-    queryId: uint64
+    queryID: uint64
 }
 
 export const TokenPool_RateLimitConfiguredNotification = {
     PREFIX: 0xdd7b0c71,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
     }): TokenPool_RateLimitConfiguredNotification {
         return {
             $: 'TokenPool_RateLimitConfiguredNotification',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_RateLimitConfiguredNotification {
         loadAndCheckPrefix32(s, 0xdd7b0c71, 'TokenPool_RateLimitConfiguredNotification');
         return {
             $: 'TokenPool_RateLimitConfiguredNotification',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
         }
     },
     store(self: TokenPool_RateLimitConfiguredNotification, b: c.Builder): void {
         b.storeUint(0xdd7b0c71, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
     },
     toCell(self: TokenPool_RateLimitConfiguredNotification): c.Cell {
         return makeCellFrom<TokenPool_RateLimitConfiguredNotification>(self, TokenPool_RateLimitConfiguredNotification.store);
@@ -4155,36 +4155,36 @@ export const TokenPool_RateLimitConfiguredNotification = {
 
 /**
  > struct (0xad7833d7) TokenPool_ChainUpdatesApplied {
- >     queryId: uint64
+ >     queryID: uint64
  > }
  */
 export interface TokenPool_ChainUpdatesApplied {
     readonly $: 'TokenPool_ChainUpdatesApplied'
-    queryId: uint64
+    queryID: uint64
 }
 
 export const TokenPool_ChainUpdatesApplied = {
     PREFIX: 0xad7833d7,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
     }): TokenPool_ChainUpdatesApplied {
         return {
             $: 'TokenPool_ChainUpdatesApplied',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_ChainUpdatesApplied {
         loadAndCheckPrefix32(s, 0xad7833d7, 'TokenPool_ChainUpdatesApplied');
         return {
             $: 'TokenPool_ChainUpdatesApplied',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
         }
     },
     store(self: TokenPool_ChainUpdatesApplied, b: c.Builder): void {
         b.storeUint(0xad7833d7, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
     },
     toCell(self: TokenPool_ChainUpdatesApplied): c.Cell {
         return makeCellFrom<TokenPool_ChainUpdatesApplied>(self, TokenPool_ChainUpdatesApplied.store);
@@ -4193,36 +4193,36 @@ export const TokenPool_ChainUpdatesApplied = {
 
 /**
  > struct (0x28cbcc64) TokenPool_FeeConfigApplied {
- >     queryId: uint64
+ >     queryID: uint64
  > }
  */
 export interface TokenPool_FeeConfigApplied {
     readonly $: 'TokenPool_FeeConfigApplied'
-    queryId: uint64
+    queryID: uint64
 }
 
 export const TokenPool_FeeConfigApplied = {
     PREFIX: 0x28cbcc64,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
     }): TokenPool_FeeConfigApplied {
         return {
             $: 'TokenPool_FeeConfigApplied',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_FeeConfigApplied {
         loadAndCheckPrefix32(s, 0x28cbcc64, 'TokenPool_FeeConfigApplied');
         return {
             $: 'TokenPool_FeeConfigApplied',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
         }
     },
     store(self: TokenPool_FeeConfigApplied, b: c.Builder): void {
         b.storeUint(0x28cbcc64, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
     },
     toCell(self: TokenPool_FeeConfigApplied): c.Cell {
         return makeCellFrom<TokenPool_FeeConfigApplied>(self, TokenPool_FeeConfigApplied.store);
@@ -4231,13 +4231,13 @@ export const TokenPool_FeeConfigApplied = {
 
 /**
  > struct (0x3c869d80) TokenPool_AdvancedPoolHooksSet {
- >     queryId: uint64
+ >     queryID: uint64
  >     advancedPoolHooks: address?
  > }
  */
 export interface TokenPool_AdvancedPoolHooksSet {
     readonly $: 'TokenPool_AdvancedPoolHooksSet'
-    queryId: uint64
+    queryID: uint64
     advancedPoolHooks: c.Address | null
 }
 
@@ -4245,26 +4245,26 @@ export const TokenPool_AdvancedPoolHooksSet = {
     PREFIX: 0x3c869d80,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         advancedPoolHooks: c.Address | null
     }): TokenPool_AdvancedPoolHooksSet {
         return {
             $: 'TokenPool_AdvancedPoolHooksSet',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_AdvancedPoolHooksSet {
         loadAndCheckPrefix32(s, 0x3c869d80, 'TokenPool_AdvancedPoolHooksSet');
         return {
             $: 'TokenPool_AdvancedPoolHooksSet',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             advancedPoolHooks: s.loadMaybeAddress(),
         }
     },
     store(self: TokenPool_AdvancedPoolHooksSet, b: c.Builder): void {
         b.storeUint(0x3c869d80, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.advancedPoolHooks);
     },
     toCell(self: TokenPool_AdvancedPoolHooksSet): c.Cell {
@@ -4274,36 +4274,36 @@ export const TokenPool_AdvancedPoolHooksSet = {
 
 /**
  > struct (0x480060f1) TokenPool_GetConfig {
- >     queryId: uint64
+ >     queryID: uint64
  > }
  */
 export interface TokenPool_GetConfig {
     readonly $: 'TokenPool_GetConfig'
-    queryId: uint64
+    queryID: uint64
 }
 
 export const TokenPool_GetConfig = {
     PREFIX: 0x480060f1,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
     }): TokenPool_GetConfig {
         return {
             $: 'TokenPool_GetConfig',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_GetConfig {
         loadAndCheckPrefix32(s, 0x480060f1, 'TokenPool_GetConfig');
         return {
             $: 'TokenPool_GetConfig',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
         }
     },
     store(self: TokenPool_GetConfig, b: c.Builder): void {
         b.storeUint(0x480060f1, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
     },
     toCell(self: TokenPool_GetConfig): c.Cell {
         return makeCellFrom<TokenPool_GetConfig>(self, TokenPool_GetConfig.store);
@@ -4312,7 +4312,7 @@ export const TokenPool_GetConfig = {
 
 /**
  > struct (0x1c8a40b8) TokenPool_Config {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  >     transferInitiator: address?
  >     admission: TokenPool_AdmissionBudget
@@ -4320,7 +4320,7 @@ export const TokenPool_GetConfig = {
  */
 export interface TokenPool_Config {
     readonly $: 'TokenPool_Config'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
     transferInitiator: c.Address | null
     admission: TokenPool_AdmissionBudget
@@ -4330,7 +4330,7 @@ export const TokenPool_Config = {
     PREFIX: 0x1c8a40b8,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         transferInitiator: c.Address | null
         admission: TokenPool_AdmissionBudget
@@ -4338,14 +4338,14 @@ export const TokenPool_Config = {
         return {
             $: 'TokenPool_Config',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_Config {
         loadAndCheckPrefix32(s, 0x1c8a40b8, 'TokenPool_Config');
         return {
             $: 'TokenPool_Config',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
             transferInitiator: s.loadMaybeAddress(),
             admission: TokenPool_AdmissionBudget.fromSlice(s),
@@ -4353,7 +4353,7 @@ export const TokenPool_Config = {
     },
     store(self: TokenPool_Config, b: c.Builder): void {
         b.storeUint(0x1c8a40b8, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
         b.storeAddress(self.transferInitiator);
         TokenPool_AdmissionBudget.store(self.admission, b);
@@ -4402,13 +4402,13 @@ export const TokenPool_WithdrawRescue = {
 
 /**
  > struct (0x1e54ab8b) TokenPool_SetBudget {
- >     queryId: uint64
+ >     queryID: uint64
  >     budget: TokenPool_Budget
  > }
  */
 export interface TokenPool_SetBudget {
     readonly $: 'TokenPool_SetBudget'
-    queryId: uint64
+    queryID: uint64
     budget: TokenPool_Budget
 }
 
@@ -4416,26 +4416,26 @@ export const TokenPool_SetBudget = {
     PREFIX: 0x1e54ab8b,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         budget: TokenPool_Budget
     }): TokenPool_SetBudget {
         return {
             $: 'TokenPool_SetBudget',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_SetBudget {
         loadAndCheckPrefix32(s, 0x1e54ab8b, 'TokenPool_SetBudget');
         return {
             $: 'TokenPool_SetBudget',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             budget: TokenPool_Budget.fromSlice(s),
         }
     },
     store(self: TokenPool_SetBudget, b: c.Builder): void {
         b.storeUint(0x1e54ab8b, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         TokenPool_Budget.store(self.budget, b);
     },
     toCell(self: TokenPool_SetBudget): c.Cell {
@@ -4445,13 +4445,13 @@ export const TokenPool_SetBudget = {
 
 /**
  > struct (0xfa704988) TokenPool_BudgetSet {
- >     queryId: uint64
+ >     queryID: uint64
  >     budget: TokenPool_Budget
  > }
  */
 export interface TokenPool_BudgetSet {
     readonly $: 'TokenPool_BudgetSet'
-    queryId: uint64
+    queryID: uint64
     budget: TokenPool_Budget
 }
 
@@ -4459,26 +4459,26 @@ export const TokenPool_BudgetSet = {
     PREFIX: 0xfa704988,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         budget: TokenPool_Budget
     }): TokenPool_BudgetSet {
         return {
             $: 'TokenPool_BudgetSet',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_BudgetSet {
         loadAndCheckPrefix32(s, 0xfa704988, 'TokenPool_BudgetSet');
         return {
             $: 'TokenPool_BudgetSet',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             budget: TokenPool_Budget.fromSlice(s),
         }
     },
     store(self: TokenPool_BudgetSet, b: c.Builder): void {
         b.storeUint(0xfa704988, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         TokenPool_Budget.store(self.budget, b);
     },
     toCell(self: TokenPool_BudgetSet): c.Cell {
@@ -5264,7 +5264,7 @@ export const TokenPool_RateLimitConfigured = {
 
 /**
  > struct (0x9e9ec361) JettonLockBox_Deposit {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  >     remoteChainSelector: uint64
  >     amount: coins
@@ -5274,7 +5274,7 @@ export const TokenPool_RateLimitConfigured = {
  */
 export interface JettonLockBox_Deposit {
     readonly $: 'JettonLockBox_Deposit'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
     remoteChainSelector: uint64
     amount: coins
@@ -5286,7 +5286,7 @@ export const JettonLockBox_Deposit = {
     PREFIX: 0x9e9ec361,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
@@ -5297,14 +5297,14 @@ export const JettonLockBox_Deposit = {
             $: 'JettonLockBox_Deposit',
             extra: null,
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Deposit {
         loadAndCheckPrefix32(s, 0x9e9ec361, 'JettonLockBox_Deposit');
         return {
             $: 'JettonLockBox_Deposit',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
             remoteChainSelector: s.loadUintBig(64),
             amount: s.loadCoins(),
@@ -5314,7 +5314,7 @@ export const JettonLockBox_Deposit = {
     },
     store(self: JettonLockBox_Deposit, b: c.Builder): void {
         b.storeUint(0x9e9ec361, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
         b.storeUint(self.remoteChainSelector, 64);
         b.storeCoins(self.amount);
@@ -5423,7 +5423,7 @@ export const JettonLockBox_WithdrawExtra = {
 
 /**
  > struct (0xd065c306) JettonLockBox_Withdraw {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  >     remoteChainSelector: uint64
  >     amount: coins
@@ -5433,7 +5433,7 @@ export const JettonLockBox_WithdrawExtra = {
  */
 export interface JettonLockBox_Withdraw {
     readonly $: 'JettonLockBox_Withdraw'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
     remoteChainSelector: uint64
     amount: coins
@@ -5445,7 +5445,7 @@ export const JettonLockBox_Withdraw = {
     PREFIX: 0xd065c306,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         remoteChainSelector: uint64
         amount: coins
@@ -5455,14 +5455,14 @@ export const JettonLockBox_Withdraw = {
         return {
             $: 'JettonLockBox_Withdraw',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Withdraw {
         loadAndCheckPrefix32(s, 0xd065c306, 'JettonLockBox_Withdraw');
         return {
             $: 'JettonLockBox_Withdraw',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
             remoteChainSelector: s.loadUintBig(64),
             amount: s.loadCoins(),
@@ -5472,7 +5472,7 @@ export const JettonLockBox_Withdraw = {
     },
     store(self: JettonLockBox_Withdraw, b: c.Builder): void {
         b.storeUint(0xd065c306, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
         b.storeUint(self.remoteChainSelector, 64);
         b.storeCoins(self.amount);
@@ -5488,7 +5488,7 @@ export const JettonLockBox_Withdraw = {
 
 /**
  > struct (0x6d077f2e) JettonLockBox_Deposited {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  >     depositor: address
  >     amount: coins
@@ -5497,7 +5497,7 @@ export const JettonLockBox_Withdraw = {
  */
 export interface JettonLockBox_Deposited {
     readonly $: 'JettonLockBox_Deposited'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
     depositor: c.Address
     amount: coins
@@ -5508,7 +5508,7 @@ export const JettonLockBox_Deposited = {
     PREFIX: 0x6d077f2e,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         depositor: c.Address
         amount: coins
@@ -5517,14 +5517,14 @@ export const JettonLockBox_Deposited = {
         return {
             $: 'JettonLockBox_Deposited',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Deposited {
         loadAndCheckPrefix32(s, 0x6d077f2e, 'JettonLockBox_Deposited');
         return {
             $: 'JettonLockBox_Deposited',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
             depositor: s.loadAddress(),
             amount: s.loadCoins(),
@@ -5533,7 +5533,7 @@ export const JettonLockBox_Deposited = {
     },
     store(self: JettonLockBox_Deposited, b: c.Builder): void {
         b.storeUint(0x6d077f2e, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
         b.storeAddress(self.depositor);
         b.storeCoins(self.amount);
@@ -5548,7 +5548,7 @@ export const JettonLockBox_Deposited = {
 
 /**
  > struct (0x5e28ebd8) JettonLockBox_DepositFailed {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  >     depositor: address
  >     amount: coins
@@ -5558,7 +5558,7 @@ export const JettonLockBox_Deposited = {
  */
 export interface JettonLockBox_DepositFailed {
     readonly $: 'JettonLockBox_DepositFailed'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
     depositor: c.Address
     amount: coins
@@ -5570,7 +5570,7 @@ export const JettonLockBox_DepositFailed = {
     PREFIX: 0x5e28ebd8,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         depositor: c.Address
         amount: coins
@@ -5580,14 +5580,14 @@ export const JettonLockBox_DepositFailed = {
         return {
             $: 'JettonLockBox_DepositFailed',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_DepositFailed {
         loadAndCheckPrefix32(s, 0x5e28ebd8, 'JettonLockBox_DepositFailed');
         return {
             $: 'JettonLockBox_DepositFailed',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
             depositor: s.loadAddress(),
             amount: s.loadCoins(),
@@ -5597,7 +5597,7 @@ export const JettonLockBox_DepositFailed = {
     },
     store(self: JettonLockBox_DepositFailed, b: c.Builder): void {
         b.storeUint(0x5e28ebd8, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
         b.storeAddress(self.depositor);
         b.storeCoins(self.amount);
@@ -5613,14 +5613,14 @@ export const JettonLockBox_DepositFailed = {
 
 /**
  > struct (0x60bae556) JettonLockBox_WithdrawFailed {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  >     context: Cell<JettonLockBox_Withdraw>?
  > }
  */
 export interface JettonLockBox_WithdrawFailed {
     readonly $: 'JettonLockBox_WithdrawFailed'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
     context: JettonLockBox_Withdraw | null
 }
@@ -5629,28 +5629,28 @@ export const JettonLockBox_WithdrawFailed = {
     PREFIX: 0x60bae556,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         context: JettonLockBox_Withdraw | null
     }): JettonLockBox_WithdrawFailed {
         return {
             $: 'JettonLockBox_WithdrawFailed',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_WithdrawFailed {
         loadAndCheckPrefix32(s, 0x60bae556, 'JettonLockBox_WithdrawFailed');
         return {
             $: 'JettonLockBox_WithdrawFailed',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
             context: s.loadBoolean() ? loadCellRef<JettonLockBox_Withdraw>(s, JettonLockBox_Withdraw.fromSlice) : null,
         }
     },
     store(self: JettonLockBox_WithdrawFailed, b: c.Builder): void {
         b.storeUint(0x60bae556, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
         storeTolkNullable<JettonLockBox_Withdraw>(self.context, b,
             (v,b) => storeCellRef<JettonLockBox_Withdraw>(v, b, JettonLockBox_Withdraw.store)
@@ -5840,13 +5840,13 @@ export const JettonWithdrawable_WithdrawFeeTransfer = {
 
 /**
  > struct (0x0d00995c) JettonWithdrawable_Withdraw {
- >     queryId: uint64
+ >     queryID: uint64
  >     transfers: array<JettonWithdrawable_WithdrawFeeTransfer>
  > }
  */
 export interface JettonWithdrawable_Withdraw {
     readonly $: 'JettonWithdrawable_Withdraw'
-    queryId: uint64
+    queryID: uint64
     transfers: array<JettonWithdrawable_WithdrawFeeTransfer>
 }
 
@@ -5854,26 +5854,26 @@ export const JettonWithdrawable_Withdraw = {
     PREFIX: 0x0d00995c,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         transfers: array<JettonWithdrawable_WithdrawFeeTransfer>
     }): JettonWithdrawable_Withdraw {
         return {
             $: 'JettonWithdrawable_Withdraw',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonWithdrawable_Withdraw {
         loadAndCheckPrefix32(s, 0x0d00995c, 'JettonWithdrawable_Withdraw');
         return {
             $: 'JettonWithdrawable_Withdraw',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             transfers: loadArrayOf<JettonWithdrawable_WithdrawFeeTransfer>(s, JettonWithdrawable_WithdrawFeeTransfer.fromSlice),
         }
     },
     store(self: JettonWithdrawable_Withdraw, b: c.Builder): void {
         b.storeUint(0x0d00995c, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeArrayOf<JettonWithdrawable_WithdrawFeeTransfer>(self.transfers, b, JettonWithdrawable_WithdrawFeeTransfer.store);
     },
     toCell(self: JettonWithdrawable_Withdraw): c.Cell {
@@ -5883,7 +5883,7 @@ export const JettonWithdrawable_Withdraw = {
 
 /**
  > struct (0xf343fc1b) Withdrawable_Withdraw {
- >     queryId: uint64
+ >     queryID: uint64
  >     destination: address
  >     amount: coins
  >     reserve: coins?
@@ -5892,7 +5892,7 @@ export const JettonWithdrawable_Withdraw = {
  */
 export interface Withdrawable_Withdraw {
     readonly $: 'Withdrawable_Withdraw'
-    queryId: uint64
+    queryID: uint64
     destination: c.Address
     amount: coins
     reserve: coins | null
@@ -5903,7 +5903,7 @@ export const Withdrawable_Withdraw = {
     PREFIX: 0xf343fc1b,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -5912,14 +5912,14 @@ export const Withdrawable_Withdraw = {
         return {
             $: 'Withdrawable_Withdraw',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Withdrawable_Withdraw {
         loadAndCheckPrefix32(s, 0xf343fc1b, 'Withdrawable_Withdraw');
         return {
             $: 'Withdrawable_Withdraw',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             destination: s.loadAddress(),
             amount: s.loadCoins(),
             reserve: s.loadBoolean() ? s.loadCoins() : null,
@@ -5928,7 +5928,7 @@ export const Withdrawable_Withdraw = {
     },
     store(self: Withdrawable_Withdraw, b: c.Builder): void {
         b.storeUint(0xf343fc1b, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.destination);
         b.storeCoins(self.amount);
         storeTolkNullable<coins>(self.reserve, b,
@@ -6160,7 +6160,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolLockOrBurn(body: {
-        queryId?: uint64
+        queryID?: uint64
         request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
@@ -6173,7 +6173,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfTransferNotificationForRecipient(body: {
-        queryId?: uint64
+        queryID?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
@@ -6182,21 +6182,21 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolPreflightCheckFinished(body: {
-        queryId?: uint64
+        queryID?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }) {
         return TokenPool_PreflightCheckFinished.toCell(TokenPool_PreflightCheckFinished.create(body));
     }
 
     static createCellOfTokenPoolPreflightCheckFailed(body: {
-        queryId?: uint64
+        queryID?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }) {
         return TokenPool_PreflightCheckFailed.toCell(TokenPool_PreflightCheckFailed.create(body));
     }
 
     static createCellOfTokenPoolLockOrBurnWithdrawFailed(body: {
-        queryId?: uint64
+        queryID?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
         errorCode: int32
     }) {
@@ -6204,7 +6204,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolReleaseOrMint(body: {
-        queryId?: uint64
+        queryID?: uint64
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo: c.Address
@@ -6215,7 +6215,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolReleaseOrMintDelivered(body: {
-        queryId?: uint64
+        queryID?: uint64
         replyTo: c.Address
         transfer: TokenPool_DeliveredTransfer
     }) {
@@ -6223,21 +6223,21 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolPostflightCheckFinished(body: {
-        queryId?: uint64
+        queryID?: uint64
         forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }) {
         return TokenPool_PostflightCheckFinished.toCell(TokenPool_PostflightCheckFinished.create(body));
     }
 
     static createCellOfTokenPoolPostflightCheckFailed(body: {
-        queryId?: uint64
+        queryID?: uint64
         forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }) {
         return TokenPool_PostflightCheckFailed.toCell(TokenPool_PostflightCheckFailed.create(body));
     }
 
     static createCellOfTokenPoolGetCCVs(body: {
-        queryId?: uint64
+        queryID?: uint64
         localToken: c.Address
         remoteChainSelector: uint64
         amount: coins
@@ -6251,7 +6251,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolGetCCVsAndFees(body: {
-        queryId?: uint64
+        queryID?: uint64
         localToken: c.Address
         remoteChainSelector: uint64
         amount: coins
@@ -6265,7 +6265,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolQueryCCVsReply(body: {
-        queryId?: uint64
+        queryID?: uint64
         requiredCCVs: array<c.Address>
         forwardPayload: c.Cell | null
     }) {
@@ -6273,7 +6273,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolApplyChainUpdates(body: {
-        queryId?: uint64
+        queryID?: uint64
         remoteChainSelectorsToRemove: SnakedCell<uint64>
         chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
     }) {
@@ -6281,7 +6281,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolAddRemotePool(body: {
-        queryId?: uint64
+        queryID?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }) {
@@ -6289,7 +6289,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolRemoveRemotePool(body: {
-        queryId?: uint64
+        queryID?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }) {
@@ -6297,7 +6297,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolSetDynamicConfig(body: {
-        queryId?: uint64
+        queryID?: uint64
         router: c.Address
         rateLimitAdmin?: c.Address | null /* = null */
         feeAdmin?: c.Address | null /* = null */
@@ -6306,28 +6306,28 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolSetAllowedFinalityConfig(body: {
-        queryId?: uint64
+        queryID?: uint64
         allowedFinalityConfig: uint32
     }) {
         return TokenPool_SetAllowedFinalityConfig.toCell(TokenPool_SetAllowedFinalityConfig.create(body));
     }
 
     static createCellOfTokenPoolSetAdvancedPoolHooks(body: {
-        queryId?: uint64
+        queryID?: uint64
         advancedPoolHooks: c.Address | null
     }) {
         return TokenPool_SetAdvancedPoolHooks.toCell(TokenPool_SetAdvancedPoolHooks.create(body));
     }
 
     static createCellOfTokenPoolSetRateLimitConfig(body: {
-        queryId?: uint64
+        queryID?: uint64
         updates: SnakedCell<TokenPool_RateLimitConfigArgs>
     }) {
         return TokenPool_SetRateLimitConfig.toCell(TokenPool_SetRateLimitConfig.create(body));
     }
 
     static createCellOfTokenPoolApplyTokenTransferFeeConfigUpdates(body: {
-        queryId?: uint64
+        queryID?: uint64
         updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>
         disableChainSelectors: SnakedCell<uint64>
     }) {
@@ -6335,27 +6335,27 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolSetBudget(body: {
-        queryId?: uint64
+        queryID?: uint64
         budget: TokenPool_Budget
     }) {
         return TokenPool_SetBudget.toCell(TokenPool_SetBudget.create(body));
     }
 
     static createCellOfTokenPoolGetConfig(body: {
-        queryId?: uint64
+        queryID?: uint64
     }) {
         return TokenPool_GetConfig.toCell(TokenPool_GetConfig.create(body));
     }
 
     static createCellOfTokenPoolCurse(body: {
-        queryId?: uint64
+        queryID?: uint64
         subjects: SnakedCell<uint128>
     }) {
         return TokenPool_Curse.toCell(TokenPool_Curse.create(body));
     }
 
     static createCellOfTokenPoolUncurse(body: {
-        queryId?: uint64
+        queryID?: uint64
         subjects: SnakedCell<uint128>
     }) {
         return TokenPool_Uncurse.toCell(TokenPool_Uncurse.create(body));
@@ -6374,7 +6374,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfJettonWithdrawableWithdraw(body: {
-        queryId?: uint64
+        queryID?: uint64
         transfers: array<JettonWithdrawable_WithdrawFeeTransfer>
     }) {
         return JettonWithdrawable_Withdraw.toCell(JettonWithdrawable_Withdraw.create(body));
@@ -6387,7 +6387,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfWithdrawableWithdraw(body: {
-        queryId?: uint64
+        queryID?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -6397,13 +6397,13 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfReturnExcessesBack(body: {
-        queryId?: uint64
+        queryID?: uint64
     }) {
         return ReturnExcessesBack.toCell(ReturnExcessesBack.create(body));
     }
 
     static createCellOfJettonLockBoxDeposited(body: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         depositor: c.Address
         amount: coins
@@ -6413,7 +6413,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfJettonLockBoxDepositFailed(body: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         depositor: c.Address
         amount: coins
@@ -6424,7 +6424,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfJettonLockBoxWithdrawFailed(body: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         context: JettonLockBox_Withdraw | null
     }) {
@@ -6448,7 +6448,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolLockOrBurn(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
@@ -6465,7 +6465,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTransferNotificationForRecipient(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
@@ -6478,7 +6478,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolPreflightCheckFinished(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -6489,7 +6489,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolPreflightCheckFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -6500,7 +6500,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolLockOrBurnWithdrawFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         forwardPayload: TokenPool_LockOrBurnForwardPayload
         errorCode: int32
     }, extraOptions?: ExtraSendOptions) {
@@ -6512,7 +6512,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolReleaseOrMint(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         request: TokenPool_ReleaseOrMintInV1
         requestedFinalityConfig: uint32
         replyTo: c.Address
@@ -6527,7 +6527,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolReleaseOrMintDelivered(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         replyTo: c.Address
         transfer: TokenPool_DeliveredTransfer
     }, extraOptions?: ExtraSendOptions) {
@@ -6539,7 +6539,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolPostflightCheckFinished(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -6550,7 +6550,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolPostflightCheckFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         forwardPayload: TokenPool_ReleaseOrMintForwardPayload
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -6561,7 +6561,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolGetCCVs(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         localToken: c.Address
         remoteChainSelector: uint64
         amount: coins
@@ -6579,7 +6579,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolGetCCVsAndFees(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         localToken: c.Address
         remoteChainSelector: uint64
         amount: coins
@@ -6597,7 +6597,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolQueryCCVsReply(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         requiredCCVs: array<c.Address>
         forwardPayload: c.Cell | null
     }, extraOptions?: ExtraSendOptions) {
@@ -6609,7 +6609,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolApplyChainUpdates(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         remoteChainSelectorsToRemove: SnakedCell<uint64>
         chainsToAdd: SnakedCell<TokenPool_ChainUpdate>
     }, extraOptions?: ExtraSendOptions) {
@@ -6621,7 +6621,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolAddRemotePool(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }, extraOptions?: ExtraSendOptions) {
@@ -6633,7 +6633,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolRemoveRemotePool(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         remoteChainSelector: uint64
         remotePoolAddress: CrossChainAddress
     }, extraOptions?: ExtraSendOptions) {
@@ -6645,7 +6645,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolSetDynamicConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         router: c.Address
         rateLimitAdmin?: c.Address | null /* = null */
         feeAdmin?: c.Address | null /* = null */
@@ -6658,7 +6658,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolSetAllowedFinalityConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         allowedFinalityConfig: uint32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -6669,7 +6669,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolSetAdvancedPoolHooks(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         advancedPoolHooks: c.Address | null
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -6680,7 +6680,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolSetRateLimitConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         updates: SnakedCell<TokenPool_RateLimitConfigArgs>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -6691,7 +6691,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolApplyTokenTransferFeeConfigUpdates(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         updates: SnakedCell<TokenPool_TokenTransferFeeConfigArgs>
         disableChainSelectors: SnakedCell<uint64>
     }, extraOptions?: ExtraSendOptions) {
@@ -6703,7 +6703,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolSetBudget(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         budget: TokenPool_Budget
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -6714,7 +6714,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolGetConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -6724,7 +6724,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolCurse(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         subjects: SnakedCell<uint128>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -6735,7 +6735,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolUncurse(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         subjects: SnakedCell<uint128>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -6766,7 +6766,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendJettonWithdrawableWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         transfers: array<JettonWithdrawable_WithdrawFeeTransfer>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -6787,7 +6787,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendWithdrawableWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -6801,7 +6801,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendReturnExcessesBack(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -6811,7 +6811,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendJettonLockBoxDeposited(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         depositor: c.Address
         amount: coins
@@ -6825,7 +6825,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendJettonLockBoxDepositFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         depositor: c.Address
         amount: coins
@@ -6840,7 +6840,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendJettonLockBoxWithdrawFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         context: JettonLockBox_Withdraw | null
     }, extraOptions?: ExtraSendOptions) {

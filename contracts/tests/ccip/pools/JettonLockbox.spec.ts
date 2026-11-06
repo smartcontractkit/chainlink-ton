@@ -83,7 +83,7 @@ describe('JettonLockBox', () => {
     await jettonMinter.sendMint(deployer.getSender(), {
       value: toNano('0.5'),
       message: {
-        queryId: 1n,
+        queryID: 1n,
         destination: operator.address,
         tonAmount: toNano('0.1'),
         jettonAmount: toNano('1000'),
@@ -122,7 +122,7 @@ describe('JettonLockBox', () => {
       deployer.getSender(),
       toNano('0.2'),
       JettonLockBox_Init.create({
-        queryId: 100n,
+        queryID: 100n,
         minterAddress: jettonMinter.address,
         walletAddress: lockboxWalletAddress,
         admin: deployer.address,
@@ -138,7 +138,7 @@ describe('JettonLockBox', () => {
     // Grant OPERATOR_ROLE to operator using AccessControl client
     const acClient = blockchain.openContract(AccessControlClient.createFromAddress(lockbox.address))
     await acClient.sendGrantRole(deployer.getSender(), toNano('0.1'), {
-      queryId: 1n,
+      queryID: 1n,
       role: OPERATOR_ROLE_VALUE,
       account: operator.address,
     })
@@ -161,15 +161,15 @@ describe('JettonLockBox', () => {
     return minter
   }
 
-  const rescueBody = (queryId: bigint, wallet: Address, amount: bigint) => ({
+  const rescueBody = (queryID: bigint, wallet: Address, amount: bigint) => ({
     withdrawMsg: JettonWithdrawable_Withdraw.create({
-      queryId,
+      queryID,
       transfers: [
         JettonWithdrawable_WithdrawFeeTransfer.create({
           wallet,
           value: toNano('0.2'),
           msg: AskToTransfer.create({
-            queryId,
+            queryID,
             jettonAmount: amount,
             transferRecipient: recipient.address,
             sendExcessesTo: lockbox.address,
@@ -223,7 +223,7 @@ describe('JettonLockBox', () => {
       const forwardTonAmount = toNano('0.005')
       const payload = JettonLockBox_Deposit.toCell(
         JettonLockBox_Deposit.create({
-          queryId: 220n,
+          queryID: 220n,
           token: jettonMinter.address,
           remoteChainSelector,
           amount: 1n,
@@ -236,7 +236,7 @@ describe('JettonLockBox', () => {
       const result = await operatorWallet.sendTransfer(operator.getSender(), {
         value: toNano('0.2'),
         message: {
-          queryId: 220,
+          queryID: 220,
           jettonAmount: 1n,
           destination: lockbox.address,
           responseDestination: operator.address,
@@ -263,11 +263,11 @@ describe('JettonLockBox', () => {
     it('returns rejected deposits without a failure report when failureValue is zero', async () => {
       const balanceBefore = (await blockchain.getContract(lockbox.address)).balance
       const jettonsBefore = await operatorWallet.getJettonBalance()
-      for (const queryId of [221, 222, 223]) {
+      for (const queryID of [221, 222, 223]) {
         const result = await operatorWallet.sendTransfer(operator.getSender(), {
           value: toNano('0.2'),
           message: {
-            queryId,
+            queryID,
             jettonAmount: 1n,
             destination: lockbox.address,
             responseDestination: operator.address,
@@ -296,12 +296,12 @@ describe('JettonLockBox', () => {
 
     it('should accept deposit via jetton transfer → TransferNotificationForRecipient', async () => {
       const amount = toNano('10')
-      const queryId = 200n
+      const queryID = 200n
 
       // Build deposit payload in forward payload
       const depositPayload = JettonLockBox_Deposit.toCell(
         JettonLockBox_Deposit.create({
-          queryId,
+          queryID,
           token: jettonMinter.address,
           remoteChainSelector,
           amount,
@@ -321,7 +321,7 @@ describe('JettonLockBox', () => {
       const result = await operatorWallet.sendTransfer(operator.getSender(), {
         value: MIN_VALUE.ccip + toNano('0.1'),
         message: {
-          queryId: Number(queryId),
+          queryID: Number(queryID),
           jettonAmount: amount,
           destination: lockbox.address,
           responseDestination: operator.address,
@@ -356,13 +356,13 @@ describe('JettonLockBox', () => {
     })
 
     it('should reject deposit with zero amount', async () => {
-      const queryId = 210n
+      const queryID = 210n
       const callerContext = beginCell().storeUint(0x12345678, 32).endCell()
 
       // Build deposit payload with zero amount
       const depositPayload = JettonLockBox_Deposit.toCell(
         JettonLockBox_Deposit.create({
-          queryId,
+          queryID,
           token: jettonMinter.address,
           remoteChainSelector,
           amount: 0n,
@@ -377,7 +377,7 @@ describe('JettonLockBox', () => {
       const result = await operatorWallet.sendTransfer(operator.getSender(), {
         value: toNano('0.2'),
         message: {
-          queryId: Number(queryId),
+          queryID: Number(queryID),
           jettonAmount: toNano('1'), // Transfer non-zero, but payload says zero
           destination: lockbox.address,
           responseDestination: operator.address,
@@ -432,14 +432,14 @@ describe('JettonLockBox', () => {
       // lockbox forever (ANALYSIS_ERROR_HANDLING.md D1) — they are returned best-effort to the
       // transfer initiator instead.
       const amount = toNano('7')
-      const queryId = 211n
+      const queryID = 211n
 
       // Activate the lockbox's jetton wallet so its balance can be observed (a wallet with no
       // balance isn't deployed until it receives its first jettons).
       await jettonMinter.sendMint(deployer.getSender(), {
         value: toNano('0.5'),
         message: {
-          queryId,
+          queryID,
           // Mint the jettons to the lockbox OWNER so its dedicated wallet address is deployed.
           destination: lockbox.address,
           tonAmount: toNano('0.05'),
@@ -458,7 +458,7 @@ describe('JettonLockBox', () => {
       const result = await operatorWallet.sendTransfer(operator.getSender(), {
         value: toNano('0.6'),
         message: {
-          queryId: Number(queryId),
+          queryID: Number(queryID),
           jettonAmount: amount,
           destination: lockbox.address,
           responseDestination: operator.address,
@@ -503,7 +503,7 @@ describe('JettonLockBox', () => {
       // pool flow, nor returned (no initiator to return to), so we expect an error.
       const depositPayload = JettonLockBox_Deposit.toCell(
         JettonLockBox_Deposit.create({
-          queryId: 212n,
+          queryID: 212n,
           token: jettonMinter.address,
           remoteChainSelector,
           amount: toNano('3'),
@@ -521,7 +521,7 @@ describe('JettonLockBox', () => {
           value: toNano('0.3'),
           body: TransferNotificationForRecipient.toCell(
             TransferNotificationForRecipient.create({
-              queryId: 212n,
+              queryID: 212n,
               jettonAmount: toNano('3'),
               transferInitiator: null,
               // Even a well-formed deposit payload must be ignored: a null initiator can't be credited.
@@ -545,7 +545,7 @@ describe('JettonLockBox', () => {
       await jettonMinter.sendMint(deployer.getSender(), {
         value: toNano('0.5'),
         message: {
-          queryId: 50n,
+          queryID: 50n,
           destination: unauthorized.address,
           tonAmount: toNano('0.1'),
           jettonAmount: toNano('100'),
@@ -560,11 +560,11 @@ describe('JettonLockBox', () => {
       )
 
       const amount = toNano('5')
-      const queryId = 220n
+      const queryID = 220n
 
       const depositPayload = JettonLockBox_Deposit.toCell(
         JettonLockBox_Deposit.create({
-          queryId,
+          queryID,
           token: jettonMinter.address,
           remoteChainSelector,
           amount,
@@ -578,7 +578,7 @@ describe('JettonLockBox', () => {
       const result = await unauthorizedWallet.sendTransfer(unauthorized.getSender(), {
         value: toNano('0.6'),
         message: {
-          queryId: Number(queryId),
+          queryID: Number(queryID),
           jettonAmount: amount,
           destination: lockbox.address,
           responseDestination: unauthorized.address,
@@ -622,7 +622,7 @@ describe('JettonLockBox', () => {
         body(body) {
           if (!body) return false
           const failure = JettonLockBox_DepositFailed.fromSlice(body.beginParse())
-          return failure.queryId === queryId
+          return failure.queryID === queryID
         },
       })
     })
@@ -635,7 +635,7 @@ describe('JettonLockBox', () => {
         unauthorized.getSender(),
         toNano('0.2'),
         {
-          queryId: 300n,
+          queryID: 300n,
           token: jettonMinter.address,
           remoteChainSelector,
           amount: toNano('5'),
@@ -657,7 +657,7 @@ describe('JettonLockBox', () => {
       await jettonMinter.sendMint(deployer.getSender(), {
         value: toNano('0.5'),
         message: {
-          queryId: 303n,
+          queryID: 303n,
           destination: lockbox.address,
           tonAmount: toNano('0.1'),
           jettonAmount: amount,
@@ -691,7 +691,7 @@ describe('JettonLockBox', () => {
       await foreignMinter.sendMint(deployer.getSender(), {
         value: toNano('0.5'),
         message: {
-          queryId: 304n,
+          queryID: 304n,
           destination: lockbox.address,
           tonAmount: toNano('0.1'),
           jettonAmount: amount,
@@ -729,7 +729,7 @@ describe('JettonLockBox', () => {
         operator.getSender(),
         toNano('0.5'),
         {
-          withdrawMsg: JettonWithdrawable_Withdraw.create({ queryId: 305n, transfers: [] }),
+          withdrawMsg: JettonWithdrawable_Withdraw.create({ queryID: 305n, transfers: [] }),
         },
       )
 
@@ -765,7 +765,7 @@ describe('JettonLockBox', () => {
           const s = body.beginParse()
           return (
             s.loadAddress().equals(operatorWallet.address) &&
-            AskToTransfer.fromSlice(s).queryId === 306n
+            AskToTransfer.fromSlice(s).queryID === 306n
           )
         },
       })
@@ -777,7 +777,7 @@ describe('JettonLockBox', () => {
       const depositAmount = toNano('100')
       const depositPayload = JettonLockBox_Deposit.toCell(
         JettonLockBox_Deposit.create({
-          queryId: 1000n,
+          queryID: 1000n,
           token: jettonMinter.address,
           remoteChainSelector,
           amount: depositAmount,
@@ -791,7 +791,7 @@ describe('JettonLockBox', () => {
       await operatorWallet.sendTransfer(operator.getSender(), {
         value: toNano('0.3'),
         message: {
-          queryId: 1000,
+          queryID: 1000,
           jettonAmount: depositAmount,
           destination: lockbox.address,
           responseDestination: operator.address,
@@ -803,7 +803,7 @@ describe('JettonLockBox', () => {
 
       // Operator sends withdraw via internal message (simulating on-chain off-ramp caller)
       const result = await lockbox.sendJettonLockBoxWithdraw(operator.getSender(), toNano('0.2'), {
-        queryId: 301n,
+        queryID: 301n,
         token: jettonMinter.address,
         remoteChainSelector,
         amount: toNano('5'),
@@ -833,7 +833,7 @@ describe('JettonLockBox', () => {
 
     it('should reject withdraw with zero amount', async () => {
       const result = await lockbox.sendJettonLockBoxWithdraw(operator.getSender(), toNano('0.2'), {
-        queryId: 302n,
+        queryID: 302n,
         token: jettonMinter.address,
         remoteChainSelector,
         amount: 0n,
@@ -857,7 +857,7 @@ describe('JettonLockBox', () => {
       )
 
       const result = await lockbox.sendJettonLockBoxWithdraw(operator.getSender(), toNano('0.2'), {
-        queryId: 303n,
+        queryID: 303n,
         token: jettonMinter.address,
         remoteChainSelector,
         amount: toNano('5'),
@@ -886,7 +886,7 @@ describe('JettonLockBox', () => {
       // Contract is already initialized in beforeEach, try to init again
       const lockboxWalletAddress = await jettonMinter.getWalletAddress(lockbox.address)
       const result = await lockbox.sendJettonLockBoxInit(deployer.getSender(), toNano('1'), {
-        queryId: 999n,
+        queryID: 999n,
         minterAddress: jettonMinter.address,
         walletAddress: lockboxWalletAddress,
         admin: deployer.address,
@@ -927,7 +927,7 @@ describe('JettonLockBox', () => {
         operator.getSender(),
         toNano('0.2'),
         {
-          queryId: 600n,
+          queryID: 600n,
           minterAddress: jettonMinter.address,
           walletAddress: boundWalletAddress,
           admin: operator.address,
@@ -945,7 +945,7 @@ describe('JettonLockBox', () => {
         deployer.getSender(),
         toNano('0.2'),
         {
-          queryId: 601n,
+          queryID: 601n,
           minterAddress: jettonMinter.address,
           walletAddress: boundWalletAddress,
           admin: deployer.address,
@@ -979,7 +979,7 @@ describe('JettonLockBox', () => {
         deployer.getSender(),
         toNano('0.2'),
         {
-          queryId: 602n,
+          queryID: 602n,
           minterAddress: jettonMinter.address,
           walletAddress: unboundWalletAddress,
           admin: deployer.address,
@@ -1016,7 +1016,7 @@ describe('JettonLockBox', () => {
         operator.getSender(),
         toNano('0.2'),
         {
-          queryId: 400n,
+          queryID: 400n,
           token: jettonMinter.address,
           remoteChainSelector,
           amount: toNano('5'),
@@ -1054,7 +1054,7 @@ describe('JettonLockBox', () => {
         operator.getSender(),
         toNano('0.2'),
         {
-          queryId: 500n,
+          queryID: 500n,
           minterAddress: jettonMinter.address,
           walletAddress: autoAdminWalletAddress,
           admin: null, // null → sender becomes admin
@@ -1091,7 +1091,7 @@ describe('JettonLockBox', () => {
       // (0.05 + 0.05 = 0.1 TON), so the combined original balance is under the minimum.
       await poorLockbox.sendDeploy(deployer.getSender(), toNano('0.05'))
       const result = await poorLockbox.sendJettonLockBoxInit(deployer.getSender(), toNano('0.04'), {
-        queryId: 700n,
+        queryID: 700n,
         minterAddress: jettonMinter.address,
         walletAddress: poorWalletAddress,
         admin: deployer.address,
@@ -1122,7 +1122,7 @@ describe('JettonLockBox', () => {
 
       await refundLockbox.sendDeploy(deployer.getSender(), toNano('3'))
       const result = await refundLockbox.sendJettonLockBoxInit(deployer.getSender(), toNano('1'), {
-        queryId: 701n,
+        queryID: 701n,
         minterAddress: jettonMinter.address,
         walletAddress: refundWalletAddress,
         admin: deployer.address,
@@ -1146,7 +1146,7 @@ describe('JettonLockBox', () => {
       await deployer.send({ to: lockbox.address, value: toNano('1'), body: beginCell().endCell() })
       const amount = toNano('0.1')
       const result = await lockbox.sendWithdrawableWithdraw(deployer.getSender(), toNano('0.02'), {
-        queryId: 300n,
+        queryID: 300n,
         destination: recipient.address,
         amount,
         reserve: null,
@@ -1166,7 +1166,7 @@ describe('JettonLockBox', () => {
         unauthorized.getSender(),
         toNano('0.02'),
         {
-          queryId: 301n,
+          queryID: 301n,
           destination: recipient.address,
           amount: toNano('0.1'),
           reserve: null,
@@ -1229,7 +1229,7 @@ describe('JettonLockBox', () => {
         AccessControlClient.createFromAddress(lockbox.address),
       )
       await acClient.sendGrantRole(deployer.getSender(), toNano('0.1'), {
-        queryId: 2n,
+        queryID: 2n,
         role: OPERATOR_ROLE_VALUE,
         account: newOperator.address,
       })
@@ -1246,7 +1246,7 @@ describe('JettonLockBox', () => {
         operator.getSender(), // operator is NOT admin, should fail
         toNano('0.1'),
         {
-          queryId: 3n,
+          queryID: 3n,
           role: OPERATOR_ROLE_VALUE,
           account: recipient.address,
         },
@@ -1301,7 +1301,7 @@ describe('JettonLockBox', () => {
       await operatorWallet.sendTransfer(operator.getSender(), {
         value: toNano('0.3'),
         message: {
-          queryId: 1100,
+          queryID: 1100,
           jettonAmount: depositAmount,
           destination: lockbox.address,
           responseDestination: operator.address,
@@ -1309,7 +1309,7 @@ describe('JettonLockBox', () => {
           forwardTonAmount: toNano('0.05'),
           forwardPayload: JettonLockBox_Deposit.toCell(
             JettonLockBox_Deposit.create({
-              queryId: 1100n,
+              queryID: 1100n,
               token: jettonMinter.address,
               remoteChainSelector,
               amount: depositAmount,
@@ -1324,7 +1324,7 @@ describe('JettonLockBox', () => {
 
       const releaseContext = beginCell().storeUint(0xdeadbeef, 32).endCell()
       const result = await lockbox.sendJettonLockBoxWithdraw(operator.getSender(), toNano('0.2'), {
-        queryId: 310n,
+        queryID: 310n,
         token: jettonMinter.address,
         remoteChainSelector,
         amount: toNano('5'),
@@ -1357,7 +1357,7 @@ describe('JettonLockBox', () => {
       expect(wrap.loadAddress().equals(operator.address)).toBe(true)
       expect(wrap.loadBit()).toBe(true) // context present
       const context = JettonLockBox_Withdraw.fromSlice(wrap.loadRef().beginParse())
-      expect(context.queryId).toBe(310n)
+      expect(context.queryID).toBe(310n)
       expect(context.amount).toBe(toNano('5'))
       expect(context.recipient.equals(recipient.address)).toBe(true)
       expect(context.extra!.forwardPayload!.equals(releaseContext)).toBe(true)
@@ -1370,7 +1370,7 @@ describe('JettonLockBox', () => {
     it.each([false, true])('returns the full bounced withdraw with extra=%s', async (withExtra) => {
       const releaseContext = withExtra ? beginCell().storeUint(0xcafebabe, 32).endCell() : null
       const withdraw = JettonLockBox_Withdraw.create({
-        queryId: 311n,
+        queryID: 311n,
         token: jettonMinter.address,
         remoteChainSelector,
         amount: toNano('5'),
@@ -1384,7 +1384,7 @@ describe('JettonLockBox', () => {
           : null,
       })
       const ask = AskToTransfer.create({
-        queryId: 311n,
+        queryID: 311n,
         jettonAmount: toNano('5'),
         transferRecipient: recipient.address,
         sendExcessesTo: operator.address,
@@ -1411,7 +1411,7 @@ describe('JettonLockBox', () => {
           if (!body) return false
           const failure = JettonLockBox_WithdrawFailed.fromSlice(body.beginParse())
           return (
-            failure.queryId === 311n &&
+            failure.queryID === 311n &&
             failure.token.equals(jettonMinter.address) &&
             failure.context !== null &&
             JettonLockBox_Withdraw.toCell(failure.context).equals(
@@ -1424,7 +1424,7 @@ describe('JettonLockBox', () => {
 
     it('accepts a short Only256 bounce from a failed best-effort return', async () => {
       const ask = AskToTransfer.create({
-        queryId: 313n,
+        queryID: 313n,
         jettonAmount: toNano('5'),
         transferRecipient: recipient.address,
         sendExcessesTo: operator.address,
@@ -1481,7 +1481,7 @@ describe('JettonLockBox', () => {
           .endCell()
           .beginParse()
         const ask = AskToTransfer.create({
-          queryId: 312n,
+          queryID: 312n,
           jettonAmount: toNano('5'),
           transferRecipient: recipient.address,
           sendExcessesTo: operator.address,

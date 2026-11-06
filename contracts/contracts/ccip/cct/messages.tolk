@@ -6,7 +6,7 @@
 /// Uses the same opcode as the standard `AskToBurn`; only the CCT JettonWallet decodes it.
 // nolint:opcode
 struct (0x595f07bc) CCT_AskToBurn {
-    queryId: uint64
+    queryID: uint64
     jettonAmount: coins
     sendExcessesTo: address?
     customPayload: cell?
@@ -20,7 +20,7 @@ struct (0x595f07bc) CCT_AskToBurn {
 /// Only the CCT JettonMinter decodes it.
 // nolint:opcode
 struct (0x7bdd97de) CCT_BurnNotificationForMinter {
-    queryId: uint64
+    queryID: uint64
     jettonAmount: coins
     burnInitiator: address
     sendExcessesTo: address?
@@ -33,7 +33,7 @@ struct (0x7bdd97de) CCT_BurnNotificationForMinter {
 /// Optionally carries a continuation `forwardPayload` on the CCIP burn path.
 // nolint:opcode
 struct (0xd53276db) CCT_ReturnExcessesBack {
-    queryId: uint64
+    queryID: uint64
     initiator: address
     /// CCIP burn continuation context (from `CCT_BurnNotificationForMinter`). Null on
     /// pure excess-return signals (e.g. mint/transfer paths), which the pool ignores.

@@ -22,4 +22,6 @@ enum Router_Error {
     WithdrawExecutorMismatch
     OnRampAccountWithdrawFailed
     FeePaymentsWithJettonsNotSupported
+    /// A legacy 256-bit bounce. Only sends whose bounce is not handled yet produce them.
+    UnhandledLegacyBounce
 }

@@ -16,7 +16,7 @@ import { CellCodec, errorCode, facilityId } from '../../utils'
 // @dev Grants `role` to `account`.
 export type GrantRole = {
   /// Query ID of the change request.
-  queryId: bigint
+  queryID: bigint
 
   /// Role of the account.
   role: bigint
@@ -27,7 +27,7 @@ export type GrantRole = {
 // @dev Revokes `role` from `account`.
 export type RevokeRole = {
   /// Query ID of the change request.
-  queryId: bigint
+  queryID: bigint
 
   /// Role of the account.
   role: bigint
@@ -38,7 +38,7 @@ export type RevokeRole = {
 // @dev Renounces `role` from calling account.
 export type RenounceRole = {
   /// Query ID of the change request.
-  queryId: bigint
+  queryID: bigint
 
   /// Role of the account.
   role: bigint
@@ -91,14 +91,14 @@ export const builder = {
         encode: (msg: GrantRole): Builder => {
           return beginCell()
             .storeUint(opcodes.in.GrantRole, 32)
-            .storeUint(msg.queryId, 64)
+            .storeUint(msg.queryID, 64)
             .storeUint(msg.role, 256)
             .storeAddress(msg.account)
         },
         load: (src: Slice): GrantRole => {
           src.skip(32) // skip opcode
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
             role: src.loadUintBig(256),
             account: src.loadAddress(),
           }
@@ -109,14 +109,14 @@ export const builder = {
         encode: (msg: RevokeRole): Builder => {
           return beginCell()
             .storeUint(opcodes.in.RevokeRole, 32)
-            .storeUint(msg.queryId, 64)
+            .storeUint(msg.queryID, 64)
             .storeUint(msg.role, 256)
             .storeAddress(msg.account)
         },
         load: (src: Slice): RevokeRole => {
           src.skip(32) // skip opcode
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
             role: src.loadUintBig(256),
             account: src.loadAddress(),
           }
@@ -127,14 +127,14 @@ export const builder = {
         encode: (msg: RenounceRole): Builder => {
           return beginCell()
             .storeUint(opcodes.in.RenounceRole, 32)
-            .storeUint(msg.queryId, 64)
+            .storeUint(msg.queryID, 64)
             .storeUint(msg.role, 256)
             .storeAddress(msg.callerConfirmation)
         },
         load: (src: Slice): RenounceRole => {
           src.skip(32) // skip opcode
           return {
-            queryId: src.loadUintBig(64),
+            queryID: src.loadUintBig(64),
             role: src.loadUintBig(256),
             callerConfirmation: src.loadAddress(),
           }

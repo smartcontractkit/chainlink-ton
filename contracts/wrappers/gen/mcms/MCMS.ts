@@ -169,7 +169,7 @@ type uint256 = bigint
 
 /**
  > struct (0xe7fabde3) MCMS_SetRoot {
- >     queryId: uint64
+ >     queryID: uint64
  >     root: uint256
  >     validUntil: uint64
  >     metadata: RootMetadata
@@ -179,7 +179,7 @@ type uint256 = bigint
  */
 export interface MCMS_SetRoot {
     readonly $: 'MCMS_SetRoot'
-    queryId: uint64
+    queryID: uint64
     root: uint256
     validUntil: uint64
     metadata: RootMetadata
@@ -191,7 +191,7 @@ export const MCMS_SetRoot = {
     PREFIX: 0xe7fabde3,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         root: uint256
         validUntil: uint64
         metadata: RootMetadata
@@ -201,14 +201,14 @@ export const MCMS_SetRoot = {
         return {
             $: 'MCMS_SetRoot',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_SetRoot {
         loadAndCheckPrefix32(s, 0xe7fabde3, 'MCMS_SetRoot');
         return {
             $: 'MCMS_SetRoot',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             root: s.loadUintBig(256),
             validUntil: s.loadUintBig(64),
             metadata: RootMetadata.fromSlice(s),
@@ -218,7 +218,7 @@ export const MCMS_SetRoot = {
     },
     store(self: MCMS_SetRoot, b: c.Builder): void {
         b.storeUint(0xe7fabde3, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.root, 256);
         b.storeUint(self.validUntil, 64);
         RootMetadata.store(self.metadata, b);
@@ -232,14 +232,14 @@ export const MCMS_SetRoot = {
 
 /**
  > struct (0x9b9ce96a) MCMS_Execute {
- >     queryId: uint64
+ >     queryID: uint64
  >     op: Cell<Op>
  >     proof: SnakedCell<uint256>
  > }
  */
 export interface MCMS_Execute {
     readonly $: 'MCMS_Execute'
-    queryId: uint64
+    queryID: uint64
     op: Op
     proof: SnakedCell<uint256>
 }
@@ -248,28 +248,28 @@ export const MCMS_Execute = {
     PREFIX: 0x9b9ce96a,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         op: Op
         proof: SnakedCell<uint256>
     }): MCMS_Execute {
         return {
             $: 'MCMS_Execute',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_Execute {
         loadAndCheckPrefix32(s, 0x9b9ce96a, 'MCMS_Execute');
         return {
             $: 'MCMS_Execute',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             op: loadCellRef<Op>(s, Op.fromSlice),
             proof: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
         }
     },
     store(self: MCMS_Execute, b: c.Builder): void {
         b.storeUint(0x9b9ce96a, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<Op>(self.op, b, Op.store);
         storeSnakedCellOf(self.proof, b, (v, b) => b.storeUint(v, 256));
     },
@@ -280,7 +280,7 @@ export const MCMS_Execute = {
 
 /**
  > struct (0x89277f4b) MCMS_SetConfig {
- >     queryId: uint64
+ >     queryID: uint64
  >     signerAddresses: SnakedCell<uint160>
  >     signerGroups: SnakedCell<uint8>
  >     groupQuorums: map<uint8, uint8>
@@ -290,7 +290,7 @@ export const MCMS_Execute = {
  */
 export interface MCMS_SetConfig {
     readonly $: 'MCMS_SetConfig'
-    queryId: uint64
+    queryID: uint64
     signerAddresses: SnakedCell<uint160>
     signerGroups: SnakedCell<uint8>
     groupQuorums: Map<uint8, uint8>
@@ -302,7 +302,7 @@ export const MCMS_SetConfig = {
     PREFIX: 0x89277f4b,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         signerAddresses: SnakedCell<uint160>
         signerGroups: SnakedCell<uint8>
         groupQuorums: Map<uint8, uint8>
@@ -312,14 +312,14 @@ export const MCMS_SetConfig = {
         return {
             $: 'MCMS_SetConfig',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_SetConfig {
         loadAndCheckPrefix32(s, 0x89277f4b, 'MCMS_SetConfig');
         return {
             $: 'MCMS_SetConfig',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             signerAddresses: loadSnakedCellOf(s, (s) => s.loadUintBig(160)),
             signerGroups: loadSnakedCellOf(s, (s) => s.loadUintBig(8)),
             groupQuorums: dictToMap(c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s)),
@@ -329,7 +329,7 @@ export const MCMS_SetConfig = {
     },
     store(self: MCMS_SetConfig, b: c.Builder): void {
         b.storeUint(0x89277f4b, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeSnakedCellOf(self.signerAddresses, b, (v, b) => b.storeUint(v, 160));
         storeSnakedCellOf(self.signerGroups, b, (v, b) => b.storeUint(v, 8));
         b.storeDict<uint8, uint8>(mapToDict(self.groupQuorums, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
@@ -343,13 +343,13 @@ export const MCMS_SetConfig = {
 
 /**
  > struct (0x9dcbbab1) MCMS_UpdateOpFinalizationTimeout {
- >     queryId: uint64
+ >     queryID: uint64
  >     newOpFinalizationTimeout: uint32
  > }
  */
 export interface MCMS_UpdateOpFinalizationTimeout {
     readonly $: 'MCMS_UpdateOpFinalizationTimeout'
-    queryId: uint64
+    queryID: uint64
     newOpFinalizationTimeout: uint32
 }
 
@@ -357,26 +357,26 @@ export const MCMS_UpdateOpFinalizationTimeout = {
     PREFIX: 0x9dcbbab1,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         newOpFinalizationTimeout: uint32
     }): MCMS_UpdateOpFinalizationTimeout {
         return {
             $: 'MCMS_UpdateOpFinalizationTimeout',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_UpdateOpFinalizationTimeout {
         loadAndCheckPrefix32(s, 0x9dcbbab1, 'MCMS_UpdateOpFinalizationTimeout');
         return {
             $: 'MCMS_UpdateOpFinalizationTimeout',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             newOpFinalizationTimeout: s.loadUintBig(32),
         }
     },
     store(self: MCMS_UpdateOpFinalizationTimeout, b: c.Builder): void {
         b.storeUint(0x9dcbbab1, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.newOpFinalizationTimeout, 32);
     },
     toCell(self: MCMS_UpdateOpFinalizationTimeout): c.Cell {
@@ -386,7 +386,7 @@ export const MCMS_UpdateOpFinalizationTimeout = {
 
 /**
  > struct (0x4b3af0b5) MCMS_SubmitErrorReport {
- >     queryId: uint64
+ >     queryID: uint64
  >     op: Cell<Op>
  >     proof: SnakedCell<uint256>
  >     opTxHash: uint256
@@ -396,7 +396,7 @@ export const MCMS_UpdateOpFinalizationTimeout = {
  */
 export interface MCMS_SubmitErrorReport {
     readonly $: 'MCMS_SubmitErrorReport'
-    queryId: uint64
+    queryID: uint64
     op: Op
     proof: SnakedCell<uint256>
     opTxHash: uint256
@@ -408,7 +408,7 @@ export const MCMS_SubmitErrorReport = {
     PREFIX: 0x4b3af0b5,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         op: Op
         proof: SnakedCell<uint256>
         opTxHash: uint256
@@ -418,14 +418,14 @@ export const MCMS_SubmitErrorReport = {
         return {
             $: 'MCMS_SubmitErrorReport',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_SubmitErrorReport {
         loadAndCheckPrefix32(s, 0x4b3af0b5, 'MCMS_SubmitErrorReport');
         return {
             $: 'MCMS_SubmitErrorReport',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             op: loadCellRef<Op>(s, Op.fromSlice),
             proof: loadSnakedCellOf(s, (s) => s.loadUintBig(256)),
             opTxHash: s.loadUintBig(256),
@@ -435,7 +435,7 @@ export const MCMS_SubmitErrorReport = {
     },
     store(self: MCMS_SubmitErrorReport, b: c.Builder): void {
         b.storeUint(0x4b3af0b5, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeCellRef<Op>(self.op, b, Op.store);
         storeSnakedCellOf(self.proof, b, (v, b) => b.storeUint(v, 256));
         b.storeUint(self.opTxHash, 256);
@@ -449,13 +449,13 @@ export const MCMS_SubmitErrorReport = {
 
 /**
  > struct (0xf275742f) MCMS_TransferOracleRole {
- >     queryId: uint64
+ >     queryID: uint64
  >     newOracle: address
  > }
  */
 export interface MCMS_TransferOracleRole {
     readonly $: 'MCMS_TransferOracleRole'
-    queryId: uint64
+    queryID: uint64
     newOracle: c.Address
 }
 
@@ -463,26 +463,26 @@ export const MCMS_TransferOracleRole = {
     PREFIX: 0xf275742f,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         newOracle: c.Address
     }): MCMS_TransferOracleRole {
         return {
             $: 'MCMS_TransferOracleRole',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_TransferOracleRole {
         loadAndCheckPrefix32(s, 0xf275742f, 'MCMS_TransferOracleRole');
         return {
             $: 'MCMS_TransferOracleRole',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             newOracle: s.loadAddress(),
         }
     },
     store(self: MCMS_TransferOracleRole, b: c.Builder): void {
         b.storeUint(0xf275742f, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.newOracle);
     },
     toCell(self: MCMS_TransferOracleRole): c.Cell {
@@ -492,13 +492,13 @@ export const MCMS_TransferOracleRole = {
 
 /**
  > struct (0xa903c276) MCMS_CleanExpiredRoots {
- >     queryId: uint64
+ >     queryID: uint64
  >     roots: SnakedCell<RootDescriptor>
  > }
  */
 export interface MCMS_CleanExpiredRoots {
     readonly $: 'MCMS_CleanExpiredRoots'
-    queryId: uint64
+    queryID: uint64
     roots: SnakedCell<RootDescriptor>
 }
 
@@ -506,26 +506,26 @@ export const MCMS_CleanExpiredRoots = {
     PREFIX: 0xa903c276,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         roots: SnakedCell<RootDescriptor>
     }): MCMS_CleanExpiredRoots {
         return {
             $: 'MCMS_CleanExpiredRoots',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_CleanExpiredRoots {
         loadAndCheckPrefix32(s, 0xa903c276, 'MCMS_CleanExpiredRoots');
         return {
             $: 'MCMS_CleanExpiredRoots',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             roots: loadSnakedCellOf(s, RootDescriptor.fromSlice),
         }
     },
     store(self: MCMS_CleanExpiredRoots, b: c.Builder): void {
         b.storeUint(0xa903c276, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeSnakedCellOf(self.roots, b, RootDescriptor.store);
     },
     toCell(self: MCMS_CleanExpiredRoots): c.Cell {
@@ -535,7 +535,7 @@ export const MCMS_CleanExpiredRoots = {
 
 /**
  > struct (0xa6533a3d) MCMS_NewRoot {
- >     queryId: uint64
+ >     queryID: uint64
  >     root: uint256
  >     validUntil: uint64
  >     metadata: RootMetadata
@@ -543,7 +543,7 @@ export const MCMS_CleanExpiredRoots = {
  */
 export interface MCMS_NewRoot {
     readonly $: 'MCMS_NewRoot'
-    queryId: uint64
+    queryID: uint64
     root: uint256
     validUntil: uint64
     metadata: RootMetadata
@@ -553,7 +553,7 @@ export const MCMS_NewRoot = {
     PREFIX: 0xa6533a3d,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         root: uint256
         validUntil: uint64
         metadata: RootMetadata
@@ -561,14 +561,14 @@ export const MCMS_NewRoot = {
         return {
             $: 'MCMS_NewRoot',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_NewRoot {
         loadAndCheckPrefix32(s, 0xa6533a3d, 'MCMS_NewRoot');
         return {
             $: 'MCMS_NewRoot',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             root: s.loadUintBig(256),
             validUntil: s.loadUintBig(64),
             metadata: RootMetadata.fromSlice(s),
@@ -576,7 +576,7 @@ export const MCMS_NewRoot = {
     },
     store(self: MCMS_NewRoot, b: c.Builder): void {
         b.storeUint(0xa6533a3d, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.root, 256);
         b.storeUint(self.validUntil, 64);
         RootMetadata.store(self.metadata, b);
@@ -588,14 +588,14 @@ export const MCMS_NewRoot = {
 
 /**
  > struct (0xd80be574) MCMS_ConfigSet {
- >     queryId: uint64
+ >     queryID: uint64
  >     config: Config
  >     isRootCleared: bool
  > }
  */
 export interface MCMS_ConfigSet {
     readonly $: 'MCMS_ConfigSet'
-    queryId: uint64
+    queryID: uint64
     config: Config
     isRootCleared: boolean
 }
@@ -604,28 +604,28 @@ export const MCMS_ConfigSet = {
     PREFIX: 0xd80be574,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         config: Config
         isRootCleared: boolean
     }): MCMS_ConfigSet {
         return {
             $: 'MCMS_ConfigSet',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_ConfigSet {
         loadAndCheckPrefix32(s, 0xd80be574, 'MCMS_ConfigSet');
         return {
             $: 'MCMS_ConfigSet',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             config: Config.fromSlice(s),
             isRootCleared: s.loadBoolean(),
         }
     },
     store(self: MCMS_ConfigSet, b: c.Builder): void {
         b.storeUint(0xd80be574, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         Config.store(self.config, b);
         b.storeBit(self.isRootCleared);
     },
@@ -636,7 +636,7 @@ export const MCMS_ConfigSet = {
 
 /**
  > struct (0x7cf37cbf) MCMS_OpExecuted {
- >     queryId: uint64
+ >     queryID: uint64
  >     nonce: uint40
  >     to: address
  >     data: cell
@@ -645,7 +645,7 @@ export const MCMS_ConfigSet = {
  */
 export interface MCMS_OpExecuted {
     readonly $: 'MCMS_OpExecuted'
-    queryId: uint64
+    queryID: uint64
     nonce: uint40
     to: c.Address
     data: c.Cell
@@ -656,7 +656,7 @@ export const MCMS_OpExecuted = {
     PREFIX: 0x7cf37cbf,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         nonce: uint40
         to: c.Address
         data: c.Cell
@@ -665,14 +665,14 @@ export const MCMS_OpExecuted = {
         return {
             $: 'MCMS_OpExecuted',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_OpExecuted {
         loadAndCheckPrefix32(s, 0x7cf37cbf, 'MCMS_OpExecuted');
         return {
             $: 'MCMS_OpExecuted',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             nonce: s.loadUintBig(40),
             to: s.loadAddress(),
             data: s.loadRef(),
@@ -681,7 +681,7 @@ export const MCMS_OpExecuted = {
     },
     store(self: MCMS_OpExecuted, b: c.Builder): void {
         b.storeUint(0x7cf37cbf, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.nonce, 40);
         b.storeAddress(self.to);
         b.storeRef(self.data);
@@ -694,14 +694,14 @@ export const MCMS_OpExecuted = {
 
 /**
  > struct (0x16fc10e6) MCMS_OpFinalizationTimeoutChange {
- >     queryId: uint64
+ >     queryID: uint64
  >     oldDuration: uint32
  >     newDuration: uint32
  > }
  */
 export interface MCMS_OpFinalizationTimeoutChange {
     readonly $: 'MCMS_OpFinalizationTimeoutChange'
-    queryId: uint64
+    queryID: uint64
     oldDuration: uint32
     newDuration: uint32
 }
@@ -710,28 +710,28 @@ export const MCMS_OpFinalizationTimeoutChange = {
     PREFIX: 0x16fc10e6,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         oldDuration: uint32
         newDuration: uint32
     }): MCMS_OpFinalizationTimeoutChange {
         return {
             $: 'MCMS_OpFinalizationTimeoutChange',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_OpFinalizationTimeoutChange {
         loadAndCheckPrefix32(s, 0x16fc10e6, 'MCMS_OpFinalizationTimeoutChange');
         return {
             $: 'MCMS_OpFinalizationTimeoutChange',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             oldDuration: s.loadUintBig(32),
             newDuration: s.loadUintBig(32),
         }
     },
     store(self: MCMS_OpFinalizationTimeoutChange, b: c.Builder): void {
         b.storeUint(0x16fc10e6, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.oldDuration, 32);
         b.storeUint(self.newDuration, 32);
     },
@@ -742,7 +742,7 @@ export const MCMS_OpFinalizationTimeoutChange = {
 
 /**
  > struct (0xbbc4deb4) MCMS_ErrorReportSubmitted {
- >     queryId: uint64
+ >     queryID: uint64
  >     opLeafHash: uint256
  >     opTxHash: uint256
  >     errorTxHash: uint256
@@ -753,7 +753,7 @@ export const MCMS_OpFinalizationTimeoutChange = {
  */
 export interface MCMS_ErrorReportSubmitted {
     readonly $: 'MCMS_ErrorReportSubmitted'
-    queryId: uint64
+    queryID: uint64
     opLeafHash: uint256
     opTxHash: uint256
     errorTxHash: uint256
@@ -766,7 +766,7 @@ export const MCMS_ErrorReportSubmitted = {
     PREFIX: 0xbbc4deb4,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         opLeafHash: uint256
         opTxHash: uint256
         errorTxHash: uint256
@@ -777,14 +777,14 @@ export const MCMS_ErrorReportSubmitted = {
         return {
             $: 'MCMS_ErrorReportSubmitted',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_ErrorReportSubmitted {
         loadAndCheckPrefix32(s, 0xbbc4deb4, 'MCMS_ErrorReportSubmitted');
         return {
             $: 'MCMS_ErrorReportSubmitted',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             opLeafHash: s.loadUintBig(256),
             opTxHash: s.loadUintBig(256),
             errorTxHash: s.loadUintBig(256),
@@ -797,7 +797,7 @@ export const MCMS_ErrorReportSubmitted = {
     },
     store(self: MCMS_ErrorReportSubmitted, b: c.Builder): void {
         b.storeUint(0xbbc4deb4, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.opLeafHash, 256);
         b.storeUint(self.opTxHash, 256);
         b.storeUint(self.errorTxHash, 256);
@@ -814,14 +814,14 @@ export const MCMS_ErrorReportSubmitted = {
 
 /**
  > struct (0xff4176a3) MCMS_OracleRoleTransferred {
- >     queryId: uint64
+ >     queryID: uint64
  >     oldOracle: address
  >     newOracle: address
  > }
  */
 export interface MCMS_OracleRoleTransferred {
     readonly $: 'MCMS_OracleRoleTransferred'
-    queryId: uint64
+    queryID: uint64
     oldOracle: c.Address
     newOracle: c.Address
 }
@@ -830,28 +830,28 @@ export const MCMS_OracleRoleTransferred = {
     PREFIX: 0xff4176a3,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         oldOracle: c.Address
         newOracle: c.Address
     }): MCMS_OracleRoleTransferred {
         return {
             $: 'MCMS_OracleRoleTransferred',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_OracleRoleTransferred {
         loadAndCheckPrefix32(s, 0xff4176a3, 'MCMS_OracleRoleTransferred');
         return {
             $: 'MCMS_OracleRoleTransferred',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             oldOracle: s.loadAddress(),
             newOracle: s.loadAddress(),
         }
     },
     store(self: MCMS_OracleRoleTransferred, b: c.Builder): void {
         b.storeUint(0xff4176a3, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.oldOracle);
         b.storeAddress(self.newOracle);
     },
@@ -862,13 +862,13 @@ export const MCMS_OracleRoleTransferred = {
 
 /**
  > struct (0xa86846d5) MCMS_ExpiredRootsCleaned {
- >     queryId: uint64
+ >     queryID: uint64
  >     roots: SnakedCell<RootDescriptor>
  > }
  */
 export interface MCMS_ExpiredRootsCleaned {
     readonly $: 'MCMS_ExpiredRootsCleaned'
-    queryId: uint64
+    queryID: uint64
     roots: SnakedCell<RootDescriptor>
 }
 
@@ -876,26 +876,26 @@ export const MCMS_ExpiredRootsCleaned = {
     PREFIX: 0xa86846d5,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         roots: SnakedCell<RootDescriptor>
     }): MCMS_ExpiredRootsCleaned {
         return {
             $: 'MCMS_ExpiredRootsCleaned',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MCMS_ExpiredRootsCleaned {
         loadAndCheckPrefix32(s, 0xa86846d5, 'MCMS_ExpiredRootsCleaned');
         return {
             $: 'MCMS_ExpiredRootsCleaned',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             roots: loadSnakedCellOf(s, RootDescriptor.fromSlice),
         }
     },
     store(self: MCMS_ExpiredRootsCleaned, b: c.Builder): void {
         b.storeUint(0xa86846d5, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeSnakedCellOf(self.roots, b, RootDescriptor.store);
     },
     toCell(self: MCMS_ExpiredRootsCleaned): c.Cell {
@@ -1531,36 +1531,36 @@ export const Ownable2Step = {
 
 /**
  > struct Ownable2Step_OwnershipTransferRequested {
- >     queryId: uint64
+ >     queryID: uint64
  >     newOwner: address
  > }
  */
 export interface Ownable2Step_OwnershipTransferRequested {
     readonly $: 'Ownable2Step_OwnershipTransferRequested'
-    queryId: uint64
+    queryID: uint64
     newOwner: c.Address
 }
 
 export const Ownable2Step_OwnershipTransferRequested = {
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferRequested {
         return {
             $: 'Ownable2Step_OwnershipTransferRequested',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferRequested {
         return {
             $: 'Ownable2Step_OwnershipTransferRequested',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             newOwner: s.loadAddress(),
         }
     },
     store(self: Ownable2Step_OwnershipTransferRequested, b: c.Builder): void {
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.newOwner);
     },
     toCell(self: Ownable2Step_OwnershipTransferRequested): c.Cell {
@@ -1570,40 +1570,40 @@ export const Ownable2Step_OwnershipTransferRequested = {
 
 /**
  > struct Ownable2Step_OwnershipTransferred {
- >     queryId: uint64
+ >     queryID: uint64
  >     oldOwner: address
  >     newOwner: address
  > }
  */
 export interface Ownable2Step_OwnershipTransferred {
     readonly $: 'Ownable2Step_OwnershipTransferred'
-    queryId: uint64
+    queryID: uint64
     oldOwner: c.Address
     newOwner: c.Address
 }
 
 export const Ownable2Step_OwnershipTransferred = {
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         oldOwner: c.Address
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferred {
         return {
             $: 'Ownable2Step_OwnershipTransferred',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferred {
         return {
             $: 'Ownable2Step_OwnershipTransferred',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             oldOwner: s.loadAddress(),
             newOwner: s.loadAddress(),
         }
     },
     store(self: Ownable2Step_OwnershipTransferred, b: c.Builder): void {
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.oldOwner);
         b.storeAddress(self.newOwner);
     },
@@ -1717,7 +1717,7 @@ export class MCMS implements c.Contract {
     }
 
     static createCellOfMCMSSetRoot(body: {
-        queryId?: uint64
+        queryID?: uint64
         root: uint256
         validUntil: uint64
         metadata: RootMetadata
@@ -1728,7 +1728,7 @@ export class MCMS implements c.Contract {
     }
 
     static createCellOfMCMSExecute(body: {
-        queryId?: uint64
+        queryID?: uint64
         op: Op
         proof: SnakedCell<uint256>
     }) {
@@ -1736,7 +1736,7 @@ export class MCMS implements c.Contract {
     }
 
     static createCellOfMCMSSetConfig(body: {
-        queryId?: uint64
+        queryID?: uint64
         signerAddresses: SnakedCell<uint160>
         signerGroups: SnakedCell<uint8>
         groupQuorums: Map<uint8, uint8>
@@ -1747,14 +1747,14 @@ export class MCMS implements c.Contract {
     }
 
     static createCellOfMCMSUpdateOpFinalizationTimeout(body: {
-        queryId?: uint64
+        queryID?: uint64
         newOpFinalizationTimeout: uint32
     }) {
         return MCMS_UpdateOpFinalizationTimeout.toCell(MCMS_UpdateOpFinalizationTimeout.create(body));
     }
 
     static createCellOfMCMSSubmitErrorReport(body: {
-        queryId?: uint64
+        queryID?: uint64
         op: Op
         proof: SnakedCell<uint256>
         opTxHash: uint256
@@ -1765,21 +1765,21 @@ export class MCMS implements c.Contract {
     }
 
     static createCellOfMCMSTransferOracleRole(body: {
-        queryId?: uint64
+        queryID?: uint64
         newOracle: c.Address
     }) {
         return MCMS_TransferOracleRole.toCell(MCMS_TransferOracleRole.create(body));
     }
 
     static createCellOfMCMSCleanExpiredRoots(body: {
-        queryId?: uint64
+        queryID?: uint64
         roots: SnakedCell<RootDescriptor>
     }) {
         return MCMS_CleanExpiredRoots.toCell(MCMS_CleanExpiredRoots.create(body));
     }
 
     static createCellOfMCMSConfigSet(body: {
-        queryId?: uint64
+        queryID?: uint64
         config: Config
         isRootCleared: boolean
     }) {
@@ -1787,7 +1787,7 @@ export class MCMS implements c.Contract {
     }
 
     static createCellOfMCMSOracleRoleTransferred(body: {
-        queryId?: uint64
+        queryID?: uint64
         oldOracle: c.Address
         newOracle: c.Address
     }) {
@@ -1795,7 +1795,7 @@ export class MCMS implements c.Contract {
     }
 
     static createCellOfMCMSExpiredRootsCleaned(body: {
-        queryId?: uint64
+        queryID?: uint64
         roots: SnakedCell<RootDescriptor>
     }) {
         return MCMS_ExpiredRootsCleaned.toCell(MCMS_ExpiredRootsCleaned.create(body));
@@ -1818,7 +1818,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSSetRoot(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         root: uint256
         validUntil: uint64
         metadata: RootMetadata
@@ -1833,7 +1833,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSExecute(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         op: Op
         proof: SnakedCell<uint256>
     }, extraOptions?: ExtraSendOptions) {
@@ -1845,7 +1845,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSSetConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         signerAddresses: SnakedCell<uint160>
         signerGroups: SnakedCell<uint8>
         groupQuorums: Map<uint8, uint8>
@@ -1860,7 +1860,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSUpdateOpFinalizationTimeout(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         newOpFinalizationTimeout: uint32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1871,7 +1871,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSSubmitErrorReport(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         op: Op
         proof: SnakedCell<uint256>
         opTxHash: uint256
@@ -1886,7 +1886,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSTransferOracleRole(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         newOracle: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1897,7 +1897,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSCleanExpiredRoots(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         roots: SnakedCell<RootDescriptor>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1908,7 +1908,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSConfigSet(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         config: Config
         isRootCleared: boolean
     }, extraOptions?: ExtraSendOptions) {
@@ -1920,7 +1920,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSOracleRoleTransferred(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         oldOracle: c.Address
         newOracle: c.Address
     }, extraOptions?: ExtraSendOptions) {
@@ -1932,7 +1932,7 @@ export class MCMS implements c.Contract {
     }
 
     async sendMCMSExpiredRootsCleaned(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         roots: SnakedCell<RootDescriptor>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {

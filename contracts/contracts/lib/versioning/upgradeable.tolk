@@ -111,7 +111,7 @@ enum Upgradeable_Error {
 
 /// Message for upgrading a contract.
 struct (0x0aa811ed) Upgradeable_Upgrade {
-    queryId: uint64;
+    queryID: uint64;
     code: cell;
 }
 

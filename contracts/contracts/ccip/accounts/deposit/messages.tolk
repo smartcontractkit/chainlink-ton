@@ -12,18 +12,18 @@ import "../../../lib/jetton/messages"
 ///      bounces with `InitPending`, so concurrent first inits to the same account fail all but
 ///      one and must be retried by the owner.
 struct (0x6890a205) DepositAccount_Init {
-    queryId: uint64;
+    queryID: uint64;
     /// Echoed back in the reply.
     context: cell?;
 }
 
 struct (0x784d98e9) DepositAccount_Initialized {
-    queryId: uint64;
+    queryID: uint64;
     context: cell?;
 }
 
 struct (0x9293d68e) DepositAccount_WalletUnavailable {
-    queryId: uint64;
+    queryID: uint64;
     context: cell?;
 }
 
@@ -44,7 +44,7 @@ struct (0x88e0ef3e) DepositAccount_Notify {
 
 /// Sent by a beneficiary to transfer jettons out of the account's jetton wallet.
 struct (0x1936d112) DepositAccount_Withdraw {
-    queryId: uint64;
+    queryID: uint64;
     ask: AskToTransfer;
 }
 
@@ -54,7 +54,7 @@ struct (0x1936d112) DepositAccount_Withdraw {
 /// @dev `user` and `token` are self-reported: the recipient must re-derive the account address
 ///      from them and match it against the sender before believing them.
 struct (0xa51b6cba) DepositAccount_WithdrawFailed {
-    queryId: uint64;
+    queryID: uint64;
     user: address;
     token: address;
     /// Jetton wallet the failed `ask` was sent to.

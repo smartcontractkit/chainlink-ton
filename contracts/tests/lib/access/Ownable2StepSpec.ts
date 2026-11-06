@@ -29,7 +29,7 @@ export async function ownable2StepSpec(
     deployer.getSender(),
     toNano('0.05'),
     {
-      queryId: 1n,
+      queryID: 1n,
       newOwner: other.address,
     },
   )
@@ -46,7 +46,7 @@ export async function ownable2StepSpec(
     other.getSender(),
     toNano('0.05'),
     {
-      queryId: 1n,
+      queryID: 1n,
     },
   )
   expect(resultAcceptOwnership.transactions).toHaveTransaction({

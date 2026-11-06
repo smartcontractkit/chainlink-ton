@@ -298,6 +298,8 @@ function invokeCustomUnpackFromSlice<T>(typeName: string, s: c.Slice): T {
 
 type coins = bigint
 
+type int32 = bigint
+
 type uint8 = bigint
 type uint16 = bigint
 type uint32 = bigint
@@ -390,13 +392,13 @@ export const Ownable2Step = {
 
 /**
  > struct (0xf21b7da1) Ownable2Step_TransferOwnership {
- >     queryId: uint64
+ >     queryID: uint64
  >     newOwner: address
  > }
  */
 export interface Ownable2Step_TransferOwnership {
     readonly $: 'Ownable2Step_TransferOwnership'
-    queryId: uint64
+    queryID: uint64
     newOwner: c.Address
 }
 
@@ -404,26 +406,26 @@ export const Ownable2Step_TransferOwnership = {
     PREFIX: 0xf21b7da1,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         newOwner: c.Address
     }): Ownable2Step_TransferOwnership {
         return {
             $: 'Ownable2Step_TransferOwnership',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_TransferOwnership {
         loadAndCheckPrefix32(s, 0xf21b7da1, 'Ownable2Step_TransferOwnership');
         return {
             $: 'Ownable2Step_TransferOwnership',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             newOwner: s.loadAddress(),
         }
     },
     store(self: Ownable2Step_TransferOwnership, b: c.Builder): void {
         b.storeUint(0xf21b7da1, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.newOwner);
     },
     toCell(self: Ownable2Step_TransferOwnership): c.Cell {
@@ -433,36 +435,36 @@ export const Ownable2Step_TransferOwnership = {
 
 /**
  > struct (0xf9e29e4a) Ownable2Step_AcceptOwnership {
- >     queryId: uint64
+ >     queryID: uint64
  > }
  */
 export interface Ownable2Step_AcceptOwnership {
     readonly $: 'Ownable2Step_AcceptOwnership'
-    queryId: uint64
+    queryID: uint64
 }
 
 export const Ownable2Step_AcceptOwnership = {
     PREFIX: 0xf9e29e4a,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
     }): Ownable2Step_AcceptOwnership {
         return {
             $: 'Ownable2Step_AcceptOwnership',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_AcceptOwnership {
         loadAndCheckPrefix32(s, 0xf9e29e4a, 'Ownable2Step_AcceptOwnership');
         return {
             $: 'Ownable2Step_AcceptOwnership',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
         }
     },
     store(self: Ownable2Step_AcceptOwnership, b: c.Builder): void {
         b.storeUint(0xf9e29e4a, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
     },
     toCell(self: Ownable2Step_AcceptOwnership): c.Cell {
         return makeCellFrom<Ownable2Step_AcceptOwnership>(self, Ownable2Step_AcceptOwnership.store);
@@ -471,36 +473,36 @@ export const Ownable2Step_AcceptOwnership = {
 
 /**
  > struct Ownable2Step_OwnershipTransferRequested {
- >     queryId: uint64
+ >     queryID: uint64
  >     newOwner: address
  > }
  */
 export interface Ownable2Step_OwnershipTransferRequested {
     readonly $: 'Ownable2Step_OwnershipTransferRequested'
-    queryId: uint64
+    queryID: uint64
     newOwner: c.Address
 }
 
 export const Ownable2Step_OwnershipTransferRequested = {
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferRequested {
         return {
             $: 'Ownable2Step_OwnershipTransferRequested',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferRequested {
         return {
             $: 'Ownable2Step_OwnershipTransferRequested',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             newOwner: s.loadAddress(),
         }
     },
     store(self: Ownable2Step_OwnershipTransferRequested, b: c.Builder): void {
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.newOwner);
     },
     toCell(self: Ownable2Step_OwnershipTransferRequested): c.Cell {
@@ -510,40 +512,40 @@ export const Ownable2Step_OwnershipTransferRequested = {
 
 /**
  > struct Ownable2Step_OwnershipTransferred {
- >     queryId: uint64
+ >     queryID: uint64
  >     oldOwner: address
  >     newOwner: address
  > }
  */
 export interface Ownable2Step_OwnershipTransferred {
     readonly $: 'Ownable2Step_OwnershipTransferred'
-    queryId: uint64
+    queryID: uint64
     oldOwner: c.Address
     newOwner: c.Address
 }
 
 export const Ownable2Step_OwnershipTransferred = {
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         oldOwner: c.Address
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferred {
         return {
             $: 'Ownable2Step_OwnershipTransferred',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferred {
         return {
             $: 'Ownable2Step_OwnershipTransferred',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             oldOwner: s.loadAddress(),
             newOwner: s.loadAddress(),
         }
     },
     store(self: Ownable2Step_OwnershipTransferred, b: c.Builder): void {
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.oldOwner);
         b.storeAddress(self.newOwner);
     },
@@ -575,7 +577,7 @@ export const Withdrawable_Error = {
 
 /**
  > struct (0xf343fc1b) Withdrawable_Withdraw {
- >     queryId: uint64
+ >     queryID: uint64
  >     destination: address
  >     amount: coins
  >     reserve: coins?
@@ -584,7 +586,7 @@ export const Withdrawable_Error = {
  */
 export interface Withdrawable_Withdraw {
     readonly $: 'Withdrawable_Withdraw'
-    queryId: uint64
+    queryID: uint64
     destination: c.Address
     amount: coins
     reserve: coins | null
@@ -595,7 +597,7 @@ export const Withdrawable_Withdraw = {
     PREFIX: 0xf343fc1b,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -604,14 +606,14 @@ export const Withdrawable_Withdraw = {
         return {
             $: 'Withdrawable_Withdraw',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Withdrawable_Withdraw {
         loadAndCheckPrefix32(s, 0xf343fc1b, 'Withdrawable_Withdraw');
         return {
             $: 'Withdrawable_Withdraw',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             destination: s.loadAddress(),
             amount: s.loadCoins(),
             reserve: s.loadBoolean() ? s.loadCoins() : null,
@@ -620,7 +622,7 @@ export const Withdrawable_Withdraw = {
     },
     store(self: Withdrawable_Withdraw, b: c.Builder): void {
         b.storeUint(0xf343fc1b, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.destination);
         b.storeCoins(self.amount);
         storeTolkNullable<coins>(self.reserve, b,
@@ -654,13 +656,13 @@ export const Upgradeable_Error = {
 
 /**
  > struct (0x0aa811ed) Upgradeable_Upgrade {
- >     queryId: uint64
+ >     queryID: uint64
  >     code: cell
  > }
  */
 export interface Upgradeable_Upgrade {
     readonly $: 'Upgradeable_Upgrade'
-    queryId: uint64
+    queryID: uint64
     code: c.Cell
 }
 
@@ -668,26 +670,26 @@ export const Upgradeable_Upgrade = {
     PREFIX: 0x0aa811ed,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         code: c.Cell
     }): Upgradeable_Upgrade {
         return {
             $: 'Upgradeable_Upgrade',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Upgradeable_Upgrade {
         loadAndCheckPrefix32(s, 0x0aa811ed, 'Upgradeable_Upgrade');
         return {
             $: 'Upgradeable_Upgrade',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             code: s.loadRef(),
         }
     },
     store(self: Upgradeable_Upgrade, b: c.Builder): void {
         b.storeUint(0x0aa811ed, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeRef(self.code);
     },
     toCell(self: Upgradeable_Upgrade): c.Cell {
@@ -1450,14 +1452,14 @@ export const FeeQuoter_MessageValidated = {
 
 /**
  > struct (0x4785cb72) FeeQuoter_MessageValidationFailed {
- >     error: uint256
+ >     errorCode: int32
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
  > }
  */
 export interface FeeQuoter_MessageValidationFailed {
     readonly $: 'FeeQuoter_MessageValidationFailed'
-    error: uint256
+    errorCode: int32
     msg: Router_CCIPSend
     context: c.Cell | null /* = null */
 }
@@ -1466,7 +1468,7 @@ export const FeeQuoter_MessageValidationFailed = {
     PREFIX: 0x4785cb72,
 
     create(args: {
-        error: uint256
+        errorCode: int32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }): FeeQuoter_MessageValidationFailed {
@@ -1480,14 +1482,14 @@ export const FeeQuoter_MessageValidationFailed = {
         loadAndCheckPrefix32(s, 0x4785cb72, 'FeeQuoter_MessageValidationFailed');
         return {
             $: 'FeeQuoter_MessageValidationFailed',
-            error: s.loadUintBig(256),
+            errorCode: s.loadIntBig(32),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: FeeQuoter_MessageValidationFailed, b: c.Builder): void {
         b.storeUint(0x4785cb72, 32);
-        b.storeUint(self.error, 256);
+        b.storeInt(self.errorCode, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -2525,7 +2527,7 @@ export class FeeQuoter implements c.Contract {
     }
 
     static createCellOfWithdrawableWithdraw(body: {
-        queryId?: uint64
+        queryID?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -2535,21 +2537,21 @@ export class FeeQuoter implements c.Contract {
     }
 
     static createCellOfUpgradeableUpgrade(body: {
-        queryId?: uint64
+        queryID?: uint64
         code: c.Cell
     }) {
         return Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body));
     }
 
     static createCellOfOwnable2StepTransferOwnership(body: {
-        queryId?: uint64
+        queryID?: uint64
         newOwner: c.Address
     }) {
         return Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body));
     }
 
     static createCellOfOwnable2StepAcceptOwnership(body: {
-        queryId?: uint64
+        queryID?: uint64
     }) {
         return Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body));
     }
@@ -2644,7 +2646,7 @@ export class FeeQuoter implements c.Contract {
     }
 
     async sendWithdrawableWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         destination: c.Address
         amount: coins
         reserve: coins | null
@@ -2658,7 +2660,7 @@ export class FeeQuoter implements c.Contract {
     }
 
     async sendUpgradeableUpgrade(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         code: c.Cell
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2669,7 +2671,7 @@ export class FeeQuoter implements c.Contract {
     }
 
     async sendOwnable2StepTransferOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         newOwner: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -2680,7 +2682,7 @@ export class FeeQuoter implements c.Contract {
     }
 
     async sendOwnable2StepAcceptOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

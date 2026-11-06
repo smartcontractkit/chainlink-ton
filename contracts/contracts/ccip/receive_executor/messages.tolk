@@ -6,6 +6,7 @@ import "../offramp/types"
 import "../token_admin_registry/messages"
 import "../pools/lib/token_pool/messages"
 import "../accounts/deposit/messages"
+import "../lib/client/receiver/types"
 import "types"
 
 
@@ -24,10 +25,12 @@ type ReceiveExecutor_InMessage =
     ;
 
 type ReceiveExecutor_BouncedMessage =
-    | TokenAdminRegistry_GetTokenInfo;
+    | TokenAdminRegistry_GetTokenInfo
+    | OffRamp_ReleaseOrMint
+    | OffRamp_DispatchValidated;
 
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
-    queryId: uint64;
+    queryID: uint64;
     effectiveGasLimit: coins;
     root: address;
     sequenceNumber: uint64;
@@ -48,7 +51,7 @@ struct ReceiveExecutor_TokenTransfer {
 
 // Sent by the off-ramp to the receive executor when a release or mint operation has reverted.
 struct (0xdf58530e) ReceiveExecutor_ReleaseOrMintFailed {
-    queryId: uint64;
+    queryID: uint64;
     reason: ReleaseOrMint_ReleaseOrMintFailedReason;
 }
 
@@ -57,18 +60,21 @@ type ReleaseOrMint_ReleaseOrMintFailedReason =
     | NotEnoughDestGasAmountForTokenTransfer;
 
 struct (0xb70c2a9a) ReleaseOrMintBounced {
-    exitCode: int32
+    errorCode: int32
 }
 
 struct (0xb304ecdf) NotEnoughDestGasAmountForTokenTransfer {}
 
 struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
-    queryId: uint64;
+    queryID: uint64;
     receiver: address
+    /// Unused by the executor; it lets the OffRamp relay a rejection to the Router. Last, so
+    /// executors deployed before it was added still accept the message.
+    execId: ReceiveExecutorId;
 }
 
 struct (0x8854993b) ReceiveExecutor_CCIPReceiveFailed {
-    queryId: uint64;
+    queryID: uint64;
     receiver: address
     reason: ReceiveExecutor_FailedReason;
 }

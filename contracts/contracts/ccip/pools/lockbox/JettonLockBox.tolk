@@ -75,7 +75,7 @@ fun onInternalMessage(in: InMessage) {
             }
 
             // Accept empty messages (top-up), reject everything else.
-            assert(in.body.isEmpty()) throw 0xFFFF;
+            assert(in.body.isEmpty()) throw (0xFFFF);
         }
     }
 
@@ -87,21 +87,21 @@ fun onInternalMessage(in: InMessage) {
 /// One-time initialization: sets jetton addresses and grants admin role.
 /// @dev The deployer binds itself as the authorized initializer at construction (stateInit).
 fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLockBox_Init) {
-    assert(!st.isInitialized(), JettonLockBox_Error.ContractAlreadyInitialized);
+    assert (!st.isInitialized()) throw (JettonLockBox_Error.ContractAlreadyInitialized);
 
     // Only the initializer bound at construction (stateInit) may initialize.
-    assert(sender == st.initializer, JettonLockBox_Error.UnauthorizedInitializer);
+    assert (sender == st.initializer) throw (JettonLockBox_Error.UnauthorizedInitializer);
 
     // Validate addresses are not zero
-    assert(!isZeroAddress(msg.minterAddress), JettonLockBox_Error.UnsupportedToken);
-    assert(!isZeroAddress(msg.walletAddress), JettonLockBox_Error.UnsupportedToken);
+    assert (!isZeroAddress(msg.minterAddress)) throw (JettonLockBox_Error.UnsupportedToken);
+    assert (!isZeroAddress(msg.walletAddress)) throw (JettonLockBox_Error.UnsupportedToken);
 
     // Set storage addresses
     st.minterAddress = msg.minterAddress;
     st.walletAddress = msg.walletAddress;
 
     // Require enough value to cover the rent reserve plus the init replies
-    assert(contract.getOriginalBalance() >= MIN_GRAM_TO_RESERVE + MIN_GRAM_TO_INIT, JettonLockBox_Error.NotEnoughValue);
+    assert (contract.getOriginalBalance() >= MIN_GRAM_TO_RESERVE + MIN_GRAM_TO_INIT) throw (JettonLockBox_Error.NotEnoughValue);
 
     val reserveMode = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
     reserveGramsOnBalance(MIN_GRAM_TO_RESERVE, reserveMode);
@@ -111,16 +111,16 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
     // (SEND_MODE_PAY_FEES_SEPARATELY) instead of carrying all remaining inbound value.
     val returnExcess = false;
     var rbac = hookTrait__AccessControl(st);
-    rbac._setRoleAdmin(msg.queryId, sender, DEFAULT_ADMIN_ROLE, DEFAULT_ADMIN_ROLE, returnExcess);
-    rbac._setRoleAdmin(msg.queryId, sender, OPERATOR_ROLE, DEFAULT_ADMIN_ROLE, returnExcess);
+    rbac._setRoleAdmin(msg.queryID, sender, DEFAULT_ADMIN_ROLE, DEFAULT_ADMIN_ROLE, returnExcess);
+    rbac._setRoleAdmin(msg.queryID, sender, OPERATOR_ROLE, DEFAULT_ADMIN_ROLE, returnExcess);
 
     val adminAddress = msg.admin != null ? msg.admin! : sender;
-    rbac._grantRole(msg.queryId, sender, DEFAULT_ADMIN_ROLE, adminAddress, returnExcess);
+    rbac._grantRole(msg.queryID, sender, DEFAULT_ADMIN_ROLE, adminAddress, returnExcess);
 
     // TODO[REFACTOR]: [NONEVM-5336] add operators on init
     // var oo = operators.iter();
     // while (!oo.empty()) {
-    //     rbac._grantRole(queryId, sender, OPERATOR_ROLE, oo.next(), returnExcess);
+    //     rbac._grantRole(queryID, sender, OPERATOR_ROLE, oo.next(), returnExcess);
     // }
 
     st.rbac = rbac.data;
@@ -131,13 +131,13 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
         value: 0,
         dest: sender,
         body: JettonLockBox_Initialized {
-            queryId: msg.queryId,
+            queryID: msg.queryID,
             minterAddress: msg.minterAddress,
             walletAddress: msg.walletAddress,
             admin: adminAddress,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_BALANCE);
+    reply.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Handles jetton transfer notifications — treats them as deposits.
@@ -154,15 +154,15 @@ fun onDepositWithTransferNotification(
     msg: TransferNotificationForRecipient,
 ) {
     // Assert basic conditions before acting on it.
-    assert(st.isInitialized(), JettonLockBox_Error.ContractNotInitialized);
-    assert(msg.jettonAmount > 0, JettonLockBox_Error.TokenAmountCannotBeZero);
-    assert(st.walletAddress != null && sender == st.walletAddress, JettonLockBox_Error.UnsupportedToken);
+    assert (st.isInitialized()) throw (JettonLockBox_Error.ContractNotInitialized);
+    assert (msg.jettonAmount > 0) throw (JettonLockBox_Error.TokenAmountCannotBeZero);
+    assert (st.walletAddress != null && sender == st.walletAddress) throw (JettonLockBox_Error.UnsupportedToken);
 
     // TODO[SAFETY]: a minter can impersonate any transferInitiator, meaning inject any fwdPayload
 
     // A null transferInitiator means this is not an operator-initiated deposit (e.g. a bare mint into the
     // lockbox wallet). It cannot be attributed or returned so we accept and error.
-    assert(msg.transferInitiator != null, AccessControl_Error.UnauthorizedAccount);
+    assert (msg.transferInitiator != null) throw (AccessControl_Error.UnauthorizedAccount);
 
     // Decode outside the validation try so its catch retains the deposit's correlation context.
     var deposit: JettonLockBox_Deposit? = null;
@@ -175,12 +175,12 @@ fun onDepositWithTransferNotification(
 
     try {
         // Custody already arrived: validation and value failures use the existing custody-return path.
-        assert(deposit != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
+        assert (deposit != null) throw (JettonLockBox_Error.MissingOrMalformedForwardPayload);
         val rbac = hookTrait__AccessControl(st);
         rbac.requireRole(OPERATOR_ROLE, msg.transferInitiator);
 
-        assert(deposit.token == st.minterAddress, JettonLockBox_Error.UnsupportedToken);
-        assert(deposit.amount == msg.jettonAmount, JettonLockBox_Error.MissingOrMalformedForwardPayload);
+        assert (deposit.token == st.minterAddress) throw (JettonLockBox_Error.UnsupportedToken);
+        assert (deposit.amount == msg.jettonAmount) throw (JettonLockBox_Error.MissingOrMalformedForwardPayload);
 
         // Custody has arrived; finalize optimistically without rejecting.
         // The operator funds the confirmation when it sends the deposit.
@@ -196,14 +196,14 @@ fun onDepositWithTransferNotification(
             value: 0,
             dest: msg.transferInitiator,
             body: JettonLockBox_Deposited {
-                queryId: deposit.queryId,
+                queryID: deposit.queryID,
                 token: deposit.token,
                 depositor: msg.transferInitiator,
                 amount: deposit.amount,
                 context: deposit.context,
             },
         });
-        reply.send(SEND_MODE_CARRY_ALL_BALANCE);
+        reply.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     } catch (errorCode) {
         onDepositReturn(st, msgValue, msg, deposit, errorCode);
     }
@@ -230,7 +230,7 @@ fun onDepositReturn(
         value: failureValue,
         dest: transferInitiator,
         body: JettonLockBox_DepositFailed {
-            queryId: deposit != null ? deposit!.queryId : msg.queryId,
+            queryID: deposit != null ? deposit!.queryID : msg.queryID,
             token: st.minterAddress,
             depositor: transferInitiator,
             amount: msg.jettonAmount,
@@ -262,7 +262,7 @@ fun onDepositReturn(
         value: 0,
         dest: st.walletAddress!, // sender
         body: AskToTransfer {
-            queryId: msg.queryId,
+            queryID: msg.queryID,
             jettonAmount: msg.jettonAmount,
             transferRecipient,
             sendExcessesTo,
@@ -277,13 +277,13 @@ fun onDepositReturn(
     val failureCost = failureValue + failure.estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
     if (failureValue > 0 && msgValue > failureCost) {
         reserveBalanceBeforeInMessage(msgValue);
-        failure.send(SEND_MODE_PAY_FEES_SEPARATELY);
-        transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
+        failure.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+        transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
         return;
     }
 
-    transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
+    transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Sends jettons from the lockbox to a recipient wallet.
@@ -291,15 +291,15 @@ fun onDepositReturn(
 /// @dev The caller's address and the original withdraw request are tagged onto the transfer's
 /// `forwardPayload` via `Jetton_ForwardPayloadWrap`, so the bounce handler can notify the caller with context.
 fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLockBox_Withdraw) {
-    assert(st.isInitialized(), JettonLockBox_Error.ContractNotInitialized);
+    assert (st.isInitialized()) throw (JettonLockBox_Error.ContractNotInitialized);
 
     val rbac = hookTrait__AccessControl(st);
     rbac.requireRole(OPERATOR_ROLE, sender);
 
-    assert(msg.amount > 0, JettonLockBox_Error.TokenAmountCannotBeZero);
-    assert(msg.token == st.minterAddress, JettonLockBox_Error.UnsupportedToken);
-    assert(!isZeroAddress(msg.recipient), JettonLockBox_Error.RecipientCannotBeZeroAddress);
-    assert(st.walletAddress != null, JettonLockBox_Error.UnsupportedToken);
+    assert (msg.amount > 0) throw (JettonLockBox_Error.TokenAmountCannotBeZero);
+    assert (msg.token == st.minterAddress) throw (JettonLockBox_Error.UnsupportedToken);
+    assert (!isZeroAddress(msg.recipient)) throw (JettonLockBox_Error.RecipientCannotBeZeroAddress);
+    assert (st.walletAddress != null) throw (JettonLockBox_Error.UnsupportedToken);
 
     // The log and transfer are separate actions. Protect the pre-message balance, then carry
     // only the unreserved remainder after paying for the log and this transaction.
@@ -335,7 +335,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
         value: 0,
         dest: st.walletAddress,
         body: AskToTransfer {
-            queryId: msg.queryId,
+            queryID: msg.queryID,
             jettonAmount: msg.amount,
             transferRecipient: msg.recipient,
             sendExcessesTo,
@@ -354,10 +354,10 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     val w = contract.getAddress().getWorkchain();
     val minValue = JettonFees.Reference.transferValue(forwardTonAmount, fwdFee)
         + calculateGasFee(w, JettonLockBox_WITHDRAW_GAS_UNITS);
-    assert(msgValue >= minValue, JettonLockBox_Error.NotEnoughValue);
+    assert (msgValue >= minValue) throw (JettonLockBox_Error.NotEnoughValue);
 
     val transfer = createMessage(transferOpts);
-    transfer.send(sendMode);
+    transfer.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Admin-only recovery of any lockbox-owned Jetton wallet; the wallet enforces ownership.
@@ -396,8 +396,8 @@ fun onBouncedMessage(in: InMessageBounced) {
             }
 
             val wrap = parseLockBoxWithdrawWrap(msg.forwardPayload);
-            assert(wrap != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
-            assert(wrap.context != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
+            assert (wrap != null) throw (JettonLockBox_Error.MissingOrMalformedForwardPayload);
+            assert (wrap.context != null) throw (JettonLockBox_Error.MissingOrMalformedForwardPayload);
 
             // Send error message to withdraw initiator
             val errorMsg = createMessage({
@@ -405,12 +405,12 @@ fun onBouncedMessage(in: InMessageBounced) {
                 value: 0,
                 dest: wrap.initiator,
                 body: JettonLockBox_WithdrawFailed {
-                    queryId: msg.queryId,
+                    queryID: msg.queryID,
                     token: st.minterAddress,
                     context: wrap.context as Cell<JettonLockBox_Withdraw>,
                 },
             });
-            errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
     }
 }

@@ -27,12 +27,12 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
         {
           target: baseTest.bind.counter.address,
           value: 0n,
-          data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
+          data: counter.builder.message.in.increaseCount.encode({ queryID: 1n }).asCell(),
         },
         {
           target: baseTest.bind.counter.address,
           value: 0n,
-          data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }).asCell(),
+          data: counter.builder.message.in.increaseCount.encode({ queryID: 2n }).asCell(),
         },
       ],
       (c) => rbactl.builder.data.call.encode(c),
@@ -44,12 +44,12 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
       {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
+        data: counter.builder.message.in.increaseCount.encode({ queryID: 1n }).asCell(),
       },
       {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }).asCell(),
+        data: counter.builder.message.in.increaseCount.encode({ queryID: 2n }).asCell(),
       },
     ]
 
@@ -64,7 +64,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
 
     const scheduleBody = rbactl.builder.message.in.scheduleBatch
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
         salt: BaseTestSetup.EMPTY_SALT,
@@ -91,7 +91,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
     // Block the increment function selector
     const blockBody = rbactl.builder.message.in.blockFunctionSelector
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         selector: counter.opcodes.in.IncreaseCount,
       })
       .asCell()
@@ -107,7 +107,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
 
     const scheduleBody = rbactl.builder.message.in.scheduleBatch
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
         salt: BaseTestSetup.EMPTY_SALT,
@@ -154,7 +154,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
     // Schedule the batch operation
     const scheduleBody = rbactl.builder.message.in.scheduleBatch
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
         salt: BaseTestSetup.EMPTY_SALT,
@@ -192,7 +192,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
       )
 
       expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.CallScheduled.toString(16))
-      expect(callScheduled.queryId).toEqual(1)
+      expect(callScheduled.queryID).toEqual(1)
       expect(callScheduled.id).toEqual(batchedOperationID)
       expect(callScheduled.index).toEqual(i)
       expect(callScheduled.call).toEqual(call)
@@ -232,13 +232,13 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
     const call = {
       target: baseTest.bind.counter.address,
       value: toNano('0.05'),
-      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
+      data: counter.builder.message.in.increaseCount.encode({ queryID: 1n }).asCell(),
     }
     const calls = BaseTestSetup.singletonCalls(call)
 
     const scheduleBody = rbactl.builder.message.in.scheduleBatch
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
         salt: BaseTestSetup.EMPTY_SALT,
@@ -265,7 +265,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
     // Block the increment function selector
     const blockBody = rbactl.builder.message.in.blockFunctionSelector
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         selector: counter.opcodes.in.IncreaseCount,
       })
       .asCell()
@@ -280,13 +280,13 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
     const call = {
       target: baseTest.bind.counter.address,
       value: toNano('0.05'),
-      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
+      data: counter.builder.message.in.increaseCount.encode({ queryID: 1n }).asCell(),
     }
     const calls = BaseTestSetup.singletonCalls(call)
 
     const scheduleBody = rbactl.builder.message.in.scheduleBatch
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
         salt: BaseTestSetup.EMPTY_SALT,
@@ -312,13 +312,13 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
     const call = {
       target: baseTest.bind.counter.address,
       value: toNano('0.05'),
-      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
+      data: counter.builder.message.in.increaseCount.encode({ queryID: 1n }).asCell(),
     }
     const calls = BaseTestSetup.singletonCalls(call)
 
     const scheduleBody = rbactl.builder.message.in.scheduleBatch
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
         salt: BaseTestSetup.EMPTY_SALT,
@@ -358,13 +358,13 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
     const call = {
       target: baseTest.bind.counter.address,
       value: toNano('0.05'),
-      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
+      data: counter.builder.message.in.increaseCount.encode({ queryID: 1n }).asCell(),
     }
     const calls = BaseTestSetup.singletonCalls(call)
 
     const scheduleBody = rbactl.builder.message.in.scheduleBatch
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
         salt: BaseTestSetup.EMPTY_SALT,
@@ -398,13 +398,13 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
     const call = {
       target: baseTest.bind.counter.address,
       value: toNano('0.05'),
-      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
+      data: counter.builder.message.in.increaseCount.encode({ queryID: 1n }).asCell(),
     }
     const calls = BaseTestSetup.singletonCalls(call)
 
     const scheduleBody = rbactl.builder.message.in.scheduleBatch
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
         salt: BaseTestSetup.EMPTY_SALT,

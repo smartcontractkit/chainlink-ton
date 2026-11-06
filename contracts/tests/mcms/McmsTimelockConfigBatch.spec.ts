@@ -23,7 +23,7 @@ const setConfigCall = (
   value: toNano('2'),
   data: mcms.builder.message.in.setConfig
     .encode({
-      queryId: 1n,
+      queryID: 1n,
       signerAddresses: signers.map((signer) => BigInt(signer.address)),
       signerGroups: signers.map((signer) => signer.group),
       groupQuorums: layout.groupQuorums,
@@ -87,7 +87,7 @@ describe.each(['1.6.2', 'local'] as const)(
             toNano('2'),
             rbactl.builder.message.in.init
               .encode({
-                queryId: 1n,
+                queryID: 1n,
                 minDelay: 0,
                 admin: owner.address,
                 proposers: [mcmsContract.address],
@@ -110,7 +110,7 @@ describe.each(['1.6.2', 'local'] as const)(
         owner.getSender(),
         toNano('0.05'),
         ownable2step.builder.message.in.transferOwnership
-          .encode({ queryId: 1n, newOwner: timelock.address })
+          .encode({ queryID: 1n, newOwner: timelock.address })
           .asCell(),
       )
       const acceptCalls = asSnakedCell<rbactl.Call>(
@@ -118,7 +118,7 @@ describe.each(['1.6.2', 'local'] as const)(
           {
             target: ownable.address,
             value: toNano('0.05'),
-            data: ownable2step.builder.message.in.acceptOwnership.encode({ queryId: 1n }).asCell(),
+            data: ownable2step.builder.message.in.acceptOwnership.encode({ queryID: 1n }).asCell(),
           },
         ],
         (call) => rbactl.builder.data.call.encode(call),
@@ -129,7 +129,7 @@ describe.each(['1.6.2', 'local'] as const)(
             owner.getSender(),
             toNano('0.2'),
             rbactl.builder.message.in.bypasserExecuteBatch
-              .encode({ queryId: 1n, calls: acceptCalls })
+              .encode({ queryID: 1n, calls: acceptCalls })
               .asCell(),
           )
         ).transactions,
@@ -158,7 +158,7 @@ describe.each(['1.6.2', 'local'] as const)(
         to: timelock.address,
         value: toNano('0.2'),
         data: rbactl.builder.message.in.scheduleBatch
-          .encode({ queryId: 1n, calls, predecessor: 0n, salt: 0n, delay: 0 })
+          .encode({ queryID: 1n, calls, predecessor: 0n, salt: 0n, delay: 0 })
           .asCell(),
       }
       const root = await harness.setRoot({
@@ -184,7 +184,7 @@ describe.each(['1.6.2', 'local'] as const)(
         owner.getSender(),
         toNano('5'),
         rbactl.builder.message.in.executeBatch
-          .encode({ queryId: 2n, calls, predecessor: 0n, salt: 0n })
+          .encode({ queryID: 2n, calls, predecessor: 0n, salt: 0n })
           .asCell(),
       )
       expect(execution.transactions).toHaveTransaction({

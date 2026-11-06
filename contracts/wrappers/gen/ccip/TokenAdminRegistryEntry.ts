@@ -205,14 +205,14 @@ export const TokenAdminRegistryEntry_RootMessage = {
 
 /**
  > struct (0x558e7559) TokenAdminRegistryEntry_MessageFromRoot {
- >     queryId: uint64
+ >     queryID: uint64
  >     minEntryVersion: uint16
  >     content: Cell<TokenAdminRegistryEntry_RootMessage>
  > }
  */
 export interface TokenAdminRegistryEntry_MessageFromRoot {
     readonly $: 'TokenAdminRegistryEntry_MessageFromRoot'
-    queryId: uint64
+    queryID: uint64
     minEntryVersion: uint16
     content: TokenAdminRegistryEntry_RootMessage
 }
@@ -221,28 +221,28 @@ export const TokenAdminRegistryEntry_MessageFromRoot = {
     PREFIX: 0x558e7559,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         minEntryVersion: uint16
         content: TokenAdminRegistryEntry_RootMessage
     }): TokenAdminRegistryEntry_MessageFromRoot {
         return {
             $: 'TokenAdminRegistryEntry_MessageFromRoot',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_MessageFromRoot {
         loadAndCheckPrefix32(s, 0x558e7559, 'TokenAdminRegistryEntry_MessageFromRoot');
         return {
             $: 'TokenAdminRegistryEntry_MessageFromRoot',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             minEntryVersion: s.loadUintBig(16),
             content: loadCellRef<TokenAdminRegistryEntry_RootMessage>(s, TokenAdminRegistryEntry_RootMessage.fromSlice),
         }
     },
     store(self: TokenAdminRegistryEntry_MessageFromRoot, b: c.Builder): void {
         b.storeUint(0x558e7559, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeUint(self.minEntryVersion, 16);
         storeCellRef<TokenAdminRegistryEntry_RootMessage>(self.content, b, TokenAdminRegistryEntry_RootMessage.store);
     },
@@ -295,7 +295,7 @@ export const TokenAdminRegistryEntry_GetTokenInfo = {
 
 /**
  > struct (0x4e1c9ad5) TokenAdminRegistryEntry_TokenInfo {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  >     requester: address
  >     tokenInfo: Cell<TokenRegistry_TokenInfo>
@@ -303,7 +303,7 @@ export const TokenAdminRegistryEntry_GetTokenInfo = {
  */
 export interface TokenAdminRegistryEntry_TokenInfo {
     readonly $: 'TokenAdminRegistryEntry_TokenInfo'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
     requester: c.Address
     tokenInfo: TokenRegistry_TokenInfo
@@ -313,7 +313,7 @@ export const TokenAdminRegistryEntry_TokenInfo = {
     PREFIX: 0x4e1c9ad5,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         requester: c.Address
         tokenInfo: TokenRegistry_TokenInfo
@@ -321,14 +321,14 @@ export const TokenAdminRegistryEntry_TokenInfo = {
         return {
             $: 'TokenAdminRegistryEntry_TokenInfo',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_TokenInfo {
         loadAndCheckPrefix32(s, 0x4e1c9ad5, 'TokenAdminRegistryEntry_TokenInfo');
         return {
             $: 'TokenAdminRegistryEntry_TokenInfo',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
             requester: s.loadAddress(),
             tokenInfo: loadCellRef<TokenRegistry_TokenInfo>(s, TokenRegistry_TokenInfo.fromSlice),
@@ -336,7 +336,7 @@ export const TokenAdminRegistryEntry_TokenInfo = {
     },
     store(self: TokenAdminRegistryEntry_TokenInfo, b: c.Builder): void {
         b.storeUint(0x4e1c9ad5, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
         b.storeAddress(self.requester);
         storeCellRef<TokenRegistry_TokenInfo>(self.tokenInfo, b, TokenRegistry_TokenInfo.store);
@@ -348,36 +348,36 @@ export const TokenAdminRegistryEntry_TokenInfo = {
 
 /**
  > struct (0x31580269) TokenAdminRegistryEntry_RegistrationInitialized {
- >     queryId: uint64
+ >     queryID: uint64
  > }
  */
 export interface TokenAdminRegistryEntry_RegistrationInitialized {
     readonly $: 'TokenAdminRegistryEntry_RegistrationInitialized'
-    queryId: uint64
+    queryID: uint64
 }
 
 export const TokenAdminRegistryEntry_RegistrationInitialized = {
     PREFIX: 0x31580269,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
     }): TokenAdminRegistryEntry_RegistrationInitialized {
         return {
             $: 'TokenAdminRegistryEntry_RegistrationInitialized',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_RegistrationInitialized {
         loadAndCheckPrefix32(s, 0x31580269, 'TokenAdminRegistryEntry_RegistrationInitialized');
         return {
             $: 'TokenAdminRegistryEntry_RegistrationInitialized',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
         }
     },
     store(self: TokenAdminRegistryEntry_RegistrationInitialized, b: c.Builder): void {
         b.storeUint(0x31580269, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
     },
     toCell(self: TokenAdminRegistryEntry_RegistrationInitialized): c.Cell {
         return makeCellFrom<TokenAdminRegistryEntry_RegistrationInitialized>(self, TokenAdminRegistryEntry_RegistrationInitialized.store);
@@ -752,7 +752,7 @@ export const TokenRegistry_Storage = {
 }
 
 /**
- > enum TokenAdminRegistryEntry_Error { 5 variants }
+ > enum TokenAdminRegistryEntry_Error { 6 variants }
  */
 export type TokenAdminRegistryEntry_Error = bigint
 
@@ -762,6 +762,7 @@ export const TokenAdminRegistryEntry_Error = {
     AlreadyRegistered: 45002n,
     InvalidAdministrator: 45003n,
     VersionUnavailable: 45004n,
+    UnhandledLegacyBounce: 45005n,
 
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_Error {
         return s.loadUintBig(16);
@@ -848,13 +849,13 @@ export const Upgradeable_Error = {
 
 /**
  > struct (0x0aa811ed) Upgradeable_Upgrade {
- >     queryId: uint64
+ >     queryID: uint64
  >     code: cell
  > }
  */
 export interface Upgradeable_Upgrade {
     readonly $: 'Upgradeable_Upgrade'
-    queryId: uint64
+    queryID: uint64
     code: c.Cell
 }
 
@@ -862,26 +863,26 @@ export const Upgradeable_Upgrade = {
     PREFIX: 0x0aa811ed,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         code: c.Cell
     }): Upgradeable_Upgrade {
         return {
             $: 'Upgradeable_Upgrade',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): Upgradeable_Upgrade {
         loadAndCheckPrefix32(s, 0x0aa811ed, 'Upgradeable_Upgrade');
         return {
             $: 'Upgradeable_Upgrade',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             code: s.loadRef(),
         }
     },
     store(self: Upgradeable_Upgrade, b: c.Builder): void {
         b.storeUint(0x0aa811ed, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeRef(self.code);
     },
     toCell(self: Upgradeable_Upgrade): c.Cell {
@@ -929,14 +930,14 @@ export const Upgradeable_UpgradedEvent = {
 
 /**
  > struct (0x55b8b654) TokenAdminRegistry_EntryUpgradeRequest {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  >     request: Cell<TokenAdminRegistryEntry_MessageFromRoot>
  > }
  */
 export interface TokenAdminRegistry_EntryUpgradeRequest {
     readonly $: 'TokenAdminRegistry_EntryUpgradeRequest'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
     request: TokenAdminRegistryEntry_MessageFromRoot
 }
@@ -945,28 +946,28 @@ export const TokenAdminRegistry_EntryUpgradeRequest = {
     PREFIX: 0x55b8b654,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         request: TokenAdminRegistryEntry_MessageFromRoot
     }): TokenAdminRegistry_EntryUpgradeRequest {
         return {
             $: 'TokenAdminRegistry_EntryUpgradeRequest',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistry_EntryUpgradeRequest {
         loadAndCheckPrefix32(s, 0x55b8b654, 'TokenAdminRegistry_EntryUpgradeRequest');
         return {
             $: 'TokenAdminRegistry_EntryUpgradeRequest',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
             request: loadCellRef<TokenAdminRegistryEntry_MessageFromRoot>(s, TokenAdminRegistryEntry_MessageFromRoot.fromSlice),
         }
     },
     store(self: TokenAdminRegistry_EntryUpgradeRequest, b: c.Builder): void {
         b.storeUint(0x55b8b654, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
         storeCellRef<TokenAdminRegistryEntry_MessageFromRoot>(self.request, b, TokenAdminRegistryEntry_MessageFromRoot.store);
     },
@@ -977,36 +978,36 @@ export const TokenAdminRegistry_EntryUpgradeRequest = {
 
 /**
  > struct (0x85f1f9f0) TokenAdminRegistry_UpgradeRefund {
- >     queryId: uint64
+ >     queryID: uint64
  > }
  */
 export interface TokenAdminRegistry_UpgradeRefund {
     readonly $: 'TokenAdminRegistry_UpgradeRefund'
-    queryId: uint64
+    queryID: uint64
 }
 
 export const TokenAdminRegistry_UpgradeRefund = {
     PREFIX: 0x85f1f9f0,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
     }): TokenAdminRegistry_UpgradeRefund {
         return {
             $: 'TokenAdminRegistry_UpgradeRefund',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenAdminRegistry_UpgradeRefund {
         loadAndCheckPrefix32(s, 0x85f1f9f0, 'TokenAdminRegistry_UpgradeRefund');
         return {
             $: 'TokenAdminRegistry_UpgradeRefund',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
         }
     },
     store(self: TokenAdminRegistry_UpgradeRefund, b: c.Builder): void {
         b.storeUint(0x85f1f9f0, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
     },
     toCell(self: TokenAdminRegistry_UpgradeRefund): c.Cell {
         return makeCellFrom<TokenAdminRegistry_UpgradeRefund>(self, TokenAdminRegistry_UpgradeRefund.store);
@@ -1015,14 +1016,14 @@ export const TokenAdminRegistry_UpgradeRefund = {
 
 /**
  > struct (0x2c76b973) RequestWalletAddress {
- >     queryId: uint64
+ >     queryID: uint64
  >     ownerAddress: address
  >     includeOwnerAddress: bool
  > }
  */
 export interface RequestWalletAddress {
     readonly $: 'RequestWalletAddress'
-    queryId: uint64
+    queryID: uint64
     ownerAddress: c.Address
     includeOwnerAddress: boolean
 }
@@ -1031,28 +1032,28 @@ export const RequestWalletAddress = {
     PREFIX: 0x2c76b973,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         ownerAddress: c.Address
         includeOwnerAddress: boolean
     }): RequestWalletAddress {
         return {
             $: 'RequestWalletAddress',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): RequestWalletAddress {
         loadAndCheckPrefix32(s, 0x2c76b973, 'RequestWalletAddress');
         return {
             $: 'RequestWalletAddress',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             ownerAddress: s.loadAddress(),
             includeOwnerAddress: s.loadBoolean(),
         }
     },
     store(self: RequestWalletAddress, b: c.Builder): void {
         b.storeUint(0x2c76b973, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.ownerAddress);
         b.storeBit(self.includeOwnerAddress);
     },
@@ -1063,14 +1064,14 @@ export const RequestWalletAddress = {
 
 /**
  > struct (0xd1735400) ResponseWalletAddress {
- >     queryId: uint64
+ >     queryID: uint64
  >     jettonWalletAddress: address?
  >     ownerAddress: Cell<address>?
  > }
  */
 export interface ResponseWalletAddress {
     readonly $: 'ResponseWalletAddress'
-    queryId: uint64
+    queryID: uint64
     jettonWalletAddress: c.Address | null
     ownerAddress: c.Address | null
 }
@@ -1079,21 +1080,21 @@ export const ResponseWalletAddress = {
     PREFIX: 0xd1735400,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         jettonWalletAddress: c.Address | null
         ownerAddress: c.Address | null
     }): ResponseWalletAddress {
         return {
             $: 'ResponseWalletAddress',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): ResponseWalletAddress {
         loadAndCheckPrefix32(s, 0xd1735400, 'ResponseWalletAddress');
         return {
             $: 'ResponseWalletAddress',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             jettonWalletAddress: s.loadMaybeAddress(),
             ownerAddress: s.loadBoolean() ? loadCellRef<c.Address>(s,
                 (s) => s.loadAddress()
@@ -1102,7 +1103,7 @@ export const ResponseWalletAddress = {
     },
     store(self: ResponseWalletAddress, b: c.Builder): void {
         b.storeUint(0xd1735400, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.jettonWalletAddress);
         storeTolkNullable<c.Address>(self.ownerAddress, b,
             (v,b) => { storeCellRef<c.Address>(v, b,
@@ -1117,36 +1118,36 @@ export const ResponseWalletAddress = {
 
 /**
  > struct (0x480060f1) TokenPool_GetConfig {
- >     queryId: uint64
+ >     queryID: uint64
  > }
  */
 export interface TokenPool_GetConfig {
     readonly $: 'TokenPool_GetConfig'
-    queryId: uint64
+    queryID: uint64
 }
 
 export const TokenPool_GetConfig = {
     PREFIX: 0x480060f1,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
     }): TokenPool_GetConfig {
         return {
             $: 'TokenPool_GetConfig',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_GetConfig {
         loadAndCheckPrefix32(s, 0x480060f1, 'TokenPool_GetConfig');
         return {
             $: 'TokenPool_GetConfig',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
         }
     },
     store(self: TokenPool_GetConfig, b: c.Builder): void {
         b.storeUint(0x480060f1, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
     },
     toCell(self: TokenPool_GetConfig): c.Cell {
         return makeCellFrom<TokenPool_GetConfig>(self, TokenPool_GetConfig.store);
@@ -1155,7 +1156,7 @@ export const TokenPool_GetConfig = {
 
 /**
  > struct (0x1c8a40b8) TokenPool_Config {
- >     queryId: uint64
+ >     queryID: uint64
  >     token: address
  >     transferInitiator: address?
  >     admission: TokenPool_AdmissionBudget
@@ -1163,7 +1164,7 @@ export const TokenPool_GetConfig = {
  */
 export interface TokenPool_Config {
     readonly $: 'TokenPool_Config'
-    queryId: uint64
+    queryID: uint64
     token: c.Address
     transferInitiator: c.Address | null
     admission: TokenPool_AdmissionBudget
@@ -1173,7 +1174,7 @@ export const TokenPool_Config = {
     PREFIX: 0x1c8a40b8,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         transferInitiator: c.Address | null
         admission: TokenPool_AdmissionBudget
@@ -1181,14 +1182,14 @@ export const TokenPool_Config = {
         return {
             $: 'TokenPool_Config',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_Config {
         loadAndCheckPrefix32(s, 0x1c8a40b8, 'TokenPool_Config');
         return {
             $: 'TokenPool_Config',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             token: s.loadAddress(),
             transferInitiator: s.loadMaybeAddress(),
             admission: TokenPool_AdmissionBudget.fromSlice(s),
@@ -1196,7 +1197,7 @@ export const TokenPool_Config = {
     },
     store(self: TokenPool_Config, b: c.Builder): void {
         b.storeUint(0x1c8a40b8, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.token);
         b.storeAddress(self.transferInitiator);
         TokenPool_AdmissionBudget.store(self.admission, b);
@@ -1290,6 +1291,7 @@ export class TokenAdminRegistryEntry implements c.Contract {
         'TokenAdminRegistryEntry_Error.AlreadyRegistered': 45002,
         'TokenAdminRegistryEntry_Error.InvalidAdministrator': 45003,
         'TokenAdminRegistryEntry_Error.VersionUnavailable': 45004,
+        'TokenAdminRegistryEntry_Error.UnhandledLegacyBounce': 45005,
     }
 
     readonly address: c.Address
@@ -1323,13 +1325,13 @@ export class TokenAdminRegistryEntry implements c.Contract {
     }
 
     static createCellOfTokenAdminRegistryEntryRegistrationInitialized(body: {
-        queryId?: uint64
+        queryID?: uint64
     }) {
         return TokenAdminRegistryEntry_RegistrationInitialized.toCell(TokenAdminRegistryEntry_RegistrationInitialized.create(body));
     }
 
     static createCellOfTokenAdminRegistryEntryMessageFromRoot(body: {
-        queryId?: uint64
+        queryID?: uint64
         minEntryVersion: uint16
         content: TokenAdminRegistryEntry_RootMessage
     }) {
@@ -1337,7 +1339,7 @@ export class TokenAdminRegistryEntry implements c.Contract {
     }
 
     static createCellOfUpgradeableUpgrade(body: {
-        queryId?: uint64
+        queryID?: uint64
         code: c.Cell
     }) {
         return Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body));
@@ -1350,7 +1352,7 @@ export class TokenAdminRegistryEntry implements c.Contract {
     }
 
     static createCellOfResponseWalletAddress(body: {
-        queryId?: uint64
+        queryID?: uint64
         jettonWalletAddress: c.Address | null
         ownerAddress: c.Address | null
     }) {
@@ -1358,7 +1360,7 @@ export class TokenAdminRegistryEntry implements c.Contract {
     }
 
     static createCellOfTokenPoolConfig(body: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         transferInitiator: c.Address | null
         admission: TokenPool_AdmissionBudget
@@ -1383,7 +1385,7 @@ export class TokenAdminRegistryEntry implements c.Contract {
     }
 
     async sendTokenAdminRegistryEntryRegistrationInitialized(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -1393,7 +1395,7 @@ export class TokenAdminRegistryEntry implements c.Contract {
     }
 
     async sendTokenAdminRegistryEntryMessageFromRoot(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         minEntryVersion: uint16
         content: TokenAdminRegistryEntry_RootMessage
     }, extraOptions?: ExtraSendOptions) {
@@ -1405,7 +1407,7 @@ export class TokenAdminRegistryEntry implements c.Contract {
     }
 
     async sendUpgradeableUpgrade(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         code: c.Cell
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1426,7 +1428,7 @@ export class TokenAdminRegistryEntry implements c.Contract {
     }
 
     async sendResponseWalletAddress(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         jettonWalletAddress: c.Address | null
         ownerAddress: c.Address | null
     }, extraOptions?: ExtraSendOptions) {
@@ -1438,7 +1440,7 @@ export class TokenAdminRegistryEntry implements c.Contract {
     }
 
     async sendTokenPoolConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         token: c.Address
         transferInitiator: c.Address | null
         admission: TokenPool_AdmissionBudget

@@ -389,7 +389,7 @@ export class MCMSBaseTestSetup {
 
     const setConfigBody = mcms.builder.message.in.setConfig
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         signerAddresses: this.testSigners.map((s) => BigInt(s.address)),
         signerGroups: this.testSigners.map((s) => s.group),
         groupQuorums: this.testConfig.groupQuorums,
@@ -475,7 +475,7 @@ export class MCMSBaseTestSetup {
       // default op
       let op = counter.builder.message.in.setCount
         .encode({
-          queryId: BigInt(i + startNonce),
+          queryID: BigInt(i + startNonce),
           newCount: i + startNonce,
         })
         .asCell()
@@ -712,7 +712,7 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
       this.warpTime(opFinalizationTimeout)
       const executeBody = mcms.builder.message.in.execute
         .encode({
-          queryId: BigInt(i + 1),
+          queryID: BigInt(i + 1),
           op: mcms.builder.data.op.encode(this.testOps[i]).asCell(),
           proof: this.opProofs[i],
         })

@@ -28,4 +28,5 @@ enum OffRamp_Error {
     UnexpectedExtraData
     TokenAdminRegistryNotSet
     TokenAdminRegistryAlreadySet
+    UnhandledLegacyBounce
 }

@@ -88,7 +88,7 @@ contract Timelock {
 ///
 struct (0x4982fcfd) Timelock_Init {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// Minimum delay in seconds for future operations.
     minDelay: uint32;
@@ -119,7 +119,7 @@ struct (0x4982fcfd) Timelock_Init {
 ///
 struct (0x094718f4) Timelock_ScheduleBatch {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     // Array of calls to be scheduled
     calls: SnakedCell<Timelock_Call>;
@@ -139,7 +139,7 @@ struct (0x094718f4) Timelock_ScheduleBatch {
 ///
 struct (0xaf3bf1d0) Timelock_Cancel {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// ID of the operation to cancel.
     id: uint256;
@@ -155,7 +155,7 @@ struct (0xaf3bf1d0) Timelock_Cancel {
 ///
 struct (0x6e9Bf263) Timelock_ExecuteBatch {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// Array of calls to be scheduled
     calls: SnakedCell<Timelock_Call>;
@@ -175,7 +175,7 @@ struct (0x6e9Bf263) Timelock_ExecuteBatch {
 ///
 struct (0x7a57a45c) Timelock_UpdateDelay {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// New minimum delay in seconds for future operations.
     newDelay: uint32;
@@ -191,7 +191,7 @@ struct (0x7a57a45c) Timelock_UpdateDelay {
 ///
 struct (0x94278d4f) Timelock_UpdateOpFinalizationTimeout {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// The timeout required to finalize the currently executing op
     newOpFinalizationTimeout: uint32;
@@ -210,7 +210,7 @@ struct (0x94278d4f) Timelock_UpdateOpFinalizationTimeout {
 ///
 struct (0x2637af77) Timelock_BlockFunctionSelector {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// Function selector to block.
     selector: uint32;
@@ -224,7 +224,7 @@ struct (0x2637af77) Timelock_BlockFunctionSelector {
 ///
 struct (0x26f19f4e) Timelock_UnblockFunctionSelector {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// Function selector to unblock.
     selector: uint32;
@@ -240,7 +240,7 @@ struct (0x26f19f4e) Timelock_UnblockFunctionSelector {
 ///
 struct (0xbb0e9f7d) Timelock_BypasserExecuteBatch {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// Array of calls to be scheduled
     calls: SnakedCell<Timelock_Call>;
@@ -256,7 +256,7 @@ struct (0xbb0e9f7d) Timelock_BypasserExecuteBatch {
 ///
 struct (0x34d98baa) Timelock_UpdateExecutorRoleCheck {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// Flag to enable/disable the executor role check (if disabled, anyone can execute)
     enabled: bool;
@@ -269,7 +269,7 @@ struct (0x34d98baa) Timelock_UpdateExecutorRoleCheck {
 ///
 struct (0xf4538b79) Timelock_SubmitErrorReport {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// The operation which produced the error (used to re-derive the op id).
     opBatch: Cell<Timelock_OperationBatch>;
@@ -330,7 +330,7 @@ type Timelock_OutMessage =
 /// Replied to sender after a batch is scheduled.
 struct (0xdf65b59e) Timelock_BatchScheduled {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// ID of the batch that was scheduled.
     id: uint256;
@@ -341,7 +341,7 @@ struct (0xdf65b59e) Timelock_BatchScheduled {
 /// Emitted when a call is scheduled as part of operation `id`.
 struct (0xc55fca54) Timelock_CallScheduled {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// ID of the batch for the operation that was scheduled.
     id: uint256;
@@ -357,7 +357,7 @@ struct (0xc55fca54) Timelock_CallScheduled {
 /// Replied to sender after a batch is executed.
 struct (0xa941ea1a) Timelock_BatchExecuted {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// ID of the batch that was executed.
     id: uint256;
@@ -366,7 +366,7 @@ struct (0xa941ea1a) Timelock_BatchExecuted {
 /// Emitted when a call is performed as part of operation `id`.
 struct (0x49ea5d0e) Timelock_CallExecuted {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// ID of the batch for the operation that was executed.
     id: uint256;
@@ -379,13 +379,13 @@ struct (0x49ea5d0e) Timelock_CallExecuted {
 /// Replied to sender after a batch is executed via bypasser escape hatch.
 struct (0x539b4214) Timelock_BypasserBatchExecuted {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 }
 
 /// Replied to sender when a call is performed via bypasser.
 struct (0x9c7f3010) Timelock_BypasserCallExecuted {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// Index of the call in the batch.
     index: uint64;
@@ -397,7 +397,7 @@ struct (0x9c7f3010) Timelock_BypasserCallExecuted {
 /// Replied to sender when operation `id` is cancelled.
 struct (0x580e80f2) Timelock_Canceled {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// ID of the cancelled operation.
     id: uint256;
@@ -406,7 +406,7 @@ struct (0x580e80f2) Timelock_Canceled {
 /// Replied to sender when the minimum delay for future operations is modified.
 struct (0x904b14e0) Timelock_MinDelayChange {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// Duration of the old minimum delay in seconds.
     oldDuration: uint32;
@@ -417,7 +417,7 @@ struct (0x904b14e0) Timelock_MinDelayChange {
 /// Replied to sender when the op finalization timeout is modified.
 struct (0x1f102718) Timelock_OpFinalizationTimeoutChange {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// Duration of the old timeout in seconds.
     oldDuration: uint32;
@@ -428,7 +428,7 @@ struct (0x1f102718) Timelock_OpFinalizationTimeoutChange {
 /// Emitted when a function selector is blocked.
 struct (0x9c4d6d94) Timelock_FunctionSelectorBlocked {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// Function selector that was blocked.
     selector: uint32;
@@ -437,7 +437,7 @@ struct (0x9c4d6d94) Timelock_FunctionSelectorBlocked {
 /// Emitted when a function selector is unblocked.
 struct (0xf410a31b) Timelock_FunctionSelectorUnblocked {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// Function selector that was unblocked.
     selector: uint32;
@@ -446,7 +446,7 @@ struct (0xf410a31b) Timelock_FunctionSelectorUnblocked {
 /// Replied to sender after the executor role check is updated.
 struct (0xc6d451e2) Timelock_ExecutorRoleCheckUpdated {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// Flag to enable/disable the executor role check (if disabled, anyone can execute)
     enabled: bool;
@@ -455,7 +455,7 @@ struct (0xc6d451e2) Timelock_ExecutorRoleCheckUpdated {
 /// Replied to sender when an error report is successfully submitted.
 struct (0xdbd4c8ee) Timelock_ErrorReportSubmitted {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryID: uint64;
 
     /// The id (hash) of the operation which produced the Timelock_Error.
     id: uint256;
@@ -733,7 +733,7 @@ fun Timelock<T>.init(
     mutate self,
     sender: address,
     value: coins,
-    queryId: uint64,
+    queryID: uint64,
     minDelay: uint32,
     admin: address,
     proposers: SnakedCell<address>,
@@ -745,40 +745,40 @@ fun Timelock<T>.init(
 ): void {
     // @dev: anyone can call init, but only once. The deployer should send init message with stateInit (deployment).
     // Check that the contract is not already initialized
-    assert(!self.isInitialized()) throw Timelock_Error.ContractAlreadyInitialized;
+    assert(!self.isInitialized()) throw (Timelock_Error.ContractAlreadyInitialized);
 
-    assert(value >= Timelock_Costs.init(), Timelock_Error.InsufficientFee);
+    assert (value >= Timelock_Costs.init()) throw (Timelock_Error.InsufficientFee);
 
     var rbac = self.hookTrait__AccessControl();
 
-    rbac._setRoleAdmin(queryId, sender, ADMIN_ROLE, ADMIN_ROLE);
-    rbac._setRoleAdmin(queryId, sender, PROPOSER_ROLE, ADMIN_ROLE);
-    rbac._setRoleAdmin(queryId, sender, EXECUTOR_ROLE, ADMIN_ROLE);
-    rbac._setRoleAdmin(queryId, sender, CANCELLER_ROLE, ADMIN_ROLE);
-    rbac._setRoleAdmin(queryId, sender, BYPASSER_ROLE, ADMIN_ROLE);
-    rbac._setRoleAdmin(queryId, sender, ORACLE_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(queryID, sender, ADMIN_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(queryID, sender, PROPOSER_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(queryID, sender, EXECUTOR_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(queryID, sender, CANCELLER_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(queryID, sender, BYPASSER_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(queryID, sender, ORACLE_ROLE, ADMIN_ROLE);
 
-    rbac._grantRole(queryId, sender, ADMIN_ROLE, admin);
+    rbac._grantRole(queryID, sender, ADMIN_ROLE, admin);
 
     // Grant roles to proposers, executors, cancellers and bypassers
     var pp = proposers.iter();
     while (!pp.empty()) {
-        rbac._grantRole(queryId, sender, PROPOSER_ROLE, pp.next());
+        rbac._grantRole(queryID, sender, PROPOSER_ROLE, pp.next());
     }
 
     var ee = executors.iter();
     while (!ee.empty()) {
-        rbac._grantRole(queryId, sender, EXECUTOR_ROLE, ee.next());
+        rbac._grantRole(queryID, sender, EXECUTOR_ROLE, ee.next());
     }
 
     var cc = cancellers.iter();
     while (!cc.empty()) {
-        rbac._grantRole(queryId, sender, CANCELLER_ROLE, cc.next());
+        rbac._grantRole(queryID, sender, CANCELLER_ROLE, cc.next());
     }
 
     var bb = bypassers.iter();
     while (!bb.empty()) {
-        rbac._grantRole(queryId, sender, BYPASSER_ROLE, bb.next());
+        rbac._grantRole(queryID, sender, BYPASSER_ROLE, bb.next());
     }
 
     // Map from underlying trait storage to contract storage
@@ -795,12 +795,12 @@ fun Timelock<T>.init(
 
     // Reply back to sender
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
-        body: Timelock_MinDelayChange{queryId, oldDuration: 0, newDuration: minDelay}
+        body: Timelock_MinDelayChange{queryID, oldDuration: 0, newDuration: minDelay}
     });
-    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Schedule an operation containing a batch of transactions.
@@ -816,13 +816,13 @@ fun Timelock<T>.scheduleBatch(
     mutate self,
     sender: address,
     value: coins,
-    queryId: uint64,
+    queryID: uint64,
     calls: SnakedCell<Timelock_Call>,
     predecessor: uint256,
     salt: uint256,
     delay: uint32
 ): void {
-    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+    assert(self.isInitialized()) throw (Timelock_Error.ContractNotInitialized);
     self.onlyRoleOrAdminRole(PROPOSER_ROLE, sender);
 
     val id = self.hashOperationBatch(Timelock_OperationBatch{calls, predecessor, salt});
@@ -836,10 +836,10 @@ fun Timelock<T>.scheduleBatch(
 
         // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
         // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-        assert(call.value >= calculateGasFeeDefault(), Timelock_Error.InsufficientValue);
+        assert (call.value >= calculateGasFeeDefault()) throw (Timelock_Error.InsufficientValue);
 
         val body = Timelock_CallScheduled{
-            queryId,
+            queryID,
             id,
             index,
             call: call.toCell(),
@@ -852,21 +852,21 @@ fun Timelock<T>.scheduleBatch(
         index += 1;
     }
 
-    assert(value >= Timelock_Costs.scheduleBatch(index), Timelock_Error.InsufficientFee);
+    assert (value >= Timelock_Costs.scheduleBatch(index)) throw (Timelock_Error.InsufficientFee);
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
-        body: Timelock_BatchScheduled{queryId, id, delay}
+        body: Timelock_BatchScheduled{queryID, id, delay}
     });
-    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Schedule an operation that becomes valid after a given delay.
 fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint32): void {
-    assert(!self.isOperation(id)) throw Timelock_Error.OperationAlreadyScheduled;
-    assert(delay >= self.getMinDelay()) throw Timelock_Error.InsufficientDelay;
+    assert(!self.isOperation(id)) throw (Timelock_Error.OperationAlreadyScheduled);
+    assert(delay >= self.getMinDelay()) throw (Timelock_Error.InsufficientDelay);
 
     val value = blockchain.now() + delay;
     self.data.timestamps.set(id, value); // seconds since epoch
@@ -878,24 +878,24 @@ fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint32): void {
 ///
 /// - the caller must have the 'canceller' or 'admin' role.
 ///
-fun Timelock<T>.cancel(mutate self, sender: address, _value: coins, queryId: uint64, id: uint256): void {
-    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+fun Timelock<T>.cancel(mutate self, sender: address, _value: coins, queryID: uint64, id: uint256): void {
+    assert(self.isInitialized()) throw (Timelock_Error.ContractNotInitialized);
     self.onlyRoleOrAdminRole(CANCELLER_ROLE, sender);
 
     // the caller owns funding; TODO: check min value
 
-    assert(self.isOperationPending(id)) throw Timelock_Error.OperationCanNotBeCancelled;
+    assert(self.isOperationPending(id)) throw (Timelock_Error.OperationCanNotBeCancelled);
 
     // Remove the timestamp for the operation
     self.data.timestamps.delete(id);
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: Timelock_Canceled{queryId, id}
+        body: Timelock_Canceled{queryID, id}
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Execute an (ready) operation containing a batch of transactions.
@@ -918,12 +918,12 @@ fun Timelock<T>.executeBatch(
     mutate self,
     sender: address,
     value: coins,
-    queryId: uint64,
+    queryID: uint64,
     calls: SnakedCell<Timelock_Call>,
     predecessor: uint256,
     salt: uint256
 ): void {
-    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+    assert(self.isInitialized()) throw (Timelock_Error.ContractNotInitialized);
     if (self.data.executorRoleCheckEnabled) {
         self.onlyRoleOrAdminRole(EXECUTOR_ROLE, sender);
     }
@@ -949,7 +949,7 @@ fun Timelock<T>.executeBatch(
         self.execute(call);
 
         val body = Timelock_CallExecuted{
-            queryId,
+            queryID,
             id,
             index,
             target: call.target,
@@ -961,24 +961,24 @@ fun Timelock<T>.executeBatch(
         index += 1;
     }
 
-    assert(value >= Timelock_Costs.executeBatch(index), Timelock_Error.InsufficientFee);
+    assert (value >= Timelock_Costs.executeBatch(index)) throw (Timelock_Error.InsufficientFee);
 
     self.afterCall(id);
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
-        body: Timelock_BatchExecuted{queryId, id}
+        body: Timelock_BatchExecuted{queryID, id}
     });
-    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Execute an operation's call.
 fun Timelock<T>.execute(self, call: Timelock_Call): void {
     // @dev: we do not require success before continuing with the next call (async execution model, fan out)
     val op = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: call.value,
         dest: call.target,
         body: call.data
@@ -1002,14 +1002,14 @@ fun Timelock<T>.resetPendingOpTracking(mutate self): void {
 
 /// Hook before execution of an operation's calls.
 fun Timelock<T>.beforeCall(self, id: uint256, predecessor: uint256): void {
-    assert(self.isOperationReady(id)) throw Timelock_Error.OperationNotReady;
-    assert(predecessor == 0 || self.isOperationDone(predecessor)) throw Timelock_Error.OperationMissingDependency;
-    assert(self.isPendingOperationFinal()) throw Timelock_Error.PendingOperationNotFinal;
+    assert(self.isOperationReady(id)) throw (Timelock_Error.OperationNotReady);
+    assert(predecessor == 0 || self.isOperationDone(predecessor)) throw (Timelock_Error.OperationMissingDependency);
+    assert(self.isPendingOperationFinal()) throw (Timelock_Error.PendingOperationNotFinal);
 }
 
 /// Hook after execution of an operation's calls.
 fun Timelock<T>.afterCall(mutate self, id: uint256): void {
-    assert(self.isOperationReady(id)) throw Timelock_Error.OperationNotReady;
+    assert(self.isOperationReady(id)) throw (Timelock_Error.OperationNotReady);
 
     // Mark the operation as done
     self.data.timestamps.set(id, DONE_TIMESTAMP);
@@ -1025,10 +1025,10 @@ fun Timelock<T>.updateDelay(
     mutate self,
     sender: address,
     _value: coins,
-    queryId: uint64,
+    queryID: uint64,
     newDelay: uint32
 ): void {
-    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+    assert(self.isInitialized()) throw (Timelock_Error.ContractNotInitialized);
 
     // the caller owns funding; TODO: check min value
 
@@ -1036,16 +1036,16 @@ fun Timelock<T>.updateDelay(
     rbac.requireRole(ADMIN_ROLE, sender);
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: Timelock_MinDelayChange{
-            queryId,
+            queryID,
             oldDuration: self.data.minDelay,
             newDuration: newDelay
         }
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     // Update the minimum delay
     self.data.minDelay = newDelay;
@@ -1057,10 +1057,10 @@ fun Timelock<T>.updateOpFinalizationTimeout(
     mutate self,
     sender: address,
     _value: coins,
-    queryId: uint64,
+    queryID: uint64,
     newOpFinalizationTimeout: uint32
 ): void {
-    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+    assert(self.isInitialized()) throw (Timelock_Error.ContractNotInitialized);
 
     // the caller owns funding; TODO: check min value
 
@@ -1079,12 +1079,12 @@ fun Timelock<T>.updateOpFinalizationTimeout(
     }
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: Timelock_OpFinalizationTimeoutChange{queryId, oldDuration, newDuration: newOpFinalizationTimeout}
+        body: Timelock_OpFinalizationTimeoutChange{queryID, oldDuration, newDuration: newOpFinalizationTimeout}
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Blocks a function selector from being used, i.e. schedule
@@ -1102,10 +1102,10 @@ fun Timelock<T>.blockFunctionSelector(
     mutate self,
     sender: address,
     _value: coins,
-    queryId: uint64,
+    queryID: uint64,
     selector: uint32
 ): bool {
-    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+    assert(self.isInitialized()) throw (Timelock_Error.ContractNotInitialized);
 
     // the caller owns funding; TODO: check min value
 
@@ -1116,16 +1116,16 @@ fun Timelock<T>.blockFunctionSelector(
     val updated = self.data.blockedFnSelectors.addIfNotExists(selector, true);
     if (updated) {
         self.data.blockedFnSelectorsLen += 1;
-        body = Timelock_FunctionSelectorBlocked{queryId, selector}.toCell();
+        body = Timelock_FunctionSelectorBlocked{queryID, selector}.toCell();
     }
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body,
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     return updated;
 }
@@ -1140,10 +1140,10 @@ fun Timelock<T>.unblockFunctionSelector(
     mutate self,
     sender: address,
     _value: coins,
-    queryId: uint64,
+    queryID: uint64,
     selector: uint32,
 ): bool {
-    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+    assert(self.isInitialized()) throw (Timelock_Error.ContractNotInitialized);
 
     // the caller owns funding; TODO: check min value
 
@@ -1154,16 +1154,16 @@ fun Timelock<T>.unblockFunctionSelector(
     val updated = self.data.blockedFnSelectors.delete(selector);
     if (updated) {
         self.data.blockedFnSelectorsLen -= 1;
-        body = Timelock_FunctionSelectorUnblocked{queryId, selector}.toCell()
+        body = Timelock_FunctionSelectorUnblocked{queryID, selector}.toCell()
     }
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body,
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     return updated;
 }
@@ -1180,16 +1180,16 @@ fun Timelock<T>.bypasserExecuteBatch(
     mutate self,
     sender: address,
     value: coins,
-    queryId: uint64,
+    queryID: uint64,
     calls: SnakedCell<Timelock_Call>,
 ): void {
-    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+    assert(self.isInitialized()) throw (Timelock_Error.ContractNotInitialized);
     self.onlyRoleOrAdminRole(BYPASSER_ROLE, sender);
 
     // Notice: bypass doesn't clear or update pending operation info,
     // as it is not related to scheduled operations and is executed out of band.
     //
-    // Make sure the bypass calls (truncated) are unique (e.g., via queryId) so they
+    // Make sure the bypass calls (truncated) are unique (e.g., via queryID) so they
     // do not interfere with (normal) scheduled pending calls - matched bounces will
     // otherwise produce false positives.
 
@@ -1204,7 +1204,7 @@ fun Timelock<T>.bypasserExecuteBatch(
         self.execute(call);
 
         val body = Timelock_BypasserCallExecuted{
-            queryId,
+            queryID,
             index,
             target: call.target,
             value: call.value,
@@ -1214,15 +1214,15 @@ fun Timelock<T>.bypasserExecuteBatch(
         index += 1;
     }
 
-    assert(value >= Timelock_Costs.bypasserExecuteBatch(index), Timelock_Error.InsufficientFee);
+    assert (value >= Timelock_Costs.bypasserExecuteBatch(index)) throw (Timelock_Error.InsufficientFee);
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
-        body: Timelock_BypasserBatchExecuted{queryId}
+        body: Timelock_BypasserBatchExecuted{queryID}
     });
-    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Updates the executor role check (enabled/disabled) which guards the execution of operations.
@@ -1232,10 +1232,10 @@ fun Timelock<T>.updateExecutorRoleCheck(
     mutate self,
     sender: address,
     _value: coins,
-    queryId: uint64,
+    queryID: uint64,
     enabled: bool,
 ): void {
-    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+    assert(self.isInitialized()) throw (Timelock_Error.ContractNotInitialized);
 
     // the caller owns funding; TODO: check min value
 
@@ -1245,12 +1245,12 @@ fun Timelock<T>.updateExecutorRoleCheck(
     self.data.executorRoleCheckEnabled = enabled;
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: Timelock_ExecutorRoleCheckUpdated{queryId, enabled}
+        body: Timelock_ExecutorRoleCheckUpdated{queryID, enabled}
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Submit an oracle error report, which marks the current operation in error state.
@@ -1260,22 +1260,22 @@ fun Timelock<T>.submitErrorReport(
     mutate self,
     sender: address,
     value: coins,
-    queryId: uint64,
+    queryID: uint64,
     opBatch: Timelock_OperationBatch,
     opTxHash: uint256,
     errorTxHash: uint256,
     errorCode: uint32
 ) {
-    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+    assert(self.isInitialized()) throw (Timelock_Error.ContractNotInitialized);
 
-    assert(value >= Timelock_Costs.submitErrorReport(), Timelock_Error.InsufficientFee);
+    assert (value >= Timelock_Costs.submitErrorReport()) throw (Timelock_Error.InsufficientFee);
 
     // Only the oracle can submit error reports
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ORACLE_ROLE, sender);
 
     val id = self.hashOperationBatch(opBatch);
-    assert(self.isOperationDone(id)) throw Timelock_Error.OperationNotDone;
+    assert(self.isOperationDone(id)) throw (Timelock_Error.OperationNotDone);
 
     // Mark op in error state (recover with new op + bypass)
     self.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
@@ -1289,11 +1289,11 @@ fun Timelock<T>.submitErrorReport(
     }
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: Timelock_ErrorReportSubmitted{
-            queryId,
+            queryID,
             id,
             opTxHash,
             errorTxHash,
@@ -1301,7 +1301,7 @@ fun Timelock<T>.submitErrorReport(
             matchesPendingOp,
         }
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Returns whether the contract is initialized.
@@ -1408,38 +1408,38 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
     val msg = lazy Timelock_InMessage.fromSlice(msgBody);
     match (msg) {
         Timelock_Init => {
-            self.init(msgSender, msgValue, msg.queryId, msg.minDelay, msg.admin, msg.proposers, msg.executors,
+            self.init(msgSender, msgValue, msg.queryID, msg.minDelay, msg.admin, msg.proposers, msg.executors,
                 msg.cancellers, msg.bypassers, msg.executorRoleCheckEnabled, msg.opFinalizationTimeout);
         }
         Timelock_ScheduleBatch => {
-            self.scheduleBatch(msgSender, msgValue, msg.queryId, msg.calls, msg.predecessor, msg.salt, msg.delay);
+            self.scheduleBatch(msgSender, msgValue, msg.queryID, msg.calls, msg.predecessor, msg.salt, msg.delay);
         }
         Timelock_Cancel => {
-            self.cancel(msgSender, msgValue, msg.queryId, msg.id);
+            self.cancel(msgSender, msgValue, msg.queryID, msg.id);
         }
         Timelock_ExecuteBatch => {
-            self.executeBatch(msgSender, msgValue, msg.queryId, msg.calls, msg.predecessor, msg.salt);
+            self.executeBatch(msgSender, msgValue, msg.queryID, msg.calls, msg.predecessor, msg.salt);
         }
         Timelock_UpdateDelay => {
-            self.updateDelay(msgSender, msgValue, msg.queryId, msg.newDelay);
+            self.updateDelay(msgSender, msgValue, msg.queryID, msg.newDelay);
         }
         Timelock_UpdateOpFinalizationTimeout => {
-            self.updateOpFinalizationTimeout(msgSender, msgValue, msg.queryId, msg.newOpFinalizationTimeout);
+            self.updateOpFinalizationTimeout(msgSender, msgValue, msg.queryID, msg.newOpFinalizationTimeout);
         }
         Timelock_BlockFunctionSelector => {
-            self.blockFunctionSelector(msgSender, msgValue, msg.queryId, msg.selector);
+            self.blockFunctionSelector(msgSender, msgValue, msg.queryID, msg.selector);
         }
         Timelock_UnblockFunctionSelector => {
-            self.unblockFunctionSelector(msgSender, msgValue, msg.queryId, msg.selector);
+            self.unblockFunctionSelector(msgSender, msgValue, msg.queryID, msg.selector);
         }
         Timelock_BypasserExecuteBatch => {
-            self.bypasserExecuteBatch(msgSender, msgValue, msg.queryId, msg.calls);
+            self.bypasserExecuteBatch(msgSender, msgValue, msg.queryID, msg.calls);
         }
         Timelock_UpdateExecutorRoleCheck => {
-            self.updateExecutorRoleCheck(msgSender, msgValue, msg.queryId, msg.enabled);
+            self.updateExecutorRoleCheck(msgSender, msgValue, msg.queryID, msg.enabled);
         }
         Timelock_SubmitErrorReport => {
-            self.submitErrorReport(msgSender, msgValue, msg.queryId, msg.opBatch.load(),
+            self.submitErrorReport(msgSender, msgValue, msg.queryID, msg.opBatch.load(),
                 msg.opTxHash, msg.errorTxHash, msg.errorCode);
         }
         else => {
@@ -1457,7 +1457,7 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
 
 /// Dispatches an AccessControl message (or an unrecognized message) to the trait.
 fun Timelock<T>.dispatchAccessControl(mutate self, sender: address, value: coins, body: slice) {
-    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
+    assert(self.isInitialized()) throw (Timelock_Error.ContractNotInitialized);
     var rbac = self.hookTrait__AccessControl();
     val msgHandled = 0
         || rbac.onInternalMessage(sender, value, body);

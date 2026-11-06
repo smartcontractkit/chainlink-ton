@@ -42,7 +42,7 @@ export type TokenPoolWithdrawFeeTokensBehaviorContext = {
   feeBps: bigint
   /// Performs a successful lock of `amount` jettons, accruing `fee = amount*feeBps/BPS_DIVIDER`.
   /// Returns the exact accrued fee so assertions don't recompute it.
-  doLock: (amount: bigint, queryId: bigint) => Promise<{ feeAmount: bigint }>
+  doLock: (amount: bigint, queryID: bigint) => Promise<{ feeAmount: bigint }>
 }
 
 export function runTokenPoolWithdrawFeeTokensBehaviorTests(
@@ -71,14 +71,14 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
       const poolBalanceBefore = await ctx.poolWallet.getJettonBalance()
 
       const withdrawMsg = JettonWithdrawable_Withdraw.create({
-        queryId: 200n,
+        queryID: 200n,
         transfers: [
           JettonWithdrawable_WithdrawFeeTransfer.create({
             wallet: ctx.poolWallet.address,
             // Enough to cover the relayed value + the pool reserve (0.2 + 0.1 <= 0.5 value sent).
             value: toNano('0.2'),
             msg: AskToTransfer.create({
-              queryId: 200n,
+              queryID: 200n,
               jettonAmount: feeAmount,
               transferRecipient: ctx.recipient.address,
               sendExcessesTo: ctx.pool.address,
@@ -127,13 +127,13 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
         toNano('0.5'),
         {
           withdrawMsg: JettonWithdrawable_Withdraw.create({
-            queryId: 207n,
+            queryID: 207n,
             transfers: [
               JettonWithdrawable_WithdrawFeeTransfer.create({
                 wallet: ctx.poolWallet.address,
                 value: toNano('0.2'),
                 msg: AskToTransfer.create({
-                  queryId: 207n,
+                  queryID: 207n,
                   jettonAmount: feeAmount,
                   transferRecipient: ctx.recipient.address,
                   sendExcessesTo: ctx.pool.address,
@@ -164,7 +164,7 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
         ctx.deployer.getSender(),
         toNano('0.2'),
         {
-          queryId: 5n,
+          queryID: 5n,
           router: ctx.deployer.address,
           rateLimitAdmin: null,
           feeAdmin: ctx.feeAdmin.address,
@@ -180,7 +180,7 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
         ctx.feeAdmin.getSender(),
         toNano('0.5'),
         {
-          withdrawMsg: JettonWithdrawable_Withdraw.create({ queryId: 208n, transfers: [] }),
+          withdrawMsg: JettonWithdrawable_Withdraw.create({ queryID: 208n, transfers: [] }),
         },
       )
 
@@ -199,7 +199,7 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
         ctx.deployer.getSender(), // owner
         toNano('0.02'),
         {
-          queryId: 209n,
+          queryID: 209n,
           destination: ctx.recipient.address,
           amount,
           reserve: null,
@@ -222,7 +222,7 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
         ctx.unauthorized.getSender(),
         toNano('0.02'),
         {
-          queryId: 210n,
+          queryID: 210n,
           destination: ctx.recipient.address,
           amount: toNano('0.1'),
           reserve: null,
@@ -251,13 +251,13 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
         ctx.deployer.getSender(), // owner
         toNano('0.5'),
         {
-          queryId: 203n,
+          queryID: 203n,
           transfers: [
             JettonWithdrawable_WithdrawFeeTransfer.create({
               wallet: ctx.poolWallet.address,
               value: toNano('0.2'),
               msg: AskToTransfer.create({
-                queryId: 203n,
+                queryID: 203n,
                 jettonAmount: feeAmount * 2n,
                 transferRecipient: ctx.recipient.address,
                 sendExcessesTo: ctx.pool.address,
@@ -307,7 +307,7 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
       await foreignMinter.sendMint(ctx.deployer.getSender(), {
         value: toNano('1'),
         message: {
-          queryId: 500n,
+          queryID: 500n,
           destination: ctx.pool.address,
           tonAmount: toNano('0.05'),
           jettonAmount: foreignAmount,
@@ -329,13 +329,13 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
         ctx.deployer.getSender(), // owner
         toNano('0.5'),
         {
-          queryId: 205n,
+          queryID: 205n,
           transfers: [
             JettonWithdrawable_WithdrawFeeTransfer.create({
               wallet: ctx.poolWallet.address,
               value: toNano('0.2'),
               msg: AskToTransfer.create({
-                queryId: 205n,
+                queryID: 205n,
                 jettonAmount: feeAmount,
                 transferRecipient: ctx.recipient.address,
                 sendExcessesTo: ctx.pool.address,
@@ -348,7 +348,7 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
               wallet: poolForeignWallet.address,
               value: toNano('0.2'),
               msg: AskToTransfer.create({
-                queryId: 206n,
+                queryID: 206n,
                 jettonAmount: foreignAmount,
                 transferRecipient: ctx.recipient.address,
                 sendExcessesTo: ctx.pool.address,
@@ -386,7 +386,7 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
       const bouncedAmount = 123n
 
       const ask = AskToTransfer.create({
-        queryId: 400n,
+        queryID: 400n,
         jettonAmount: bouncedAmount,
         transferRecipient: ctx.recipient.address,
         sendExcessesTo: ctx.pool.address,
@@ -446,7 +446,7 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
           const s = body.beginParse()
           const wallet = s.loadAddress()
           const bouncedAsk = AskToTransfer.fromSlice(s)
-          return wallet.equals(ctx.poolWallet.address) && bouncedAsk.queryId === 400n
+          return wallet.equals(ctx.poolWallet.address) && bouncedAsk.queryID === 400n
         },
       })
       // The returned jettons are rescued explicitly; the ledger must not be inflated.
@@ -465,7 +465,7 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
         ctx.deployer.getSender(),
         toNano('0.2'),
         {
-          queryId: 4n,
+          queryID: 4n,
           router: ctx.deployer.address,
           rateLimitAdmin: null,
           feeAdmin: ctx.feeAdmin.address,
@@ -481,14 +481,14 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
         ctx.feeAdmin.getSender(),
         toNano('0.5'),
         {
-          queryId: 201n,
+          queryID: 201n,
           transfers: [
             JettonWithdrawable_WithdrawFeeTransfer.create({
               wallet: ctx.poolWallet.address,
               // Enough to cover the relayed value + the pool reserve (0.2 + 0.1 <= 0.5 value sent).
               value: toNano('0.2'),
               msg: AskToTransfer.create({
-                queryId: 201n,
+                queryID: 201n,
                 jettonAmount: feeAmount,
                 transferRecipient: ctx.recipient.address,
                 sendExcessesTo: ctx.pool.address,
@@ -518,7 +518,7 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
         ctx.unauthorized.getSender(),
         toNano('0.5'),
         {
-          queryId: 202n,
+          queryID: 202n,
           transfers: [],
         },
       )
@@ -542,13 +542,13 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
         ctx.deployer.getSender(), // owner
         toNano('0.5'),
         {
-          queryId: 210n,
+          queryID: 210n,
           transfers: [
             JettonWithdrawable_WithdrawFeeTransfer.create({
               wallet: ctx.poolWallet.address,
               value: toNano('0.2'),
               msg: AskToTransfer.create({
-                queryId: 210n,
+                queryID: 210n,
                 jettonAmount: 1n,
                 transferRecipient: ZERO_ADDRESS,
                 sendExcessesTo: ctx.pool.address,
@@ -587,13 +587,13 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
         ctx.deployer.getSender(), // owner
         toNano('0.5'),
         {
-          queryId: 220n,
+          queryID: 220n,
           transfers: [0n, 1n].map((i) =>
             JettonWithdrawable_WithdrawFeeTransfer.create({
               wallet: ctx.poolWallet.address,
               value: toNano('0.2'),
               msg: AskToTransfer.create({
-                queryId: 220n + i,
+                queryID: 220n + i,
                 jettonAmount: half,
                 transferRecipient: ctx.recipient.address,
                 sendExcessesTo: ctx.pool.address,
@@ -642,13 +642,13 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
         ctx.deployer.getSender(), // owner
         toNano('0.5'),
         {
-          queryId: 320n,
+          queryID: 320n,
           transfers: [
             JettonWithdrawable_WithdrawFeeTransfer.create({
               wallet: ctx.poolWallet.address,
               value: toNano('0.2'),
               msg: AskToTransfer.create({
-                queryId: 320n,
+                queryID: 320n,
                 jettonAmount: feeAmount,
                 transferRecipient: ctx.recipient.address,
                 sendExcessesTo: ctx.pool.address,
@@ -718,13 +718,13 @@ export function runTokenPoolWithdrawFeeTokensBehaviorTests(
       const inboundValue = toNano('0.5')
       const relayValue = toNano('0.2')
       const body = TokenPool.createCellOfJettonWithdrawableWithdraw({
-        queryId: 310n,
+        queryID: 310n,
         transfers: [0n, 1n].map((i) =>
           JettonWithdrawable_WithdrawFeeTransfer.create({
             wallet: ctx.poolWallet.address,
             value: relayValue,
             msg: AskToTransfer.create({
-              queryId: 310n + i,
+              queryID: 310n + i,
               jettonAmount: half,
               transferRecipient: ctx.recipient.address,
               sendExcessesTo: ctx.pool.address,

@@ -99,7 +99,7 @@ describe('TokenAdminRegistry token info query gas', () => {
   // The CCIP read path for the current model.
   const query = () =>
     registry.sendTokenAdminRegistryGetTokenInfo(requester.getSender(), toNano('0.1'), {
-      queryId: 1n,
+      queryID: 1n,
       token,
     })
 

@@ -351,7 +351,7 @@ export const ForwardPayloadRemainder = {
 
 /**
  > struct (0x178d4519) InternalTransferStep {
- >     queryId: uint64
+ >     queryID: uint64
  >     jettonAmount: coins
  >     transferInitiator: address?
  >     sendExcessesTo: address?
@@ -361,7 +361,7 @@ export const ForwardPayloadRemainder = {
  */
 export interface InternalTransferStep {
     readonly $: 'InternalTransferStep'
-    queryId: uint64
+    queryID: uint64
     jettonAmount: coins
     transferInitiator: c.Address | null
     sendExcessesTo: c.Address | null
@@ -373,7 +373,7 @@ export const InternalTransferStep = {
     PREFIX: 0x178d4519,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         sendExcessesTo: c.Address | null
@@ -383,14 +383,14 @@ export const InternalTransferStep = {
         return {
             $: 'InternalTransferStep',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): InternalTransferStep {
         loadAndCheckPrefix32(s, 0x178d4519, 'InternalTransferStep');
         return {
             $: 'InternalTransferStep',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             jettonAmount: s.loadCoins(),
             transferInitiator: s.loadMaybeAddress(),
             sendExcessesTo: s.loadMaybeAddress(),
@@ -400,7 +400,7 @@ export const InternalTransferStep = {
     },
     store(self: InternalTransferStep, b: c.Builder): void {
         b.storeUint(0x178d4519, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeCoins(self.jettonAmount);
         b.storeAddress(self.transferInitiator);
         b.storeAddress(self.sendExcessesTo);
@@ -414,14 +414,14 @@ export const InternalTransferStep = {
 
 /**
  > struct (0x2c76b973) RequestWalletAddress {
- >     queryId: uint64
+ >     queryID: uint64
  >     ownerAddress: address
  >     includeOwnerAddress: bool
  > }
  */
 export interface RequestWalletAddress {
     readonly $: 'RequestWalletAddress'
-    queryId: uint64
+    queryID: uint64
     ownerAddress: c.Address
     includeOwnerAddress: boolean
 }
@@ -430,28 +430,28 @@ export const RequestWalletAddress = {
     PREFIX: 0x2c76b973,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         ownerAddress: c.Address
         includeOwnerAddress: boolean
     }): RequestWalletAddress {
         return {
             $: 'RequestWalletAddress',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): RequestWalletAddress {
         loadAndCheckPrefix32(s, 0x2c76b973, 'RequestWalletAddress');
         return {
             $: 'RequestWalletAddress',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             ownerAddress: s.loadAddress(),
             includeOwnerAddress: s.loadBoolean(),
         }
     },
     store(self: RequestWalletAddress, b: c.Builder): void {
         b.storeUint(0x2c76b973, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.ownerAddress);
         b.storeBit(self.includeOwnerAddress);
     },
@@ -462,14 +462,14 @@ export const RequestWalletAddress = {
 
 /**
  > struct (0xd1735400) ResponseWalletAddress {
- >     queryId: uint64
+ >     queryID: uint64
  >     jettonWalletAddress: address?
  >     ownerAddress: Cell<address>?
  > }
  */
 export interface ResponseWalletAddress {
     readonly $: 'ResponseWalletAddress'
-    queryId: uint64
+    queryID: uint64
     jettonWalletAddress: c.Address | null
     ownerAddress: c.Address | null
 }
@@ -478,21 +478,21 @@ export const ResponseWalletAddress = {
     PREFIX: 0xd1735400,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         jettonWalletAddress: c.Address | null
         ownerAddress: c.Address | null
     }): ResponseWalletAddress {
         return {
             $: 'ResponseWalletAddress',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): ResponseWalletAddress {
         loadAndCheckPrefix32(s, 0xd1735400, 'ResponseWalletAddress');
         return {
             $: 'ResponseWalletAddress',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             jettonWalletAddress: s.loadMaybeAddress(),
             ownerAddress: s.loadBoolean() ? loadCellRef<c.Address>(s,
                 (s) => s.loadAddress()
@@ -501,7 +501,7 @@ export const ResponseWalletAddress = {
     },
     store(self: ResponseWalletAddress, b: c.Builder): void {
         b.storeUint(0xd1735400, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.jettonWalletAddress);
         storeTolkNullable<c.Address>(self.ownerAddress, b,
             (v,b) => { storeCellRef<c.Address>(v, b,
@@ -516,7 +516,7 @@ export const ResponseWalletAddress = {
 
 /**
  > struct (0x00000015) MintNewJettons {
- >     queryId: uint64
+ >     queryID: uint64
  >     mintRecipient: address
  >     tonAmount: coins
  >     internalTransferMsg: Cell<InternalTransferStep>
@@ -524,7 +524,7 @@ export const ResponseWalletAddress = {
  */
 export interface MintNewJettons {
     readonly $: 'MintNewJettons'
-    queryId: uint64
+    queryID: uint64
     mintRecipient: c.Address
     tonAmount: coins
     internalTransferMsg: InternalTransferStep
@@ -534,7 +534,7 @@ export const MintNewJettons = {
     PREFIX: 0x00000015,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         mintRecipient: c.Address
         tonAmount: coins
         internalTransferMsg: InternalTransferStep
@@ -542,14 +542,14 @@ export const MintNewJettons = {
         return {
             $: 'MintNewJettons',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): MintNewJettons {
         loadAndCheckPrefix32(s, 0x00000015, 'MintNewJettons');
         return {
             $: 'MintNewJettons',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             mintRecipient: s.loadAddress(),
             tonAmount: s.loadCoins(),
             internalTransferMsg: loadCellRef<InternalTransferStep>(s, InternalTransferStep.fromSlice),
@@ -557,7 +557,7 @@ export const MintNewJettons = {
     },
     store(self: MintNewJettons, b: c.Builder): void {
         b.storeUint(0x00000015, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.mintRecipient);
         b.storeCoins(self.tonAmount);
         storeCellRef<InternalTransferStep>(self.internalTransferMsg, b, InternalTransferStep.store);
@@ -569,13 +569,13 @@ export const MintNewJettons = {
 
 /**
  > struct (0x6501f354) ChangeMinterAdmin {
- >     queryId: uint64
+ >     queryID: uint64
  >     newAdminAddress: address
  > }
  */
 export interface ChangeMinterAdmin {
     readonly $: 'ChangeMinterAdmin'
-    queryId: uint64
+    queryID: uint64
     newAdminAddress: c.Address
 }
 
@@ -583,26 +583,26 @@ export const ChangeMinterAdmin = {
     PREFIX: 0x6501f354,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         newAdminAddress: c.Address
     }): ChangeMinterAdmin {
         return {
             $: 'ChangeMinterAdmin',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): ChangeMinterAdmin {
         loadAndCheckPrefix32(s, 0x6501f354, 'ChangeMinterAdmin');
         return {
             $: 'ChangeMinterAdmin',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             newAdminAddress: s.loadAddress(),
         }
     },
     store(self: ChangeMinterAdmin, b: c.Builder): void {
         b.storeUint(0x6501f354, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.newAdminAddress);
     },
     toCell(self: ChangeMinterAdmin): c.Cell {
@@ -612,36 +612,36 @@ export const ChangeMinterAdmin = {
 
 /**
  > struct (0xfb88e119) ClaimMinterAdmin {
- >     queryId: uint64
+ >     queryID: uint64
  > }
  */
 export interface ClaimMinterAdmin {
     readonly $: 'ClaimMinterAdmin'
-    queryId: uint64
+    queryID: uint64
 }
 
 export const ClaimMinterAdmin = {
     PREFIX: 0xfb88e119,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
     }): ClaimMinterAdmin {
         return {
             $: 'ClaimMinterAdmin',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): ClaimMinterAdmin {
         loadAndCheckPrefix32(s, 0xfb88e119, 'ClaimMinterAdmin');
         return {
             $: 'ClaimMinterAdmin',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
         }
     },
     store(self: ClaimMinterAdmin, b: c.Builder): void {
         b.storeUint(0xfb88e119, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
     },
     toCell(self: ClaimMinterAdmin): c.Cell {
         return makeCellFrom<ClaimMinterAdmin>(self, ClaimMinterAdmin.store);
@@ -650,36 +650,36 @@ export const ClaimMinterAdmin = {
 
 /**
  > struct (0x7431f221) DropMinterAdmin {
- >     queryId: uint64
+ >     queryID: uint64
  > }
  */
 export interface DropMinterAdmin {
     readonly $: 'DropMinterAdmin'
-    queryId: uint64
+    queryID: uint64
 }
 
 export const DropMinterAdmin = {
     PREFIX: 0x7431f221,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
     }): DropMinterAdmin {
         return {
             $: 'DropMinterAdmin',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): DropMinterAdmin {
         loadAndCheckPrefix32(s, 0x7431f221, 'DropMinterAdmin');
         return {
             $: 'DropMinterAdmin',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
         }
     },
     store(self: DropMinterAdmin, b: c.Builder): void {
         b.storeUint(0x7431f221, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
     },
     toCell(self: DropMinterAdmin): c.Cell {
         return makeCellFrom<DropMinterAdmin>(self, DropMinterAdmin.store);
@@ -688,14 +688,14 @@ export const DropMinterAdmin = {
 
 /**
  > struct (0x2508d66a) UpgradeMinterCode {
- >     queryId: uint64
+ >     queryID: uint64
  >     newData: cell
  >     newCode: cell
  > }
  */
 export interface UpgradeMinterCode {
     readonly $: 'UpgradeMinterCode'
-    queryId: uint64
+    queryID: uint64
     newData: c.Cell
     newCode: c.Cell
 }
@@ -704,28 +704,28 @@ export const UpgradeMinterCode = {
     PREFIX: 0x2508d66a,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         newData: c.Cell
         newCode: c.Cell
     }): UpgradeMinterCode {
         return {
             $: 'UpgradeMinterCode',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): UpgradeMinterCode {
         loadAndCheckPrefix32(s, 0x2508d66a, 'UpgradeMinterCode');
         return {
             $: 'UpgradeMinterCode',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             newData: s.loadRef(),
             newCode: s.loadRef(),
         }
     },
     store(self: UpgradeMinterCode, b: c.Builder): void {
         b.storeUint(0x2508d66a, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeRef(self.newData);
         b.storeRef(self.newCode);
     },
@@ -736,13 +736,13 @@ export const UpgradeMinterCode = {
 
 /**
  > struct (0xcb862902) ChangeMinterMetadataUri {
- >     queryId: uint64
+ >     queryID: uint64
  >     newMetadataUri: RemainingBitsAndRefs
  > }
  */
 export interface ChangeMinterMetadataUri {
     readonly $: 'ChangeMinterMetadataUri'
-    queryId: uint64
+    queryID: uint64
     newMetadataUri: RemainingBitsAndRefs
 }
 
@@ -750,26 +750,26 @@ export const ChangeMinterMetadataUri = {
     PREFIX: 0xcb862902,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         newMetadataUri: RemainingBitsAndRefs
     }): ChangeMinterMetadataUri {
         return {
             $: 'ChangeMinterMetadataUri',
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): ChangeMinterMetadataUri {
         loadAndCheckPrefix32(s, 0xcb862902, 'ChangeMinterMetadataUri');
         return {
             $: 'ChangeMinterMetadataUri',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             newMetadataUri: loadTolkRemaining(s),
         }
     },
     store(self: ChangeMinterMetadataUri, b: c.Builder): void {
         b.storeUint(0xcb862902, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         storeTolkRemaining(self.newMetadataUri, b);
     },
     toCell(self: ChangeMinterMetadataUri): c.Cell {
@@ -809,7 +809,7 @@ export const TopUpTons = {
 
 /**
  > struct (0x7bdd97de) CCT_BurnNotificationForMinter {
- >     queryId: uint64
+ >     queryID: uint64
  >     jettonAmount: coins
  >     burnInitiator: address
  >     sendExcessesTo: address?
@@ -818,7 +818,7 @@ export const TopUpTons = {
  */
 export interface CCT_BurnNotificationForMinter {
     readonly $: 'CCT_BurnNotificationForMinter'
-    queryId: uint64
+    queryID: uint64
     jettonAmount: coins
     burnInitiator: c.Address
     sendExcessesTo: c.Address | null
@@ -829,7 +829,7 @@ export const CCT_BurnNotificationForMinter = {
     PREFIX: 0x7bdd97de,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         jettonAmount: coins
         burnInitiator: c.Address
         sendExcessesTo: c.Address | null
@@ -839,14 +839,14 @@ export const CCT_BurnNotificationForMinter = {
             $: 'CCT_BurnNotificationForMinter',
             forwardPayload: null,
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): CCT_BurnNotificationForMinter {
         loadAndCheckPrefix32(s, 0x7bdd97de, 'CCT_BurnNotificationForMinter');
         return {
             $: 'CCT_BurnNotificationForMinter',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             jettonAmount: s.loadCoins(),
             burnInitiator: s.loadAddress(),
             sendExcessesTo: s.loadMaybeAddress(),
@@ -855,7 +855,7 @@ export const CCT_BurnNotificationForMinter = {
     },
     store(self: CCT_BurnNotificationForMinter, b: c.Builder): void {
         b.storeUint(0x7bdd97de, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeCoins(self.jettonAmount);
         b.storeAddress(self.burnInitiator);
         b.storeAddress(self.sendExcessesTo);
@@ -870,14 +870,14 @@ export const CCT_BurnNotificationForMinter = {
 
 /**
  > struct (0xd53276db) CCT_ReturnExcessesBack {
- >     queryId: uint64
+ >     queryID: uint64
  >     initiator: address
  >     forwardPayload: cell?
  > }
  */
 export interface CCT_ReturnExcessesBack {
     readonly $: 'CCT_ReturnExcessesBack'
-    queryId: uint64
+    queryID: uint64
     initiator: c.Address
     forwardPayload: c.Cell | null /* = null */
 }
@@ -886,7 +886,7 @@ export const CCT_ReturnExcessesBack = {
     PREFIX: 0xd53276db,
 
     create(args: {
-        queryId?: uint64
+        queryID?: uint64
         initiator: c.Address
         forwardPayload?: c.Cell | null /* = null */
     }): CCT_ReturnExcessesBack {
@@ -894,21 +894,21 @@ export const CCT_ReturnExcessesBack = {
             $: 'CCT_ReturnExcessesBack',
             forwardPayload: null,
             ...args,
-            queryId: args.queryId ?? 0n
+            queryID: args.queryID ?? 0n
         }
     },
     fromSlice(s: c.Slice): CCT_ReturnExcessesBack {
         loadAndCheckPrefix32(s, 0xd53276db, 'CCT_ReturnExcessesBack');
         return {
             $: 'CCT_ReturnExcessesBack',
-            queryId: s.loadUintBig(64),
+            queryID: s.loadUintBig(64),
             initiator: s.loadAddress(),
             forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: CCT_ReturnExcessesBack, b: c.Builder): void {
         b.storeUint(0xd53276db, 32);
-        b.storeUint(self.queryId, 64);
+        b.storeUint(self.queryID, 64);
         b.storeAddress(self.initiator);
         storeTolkNullable<c.Cell>(self.forwardPayload, b,
             (v,b) => b.storeRef(v)
@@ -997,7 +997,7 @@ export class JettonMinter implements c.Contract {
     }
 
     static createCellOfMintNewJettons(body: {
-        queryId?: uint64
+        queryID?: uint64
         mintRecipient: c.Address
         tonAmount: coins
         internalTransferMsg: InternalTransferStep
@@ -1006,7 +1006,7 @@ export class JettonMinter implements c.Contract {
     }
 
     static createCellOfCCTBurnNotificationForMinter(body: {
-        queryId?: uint64
+        queryID?: uint64
         jettonAmount: coins
         burnInitiator: c.Address
         sendExcessesTo: c.Address | null
@@ -1016,7 +1016,7 @@ export class JettonMinter implements c.Contract {
     }
 
     static createCellOfRequestWalletAddress(body: {
-        queryId?: uint64
+        queryID?: uint64
         ownerAddress: c.Address
         includeOwnerAddress: boolean
     }) {
@@ -1024,33 +1024,33 @@ export class JettonMinter implements c.Contract {
     }
 
     static createCellOfChangeMinterAdmin(body: {
-        queryId?: uint64
+        queryID?: uint64
         newAdminAddress: c.Address
     }) {
         return ChangeMinterAdmin.toCell(ChangeMinterAdmin.create(body));
     }
 
     static createCellOfClaimMinterAdmin(body: {
-        queryId?: uint64
+        queryID?: uint64
     }) {
         return ClaimMinterAdmin.toCell(ClaimMinterAdmin.create(body));
     }
 
     static createCellOfDropMinterAdmin(body: {
-        queryId?: uint64
+        queryID?: uint64
     }) {
         return DropMinterAdmin.toCell(DropMinterAdmin.create(body));
     }
 
     static createCellOfChangeMinterMetadataUri(body: {
-        queryId?: uint64
+        queryID?: uint64
         newMetadataUri: RemainingBitsAndRefs
     }) {
         return ChangeMinterMetadataUri.toCell(ChangeMinterMetadataUri.create(body));
     }
 
     static createCellOfUpgradeMinterCode(body: {
-        queryId?: uint64
+        queryID?: uint64
         newData: c.Cell
         newCode: c.Cell
     }) {
@@ -1079,7 +1079,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendMintNewJettons(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         mintRecipient: c.Address
         tonAmount: coins
         internalTransferMsg: InternalTransferStep
@@ -1092,7 +1092,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendCCTBurnNotificationForMinter(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         jettonAmount: coins
         burnInitiator: c.Address
         sendExcessesTo: c.Address | null
@@ -1106,7 +1106,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendRequestWalletAddress(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         ownerAddress: c.Address
         includeOwnerAddress: boolean
     }, extraOptions?: ExtraSendOptions) {
@@ -1118,7 +1118,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendChangeMinterAdmin(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         newAdminAddress: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1129,7 +1129,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendClaimMinterAdmin(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -1139,7 +1139,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendDropMinterAdmin(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -1149,7 +1149,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendChangeMinterMetadataUri(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         newMetadataUri: RemainingBitsAndRefs
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -1160,7 +1160,7 @@ export class JettonMinter implements c.Contract {
     }
 
     async sendUpgradeMinterCode(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
+        queryID?: uint64
         newData: c.Cell
         newCode: c.Cell
     }, extraOptions?: ExtraSendOptions) {

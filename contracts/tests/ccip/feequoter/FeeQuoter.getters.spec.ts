@@ -133,7 +133,7 @@ describe('FeeQuoter Getters', () => {
       const result = await setup.bind.feeQuoter.sendOwnable2StepTransferOwnership(
         setup.acc.owner.getSender(),
         toNano('1'),
-        { newOwner, queryId: 0n },
+        { newOwner, queryID: 0n },
       )
 
       expect(result.transactions).toHaveTransaction({

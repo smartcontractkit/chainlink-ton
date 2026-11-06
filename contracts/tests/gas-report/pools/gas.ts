@@ -65,7 +65,7 @@ async function configureChain(
   deployer: SandboxContract<TreasuryContract>,
 ) {
   await pool.sendTokenPoolApplyChainUpdates(deployer.getSender(), toNano('0.2'), {
-    queryId: 1n,
+    queryID: 1n,
     remoteChainSelectorsToRemove: [],
     chainsToAdd: [
       TokenPool_ChainUpdate.create({
@@ -107,7 +107,7 @@ async function lockOrBurn(
   blockchain: Blockchain,
   handle: TokenPoolGasHandle,
   deployer: SandboxContract<TreasuryContract>,
-  queryId: bigint,
+  queryID: bigint,
   jettonAmount: bigint,
 ): Promise<LockOrBurnResult> {
   const budget = await handle.readBudget()
@@ -115,10 +115,10 @@ async function lockOrBurn(
     deployer.getSender(),
     budget.lockOrBurn.admission + FINALIZATION_VALUE,
     {
-      queryId,
+      queryID,
       request: TokenPool_LockOrBurnInV1.create({
         transfer: TokenPool_Transfer.create({
-          id: queryId,
+          id: queryID,
           details: TokenPool_TransferDetails.create({
             receiver: DEST_TOKEN_ADDRESS,
             remoteChainSelector: REMOTE_CHAIN_SELECTOR,
@@ -156,7 +156,7 @@ async function lockOrBurn(
     // unused remainder to the sender.
     value: withdraw.forwardTonAmount + WALLET_SEND_BUFFER,
     message: {
-      queryId: Number(queryId),
+      queryID: Number(queryID),
       jettonAmount,
       destination: handle.pool.address,
       responseDestination: deployer.address,
@@ -186,7 +186,7 @@ async function releaseOrMint(
   handle: TokenPoolGasHandle,
   deployer: SandboxContract<TreasuryContract>,
   recipient: SandboxContract<TreasuryContract>,
-  queryId: bigint,
+  queryID: bigint,
   amount: bigint,
 ): Promise<SendResult> {
   const budget = await handle.readBudget()
@@ -195,10 +195,10 @@ async function releaseOrMint(
     deployer.getSender(),
     budget.releaseOrMint.admission + delivery.forwardTonAmount,
     {
-      queryId,
+      queryID,
       request: TokenPool_ReleaseOrMintInV1.create({
         transfer: TokenPool_Transfer.create({
-          id: queryId,
+          id: queryID,
           details: TokenPool_TransferDetails.create({
             originalSender: SOURCE_POOL_ADDRESS,
             remoteChainSelector: REMOTE_CHAIN_SELECTOR,

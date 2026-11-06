@@ -160,7 +160,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     {
       const setConfigBody = mcms.builder.message.in.setConfig
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           signerAddresses: testSigners.map((s) => BigInt(s.address)),
           signerGroups: testSigners.map((s) => s.group),
           groupQuorums,
@@ -294,7 +294,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
       const setConfigBody = mcms.builder.message.in.setConfig
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           signerAddresses: signers,
           signerGroups: testSigners.map((s) => s.group),
           groupQuorums,
@@ -436,7 +436,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     // Test malformed configuration should fail
     const malformedSetConfigBody = mcms.builder.message.in.setConfig
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         signerAddresses: testSigners.map((s) => BigInt(s.address)),
         signerGroups: signerGroupsData,
         groupQuorums,
@@ -467,7 +467,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
     const correctSetConfigBody = mcms.builder.message.in.setConfig
       .encode({
-        queryId: 2n,
+        queryID: 2n,
         signerAddresses: testSigners.map((s) => BigInt(s.address)),
         signerGroups: signerGroupsData,
         groupQuorums,

@@ -28,7 +28,7 @@ fun JettonClient.sendSimple(
     self,
     sendOptions: JettonMessageOptions,
     sendMode: int,
-    queryId: uint64,
+    queryID: uint64,
     amount: coins,
     destination: address,
     responseDestination: address,
@@ -38,7 +38,7 @@ fun JettonClient.sendSimple(
         value: sendOptions.value,
         dest: self.walletAddress(),
         body: AskToTransfer {
-            queryId: queryId,
+            queryID: queryID,
             jettonAmount: amount,
             transferRecipient: destination,
             sendExcessesTo: responseDestination,
@@ -47,7 +47,7 @@ fun JettonClient.sendSimple(
             forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
         },
     })
-        .send(sendMode);
+        .send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 @inline
@@ -55,7 +55,7 @@ fun JettonClient.sendExtended(
     self,
     sendOptions: JettonMessageOptions,
     sendMode: int,
-    queryId: uint64,
+    queryID: uint64,
     amount: coins,
     destination: address,
     responseDestination: address,
@@ -64,7 +64,7 @@ fun JettonClient.sendExtended(
     forwardPayload: slice | cell,
 ) {
     var body = beginCell().storeAny(AskToTransfer {
-        queryId: queryId,
+        queryID: queryID,
         jettonAmount: amount,
         transferRecipient: destination,
         sendExcessesTo: responseDestination,
@@ -86,7 +86,7 @@ fun JettonClient.sendExtended(
         dest: self.walletAddress(),
         body: body,
     })
-        .send(sendMode);
+        .send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Cast Cell into ForwardPayloadRemainder by storing as ref

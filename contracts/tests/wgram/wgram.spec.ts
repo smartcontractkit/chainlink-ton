@@ -201,12 +201,12 @@ describe('wGRAM', () => {
     customPayload = null,
     value,
   }: MintOptions) {
-    const queryId = nextQueryId++
+    const queryID = nextQueryId++
     const result = await minterContract.sendMint(sender.getSender(), {
       value: value ?? jettonAmount + tonAmount + toNano('0.3'),
       mintOpcode: WGRAM_MINT_OPCODE,
       message: {
-        queryId,
+        queryID,
         destination,
         tonAmount,
         jettonAmount,
@@ -217,7 +217,7 @@ describe('wGRAM', () => {
       },
     })
 
-    return { queryId, result }
+    return { queryID, result }
   }
 
   async function mintTo(destination: Address, options: Omit<MintOptions, 'destination'> = {}) {
@@ -259,7 +259,7 @@ describe('wGRAM', () => {
     const result = await wallet.sendTransfer(owner.getSender(), {
       value,
       message: {
-        queryId: Number(nextQueryId++),
+        queryID: Number(nextQueryId++),
         jettonAmount,
         destination,
         responseDestination,
@@ -288,7 +288,7 @@ describe('wGRAM', () => {
     const result = await wallet.sendBurn(owner.getSender(), {
       value,
       message: {
-        queryId: nextQueryId++,
+        queryID: nextQueryId++,
         jettonAmount,
         responseDestination,
         customPayload: null,
@@ -313,7 +313,7 @@ describe('wGRAM', () => {
       value,
       opcode: WGRAM_WITHDRAW_EXCESS_OPCODE,
       message: {
-        queryId: nextQueryId++,
+        queryID: nextQueryId++,
         sendExcessesTo,
       },
     })
@@ -358,7 +358,7 @@ describe('wGRAM', () => {
       await aliceWallet.sendTransfer(alice.getSender(), {
         value: toNano('0.5'),
         message: {
-          queryId: Number(nextQueryId++),
+          queryID: Number(nextQueryId++),
           jettonAmount: transferred,
           destination: bob.address,
           responseDestination: alice.address,
@@ -371,7 +371,7 @@ describe('wGRAM', () => {
       await bobWallet.sendBurn(bob.getSender(), {
         value: toNano('0.2'),
         message: {
-          queryId: nextQueryId++,
+          queryID: nextQueryId++,
           jettonAmount: burned,
           responseDestination: recipient.address,
           customPayload: null,
@@ -420,13 +420,13 @@ describe('wGRAM', () => {
     })
 
     it('responds to wallet-address requests and can include the owner address', async () => {
-      const queryId = nextQueryId++
+      const queryID = nextQueryId++
       const result = await deployer.send({
         to: minter.address,
         value: toNano('0.05'),
         body: minterBuilder.messages.in.requestWalletAddress
           .encode({
-            queryId,
+            queryID,
             ownerAddress: alice.address,
             includeOwnerAddress: true,
           })
@@ -441,7 +441,7 @@ describe('wGRAM', () => {
 
       const body = internalMessageBodyTo(result, deployer.address).beginParse()
       expect(body.loadUint(32)).toEqual(MinterOpcodes.TAKE_WALLET_ADDRESS)
-      expect(body.loadUintBig(64)).toEqual(queryId)
+      expect(body.loadUintBig(64)).toEqual(queryID)
 
       const walletAddress = body.loadMaybeAddress()
       expect(walletAddress?.equals(await minter.getWalletAddress(alice.address))).toBe(true)
@@ -453,13 +453,13 @@ describe('wGRAM', () => {
     })
 
     it('returns a null wallet address for non-basechain owners while preserving the echoed owner', async () => {
-      const queryId = nextQueryId++
+      const queryID = nextQueryId++
       const result = await deployer.send({
         to: minter.address,
         value: toNano('0.05'),
         body: minterBuilder.messages.in.requestWalletAddress
           .encode({
-            queryId,
+            queryID,
             ownerAddress: MASTERCHAIN_ZERO_ADDRESS,
             includeOwnerAddress: true,
           })
@@ -474,7 +474,7 @@ describe('wGRAM', () => {
 
       const body = internalMessageBodyTo(result, deployer.address).beginParse()
       expect(body.loadUint(32)).toEqual(MinterOpcodes.TAKE_WALLET_ADDRESS)
-      expect(body.loadUintBig(64)).toEqual(queryId)
+      expect(body.loadUintBig(64)).toEqual(queryID)
       expect(body.loadMaybeAddress()).toBeNull()
       expect(body.loadBit()).toBe(true)
       expect(body.loadRef().beginParse().loadAddress().equals(MASTERCHAIN_ZERO_ADDRESS)).toBe(true)
@@ -820,7 +820,7 @@ describe('wGRAM', () => {
       const dataBefore = await minter.getJettonData()
       const result = await minter.sendChangeContent(deployer.getSender(), {
         message: {
-          queryId: nextQueryId++,
+          queryID: nextQueryId++,
           content: beginCell().storeStringTail('wgram.changed').endCell(),
         },
       })
@@ -849,7 +849,7 @@ describe('wGRAM', () => {
       const transferResult = await aliceWallet.sendTransfer(alice.getSender(), {
         value: toNano('0.5'),
         message: {
-          queryId: Number(nextQueryId++),
+          queryID: Number(nextQueryId++),
           jettonAmount: transferAmount,
           destination: bob.address,
           responseDestination: alice.address,
@@ -880,7 +880,7 @@ describe('wGRAM', () => {
       const transferResult = await aliceWallet.sendTransfer(alice.getSender(), {
         value: toNano('0.7'),
         message: {
-          queryId: Number(nextQueryId++),
+          queryID: Number(nextQueryId++),
           jettonAmount: transferAmount,
           destination: bob.address,
           responseDestination: alice.address,
@@ -911,7 +911,7 @@ describe('wGRAM', () => {
       const transferResult = await aliceWallet.sendTransfer(alice.getSender(), {
         value: toNano('0.5'),
         message: {
-          queryId: Number(nextQueryId++),
+          queryID: Number(nextQueryId++),
           jettonAmount: toNano('0.25'),
           destination: MASTERCHAIN_ZERO_ADDRESS,
           responseDestination: alice.address,
@@ -938,7 +938,7 @@ describe('wGRAM', () => {
       const transferResult = await aliceWallet.sendTransfer(deployer.getSender(), {
         value: toNano('0.5'),
         message: {
-          queryId: Number(nextQueryId++),
+          queryID: Number(nextQueryId++),
           jettonAmount: toNano('0.25'),
           destination: bob.address,
           responseDestination: deployer.address,
@@ -964,7 +964,7 @@ describe('wGRAM', () => {
       const bobWallet = await userWallet(bob.address)
       const forgedTransfer = walletBuilder.messages.out.internalTransferStep
         .encode({
-          queryId: nextQueryId++,
+          queryID: nextQueryId++,
           jettonAmount: toNano('0.1'),
           transferInitiator: alice.address,
           responseDestination: deployer.address,
@@ -994,7 +994,7 @@ describe('wGRAM', () => {
       const bobWallet = await userWallet(bob.address)
       const forgedTransfer = walletBuilder.messages.out.internalTransferStep
         .encode({
-          queryId: nextQueryId++,
+          queryID: nextQueryId++,
           jettonAmount: toNano('0.1'),
           transferInitiator: null,
           responseDestination: deployer.address,
@@ -1176,7 +1176,7 @@ describe('wGRAM', () => {
         value: toNano('0.05'),
         opcode: WGRAM_WITHDRAW_EXCESS_OPCODE,
         message: {
-          queryId: nextQueryId++,
+          queryID: nextQueryId++,
           sendExcessesTo: recipient.address,
         },
       })
@@ -1199,7 +1199,7 @@ describe('wGRAM', () => {
       const burnResult = await aliceWallet.sendBurn(alice.getSender(), {
         value: toNano('0.2'),
         message: {
-          queryId: nextQueryId++,
+          queryID: nextQueryId++,
           jettonAmount: mintAmount,
           responseDestination: null,
           customPayload: null,
@@ -1225,7 +1225,7 @@ describe('wGRAM', () => {
       const burnResult = await aliceWallet.sendBurn(alice.getSender(), {
         value: toNano('0.2'),
         message: {
-          queryId: nextQueryId++,
+          queryID: nextQueryId++,
           jettonAmount: mintAmount,
           responseDestination: masterchainRecipient,
           customPayload: null,
@@ -1250,7 +1250,7 @@ describe('wGRAM', () => {
       const burnResult = await aliceWallet.sendBurn(deployer.getSender(), {
         value: toNano('0.2'),
         message: {
-          queryId: nextQueryId++,
+          queryID: nextQueryId++,
           jettonAmount: mintAmount,
           responseDestination: recipient.address,
           customPayload: null,
@@ -1276,7 +1276,7 @@ describe('wGRAM', () => {
       const burnResult = await aliceWallet.sendBurn(alice.getSender(), {
         value: toNano('0.2'),
         message: {
-          queryId: nextQueryId++,
+          queryID: nextQueryId++,
           jettonAmount: mintAmount,
           responseDestination: recipient.address,
           customPayload: null,
@@ -1304,7 +1304,7 @@ describe('wGRAM', () => {
       const burnResult = await aliceWallet.sendBurn(alice.getSender(), {
         value: toNano('0.2'),
         message: {
-          queryId: nextQueryId++,
+          queryID: nextQueryId++,
           jettonAmount: mintAmount,
           responseDestination: rejector.address,
           customPayload: null,
@@ -1326,7 +1326,7 @@ describe('wGRAM', () => {
 
       const forgedBurn = walletBuilder.messages.out.burnNotificationForMinter
         .encode({
-          queryId: nextQueryId++,
+          queryID: nextQueryId++,
           jettonAmount: toNano('0.5'),
           burnInitiator: alice.address,
           responseDestination: recipient.address,

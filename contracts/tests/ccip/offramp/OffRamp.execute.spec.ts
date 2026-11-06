@@ -259,6 +259,131 @@ describe('OffRamp - Execute', () => {
       })
     })
 
+    // R5: when the MerkleRoot rejects MerkleRoot_Validate, the OffRamp refunds the caller
+    // (excessesTo) with OffRamp_MerkleRootValidateRejected { queryID }, NoBounce.
+    describe('MerkleRoot_Validate rejection refunds the caller', () => {
+      // Asserts the MerkleRoot rejected the validate, the OffRamp handled the rich bounce, and
+      // the caller got a non-bounceable OffRamp_MerkleRootValidateRejected carrying the queryID
+      // and the remaining value.
+      const expectValidateRejectedRefund = (
+        transactions: any[],
+        caller: Address,
+        queryID: bigint,
+        merkleRootExitCode: number,
+      ) => {
+        // The MerkleRoot rejected the validate.
+        expect(transactions).toHaveTransaction({
+          from: setup.offRamp.address,
+          exitCode: merkleRootExitCode,
+          success: false,
+        })
+        // The OffRamp handled the rich bounce.
+        expect(transactions).toHaveTransaction({
+          to: setup.offRamp.address,
+          op: 0xfffffffe,
+          success: true,
+        })
+        // The caller got the rejection with the queryID and the remaining value, non-bounceable.
+        expect(transactions).toHaveTransaction({
+          from: setup.offRamp.address,
+          to: caller,
+          op: of.OffRamp_MerkleRootValidateRejected.PREFIX,
+          inMessageBounceable: false,
+          success: true,
+          value: (v) => v !== undefined && v > 0n,
+          body(x) {
+            if (!x) return false
+            return (
+              of.OffRamp_MerkleRootValidateRejected.fromSlice(x.beginParse()).queryID === queryID
+            )
+          },
+        })
+      }
+
+      it('uncommitted root: no MerkleRoot contract, the validate bounces', async () => {
+        const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
+        // Set up the lane and OCR configs but do NOT commit the root, so no MerkleRoot is deployed.
+        await setup.setupOCRConfigs()
+        const report = setup.createExecuteReport([message])
+
+        const caller = setup.transmitters[0]
+        const queryID = 0n
+        const result = await setup.offRamp.sendOffRampExecute(caller.getSender(), toNano('0.5'), {
+          reportContext: of.ReportContext.create({
+            configDigest: setup.configDigest,
+            sequenceBytes: 0x02n,
+          }),
+          report,
+        })
+
+        // No contract at the MerkleRoot address: the message bounces without an exit code.
+        expect(result.transactions).toHaveTransaction({
+          to: setup.offRamp.address,
+          op: 0xfffffffe,
+          success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: setup.offRamp.address,
+          to: caller.address,
+          op: of.OffRamp_MerkleRootValidateRejected.PREFIX,
+          inMessageBounceable: false,
+          success: true,
+          value: (v) => v !== undefined && v > 0n,
+          body(x) {
+            if (!x) return false
+            return (
+              of.OffRamp_MerkleRootValidateRejected.fromSlice(x.beginParse()).queryID === queryID
+            )
+          },
+        })
+      })
+
+      it('already executed: MerkleRoot throws SkippedAlreadyExecutedMessage', async () => {
+        const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
+        await setup.setupAndCommitMessage(message)
+        const report = setup.createExecuteReport([message])
+
+        // First execution succeeds.
+        await setup.executeReport(report)
+
+        // Second execution of the same report: the MerkleRoot rejects it.
+        const caller = setup.transmitters[0]
+        const queryID = 0n
+        const result = await setup.offRamp.sendOffRampExecute(caller.getSender(), toNano('0.5'), {
+          reportContext: of.ReportContext.create({
+            configDigest: setup.configDigest,
+            sequenceBytes: 0x02n,
+          }),
+          report,
+        })
+
+        expectValidateRejectedRefund(
+          result.transactions,
+          caller.address,
+          queryID,
+          mr.MerkleRoot.Errors['MerkleRoot_Error.SkippedAlreadyExecutedMessage'],
+        )
+      })
+
+      it('manual execution too early: MerkleRoot throws ManualExecutionNotYetEnabled', async () => {
+        const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
+        await setup.setupAndCommitMessage(message)
+        const report = setup.createExecuteReport([message])
+
+        // Manual execution before the permissionless threshold: the MerkleRoot rejects it.
+        const caller = setup.transmitters[0]
+        const queryID = 0n
+        const result = await setup.manualExecuteReport(report, undefined, false)
+
+        expectValidateRejectedRefund(
+          result.transactions,
+          caller.address,
+          queryID,
+          mr.MerkleRoot.Errors['MerkleRoot_Error.ManualExecutionNotYetEnabled'],
+        )
+      })
+    })
+
     it('should fail empty report', async () => {
       await setup.setupOCRConfigs()
       const report = setup.createExecuteReport([])
@@ -781,6 +906,55 @@ describe('OffRamp - Execute', () => {
             state: of.ExecutionState.Failure,
           },
         )
+      })
+    })
+
+    it('should return the value of a confirmation the executor rejects to its sender', async () => {
+      const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
+      await setup.setupAndCommitMessage(message)
+      await setup.executeReport(setup.createExecuteReport([message]))
+
+      // The OffRamp's ReceiveExecutorId: the source chain, then the message ID's top 128 bits.
+      const messageId = generateMessageID(
+        message,
+        s.getDefaultMetadataHash(message.header.sourceChainSelector),
+      )
+      const execId = (message.header.sourceChainSelector << 128n) | (messageId >> (256n - 128n))
+
+      // A stranger confirms the executed message: the executor rejects it.
+      const stranger = await blockchain.treasury('stranger')
+      const result = await setup.router.sendRouterCCIPReceiveConfirm(
+        stranger.getSender(),
+        toNano('0.1'),
+        { queryID: 9n, execId },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        op: rx.ReceiveExecutor_CCIPReceiveConfirm.PREFIX,
+        success: false,
+      })
+      expect(result.transactions).toHaveTransaction({
+        to: setup.offRamp.address,
+        op: 0xfffffffe,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.router.address,
+        op: rt.Router_CCIPReceiveConfirmRejectedByExecutor.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: stranger.address,
+        op: rt.Router_CCIPReceiveConfirmRejected.PREFIX,
+        inMessageBounceable: false,
+        value: (v) => v !== undefined && v > 0n,
+        body(x) {
+          if (!x) return false
+          return rt.Router_CCIPReceiveConfirmRejected.fromSlice(x.beginParse()).queryID === 9n
+        },
       })
     })
 
@@ -2151,7 +2325,7 @@ describe('OffRamp - Execute', () => {
           sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
           replyTo: setup.deployer.address,
           tokenPool: setup.tokenPool.address,
-          exitCode: 0n,
+          errorCode: 0n,
         },
       )
 
@@ -2943,7 +3117,7 @@ describe('OffRamp - Execute', () => {
 
       // Raise the pool's release admission above the message's source destGasAmount (0.2 TON).
       await setup.tokenPool.sendTokenPoolSetBudget(setup.deployer.getSender(), toNano('0.1'), {
-        queryId: 900n,
+        queryID: 900n,
         budget: tp.TokenPool_Budget.create({
           lockOrBurn: tp.TokenPool_LockOrBurnBudget.create({ admission: 0n, safety: 0n }),
           releaseOrMint: tp.TokenPool_ReleaseOrMintBudget.create({
@@ -2955,7 +3129,7 @@ describe('OffRamp - Execute', () => {
       await setup.registry.sendTokenAdminRegistryRefreshPoolConfig(
         setup.deployer.getSender(),
         toNano('0.1'),
-        { queryId: 901n, tokenAddress: setup.token },
+        { queryID: 901n, tokenAddress: setup.token },
       )
       expect((await setup.tokenRegistry.getTokenInfo()).admission?.releaseOrMint).toEqual(
         toNano('0.5'),

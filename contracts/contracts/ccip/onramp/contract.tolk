@@ -40,7 +40,7 @@ contract OnRamp {
 }
 
 fun requireSupportedVersion(version: slice) {
-    assert (version.bitsEqual("1.6.0".literalSlice())) throw Upgradeable_Error.VersionMismatch;
+    assert (version.bitsEqual("1.6.0".literalSlice())) throw (Upgradeable_Error.VersionMismatch);
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -54,14 +54,14 @@ fun onInternalMessage(in: InMessage) {
         FeeQuoter_MessageValidated => {
             val st = lazy OnRamp_Storage.load();
             val feeQuoterAddress = st.config.load().feeQuoter;
-            assert (in.senderAddress == feeQuoterAddress, OnRamp_Error.Unauthorized);
+            assert (in.senderAddress == feeQuoterAddress) throw (OnRamp_Error.Unauthorized);
             onMessageValidated(msg)
         }
         // Sender must be the FeeQuoter
         FeeQuoter_MessageValidationFailed => {
             val st = lazy OnRamp_Storage.load();
             val feeQuoterAddress = st.config.load().feeQuoter;
-            assert (in.senderAddress == feeQuoterAddress, OnRamp_Error.Unauthorized);
+            assert (in.senderAddress == feeQuoterAddress) throw (OnRamp_Error.Unauthorized);
             onMessageValidationFailed(msg)
         }
         // Sender must be the Router
@@ -76,39 +76,39 @@ fun onInternalMessage(in: InMessage) {
             }
             val destChainConfig = destChainConfigResult.loadValue();
             // ccipSend must be forwarded from the router
-            assert(destChainConfig.router == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert (destChainConfig.router == in.senderAddress) throw (OnRamp_Error.Unauthorized);
             onSend(st, destChainConfig, msg)
         }
         // Sender must be Send Executor
         OnRamp_ExecutorRequestsLockOrBurn => {
             var st = lazy OnRamp_Storage.load();
-            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert (executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress) throw (OnRamp_Error.Unauthorized);
             onExecutorRequestsLockOrBurn(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorRequestsWithdraw =>  {
             var st = lazy OnRamp_Storage.load();
-            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert (executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress) throw (OnRamp_Error.Unauthorized);
             onExecutorRequestsWithdraw(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorReserveFee => {
             var st = lazy OnRamp_Storage.load();
-            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert (executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress) throw (OnRamp_Error.Unauthorized);
             onExecutorReserveFee(mutate st, msg, in.senderAddress);
             st.store();
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
             var st = lazy OnRamp_Storage.load();
-            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert (executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress) throw (OnRamp_Error.Unauthorized);
             onExecutorFinishedSuccessfully(mutate st, msg);
             st.store();
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedWithError => {
             var st = lazy OnRamp_Storage.load();
-            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert (executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress) throw (OnRamp_Error.Unauthorized);
             onExecutorFinishedWithError(mutate st, msg);
             st.store();
         }
@@ -144,7 +144,7 @@ fun onInternalMessage(in: InMessage) {
         }
         // Permissionless
         OnRamp_WithdrawFeeTokens => {
-            assert (in.valueCoins > OnRamp_Costs.WithdrawFeeTokens(), OnRamp_Error.InsufficientValue);
+            assert (in.valueCoins > OnRamp_Costs.WithdrawFeeTokens()) throw (OnRamp_Error.InsufficientValue);
             onWithdrawFeeTokens(msg);
         },
         // Sender must be owner
@@ -163,7 +163,7 @@ fun onInternalMessage(in: InMessage) {
             }
 
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF
+            assert (in.body.isEmpty()) throw (0xFFFF)
         }
     }
 }
@@ -186,7 +186,7 @@ fun onGetValidatedFee(msg: OnRamp_GetValidatedFee, sender: address) {
     val feeQuoter = config.feeQuoter;
 
     val getFeeMsg = createMessage({
-        bounce: true,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: feeQuoter,
         body: FeeQuoter_GetValidatedFee {
@@ -198,7 +198,7 @@ fun onGetValidatedFee(msg: OnRamp_GetValidatedFee, sender: address) {
         }
     });
 
-    getFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    getFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee and replies back to the original caller.
@@ -218,7 +218,7 @@ fun onMessageValidated(msg: FeeQuoter_MessageValidated) {
     val userAddress = context.onrampContext;
 
     val confirmation = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: userAddress,
         body: OnRamp_MessageValidated {
@@ -228,7 +228,7 @@ fun onMessageValidated(msg: FeeQuoter_MessageValidated) {
         }
     });
 
-    confirmation.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    confirmation.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee when FeeQuoter replies with an error
@@ -244,22 +244,30 @@ fun onMessageValidated(msg: FeeQuoter_MessageValidated) {
 //     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidationFailed
 //     OnRamp    ->> Router:    OnRamp_MessageValidationFailed
 fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed) {
-    val context = OnRamp_GetValidatedFeeContext.fromCell(msg.context!);
-    val userContext = context.userContext;
-    val userAddress = context.onrampContext;
+    sendMessageValidationFailed(msg.context!, msg.errorCode, msg.msg);
+}
+
+/// The FeeQuoter bounced the fee query. Replies to the requester as if the FeeQuoter had failed
+/// the validation, with its exit code. The context is this OnRamp's own, so it is always present.
+fun onGetValidatedFeeBounced(msg: FeeQuoter_GetValidatedFee, errorCode: int32) {
+    sendMessageValidationFailed(msg.context!, errorCode, msg.msg);
+}
+
+fun sendMessageValidationFailed(onrampContext: cell, errorCode: int32, ccipSend: Cell<Router_CCIPSend>) {
+    val context = OnRamp_GetValidatedFeeContext.fromCell(onrampContext);
 
     val rejection = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
-        dest: userAddress,
+        dest: context.onrampContext,
         body: OnRamp_MessageValidationFailed {
-            error: msg.error,
-            msg: msg.msg,
-            context: userContext,
+            errorCode,
+            msg: ccipSend,
+            context: context.userContext,
         }
     });
 
-    rejection.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    rejection.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun generateRandomSendExecutorId(): CCIPSendExecutor_ID {
@@ -318,7 +326,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
     }
     val executorId = generateRandomSendExecutorId();
     val executeMsg = createMessage({
-        bounce: true,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: executorAutoDeployAddress(executorId),
         body: Deployable_InitializeAndSend {
@@ -343,7 +351,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
         }
     });
 
-    executeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    executeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     st.store();
 }
@@ -352,7 +360,7 @@ fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequest
     var destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector as int);
     val tokenAmount = msg.tokenAmount.load();
     val routerLockOrBurn = createMessage({
-        bounce: true,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: destChainConfig.router,
         body: Router_LockOrBurn {
@@ -374,7 +382,7 @@ fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequest
             finalizationValue: OnRamp_Costs.TokenPoolFinalization(),
         }
     });
-    routerLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    routerLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsWithdraw, sender: address) {
@@ -387,22 +395,22 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
         processPoolReturnData(msg);
     } catch (e) {
         val failure = createMessage({
-            bounce: false,
+            bounce: BounceMode.NoBounce,
             value: 0,
             dest: destChainConfig.router,
             body: Router_WithdrawToTokenPoolFailed {
                 queryID: msg.queryID,
                 destChainSelector: msg.destChainSelector,
                 withdrawRequest: msg.withdrawRequest,
-                error: e,
+                errorCode: e,
             }
         });
-        failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
 
     val routerWithdraw = createMessage({
-        bounce: true,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: destChainConfig.router,
         body: Router_WithdrawToTokenPool {
@@ -412,14 +420,73 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
             withdrawRequest: msg.withdrawRequest,
         }
     });
-    routerWithdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    routerWithdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+}
+
+/// Reports a bounced Router_LockOrBurn to the executor that requested it, so the executor exits
+/// with an error and releases the fee reservation.
+///
+/// @dev Other bounces are ignored, as before this handler existed: legacy (256-bit) bounces of
+///      Deployable_InitializeAndSend and OnRamp_ExecutorFeeReserved carry no context to act on.
+fun onBouncedMessage(in: InMessageBounced) {
+    if (in.bouncedBody.preloadUint(32) == 0xffffffff) {
+        return onLegacyBounce(in.bouncedBody);
+    }
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val bounced = lazy OnRamp_RichBouncedMessage.fromCell(rich.originalBody);
+    match (bounced) {
+        FeeQuoter_GetValidatedFee => {
+            onGetValidatedFeeBounced(bounced, rich.exitCode);
+        }
+        Deployable_InitializeAndSend => {
+            onExecutorDeployBounced(bounced, rich.exitCode);
+        }
+        Router_LockOrBurn => {
+            sendLockOrBurnFailed(bounced.executorAddress, bounced.queryID, rich.exitCode);
+        }
+        Router_WithdrawToTokenPool => {
+            // TODO: [NONEVM-6725] report the bounced withdraw. The pool has already consumed its outbound rate
+            // limit at this point, so this needs its own failure path (being worked on separately).
+            throw 0xFFFF;
+        }
+        else => {
+            return;
+        }
+    }
+}
+
+/// The only legacy (256-bit) bounce OnRamp expects is the fee-aggregator withdrawal's, whose body
+/// is empty: its value is back in the balance, so there is nothing else to do. Every other send
+/// is RichBounce or NoBounce.
+fun onLegacyBounce(bouncedBody: slice) {
+    val originalBody = bouncedBody.skipBouncedPrefix();
+    assert (originalBody.isEmpty()) throw (OnRamp_Error.UnhandledLegacyBounce);
+}
+
+/// The executor deployment bounced, so nothing was reserved and no executor exists. Rejects the
+/// send through the lane's Router, forwarding the returned value to the user with the NACK.
+fun onExecutorDeployBounced(msg: Deployable_InitializeAndSend, errorCode: int32) {
+    val execute = lazy CCIPSendExecutor_Execute.fromCell(msg.selfMessage.body);
+    val ccipSend = lazy execute.onrampSend.msg.load();
+    val config = lazy execute.config.load();
+    rejectMessage(errorCode, config.router, ccipSend.queryID, ccipSend.destChainSelector, execute.onrampSend.metadata.sender);
+}
+
+fun sendLockOrBurnFailed(executor: address, queryID: uint64, errorCode: int32) {
+    val failed = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: executor,
+        body: OnRamp_LockOrBurnFailed { queryID, errorCode },
+    });
+    failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun processPoolReturnData(msg: OnRamp_ExecutorRequestsWithdraw) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
     val prepared = lazy withdrawRequest.forwardPayload.load().prepared.load();
     val out = prepared.out;
-    assert(snakedBytesLen(out.destPoolData) <= msg.destBytesOverhead) throw OnRamp_Error.SourceTokenDataTooLarge;
+    assert(snakedBytesLen(out.destPoolData) <= msg.destBytesOverhead) throw (OnRamp_Error.SourceTokenDataTooLarge);
     try {
         validateDestFamilyAddress(msg.chainFamilySelector, out.destTokenAddress.load(), false);
     } catch {
@@ -437,7 +504,7 @@ fun onExecutorReserveFee(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorReserveF
 
     reserveGramsOnBalance(msg.fee, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
     val confirmation = createMessage({
-        bounce: true,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sendExecutor,
         body: OnRamp_ExecutorFeeReserved {
@@ -464,7 +531,7 @@ fun onExecutorFinishedSuccessfully(mutate st: OnRamp_Storage, msg: OnRamp_Execut
     // assign sequence number, we can't do this sooner since the message might fail validation/getFee
     destChainConfig.sequenceNumber = destChainConfig.sequenceNumber + 1;
     st.destChainConfigs.set(ccipsend.destChainSelector, destChainConfig);
-    assert (st.pendingFeeReservations >= msg.fee.feeTokenAmount) throw OnRamp_Error.PendingFeeReservationsUnderflow;  
+    assert (st.pendingFeeReservations >= msg.fee.feeTokenAmount) throw (OnRamp_Error.PendingFeeReservationsUnderflow);  
     st.pendingFeeReservations = st.pendingFeeReservations - msg.fee.feeTokenAmount;  
 
     var rampMessage = TVM2AnyRampMessage {
@@ -506,12 +573,12 @@ fun onExecutorFinishedSuccessfully(mutate st: OnRamp_Storage, msg: OnRamp_Execut
     // inbound message value. Since the balance now holds the reserved fee, an
     // unguarded emit would slowly drain it. Reserve the original balance so the
     // emit and the confirmation below are paid from the inbound value only.
-    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
     emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent { message: rampMessage });
 
     val confirmation = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: destChainConfig.router,
         body: Router_MessageSent {
@@ -523,7 +590,7 @@ fun onExecutorFinishedSuccessfully(mutate st: OnRamp_Storage, msg: OnRamp_Execut
     });
     // SAFETY: reserveGramsOnBalance above keeps the original balance (including the
     // reserved fee) intact; only the inbound value in excess of it is forwarded.
-    confirmation.send(SEND_MODE_CARRY_ALL_BALANCE);
+    confirmation.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /*
@@ -542,12 +609,12 @@ fun onExecutorFinishedWithError(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorF
     // the counter (which would inflate the spendable balance).
     st.pendingFeeReservations = max(st.pendingFeeReservations - refund, 0);
 
-    rejectMessage(msg.error, router, msg.queryID, msg.destChainSelector, msg.sender, refund);
+    rejectMessage(msg.errorCode, router, msg.queryID, msg.destChainSelector, msg.sender, refund);
 }
 
-fun rejectMessage(error: int, router: address, queryID: uint64, destChainSelector: uint64, sender: address, refund: coins = 0) {
+fun rejectMessage(errorCode: int32, router: address, queryID: uint64, destChainSelector: uint64, sender: address, refund: coins = 0) {
     val errorMsg = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         // A charged fee is already reserved on this contract.
         value: refund,
         dest: router,
@@ -555,10 +622,10 @@ fun rejectMessage(error: int, router: address, queryID: uint64, destChainSelecto
             queryID,
             destChainSelector,
             sender,
-            error,
+            errorCode,
         },
     });
-    errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /*
@@ -665,16 +732,16 @@ fun onWithdrawFeeTokens(msg: OnRamp_WithdrawFeeTokens) {
     val feeTokens = msg.feeTokens.iter();
     // We do not support fee payments in tokens yet, so we only withdraw TON coins for now.
     // This will change in future versions.
-    assert (feeTokens.empty()) throw OnRamp_Error.UnknownToken;
+    assert (feeTokens.empty()) throw (OnRamp_Error.UnknownToken);
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
 
     // Keep the static reserve AND the fees reserved for in-flight executors:
     // those are committed and must not be paid out to the aggregator.
-    reserveGramsOnBalance(config.reserve + st.pendingFeeReservations, RESERVE_MODE_AT_MOST);
+    reserveGramsOnBalance(config.reserve + st.pendingFeeReservations, RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
     val withdrawMsg = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: config.feeAggregator,
         body: createEmptyCell(),

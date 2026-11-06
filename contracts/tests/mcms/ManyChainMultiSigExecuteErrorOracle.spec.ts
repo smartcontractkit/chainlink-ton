@@ -30,7 +30,7 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
       toNano('1'),
       mcms.builder.message.in.transferOracleRole
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           newOracle: acc.oracle.address,
         })
         .asCell(),
@@ -59,7 +59,7 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
       toNano('1'),
       mcms.builder.message.in.transferOracleRole
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           newOracle: acc.oracle.address,
         })
         .asCell(),
@@ -83,7 +83,7 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
 
     const execBody = mcms.builder.message.in.execute
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
         proof: proof1,
       })
@@ -113,7 +113,7 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
       toNano('1'),
       mcms.builder.message.in.submitErrorReport
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
           proof: proof1,
           opTxHash: txHash,
@@ -152,7 +152,7 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
 
     const execBody = mcms.builder.message.in.execute
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
         proof: proof1,
       })
@@ -182,7 +182,7 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
       toNano('1'),
       mcms.builder.message.in.submitErrorReport
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
           proof: proof1,
           opTxHash: txHash,
@@ -219,7 +219,7 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
 
     const execBodyNew = mcms.builder.message.in.execute
       .encode({
-        queryId: 1n,
+        queryID: 1n,
         op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
         proof: proofNew,
       })
@@ -250,7 +250,7 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
       toNano('1'),
       mcms.builder.message.in.submitErrorReport
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
           proof,
           opTxHash: txHash,
@@ -280,7 +280,7 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
       toNano('1'),
       mcms.builder.message.in.submitErrorReport
         .encode({
-          queryId: 1n,
+          queryID: 1n,
           op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
           proof: invalidProof,
           opTxHash: txHash,

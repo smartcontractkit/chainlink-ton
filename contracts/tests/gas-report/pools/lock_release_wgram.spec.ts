@@ -71,7 +71,7 @@ runTokenPoolGasCalibration({
     )
     await jettonLockBox.sendDeploy(deployer.getSender(), toNano('3'))
     await jettonLockBox.sendJettonLockBoxInit(deployer.getSender(), toNano('0.2'), {
-      queryId: 1n,
+      queryID: 1n,
       minterAddress: jettonMinter.address,
       walletAddress: await jettonMinter.getWalletAddress(jettonLockBox.address),
       admin: deployer.address,
@@ -121,7 +121,7 @@ runTokenPoolGasCalibration({
       AccessControlClient.createFromAddress(jettonLockBox.address),
     )
     await acClient.sendGrantRole(deployer.getSender(), toNano('0.1'), {
-      queryId: 0n,
+      queryID: 0n,
       role: OPERATOR_ROLE,
       account: lockReleasePool.address,
     })
@@ -132,7 +132,7 @@ runTokenPoolGasCalibration({
         value: jettonAmount + toNano('1.3'),
         mintOpcode: WGRAM_MINT_OPCODE,
         message: {
-          queryId: 0n,
+          queryID: 0n,
           destination,
           tonAmount: toNano('1'),
           jettonAmount,

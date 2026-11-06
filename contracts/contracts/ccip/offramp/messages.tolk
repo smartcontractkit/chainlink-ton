@@ -50,23 +50,26 @@ type OffRamp_InMessageBounced =
     | ReceiveExecutor_InitExecute
     | Deployable_Initialize
     | Router_RelayReleaseOrMint
-    | Router_RouteMessage;
+    | Router_RouteMessage
+    | ReceiveExecutor_CCIPReceiveConfirm
+    | MerkleRoot_Validate
+    | FeeQuoter_UpdatePrices;
 
 struct (0x9d431905) OffRamp_Commit {
-    queryId: uint64;
+    queryID: uint64;
     reportContext: ReportContext;
     report: CommitReport;
     signatures: SnakedCell<SignatureEd25519>;
 }
 
 struct (0x27bdac33) OffRamp_Execute {
-    queryId: uint64;
+    queryID: uint64;
     reportContext: ReportContext;
     report: ExecutionReport;
 }
 
 struct (0xc73d5a8a) OffRamp_ExecuteValidated {
-    queryId: uint64;
+    queryID: uint64;
     message: Cell<Any2TVMRampMessage>;
     root: MerkleRootId;
     metadataHash: uint256;
@@ -78,14 +81,22 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
 }
 
 struct (0xa00785cf) OffRamp_ManuallyExecute {
-    queryId: uint64;
+    queryID: uint64;
     report: ExecutionReport;
     gasOverride: GasOverride;
 }
 
+/// Sent by the OffRamp to the caller of Execute/ManuallyExecute when the MerkleRoot rejected
+/// MerkleRoot_Validate (root not committed, already executed, or manual execution not yet
+/// enabled). Carries only the queryID plus the remaining value; the cause is in the MerkleRoot's
+/// failed transaction. NoBounce: a refund, so a bounce could not unwind anything.
+struct (0x0d518f57) OffRamp_MerkleRootValidateRejected {
+    queryID: uint64;
+}
+
 //Must be sent by owner
 struct (0x22b4f05c) OffRamp_UpdateSourceChainConfigs {
-    queryId: uint64;
+    queryID: uint64;
     configs: SnakedCell<SourceChainConfigUpdate>; // Array of configs
 }
 
@@ -96,7 +107,7 @@ struct SourceChainConfigUpdate {
 
 //Must be sent from an owned ReceiveExecutor contract
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
-    queryId: uint64;
+    queryID: uint64;
     message: Cell<Any2TVMRampMessage>;
     execId: uint192;
     // Gas limit to use for the message execution
@@ -106,7 +117,7 @@ struct (0x58cfcb02) OffRamp_DispatchValidated {
 }
 
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
-    queryId: uint64;
+    queryID: uint64;
     execId: ReceiveExecutorId;
     receiver: address;
 }
@@ -117,7 +128,7 @@ struct (0x2dcf2a43) OffRamp_CCIPReceiveBounced {
 }
 
 struct (0x59e56170) OffRamp_NotifySuccess {
-    queryId: uint64;
+    queryID: uint64;
     header: Cell<RampMessageHeader>;
     execId: ReceiveExecutorId;
     root: address;
@@ -130,7 +141,7 @@ struct (0x59e56170) OffRamp_NotifySuccess {
 /// Sent by the ReceiveExecutor of a message with data when its token transfer was delivered
 /// (messages without data carry this in `OffRamp_NotifySuccess` instead).
 struct (0xb4b39784) OffRamp_TokenTransferDelivered {
-    queryId: uint64;
+    queryID: uint64;
     execId: ReceiveExecutorId;
     delivered: Cell<OffRamp_DeliveredTransfer>;
 }
@@ -141,7 +152,7 @@ struct OffRamp_DeliveredTransfer {
 }
 
 struct (0x177ebd03) OffRamp_NotifyFailure {
-    queryId: uint64;
+    queryID: uint64;
     header: Cell<RampMessageHeader>;
     execId: ReceiveExecutorId;
     root: address;
@@ -154,18 +165,18 @@ struct (0x4ca1bcb3) OffRamp_UpdateCursedSubjects {
 }
 
 struct (0x95bc5a5c) OffRamp_SetDynamicConfig {
-    queryId: uint64;
+    queryID: uint64;
     config: OffRamp_DynamicConfig,
 }
 
 /// One-time setter for contracts migrated from 1.6.x, which had no token admin registry.
 struct (0x453736a5) OffRamp_SetTokenAdminRegistry {
-    queryId: uint64;
+    queryID: uint64;
     tokenAdminRegistry: address;
 }
 
 struct (0x7deaf076) OffRamp_ReleaseOrMint {
-    queryId: uint64
+    queryID: uint64
     execId: ReceiveExecutorId
     tokenPool: address
     destGasAmount: coins
@@ -174,7 +185,7 @@ struct (0x7deaf076) OffRamp_ReleaseOrMint {
 }
 
 struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
-    queryId: uint64;
+    queryID: uint64;
     execId: ReceiveExecutorId;
 }
 

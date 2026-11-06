@@ -122,7 +122,7 @@ export const FeeQuoter_MessageValidationFailed = {
       )
       return {
         $: 'FeeQuoter_MessageValidationFailed',
-        error: s.loadUintBig(256),
+        error: s.loadIntBig(32),
         msg: Router_CCIPSend.fromSlice(s.loadRef().beginParse()),
         context: s.loadMaybeRef(),
       }
@@ -130,7 +130,7 @@ export const FeeQuoter_MessageValidationFailed = {
   },
   store(self: FeeQuoter_MessageValidationFailed, b: c.Builder): void {
     b.storeUint(fqGen.FeeQuoter_MessageValidationFailed.PREFIX, 32)
-    b.storeUint(self.error, 256)
+    b.storeInt(self.error, 32)
     b.storeRef(Router_CCIPSend.toCell(self.msg))
     b.storeMaybeRef(self.context)
   },
