@@ -115,7 +115,7 @@ func TestIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		body := tvm.EmptyCell
-		counterContract, _, err := wrappers.Deploy(t.Context(), &alice, code, dataCell, tlb.MustFromTON("0.05"), body)
+		counterContract, _, err := wrappers.DeployActivateOnly(t.Context(), &alice, code, dataCell, tlb.MustFromTON("0.05"), body)
 		require.NoError(t, err, "failed to deploy Counter contract: %w", err)
 
 		t.Logf("Counter contract deployed at %s\n", counterContract.Address.String())
