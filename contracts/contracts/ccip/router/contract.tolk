@@ -398,6 +398,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>, offr
         execID: msg.execID,
         confirmValue: ROUTER_RECEIVE_CONFIRM_VALUE,
         message,
+        receiverAccounts: receiverAccountsOf(msg.receiver, message),
     };
 
     val messageForReceiver = createMessage({
@@ -1270,6 +1271,21 @@ fun onTokenTransferDelivered(msg: Router_TokenTransferDelivered) {
         },
     });
     delivered.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// The receiver accounts the message's tokens were delivered to, index-aligned with
+/// `message.tokenAmounts` (empty when the message carries no tokens).
+fun receiverAccountsOf(receiver: address, message: Cell<Any2TVMMessage>): array<address> {
+    var accounts: array<address> = [];
+    val any2tvm = lazy message.load();
+    if (any2tvm.tokenAmounts != null) {
+        var tokenAmounts = any2tvm.tokenAmounts!.iter();
+        while (!tokenAmounts.empty()) {
+            val tokenAmount = tokenAmounts.next();
+            accounts.push(receiverAccount(receiver, tokenAmount.token).calculateAddress());
+        }
+    }
+    return accounts;
 }
 
 fun receiverAccount(receiver: address, token: address): AutoDeployAddress {

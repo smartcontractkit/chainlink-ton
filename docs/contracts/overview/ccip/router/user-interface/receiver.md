@@ -15,6 +15,8 @@ For arbitrary messages, the receiver must handle incoming `Receiver_CCIPReceiveV
 - Enqueue a `CCIPReceiveConfirm` message back to the Router, confirming receipt of the message.
 - Process the message data as required by the application logic.
 
+`receiverAccounts` lists the Router-owned receiver accounts (deposit accounts) the message's tokens were delivered to, index-aligned with `message.tokenAmounts`. It is empty when the message carries no tokens. The receiver withdraws the tokens from those accounts (see [Receiver Account Address](#receiver-account-address)).
+
 ## Happy Path
 
 ```mermaid
@@ -23,8 +25,8 @@ sequenceDiagram
     participant U as User
 
     activate R
-    Note over R: RECEIVES Receiver_CCIPReceiveV2 { execID,<br>message: { messageId,<br>sourceChain, sender, data }
-    R ->> U: Receiver_CCIPReceiveV2 { execID,<br>message: { messageId,<br>sourceChain, sender, data }
+    Note over R: RECEIVES Receiver_CCIPReceiveV2 { execID,<br>message: { messageId,<br>sourceChain, sender, data, tokenAmounts },<br>receiverAccounts }
+    R ->> U: Receiver_CCIPReceiveV2 { execID,<br>message: { messageId,<br>sourceChain, sender, data, tokenAmounts },<br>receiverAccounts }
     deactivate R
 
 
@@ -44,8 +46,8 @@ sequenceDiagram
     participant U as User
 
     activate R
-    Note over R: RECEIVES Receiver_CCIPReceiveV2 { execID,<br>message: { messageId,<br>sourceChain, sender, data }
-    R ->> U: Receiver_CCIPReceiveV2 { execID,<br>message: { messageId,<br>sourceChain, sender, data }
+    Note over R: RECEIVES Receiver_CCIPReceiveV2 { execID,<br>message: { messageId,<br>sourceChain, sender, data, tokenAmounts },<br>receiverAccounts }
+    R ->> U: Receiver_CCIPReceiveV2 { execID,<br>message: { messageId,<br>sourceChain, sender, data, tokenAmounts },<br>receiverAccounts }
     deactivate R
 
 

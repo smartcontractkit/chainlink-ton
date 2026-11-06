@@ -99,7 +99,7 @@ sequenceDiagram
     Note over RE: [...]
     else
 
-    OR ->> R: RouteMessage { dest: receiver,<br>message: Receiver_CCIPReceiveV2 { execID,<br>message: { messageId,<br>sourceChain, sender, data }
+    OR ->> R: RouteMessage { dest: receiver,<br>message: Receiver_CCIPReceiveV2 { execID,<br>message: { messageId,<br>sourceChain, sender, data, tokenAmounts },<br>receiverAccounts }
     deactivate OR
 
 

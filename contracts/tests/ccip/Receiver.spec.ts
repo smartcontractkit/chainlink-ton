@@ -52,6 +52,7 @@ const ccipReceiveSampleMessage = r.Receiver_CCIPReceiveV2.create({
     data: beginCell().storeBuffer(Buffer.from('cross chain data')).endCell(),
     tokenAmounts: null,
   }),
+  receiverAccounts: [],
 })
 
 describe('Receiver - FacilityID', () => {

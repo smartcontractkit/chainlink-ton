@@ -82,10 +82,46 @@ describe('Router', () => {
     const routed = result.transactions.find(
       (tx) => tx.inMessage?.info.src?.toString() === router.address.toString(),
     )
-    const { confirmValue } = rec.Receiver_CCIPReceiveV2.fromSlice(
+    const { confirmValue, receiverAccounts } = rec.Receiver_CCIPReceiveV2.fromSlice(
       routed!.inMessage!.body.beginParse(),
     )
     expect(confirmValue).toBeGreaterThanOrEqual(OffRampCosts.receiveConfirm)
+    // No tokens, no receiver accounts.
+    expect(receiverAccounts).toHaveLength(0)
+  })
+
+  it('should tell the receiver which receiver account the tokens were delivered to', async () => {
+    const token = (await blockchain.treasury('jettonMaster')).address
+    const result = await router.sendRouterRouteMessage(offRamp.getSender(), toNano('1'), {
+      message: {
+        ...any2tvmMessage,
+        tokenAmounts: [rt.TokenAmount.create({ amount: 1000n, token })],
+      },
+      execID: genExecID({
+        sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+        messageID: 5n,
+      }),
+      receiver: receiver.address,
+      gasLimit: toNano('0.5'),
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      success: true,
+      op: rec.Receiver_CCIPReceiveV2.PREFIX,
+    })
+
+    const routed = result.transactions.find(
+      (tx) => tx.inMessage?.info.src?.toString() === router.address.toString(),
+    )
+    const { receiverAccounts } = rec.Receiver_CCIPReceiveV2.fromSlice(
+      routed!.inMessage!.body.beginParse(),
+    )
+    // Index-aligned with message.tokenAmounts.
+    const expected = await router.getReceiverAccountAddress(receiver.address, token)
+    expect(receiverAccounts).toHaveLength(1)
+    expect(receiverAccounts[0].equals(expected)).toBe(true)
   })
 
   it('should throw on routeMessage if source chain is not enabled', async () => {
