@@ -65,6 +65,7 @@ describe('RBACTimelock', () => {
         validAfter: 0n,
         opFinalizationTimeout: 0,
         opPendingId: 0n,
+        opPendingExecutionLt: 0n,
       },
       rbac: ac.builder.data.contractData.encode(rbacStorage).asCell(),
     }
