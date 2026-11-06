@@ -316,8 +316,8 @@ struct (0xa86846d5) MCMS_ExpiredRootsCleaned {
 struct (0xe695431e) MCMS_BounceHandled {
     /// The sender of the bounced message.
     sender: address;
-    /// The truncated body of the bounced message.
-    bouncedBody: uint256;
+    /// The opcode of the bounced message.
+    opcode: uint32;
     /// The current root
     root: uint256;
     /// The current root op count (nonce).
@@ -1592,16 +1592,21 @@ fun onBouncedMessage(in: InMessageBounced) {
     // Check the bounced message against the stored pending operation. If the bounce matches the currently
     // pending op treat it as a retry signal. Otherwise, expire the root based on conditions below.
     val isRichBounce = in.bouncedBody.preloadUint(32) == RICH_BOUNCE_PREFIX;
-    var bouncedBody: uint256 = 0;
+    var body = in.bouncedBody;
     var bouncedCreatedLt: uint64 = 0;
     if (isRichBounce) {
         val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
-        bouncedBody = extractBouncedBody(rich.originalBody.beginParse());
+        body = rich.originalBody.beginParse();
         bouncedCreatedLt = rich.originalInfo.load().createdLt;
     } else {
         // All op messages are sent with a rich bounce. A non-rich bounce cannot be
         // attributed safely, so treat it as mismatched and expire the root.
-        bouncedBody = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
+        body = body.skipBouncedPrefix();
+    }
+
+    var opcode: uint32 = 0;
+    if (body.remainingBitsCount() >= 32) {
+        opcode = body.preloadUint(32) as uint32;
     }
 
     val root = rootInfo.expiringRootAndOpCount.root;
@@ -1627,7 +1632,7 @@ fun onBouncedMessage(in: InMessageBounced) {
         if (ignoreMismatchedBounce) {
             emit(TOPIC_BOUNCE_HANDLED, MCMS_BounceHandled{
                 sender: in.senderAddress,
-                bouncedBody,
+                opcode,
                 root,
                 nonce,
                 matchesPendingOp,
@@ -1643,7 +1648,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 
         emit(TOPIC_BOUNCE_HANDLED, MCMS_BounceHandled{
             sender: in.senderAddress,
-            bouncedBody,
+            opcode,
             root,
             nonce,
             matchesPendingOp,
@@ -1664,7 +1669,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     emit(TOPIC_BOUNCE_HANDLED, MCMS_BounceHandled{
         sender: in.senderAddress,
-        bouncedBody,
+        opcode,
         root,
         nonce,
         matchesPendingOp,

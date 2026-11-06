@@ -713,7 +713,7 @@ export const Timelock_SubmitErrorReport = {
 /**
  > struct (0x3ed17038) Timelock_BounceHandled {
  >     sender: address
- >     bouncedBody: uint256
+ >     opcode: uint32
  >     opPendingId: uint256
  >     matchesPendingOp: bool
  > }
@@ -721,7 +721,7 @@ export const Timelock_SubmitErrorReport = {
 export interface Timelock_BounceHandled {
     readonly $: 'Timelock_BounceHandled'
     sender: c.Address
-    bouncedBody: uint256
+    opcode: uint32
     opPendingId: uint256
     matchesPendingOp: boolean
 }
@@ -731,7 +731,7 @@ export const Timelock_BounceHandled = {
 
     create(args: {
         sender: c.Address
-        bouncedBody: uint256
+        opcode: uint32
         opPendingId: uint256
         matchesPendingOp: boolean
     }): Timelock_BounceHandled {
@@ -745,7 +745,7 @@ export const Timelock_BounceHandled = {
         return {
             $: 'Timelock_BounceHandled',
             sender: s.loadAddress(),
-            bouncedBody: s.loadUintBig(256),
+            opcode: s.loadUintBig(32),
             opPendingId: s.loadUintBig(256),
             matchesPendingOp: s.loadBoolean(),
         }
@@ -753,7 +753,7 @@ export const Timelock_BounceHandled = {
     store(self: Timelock_BounceHandled, b: c.Builder): void {
         b.storeUint(0x3ed17038, 32);
         b.storeAddress(self.sender);
-        b.storeUint(self.bouncedBody, 256);
+        b.storeUint(self.opcode, 32);
         b.storeUint(self.opPendingId, 256);
         b.storeBit(self.matchesPendingOp);
     },
