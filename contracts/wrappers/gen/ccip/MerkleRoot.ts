@@ -501,6 +501,7 @@ export const ExecutionState = {
  >     metadataHash: uint256
  >     gasOverride: GasOverride?
  >     offchainTokenData: lisp_list<lisp_list<cell>>
+ >     replyTo: address
  > }
  */
 export interface MerkleRoot_Validate {
@@ -511,6 +512,7 @@ export interface MerkleRoot_Validate {
     metadataHash: uint256
     gasOverride: GasOverride | null
     offchainTokenData: lisp_list<lisp_list<c.Cell>>
+    replyTo: c.Address
 }
 
 export const MerkleRoot_Validate = {
@@ -523,6 +525,7 @@ export const MerkleRoot_Validate = {
         metadataHash: uint256
         gasOverride: GasOverride | null
         offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        replyTo: c.Address
     }): MerkleRoot_Validate {
         return {
             $: 'MerkleRoot_Validate',
@@ -544,6 +547,7 @@ export const MerkleRoot_Validate = {
                     (s) => s.loadRef()
                 )
             ),
+            replyTo: s.loadAddress(),
         }
     },
     store(self: MerkleRoot_Validate, b: c.Builder): void {
@@ -558,6 +562,7 @@ export const MerkleRoot_Validate = {
                 (v,b) => b.storeRef(v)
             ); }
         );
+        b.storeAddress(self.replyTo);
     },
     toCell(self: MerkleRoot_Validate): c.Cell {
         return makeCellFrom<MerkleRoot_Validate>(self, MerkleRoot_Validate.store);
@@ -839,6 +844,7 @@ export class MerkleRoot implements c.Contract {
         metadataHash: uint256
         gasOverride: GasOverride | null
         offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        replyTo: c.Address
     }) {
         return MerkleRoot_Validate.toCell(MerkleRoot_Validate.create(body));
     }
@@ -873,6 +879,7 @@ export class MerkleRoot implements c.Contract {
         metadataHash: uint256
         gasOverride: GasOverride | null
         offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        replyTo: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

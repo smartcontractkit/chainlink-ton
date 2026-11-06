@@ -1465,6 +1465,7 @@ export const FeeQuoter_UpdatePrices = {
  >     metadataHash: uint256
  >     gasOverride: GasOverride?
  >     offchainTokenData: lisp_list<lisp_list<cell>>
+ >     replyTo: address
  > }
  */
 export interface MerkleRoot_Validate {
@@ -1475,6 +1476,7 @@ export interface MerkleRoot_Validate {
     metadataHash: uint256
     gasOverride: GasOverride | null
     offchainTokenData: lisp_list<lisp_list<c.Cell>>
+    replyTo: c.Address
 }
 
 export const MerkleRoot_Validate = {
@@ -1487,6 +1489,7 @@ export const MerkleRoot_Validate = {
         metadataHash: uint256
         gasOverride: GasOverride | null
         offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        replyTo: c.Address
     }): MerkleRoot_Validate {
         return {
             $: 'MerkleRoot_Validate',
@@ -1508,6 +1511,7 @@ export const MerkleRoot_Validate = {
                     (s) => s.loadRef()
                 )
             ),
+            replyTo: s.loadAddress(),
         }
     },
     store(self: MerkleRoot_Validate, b: c.Builder): void {
@@ -1522,6 +1526,7 @@ export const MerkleRoot_Validate = {
                 (v,b) => b.storeRef(v)
             ); }
         );
+        b.storeAddress(self.replyTo);
     },
     toCell(self: MerkleRoot_Validate): c.Cell {
         return makeCellFrom<MerkleRoot_Validate>(self, MerkleRoot_Validate.store);
@@ -2501,6 +2506,44 @@ export const OffRamp_ManuallyExecute = {
 }
 
 /**
+ > struct (0x0d518f57) OffRamp_MerkleRootValidateRejected {
+ >     queryID: uint64
+ > }
+ */
+export interface OffRamp_MerkleRootValidateRejected {
+    readonly $: 'OffRamp_MerkleRootValidateRejected'
+    queryID: uint64
+}
+
+export const OffRamp_MerkleRootValidateRejected = {
+    PREFIX: 0x0d518f57,
+
+    create(args: {
+        queryID?: uint64
+    }): OffRamp_MerkleRootValidateRejected {
+        return {
+            $: 'OffRamp_MerkleRootValidateRejected',
+            ...args,
+            queryID: args.queryID ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): OffRamp_MerkleRootValidateRejected {
+        loadAndCheckPrefix32(s, 0x0d518f57, 'OffRamp_MerkleRootValidateRejected');
+        return {
+            $: 'OffRamp_MerkleRootValidateRejected',
+            queryID: s.loadUintBig(64),
+        }
+    },
+    store(self: OffRamp_MerkleRootValidateRejected, b: c.Builder): void {
+        b.storeUint(0x0d518f57, 32);
+        b.storeUint(self.queryID, 64);
+    },
+    toCell(self: OffRamp_MerkleRootValidateRejected): c.Cell {
+        return makeCellFrom<OffRamp_MerkleRootValidateRejected>(self, OffRamp_MerkleRootValidateRejected.store);
+    }
+}
+
+/**
  > struct (0x22b4f05c) OffRamp_UpdateSourceChainConfigs {
  >     queryID: uint64
  >     configs: SnakedCell<SourceChainConfigUpdate>
@@ -3116,7 +3159,7 @@ export const OffRamp_ReleaseOrMint = {
 }
 
 /**
- > enum OffRamp_Error { 26 variants }
+ > enum OffRamp_Error { 27 variants }
  */
 export type OffRamp_Error = bigint
 
@@ -3147,6 +3190,7 @@ export const OffRamp_Error = {
     UnexpectedExtraData: 22123n,
     TokenAdminRegistryNotSet: 22124n,
     TokenAdminRegistryAlreadySet: 22125n,
+    UnhandledLegacyBounce: 22126n,
 
     fromSlice(s: c.Slice): OffRamp_Error {
         return s.loadUintBig(15);
@@ -4821,6 +4865,7 @@ export class OffRamp implements c.Contract {
         'OffRamp_Error.UnexpectedExtraData': 22123,
         'OffRamp_Error.TokenAdminRegistryNotSet': 22124,
         'OffRamp_Error.TokenAdminRegistryAlreadySet': 22125,
+        'OffRamp_Error.UnhandledLegacyBounce': 22126,
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
         'Ownable2Step_Error.CannotTransferToSelf': 49801,
         'Ownable2Step_Error.MustBeProposedOwner': 49802,

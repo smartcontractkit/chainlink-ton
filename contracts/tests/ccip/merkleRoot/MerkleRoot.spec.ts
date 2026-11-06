@@ -179,6 +179,7 @@ describe('MerkleRoot - Message Handling', () => {
         metadataHash: METADATA_HASH,
         offchainTokenData: [[]],
         gasOverride: null,
+        replyTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -241,6 +242,7 @@ describe('MerkleRoot - Message Handling', () => {
             metadataHash: METADATA_HASH,
             offchainTokenData: [[]],
             gasOverride: null,
+            replyTo: owner.address,
           },
         )
         await blockchain.setShardAccount(owner.address, ownerAccount)
@@ -272,6 +274,7 @@ describe('MerkleRoot - Message Handling', () => {
           metadataHash: METADATA_HASH,
           offchainTokenData: [[]],
           gasOverride: buildGasOverride(),
+          replyTo: owner.address,
         })
         expect(retry.transactions).toHaveTransaction({
           from: merkleRoot.address,
@@ -326,6 +329,7 @@ describe('MerkleRoot - Message Handling', () => {
         metadataHash: METADATA_HASH,
         offchainTokenData: [[]],
         gasOverride: null,
+        replyTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -350,6 +354,7 @@ describe('MerkleRoot - Message Handling', () => {
         metadataHash: METADATA_HASH,
         offchainTokenData: [[]],
         gasOverride: null,
+        replyTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -374,6 +379,7 @@ describe('MerkleRoot - Message Handling', () => {
         metadataHash: METADATA_HASH,
         offchainTokenData: [[]],
         gasOverride: null,
+        replyTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -397,6 +403,7 @@ describe('MerkleRoot - Message Handling', () => {
         metadataHash: METADATA_HASH,
         offchainTokenData: [[]],
         gasOverride: buildGasOverride(),
+        replyTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -422,6 +429,7 @@ describe('MerkleRoot - Message Handling', () => {
         metadataHash: METADATA_HASH,
         offchainTokenData: [[]],
         gasOverride: buildGasOverride(),
+        replyTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -460,6 +468,7 @@ describe('MerkleRoot - Message Handling', () => {
         metadataHash: METADATA_HASH,
         offchainTokenData: [[]],
         gasOverride: buildGasOverride(),
+        replyTo: owner.address,
       })
 
       expect(result.transactions).toHaveTransaction({

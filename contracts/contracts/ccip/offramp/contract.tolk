@@ -79,7 +79,7 @@ fun onInternalMessage(in:InMessage) {
         }
         // Permissionless
         OffRamp_ManuallyExecute => {
-            onManuallyExecute(msg, in.valueCoins)
+            onManuallyExecute(msg, in.senderAddress, in.valueCoins)
         }
         // Sender must be owner
         OCR3Base_SetOCR3Config => {
@@ -197,7 +197,27 @@ fun onBouncedMessage(in: InMessageBounced) {
         ReceiveExecutor_CCIPReceiveConfirm => {
             onBouncedCCIPReceiveConfirm(originalMessage)
         },
+        MerkleRoot_Validate => {
+            onBouncedMerkleRootValidate(originalMessage)
+        },
     }
+}
+
+// The MerkleRoot rejected MerkleRoot_Validate: the root was never committed (no contract at that
+// address), the message was already executed, or manual execution is not yet enabled. Nothing was
+// validated and no state changed here, so the caller's remaining value goes back to `replyTo`
+// with the queryID; the cause is in the MerkleRoot's failed transaction, so no errorCode is
+// relayed. NoBounce: a refund, so a bounce could not unwind anything.
+fun onBouncedMerkleRootValidate(msg: MerkleRoot_Validate) {
+    val rejected = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: msg.replyTo,
+        body: OffRamp_MerkleRootValidateRejected {
+            queryID: msg.queryID,
+        },
+    });
+    rejected.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // The ReceiveExecutor rejected a confirmation: its sender is not the message's receiver, or the
@@ -778,8 +798,8 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
 
 //     Wallet  ->> OffRamp:    OffRamp_ManuallyExecute
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
-fun onManuallyExecute(msg: OffRamp_ManuallyExecute, value: coins) {
-    onExecuteSingleReport(msg.report, msg.gasOverride, value, msg.queryID);
+fun onManuallyExecute(msg: OffRamp_ManuallyExecute, sender: address, value: coins) {
+    onExecuteSingleReport(msg.report, msg.gasOverride, value, msg.queryID, sender);
 }
 
 // Executes a single cross-chain execution report.
@@ -804,7 +824,7 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
         createEmptyCell(),
     );
 
-    onExecuteSingleReport(msg.report, null, value, msg.queryID);
+    onExecuteSingleReport(msg.report, null, value, msg.queryID, sender);
 }
 
 // Executes a single cross-chain execution report. Verifies source chain
@@ -818,7 +838,7 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
 
 //     Wallet  ->> OffRamp:    OffRamp_Execute/ManuallyExecute
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
-fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, value: coins, queryID: uint64) {
+fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, value: coins, queryID: uint64, sender: address) {
     var st = Storage.load();
 
     // check if chain was cursed by RMNRemote
@@ -916,7 +936,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
 
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: getMerkleRootDeployAddress(st, root),
         body: MerkleRoot_Validate {
@@ -926,6 +946,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
             permissionlessExecutionThresholdSeconds: st.config.load().dynamicConfig.load().permissionlessExecutionThresholdSeconds,
             gasOverride,
             offchainTokenData: report.offchainTokenData,
+            replyTo: sender,
         },
     });
     // SAFETY: We use reserveToncoinsOnBalance so we only send the value exceeding from the emits

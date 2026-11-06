@@ -48,7 +48,8 @@ type OffRamp_InMessageBounced =
     | Deployable_Initialize
     | Router_RelayReleaseOrMint
     | Router_RouteMessage
-    | ReceiveExecutor_CCIPReceiveConfirm;
+    | ReceiveExecutor_CCIPReceiveConfirm
+    | MerkleRoot_Validate;
 
 struct (0x9d431905) OffRamp_Commit {
     queryID: uint64;
@@ -77,6 +78,14 @@ struct (0xa00785cf) OffRamp_ManuallyExecute {
     queryID: uint64;
     report: ExecutionReport;
     gasOverride: GasOverride;
+}
+
+/// Sent by the OffRamp to the caller of Execute/ManuallyExecute when the MerkleRoot rejected
+/// MerkleRoot_Validate (root not committed, already executed, or manual execution not yet
+/// enabled). Carries only the queryID plus the remaining value; the cause is in the MerkleRoot's
+/// failed transaction. NoBounce: a refund, so a bounce could not unwind anything.
+struct (0x0d518f57) OffRamp_MerkleRootValidateRejected {
+    queryID: uint64;
 }
 
 //Must be sent by owner

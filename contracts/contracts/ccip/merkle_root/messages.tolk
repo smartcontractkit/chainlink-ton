@@ -16,6 +16,8 @@ struct (0x038ede91) MerkleRoot_Validate {
     metadataHash: uint256,
     gasOverride: GasOverride?,
     offchainTokenData: lisp_list<lisp_list<cell>>,
+    // Who to refund if the validate bounces.
+    replyTo: address,
 }
 
 //crc32('MerkleRoot_MarkState')
