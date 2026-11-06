@@ -195,7 +195,7 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
             msg: onrampSend.msg,
         }
     });
-    getValidatedFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    getValidatedFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// The original sender's on-ramp account for `token`, holding the jettons to transfer.
@@ -236,7 +236,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
             fee: msg.fee.feeTokenAmount,
         },
     });
-    reserveFee.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    reserveFee.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation> {
         id: self.id,
         onrampSend: self.onrampSend,
@@ -288,7 +288,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onFeeReserved
             token: tokenAmount.token,
         }
     });
-    queryMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    queryMsg.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess> {
         id: self.id,
         onrampSend: self.onrampSend,
@@ -335,7 +335,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
             originalSender: self.onrampSend.metadata.sender,
         }
     });
-    requestLockOrBurn.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    requestLockOrBurn.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn> {
         id: self.id,
         onrampSend: self.onrampSend,
@@ -393,7 +393,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
             }.toCell()
         },
     });
-    sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdraw(mutate self, msg: TokenPool_LockOrBurnFinished) {
@@ -433,7 +433,7 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnR
         }
     });
     // SAFETY: This is an ephemeral contract. It is an *acceptor* finite-state automaton which has reached its final state. It can be safely destroyed after sending the message.
-    sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
+    sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidationFailed(mutate self, msg: FeeQuoter_MessageValidationFailed) {
@@ -512,7 +512,7 @@ fun CCIPSendExecutor<T>.exitWithError(self, errorCode: int32, chargedFee: coins?
         }
     });
     // SAFETY: This is an ephemeral contract. It is an *acceptor* finite-state automaton which has reached its final state. It can be safely destroyed after sending the message.
-    sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
+    sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 get fun typeAndVersion(): (slice, slice) {

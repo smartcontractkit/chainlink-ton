@@ -94,7 +94,7 @@ fun onInternalMessage(in: InMessage) {
                 value: 0,
                 dest: st.owner,
                 body: createEmptyCell(),
-            }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
         // Passive excess return from a release/mint jetton wallet. Retain it in the executor;
         // the finalization message carries the remaining balance to the OffRamp.
@@ -226,7 +226,7 @@ fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
                 token: ttInfo.transfer.load().token,
             }
         }
-    ).send(SEND_MODE_PAY_FEES_SEPARATELY);
+    ).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenAdminRegistry_TokenInfo, ttInfo: ReceiveExecutor_TokenTransferInfo) {
@@ -291,7 +291,7 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
             }
         }
     );
-    releaseOrMint.send(SEND_MODE_PAY_FEES_SEPARATELY)
+    releaseOrMint.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL)
 }
 
 fun execute(mutate st: ReceiveExecutor_Storage) {
@@ -310,7 +310,7 @@ fun execute(mutate st: ReceiveExecutor_Storage) {
                 tokenAmounts: receiverTokenAmounts(st),
             }
         }
-    ).send(SEND_MODE_PAY_FEES_SEPARATELY);
+    ).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun receiverTokenAmounts(st: ReceiveExecutor_Storage): SnakedCell<TokenAmount>? {
@@ -361,7 +361,7 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
             root: st.root,
         },
     });
-    notifyFailure.send(SEND_MODE_CARRY_ALL_BALANCE);
+    notifyFailure.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Matches the delivery forwarded by the receiver's deposit account: a single transfer started by
@@ -427,7 +427,7 @@ fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: Receive
             delivered: delivered.toCell(),
         },
     });
-    deliveredMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    deliveredMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     execute(mutate st)
 }
 
@@ -446,7 +446,7 @@ fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: 
             delivered,
         },
     });
-    notifySuccess.send(SEND_MODE_CARRY_ALL_BALANCE);
+    notifySuccess.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun onReleaseOrMintFailure(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, releaseOrMint: ReceiveExecutor_TokenTransferState_ReleaseOrMint) {

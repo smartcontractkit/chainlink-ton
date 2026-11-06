@@ -934,7 +934,7 @@ fun MCMS<T>.setRoot(
         dest: sender,
         body: MCMS_NewRoot{queryID, root, validUntil, metadata}
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Execute the received op after verifying the proof of its inclusion in the
@@ -1051,7 +1051,7 @@ fun MCMS<T>.execute(
         dest: sender,
         body: MCMS_OpExecuted{queryID, nonce: op.nonce, to: op.to, data: op.data, value: op.value}
     });
-    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// setConfig sets a new data.config. If clearRoot is true, then it also invalidates
@@ -1254,7 +1254,7 @@ fun MCMS<T>.setConfig(
         dest: sender,
         body: MCMS_ConfigSet{ queryID, config, isRootCleared: clearRoot }
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Changes the timeout required to finalize the currently executing op
@@ -1293,7 +1293,7 @@ fun MCMS<T>.updateOpFinalizationTimeout(
         dest: sender,
         body: MCMS_OpFinalizationTimeoutChange{ queryID, oldDuration: currTimeout, newDuration: newOpFinalizationTimeout}
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Submit an oracle error report, which marks the current root as invalid.
@@ -1375,7 +1375,7 @@ fun MCMS<T>.submitErrorReport(
             matchesPendingOp,
         }
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Transfer the error oracle role - requires owner.
@@ -1401,7 +1401,7 @@ fun MCMS<T>.transferOracleRole(
         dest: sender,
         body: MCMS_OracleRoleTransferred{ queryID, oldOracle, newOracle }
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Delete expired roots from storage map to reduce (accumulated) rent - requires owner.
@@ -1434,7 +1434,7 @@ fun MCMS<T>.cleanExpiredRoots(
         dest: sender,
         body: MCMS_ExpiredRootsCleaned{queryID, roots}
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Execute an op's call. Performs a raw message send that can bounce on errors.

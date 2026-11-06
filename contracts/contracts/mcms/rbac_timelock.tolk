@@ -800,7 +800,7 @@ fun Timelock<T>.init(
         dest: sender,
         body: Timelock_MinDelayChange{queryID, oldDuration: 0, newDuration: minDelay}
     });
-    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Schedule an operation containing a batch of transactions.
@@ -860,7 +860,7 @@ fun Timelock<T>.scheduleBatch(
         dest: sender,
         body: Timelock_BatchScheduled{queryID, id, delay}
     });
-    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Schedule an operation that becomes valid after a given delay.
@@ -895,7 +895,7 @@ fun Timelock<T>.cancel(mutate self, sender: address, _value: coins, queryID: uin
         dest: sender,
         body: Timelock_Canceled{queryID, id}
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Execute an (ready) operation containing a batch of transactions.
@@ -971,7 +971,7 @@ fun Timelock<T>.executeBatch(
         dest: sender,
         body: Timelock_BatchExecuted{queryID, id}
     });
-    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Execute an operation's call.
@@ -1045,7 +1045,7 @@ fun Timelock<T>.updateDelay(
             newDuration: newDelay
         }
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     // Update the minimum delay
     self.data.minDelay = newDelay;
@@ -1084,7 +1084,7 @@ fun Timelock<T>.updateOpFinalizationTimeout(
         dest: sender,
         body: Timelock_OpFinalizationTimeoutChange{queryID, oldDuration, newDuration: newOpFinalizationTimeout}
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Blocks a function selector from being used, i.e. schedule
@@ -1125,7 +1125,7 @@ fun Timelock<T>.blockFunctionSelector(
         dest: sender,
         body,
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     return updated;
 }
@@ -1163,7 +1163,7 @@ fun Timelock<T>.unblockFunctionSelector(
         dest: sender,
         body,
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     return updated;
 }
@@ -1222,7 +1222,7 @@ fun Timelock<T>.bypasserExecuteBatch(
         dest: sender,
         body: Timelock_BypasserBatchExecuted{queryID}
     });
-    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Updates the executor role check (enabled/disabled) which guards the execution of operations.
@@ -1250,7 +1250,7 @@ fun Timelock<T>.updateExecutorRoleCheck(
         dest: sender,
         body: Timelock_ExecutorRoleCheckUpdated{queryID, enabled}
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Submit an oracle error report, which marks the current operation in error state.
@@ -1301,7 +1301,7 @@ fun Timelock<T>.submitErrorReport(
             matchesPendingOp,
         }
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Returns whether the contract is initialized.

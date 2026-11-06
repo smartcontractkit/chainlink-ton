@@ -164,7 +164,7 @@ fun onLockOrBurnTransferContinue(
     assert (safety >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
 
     val transfer = createMessage(transferOpts);
-    transfer.send(sendMode);
+    transfer.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     return st;
 }
@@ -382,7 +382,7 @@ fun onReleaseOrMintContinue(
     // so the event and this hop are paid from the inbound admission, not the pool balance.
     reserveBalanceBeforeInMessage(msgValue);
     val withdraw = createMessage(withdrawOpts);
-    withdraw.send(sendMode);
+    withdraw.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     // minval = withdraw.fwdFee + withdraw + transfer + forwardTonAmount
 

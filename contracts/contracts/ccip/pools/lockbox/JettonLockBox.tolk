@@ -137,7 +137,7 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
             admin: adminAddress,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_BALANCE);
+    reply.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Handles jetton transfer notifications — treats them as deposits.
@@ -203,7 +203,7 @@ fun onDepositWithTransferNotification(
                 context: deposit.context,
             },
         });
-        reply.send(SEND_MODE_CARRY_ALL_BALANCE);
+        reply.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     } catch (errorCode) {
         onDepositReturn(st, msgValue, msg, deposit, errorCode);
     }
@@ -277,13 +277,13 @@ fun onDepositReturn(
     val failureCost = failureValue + failure.estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
     if (failureValue > 0 && msgValue > failureCost) {
         reserveBalanceBeforeInMessage(msgValue);
-        failure.send(SEND_MODE_PAY_FEES_SEPARATELY);
-        transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
+        failure.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+        transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
         return;
     }
 
-    transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
+    transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Sends jettons from the lockbox to a recipient wallet.
@@ -357,7 +357,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     assert (msgValue >= minValue) throw (JettonLockBox_Error.NotEnoughValue);
 
     val transfer = createMessage(transferOpts);
-    transfer.send(sendMode);
+    transfer.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Admin-only recovery of any lockbox-owned Jetton wallet; the wallet enforces ownership.
@@ -410,7 +410,7 @@ fun onBouncedMessage(in: InMessageBounced) {
                     context: wrap.context as Cell<JettonLockBox_Withdraw>,
                 },
             });
-            errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
     }
 }

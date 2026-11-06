@@ -652,7 +652,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
             }
         });
     }
-    response.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    response.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun sendExcessesTo(sendExcessesTo: address?, sender: address) {
@@ -668,7 +668,7 @@ fun sendExcessesTo(sendExcessesTo: address?, sender: address) {
         body: createEmptyCell(),
     });
     reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
-    returnExcesses.send(SEND_MODE_CARRY_ALL_BALANCE);
+    returnExcesses.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 get fun tokenPrice(token: address): TimestampedPrice {

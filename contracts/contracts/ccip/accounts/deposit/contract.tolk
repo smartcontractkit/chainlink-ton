@@ -100,7 +100,7 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
             },
         });
         // SAFETY: reserveGramsOnBalance is called before
-        reply.send(SEND_MODE_CARRY_ALL_BALANCE);
+        reply.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
 
@@ -120,7 +120,7 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
             includeOwnerAddress: false,
         },
     });
-    query.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    query.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun onResponseWalletAddress(sender: address, msg: ResponseWalletAddress) {
@@ -144,14 +144,14 @@ fun replyToPendingInit(mutate data: DepositAccount_Data, walletLearned: bool) {
             value: 0,
             dest: data.owner,
             body: DepositAccount_Initialized { queryID: pending.queryID, context: pending.context },
-        }).send(SEND_MODE_CARRY_ALL_BALANCE);
+        }).send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     } else {
         createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
             dest: data.owner,
             body: DepositAccount_WalletUnavailable { queryID: pending.queryID, context: pending.context },
-        }).send(SEND_MODE_CARRY_ALL_BALANCE);
+        }).send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     }
 }
 
@@ -200,7 +200,7 @@ fun onWithdrawBounced(wallet: address, ask: AskToTransfer) {
             request: wrap.context as Cell<DepositAccount_Withdraw>,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Notifications from any sender are forwarded to `user`; only those from the account's learned
@@ -218,7 +218,7 @@ fun onTransferNotification(sender: address, msg: TransferNotificationForRecipien
             notification: beginCell().storeSlice(body).endCell() as Cell<TransferNotificationForRecipient>,
         },
     });
-    notification.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    notification.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Returns the `DepositAccount_Notify` target in `forwardPayload`, directly or inside a

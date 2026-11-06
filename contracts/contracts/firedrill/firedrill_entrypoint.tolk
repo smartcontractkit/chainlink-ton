@@ -112,7 +112,7 @@ fun prepareRegister(st: FiredrillEntrypoint_Storage) {
 		dest: firedrillContracts.firedrillOffRamp,
 		body: FiredrillOffRamp_EmitSourceChainConfigSet {},
 	});
-	msg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+	msg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun drillPendingCommitPendingQueueTxSpike(mutate st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypoint_DrillPendingCommitPendingQueueTxSpike, value: coins) {
@@ -137,7 +137,7 @@ fun drillPendingCommitPendingQueueTxSpike(mutate st: FiredrillEntrypoint_Storage
 			dest: firedrillContracts.firedrillOnRamp,
 			body: emitMsg,
 		});
-		message.send(SEND_MODE_REGULAR);
+		message.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 		
 		i += 1;
 	}
@@ -164,7 +164,7 @@ fun drillPendingExecution(st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypo
 		dest: firedrillContracts.firedrillOffRamp,
 		body: emitMsg,
 	});
-	message.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+	message.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun drillPriceRegistries(st: FiredrillEntrypoint_Storage) {

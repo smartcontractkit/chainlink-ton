@@ -91,7 +91,7 @@ fun onInternalMessage(in: InMessage) {
                     sender: in.senderAddress,
                 },
             });
-            reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
         IncreaseCount => {
             // Instructs the contract to increase the counter.
@@ -121,7 +121,7 @@ fun onInternalMessage(in: InMessage) {
                     sender: in.senderAddress,
                 },
             });
-            reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
         else => {
             var st = lazy Storage.load();

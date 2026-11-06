@@ -427,7 +427,7 @@ fun TokenPool<T>.setBudget(mutate self, sender: address, msgValue: coins, queryI
         dest: sender,
         body: TokenPool_BudgetSet { queryID, budget: self.budget() },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Answers the registry probe with the configuration it caches. No value gate: the answer
@@ -442,7 +442,7 @@ fun TokenPool<T>.onGetConfig(self, sender: address, queryID: uint64) {
         dest: sender,
         body: TokenPool_Config { queryID, token: self.data.token(), transferInitiator, admission: self.budget().admission() },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// @param feeAdmin An additional address that can withdraw fees from this contract.
@@ -485,7 +485,7 @@ fun TokenPool<T>.setDynamicConfig(
             feeAdmin,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Sets the finality config according to the FinalityCodec library encoding.
@@ -509,7 +509,7 @@ fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, msgValue
             allowedFinalityConfig,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun TokenPool<T>.setAdvancedPoolHooks(
@@ -536,7 +536,7 @@ fun TokenPool<T>.setAdvancedPoolHooks(
             advancedPoolHooks,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Adds a remote pool for a given chain selector. This could be due to a pool being upgraded on the remote
@@ -571,7 +571,7 @@ fun TokenPool<T>.addRemotePool(
             remotePoolAddress,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Removes the remote pool address for a given chain selector.
@@ -613,7 +613,7 @@ fun TokenPool<T>.removeRemotePool(
             remotePoolAddress,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Sets the permissions for a list of chains selectors. Actual senders for these chains
@@ -695,7 +695,7 @@ fun TokenPool<T>.applyChainUpdates(
         dest: sender,
         body: TokenPool_ChainUpdatesApplied { queryID },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Curses `subjects` in the pool-local `CursePolicy`. Sender must hold
@@ -1076,19 +1076,19 @@ fun TokenPool<T>.recoverLockOrBurnFailure(
         val failureCost = failureValue + failure.estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
         if (failureValue > 0 && msgValue > failureCost) {
             reserveBalanceBeforeInMessage(msgValue);
-            failure.send(SEND_MODE_PAY_FEES_SEPARATELY);
-            transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
+            failure.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+            transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
             return;
         }
 
-        transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
+        transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
 
     // No custody to return
     // Reserve the pre-message balance, then carry the remaining inbound value
     reserveBalanceBeforeInMessage(msgValue);
-    failure.send(SEND_MODE_CARRY_ALL_BALANCE);
+    failure.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Unwinds an admitted release/mint that failed downstream: refunds the inbound capacity consumed
@@ -1112,7 +1112,7 @@ fun TokenPool<T>.recoverReleaseOrMintFailure(
 
     // Reserve the pre-message balance, then carry the remaining inbound value
     reserveBalanceBeforeInMessage(msgValue);
-    failure.send(SEND_MODE_CARRY_ALL_BALANCE);
+    failure.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Updates the token transfer fee configurations for specified destination chains.
@@ -1163,7 +1163,7 @@ fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
         dest: sender,
         body: TokenPool_FeeConfigApplied { queryID },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun TokenPool<T>.getTokenTransferFeeConfig(self, destChainSelector: uint64): TokenPool_TokenTransferFeeConfig? {
@@ -1387,7 +1387,7 @@ fun TokenPool<T>.onGetCCVs(
                 forwardPayload: context.toCell(),
             },
         });
-        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
         return; // reply is assembled on the async callback.
     }
@@ -1451,7 +1451,7 @@ fun TokenPool<T>.sendCCVsReply(
         dest: replyTo,
         body,
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Sends `TokenPool_GetCCVsFailed` to the original requester, echoing their `forwardPayload`.
@@ -1469,7 +1469,7 @@ fun TokenPool<T>.sendCCVsFailed(
         dest: replyTo,
         body: TokenPool_GetCCVsFailed { queryID, errorCode, forwardPayload },
     });
-    failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Handles the async `TokenPool_QueryCCVsReply` from `advancedPoolHooks`, assembling the final
@@ -1687,7 +1687,7 @@ fun TokenPool<T>.onLockOrBurnTransfer(
             body: returnTransfer,
         });
 
-        transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
+        transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     }
 }
 
@@ -1890,7 +1890,7 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
 
     // Reserve the pre-message balance, then carry the remaining inbound value
     reserveBalanceBeforeInMessage(msgValue);
-    finished.send(SEND_MODE_CARRY_ALL_BALANCE);
+    finished.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Validates the release or mint input for correctness on
@@ -2042,7 +2042,7 @@ fun TokenPool<T>.onReleaseOrMintDelivered(
 
     // Reserve the pre-message balance, then carry the remaining inbound value
     reserveBalanceBeforeInMessage(msgValue);
-    finalized.send(SEND_MODE_CARRY_ALL_BALANCE);
+    finalized.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun TokenPool<T>.encodeLocalDecimals(self): cell {
@@ -2169,7 +2169,7 @@ fun TokenPool<T>.preflightCheck(
                 forwardPayload: forwardPayload.toCell(),
             },
         });
-        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
         return true; // wait for async callback
     }
@@ -2208,7 +2208,7 @@ fun TokenPool<T>.postflightCheck(
                 forwardPayload: forwardPayload.toCell(),
             },
         });
-        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        hooksMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
         return true; // wait for async callback
     }
@@ -2494,7 +2494,7 @@ fun TokenPool<T>.setRateLimitConfig(
         dest: sender,
         body: TokenPool_RateLimitConfiguredNotification { queryID },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// @notice Updates the rate limiters for a given rate limiter pair.

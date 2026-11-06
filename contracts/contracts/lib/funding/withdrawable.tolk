@@ -63,5 +63,5 @@ fun _transfer(destination: address, value: coins, sendMode: int ) {
         dest: destination,
         body: createEmptyCell(),
     });
-    reply.send(sendMode);
+    reply.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }

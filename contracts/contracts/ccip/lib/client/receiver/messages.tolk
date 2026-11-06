@@ -58,7 +58,7 @@ fun Receiver_CCIPReceiveV2.validateAndConfirm(self, opts: Receiver_ValidateOptio
             execId: self.execId,
         }
     });
-    receiveConfirm.send(opts.confirmationMsg.sendMode);
+    receiveConfirm.send(opts.confirmationMsg.sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Confirmation message sent back to the router after accepting a CCIP message

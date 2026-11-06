@@ -184,7 +184,7 @@ fun onLockOrBurnTransferContinue(
     assert (safety >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
 
     val burn = createMessage(burnOpts);
-    burn.send(sendMode);
+    burn.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     return st;
 }
@@ -289,7 +289,7 @@ fun onClaimMinterAdmin(
         dest: st.poolData.load().token(),
         body: ClaimMinterAdmin { queryID },
     });
-    claim.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    claim.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// @notice Handles `CCT_ReturnExcessesBack` sent by the CCT JettonMinter on the burn path.

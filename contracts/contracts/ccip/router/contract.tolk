@@ -169,7 +169,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: in.senderAddress,
                 body: Router_RMNRemoteVerifyNotCursedResponse { queryID: msg.queryID, result },
             });
-            reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
         // Sender must RMN remote admin (checked in Ownable2Step struct)
         Router_RMNOwnableMessage => {
@@ -405,7 +405,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
         dest: msg.receiver,
         body: ccipReceive,
     });
-    messageForReceiver.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    messageForReceiver.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Asks the sender's on-ramp account to transfer the jettons to the pool. A rejected or bounced
@@ -447,7 +447,7 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
         dest: withdrawRequest.depositAccount,
         body: DepositAccount_Withdraw { queryID: msg.queryID, ask },
     });
-    withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Deploys (or re-confirms) the sender's on-ramp account for `msg.token`. `Deployable_Initialize`
@@ -514,7 +514,7 @@ fun onOnRampAccountReady(context: Router_OnRampAccountContext, msg: DepositAccou
             token: context.token,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Handles a `DepositAccount_WithdrawFailed` from one of this Router's on-ramp accounts: the
@@ -569,7 +569,7 @@ fun returnAccidentalTransfer(walletSender: address, msg: TransferNotificationFor
             forwardPayload: beginCell().storeMaybeRef(null).endCell().beginParse(),
         },
     });
-    returnMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
+    returnMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Returns the deposit account escrowing `token` sent by `user` for on-ramp transfers.
@@ -597,7 +597,7 @@ fun onWithdrawToTokenPoolFailed(msg: Router_WithdrawToTokenPoolFailed) {
             errorCode: msg.errorCode,
         },
     });
-    failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /*
@@ -704,7 +704,7 @@ fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
             receiver: sender,
         },
     });
-    confirmMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    confirmMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Relays the ReceiveExecutor's rejection of a confirmation to the receiver that sent it, with the
@@ -719,7 +719,7 @@ fun onCCIPReceiveConfirmRejected(msg: Router_CCIPReceiveConfirmRejectedByExecuto
             queryID: msg.queryID,
         },
     });
-    rejected.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    rejected.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Sends a CCIP receive confirmation to the OffRamp contract corresponding to
@@ -756,7 +756,7 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
     });
     // Mode 64 adds the bounced remainder on top of the fixed floor, which the Router funds when the
     // receiver consumed its whole gasLimit.
-    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Entrypoint to get a validated fee from the FeeQuoter.
@@ -804,7 +804,7 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee, sender: address, isV1: bool) 
         }
     });
 
-    feeQuoterMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    feeQuoterMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Handles a MessageValidated callback from the OnRamp contract.
@@ -849,7 +849,7 @@ fun onMessageValidatedFromOnRamp(msg: OnRamp_MessageValidated) {
         dest: userAddress,
         body,
     });
-    replyMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    replyMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Handles a MessageValidationFailed callback from the OnRamp contract.
@@ -900,7 +900,7 @@ fun sendMessageValidationFailed(userAddress: address, errorCode: int32, msg: Cel
         dest: userAddress,
         body
     });
-    replyMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    replyMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /*
@@ -930,7 +930,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
         dest: onRampResult.loadValue(),
         body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender, value }},
     });
-    sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// OnRamp rejected the send by throwing, so nothing was reserved. NACKs the user with OnRamp's
@@ -1025,7 +1025,7 @@ fun onSendACK(msg: Router_MessageSent) {
         }
     });
 
-    ackMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    ackMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Sends an nack to the CCIP sender once it finishes with an error.
@@ -1055,7 +1055,7 @@ fun sendMessageRejected(sender: address, queryID: uint64, errorCode: int32) {
         }
     });
 
-    nackMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    nackMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /*
@@ -1092,7 +1092,7 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
             extra: extra.toCell(),
         }
     });
-    tokenPoolLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    tokenPoolLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Deploys (idempotently) the receiver's deposit account before relaying the release/mint, so
@@ -1196,7 +1196,7 @@ fun onReceiverAccountReady(relay: Router_RelayReleaseOrMint, sender: address) {
             sendExcessesTo: relay.sendExcessesTo,
         },
     });
-    tokenPoolReleaseOrMint.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    tokenPoolReleaseOrMint.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// A deposit account could not learn its jetton wallet. A relay fails before the pool is called, so
@@ -1225,7 +1225,7 @@ fun sendOnRampAccountFailed(user: address, queryID: uint64, errorCode: int32) {
         dest: user,
         body: Router_OnRampAccountFailed { queryID, errorCode },
     });
-    failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun sendDepositAccountInitFailure(relay: Router_RelayReleaseOrMint, errorCode: int32) {
@@ -1253,7 +1253,7 @@ fun onTokenTransferDelivered(msg: Router_TokenTransferDelivered) {
             transfer: msg.transfer,
         },
     });
-    delivered.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    delivered.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun offRampAccount(receiver: address, token: address): AutoDeployAddress {
@@ -1301,7 +1301,7 @@ fun sendLockOrBurnRelayFailure(
         dest: executor,
         body: Router_TokenPoolLockOrBurnFailed { queryID, tokenPool, errorCode },
     });
-    failed.send(mode);
+    failed.send(mode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Reports an inbound release/mint failure to the OffRamp that owns the lane.
@@ -1327,7 +1327,7 @@ fun sendReleaseOrMintRelayFailure(
             errorCode,
         },
     });
-    failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 @method_id(1000)

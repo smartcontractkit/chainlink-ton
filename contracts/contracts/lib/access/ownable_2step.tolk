@@ -67,7 +67,7 @@ fun Ownable2Step.onInternalMessage(mutate self, sender: address, body: slice): b
                     newOwner: msg.newOwner
                 }
             });
-            emitMsg.send(SEND_MODE_REGULAR);
+            emitMsg.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         },
 
         Ownable2Step_AcceptOwnership => {
@@ -81,7 +81,7 @@ fun Ownable2Step.onInternalMessage(mutate self, sender: address, body: slice): b
                     newOwner: sender
                 }
             });
-            emitMsg.send(SEND_MODE_REGULAR);
+            emitMsg.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
         else => {
             return false; // Not an Ownable2Step message

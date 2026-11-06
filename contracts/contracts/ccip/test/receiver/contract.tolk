@@ -78,7 +78,7 @@ fun onInternalMessage(in: InMessage) {
                     execId: msg.execId,
                 }
             });
-            receiveConfirm.send(SEND_MODE_CARRY_ALL_BALANCE);
+            receiveConfirm.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
            
         }
         TestReceiver_UpdateAuthorizedCaller => {

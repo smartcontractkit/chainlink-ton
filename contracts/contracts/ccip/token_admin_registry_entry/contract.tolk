@@ -126,7 +126,7 @@ fun deferToRoot(msg: TokenAdminRegistryEntry_MessageFromRoot) {
             token: st.tokenAddress,
             request: msg.toCell(),
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Several requests may be deferred concurrently; only the first one upgrades.
@@ -154,7 +154,7 @@ fun onGetTokenInfo(queryID: uint64, msg: TokenAdminRegistryEntry_GetTokenInfo) {
             requester: msg.requester,
             tokenInfo,
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Emits the initial proposal after Deployable has atomically installed this
@@ -211,7 +211,7 @@ fun queryWallet(token: address, queryID: uint64) {
             ownerAddress: contract.getAddress(),
             includeOwnerAddress: false,
         },
-    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+    }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun onResponseWalletAddress(msg: ResponseWalletAddress, sender: address) {
@@ -304,7 +304,7 @@ fun probePoolConfig(pool: address, queryID: uint64) {
         value: TokenAdminRegistryEntry_POOL_PROBE_VALUE,
         dest: pool,
         body: TokenPool_GetConfig { queryID },
-    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+    }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Accepts the answer of the pending pool (setting it) or of the current pool (refreshing it).
@@ -384,7 +384,7 @@ fun notifyRoot(body: cell) {
         value: TokenAdminRegistryEntry_relayEventCost(),
         dest: st.adminConfig.load().tokenAdminRegistry,
         body,
-    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+    }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Implement when upgrading the contract

@@ -198,7 +198,7 @@ fun onGetValidatedFee(msg: OnRamp_GetValidatedFee, sender: address) {
         }
     });
 
-    getFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    getFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee and replies back to the original caller.
@@ -228,7 +228,7 @@ fun onMessageValidated(msg: FeeQuoter_MessageValidated) {
         }
     });
 
-    confirmation.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    confirmation.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee when FeeQuoter replies with an error
@@ -267,7 +267,7 @@ fun sendMessageValidationFailed(onrampContext: cell, errorCode: int32, ccipSend:
         }
     });
 
-    rejection.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    rejection.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun generateRandomSendExecutorId(): CCIPSendExecutor_ID {
@@ -351,7 +351,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
         }
     });
 
-    executeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    executeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     st.store();
 }
@@ -382,7 +382,7 @@ fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequest
             finalizationValue: OnRamp_Costs.TokenPoolFinalization(),
         }
     });
-    routerLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    routerLockOrBurn.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsWithdraw, sender: address) {
@@ -405,7 +405,7 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
                 errorCode: e,
             }
         });
-        failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
 
@@ -420,7 +420,7 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
             withdrawRequest: msg.withdrawRequest,
         }
     });
-    routerWithdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    routerWithdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Reports a bounced Router_LockOrBurn to the executor that requested it, so the executor exits
@@ -479,7 +479,7 @@ fun sendLockOrBurnFailed(executor: address, queryID: uint64, errorCode: int32) {
         dest: executor,
         body: OnRamp_LockOrBurnFailed { queryID, errorCode },
     });
-    failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun processPoolReturnData(msg: OnRamp_ExecutorRequestsWithdraw) {
@@ -590,7 +590,7 @@ fun onExecutorFinishedSuccessfully(mutate st: OnRamp_Storage, msg: OnRamp_Execut
     });
     // SAFETY: reserveGramsOnBalance above keeps the original balance (including the
     // reserved fee) intact; only the inbound value in excess of it is forwarded.
-    confirmation.send(SEND_MODE_CARRY_ALL_BALANCE);
+    confirmation.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /*
@@ -625,7 +625,7 @@ fun rejectMessage(errorCode: int32, router: address, queryID: uint64, destChainS
             errorCode,
         },
     });
-    errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /*

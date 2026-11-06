@@ -98,7 +98,7 @@ fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
             dest: st.owner,
             body: createEmptyCell()
         });
-        freezeRoot.send(SEND_MODE_CARRY_ALL_BALANCE);
+        freezeRoot.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     }
 }
 
@@ -142,7 +142,7 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
             offchainTokenData: msg.offchainTokenData,
         }
     });
-    executeValidated.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    executeValidated.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 get fun typeAndVersion(): (slice, slice) {

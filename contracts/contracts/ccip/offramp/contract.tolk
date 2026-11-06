@@ -234,7 +234,7 @@ fun onBouncedMerkleRootValidate(msg: MerkleRoot_Validate) {
             queryID: msg.queryID,
         },
     });
-    rejected.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    rejected.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // The ReceiveExecutor rejected a confirmation: its sender is not the message's receiver, or the
@@ -254,7 +254,7 @@ fun onBouncedCCIPReceiveConfirm(msg: ReceiveExecutor_CCIPReceiveConfirm) {
             receiver: msg.receiver,
         },
     });
-    rejected.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    rejected.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Handles bounced ReceiveExecutor_InitExecute messages. This should never
@@ -426,7 +426,7 @@ fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
             reason: ReceiveExecutor_FailedReason.BouncedFromReceiver,
         }
     });
-    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Sends a MerkleRoot_MarkState message to update the execution state of a
@@ -441,7 +441,7 @@ fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
             state,
         },
     });
-    markState.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    markState.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Received from ReceiveExecutor after validating that the confirm message
@@ -492,7 +492,7 @@ fun relayTokenTransferDelivered(st: Storage, queryID: uint64, execId: ReceiveExe
             transfer: delivered.transfer,
         },
     });
-    relay.send(carryValue ? SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE : SEND_MODE_PAY_FEES_SEPARATELY);
+    relay.send((carryValue ? SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE : SEND_MODE_PAY_FEES_SEPARATELY) | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Received from ReceiveExecutor after validating that the bounce message came from the correct
@@ -542,7 +542,7 @@ fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
             execId: msg.execId,
         },
     });
-    receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Dispatches a validated message to the receiver via the Router_RouteMessage.
@@ -586,7 +586,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
         }
     });
 
-    routeMessage.send(SEND_MODE_REGULAR);
+    routeMessage.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun ccipReceiveFailed(receiveExecutor: address, queryID: uint64, receiver: address, reason: ReceiveExecutor_FailedReason) {
@@ -600,7 +600,7 @@ fun ccipReceiveFailed(receiveExecutor: address, queryID: uint64, receiver: addre
             reason,
         }
     });
-    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Send ReceiveBounced to initiate the failure notification trace
@@ -614,7 +614,7 @@ fun mintOrReleaseFailed(receiveExecutor: address, queryID: uint64, reason: Relea
             reason,
         }
     });
-    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Fails the executor after the Router reported a release/mint failure (lane
@@ -648,7 +648,7 @@ fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMi
             sendExcessesTo: contract.getAddress(),
         }
     });
-    relayMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    relayMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Sets a new OCR3 configuration for the contract. Only the contract owner can call this function.
@@ -753,7 +753,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
                 }
             },
         });
-        initMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+        initMsg.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     }
 
     // Update token/gas prices if there are any updates.
@@ -783,7 +783,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
                         sendExcessesTo: sender,
                     }
                 });
-                updatePricesMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+                updatePricesMsg.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
             }
         }
     }
@@ -967,7 +967,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
         },
     });
     // SAFETY: We use reserveToncoinsOnBalance so we only send the value exceeding from the emits
-    executeMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
+    executeMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /*
@@ -1070,7 +1070,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
                 }
             },
         });
-        deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+        deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     }
 
     var initExecuteMsg = ReceiveExecutor_InitExecute {
@@ -1110,7 +1110,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         body: initExecuteMsg
     });
     // SAFETY: We use reserveToncoinsOnBalance so we only send the value exceeding from the deployment (DEPLOYABLE_INIT_VALUE)
-    initExecMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
+    initExecMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // getTokenTransfer returns the information needed to perform a token transfer for a given message

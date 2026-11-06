@@ -157,7 +157,7 @@ fun onBouncedMessage(in: InMessageBounced) {
                 queryID: request.queryID,
                 token: content.token,
             },
-        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
     createMessage({
@@ -169,7 +169,7 @@ fun onBouncedMessage(in: InMessageBounced) {
             errorCode: rich.exitCode,
             request: requestCell,
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun requestSender(content: TokenAdminRegistryEntry_RootMessage): address {
@@ -207,7 +207,7 @@ fun forwardToEntry(token: address, queryID: uint64, content: TokenAdminRegistryE
             minEntryVersion: TokenAdminRegistryEntry_VERSION,
             content: content.toCell(),
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Answers a stale entry with an Upgradeable_Upgrade followed by the deferred request as a
@@ -231,7 +231,7 @@ fun upgradeAndResume(entry: address, queryID: uint64, request: Cell<TokenAdminRe
         value: 0,
         dest: entry,
         body: TokenAdminRegistryEntry_Resume { request },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun sendUpgrade(dest: address, queryID: uint64, value: coins, mode: int) {
@@ -243,7 +243,7 @@ fun sendUpgrade(dest: address, queryID: uint64, value: coins, mode: int) {
             queryID,
             code: entryCode(),
         },
-    }).send(mode);
+    }).send(mode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
@@ -271,7 +271,7 @@ fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
             version: tokenInfo.version,
             poolInfo,
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun emitAdministratorTransferRequested(event: TokenAdminRegistry_AdministratorTransferRequested) {
@@ -322,7 +322,7 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
             },
         },
     });
-    deployMsg.send(SEND_MODE_REGULAR);
+    deployMsg.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Replaces an unaccepted administrator proposal. The shard enforces that no

@@ -209,7 +209,7 @@ fun JettonWithdrawable.onWithdrawBounced(
         dest: wrap!.initiator,
         body: JettonWithdrawable_WithdrawFailed { wallet, ask },
     });
-    failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     return true;
 }
