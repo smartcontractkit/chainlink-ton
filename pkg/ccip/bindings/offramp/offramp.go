@@ -106,7 +106,7 @@ type CCIPReceiveV2 struct {
 	Message      Any2TVMMessage `tlb:"^"`
 	// ReceiverAccounts are the Router-owned deposit accounts the tokens were delivered to,
 	// index-aligned with Message.TokenAmounts (empty when the message carries no tokens).
-	ReceiverAccounts AddressArray `tlb:"."`
+	ReceiverAccounts []*address.Address `tlb:"array addr"`
 }
 
 // Any2TVMMessage represents a cross-chain message to TON
