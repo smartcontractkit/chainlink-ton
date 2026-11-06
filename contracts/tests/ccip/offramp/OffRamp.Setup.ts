@@ -809,7 +809,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   receiveExecutorAddress(message: of.Any2TVMRampMessage, metadataHash?: bigint): Address {
     const messageId = generateMessageID(message, metadataHash ?? this.getDefaultMetadataHash())
     const messageIdSlice = beginCell().storeUint(messageId, 256).asSlice()
-    const execId = beginCell()
+    const execID = beginCell()
       .storeUint(message.header.sourceChainSelector, 64)
       .storeUint(messageIdSlice.loadUintBig(192 - 64), 192 - 64)
       .endCell()
@@ -821,7 +821,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         owner: this.offRamp.address,
         id: deployable.builder.data.namespaced.encode({
           namespace: NameSpace.CCIPNamespace.ReceiveExecutor,
-          id: beginCell().storeUint(execId, 192),
+          id: beginCell().storeUint(execID, 192),
         }),
       })
       .endCell()

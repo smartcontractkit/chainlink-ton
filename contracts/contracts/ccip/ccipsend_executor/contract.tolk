@@ -369,7 +369,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
             chainFamilySelector: state.chainFamilySelector,
             destBytesOverhead: state.destOverhead.destBytesOverhead,
             withdrawRequest: Router_WithdrawRequest {
-                onRampAccount: Router_DepositAccountID { user: self.onrampSend.metadata.sender, token: tokenAmount.token }.toCell(),
+                senderAccount: Router_DepositAccountID { user: self.onrampSend.metadata.sender, token: tokenAmount.token }.toCell(),
                 amount: tokenAmount.amount,
                 tokenPool: state.tokenPool,
                 forwardTonAmount: msg.forwardTonAmount,

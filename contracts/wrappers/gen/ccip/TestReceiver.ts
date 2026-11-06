@@ -9,6 +9,8 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 //   predefined types and functions
 //
 
+type array<T> = T[]
+
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
@@ -52,6 +54,35 @@ function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallbac
         b.storeUint(1, 1);
         storeFn_T(v, b);
     }
+}
+
+function storeArrayOf<T>(v: array<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    // the compiler stores array<T> in chunks; in TypeScript, for simplicity, store "1 elem = 1 ref"
+    let tail = null as c.Cell | null;
+    for (let i = 0; i < v.length; ++i) {
+        let chunkB = beginCell().storeMaybeRef(tail);
+        storeFn_T(v[v.length - 1 - i], chunkB);
+        tail = chunkB.endCell();
+    }
+    b.storeUint(v.length, 8);
+    b.storeMaybeRef(tail);
+}
+
+function loadArrayOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): array<T> {
+    let len = s.loadUint(8);
+    let head = s.loadMaybeRef();
+    let outArr = [] as array<T>;
+    while (head != null) {
+        let s = head.beginParse();
+        head = s.loadMaybeRef();
+        while (s.remainingBits || s.remainingRefs) {
+            outArr.push(loadFn_T(s));
+        }
+    }
+    if (len !== outArr.length) {
+        throw new Error(`mismatch array binary data: expected ${len} elements, got ${outArr.length}`);
+    }
+    return outArr;
 }
 
 // ————————————————————————————————————————————
@@ -369,28 +400,31 @@ export const Upgradeable_UpgradedEvent = {
 
 /**
  > struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
- >     execId: uint192
+ >     execID: uint192
  >     queryId: uint64
  >     confirmValue: coins
  >     message: Cell<Any2TVMMessage>
+ >     receiverAccounts: array<address>
  > }
  */
 export interface Receiver_CCIPReceiveV2 {
     readonly $: 'Receiver_CCIPReceiveV2'
-    execId: uint192
+    execID: uint192
     queryId: uint64
     confirmValue: coins
     message: Any2TVMMessage
+    receiverAccounts: array<c.Address>
 }
 
 export const Receiver_CCIPReceiveV2 = {
     PREFIX: 0x5b4bc7a6,
 
     create(args: {
-        execId: uint192
+        execID: uint192
         queryId?: uint64
         confirmValue: coins
         message: Any2TVMMessage
+        receiverAccounts: array<c.Address>
     }): Receiver_CCIPReceiveV2 {
         return {
             $: 'Receiver_CCIPReceiveV2',
@@ -402,18 +436,24 @@ export const Receiver_CCIPReceiveV2 = {
         loadAndCheckPrefix32(s, 0x5b4bc7a6, 'Receiver_CCIPReceiveV2');
         return {
             $: 'Receiver_CCIPReceiveV2',
-            execId: s.loadUintBig(192),
+            execID: s.loadUintBig(192),
             queryId: s.loadUintBig(64),
             confirmValue: s.loadCoins(),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
+            receiverAccounts: loadArrayOf<c.Address>(s,
+                (s) => s.loadAddress()
+            ),
         }
     },
     store(self: Receiver_CCIPReceiveV2, b: c.Builder): void {
         b.storeUint(0x5b4bc7a6, 32);
-        b.storeUint(self.execId, 192);
+        b.storeUint(self.execID, 192);
         b.storeUint(self.queryId, 64);
         b.storeCoins(self.confirmValue);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
+        storeArrayOf<c.Address>(self.receiverAccounts, b,
+            (v,b) => b.storeAddress(v)
+        );
     },
     toCell(self: Receiver_CCIPReceiveV2): c.Cell {
         return makeCellFrom<Receiver_CCIPReceiveV2>(self, Receiver_CCIPReceiveV2.store);
@@ -423,13 +463,13 @@ export const Receiver_CCIPReceiveV2 = {
 /**
  > struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
  >     queryId: uint64
- >     execId: ReceiveExecutorId
+ >     execID: ReceiveExecutionID
  > }
  */
 export interface Router_CCIPReceiveConfirm {
     readonly $: 'Router_CCIPReceiveConfirm'
     queryId: uint64
-    execId: ReceiveExecutorId
+    execID: ReceiveExecutionID
 }
 
 export const Router_CCIPReceiveConfirm = {
@@ -437,7 +477,7 @@ export const Router_CCIPReceiveConfirm = {
 
     create(args: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execID: ReceiveExecutionID
     }): Router_CCIPReceiveConfirm {
         return {
             $: 'Router_CCIPReceiveConfirm',
@@ -450,13 +490,13 @@ export const Router_CCIPReceiveConfirm = {
         return {
             $: 'Router_CCIPReceiveConfirm',
             queryId: s.loadUintBig(64),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execID: ReceiveExecutionID.fromSlice(s),
         }
     },
     store(self: Router_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0x1e55bbf6, 32);
         b.storeUint(self.queryId, 64);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execID, b);
     },
     toCell(self: Router_CCIPReceiveConfirm): c.Cell {
         return makeCellFrom<Router_CCIPReceiveConfirm>(self, Router_CCIPReceiveConfirm.store);
@@ -517,19 +557,19 @@ export const Any2TVMMessage = {
 }
 
 /**
- > type ReceiveExecutorId = uint192
+ > type ReceiveExecutionID = uint192
  */
-export type ReceiveExecutorId = uint192
+export type ReceiveExecutionID = uint192
 
-export const ReceiveExecutorId = {
-    fromSlice(s: c.Slice): ReceiveExecutorId {
+export const ReceiveExecutionID = {
+    fromSlice(s: c.Slice): ReceiveExecutionID {
         return s.loadUintBig(192);
     },
-    store(self: ReceiveExecutorId, b: c.Builder): void {
+    store(self: ReceiveExecutionID, b: c.Builder): void {
         b.storeUint(self, 192);
     },
-    toCell(self: ReceiveExecutorId): c.Cell {
-        return makeCellFrom<ReceiveExecutorId>(self, ReceiveExecutorId.store);
+    toCell(self: ReceiveExecutionID): c.Cell {
+        return makeCellFrom<ReceiveExecutionID>(self, ReceiveExecutionID.store);
     }
 }
 
@@ -820,10 +860,11 @@ export class TestReceiver implements c.Contract {
     }
 
     static createCellOfReceiverCCIPReceiveV2(body: {
-        execId: uint192
+        execID: uint192
         queryId?: uint64
         confirmValue: coins
         message: Any2TVMMessage
+        receiverAccounts: array<c.Address>
     }) {
         return Receiver_CCIPReceiveV2.toCell(Receiver_CCIPReceiveV2.create(body));
     }
@@ -864,10 +905,11 @@ export class TestReceiver implements c.Contract {
     }
 
     async sendReceiverCCIPReceiveV2(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        execId: uint192
+        execID: uint192
         queryId?: uint64
         confirmValue: coins
         message: Any2TVMMessage
+        receiverAccounts: array<c.Address>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

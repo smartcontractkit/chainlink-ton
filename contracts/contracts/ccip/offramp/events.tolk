@@ -47,5 +47,5 @@ struct OffRamp_DeployableInitializeBounced {
 const ROUTE_MESSAGE_BOUNCED_TOPIC: int = "RouteMessageBounced".crc32();
 struct OffRamp_RouteMessageBounced {
     router: address;
-    execId: uint192;
+    execID: uint192;
 }

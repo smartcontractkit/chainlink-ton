@@ -43,7 +43,7 @@ async function deployReceiverContract(
 }
 
 const ccipReceiveSampleMessage = r.Receiver_CCIPReceiveV2.create({
-  execId: 1n,
+  execID: 1n,
   confirmValue: toNano('0.015'),
   message: rt.Any2TVMMessage.create({
     messageId: 1n,
@@ -52,6 +52,7 @@ const ccipReceiveSampleMessage = r.Receiver_CCIPReceiveV2.create({
     data: beginCell().storeBuffer(Buffer.from('cross chain data')).endCell(),
     tokenAmounts: null,
   }),
+  receiverAccounts: [],
 })
 
 describe('Receiver - FacilityID', () => {
@@ -175,7 +176,7 @@ describe('Receiver', () => {
       success: true,
       deploy: false,
       body: rt.Router_CCIPReceiveConfirm.toCell(
-        rt.Router_CCIPReceiveConfirm.create({ execId: ccipReceiveSampleMessage.execId }),
+        rt.Router_CCIPReceiveConfirm.create({ execID: ccipReceiveSampleMessage.execID }),
       ),
     })
 

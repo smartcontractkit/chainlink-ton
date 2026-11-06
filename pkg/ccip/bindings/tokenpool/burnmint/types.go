@@ -66,9 +66,9 @@ type ExitCode tvm.ExitCode
 const (
 	ExitCodeUnexpectedBurnBounce ExitCode = iota + 45000 // Facility ID 450 * 100
 	ExitCodeUnexpectedMintBounce
-	ExitCodeInvalidOffRampAccountReply
-	ExitCodeInvalidOffRampAccountNotification
-	ExitCodeOffRampAccountDeployFailed
+	ExitCodeInvalidReceiverAccountReply
+	ExitCodeInvalidReceiverAccountNotification
+	ExitCodeReceiverAccountDeployFailed
 )
 
 // New converts an ExitCode to a tvm.ExitCode.
