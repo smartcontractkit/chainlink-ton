@@ -906,7 +906,7 @@ export const MCMS_ExpiredRootsCleaned = {
 /**
  > struct (0xe695431e) MCMS_BounceHandled {
  >     sender: address
- >     bouncedBody: uint256
+ >     opcode: uint32
  >     root: uint256
  >     nonce: uint40
  >     matchesPendingOp: bool
@@ -916,7 +916,7 @@ export const MCMS_ExpiredRootsCleaned = {
 export interface MCMS_BounceHandled {
     readonly $: 'MCMS_BounceHandled'
     sender: c.Address
-    bouncedBody: uint256
+    opcode: uint32
     root: uint256
     nonce: uint40
     matchesPendingOp: boolean
@@ -928,7 +928,7 @@ export const MCMS_BounceHandled = {
 
     create(args: {
         sender: c.Address
-        bouncedBody: uint256
+        opcode: uint32
         root: uint256
         nonce: uint40
         matchesPendingOp: boolean
@@ -944,7 +944,7 @@ export const MCMS_BounceHandled = {
         return {
             $: 'MCMS_BounceHandled',
             sender: s.loadAddress(),
-            bouncedBody: s.loadUintBig(256),
+            opcode: s.loadUintBig(32),
             root: s.loadUintBig(256),
             nonce: s.loadUintBig(40),
             matchesPendingOp: s.loadBoolean(),
@@ -954,7 +954,7 @@ export const MCMS_BounceHandled = {
     store(self: MCMS_BounceHandled, b: c.Builder): void {
         b.storeUint(0xe695431e, 32);
         b.storeAddress(self.sender);
-        b.storeUint(self.bouncedBody, 256);
+        b.storeUint(self.opcode, 32);
         b.storeUint(self.root, 256);
         b.storeUint(self.nonce, 40);
         b.storeBit(self.matchesPendingOp);

@@ -1,8 +1,9 @@
 import '@ton/test-utils'
-import { internal } from '@ton/sandbox'
+import { internal, SendMessageResult } from '@ton/sandbox'
 import { beginCell, Cell, toNano } from '@ton/core'
 
 import * as mcms from '../../wrappers/mcms/MCMS'
+import { MCMS_BounceHandled } from '../../wrappers/gen/mcms/MCMS'
 
 import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
 
@@ -503,6 +504,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       to: baseTest.bind.mcms.address,
       success: true,
     })
+    expectBounceHandledOpcode(result, baseTest.testOps[1].data.beginParse().preloadUint(32))
 
     // The late bounce must not roll back opCount.
     expect(await baseTest.bind.mcms.getOpCount()).toEqual(3n)
@@ -560,6 +562,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       to: baseTest.bind.mcms.address,
       success: true,
     })
+    expectBounceHandledOpcode(result, opData.beginParse().preloadUint(32))
 
     // Non-rich bounces are not attributable, so they expire the root instead of
     // rolling back opCount.
@@ -567,6 +570,16 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     const [, validUntil] = await baseTest.bind.mcms.getRoot()
     expect(validUntil).toEqual(BigInt(baseTest.blockchain.now!) - 1n)
   })
+
+  function expectBounceHandledOpcode(result: SendMessageResult, expected: number) {
+    const event = result.externals.find(
+      (e) =>
+        e.info.src.equals(baseTest.bind.mcms.address) &&
+        e.info.dest?.value === BigInt(mcms.opcodes.out.BounceHandled),
+    )
+    expect(event).toBeDefined()
+    expect(MCMS_BounceHandled.fromSlice(event!.body.beginParse()).opcode).toEqual(BigInt(expected))
+  }
 
   function buildRichBounce(originalBody: Cell, createdLt: bigint): Cell {
     const originalInfo = beginCell()

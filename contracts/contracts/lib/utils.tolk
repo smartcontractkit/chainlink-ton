@@ -62,14 +62,6 @@ fun snakedBytesLen(data: cell): int {
     return totalBits / 8;
 }
 
-/// Maximum size of a bounced message
-///
-/// Notice: documentation for in.bouncedBody is off, as it states the bounced body
-/// will be 0xffffffff + 224 bits, but the actual size is 0xffffffff + 256 bits.
-/// Confimred with TON team: 256 is "original body size", so in.bouncedBody is 288 in total
-/// Note: In TVM 12, "rich bounced messages" will be added — containing all the original message that was sent
-const BOUNCE_MSG_SIZE_MAX = 256;
-
 // Represents the default blockchain (chain ID) - when configParam(19) not set
 const GLOBAL_ID_UNSET = -1;
 
@@ -80,14 +72,6 @@ fun globalId(): int {
     return param != null
         ? param!.beginParse().loadInt(32)
         : GLOBAL_ID_UNSET;
-}
-
-/// Extracts the (potential) bounced body from the given slice (message body).
-fun extractBouncedBody(body: slice): uint256 {
-    val remainingBits = body.remainingBitsCount();
-    return remainingBits < BOUNCE_MSG_SIZE_MAX
-        ? body.loadUint(remainingBits)
-        : body.loadUint(BOUNCE_MSG_SIZE_MAX);
 }
 
 /// The zero internal (standard) address: workchain 0 with an all-zero 256-bit hash.

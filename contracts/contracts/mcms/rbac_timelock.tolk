@@ -286,8 +286,8 @@ struct (0xf4538b79) Timelock_SubmitErrorReport {
 struct (0x3ed17038) Timelock_BounceHandled {
     /// The sender of the bounced message.
     sender: address;
-    /// The truncated body of the bounced message.
-    bouncedBody: uint256;
+    /// The opcode of the bounced message.
+    opcode: uint32;
     /// The id of the currently pending operation (Timelock_OperationBatch hash)
     opPendingId: uint256;
     /// Whether the bounced message matched the pending op (one of the calls).
@@ -1477,16 +1477,21 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     // Check if bounce relates to pending operation
     val isRichBounce = in.bouncedBody.preloadUint(32) == RICH_BOUNCE_PREFIX;
-    var bouncedBody: uint256 = 0;
+    var body = in.bouncedBody;
     var bouncedCreatedLt: uint64 = 0;
     if (isRichBounce) {
         val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
-        bouncedBody = extractBouncedBody(rich.originalBody.beginParse());
+        body = rich.originalBody.beginParse();
         bouncedCreatedLt = rich.originalInfo.load().createdLt;
     } else {
         // Scheduled operation calls use a rich bounce. A non-rich bounce comes from
         // a bypass call and is not related to the pending operation.
-        bouncedBody = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
+        body = body.skipBouncedPrefix();
+    }
+
+    var opcode: uint32 = 0;
+    if (body.remainingBitsCount() >= 32) {
+        opcode = body.preloadUint(32) as uint32;
     }
 
     val matchesPendingOp = isRichBounce
@@ -1495,7 +1500,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     val id = timelock.data.opPendingInfo.opPendingId;
     emit(TOPIC_BOUNCE_HANDLED, Timelock_BounceHandled{
         sender: in.senderAddress,
-        bouncedBody,
+        opcode,
         opPendingId: id,
         matchesPendingOp,
     });

@@ -1,8 +1,9 @@
 import '@ton/test-utils'
 import { toNano, beginCell, Cell } from '@ton/core'
-import { internal, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { internal, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
+import { Timelock_BounceHandled } from '../../wrappers/gen/mcms/Timelock'
 import * as counter from '../../wrappers/examples/Counter'
 import * as ac from '../../wrappers/lib/access/AccessControl'
 
@@ -456,6 +457,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         success: true,
         inMessageBounced: true,
       })
+      expectBounceHandledOpcode(result, 0x99999999)
 
       // Verify operation was marked as error
       const operationBatch: rbactl.OperationBatch = {
@@ -613,10 +615,21 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         success: true,
         inMessageBounced: true,
       })
+      expectBounceHandledOpcode(result, 0x99999999)
 
       expect(await baseTest.bind.timelock.getTimestamp(operationId)).toEqual(rbactl.DONE_TIMESTAMP)
       expect((await baseTest.bind.timelock.getOpPendingInfo()).opPendingId).toEqual(operationId)
     })
+
+    function expectBounceHandledOpcode(result: SendMessageResult, expected: number) {
+      const event = result.externals.find(
+        (e) =>
+          e.info.src.equals(baseTest.bind.timelock.address) &&
+          e.info.dest?.value === BigInt(rbactl.opcodes.out.BounceHandled),
+      )
+      expect(event).toBeDefined()
+      expect(Timelock_BounceHandled.fromSlice(event!.body.beginParse()).opcode).toEqual(BigInt(expected))
+    }
 
     async function scheduleBatch(operationBatch: rbactl.OperationBatch, queryId: bigint) {
       const body = rbactl.builder.message.in.scheduleBatch
