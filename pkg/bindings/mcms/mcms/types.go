@@ -400,9 +400,9 @@ type OpPendingInfo struct {
 	OpFinalizationTimeout uint32 `tlb:"## 32"`
 	// The address that the (pending) operation was sent to (and could bounce from).
 	OpPendingReceiver *address.Address `tlb:"addr"`
-	// The truncated body of the pending operation (256 bits from the original message),
-	// stored as the next expected potential bounce, and verified in onBounceMessage handler.
-	OpPendingBodyTruncated *tlbe.Uint256 `tlb:"."`
+	// The transaction logical time at which the pending op was executed.
+	// Used to reject late bounces from previous ops even when their bodies match.
+	OpPendingExecutionLt uint64 `tlb:"## 64"`
 }
 
 // Each root also authenticates metadata about itself (stored as one of the leaves)

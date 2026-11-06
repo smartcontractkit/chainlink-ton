@@ -31,10 +31,10 @@ func EmptyDataFrom(id uint32, owner *address.Address, chainID int64) Data {
 				ValidUntil: 0,
 				OpCount:    0,
 				OpPendingInfo: OpPendingInfo{
-					ValidAfter:             0,
-					OpFinalizationTimeout:  0,
-					OpPendingReceiver:      address.NewAddressNone(),
-					OpPendingBodyTruncated: tlbe.NewUint256(big.NewInt(0)),
+					ValidAfter:            0,
+					OpFinalizationTimeout: 0,
+					OpPendingReceiver:     address.NewAddressNone(),
+					OpPendingExecutionLt:  0,
 				},
 			},
 			RootMetadata: RootMetadata{
