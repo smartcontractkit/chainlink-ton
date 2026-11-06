@@ -16,6 +16,7 @@ import "../merkle_root/messages"
 import "../pools/lib/token_pool/messages"
 import "../pools/lib/token_pool/types"
 import "../receive_executor/messages"
+import "../receive_executor/types"
 import "../rmn_remote/lib"
 import "../router/messages"
 
@@ -41,7 +42,9 @@ type OffRamp_InMessage =
     | OCR3Base_SetOCR3Config
     | Upgradeable_Upgrade
     | ReturnExcessesBack
-    | Withdrawable_Withdraw;
+    | Withdrawable_Withdraw
+    | OffRamp_ReturnExcessToExecutor
+    | MerkleRoot_StateMarked;
 
 type OffRamp_InMessageBounced = 
     | ReceiveExecutor_InitExecute
@@ -70,6 +73,8 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     gasOverride: GasOverride? = null;
     executionState: ExecutionState;
     offchainTokenData: lisp_list<lisp_list<cell>>;
+    /// Caller of the execution, refunded with the flow's excesses
+    excessesTo: address;
 }
 
 struct (0xa00785cf) OffRamp_ManuallyExecute {
@@ -118,6 +123,8 @@ struct (0x59e56170) OffRamp_NotifySuccess {
     root: address;
     /// Set for token-only messages: the token transfer delivery to relay to the pool.
     delivered: Cell<OffRamp_DeliveredTransfer>? = null;
+    /// Caller of the execution attempt and whether it funded the executor's init value.
+    excesses: Cell<ReceiveExecutor_Excesses>;
 }
 
 /// Sent by the ReceiveExecutor of a message with data when its token transfer was delivered
@@ -138,6 +145,8 @@ struct (0x177ebd03) OffRamp_NotifyFailure {
     header: Cell<RampMessageHeader>;
     execId: ReceiveExecutorId;
     root: address;
+    /// Caller of the execution attempt and whether it funded the executor's init value.
+    excesses: Cell<ReceiveExecutor_Excesses>;
 }
 
 struct (0x4ca1bcb3) OffRamp_UpdateCursedSubjects {
@@ -162,6 +171,11 @@ struct (0x7deaf076) OffRamp_ReleaseOrMint {
     destGasAmount: coins
     requestedFinalityConfig: uint32
     request: Cell<TokenPool_ReleaseOrMintInV1>
+}
+
+struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
+    queryId: uint64;
+    execId: ReceiveExecutorId;
 }
 
 /// Relays between the executor and the pool, on top of `destGasAmount`: the OffRamp and Router
@@ -195,7 +209,8 @@ fun OffRamp_Costs.receiveConfirmOrDeny(): int {
 }
 
 /// OffRamp and Router relays of the delivery notice, the pool's `ReleaseOrMintDelivered` and its
-/// `ReleaseOrMintFinalized` reply to the executor.
+/// `ReleaseOrMintFinalized` reply to the executor and its return of the remainder. Sent as a fixed value
+/// by the executor (fees paid separately).
 fun OffRamp_Costs.tokenTransferDelivered(): int {
     return OFFRAMP_COSTS_TOKEN_TRANSFER_DELIVERED_FEE;
 }
@@ -222,17 +237,17 @@ fun OffRamp_Costs.execute(hasTokens: bool): int {
 
 // OffRamp_Execute: hashing a 2000-byte message, a 6-sibling proof (64-message commit) and the
 // Validate fwdFee.
-const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.014");
+const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.0145");
 // OffRamp_ExecuteValidated: event and InitExecute fwdFee carrying the message, executor deploy.
-const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = grams("0.0145");
+const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = grams("0.0155");
 const OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE = grams("0.005");
 const OFFRAMP_COSTS_RELEASE_OR_MINT_FEE = grams("0.0025");
 const ROUTER_COSTS_RELAY_RELEASE_OR_MINT_FEE = grams("0.006");
 // Deposit account deploy, init, wallet response and Initialized reply (or the bounce when it exists).
 const OFFRAMP_COSTS_DEPOSIT_ACCOUNT_FEE = grams("0.0065");
-const OFFRAMP_COSTS_TOKEN_TRANSFER_DELIVERED_FEE = grams("0.007");
+const OFFRAMP_COSTS_TOKEN_TRANSFER_DELIVERED_FEE = grams("0.008");
 const OFFRAMP_COSTS_NOTIFY_FEE = grams("0.003");
 const OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE = grams("0.002");
-// OffRamp_Commit with a root and price updates, signature verification included.
-const OFFRAMP_COSTS_COMMIT_FEE = grams("0.01");
+// OffRamp_Commit with a root and price updates, signature verification included, and the excesses refund to the transmitter.
+const OFFRAMP_COSTS_COMMIT_FEE = grams("0.0105");
 const OFFRAMP_COSTS_MERKLE_ROOT_INIT_FEE = grams("0.0005");

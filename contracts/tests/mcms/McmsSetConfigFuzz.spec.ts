@@ -11,7 +11,10 @@ import {
 import { isVersionAvailable } from './limits/versions'
 
 const VERSION = '1.6.2'
-const ITERATIONS = Number(process.env['MCMS_FUZZ_ITERATIONS'] ?? 10_000)
+// Keep the default short enough for CI. Run the full proof with:
+//   MCMS_FUZZ_ITERATIONS=10000 ...
+const DEFAULT_ITERATIONS = 100
+const ITERATIONS = Number(process.env['MCMS_FUZZ_ITERATIONS'] ?? DEFAULT_ITERATIONS)
 const FUZZ_TIMEOUT_MS = 60 * 60 * 1000
 // Recreate the sandbox periodically: a single blockchain retains every transaction,
 // which otherwise exhausts the Node heap over a 10k-iteration run.
@@ -43,9 +46,7 @@ function expectConfigSigners(
   }
 }
 
-// This is a long-running proof test. Enable explicitly with RUN_MCMS_FUZZ=1.
-const describeFuzz =
-  process.env['RUN_MCMS_FUZZ'] === '1' && isVersionAvailable(VERSION) ? describe : describe.skip
+const describeFuzz = isVersionAvailable(VERSION) ? describe : describe.skip
 
 describeFuzz(`MCMS setConfig fuzz (${VERSION})`, () => {
   it(
@@ -71,6 +72,35 @@ describeFuzz(`MCMS setConfig fuzz (${VERSION})`, () => {
           const intermediate = await harness.setConfig(intermediateSigners, intermediateLayout)
           expect(intermediate.exitCode).toBe(0)
           expect(intermediate.gasUsed).toBeLessThan(COMPUTE_GAS_LIMIT)
+
+          const final = await harness.setConfig(finalSigners, finalLayout)
+          expect(final.exitCode).toBe(0)
+          expect(final.gasUsed).toBeLessThan(COMPUTE_GAS_LIMIT)
+
+          expectConfigSigners(await harness.getConfig(), finalSigners, finalLayout)
+        }
+      }
+    },
+    FUZZ_TIMEOUT_MS,
+  )
+
+  it(
+    'fuzzes 52/21 -> 52/21 single-step boundary',
+    async () => {
+      for (let offset = 0; offset < ITERATIONS; offset += CHUNK_SIZE) {
+        const chunkSize = Math.min(CHUNK_SIZE, ITERATIONS - offset)
+        const initialLayout = flatGroupLayout({ activeGroups: 21 })
+        const initialSigners = makeRandomSigners(52, initialLayout)
+        const harness = await McmsLimitsHarness.create({
+          version: VERSION,
+          ownerSeed: `mcms-setconfig-single-step-fuzz-${offset}`,
+          initialConfig: { signers: initialSigners, layout: initialLayout },
+        })
+        await harness.deploy()
+
+        for (let i = 0; i < chunkSize; i++) {
+          const finalLayout = flatGroupLayout({ activeGroups: 21 })
+          const finalSigners = makeRandomSigners(52, finalLayout)
 
           const final = await harness.setConfig(finalSigners, finalLayout)
           expect(final.exitCode).toBe(0)

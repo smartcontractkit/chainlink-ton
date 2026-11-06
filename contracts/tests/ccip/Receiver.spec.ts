@@ -3,6 +3,7 @@ import { Address, beginCell, Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
 
 import { generateRandomContractId } from '../../src/utils'
+import { asSnakeBytes } from '../../src/utils/types'
 import { facilityId } from '../../wrappers/utils'
 import { crc32 } from 'zlib'
 import { contractCode } from '../../wrappers/codeLoader'
@@ -11,6 +12,7 @@ import * as r from '../../wrappers/gen/ccip/Receiver'
 import * as trMan from '../../wrappers/examples/Receiver'
 import * as tr from '../../wrappers/gen/ccip/TestReceiver'
 import * as rt from '../../wrappers/gen/ccip/Router'
+import { Costs as OffRampCosts } from '../../wrappers/ccip/OffRamp'
 import { assertLog } from '../Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
@@ -42,6 +44,7 @@ async function deployReceiverContract(
 
 const ccipReceiveSampleMessage = r.Receiver_CCIPReceiveV2.create({
   execId: 1n,
+  confirmValue: toNano('0.015'),
   message: rt.Any2TVMMessage.create({
     messageId: 1n,
     sourceChainSelector: 2n,
@@ -313,6 +316,35 @@ describe('Receiver', () => {
       aborted: true,
       exitCode: -14,
     })
+  })
+
+  it('confirms a message with 2000 bytes of data when sent the minimum value', async () => {
+    const message = r.Receiver_CCIPReceiveV2.create({
+      ...ccipReceiveSampleMessage,
+      message: rt.Any2TVMMessage.create({
+        ...ccipReceiveSampleMessage.message,
+        data: asSnakeBytes(Buffer.alloc(2000, 0xab)),
+      }),
+    })
+    const result = await receiver.sendReceiverCCIPReceiveV2(
+      deployer.getSender(),
+      toNano('0.03'),
+      message,
+    )
+    const receiveTx = result.transactions[1]
+    expect([...receiveTx.outMessages.values()].some((m) => m.info.type === 'external-out')).toBe(
+      true,
+    )
+    const confirmTx = result.transactions.find(
+      (tx) =>
+        tx.inMessage?.info.type === 'internal' &&
+        tx.inMessage.info.src.equals(receiver.address) &&
+        tx.inMessage.info.dest.equals(deployer.address),
+    )
+    expect(confirmTx).toBeDefined()
+    const info = confirmTx!.inMessage!.info
+    if (info.type !== 'internal') throw new Error('Expected an internal message')
+    expect(info.value.coins).toBeGreaterThanOrEqual(OffRampCosts.receiveConfirm)
   })
 
   it('should keep original balance after succesfully receiving', async () => {

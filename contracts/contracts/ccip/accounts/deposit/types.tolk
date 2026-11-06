@@ -9,8 +9,9 @@ const DepositAccount_MIN_GRAM_TO_INIT: int = grams("0.005")
 const DepositAccount_WALLET_QUERY_VALUE: int = grams("0.005")
 
 /// A deposit account escrows a single jetton (`token`) for a single `user`. A fixed set of
-/// `beneficiaries` may withdraw it, and incoming jetton transfer notifications are forwarded to
-/// `user`, or to the `DepositAccount_Notify` target carried in the transfer.
+/// `beneficiaries` may withdraw it. Transfer notifications from the account's own jetton wallet are
+/// forwarded to `user`, or to the `DepositAccount_Notify` target carried in the transfer; jettons
+/// arriving at any other wallet are returned.
 ///
 /// @dev Deployed through Deployables: the deployer must install the `owner`, `user` and `token` it
 ///      derived the address from.

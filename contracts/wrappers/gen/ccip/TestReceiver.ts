@@ -371,6 +371,7 @@ export const Upgradeable_UpgradedEvent = {
  > struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
  >     execId: uint192
  >     queryId: uint64
+ >     confirmValue: coins
  >     message: Cell<Any2TVMMessage>
  > }
  */
@@ -378,6 +379,7 @@ export interface Receiver_CCIPReceiveV2 {
     readonly $: 'Receiver_CCIPReceiveV2'
     execId: uint192
     queryId: uint64
+    confirmValue: coins
     message: Any2TVMMessage
 }
 
@@ -387,6 +389,7 @@ export const Receiver_CCIPReceiveV2 = {
     create(args: {
         execId: uint192
         queryId?: uint64
+        confirmValue: coins
         message: Any2TVMMessage
     }): Receiver_CCIPReceiveV2 {
         return {
@@ -401,6 +404,7 @@ export const Receiver_CCIPReceiveV2 = {
             $: 'Receiver_CCIPReceiveV2',
             execId: s.loadUintBig(192),
             queryId: s.loadUintBig(64),
+            confirmValue: s.loadCoins(),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
         }
     },
@@ -408,6 +412,7 @@ export const Receiver_CCIPReceiveV2 = {
         b.storeUint(0x5b4bc7a6, 32);
         b.storeUint(self.execId, 192);
         b.storeUint(self.queryId, 64);
+        b.storeCoins(self.confirmValue);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
     },
     toCell(self: Receiver_CCIPReceiveV2): c.Cell {
@@ -765,8 +770,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TestReceiver implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECFgEAApYAART/APSkE/S88sgLAQIBYgIDAgLGBAUCASAMDQO70/Ej5IBBrlhFtLx6acYFrlhJ9eSJ+RxWY/SQYfEl2omhrD/0kfSh9JBjBAGFEKKnjgor5egFkZ30pfSoJfSlnZPaqcGuWEz4ehR5xgWuWECqgR7ZxgRhCB4DjgHl6QYHCAIDo9IKCwH+Me1E0IEVGfiXggnJw4C+8vTTHzH6SDH6UDH6SNcLByDCAvJFgRUY+JJQA8cFEvL0AdO/0z/XTCOOFV8DIMABlYFKnPLw4MACk3DrpODyBeAzAtDT/9M/0wchwUHyiAGqAtcY1PQE0XAFyMv/FMs/ItdJIKk4AvJIqwIgwUHyiAkAcDHXCwcgwgLyRfiS7UTQ1h/6SPpQ+kjXCwcgwgIx8kWCAMKIUVPHBRXy9ALIzvpS+lT6UssHye1UAL4x7UTQ0x8x+kgw+JKCAMKIAscF8vTTPzHXTJPxA+gAk/ED6QAg2gEj+wQj0O0e7VPtREAT2iHtVCH5AAHaAXADyMwSy//OycjPjxgABIIQoztJjs8L93HPC2HMyQH7AACAzwsHEs7M9ADJyM+PGAAEghDFpAqzzwv3cc8LYczJAfsAcHT7AviSyM+FiPpSghAeVbv2zwuOEss/y7/Jgwb7AAAfIFNvAGLUxLjYuMIxwXy9IAAPItTEuNi4xiACASAODwAjv7UXaiaGmPmP0kGP0oGP0kGEAgEgEBEAC7hoWBAL+AIBIBITABm1xRApU5QEEIH3flCQAgEgFBUAW7BX40IWxpbmsuY2hhaW4udG9uLmNjaXAudGVzdC5SZWNlaXZlcoItTEuNi4xiAAEa4Q9qJoa4WPwAAzr0V2omhpj5j9JBj9KBj9JBjrhYOQYQF5IsA=');
-
     static Errors = {
         'TVMError.CellOverflow': 8,
         'Receiver_Error.Unauthorized': 5400,
@@ -805,8 +808,11 @@ export class TestReceiver implements c.Contract {
         authorizedCaller: c.Address
         behavior: TestReceiver_Behavior
     }, deployedOptions?: DeployedAddrOptions) {
+        if (!deployedOptions?.overrideContractCode) {
+            throw new Error('TestReceiver.fromStorage requires deployedOptions.overrideContractCode');
+        }
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? TestReceiver.CodeCell,
+            code: deployedOptions.overrideContractCode,
             data: Storage.toCell(Storage.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
@@ -816,6 +822,7 @@ export class TestReceiver implements c.Contract {
     static createCellOfReceiverCCIPReceiveV2(body: {
         execId: uint192
         queryId?: uint64
+        confirmValue: coins
         message: Any2TVMMessage
     }) {
         return Receiver_CCIPReceiveV2.toCell(Receiver_CCIPReceiveV2.create(body));
@@ -859,6 +866,7 @@ export class TestReceiver implements c.Contract {
     async sendReceiverCCIPReceiveV2(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         execId: uint192
         queryId?: uint64
+        confirmValue: coins
         message: Any2TVMMessage
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {

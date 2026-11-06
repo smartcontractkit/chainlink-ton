@@ -1096,49 +1096,6 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
-  it('should exit with error and refund the charged fee when the minter is not the token', async () => {
-    // On-ramp accounts are keyed by the token, so a registry entry whose minter differs from
-    // the token is rejected after the fee was reserved on the OnRamp, which must refund it.
-    const { sendExecutor } = await afterFeeReserved({
-      send: tokenOnrampSend,
-      tokenRegistry: tokenRegistryMock.address,
-    })
-
-    const result = await sendExecutor.sendTokenAdminRegistryTokenInfo(
-      tokenRegistryMock.getSender(),
-      toNano('0.3'),
-      {
-        queryId: 0n,
-        token: NATIVE_GRAM,
-        minterAddress: deployer.address,
-        version: 0n,
-        poolInfo: sx.TokenAdminRegistry_PoolInfo.create({
-          tokenPool: deployer.address, // non-null so the executor proceeds
-          transferInitiator: null,
-          admission: TEST_ADMISSION,
-        }),
-      },
-    )
-
-    expect(result.transactions).toHaveTransaction({
-      from: sendExecutor.address,
-      to: onRampMock.address,
-      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
-      body(x) {
-        if (!x) return false
-        const executorFinishedWithError = or.OnRamp_ExecutorFinishedWithError.fromSlice(
-          x.beginParse(),
-        )
-        return (
-          executorFinishedWithError.executorID === 0n &&
-          executorFinishedWithError.error ===
-            BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenMinterMismatch']) &&
-          executorFinishedWithError.refund === FeeTokenAmount
-        )
-      },
-    })
-  })
-
   it('should exit with error and refund the charged fee when the token is not enabled', async () => {
     // The token registry reports no pool for the token: the executor exits with
     // TokenNotEnabled and refunds the fee that was already reserved on the OnRamp.
@@ -1153,7 +1110,6 @@ describe('SendExecutor - Unit tests', () => {
       {
         queryId: 0n,
         token: NATIVE_GRAM,
-        minterAddress: deployer.address,
         version: 0n,
         poolInfo: null, // token not enabled
       },

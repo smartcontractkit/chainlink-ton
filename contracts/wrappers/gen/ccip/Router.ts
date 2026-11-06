@@ -1418,6 +1418,7 @@ export const Router_CCIPSend = {
  > struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
  >     execId: uint192
  >     queryId: uint64
+ >     confirmValue: coins
  >     message: Cell<Any2TVMMessage>
  > }
  */
@@ -1425,6 +1426,7 @@ export interface Receiver_CCIPReceiveV2 {
     readonly $: 'Receiver_CCIPReceiveV2'
     execId: uint192
     queryId: uint64
+    confirmValue: coins
     message: Any2TVMMessage
 }
 
@@ -1434,6 +1436,7 @@ export const Receiver_CCIPReceiveV2 = {
     create(args: {
         execId: uint192
         queryId?: uint64
+        confirmValue: coins
         message: Any2TVMMessage
     }): Receiver_CCIPReceiveV2 {
         return {
@@ -1448,6 +1451,7 @@ export const Receiver_CCIPReceiveV2 = {
             $: 'Receiver_CCIPReceiveV2',
             execId: s.loadUintBig(192),
             queryId: s.loadUintBig(64),
+            confirmValue: s.loadCoins(),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
         }
     },
@@ -1455,6 +1459,7 @@ export const Receiver_CCIPReceiveV2 = {
         b.storeUint(0x5b4bc7a6, 32);
         b.storeUint(self.execId, 192);
         b.storeUint(self.queryId, 64);
+        b.storeCoins(self.confirmValue);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
     },
     toCell(self: Receiver_CCIPReceiveV2): c.Cell {
@@ -2158,6 +2163,49 @@ export const OffRamp_UpdateCursedSubjects = {
     },
     toCell(self: OffRamp_UpdateCursedSubjects): c.Cell {
         return makeCellFrom<OffRamp_UpdateCursedSubjects>(self, OffRamp_UpdateCursedSubjects.store);
+    }
+}
+
+/**
+ > struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
+ >     queryId: uint64
+ >     execId: ReceiveExecutorId
+ > }
+ */
+export interface OffRamp_ReturnExcessToExecutor {
+    readonly $: 'OffRamp_ReturnExcessToExecutor'
+    queryId: uint64
+    execId: ReceiveExecutorId
+}
+
+export const OffRamp_ReturnExcessToExecutor = {
+    PREFIX: 0x5397c75e,
+
+    create(args: {
+        queryId?: uint64
+        execId: ReceiveExecutorId
+    }): OffRamp_ReturnExcessToExecutor {
+        return {
+            $: 'OffRamp_ReturnExcessToExecutor',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): OffRamp_ReturnExcessToExecutor {
+        loadAndCheckPrefix32(s, 0x5397c75e, 'OffRamp_ReturnExcessToExecutor');
+        return {
+            $: 'OffRamp_ReturnExcessToExecutor',
+            queryId: s.loadUintBig(64),
+            execId: ReceiveExecutorId.fromSlice(s),
+        }
+    },
+    store(self: OffRamp_ReturnExcessToExecutor, b: c.Builder): void {
+        b.storeUint(0x5397c75e, 32);
+        b.storeUint(self.queryId, 64);
+        ReceiveExecutorId.store(self.execId, b);
+    },
+    toCell(self: OffRamp_ReturnExcessToExecutor): c.Cell {
+        return makeCellFrom<OffRamp_ReturnExcessToExecutor>(self, OffRamp_ReturnExcessToExecutor.store);
     }
 }
 
@@ -3117,6 +3165,44 @@ export const OffRamps = {
 }
 
 /**
+ > struct Router_DepositAccountID {
+ >     user: address
+ >     token: address
+ > }
+ */
+export interface Router_DepositAccountID {
+    readonly $: 'Router_DepositAccountID'
+    user: c.Address
+    token: c.Address
+}
+
+export const Router_DepositAccountID = {
+    create(args: {
+        user: c.Address
+        token: c.Address
+    }): Router_DepositAccountID {
+        return {
+            $: 'Router_DepositAccountID',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Router_DepositAccountID {
+        return {
+            $: 'Router_DepositAccountID',
+            user: s.loadAddress(),
+            token: s.loadAddress(),
+        }
+    },
+    store(self: Router_DepositAccountID, b: c.Builder): void {
+        b.storeAddress(self.user);
+        b.storeAddress(self.token);
+    },
+    toCell(self: Router_DepositAccountID): c.Cell {
+        return makeCellFrom<Router_DepositAccountID>(self, Router_DepositAccountID.store);
+    }
+}
+
+/**
  > struct (0x7db6745d) Router_ApplyRampUpdates {
  >     queryId: uint64
  >     onRampUpdates: OnRamps?
@@ -3285,7 +3371,7 @@ export const Router_WithdrawToTokenPool = {
 
 /**
  > struct Router_WithdrawRequest {
- >     depositAccount: address
+ >     onRampAccount: Cell<Router_DepositAccountID>
  >     amount: coins
  >     tokenPool: address
  >     forwardTonAmount: coins
@@ -3294,7 +3380,7 @@ export const Router_WithdrawToTokenPool = {
  */
 export interface Router_WithdrawRequest {
     readonly $: 'Router_WithdrawRequest'
-    depositAccount: c.Address
+    onRampAccount: Router_DepositAccountID
     amount: coins
     tokenPool: c.Address
     forwardTonAmount: coins
@@ -3303,7 +3389,7 @@ export interface Router_WithdrawRequest {
 
 export const Router_WithdrawRequest = {
     create(args: {
-        depositAccount: c.Address
+        onRampAccount: Router_DepositAccountID
         amount: coins
         tokenPool: c.Address
         forwardTonAmount: coins
@@ -3317,7 +3403,7 @@ export const Router_WithdrawRequest = {
     fromSlice(s: c.Slice): Router_WithdrawRequest {
         return {
             $: 'Router_WithdrawRequest',
-            depositAccount: s.loadAddress(),
+            onRampAccount: loadCellRef<Router_DepositAccountID>(s, Router_DepositAccountID.fromSlice),
             amount: s.loadCoins(),
             tokenPool: s.loadAddress(),
             forwardTonAmount: s.loadCoins(),
@@ -3325,7 +3411,7 @@ export const Router_WithdrawRequest = {
         }
     },
     store(self: Router_WithdrawRequest, b: c.Builder): void {
-        b.storeAddress(self.depositAccount);
+        storeCellRef<Router_DepositAccountID>(self.onRampAccount, b, Router_DepositAccountID.store);
         b.storeCoins(self.amount);
         b.storeAddress(self.tokenPool);
         b.storeCoins(self.forwardTonAmount);
@@ -5244,8 +5330,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class Router implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('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');
-
     static Errors = {
         'Router_Error.DestChainNotEnabled': 57100,
         'Router_Error.SourceChainNotEnabled': 57101,
@@ -5298,8 +5382,11 @@ export class Router implements c.Contract {
         offRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
         rmnRemote: RMNRemote
     }, deployedOptions?: DeployedAddrOptions) {
+        if (!deployedOptions?.overrideContractCode) {
+            throw new Error('Router.fromStorage requires deployedOptions.overrideContractCode');
+        }
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? Router.CodeCell,
+            code: deployedOptions.overrideContractCode,
             data: Storage.toCell(Storage.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});

@@ -231,6 +231,7 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
  >     gasOverride: GasOverride?
  >     executionState: ExecutionState
  >     offchainTokenData: lisp_list<lisp_list<cell>>
+ >     excessesTo: address
  > }
  */
 export interface OffRamp_ExecuteValidated {
@@ -242,6 +243,7 @@ export interface OffRamp_ExecuteValidated {
     gasOverride: GasOverride | null /* = null */
     executionState: ExecutionState
     offchainTokenData: lisp_list<lisp_list<c.Cell>>
+    excessesTo: c.Address
 }
 
 export const OffRamp_ExecuteValidated = {
@@ -255,6 +257,7 @@ export const OffRamp_ExecuteValidated = {
         gasOverride?: GasOverride | null /* = null */
         executionState: ExecutionState
         offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        excessesTo: c.Address
     }): OffRamp_ExecuteValidated {
         return {
             $: 'OffRamp_ExecuteValidated',
@@ -278,6 +281,7 @@ export const OffRamp_ExecuteValidated = {
                     (s) => s.loadRef()
                 )
             ),
+            excessesTo: s.loadAddress(),
         }
     },
     store(self: OffRamp_ExecuteValidated, b: c.Builder): void {
@@ -293,6 +297,7 @@ export const OffRamp_ExecuteValidated = {
                 (v,b) => b.storeRef(v)
             ); }
         );
+        b.storeAddress(self.excessesTo);
     },
     toCell(self: OffRamp_ExecuteValidated): c.Cell {
         return makeCellFrom<OffRamp_ExecuteValidated>(self, OffRamp_ExecuteValidated.store);
@@ -501,6 +506,7 @@ export const ExecutionState = {
  >     metadataHash: uint256
  >     gasOverride: GasOverride?
  >     offchainTokenData: lisp_list<lisp_list<cell>>
+ >     excessesTo: address
  > }
  */
 export interface MerkleRoot_Validate {
@@ -511,6 +517,7 @@ export interface MerkleRoot_Validate {
     metadataHash: uint256
     gasOverride: GasOverride | null
     offchainTokenData: lisp_list<lisp_list<c.Cell>>
+    excessesTo: c.Address
 }
 
 export const MerkleRoot_Validate = {
@@ -523,6 +530,7 @@ export const MerkleRoot_Validate = {
         metadataHash: uint256
         gasOverride: GasOverride | null
         offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        excessesTo: c.Address
     }): MerkleRoot_Validate {
         return {
             $: 'MerkleRoot_Validate',
@@ -544,6 +552,7 @@ export const MerkleRoot_Validate = {
                     (s) => s.loadRef()
                 )
             ),
+            excessesTo: s.loadAddress(),
         }
     },
     store(self: MerkleRoot_Validate, b: c.Builder): void {
@@ -558,6 +567,7 @@ export const MerkleRoot_Validate = {
                 (v,b) => b.storeRef(v)
             ); }
         );
+        b.storeAddress(self.excessesTo);
     },
     toCell(self: MerkleRoot_Validate): c.Cell {
         return makeCellFrom<MerkleRoot_Validate>(self, MerkleRoot_Validate.store);
@@ -568,12 +578,14 @@ export const MerkleRoot_Validate = {
  > struct (0x019f4cd2) MerkleRoot_MarkState {
  >     seqNum: uint64
  >     state: ExecutionState
+ >     excessesTo: address
  > }
  */
 export interface MerkleRoot_MarkState {
     readonly $: 'MerkleRoot_MarkState'
     seqNum: uint64
     state: ExecutionState
+    excessesTo: c.Address
 }
 
 export const MerkleRoot_MarkState = {
@@ -582,6 +594,7 @@ export const MerkleRoot_MarkState = {
     create(args: {
         seqNum: uint64
         state: ExecutionState
+        excessesTo: c.Address
     }): MerkleRoot_MarkState {
         return {
             $: 'MerkleRoot_MarkState',
@@ -594,15 +607,59 @@ export const MerkleRoot_MarkState = {
             $: 'MerkleRoot_MarkState',
             seqNum: s.loadUintBig(64),
             state: ExecutionState.fromSlice(s),
+            excessesTo: s.loadAddress(),
         }
     },
     store(self: MerkleRoot_MarkState, b: c.Builder): void {
         b.storeUint(0x019f4cd2, 32);
         b.storeUint(self.seqNum, 64);
         ExecutionState.store(self.state, b);
+        b.storeAddress(self.excessesTo);
     },
     toCell(self: MerkleRoot_MarkState): c.Cell {
         return makeCellFrom<MerkleRoot_MarkState>(self, MerkleRoot_MarkState.store);
+    }
+}
+
+/**
+ > struct (0x150acf6c) MerkleRoot_StateMarked {
+ >     root: MerkleRootId
+ >     excessesTo: address
+ > }
+ */
+export interface MerkleRoot_StateMarked {
+    readonly $: 'MerkleRoot_StateMarked'
+    root: MerkleRootId
+    excessesTo: c.Address
+}
+
+export const MerkleRoot_StateMarked = {
+    PREFIX: 0x150acf6c,
+
+    create(args: {
+        root: MerkleRootId
+        excessesTo: c.Address
+    }): MerkleRoot_StateMarked {
+        return {
+            $: 'MerkleRoot_StateMarked',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): MerkleRoot_StateMarked {
+        loadAndCheckPrefix32(s, 0x150acf6c, 'MerkleRoot_StateMarked');
+        return {
+            $: 'MerkleRoot_StateMarked',
+            root: MerkleRootId.fromSlice(s),
+            excessesTo: s.loadAddress(),
+        }
+    },
+    store(self: MerkleRoot_StateMarked, b: c.Builder): void {
+        b.storeUint(0x150acf6c, 32);
+        MerkleRootId.store(self.root, b);
+        b.storeAddress(self.excessesTo);
+    },
+    toCell(self: MerkleRoot_StateMarked): c.Cell {
+        return makeCellFrom<MerkleRoot_StateMarked>(self, MerkleRoot_StateMarked.store);
     }
 }
 
@@ -779,8 +836,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class MerkleRoot implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECDwEAAuUAART/APSkE/S88sgLAQIBYgIDAkDQ+JHyQCDXLCAcdvSM4wLXLCAM+maU4wIwhA8BxwDy9AQFAgFICwwB/jHtRNDT//pI0z/TP9M/03/XCw+BSKn4kifHBfL0B9M/1NMf0//TAAGf0wABkvoAkm0B4vQEgQCKlG1tWHDibQLXTNCUIMcAs44e1G0B1AHQlCDHALOZ1NTRUANvAgLQ6DDRUANvAgLQ6DAG0CDT/zHTPzHTPzHXCz+BSK1THL4GAf4x7UTQ0//6SNM/0z/TP9N/1wsPgUip+JInxwXy9AfTP9cLByDCA/JFgUitUyW+lVMku8MAkXDi8vRTFKGBSK0hwUDy9HMhqgCsJLABqgCtgUisAcMC8vSBSKwhwAKRf5UhwAPDAOLy9IFIrVMlvpVTJLvDAJFw4vL0URShgUitCQH+lVMbu8MAkXDi8vRTC6GBSK0hwUDy9HMhqgCsK7ABqgCtgUirIcADkX+VIcAAwwDi8vQowwCOFvgjLqFQCLyBSKoBkX+VJ8ADwwDi8vSXN4FIqCfy8uKBSK1THL6VUxu7wwCRcOLy9CuhgUitIcFA8vRzIaoArLMasAmqAK4ZsQcD/gjIzsnIz5Mc9WoqGMs/F8wszwv/E8v/BI4VA8+DI26UMwLPgZbPg1AD+gLiEvQAlFsBz4HiyweIkyJus46YyMwCbyKIkyJus5jIzAJvIgPMyegyA8zJ6DLMycjPhYhSYPpScc8LbszJgED7AAXIy/8U+lISyz/LP8s/y3/LD8kKCggABO1UAZwhwUDy9HMhqgCssxOwAqoAUhCsErEBwAKTBqQG3lMSoaQnuo6TiMjPhYhSYPpScc8LbszJgwb7AN4FyMv/FPpSEss/yz/LP8t/yw/J7VQKAAACASANDgALuGhYEAuoAFW2K/Gg82NLc1lzG0MLS3Fzo3txcxsbS4FyayuTW2Mqk3t7pBFqYlxsXGMQABm1xRApFRQEEIH3flCQ');
-
     static Errors = {
         'MerkleRoot_Error.AlreadyExecuted': 18600,
         'MerkleRoot_Error.NotOwner': 18601,
@@ -822,8 +877,11 @@ export class MerkleRoot implements c.Contract {
         messageStates: uint128
         deliveredMessageCount?: uint16 /* = 0 */
     }, deployedOptions?: DeployedAddrOptions) {
+        if (!deployedOptions?.overrideContractCode) {
+            throw new Error('MerkleRoot.fromStorage requires deployedOptions.overrideContractCode');
+        }
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? MerkleRoot.CodeCell,
+            code: deployedOptions.overrideContractCode,
             data: MerkleRoot_Storage.toCell(MerkleRoot_Storage.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
@@ -837,6 +895,7 @@ export class MerkleRoot implements c.Contract {
         metadataHash: uint256
         gasOverride: GasOverride | null
         offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        excessesTo: c.Address
     }) {
         return MerkleRoot_Validate.toCell(MerkleRoot_Validate.create(body));
     }
@@ -844,6 +903,7 @@ export class MerkleRoot implements c.Contract {
     static createCellOfMerkleRootMarkState(body: {
         seqNum: uint64
         state: ExecutionState
+        excessesTo: c.Address
     }) {
         return MerkleRoot_MarkState.toCell(MerkleRoot_MarkState.create(body));
     }
@@ -871,6 +931,7 @@ export class MerkleRoot implements c.Contract {
         metadataHash: uint256
         gasOverride: GasOverride | null
         offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        excessesTo: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -882,6 +943,7 @@ export class MerkleRoot implements c.Contract {
     async sendMerkleRootMarkState(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         seqNum: uint64
         state: ExecutionState
+        excessesTo: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

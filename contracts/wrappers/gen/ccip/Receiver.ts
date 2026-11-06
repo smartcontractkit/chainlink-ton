@@ -188,6 +188,7 @@ export const CCIPReceiver_InMessage = {
  > struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
  >     execId: uint192
  >     queryId: uint64
+ >     confirmValue: coins
  >     message: Cell<Any2TVMMessage>
  > }
  */
@@ -195,6 +196,7 @@ export interface Receiver_CCIPReceiveV2 {
     readonly $: 'Receiver_CCIPReceiveV2'
     execId: uint192
     queryId: uint64
+    confirmValue: coins
     message: Any2TVMMessage
 }
 
@@ -204,6 +206,7 @@ export const Receiver_CCIPReceiveV2 = {
     create(args: {
         execId: uint192
         queryId?: uint64
+        confirmValue: coins
         message: Any2TVMMessage
     }): Receiver_CCIPReceiveV2 {
         return {
@@ -218,6 +221,7 @@ export const Receiver_CCIPReceiveV2 = {
             $: 'Receiver_CCIPReceiveV2',
             execId: s.loadUintBig(192),
             queryId: s.loadUintBig(64),
+            confirmValue: s.loadCoins(),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
         }
     },
@@ -225,6 +229,7 @@ export const Receiver_CCIPReceiveV2 = {
         b.storeUint(0x5b4bc7a6, 32);
         b.storeUint(self.execId, 192);
         b.storeUint(self.queryId, 64);
+        b.storeCoins(self.confirmValue);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
     },
     toCell(self: Receiver_CCIPReceiveV2): c.Cell {
@@ -429,8 +434,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class Receiver implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBAgEAGQABFP8A9KQT9LzyyAsBABTTMPiR8kCED/Lw');
-
     static Errors = {
     }
 
@@ -459,8 +462,11 @@ export class Receiver implements c.Contract {
 
     static fromStorage(emptyStorage: {
     }, deployedOptions?: DeployedAddrOptions) {
+        if (!deployedOptions?.overrideContractCode) {
+            throw new Error('Receiver.fromStorage requires deployedOptions.overrideContractCode');
+        }
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? Receiver.CodeCell,
+            code: deployedOptions.overrideContractCode,
             data: MockCCIPReceiver_Storage.toCell(MockCCIPReceiver_Storage.create()),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
