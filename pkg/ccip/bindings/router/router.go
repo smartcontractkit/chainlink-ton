@@ -162,6 +162,22 @@ type SenderAccountFailed struct {
 	Context *cell.Cell `tlb:"maybe ^"`
 }
 
+// GetReceiverAccountAddressMessage is Router_GetReceiverAccountAddress (the getter of the same name is in reader.go).
+type GetReceiverAccountAddressMessage struct {
+	_       tlb.Magic        `tlb:"#0d5421b4" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64           `tlb:"## 64"`
+	Token   *address.Address `tlb:"addr"`
+	Context *cell.Cell       `tlb:"maybe ^"`
+}
+
+type ReceiverAccountAddress struct {
+	_       tlb.Magic        `tlb:"#f540f227" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64           `tlb:"## 64"`
+	Account *address.Address `tlb:"addr"`
+	Token   *address.Address `tlb:"addr"`
+	Context *cell.Cell       `tlb:"maybe ^"`
+}
+
 type RouteMessage struct {
 	_        tlb.Magic              `tlb:"#fc69c50b" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID  uint64                 `tlb:"## 64"`
@@ -246,6 +262,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	GetSenderAccount{},
 	UseSenderAccount{},
 	SenderAccountFailed{},
+	GetReceiverAccountAddressMessage{},
+	ReceiverAccountAddress{},
 	RouteMessage{},
 	CCIPReceiveConfirm{},
 	CCIPSendACK{},

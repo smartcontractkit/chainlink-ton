@@ -3579,6 +3579,112 @@ export const Router_SenderAccountFailed = {
 }
 
 /**
+ > struct (0x0d5421b4) Router_GetReceiverAccountAddress {
+ >     queryId: uint64
+ >     token: address
+ >     context: cell?
+ > }
+ */
+export interface Router_GetReceiverAccountAddress {
+    readonly $: 'Router_GetReceiverAccountAddress'
+    queryId: uint64
+    token: c.Address
+    context: c.Cell | null /* = null */
+}
+
+export const Router_GetReceiverAccountAddress = {
+    PREFIX: 0x0d5421b4,
+
+    create(args: {
+        queryId?: uint64
+        token: c.Address
+        context?: c.Cell | null /* = null */
+    }): Router_GetReceiverAccountAddress {
+        return {
+            $: 'Router_GetReceiverAccountAddress',
+            context: null,
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_GetReceiverAccountAddress {
+        loadAndCheckPrefix32(s, 0x0d5421b4, 'Router_GetReceiverAccountAddress');
+        return {
+            $: 'Router_GetReceiverAccountAddress',
+            queryId: s.loadUintBig(64),
+            token: s.loadAddress(),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: Router_GetReceiverAccountAddress, b: c.Builder): void {
+        b.storeUint(0x0d5421b4, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.token);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: Router_GetReceiverAccountAddress): c.Cell {
+        return makeCellFrom<Router_GetReceiverAccountAddress>(self, Router_GetReceiverAccountAddress.store);
+    }
+}
+
+/**
+ > struct (0xf540f227) Router_ReceiverAccountAddress {
+ >     queryId: uint64
+ >     account: address
+ >     token: address
+ >     context: cell?
+ > }
+ */
+export interface Router_ReceiverAccountAddress {
+    readonly $: 'Router_ReceiverAccountAddress'
+    queryId: uint64
+    account: c.Address
+    token: c.Address
+    context: c.Cell | null
+}
+
+export const Router_ReceiverAccountAddress = {
+    PREFIX: 0xf540f227,
+
+    create(args: {
+        queryId?: uint64
+        account: c.Address
+        token: c.Address
+        context: c.Cell | null
+    }): Router_ReceiverAccountAddress {
+        return {
+            $: 'Router_ReceiverAccountAddress',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_ReceiverAccountAddress {
+        loadAndCheckPrefix32(s, 0xf540f227, 'Router_ReceiverAccountAddress');
+        return {
+            $: 'Router_ReceiverAccountAddress',
+            queryId: s.loadUintBig(64),
+            account: s.loadAddress(),
+            token: s.loadAddress(),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: Router_ReceiverAccountAddress, b: c.Builder): void {
+        b.storeUint(0xf540f227, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.account);
+        b.storeAddress(self.token);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: Router_ReceiverAccountAddress): c.Cell {
+        return makeCellFrom<Router_ReceiverAccountAddress>(self, Router_ReceiverAccountAddress.store);
+    }
+}
+
+/**
  > struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
  >     queryID: uint64
  >     destChainSelector: uint64
@@ -5639,6 +5745,14 @@ export class Router implements c.Contract {
         return Router_GetSenderAccount.toCell(Router_GetSenderAccount.create(body));
     }
 
+    static createCellOfRouterGetReceiverAccountAddress(body: {
+        queryId?: uint64
+        token: c.Address
+        context?: c.Cell | null /* = null */
+    }) {
+        return Router_GetReceiverAccountAddress.toCell(Router_GetReceiverAccountAddress.create(body));
+    }
+
     static createCellOfDepositAccountInitialized(body: {
         queryId?: uint64
         context: c.Cell | null
@@ -5999,6 +6113,18 @@ export class Router implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: Router_GetSenderAccount.toCell(Router_GetSenderAccount.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendRouterGetReceiverAccountAddress(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        token: c.Address
+        context?: c.Cell | null /* = null */
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Router_GetReceiverAccountAddress.toCell(Router_GetReceiverAccountAddress.create(body)),
             ...extraOptions
         });
     }

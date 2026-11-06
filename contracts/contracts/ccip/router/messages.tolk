@@ -45,6 +45,7 @@ type Router_InMsg =
     | Router_RMNOwnableMessage
     | Router_TokenTransferDelivered
     | Router_GetSenderAccount
+    | Router_GetReceiverAccountAddress
     | DepositAccount_Initialized
     | DepositAccount_WalletUnavailable
     | DepositAccount_WithdrawFailed
@@ -97,7 +98,7 @@ struct Router_WithdrawRequest {
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
-/// Permissionless: deploys (or re-confirms) the sender's sender account for `token`.
+/// Permissionless: deploys (or re-confirms) the caller's sender account for `token`.
 /// The account is a deposit account owned by the Router in the SenderAccount namespace, keyed by
 /// the (sender, token) pair. The Router answers with Router_UseSenderAccount once the account
 /// learned its jetton wallet and confirmed initialization (DepositAccount_Initialized), or with
@@ -126,6 +127,28 @@ struct (0xda7b0350) Router_SenderAccountFailed {
     queryId: uint64;
     error: uint256;
     /// `Router_GetSenderAccount.context`, echoed back.
+    context: cell?;
+}
+
+/// Permissionless, read-only: asks for the caller's receiver account for `token`, the deposit
+/// account (in the ReceiverAccount namespace, keyed by the (receiver, token) pair) where tokens
+/// sent to the caller from other chains are delivered. Nothing is deployed; the Router answers
+/// with Router_ReceiverAccountAddress, carrying back the remaining value.
+struct (0x0d5421b4) Router_GetReceiverAccountAddress {
+    queryId: uint64;
+    /// Jetton master the account escrows. One account per (receiver, token).
+    token: address;
+    /// Opaque caller data, echoed back in Router_ReceiverAccountAddress.
+    context: cell? = null;
+}
+
+/// Reply to Router_GetReceiverAccountAddress: `account` is the caller's receiver account for
+/// `token` (same as the `receiverAccountAddress` getter). It may not be deployed yet.
+struct (0xf540f227) Router_ReceiverAccountAddress {
+    queryId: uint64;
+    account: address;
+    token: address;
+    /// `Router_GetReceiverAccountAddress.context`, echoed back.
     context: cell?;
 }
 

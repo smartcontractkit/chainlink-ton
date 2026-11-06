@@ -251,6 +251,10 @@ fun onInternalMessage(in: InMessage) {
             assert (in.valueCoins >= Router_Costs.GetSenderAccount()) throw Router_Error.InsufficientFee;
             onGetSenderAccount(msg, in.senderAddress);
         }
+        // Permissionless, read-only
+        Router_GetReceiverAccountAddress => {
+            onGetReceiverAccountAddress(msg, in.senderAddress);
+        }
         // Sender must be a deposit account owned by this Router (verified against the derived address)
         DepositAccount_Initialized => {
             onDepositAccountInitialized(msg, in.senderAddress);
@@ -587,6 +591,22 @@ fun returnAccidentalTransfer(walletSender: address, msg: TransferNotificationFor
         },
     });
     returnMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
+}
+
+/// Answers the caller with its receiver account address for `msg.token`. Nothing is deployed.
+fun onGetReceiverAccountAddress(msg: Router_GetReceiverAccountAddress, sender: address) {
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: Router_ReceiverAccountAddress {
+            queryId: msg.queryId,
+            account: receiverAccount(sender, msg.token).calculateAddress(),
+            token: msg.token,
+            context: msg.context,
+        },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// Returns the deposit account escrowing `token` sent by `user` for on-ramp transfers.
