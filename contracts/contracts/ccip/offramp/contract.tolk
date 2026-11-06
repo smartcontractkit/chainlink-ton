@@ -1288,14 +1288,11 @@ fun assertSenderIsTheRouter(st: Storage, sourceChainSelector: uint64, sender: ad
 }
 
 /*
-Updates the dynamic configuration parameters for the OffRamp contract.
-Validates that the feeQuoter address is non-zero, updates the stored
-configuration and emits a DYNAMIC_CONFIG_SET_TOPIC event.
+Updates the dynamic configuration parameters for the OffRamp contract,
+stores the configuration and emits a DYNAMIC_CONFIG_SET_TOPIC event.
 */
 fun onSetDynamicConfig(msg: OffRamp_SetDynamicConfig) {
     var st = Storage.load();
-
-    // NOTE: address now is guaranteed to be non-zero, address? allows zero
 
     var config = st.config.load();
     config.dynamicConfig = msg.config.toCell();
