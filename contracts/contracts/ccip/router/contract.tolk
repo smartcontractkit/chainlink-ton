@@ -897,7 +897,7 @@ fun sendMessageValidationFailed(userAddress: address, errorCode: int32, msg: Cel
         }
     }
     val replyMsg = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: userAddress,
         body
