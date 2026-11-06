@@ -4367,6 +4367,44 @@ export const OffRamp_RouteMessageBounced = {
 }
 
 /**
+ > struct OffRamp_UpdatePricesBounced {
+ >     feeQuoter: address
+ >     errorCode: int32
+ > }
+ */
+export interface OffRamp_UpdatePricesBounced {
+    readonly $: 'OffRamp_UpdatePricesBounced'
+    feeQuoter: c.Address
+    errorCode: int32
+}
+
+export const OffRamp_UpdatePricesBounced = {
+    create(args: {
+        feeQuoter: c.Address
+        errorCode: int32
+    }): OffRamp_UpdatePricesBounced {
+        return {
+            $: 'OffRamp_UpdatePricesBounced',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): OffRamp_UpdatePricesBounced {
+        return {
+            $: 'OffRamp_UpdatePricesBounced',
+            feeQuoter: s.loadAddress(),
+            errorCode: s.loadIntBig(32),
+        }
+    },
+    store(self: OffRamp_UpdatePricesBounced, b: c.Builder): void {
+        b.storeAddress(self.feeQuoter);
+        b.storeInt(self.errorCode, 32);
+    },
+    toCell(self: OffRamp_UpdatePricesBounced): c.Cell {
+        return makeCellFrom<OffRamp_UpdatePricesBounced>(self, OffRamp_UpdatePricesBounced.store);
+    }
+}
+
+/**
  > type CrossChainAddress = slice
  */
 export type CrossChainAddress = c.Slice

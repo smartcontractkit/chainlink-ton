@@ -49,7 +49,8 @@ type OffRamp_InMessageBounced =
     | Router_RelayReleaseOrMint
     | Router_RouteMessage
     | ReceiveExecutor_CCIPReceiveConfirm
-    | MerkleRoot_Validate;
+    | MerkleRoot_Validate
+    | FeeQuoter_UpdatePrices;
 
 struct (0x9d431905) OffRamp_Commit {
     queryID: uint64;

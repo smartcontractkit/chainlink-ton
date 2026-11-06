@@ -179,6 +179,9 @@ fun onInternalMessage(in:InMessage) {
 }
 
 fun onBouncedMessage(in: InMessageBounced) {
+    // Every send is RichBounce or NoBounce, so no legacy (256-bit) bounce is expected. The value
+    // is back in the balance; there is nothing to unwind. Throw so the unexpected bounce is visible.
+    assert (in.bouncedBody.preloadUint(32) != 0xffffffff) throw (OffRamp_Error.UnhandledLegacyBounce);
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val originalMessage = lazy OffRamp_InMessageBounced.fromCell(rich.originalBody);
     match(originalMessage) {
@@ -200,7 +203,21 @@ fun onBouncedMessage(in: InMessageBounced) {
         MerkleRoot_Validate => {
             onBouncedMerkleRootValidate(originalMessage)
         },
+        FeeQuoter_UpdatePrices => {
+            onUpdatePricesBounced(originalMessage, in.senderAddress, rich.exitCode)
+        },
     }
+}
+
+/// The FeeQuoter rejected a price update (it can only throw UnauthorizedPriceUpdater: this
+/// OffRamp is not a registered price updater, a misconfiguration). latestPriceSequenceNumber
+/// already advanced, so these prices are skipped until the next report (K1). Nothing to unwind
+/// here: the value is back in the balance. Emits an event so the rejection is visible.
+fun onUpdatePricesBounced(msg: FeeQuoter_UpdatePrices, feeQuoter: address, errorCode: int32) {
+    emit(UPDATE_PRICES_BOUNCED_TOPIC, OffRamp_UpdatePricesBounced {
+        feeQuoter,
+        errorCode,
+    });
 }
 
 // The MerkleRoot rejected MerkleRoot_Validate: the root was never committed (no contract at that
@@ -758,7 +775,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
                 // and update the prices in the fee quoter
 
                 val updatePricesMsg = createMessage({
-                    bounce: BounceMode.Only256BitsOfBody,
+                    bounce: BounceMode.RichBounce,
                     value: FeeQuoter_Costs.updatePrices(),
                     dest: st.config.load().dynamicConfig.load().feeQuoter,
                     body: FeeQuoter_UpdatePrices {
