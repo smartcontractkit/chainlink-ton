@@ -6,7 +6,7 @@ import { Blockchain } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
 import * as tare from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
-import { Costs, EventTopics } from '../../../wrappers/ccip/TokenAdminRegistry'
+import { Costs, ENTRY_VERSION, EventTopics } from '../../../wrappers/ccip/TokenAdminRegistry'
 import {
   EntryErrors,
   OPERATION_VALUE,
@@ -18,6 +18,7 @@ import {
   answerPoolProbe,
   entryFor,
   expectEntryFailure,
+  messageFromRoot,
   expectEntrySuccess,
   expectRootFailure,
   registerAndAccept,
@@ -134,6 +135,45 @@ describe('TokenAdminRegistry - Set Pool', () => {
     expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx, null))
   })
 
+  it('delists the token when the new pool reports another token', async () => {
+    await registerAndAccept(fx)
+    await requestSetPool(fx, fx.administrator, fx.replacementPool, 113n)
+    const answer = await answerPoolProbe(fx, {
+      from: fx.replacementPool,
+      poolToken: fx.otherToken,
+      queryId: 113n,
+    })
+    expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx, null))
+    expect(await entryFor(fx).getEnabled()).toBe(true)
+    expect(
+      tar.TokenAdminRegistry_PoolSet.fromSlice(rootEvent(fx, answer, EventTopics.PoolSet)),
+    ).toEqual(
+      tar.TokenAdminRegistry_PoolSet.create({
+        queryId: 113n,
+        token: fx.token,
+        previousPool: fx.pool,
+        newPool: null,
+        transferInitiator: null,
+      }),
+    )
+  })
+
+  it('delists the token when the current pool reports another token on a refresh', async () => {
+    await registerAndAccept(fx)
+    await answerPoolProbe(fx, { poolToken: fx.otherToken })
+    expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx, null))
+  })
+
+  it('keeps a pending replacement when the current pool reports another token', async () => {
+    await registerAndAccept(fx)
+    await requestSetPool(fx, fx.administrator, fx.replacementPool, 114n)
+    await answerPoolProbe(fx, { poolToken: fx.otherToken })
+    expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx, null))
+
+    await answerPoolProbe(fx, { from: fx.replacementPool, queryId: 114n })
+    expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx, fx.replacementPool))
+  })
+
   it('lets anyone refresh the transfer initiator reported by the current pool', async () => {
     await registerAndAccept(fx)
     const refresh = await fx.registry.sendTokenAdminRegistryRefreshPoolConfig(
@@ -232,8 +272,28 @@ describe('TokenAdminRegistry - Set Pool', () => {
   it('rejects anyone but the active administrator', async () => {
     await registerAndAccept(fx)
     for (const actor of [fx.other, fx.owner]) {
-      const result = await setPool(fx, actor, fx.replacementPool)
+      const result = await setPool(fx, actor, fx.replacementPool, 7n)
       expectEntryFailure(fx, result, EntryErrors['TokenAdminRegistryEntry_Error.Unauthorized'])
+      // The rejection bounces to the root, which returns the unspent value to the actor.
+      expect(result.transactions).toHaveTransaction({
+        from: fx.registry.address,
+        to: actor.address,
+        op: tar.TokenAdminRegistry_RequestFailed.PREFIX,
+        body: tar.TokenAdminRegistry_RequestFailed.toCell(
+          tar.TokenAdminRegistry_RequestFailed.create({
+            queryId: 7n,
+            exitCode: BigInt(EntryErrors['TokenAdminRegistryEntry_Error.Unauthorized']),
+            request: messageFromRoot(
+              tare.TokenAdminRegistryEntry_SetPool.create({
+                actor: actor.address,
+                tokenPool: fx.replacementPool,
+              }),
+              ENTRY_VERSION,
+              7n,
+            ),
+          }),
+        ),
+      })
     }
     expect(await entryFor(fx).getTokenInfo()).toEqual(tokenInfo(fx))
   })

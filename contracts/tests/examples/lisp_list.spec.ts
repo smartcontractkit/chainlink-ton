@@ -4,9 +4,10 @@ import { beginCell, Cell, contractAddress, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { LispListContainer, TestLispList, Byte } from '../../wrappers/gen/test/TestLispList'
+import { contractCode } from '../../wrappers/codeLoader'
 
 class LispListContract extends TestLispList {
-  static create(code: Cell = TestLispList.CodeCell, data: Cell = Cell.EMPTY, workchain = 0) {
+  static create(code: Cell, data: Cell = Cell.EMPTY, workchain = 0) {
     const init = { code, data }
     return new LispListContract(contractAddress(workchain, init), init)
   }
@@ -16,7 +17,8 @@ describe('lisp_list generated wrapper compatibility', () => {
   it('round-trips a non-empty lisp_list encoded by Tolk', async () => {
     const blockchain = await Blockchain.create()
     const deployer = await blockchain.treasury('deployer')
-    const contract = blockchain.openContract(LispListContract.create())
+    const code = await contractCode.ccip.local('tests.examples.LispList')
+    const contract = blockchain.openContract(LispListContract.create(code))
 
     await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
 

@@ -5,6 +5,7 @@ import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as rec from '../../../wrappers/gen/ccip/Receiver'
+import { Costs as OffRampCosts } from '../../../wrappers/ccip/OffRamp'
 import { setup, contractsCoverageConfig, genExecID } from './Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
@@ -77,6 +78,14 @@ describe('Router', () => {
       value: toNano('0.5'),
       op: rec.Receiver_CCIPReceiveV2.PREFIX,
     })
+
+    const routed = result.transactions.find(
+      (tx) => tx.inMessage?.info.src?.toString() === router.address.toString(),
+    )
+    const { confirmValue } = rec.Receiver_CCIPReceiveV2.fromSlice(
+      routed!.inMessage!.body.beginParse(),
+    )
+    expect(confirmValue).toBeGreaterThanOrEqual(OffRampCosts.receiveConfirm)
   })
 
   it('should throw on routeMessage if source chain is not enabled', async () => {

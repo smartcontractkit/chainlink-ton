@@ -25,16 +25,16 @@ export const DEFAULT_MIN_TT_GASLIMIT = toNano('0.2')
 export const Costs = (() => {
   const executorDeployment = toNano('0.01')
   const merkleRootDeployment = toNano('0.01')
-  const markState = toNano('0.002')
+  const markState = toNano('0.004')
   const notify = toNano('0.003') + markState
   const confirmedOrBounced = toNano('0.002') + notify
   const receiveConfirmOrDeny = toNano('0.002') + confirmedOrBounced
   const receiveConfirm = toNano('0.0015') + receiveConfirmOrDeny
-  const routeMessage = toNano('0.004') + receiveConfirm
+  const routeMessage = toNano('0.007') + receiveConfirm
   const dispatchValidated = toNano('0.005') + routeMessage
   const depositAccount = RouterCosts.depositAccountReserve + RouterCosts.depositAccountWalletQuery
   const releaseOrMint = toNano('0.0025') + toNano('0.006') + toNano('0.0065') + depositAccount
-  const tokenTransferDelivered = toNano('0.007')
+  const tokenTransferDelivered = toNano('0.008')
   const tokenTransfer =
     RegistryCosts.getTokenInfo +
     toNano('0.003') +
@@ -44,10 +44,10 @@ export const Costs = (() => {
   const initExec = (hasTokens: boolean) =>
     toNano('0.0045') + (hasTokens ? tokenTransfer : 0n) + dispatchValidated
   const executeValidated = (hasTokens: boolean) =>
-    toNano('0.0145') + executorDeployment + initExec(hasTokens)
+    toNano('0.0155') + executorDeployment + initExec(hasTokens)
   const validate = (hasTokens: boolean) => toNano('0.005') + executeValidated(hasTokens)
   /** CCIP-owned part of an execution; add the message's gasLimit and destGasAmount. */
-  const execute = (hasTokens: boolean) => toNano('0.014') + validate(hasTokens)
+  const execute = (hasTokens: boolean) => toNano('0.0145') + validate(hasTokens)
   const updatePrices = toNano('0.016')
   return {
     executorDeployment,
@@ -74,7 +74,7 @@ export const Costs = (() => {
       (hasTokens ? RegistryCosts.getTokenInfo + depositAccount : 0n),
     updatePrices,
     commit: (hasRoots: boolean, hasPriceUpdates: boolean) =>
-      toNano('0.01') +
+      toNano('0.0105') +
       (hasRoots ? toNano('0.0005') + merkleRootDeployment : 0n) +
       (hasPriceUpdates ? updatePrices : 0n),
   }

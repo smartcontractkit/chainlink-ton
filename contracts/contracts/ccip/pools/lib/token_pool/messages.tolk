@@ -462,6 +462,7 @@ struct (0x480060f1) TokenPool_GetConfig {
 /// Answer to `TokenPool_GetConfig`. A null initiator means the pool delivers by minting.
 struct (0x1c8a40b8) TokenPool_Config {
     queryId: uint64;
+    token: address;
     transferInitiator: address?;
     admission: TokenPool_AdmissionBudget;
 }

@@ -440,7 +440,7 @@ fun TokenPool<T>.onGetConfig(self, sender: address, queryId: uint64) {
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: TokenPool_Config { queryId, transferInitiator, admission: self.budget().admission() },
+        body: TokenPool_Config { queryId, token: self.data.token(), transferInitiator, admission: self.budget().admission() },
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }

@@ -99,6 +99,9 @@ fun onInternalMessage(in: InMessage) {
         // Passive excess return from a release/mint jetton wallet. Retain it in the executor;
         // the finalization message carries the remaining balance to the OffRamp.
         ReturnExcessesBack => {}
+        // The Router's unused RouteMessage handling budget, returned via the OffRamp. Retain it
+        // in the executor; the finalization message carries the remaining balance to the OffRamp.
+        OffRamp_ReturnExcessToExecutor => {}
         // Sender must be the owner (OffRamp)
         ReceiveExecutor_ReleaseOrMintFailed => {
             var st = ReceiveExecutor_Storage.load();
@@ -155,6 +158,7 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
 
     st.state.queryId = msg.queryId;
     st.state.effectiveGasLimit = msg.effectiveGasLimit;
+    st.state.excesses = msg.excesses;
     if (value < st.state.effectiveGasLimit + ReceiveExecutor_Costs.initExec(false)) {
         return endExecutionWithFailure(mutate st, message.header, 0);
     }
@@ -324,6 +328,9 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
 // TODO[ERROR]: [NONEVM-5463]: add reason
 fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, _errorCode: uint16 = 0) {
     // TODO[ERROR]: [NONEVM-5463]: propagate `_errorCode` through `OffRamp_NotifyFailure` so the reason is observable.
+
+    reserveGramsOnBalance(RECEIVE_EXECUTOR_INIT_VALUE, RESERVE_MODE_AT_MOST);
+
     val notifyFailure = createMessage({
         bounce: true,
         value: 0,
@@ -333,8 +340,11 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
             header: messageHeader.toCell(),
             execId: st.execId,
             root: st.root,
+            excesses: st.state.excesses!,
         },
     });
+    // SAFETY: The excesses message carries all remaining balance above the
+    // reserved grams, which ensures that the contract doesn't freeze
     notifyFailure.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
@@ -393,7 +403,7 @@ fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: Receive
     // `execute` below pays its fixed value from the balance.
     val deliveredMsg = createMessage({
         bounce: false,
-        value: 0,
+        value: OffRamp_Costs.tokenTransferDelivered(),
         dest: st.owner,
         body: OffRamp_TokenTransferDelivered {
             queryId: st.state.queryId,
@@ -401,7 +411,7 @@ fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: Receive
             delivered: delivered.toCell(),
         },
     });
-    deliveredMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    deliveredMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
     execute(mutate st)
 }
 
@@ -418,6 +428,7 @@ fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: 
             execId: st.execId,
             root: st.root,
             delivered,
+            excesses: st.state.excesses!,
         },
     });
     notifySuccess.send(SEND_MODE_CARRY_ALL_BALANCE);

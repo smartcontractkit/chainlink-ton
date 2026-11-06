@@ -3,11 +3,12 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, contractAddress, toNano } from '@ton/core'
 
 import { TestLibMath, Math_Result } from '../../wrappers/gen/test/TestLibMath'
+import { contractCode } from '../../wrappers/codeLoader'
 
 // Extends the generated wrapper to expose a public factory for deployment,
 // since the base constructor is protected.
 class MathContract extends TestLibMath {
-  static create(code: Cell = TestLibMath.CodeCell, data: Cell = Cell.EMPTY, workchain = 0) {
+  static create(code: Cell, data: Cell = Cell.EMPTY, workchain = 0) {
     const init = { code, data }
     return new MathContract(contractAddress(workchain, init), init)
   }
@@ -64,7 +65,8 @@ describe('math', () => {
 
     // Set up math contract
     {
-      bind.math = blockchain.openContract(MathContract.create())
+      const code = await contractCode.ccip.local('tests.lib.math')
+      bind.math = blockchain.openContract(MathContract.create(code))
     }
 
     // Deploy math contract

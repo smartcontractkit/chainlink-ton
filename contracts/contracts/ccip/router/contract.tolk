@@ -110,7 +110,7 @@ fun onInternalMessage(in: InMessage) {
             val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.SourceChainNotEnabled);
             assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
             assertNotCursed(st, message.sourceChainSelector);
-            onRouteMessage(msg, msg.message);
+            onRouteMessage(msg, msg.message, expectedOffRamp);
         }
         // Sender must be OnRamp
         Router_WithdrawToTokenPool => {
@@ -387,10 +387,11 @@ fun onBouncedMessage(in: InMessageBounced) {
 //     ReceiveExecutor ->> OffRamp:  OffRamp_DispatchValidated
 //     OffRamp         ->> Router:   Router_RouteMessage (process)
 //     Router          ->> Receiver: Receiver_CCIPReceiveV2
-fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
+fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>, offramp: address) {
     val ccipReceive: Receiver_CCIPReceiveV2 = {
         queryId: msg.queryId,
         execId: msg.execId,
+        confirmValue: ROUTER_RECEIVE_CONFIRM_VALUE,
         message,
     };
 
@@ -401,6 +402,24 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
         body: ccipReceive,
     });
     messageForReceiver.send(SEND_MODE_PAY_FEES_SEPARATELY);
+
+    // The handling budget left after the receiver's message returns to the executor that paid
+    // it, through the OffRamp that owns it. The reserve keeps the Router's own balance out of
+    // the send: mode 128 carries everything above the reserved original balance, so the
+    // Router's balance stays constant. (Mode 64 would send the remaining MESSAGE value, which
+    // exceeds the balance left above the reserve once the Router's compute and the receiver
+    // message's forward fee are paid from the balance.)
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    val excess = createMessage({
+        bounce: false,
+        value: 0,
+        dest: offramp,
+        body: OffRamp_ReturnExcessToExecutor {
+            queryId: msg.queryId,
+            execId: msg.execId,
+        },
+    });
+    excess.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 /// Asks the sender's on-ramp account to transfer the jettons to the pool. A rejected or bounced
@@ -408,6 +427,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>) {
 /// transfer's forward payload, so that payload must name the executor requesting the withdraw.
 fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
+    val account = withdrawRequest.onRampAccount.load();
     val fwdp = lazy withdrawRequest.forwardPayload.load();
     val request = lazy fwdp.requestMsg.load();
     if (request.replyTo != msg.executor) {
@@ -439,7 +459,7 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     val withdraw = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
-        dest: withdrawRequest.depositAccount,
+        dest: onRampAccountAddress(account.user, account.token),
         body: DepositAccount_Withdraw { queryId: msg.queryID, ask },
     });
     withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -729,15 +749,13 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
     // already stores the queryId in its own storage.
     val receiveBounced = createMessage({
         bounce: true,
-        value: OffRamp_Costs.receiveConfirmOrDeny(),
+        value: 0,
         dest: offRamp,
         body: OffRamp_CCIPReceiveBounced {
             execId,
             receiver: sender,
         }
     });
-    // Mode 64 adds the bounced remainder on top of the fixed floor, which the Router funds when the
-    // receiver consumed its whole gasLimit.
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 

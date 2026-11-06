@@ -119,7 +119,6 @@ export async function coverageConfig(): Promise<ContractCoverageConfig[]> {
 export const tokenInfo = (fx: Fixture, tokenPool: Address | null = fx.pool, token = fx.token) =>
   tar.TokenRegistry_TokenInfo.create({
     tokenPool,
-    minterAddress: token,
     version: 1n,
     admission: tokenPool ? POOL_ADMISSION : null,
   })
@@ -200,6 +199,8 @@ export const answerPoolProbe = (
     transferInitiator?: Address | null
     admission?: tare.TokenPool_AdmissionBudget
     queryId?: bigint
+    /** Token the pool reports; defaults to the entry's token. */
+    poolToken?: Address
   } = {},
 ) =>
   entryFor(fx, opt.token ?? fx.token).sendTokenPoolConfig(
@@ -207,6 +208,7 @@ export const answerPoolProbe = (
     toNano('0.02'),
     {
       queryId: opt.queryId ?? 0n,
+      token: opt.poolToken ?? opt.token ?? fx.token,
       transferInitiator: opt.transferInitiator ?? null,
       admission: opt.admission ?? POOL_ADMISSION,
     },

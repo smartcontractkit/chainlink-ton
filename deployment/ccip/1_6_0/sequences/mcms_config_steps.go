@@ -14,8 +14,9 @@ const (
 	// Safe single-step setConfig thresholds for the live TON 1.6.2 contracts.
 	// Above either limit on either the current or final config, apply an
 	// intermediate config first. Calibrated with the release-1.6.2 limits suite:
-	// 52/21 -> 52/21 succeeds, 52/21 -> 56/21 is ~974k gas, and 60/21 -> 56/21
-	// or 60/21 OOGs. Use 52/21 as the safe boundary.
+	// 52/21 -> 52/21 succeeds, while 52/21 -> 56/21 is already at the 1M OOG
+	// boundary and is not used as a single-step production path. Use 52/21 as
+	// the safe boundary; larger final/current configs require two-step.
 	maxSingleStepSigners = 52
 	maxSingleStepGroups  = 21
 )

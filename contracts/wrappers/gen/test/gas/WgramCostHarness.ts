@@ -151,8 +151,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class WgramCostHarness implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBFgEAoQABFP8A9KQT9LzyyAsBAgFiAgMAGND4kfJAhA8BxwDy9AIBIAQFAgFYBgcCASAODwIBSAgJAAm3YzAMEAIBIAoLAgFYDA0ACquQgR2OAB6qYXOBBAmCEAlmAYBw+DcAEaZ25wIHRuHweQAJpq0CORUCASAQEQIDeWAUFQIBIBITAAe2tG4wAAexORxgAAuxbeBFe2AACaVJAiOdAAmkmQIF5Q==');
-
     static Errors = {
     }
 

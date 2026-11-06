@@ -12,6 +12,7 @@ import unwrapSnakedCell from './abigen/transforms/unwrapSnakedCell'
 import transformLispListStore from './abigen/transforms/lispLists'
 import makeQueryIDOptional from './abigen/transforms/makeQueryIDOptional'
 import transformDictionaryMaps from './abigen/transforms/maps'
+import removeCodeCell from './abigen/transforms/removeCodeCell'
 
 // ---------------------------------------------------------------------------
 //   manifest resolution + acton invocation
@@ -102,6 +103,7 @@ function main(): void {
     addSend(sourceFile)
     makeQueryIDOptional(sourceFile)
     transformDictionaryMaps(sourceFile)
+    removeCodeCell(sourceFile)
 
     const transformed = sourceFile.getFullText()
     project.removeSourceFile(sourceFile)

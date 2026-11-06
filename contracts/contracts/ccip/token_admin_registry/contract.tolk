@@ -7,6 +7,8 @@ import "events"
 
 import "../../lib/access/ownable_2step"
 import "../../lib/versioning/upgradeable"
+import "../../lib/funding/withdrawable"
+import "@stdlib/gas-payments"
 import "../../lib/deployable/types"
 import "../token_admin_registry_entry/messages"
 import "../token_admin_registry_entry/storage"
@@ -28,11 +30,12 @@ contract TokenAdminRegistry {
 
     storage: TokenAdminRegistry_Storage
     incomingMessages: TokenAdminRegistry_InMessage | Ownable2Step_Messages
-    thrownErrors: Ownable2Step_Error | TokenAdminRegistry_Error | Upgradeable_Error
+    thrownErrors: Ownable2Step_Error | TokenAdminRegistry_Error | Upgradeable_Error | Withdrawable_Error
 }
 
 const CONTRACT_VERSION = "1.6.0".literalSlice();
 const RICH_BOUNCE_PREFIX = 0xfffffffe;
+const WITHDRAW_RESERVE = ton("0.1");
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistry_InMessage.fromSlice(in.body);
@@ -76,16 +79,22 @@ fun onInternalMessage(in: InMessage) {
         TokenAdminRegistry_EntryUpgradeRequest => {
             val st = TokenAdminRegistry_Storage.load();
             requireEntrySender(st, msg.token, in.senderAddress);
-            upgradeAndResume(in.senderAddress, msg.queryId, msg.request);
+            upgradeAndResume(in.senderAddress, msg.queryId, msg.request, in.valueCoins);
         }
+        TokenAdminRegistry_UpgradeRefund => {}
         TokenAdminRegistry_UpgradeEntry => {
-            assert(in.valueCoins >= TokenAdminRegistryEntry_upgradeCost()) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistryEntry_upgradeCost(entryCode())) throw TokenAdminRegistry_Error.InsufficientValue;
             sendUpgrade(entryAddress(msg.tokenAddress).calculateAddress(), msg.queryId, 0, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         Upgradeable_Upgrade => {
             val st = lazy TokenAdminRegistry_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             Upgradeable{ migrate, version }.upgrade(msg);
+        }
+        Withdrawable_Withdraw => {
+            val st = lazy TokenAdminRegistry_Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            Withdrawable{ reserve: WITHDRAW_RESERVE }.withdraw(msg);
         }
         TokenAdminRegistry_AdministratorTransferRequested => {
             val st = TokenAdminRegistry_Storage.load();
@@ -104,11 +113,11 @@ fun onInternalMessage(in: InMessage) {
         }
         TokenAdminRegistry_VerifyToken => {
             assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_WALLET_QUERY_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
-            forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_VerifyToken {});
+            forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_VerifyToken { requester: in.senderAddress });
         }
         TokenAdminRegistry_RefreshPoolConfig => {
             assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_POOL_PROBE_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
-            forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_RefreshPoolConfig {});
+            forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_RefreshPoolConfig { requester: in.senderAddress });
         }
         else => {
             var st = lazy TokenAdminRegistry_Storage.load();
@@ -122,19 +131,23 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-/// Only requests whose sender waits for an answer use rich bounces, either on
-/// the first forward or on a Resume; other bounces just return their value to
-/// the root. A first forward bounces when the token was never registered.
+/// Requests to entries are rich-bounced, either on the first forward or on a Resume, and reported
+/// to their sender with the unspent value. A first forward bounces when the token was never
+/// registered. Bounced upgrades are not rich and keep their value on the root, as does any other
+/// bounce.
 fun onBouncedMessage(in: InMessageBounced) {
     if (in.bouncedBody.preloadUint(32) != RICH_BOUNCE_PREFIX) {
         return;
     }
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
-    val bounced = TokenAdminRegistry_BouncedEntryMessage.fromCell(rich.originalBody);
-    val request = match (bounced) {
-        TokenAdminRegistryEntry_MessageFromRoot => bounced,
-        TokenAdminRegistryEntry_Resume => bounced.request.load(),
-    };
+    val bounced = lazy TokenAdminRegistry_BouncedEntryMessage.fromCell(rich.originalBody);
+    var requestCell: Cell<TokenAdminRegistryEntry_MessageFromRoot>;
+    match (bounced) {
+        TokenAdminRegistryEntry_MessageFromRoot => { requestCell = rich.originalBody as Cell<TokenAdminRegistryEntry_MessageFromRoot>; }
+        TokenAdminRegistryEntry_Resume => { requestCell = bounced.request; }
+        else => { return; }
+    }
+    val request = requestCell.load();
     val content = request.content.load();
     if (content is TokenAdminRegistryEntry_GetTokenInfo) {
         createMessage({
@@ -146,7 +159,30 @@ fun onBouncedMessage(in: InMessageBounced) {
                 token: content.token,
             },
         }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        return;
     }
+    createMessage({
+        bounce: false,
+        value: 0,
+        dest: requestSender(content),
+        body: TokenAdminRegistry_RequestFailed {
+            queryId: request.queryId,
+            exitCode: rich.exitCode,
+            request: requestCell,
+        },
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun requestSender(content: TokenAdminRegistryEntry_RootMessage): address {
+    return match (content) {
+        TokenAdminRegistryEntry_GetTokenInfo => content.requester,
+        TokenAdminRegistryEntry_ProposeAdministrator => TokenAdminRegistry_Storage.load().ownable.get_owner(),
+        TokenAdminRegistryEntry_TransferAdminRole => content.actor,
+        TokenAdminRegistryEntry_AcceptAdminRole => content.actor,
+        TokenAdminRegistryEntry_SetPool => content.actor,
+        TokenAdminRegistryEntry_VerifyToken => content.requester,
+        TokenAdminRegistryEntry_RefreshPoolConfig => content.requester,
+    };
 }
 
 /// Every entry event is relayed through the root. The token in the payload is
@@ -164,7 +200,7 @@ fun entryAddress(token: address): AutoDeployAddress {
 /// upgrade round trip before handling the request.
 fun forwardToEntry(token: address, queryId: uint64, content: TokenAdminRegistryEntry_RootMessage) {
     createMessage({
-        bounce: bounceModeFor(content),
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: entryAddress(token).calculateAddress(),
         body: TokenAdminRegistryEntry_MessageFromRoot {
@@ -175,27 +211,28 @@ fun forwardToEntry(token: address, queryId: uint64, content: TokenAdminRegistryE
     }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// Requests whose sender waits for an answer bounce back in full, so the root
-/// can report a failure to the requester (see onBouncedMessage).
-fun bounceModeFor(content: TokenAdminRegistryEntry_RootMessage): BounceMode {
-    if (content is TokenAdminRegistryEntry_GetTokenInfo) {
-        return BounceMode.RichBounce;
-    }
-    return BounceMode.NoBounce;
-}
-
 /// Answers a stale entry with an Upgradeable_Upgrade followed by the deferred request as a
 /// Resume. TON delivers both in order, and the entry will not defer a Resume
 /// again, so a failed upgrade bounces the request instead of looping.
-fun upgradeAndResume(entry: address, queryId: uint64, request: Cell<TokenAdminRegistryEntry_MessageFromRoot>) {
-    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
-    sendUpgrade(entry, queryId, TokenAdminRegistryEntry_upgradeCost(), SEND_MODE_REGULAR);
+///
+/// The root's own balance pays for the upgrade. This is affordable for every entry because only the
+/// owner registers tokens, which keeps the number of entries limited until self-registration is
+/// rolled out. If the root can't pay, the Resume still goes out and fails on the stale entry, so
+/// the request is reported as failed instead of left unanswered.
+fun upgradeAndResume(entry: address, queryId: uint64, request: Cell<TokenAdminRegistryEntry_MessageFromRoot>, requestValue: coins) {
+    val code = entryCode();
+    val upgradeValue = TokenAdminRegistryEntry_upgradeCost(code);
+    val (cells, bits, _) = code.calculateSizeStrict(TokenAdminRegistryEntry_MAX_CODE_CELLS);
+    val upgradeFwdFee = 2 * calculateForwardFee(BASECHAIN, bits, cells + 1);
+    if (contract.getOriginalBalance() - requestValue >= upgradeValue + upgradeFwdFee) {
+        sendUpgrade(entry, queryId, upgradeValue, SEND_MODE_PAY_FEES_SEPARATELY);
+    }
     createMessage({
-        bounce: bounceModeFor(request.load().content.load()),
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: entry,
         body: TokenAdminRegistryEntry_Resume { request },
-    }).send(SEND_MODE_CARRY_ALL_BALANCE);
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun sendUpgrade(dest: address, queryId: uint64, value: coins, mode: int) {
@@ -232,7 +269,6 @@ fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
         body: TokenAdminRegistry_TokenInfo {
             queryId: msg.queryId,
             token: msg.token,
-            minterAddress: tokenInfo.minterAddress,
             version: tokenInfo.version,
             poolInfo,
         },
@@ -330,6 +366,11 @@ fun deployableCode(): cell {
 
 fun entryCode(): cell {
     return tokenAdminRegistryEntryCompiledCode();
+}
+
+/// Value TokenAdminRegistry_UpgradeEntry needs, and what the root spends on a lazy entry upgrade.
+get fun entryUpgradeCost(): coins {
+    return TokenAdminRegistryEntry_upgradeCost(entryCode());
 }
 
 /// Gets the current owner of the registry root.

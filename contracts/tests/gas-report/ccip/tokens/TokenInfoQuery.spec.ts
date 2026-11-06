@@ -71,7 +71,6 @@ describe('TokenAdminRegistry token info query gas', () => {
       tokenAddress: token,
       tokenInfo: tar.TokenRegistry_TokenInfo.create({
         tokenPool: pool,
-        minterAddress: token,
         version: 1n,
       }),
       administrator: administrator.address,

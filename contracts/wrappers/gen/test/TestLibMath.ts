@@ -175,8 +175,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TestLibMath implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECFwEAAacAART/APSkE/S88sgLAQIBYgIDAgLOBAUCASALDAIBIAYHAgEgCAkAFz4kfJAhA8BxwDy9IABVCDCAJiE/yGhIrnDAJFw4pNbcHHgIMEAmIX/IaEivMMAkXDik1twcuCgcIAGpO2i7fshlSDAAMMAkX/ik1twIOAhwP+cMSCF/7qTMHBx4KNw4CDA/5wwIIX/upMwcHHgo3DgIcIAlSDCAMMAkXDinoT/IakEIrmVW3Bx2zHg4w6ocIAoAaQgwk2TMHBx4HF6kyLCAI4gInGwwAGchP8iqQQhvvKEZqgB3gKrACDCAJRRIKgC3gLoMDFwgAJIhwQCVIMEAwwCRcOKehP8hqQQivJVbcHHbMeCOKyHCAJUgwQDDAJFw4p6F/yKpBCG8lVtwctsx4J6F/yGpBCK8lVtwctsx4OLiAAm+rseAFAIBIA0OAgEgDxACASAREgAXtd1rPgAyYD5eHAYwACm2bsQ4IBIv8sQwjveYYBxSXl4cBhACAecTFAAXtunLPgBSYD5eHAYwAgFYFRYAFaQEA+AHJgPl4cBjAAe6PwAYAAe6rwA4');
-
     static Errors = {
         'TVMError.IntegerOverflow': 4,
     }

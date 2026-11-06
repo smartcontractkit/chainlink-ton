@@ -20,6 +20,7 @@ type ReceiveExecutor_InMessage =
     | ReceiveExecutor_CCIPReceiveFailed
     | ReceiveExecutor_CCIPReceiveConfirm
     | ReturnExcessesBack
+    | OffRamp_ReturnExcessToExecutor
     ;
 
 type ReceiveExecutor_BouncedMessage =
@@ -33,6 +34,7 @@ struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
     sourceChainSelector: uint64;
     messageId: uint256;
     tokenTransfer: Cell<ReceiveExecutor_TokenTransfer>? = null;
+    excesses: Cell<ReceiveExecutor_Excesses>;
 }
 
 struct ReceiveExecutor_TokenTransfer {

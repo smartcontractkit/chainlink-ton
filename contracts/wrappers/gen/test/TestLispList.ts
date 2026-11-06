@@ -252,8 +252,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TestLispList implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBBwEAfQABFP8A9KQT9LzyyAsBAgFiAgMAGND4kfJAhA8BxwDy9AICcQQFAU2zQttyM+ECskBbwLIz4QGyQFvAsiIkyJus5jIzAJvIgPMyegyzMmAGAFOwYrQbQHUAdCUIMcAs5nU1NFQA28CAtDoMNFvIgHQ0wfRAW8iMNDTB9GAAAA==');
-
     static Errors = {
     }
 

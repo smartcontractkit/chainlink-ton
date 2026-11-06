@@ -13,6 +13,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/internal/tonmock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
@@ -30,7 +31,7 @@ func TestApplyReplayOverride(t *testing.T) {
 		lp := &service{
 			lggr: logger.Sugared(logger.Nop()),
 			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
-				return &mockAPIClient{}, nil
+				return &tonmock.APIClient{}, nil
 			},
 		}
 		lp.replay.status = models.ReplayStatusNoRequest
@@ -49,7 +50,7 @@ func TestApplyReplayOverride(t *testing.T) {
 			lggr: logger.Sugared(logger.Nop()),
 			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
 				// Validation looks up prevBlock (50)
-				return &mockAPIClient{lookupBlockResult: &ton.BlockIDExt{SeqNo: 50}}, nil
+				return &tonmock.APIClient{LookupBlockResult: &ton.BlockIDExt{SeqNo: 50}}, nil
 			},
 		}
 		lp.replay.status = models.ReplayStatusRequested
@@ -78,7 +79,7 @@ func TestApplyReplayOverride(t *testing.T) {
 			lggr: logger.Sugared(logger.Nop()),
 			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
 				// Validation looks up prevBlock (50)
-				return &mockAPIClient{lookupBlockResult: &ton.BlockIDExt{SeqNo: 50}}, nil
+				return &tonmock.APIClient{LookupBlockResult: &ton.BlockIDExt{SeqNo: 50}}, nil
 			},
 		}
 		lp.replay.status = models.ReplayStatusRequested
@@ -100,7 +101,7 @@ func TestApplyReplayOverride(t *testing.T) {
 		lp := &service{
 			lggr: logger.Sugared(logger.Nop()),
 			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
-				return &mockAPIClient{}, nil
+				return &tonmock.APIClient{}, nil
 			},
 		}
 		lp.replay.status = models.ReplayStatusRequested
@@ -125,7 +126,7 @@ func TestApplyReplayOverride(t *testing.T) {
 			lggr: logger.Sugared(logger.Nop()),
 			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
 				// prevBlock (50) was pruned since the original Replay() request
-				return &mockAPIClient{lookupBlockErr: ton.ErrBlockNotFound}, nil
+				return &tonmock.APIClient{LookupBlockErr: ton.ErrBlockNotFound}, nil
 			},
 		}
 		lp.replay.status = models.ReplayStatusRequested
@@ -148,7 +149,7 @@ func TestApplyReplayOverride(t *testing.T) {
 			lggr: logger.Sugared(logger.Nop()),
 			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
 				// fromBlock == 1: no block 0 on TON, so validation falls back to block 1
-				return &mockAPIClient{lookupBlockResult: &ton.BlockIDExt{SeqNo: 1}}, nil
+				return &tonmock.APIClient{LookupBlockResult: &ton.BlockIDExt{SeqNo: 1}}, nil
 			},
 		}
 		lp.replay.status = models.ReplayStatusRequested
@@ -171,9 +172,9 @@ func TestReplay(t *testing.T) {
 		t.Parallel()
 		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 
-		mock := &mockAPIClient{
-			masterchainInfo: currentMasterchainBlock,
-			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+		mock := &tonmock.APIClient{
+			MasterchainInfo: currentMasterchainBlock,
+			LookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
 				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
 			},
 		}
@@ -197,9 +198,9 @@ func TestReplay(t *testing.T) {
 		t.Parallel()
 		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 
-		mock := &mockAPIClient{
-			masterchainInfo: currentMasterchainBlock,
-			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+		mock := &tonmock.APIClient{
+			MasterchainInfo: currentMasterchainBlock,
+			LookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
 				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
 			},
 		}
@@ -224,8 +225,8 @@ func TestReplay(t *testing.T) {
 		t.Parallel()
 		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 
-		mock := &mockAPIClient{
-			masterchainInfo: currentMasterchainBlock,
+		mock := &tonmock.APIClient{
+			MasterchainInfo: currentMasterchainBlock,
 		}
 
 		lp := &service{
@@ -248,9 +249,9 @@ func TestReplay(t *testing.T) {
 		t.Parallel()
 		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 
-		mock := &mockAPIClient{
-			masterchainInfo: currentMasterchainBlock,
-			lookupBlockErr:  ton.ErrBlockNotFound,
+		mock := &tonmock.APIClient{
+			MasterchainInfo: currentMasterchainBlock,
+			LookupBlockErr:  ton.ErrBlockNotFound,
 		}
 
 		lp := &service{
@@ -270,9 +271,9 @@ func TestReplay(t *testing.T) {
 		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 1000, Shard: 1}
 		// lookback = ceil(50s / 2.5s) = 20 blocks, so 1000 - 20 = 980
 
-		mock := &mockAPIClient{
-			masterchainInfo: currentMasterchainBlock,
-			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+		mock := &tonmock.APIClient{
+			MasterchainInfo: currentMasterchainBlock,
+			LookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
 				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
 			},
 		}
@@ -300,9 +301,9 @@ func TestReplay(t *testing.T) {
 		// Existing request for block 40 stores fromBlock=40, prevBlock=39
 		existingPrevBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 39, Shard: 1}
 
-		mock := &mockAPIClient{
-			masterchainInfo: currentMasterchainBlock,
-			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+		mock := &tonmock.APIClient{
+			MasterchainInfo: currentMasterchainBlock,
+			LookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
 				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
 			},
 		}
@@ -332,9 +333,9 @@ func TestReplay(t *testing.T) {
 		// Existing request for block 50: fromBlock=50, prevBlock=49
 		existingPrevBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 49, Shard: 1}
 
-		mock := &mockAPIClient{
-			masterchainInfo: currentMasterchainBlock,
-			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+		mock := &tonmock.APIClient{
+			MasterchainInfo: currentMasterchainBlock,
+			LookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
 				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
 			},
 		}
@@ -363,9 +364,9 @@ func TestReplay(t *testing.T) {
 		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 
 		// Mock returns a block matching the requested SeqNo
-		mock := &mockAPIClient{
-			masterchainInfo: currentMasterchainBlock,
-			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+		mock := &tonmock.APIClient{
+			MasterchainInfo: currentMasterchainBlock,
+			LookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
 				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
 			},
 		}
@@ -417,9 +418,9 @@ func TestReplay(t *testing.T) {
 		// Existing request for block 51: fromBlock=51, prevBlock=50
 		existingPrevBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
 
-		mock := &mockAPIClient{
-			masterchainInfo: currentMasterchainBlock,
-			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+		mock := &tonmock.APIClient{
+			MasterchainInfo: currentMasterchainBlock,
+			LookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
 				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
 			},
 		}
@@ -451,9 +452,9 @@ func TestReplay(t *testing.T) {
 		// Existing request for block 31: fromBlock=31, prevBlock=30
 		existingPrevBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 30, Shard: 1}
 
-		mock := &mockAPIClient{
-			masterchainInfo: currentMasterchainBlock,
-			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+		mock := &tonmock.APIClient{
+			MasterchainInfo: currentMasterchainBlock,
+			LookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
 				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
 			},
 		}
@@ -485,9 +486,9 @@ func TestReplay(t *testing.T) {
 		// Existing request for block 41: fromBlock=41, prevBlock=40
 		existingPrevBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 40, Shard: 1}
 
-		mock := &mockAPIClient{
-			masterchainInfo: currentMasterchainBlock,
-			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+		mock := &tonmock.APIClient{
+			MasterchainInfo: currentMasterchainBlock,
+			LookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
 				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
 			},
 		}
@@ -595,9 +596,9 @@ func TestReplayComplete(t *testing.T) {
 		t.Parallel()
 		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 
-		mock := &mockAPIClient{
-			masterchainInfo: currentMasterchainBlock,
-			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+		mock := &tonmock.APIClient{
+			MasterchainInfo: currentMasterchainBlock,
+			LookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
 				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
 			},
 		}
@@ -637,9 +638,9 @@ func TestReplayComplete(t *testing.T) {
 		t.Parallel()
 		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 
-		mock := &mockAPIClient{
-			masterchainInfo: currentMasterchainBlock,
-			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+		mock := &tonmock.APIClient{
+			MasterchainInfo: currentMasterchainBlock,
+			LookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
 				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
 			},
 		}

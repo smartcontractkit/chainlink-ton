@@ -129,7 +129,6 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
         tokenInfo: tar.TokenRegistry_TokenInfo.create({
           tokenPool: token.pool,
           transferInitiator: token.transferInitiator,
-          minterAddress: token.minter.address,
           version: 1n,
         }),
         administrator: deployer.address,

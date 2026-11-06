@@ -68,13 +68,22 @@ func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.
 
 	for {
 		batch, batchBlocks, err := l.listTransactionsWithBlock(ctx, addr, pageSize, curLT, blockRange.ToSeqNo(), curHash)
-		if errors.Is(err, ton.ErrNoTransactionsWereFound) || len(batch) == 0 {
+		// Check the error BEFORE the empty-batch case: every error return yields a nil batch,
+		// so testing len(batch) == 0 first would silently treat liteserver failures (timeouts,
+		// rate limits, LSError, broken hash chain) as "end of history" and let the caller
+		// advance the checkpoint past transactions that were never indexed.
+		if errors.Is(err, ton.ErrNoTransactionsWereFound) {
 			// no more transactions to process
 			break
-		} else if err != nil {
+		}
+		if err != nil {
 			l.lggr.Errorw("failed to list transactions for address", "address", addr.String(), "error", err)
 			errOut <- fmt.Errorf("failed to list transactions for address %s: %w", addr.String(), err)
 			return nil // don't block other addresses
+		}
+		if len(batch) == 0 {
+			// defensive: treat an empty page as end of history
+			break
 		}
 
 		// The batch is sorted from oldest to newest.

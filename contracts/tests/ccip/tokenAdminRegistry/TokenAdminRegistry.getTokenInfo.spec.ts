@@ -73,7 +73,6 @@ describe('TokenAdminRegistry - Get Token Info', () => {
       tar.TokenAdminRegistry_TokenInfo.create({
         queryId: 106n,
         token: fx.token,
-        minterAddress: fx.token,
         version: 1n,
         poolInfo: tar.TokenAdminRegistry_PoolInfo.create({
           tokenPool: fx.pool,
@@ -177,7 +176,6 @@ describe('TokenAdminRegistry - Get Token Info', () => {
       tar.TokenAdminRegistry_TokenInfo.create({
         queryId: 3n,
         token: fx.token,
-        minterAddress: fx.token,
         version: 1n,
         poolInfo: tar.TokenAdminRegistry_PoolInfo.create({
           tokenPool: fx.pool,

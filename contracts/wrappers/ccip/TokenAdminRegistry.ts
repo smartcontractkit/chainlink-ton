@@ -54,6 +54,5 @@ export const Costs = (() => {
     setPool: forward + poolProbe,
     refreshPoolConfig: forward + poolProbe,
     verifyToken: forward + walletQuery,
-    upgrade: toNano('0.012'),
   }
 })()

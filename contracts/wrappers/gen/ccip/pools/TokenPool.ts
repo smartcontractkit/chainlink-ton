@@ -3781,6 +3781,7 @@ export const TokenPool_GetConfig = {
 /**
  > struct (0x1c8a40b8) TokenPool_Config {
  >     queryId: uint64
+ >     token: address
  >     transferInitiator: address?
  >     admission: TokenPool_AdmissionBudget
  > }
@@ -3788,6 +3789,7 @@ export const TokenPool_GetConfig = {
 export interface TokenPool_Config {
     readonly $: 'TokenPool_Config'
     queryId: uint64
+    token: c.Address
     transferInitiator: c.Address | null
     admission: TokenPool_AdmissionBudget
 }
@@ -3797,6 +3799,7 @@ export const TokenPool_Config = {
 
     create(args: {
         queryId?: uint64
+        token: c.Address
         transferInitiator: c.Address | null
         admission: TokenPool_AdmissionBudget
     }): TokenPool_Config {
@@ -3811,6 +3814,7 @@ export const TokenPool_Config = {
         return {
             $: 'TokenPool_Config',
             queryId: s.loadUintBig(64),
+            token: s.loadAddress(),
             transferInitiator: s.loadMaybeAddress(),
             admission: TokenPool_AdmissionBudget.fromSlice(s),
         }
@@ -3818,6 +3822,7 @@ export const TokenPool_Config = {
     store(self: TokenPool_Config, b: c.Builder): void {
         b.storeUint(0x1c8a40b8, 32);
         b.storeUint(self.queryId, 64);
+        b.storeAddress(self.token);
         b.storeAddress(self.transferInitiator);
         TokenPool_AdmissionBudget.store(self.admission, b);
     },
@@ -5625,8 +5630,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class TokenPool implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECRAEAAdAAART/APSkE/S88sgLAQIBYgIDABTQMPiR8kCED/LwAgEgBAUCASAcHQIBIAYHAgFYCAkCASAKCwANs3ohA/y8IAANs7nhA/y8IAIBIAwNAgEgEhMCAWYODwIBZhARAAuk2wgf5eEAC6bxCB/l4QALp98IH+XhAAumKwgf5eECASAUFQIBIBobAA2vAcIH+XhAAgFIFhcAC6VfCB/l4QIBWBgZAAu+eED/LwgAC7gYQP8vCAANrGvCB/l4QAANrDjCB/l4QAIBIB4fAgEgMDECASAgIQIBICwtAgEgIiMCASAoKQIBICQlAA2tyMIH+XhAAgFYJicADKpbhA/y8AALoF4QP8vCAAuhxhA/y8ICASAqKwANrdhCB/l4QAAMqV+ED/LwAAyq0IQP8vACAW4uLwANsB8hA/y8IAALp1EIH+XhAAukUQgf5eECASAyMwIBIEBBAgEgNDUCASA8PQIBIDY3AgFiOjsADKqHhA/y8AIBIDg5AAumOwgf5eEAC6ULCB/l4QALofoQP8vCAAugfhA/y8ICASA+PwANrONCB/l4QAAMqbqED/LwAAyqioQP8vACAVhCQwANsrrhA/y8IAAMqXqED/LwAAyqtoQP8vA=');
-
     static Errors = {
         'TokenPool_Error.InvalidTransferFeeBps': 51700,
         'TokenPool_Error.InvalidTokenTransferFeeConfig': 51701,
@@ -5688,8 +5691,11 @@ export class TokenPool implements c.Contract {
         budget?: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins, 0 as coins } as TokenPool_ReleaseOrMintBudget } */
         accruedFees?: coins /* = 0 */
     }, deployedOptions?: DeployedAddrOptions) {
+        if (!deployedOptions?.overrideContractCode) {
+            throw new Error('TokenPool.fromStorage requires deployedOptions.overrideContractCode');
+        }
         const initialState = {
-            code: deployedOptions?.overrideContractCode ?? TokenPool.CodeCell,
+            code: deployedOptions.overrideContractCode,
             data: TokenPool_Data.toCell(TokenPool_Data.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});

@@ -14,10 +14,9 @@ func TestTokenInfo_PoolInfoRoundTrip(t *testing.T) {
 	token := address.NewAddress(0, 0, make([]byte, 32))
 
 	enabled := TokenInfo{
-		QueryID:       7,
-		Token:         token,
-		MinterAddress: token,
-		Version:       1,
+		QueryID: 7,
+		Token:   token,
+		Version: 1,
 		PoolInfo: &PoolInfo{
 			TokenPool:         token,
 			TransferInitiator: nil,
@@ -34,7 +33,7 @@ func TestTokenInfo_PoolInfoRoundTrip(t *testing.T) {
 	require.NoError(t, tlb.LoadFromCell(&decoded, cell.MustBeginParse()))
 	require.Equal(t, enabled, decoded)
 
-	disabled := TokenInfo{QueryID: 8, Token: token, MinterAddress: token, Version: 1}
+	disabled := TokenInfo{QueryID: 8, Token: token, Version: 1}
 	cell, err = tlb.ToCell(disabled)
 	require.NoError(t, err)
 

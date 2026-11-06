@@ -1,3 +1,4 @@
+import "@stdlib/gas-payments"
 import "../../lib/deployable/types"
 import "types"
 import "../../lib/versioning/upgradeable"
@@ -108,15 +109,30 @@ struct (0xa64e05c9) TokenAdminRegistryEntry_SetPool {
     tokenPool: address?
 }
 
-struct (0xa14b0288) TokenAdminRegistryEntry_VerifyToken {}
-
-struct (0xecf005ba) TokenAdminRegistryEntry_RefreshPoolConfig {}
-
-/// Value the root attaches to an Upgradeable_Upgrade sent to an entry.
-/// Re-measure with a real code install and `migrate` when a new version ships.
-fun TokenAdminRegistryEntry_upgradeCost(): coins {
-    return grams("0.012");
+/// `requester` is only used to report a bounced request.
+struct (0xa14b0288) TokenAdminRegistryEntry_VerifyToken {
+    requester: address;
 }
+
+/// `requester` is only used to report a bounced request.
+struct (0xecf005ba) TokenAdminRegistryEntry_RefreshPoolConfig {
+    requester: address;
+}
+
+/// Value an Upgradeable_Upgrade to `code` needs on the entry: 3x the measured compute and 2x the
+/// forward fee of the UpgradedEvent, which echoes the code. A rent debt does not block it: the
+/// storage phase of a bounceable message defers the debt instead of taking the inbound value.
+fun TokenAdminRegistryEntry_upgradeCost(code: cell): coins {
+    val (cells, bits, _) = code.calculateSizeStrict(TokenAdminRegistryEntry_MAX_CODE_CELLS);
+    return 3 * calculateGasFee(BASECHAIN, TokenAdminRegistryEntry_UPGRADE_GAS)
+        + 2 * calculateForwardFee(BASECHAIN, bits + TokenAdminRegistryEntry_UPGRADED_EVENT_BITS, cells + 1);
+}
+
+const TokenAdminRegistryEntry_MAX_CODE_CELLS = 1024;
+/// About 7000 measured for an Upgradeable_Upgrade with a trivial `migrate`, rounded up.
+const TokenAdminRegistryEntry_UPGRADE_GAS = 10000;
+/// Event fields other than the code: hash and version.
+const TokenAdminRegistryEntry_UPGRADED_EVENT_BITS = 256 + 64;
 
 /// Sent by the root right after an Upgradeable_Upgrade to replay a deferred request. TON
 /// delivers both in order, so the request runs on the upgraded code. Its layout

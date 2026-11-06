@@ -38,6 +38,7 @@ var unsupported = []uint64{
 	0x558e7559,           // tokenadminregistryentry.MessageFromRoot, nested message envelope with generic parameter - not supported by current generator
 	0x47d63a64,           // tokenadminregistryentry.Resume, embeds MessageFromRoot
 	0x55b8b654,           // tokenadminregistry.EntryUpgradeRequest, embeds MessageFromRoot
+	0xe73a39de,           // tokenadminregistry.RequestFailed, embeds MessageFromRoot
 	tvm.TLBMapKeyStorage, // special storage type key, not a message
 }
 

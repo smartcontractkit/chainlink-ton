@@ -448,6 +448,7 @@ type GetConfig struct {
 type Config struct {
 	_                 tlb.Magic        `tlb:"#1c8a40b8" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID           uint64           `tlb:"## 64"`
+	Token             *address.Address `tlb:"addr"`
 	TransferInitiator *address.Address `tlb:"addr"`
 	Admission         AdmissionBudget  `tlb:"."`
 }
