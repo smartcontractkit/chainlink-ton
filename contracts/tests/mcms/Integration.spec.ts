@@ -181,6 +181,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const data = {
         id: Number(generateRandomContractId()),
+        initializer: acc.deployer.address,
         minDelay: MIN_DELAY,
         executorRoleCheckEnabled: true,
         opPendingInfo: {

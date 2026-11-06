@@ -370,6 +370,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 								"contract": bindings.TypeTimelock,
 								"data": map[string]any{
 									"ID":                       42,
+									"Initializer":              address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001"),
 									"MinDelay":                 0,
 									"Timestamps":               []any{},
 									"BlockedFnSelectorsLen":    0,
@@ -411,7 +412,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						},
 						StateInit: &opston.StateInit{
 							Code: cell.BeginCell().MustStoreInt(1, 32).EndCell(),
-							Data: must(tlb.ToCell(timelock.EmptyDataFrom(42))),
+							Data: must(tlb.ToCell(must(timelock.EmptyDataFrom(42, address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001"))))),
 						},
 					},
 				},

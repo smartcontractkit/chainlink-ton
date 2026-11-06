@@ -1328,6 +1328,7 @@ export const Timelock_ErrorReportSubmitted = {
 /**
  > struct Timelock_Data {
  >     id: uint32
+ >     initializer: address
  >     minDelay: uint32
  >     timestamps: map<uint256, uint64>
  >     blockedFnSelectorsLen: uint32
@@ -1340,6 +1341,7 @@ export const Timelock_ErrorReportSubmitted = {
 export interface Timelock_Data {
     readonly $: 'Timelock_Data'
     id: uint32
+    initializer: c.Address
     minDelay: uint32
     timestamps: Map<uint256, uint64>
     blockedFnSelectorsLen: uint32
@@ -1352,6 +1354,7 @@ export interface Timelock_Data {
 export const Timelock_Data = {
     create(args: {
         id: uint32
+        initializer: c.Address
         minDelay: uint32
         timestamps: Map<uint256, uint64>
         blockedFnSelectorsLen: uint32
@@ -1369,6 +1372,7 @@ export const Timelock_Data = {
         return {
             $: 'Timelock_Data',
             id: s.loadUintBig(32),
+            initializer: s.loadAddress(),
             minDelay: s.loadUintBig(32),
             timestamps: dictToMap(c.Dictionary.load<uint256, uint64>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64), s)),
             blockedFnSelectorsLen: s.loadUintBig(32),
@@ -1380,6 +1384,7 @@ export const Timelock_Data = {
     },
     store(self: Timelock_Data, b: c.Builder): void {
         b.storeUint(self.id, 32);
+        b.storeAddress(self.initializer);
         b.storeUint(self.minDelay, 32);
         b.storeDict<uint256, uint64>(mapToDict(self.timestamps, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64)), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64));
         b.storeUint(self.blockedFnSelectorsLen, 32);
@@ -1878,6 +1883,7 @@ export class Timelock implements c.Contract {
         'Timelock_Error.ContractAlreadyInitialized': 60609,
         'Timelock_Error.ContractNotInitialized': 60610,
         'Timelock_Error.InsufficientFee': 60611,
+        'Timelock_Error.UnauthorizedInitializer': 60612,
     }
 
     readonly address: c.Address
@@ -1894,6 +1900,7 @@ export class Timelock implements c.Contract {
 
     static fromStorage(emptyStorage: {
         id: uint32
+        initializer: c.Address
         minDelay: uint32
         timestamps: Map<uint256, uint64>
         blockedFnSelectorsLen: uint32

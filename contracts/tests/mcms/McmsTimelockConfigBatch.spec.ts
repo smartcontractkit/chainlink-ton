@@ -50,6 +50,7 @@ describe.each(['1.6.2', 'local'] as const)(
       const timelockCode = await rbactl.ContractClient.code()
       const timelockData = {
         id: Number(generateRandomContractId()),
+        initializer: owner.address,
         minDelay: 0,
         executorRoleCheckEnabled: false,
         opPendingInfo: { validAfter: 0n, opFinalizationTimeout: 0, opPendingId: 0n },
