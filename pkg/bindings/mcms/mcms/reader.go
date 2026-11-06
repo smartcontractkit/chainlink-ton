@@ -152,16 +152,16 @@ var GetOpPendingInfo = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OpPendingInfo]{
 			}
 		}
 
-		opPendingBodyTruncated, err := r.Int(3)
+		opPendingExecutionLt, err := r.Int(3)
 		if err != nil {
-			return OpPendingInfo{}, fmt.Errorf("error getting Int(3) - opPendingBodyTruncated: %w", err)
+			return OpPendingInfo{}, fmt.Errorf("error getting Int(3) - opPendingExecutionLt: %w", err)
 		}
 
 		return OpPendingInfo{
-			ValidAfter:             validAfter.Uint64(),
-			OpFinalizationTimeout:  uint32(opFinalizationTimeout.Uint64()),
-			OpPendingReceiver:      opPendingReceiver,
-			OpPendingBodyTruncated: tlbe.NewUint256(opPendingBodyTruncated),
+			ValidAfter:            validAfter.Uint64(),
+			OpFinalizationTimeout: uint32(opFinalizationTimeout.Uint64()),
+			OpPendingReceiver:     opPendingReceiver,
+			OpPendingExecutionLt:  opPendingExecutionLt.Uint64(),
 		}, nil
 	}),
 })
