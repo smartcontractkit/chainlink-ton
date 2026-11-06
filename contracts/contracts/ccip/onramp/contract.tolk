@@ -567,7 +567,6 @@ event. Updates are stored directly from the provided message payload.
 Only the owner is authorized to call this function.
 */
 fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) {
-    // feeQuoter and feeAggregator are typed as address, so they're guaranteed not null (vs `address?`)
     st.config = msg.config.toCell();
 
     emit(
