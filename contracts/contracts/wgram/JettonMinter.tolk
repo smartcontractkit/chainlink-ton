@@ -61,7 +61,7 @@ fun requiredMinterReserve() {
 fun refundMintBounce(msg: InternalTransferStep) {
     // We're already in the mint recovery path after supply rollback, so keep the minter reserve
     // if possible but never fail the bounce handler itself.
-    reserveGramsOnBalance(requiredMinterReserve(), RESERVE_MODE_AT_MOST);
+    reserveGramsOnBalance(requiredMinterReserve(), RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
     val refundMsg = createMessage({
         // The mint-bounce refund is a forced GRAM deposit to the caller-chosen refund address.

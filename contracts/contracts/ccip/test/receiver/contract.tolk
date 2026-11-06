@@ -68,7 +68,7 @@ fun onInternalMessage(in: InMessage) {
             // But, consider that a minimum of 0.02 TON is required for the Router to process your confirmation message,
             // and you should probably send more than that (~0.025 TON) to make sure the message goes through
             // even if there are some fluctuations in the fees.
-            reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+            reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
             val receiveConfirm = createMessage({
                 bounce: BounceMode.Only256BitsOfBody,
                 value: 0,

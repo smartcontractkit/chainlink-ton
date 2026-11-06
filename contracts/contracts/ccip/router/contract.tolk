@@ -482,7 +482,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
     deploy.send(SEND_MODE_PAY_FEES_SEPARATELY + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     // The remaining value should be at least DepositAccount_MIN_GRAM_TO_INIT
-    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
     // 2. Init the freshly installed account (processed right after the deploy). The account
     // replies `DepositAccount_Initialized` to the Router (its owner), which answers the user.
@@ -533,7 +533,7 @@ fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: a
         exitCode: 0,
     });
     // The event's forward fee comes out of the inbound value, not the Router's balance.
-    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
     failWithdrawToTokenPool(request, Router_Error.OnRampAccountWithdrawFailed as int32, SEND_MODE_CARRY_ALL_BALANCE);
 }
 
@@ -1143,7 +1143,7 @@ fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
     deploy.send(SEND_MODE_PAY_FEES_SEPARATELY + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     // The rest of the inbound value funds the init and the relay that follows it.
-    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
     val init = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,

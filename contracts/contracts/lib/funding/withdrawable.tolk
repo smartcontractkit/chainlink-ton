@@ -45,7 +45,7 @@ fun Withdrawable.withdraw(self, msg: Withdrawable_Withdraw) {
         assert (msg.amount == 0) throw (Withdrawable_Error.InvalidRequest);    
         // Withdraw all balance above reserve
         assert (originalBalance > actualReserve) throw (Withdrawable_Error.HitReserve);
-        reserveGramsOnBalance(actualReserve, RESERVE_MODE_EXACT_AMOUNT);
+        reserveGramsOnBalance(actualReserve, RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
         return _transfer(msg.destination, 0, SEND_MODE_CARRY_ALL_BALANCE);
     }

@@ -573,7 +573,7 @@ fun onExecutorFinishedSuccessfully(mutate st: OnRamp_Storage, msg: OnRamp_Execut
     // inbound message value. Since the balance now holds the reserved fee, an
     // unguarded emit would slowly drain it. Reserve the original balance so the
     // emit and the confirmation below are paid from the inbound value only.
-    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
     emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent { message: rampMessage });
 
@@ -738,7 +738,7 @@ fun onWithdrawFeeTokens(msg: OnRamp_WithdrawFeeTokens) {
 
     // Keep the static reserve AND the fees reserved for in-flight executors:
     // those are committed and must not be paid out to the aggregator.
-    reserveGramsOnBalance(config.reserve + st.pendingFeeReservations, RESERVE_MODE_AT_MOST);
+    reserveGramsOnBalance(config.reserve + st.pendingFeeReservations, RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
     val withdrawMsg = createMessage({
         bounce: BounceMode.Only256BitsOfBody,

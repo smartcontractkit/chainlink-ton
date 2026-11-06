@@ -89,7 +89,7 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
     ) throw (DepositAccount_Error.NotEnoughValue);
 
     if (!waitForWallet) {
-        reserveGramsOnBalance(DepositAccount_MIN_GRAM_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+        reserveGramsOnBalance(DepositAccount_MIN_GRAM_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
         val reply = createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
@@ -137,7 +137,7 @@ fun onResponseWalletAddress(sender: address, msg: ResponseWalletAddress) {
 fun replyToPendingInit(mutate data: DepositAccount_Data, walletLearned: bool) {
     val pending = data.pendingInit!.load();
     data.pendingInit = null;
-    reserveGramsOnBalance(DepositAccount_MIN_GRAM_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+    reserveGramsOnBalance(DepositAccount_MIN_GRAM_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
     if (walletLearned) {
         createMessage({
             bounce: BounceMode.NoBounce,

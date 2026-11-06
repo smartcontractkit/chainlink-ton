@@ -56,5 +56,5 @@ fun reserveBalanceBeforeInMessage(msgValue: coins): void {
     val balanceBeforeMessage = originalBalance > msgValue
         ? originalBalance - msgValue
         : 0 as coins;
-    reserveGramsOnBalance(balanceBeforeMessage + rentDue, RESERVE_MODE_AT_MOST);
+    reserveGramsOnBalance(balanceBeforeMessage + rentDue, RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 }

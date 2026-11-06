@@ -949,7 +949,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     val root = merkleRoot(ArrayIterator<uint256>.new(leaves), report.proofs.iter(), report.proofFlagBits);
 
     // emit slowly drains the balance
-    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
@@ -1100,7 +1100,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         return messageExecutionFailed(initExecuteMsg);
     }
 
-    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
     // Initiate the execution in the ReceiveExecutor
     val initExecMsg = createMessage ({
