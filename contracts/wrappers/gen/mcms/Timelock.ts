@@ -1489,7 +1489,6 @@ export const Timelock_OperationBatch = {
  >     validAfter: uint64
  >     opFinalizationTimeout: uint32
  >     opPendingId: uint256
- >     opPendingCalls: map<uint256, bool>
  > }
  */
 export interface Timelock_OpPendingInfo {
@@ -1498,7 +1497,6 @@ export interface Timelock_OpPendingInfo {
     opFinalizationTimeout: uint32
     opPendingId: uint256
     opPendingExecutionLt: uint64
-    opPendingCalls: Map<uint256, boolean>
 }
 
 export const Timelock_OpPendingInfo = {
@@ -1507,7 +1505,6 @@ export const Timelock_OpPendingInfo = {
         opFinalizationTimeout: uint32
         opPendingId: uint256
         opPendingExecutionLt: uint64
-        opPendingCalls: Map<uint256, boolean>
     }): Timelock_OpPendingInfo {
         return {
             $: 'Timelock_OpPendingInfo',
@@ -1521,7 +1518,6 @@ export const Timelock_OpPendingInfo = {
             opFinalizationTimeout: s.loadUintBig(32),
             opPendingId: s.loadUintBig(256),
             opPendingExecutionLt: s.loadUintBig(64),
-            opPendingCalls: dictToMap(c.Dictionary.load<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool(), s)),
         }
     },
     store(self: Timelock_OpPendingInfo, b: c.Builder): void {
@@ -1529,7 +1525,6 @@ export const Timelock_OpPendingInfo = {
         b.storeUint(self.opFinalizationTimeout, 32);
         b.storeUint(self.opPendingId, 256);
         b.storeUint(self.opPendingExecutionLt, 64);
-        b.storeDict<uint256, boolean>(mapToDict(self.opPendingCalls, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool());
     },
     toCell(self: Timelock_OpPendingInfo): c.Cell {
         return makeCellFrom<Timelock_OpPendingInfo>(self, Timelock_OpPendingInfo.store);
@@ -2265,14 +2260,13 @@ export class Timelock implements c.Contract {
     }
 
     async getOpPendingInfo(provider: ContractProvider): Promise<Timelock_OpPendingInfo> {
-        const r = StackReader.fromGetMethod(5, await provider.get('getOpPendingInfo', []));
+        const r = StackReader.fromGetMethod(4, await provider.get('getOpPendingInfo', []));
         return ({
             $: 'Timelock_OpPendingInfo',
             validAfter: r.readBigInt(),
             opFinalizationTimeout: r.readBigInt(),
             opPendingId: r.readBigInt(),
             opPendingExecutionLt: r.readBigInt(),
-            opPendingCalls: dictToMap(r.readDictionary<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool())),
         });
     }
 

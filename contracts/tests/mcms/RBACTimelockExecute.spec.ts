@@ -567,6 +567,57 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       expect(await baseTest.bind.timelock.getTimestamp(operationId)).toEqual(rbactl.DONE_TIMESTAMP)
     })
 
+    it('does not mark a pending op as error when a bypass call bounces', async () => {
+      const call: rbactl.Call = {
+        target: baseTest.bind.counter.address,
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 0n }).asCell(),
+      }
+      const operationBatch: rbactl.OperationBatch = {
+        calls: BaseTestSetup.singletonCalls(call),
+        predecessor: BaseTestSetup.NO_PREDECESSOR,
+        salt: BaseTestSetup.EMPTY_SALT,
+      }
+
+      await scheduleBatch(operationBatch, 1n)
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
+      await executeBatch(operationBatch, 2n)
+
+      const operationId = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
+      expect(await baseTest.bind.timelock.getTimestamp(operationId)).toEqual(rbactl.DONE_TIMESTAMP)
+
+      const invalidCall: rbactl.Call = {
+        target: baseTest.bind.counter.address,
+        value: toNano('0.05'),
+        data: beginCell().storeUint(0x99999999, 32).endCell(),
+      }
+      const body = rbactl.builder.message.in.bypasserExecuteBatch
+        .encode({ queryId: 3n, calls: BaseTestSetup.singletonCalls(invalidCall) })
+        .asCell()
+
+      const result = await baseTest.bind.timelock.sendInternal(
+        baseTest.acc.bypasserOne.getSender(),
+        toNano('0.15'),
+        body,
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.timelock.address,
+        to: baseTest.bind.counter.address,
+        success: false,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.counter.address,
+        to: baseTest.bind.timelock.address,
+        success: true,
+        inMessageBounced: true,
+      })
+
+      expect(await baseTest.bind.timelock.getTimestamp(operationId)).toEqual(rbactl.DONE_TIMESTAMP)
+      expect((await baseTest.bind.timelock.getOpPendingInfo()).opPendingId).toEqual(operationId)
+    })
+
     async function scheduleBatch(operationBatch: rbactl.OperationBatch, queryId: bigint) {
       const body = rbactl.builder.message.in.scheduleBatch
         .encode({

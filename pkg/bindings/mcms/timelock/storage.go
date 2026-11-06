@@ -28,7 +28,6 @@ func EmptyDataFrom(id uint32, initializer *address.Address) (Data, error) {
 			OpFinalizationTimeout: 0,
 			OpPendingID:           tlbe.NewUint256(big.NewInt(0)),
 			OpPendingExecutionLt:  0,
-			OpPendingCalls:        tlbe.NewEmptyDict[tlbe.Uint256, bool](),
 		},
 		RBAC: rbac.Data{
 			Roles: tlbe.NewEmptyDict[tlbe.Uint256, rbac.RoleRef](),
