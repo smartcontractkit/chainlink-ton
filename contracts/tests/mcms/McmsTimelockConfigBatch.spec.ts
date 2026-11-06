@@ -53,7 +53,7 @@ describe.each(['1.6.2', 'local'] as const)(
         initializer: owner.address,
         minDelay: 0,
         executorRoleCheckEnabled: false,
-        opPendingInfo: { validAfter: 0n, opFinalizationTimeout: 0, opPendingId: 0n },
+        opPendingInfo: { validAfter: 0n, opFinalizationTimeout: 0, opPendingId: 0n, opPendingExecutionLt: 0n },
         rbac: ac.builder.data.contractData
           .encode({
             roles: ac.builder.data.rolesDict(

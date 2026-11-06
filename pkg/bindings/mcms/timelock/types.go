@@ -399,6 +399,8 @@ type OpPendingInfo struct {
 	OpFinalizationTimeout uint32 `tlb:"## 32"`
 	// The id of the currently pending operation (OperationBatch hash)
 	OpPendingID *tlbe.Uint256 `tlb:"."`
+	// The logical time of the transaction that executed the pending operation.
+	OpPendingExecutionLt uint64 `tlb:"## 64"`
 	// The ids (fingerprints) for calls awaiting finalization in the pending op (true = pending, false = finalized/bounced)
 	OpPendingCalls *tlbe.Dict[tlbe.Uint256, bool] `tlb:"."`
 }

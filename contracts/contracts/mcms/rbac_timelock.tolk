@@ -551,6 +551,8 @@ struct Timelock_OpPendingInfo {
     opFinalizationTimeout: uint32;
     /// The id of the currently pending operation (Timelock_OperationBatch hash)
     opPendingId: uint256;
+    /// The logical time of the transaction that executed the pending operation.
+    opPendingExecutionLt: uint64;
     /// The ids (fingerprints) for calls awaiting finalization in the pending op (true = pending, false = finalized/bounced)
     opPendingCalls: map<uint256, bool>;
 }
@@ -588,6 +590,9 @@ const DONE_TIMESTAMP = 1;
 const ERROR_TIMESTAMP = 2;
 
 const DEFAULT_FINALIZATION_TIMEOUT = 10; // in seconds
+
+/// Prefix of a rich bounce body (see `RichBounceBody` in the Tolk stdlib).
+const RICH_BOUNCE_PREFIX = 0xfffffffe;
 
 /// Error codes used by the Timelock contract.
 enum Timelock_Error {
@@ -796,6 +801,7 @@ fun Timelock<T>.init(
         validAfter: blockchain.now(),
         opFinalizationTimeout,
         opPendingId: 0,
+        opPendingExecutionLt: 0,
         opPendingCalls: []
     };
 
@@ -984,7 +990,7 @@ fun Timelock<T>.executeBatch(
 fun Timelock<T>.execute(self, call: Timelock_Call): void {
     // @dev: we do not require success before continuing with the next call (async execution model, fan out)
     val op = createMessage({
-        bounce: true,
+        bounce: BounceMode.RichBounceOnlyRootCell,
         value: call.value,
         dest: call.target,
         body: call.data
@@ -1004,6 +1010,7 @@ fun Timelock<T>.getCallFingerprint(self, target: address, truncatedBody: uint256
 fun Timelock<T>.resetPendingOpTracking(mutate self): void {
     self.data.opPendingInfo.opPendingCalls = [];
     self.data.opPendingInfo.opPendingId = 0;
+    self.data.opPendingInfo.opPendingExecutionLt = 0;
 }
 
 /// Hook before execution of an operation's calls.
@@ -1023,6 +1030,7 @@ fun Timelock<T>.afterCall(mutate self, id: uint256): void {
     // Set the pending operation finalization timeout and info
     self.data.opPendingInfo.validAfter = blockchain.now() + self.data.opPendingInfo.opFinalizationTimeout;
     self.data.opPendingInfo.opPendingId = id;
+    self.data.opPendingInfo.opPendingExecutionLt = blockchain.logicalTime() as uint64;
 }
 
 /// Changes the minimum timelock duration for future operations.
@@ -1487,9 +1495,24 @@ fun onBouncedMessage(in: InMessageBounced) {
     var timelock = Timelock<bool>.load();
 
     // Check if bounce relates to pending operation
-    val bouncedBody = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
+    val isRichBounce = in.bouncedBody.preloadUint(32) == RICH_BOUNCE_PREFIX;
+    var bouncedBody: uint256 = 0;
+    var bouncedCreatedLt: uint64 = 0;
+    if (isRichBounce) {
+        val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+        bouncedBody = extractBouncedBody(rich.originalBody.beginParse());
+        bouncedCreatedLt = rich.originalInfo.load().createdLt;
+    } else {
+        // All operation calls are sent with a rich bounce. A non-rich bounce cannot
+        // be attributed safely, so treat it as mismatched.
+        bouncedBody = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
+    }
+
     val fingerprint = timelock.getCallFingerprint(in.senderAddress, bouncedBody);
-    val matchesPendingOp = timelock.data.opPendingInfo.opPendingCalls.get(fingerprint).isFound;
+    val matchesPendingOp = true
+        && isRichBounce
+        && timelock.data.opPendingInfo.opPendingExecutionLt < bouncedCreatedLt
+        && timelock.data.opPendingInfo.opPendingCalls.get(fingerprint).isFound;
 
     val id = timelock.data.opPendingInfo.opPendingId;
     emit(TOPIC_BOUNCE_HANDLED, Timelock_BounceHandled{
