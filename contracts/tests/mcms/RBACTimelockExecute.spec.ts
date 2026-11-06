@@ -628,7 +628,9 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
           e.info.dest?.value === BigInt(rbactl.opcodes.out.BounceHandled),
       )
       expect(event).toBeDefined()
-      expect(Timelock_BounceHandled.fromSlice(event!.body.beginParse()).opcode).toEqual(BigInt(expected))
+      expect(Timelock_BounceHandled.fromSlice(event!.body.beginParse()).opcode).toEqual(
+        BigInt(expected),
+      )
     }
 
     async function scheduleBatch(operationBatch: rbactl.OperationBatch, queryId: bigint) {
