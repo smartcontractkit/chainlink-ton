@@ -472,11 +472,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     baseTest.testOps[1].data = baseTest.testOps[2].data
     baseTest.testOps[1].value = baseTest.testOps[2].value
     await baseTest.setInitialRoot(
-      baseTest.createTestRootMetadata(
-        0n,
-        BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM),
-        true,
-      ),
+      baseTest.createTestRootMetadata(0n, BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM), true),
     )
 
     const finalizationTimeout = 200
@@ -533,7 +529,6 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       exitCode: mcms.Error.RootExpired,
     })
   })
-
 
   it('expires the root on an unexpected non-rich bounce', async () => {
     const finalizationTimeout = 200
