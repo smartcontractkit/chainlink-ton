@@ -1415,6 +1415,92 @@ export const Router_CCIPSend = {
 }
 
 /**
+ > struct (0x78d0f21e) Router_CCIPSendACK {
+ >     queryID: uint64
+ >     messageId: uint256
+ > }
+ */
+export interface Router_CCIPSendACK {
+    readonly $: 'Router_CCIPSendACK'
+    queryID: uint64
+    messageId: uint256
+}
+
+export const Router_CCIPSendACK = {
+    PREFIX: 0x78d0f21e,
+
+    create(args: {
+        queryID?: uint64
+        messageId: uint256
+    }): Router_CCIPSendACK {
+        return {
+            $: 'Router_CCIPSendACK',
+            ...args,
+            queryID: args.queryID ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_CCIPSendACK {
+        loadAndCheckPrefix32(s, 0x78d0f21e, 'Router_CCIPSendACK');
+        return {
+            $: 'Router_CCIPSendACK',
+            queryID: s.loadUintBig(64),
+            messageId: s.loadUintBig(256),
+        }
+    },
+    store(self: Router_CCIPSendACK, b: c.Builder): void {
+        b.storeUint(0x78d0f21e, 32);
+        b.storeUint(self.queryID, 64);
+        b.storeUint(self.messageId, 256);
+    },
+    toCell(self: Router_CCIPSendACK): c.Cell {
+        return makeCellFrom<Router_CCIPSendACK>(self, Router_CCIPSendACK.store);
+    }
+}
+
+/**
+ > struct (0x7c17e3df) Router_CCIPSendNACK {
+ >     queryID: uint64
+ >     errorCode: int32
+ > }
+ */
+export interface Router_CCIPSendNACK {
+    readonly $: 'Router_CCIPSendNACK'
+    queryID: uint64
+    errorCode: int32
+}
+
+export const Router_CCIPSendNACK = {
+    PREFIX: 0x7c17e3df,
+
+    create(args: {
+        queryID?: uint64
+        errorCode: int32
+    }): Router_CCIPSendNACK {
+        return {
+            $: 'Router_CCIPSendNACK',
+            ...args,
+            queryID: args.queryID ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_CCIPSendNACK {
+        loadAndCheckPrefix32(s, 0x7c17e3df, 'Router_CCIPSendNACK');
+        return {
+            $: 'Router_CCIPSendNACK',
+            queryID: s.loadUintBig(64),
+            errorCode: s.loadIntBig(32),
+        }
+    },
+    store(self: Router_CCIPSendNACK, b: c.Builder): void {
+        b.storeUint(0x7c17e3df, 32);
+        b.storeUint(self.queryID, 64);
+        b.storeInt(self.errorCode, 32);
+    },
+    toCell(self: Router_CCIPSendNACK): c.Cell {
+        return makeCellFrom<Router_CCIPSendNACK>(self, Router_CCIPSendNACK.store);
+    }
+}
+
+/**
  > struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
  >     execId: uint192
  >     queryID: uint64
@@ -4082,92 +4168,6 @@ export const Router_RMNAccessControlMessage = {
     },
     toCell(self: Router_RMNAccessControlMessage): c.Cell {
         return makeCellFrom<Router_RMNAccessControlMessage>(self, Router_RMNAccessControlMessage.store);
-    }
-}
-
-/**
- > struct (0x78d0f21e) Router_CCIPSendACK {
- >     queryID: uint64
- >     messageId: uint256
- > }
- */
-export interface Router_CCIPSendACK {
-    readonly $: 'Router_CCIPSendACK'
-    queryID: uint64
-    messageId: uint256
-}
-
-export const Router_CCIPSendACK = {
-    PREFIX: 0x78d0f21e,
-
-    create(args: {
-        queryID?: uint64
-        messageId: uint256
-    }): Router_CCIPSendACK {
-        return {
-            $: 'Router_CCIPSendACK',
-            ...args,
-            queryID: args.queryID ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Router_CCIPSendACK {
-        loadAndCheckPrefix32(s, 0x78d0f21e, 'Router_CCIPSendACK');
-        return {
-            $: 'Router_CCIPSendACK',
-            queryID: s.loadUintBig(64),
-            messageId: s.loadUintBig(256),
-        }
-    },
-    store(self: Router_CCIPSendACK, b: c.Builder): void {
-        b.storeUint(0x78d0f21e, 32);
-        b.storeUint(self.queryID, 64);
-        b.storeUint(self.messageId, 256);
-    },
-    toCell(self: Router_CCIPSendACK): c.Cell {
-        return makeCellFrom<Router_CCIPSendACK>(self, Router_CCIPSendACK.store);
-    }
-}
-
-/**
- > struct (0x5a45d434) Router_CCIPSendNACK {
- >     queryID: uint64
- >     errorCode: int32
- > }
- */
-export interface Router_CCIPSendNACK {
-    readonly $: 'Router_CCIPSendNACK'
-    queryID: uint64
-    errorCode: int32
-}
-
-export const Router_CCIPSendNACK = {
-    PREFIX: 0x5a45d434,
-
-    create(args: {
-        queryID?: uint64
-        errorCode: int32
-    }): Router_CCIPSendNACK {
-        return {
-            $: 'Router_CCIPSendNACK',
-            ...args,
-            queryID: args.queryID ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Router_CCIPSendNACK {
-        loadAndCheckPrefix32(s, 0x5a45d434, 'Router_CCIPSendNACK');
-        return {
-            $: 'Router_CCIPSendNACK',
-            queryID: s.loadUintBig(64),
-            errorCode: s.loadIntBig(32),
-        }
-    },
-    store(self: Router_CCIPSendNACK, b: c.Builder): void {
-        b.storeUint(0x5a45d434, 32);
-        b.storeUint(self.queryID, 64);
-        b.storeInt(self.errorCode, 32);
-    },
-    toCell(self: Router_CCIPSendNACK): c.Cell {
-        return makeCellFrom<Router_CCIPSendNACK>(self, Router_CCIPSendNACK.store);
     }
 }
 

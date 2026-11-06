@@ -203,16 +203,6 @@ struct (0xf9123a10) Router_RMNAccessControlMessage {
     content: Cell<AccessControl_InMessage>;
 }
 
-struct (0x78d0f21e) Router_CCIPSendACK {
-    queryID: uint64;
-    messageId: uint256;
-}
-
-struct (0x5a45d434) Router_CCIPSendNACK {
-    queryID: uint64;
-    errorCode: int32;
-}
-
 @deprecated("use Router_GetValidatedFee instead")
 // nolint:opcode : crc32('Router_GetValidatedFee')
 struct (0x4dd6aa82) Router_GetValidatedFee_V1 {
