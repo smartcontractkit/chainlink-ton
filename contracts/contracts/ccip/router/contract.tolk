@@ -342,7 +342,7 @@ fun onBouncedMessage(in: InMessageBounced) {
                             sendDepositAccountInitFailure(context, rich.exitCode);
                         }
                         Router_OnRampAccountContext => {
-                            sendOnRampAccountFailed(context.user, richMsg.queryId, rich.exitCode as uint256);
+                            sendOnRampAccountFailed(context.user, richMsg.queryId, rich.exitCode as uint256, context.userContext);
                         }
                     }
                 }
@@ -507,7 +507,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
         dest: account.calculateAddress(),
         body: DepositAccount_Init {
             queryId: msg.queryId,
-            context: Router_OnRampAccountContext { user: sender, token: msg.token }.toCell(),
+            context: Router_OnRampAccountContext { user: sender, token: msg.token, userContext: msg.context }.toCell(),
         },
     });
     // SAFETY: reserveGramsOnBalance is called before sending the init message, ensuring the account has enough balance to cover the reserved grams.
@@ -527,6 +527,7 @@ fun onOnRampAccountReady(context: Router_OnRampAccountContext, msg: DepositAccou
             queryId: msg.queryId,
             account: sender,
             token: context.token,
+            context: context.userContext,
         },
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -1204,17 +1205,17 @@ fun onDepositAccountWalletUnavailable(msg: DepositAccount_WalletUnavailable, sen
         }
         Router_OnRampAccountContext => {
             assert(sender == onRampAccountAddress(context.user, context.token), Router_Error.SenderIsNotOnRampAccount);
-            sendOnRampAccountFailed(context.user, msg.queryId, Router_Error.DepositAccountWalletUnavailable as uint256);
+            sendOnRampAccountFailed(context.user, msg.queryId, Router_Error.DepositAccountWalletUnavailable as uint256, context.userContext);
         }
     }
 }
 
-fun sendOnRampAccountFailed(user: address, queryId: uint64, error: uint256) {
+fun sendOnRampAccountFailed(user: address, queryId: uint64, error: uint256, context: cell?) {
     val failed = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: user,
-        body: Router_OnRampAccountFailed { queryId, error },
+        body: Router_OnRampAccountFailed { queryId, error, context },
     });
     failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }

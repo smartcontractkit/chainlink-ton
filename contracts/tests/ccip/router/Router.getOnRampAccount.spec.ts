@@ -68,9 +68,11 @@ describe('Router.getOnRampAccount', () => {
     via: SandboxContract<TreasuryContract>,
     jetton: Address = token,
     value: bigint = getOnRampAccountValue,
+    context: Cell | null = null,
   ) => {
     const request = await router.sendRouterGetOnRampAccount(via.getSender(), value, {
       token: jetton,
+      context,
     })
     const account = expectedAccountAddress(via.address, jetton)
     if (
@@ -92,14 +94,21 @@ describe('Router.getOnRampAccount', () => {
     return { ...answer, transactions: [...request.transactions, ...answer.transactions] }
   }
 
-  // Router_OnRampAccountContext { user, token } echoed through DepositAccount_Init.context.
+  // Router_OnRampAccountContext { user, token, userContext } echoed through DepositAccount_Init.context.
   const ON_RAMP_ACCOUNT_CONTEXT_PREFIX = 0x9e339227
-  const onRampAccountContext = (user: Address, jetton: Address): Cell =>
+  const onRampAccountContext = (
+    user: Address,
+    jetton: Address,
+    userContext: Cell | null = null,
+  ): Cell =>
     beginCell()
       .storeUint(ON_RAMP_ACCOUNT_CONTEXT_PREFIX, 32)
       .storeAddress(user)
       .storeAddress(jetton)
+      .storeMaybeRef(userContext)
       .endCell()
+
+  const userContext = beginCell().storeUint(0xc0ffee, 32).endCell()
 
   it('exposes the derived account address via the onRampAccountAddress getter', async () => {
     const getterAddress = await router.getOnRampAccountAddress(sender.address, token)
@@ -305,6 +314,7 @@ describe('Router.getOnRampAccount', () => {
     result: Awaited<ReturnType<typeof router.sendRouterGetOnRampAccount>>,
     queryId: bigint,
     error: number,
+    context: Cell | null = null,
   ) =>
     expect(result.transactions).toHaveTransaction({
       from: router.address,
@@ -313,9 +323,66 @@ describe('Router.getOnRampAccount', () => {
       body(body) {
         if (!body) return false
         const failed = rt.Router_OnRampAccountFailed.fromSlice(body.beginParse())
-        return failed.queryId === queryId && failed.error === BigInt(error)
+        return (
+          failed.queryId === queryId &&
+          failed.error === BigInt(error) &&
+          (context === null ? failed.context === null : failed.context?.equals(context) === true)
+        )
       },
     })
+
+  it('echoes the request context back in Router_UseOnRampAccount', async () => {
+    const result = await requestOnRampAccount(sender, token, getOnRampAccountValue, userContext)
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.Router_UseOnRampAccount.PREFIX,
+      body(body) {
+        if (!body) return false
+        const use = rt.Router_UseOnRampAccount.fromSlice(body.beginParse())
+        return use.context?.equals(userContext) === true
+      },
+    })
+  })
+
+  it('echoes the request context back in Router_OnRampAccountFailed when the wallet is unavailable', async () => {
+    await router.sendRouterGetOnRampAccount(sender.getSender(), getOnRampAccountValue, {
+      queryId: 4n,
+      token,
+      context: userContext,
+    })
+    const result = await blockchain
+      .openContract(deposit.DepositAccount.fromAddress(expectedAccountAddress()))
+      .sendResponseWalletAddress(blockchain.sender(token), toNano('0.05'), {
+        queryId: 0n,
+        jettonWalletAddress: null,
+        ownerAddress: null,
+      })
+    expectOnRampAccountFailed(
+      result,
+      4n,
+      rt.Router.Errors['Router_Error.DepositAccountWalletUnavailable'],
+      userContext,
+    )
+  })
+
+  it('echoes the request context back in Router_OnRampAccountFailed when the init bounces', async () => {
+    await router.sendRouterGetOnRampAccount(sender.getSender(), getOnRampAccountValue, {
+      queryId: 5n,
+      token,
+    })
+    const result = await router.sendRouterGetOnRampAccount(
+      sender.getSender(),
+      getOnRampAccountValue,
+      { queryId: 6n, token, context: userContext },
+    )
+    expectOnRampAccountFailed(
+      result,
+      6n,
+      deposit.DepositAccount.Errors['DepositAccount_Error.InitPending'],
+      userContext,
+    )
+  })
 
   it('rejects a request below Router_Costs.GetOnRampAccount', async () => {
     const result = await router.sendRouterGetOnRampAccount(

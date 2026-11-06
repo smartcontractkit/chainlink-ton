@@ -144,6 +144,7 @@ type GetOnRampAccount struct {
 	_       tlb.Magic        `tlb:"#0e24d5ba" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID uint64           `tlb:"## 64"`
 	Token   *address.Address `tlb:"addr"`
+	Context *cell.Cell       `tlb:"maybe ^"`
 }
 
 type UseOnRampAccount struct {
@@ -151,12 +152,14 @@ type UseOnRampAccount struct {
 	QueryID uint64           `tlb:"## 64"`
 	Account *address.Address `tlb:"addr"`
 	Token   *address.Address `tlb:"addr"`
+	Context *cell.Cell       `tlb:"maybe ^"`
 }
 
 type OnRampAccountFailed struct {
-	_       tlb.Magic `tlb:"#2c734db9" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID uint64    `tlb:"## 64"`
-	Error   *big.Int  `tlb:"## 256"`
+	_       tlb.Magic  `tlb:"#2c734db9" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64     `tlb:"## 64"`
+	Error   *big.Int   `tlb:"## 256"`
+	Context *cell.Cell `tlb:"maybe ^"`
 }
 
 type RouteMessage struct {

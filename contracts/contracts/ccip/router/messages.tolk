@@ -107,6 +107,8 @@ struct (0x0e24d5ba) Router_GetOnRampAccount {
     queryId: uint64;
     /// Jetton master the account will escrow. One account per (sender, token).
     token: address;
+    /// Opaque caller data, echoed back in Router_UseOnRampAccount / Router_OnRampAccountFailed.
+    context: cell? = null;
 }
 
 /// Sent to a user once their onramp account confirmed initialization: `account` is the
@@ -115,12 +117,16 @@ struct (0xf28658e0) Router_UseOnRampAccount {
     queryId: uint64;
     account: address;
     token: address;
+    /// `Router_GetOnRampAccount.context`, echoed back.
+    context: cell?;
 }
 
 /// Sent to a user whose Router_GetOnRampAccount failed. `error` is the failure's exit code.
 struct (0x2c734db9) Router_OnRampAccountFailed {
     queryId: uint64;
     error: uint256;
+    /// `Router_GetOnRampAccount.context`, echoed back.
+    context: cell?;
 }
 
 /// Sent by the OnRamp when it rejects a `Router_WithdrawToTokenPool` request before the
@@ -244,6 +250,7 @@ struct (0xddfdefa8) Router_TokenTransferDelivered {
 struct (0x9e339227) Router_OnRampAccountContext {
     user: address;
     token: address;
+    userContext: cell?;
 }
 
 /// The two contexts the Router carries in a `DepositAccount_Init.context` and gets back in

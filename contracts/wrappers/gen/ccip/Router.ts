@@ -3426,12 +3426,14 @@ export const Router_WithdrawRequest = {
  > struct (0x0e24d5ba) Router_GetOnRampAccount {
  >     queryId: uint64
  >     token: address
+ >     context: cell?
  > }
  */
 export interface Router_GetOnRampAccount {
     readonly $: 'Router_GetOnRampAccount'
     queryId: uint64
     token: c.Address
+    context: c.Cell | null /* = null */
 }
 
 export const Router_GetOnRampAccount = {
@@ -3440,9 +3442,11 @@ export const Router_GetOnRampAccount = {
     create(args: {
         queryId?: uint64
         token: c.Address
+        context?: c.Cell | null /* = null */
     }): Router_GetOnRampAccount {
         return {
             $: 'Router_GetOnRampAccount',
+            context: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -3453,12 +3457,16 @@ export const Router_GetOnRampAccount = {
             $: 'Router_GetOnRampAccount',
             queryId: s.loadUintBig(64),
             token: s.loadAddress(),
+            context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: Router_GetOnRampAccount, b: c.Builder): void {
         b.storeUint(0x0e24d5ba, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.token);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
     },
     toCell(self: Router_GetOnRampAccount): c.Cell {
         return makeCellFrom<Router_GetOnRampAccount>(self, Router_GetOnRampAccount.store);
@@ -3470,6 +3478,7 @@ export const Router_GetOnRampAccount = {
  >     queryId: uint64
  >     account: address
  >     token: address
+ >     context: cell?
  > }
  */
 export interface Router_UseOnRampAccount {
@@ -3477,6 +3486,7 @@ export interface Router_UseOnRampAccount {
     queryId: uint64
     account: c.Address
     token: c.Address
+    context: c.Cell | null
 }
 
 export const Router_UseOnRampAccount = {
@@ -3486,6 +3496,7 @@ export const Router_UseOnRampAccount = {
         queryId?: uint64
         account: c.Address
         token: c.Address
+        context: c.Cell | null
     }): Router_UseOnRampAccount {
         return {
             $: 'Router_UseOnRampAccount',
@@ -3500,6 +3511,7 @@ export const Router_UseOnRampAccount = {
             queryId: s.loadUintBig(64),
             account: s.loadAddress(),
             token: s.loadAddress(),
+            context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: Router_UseOnRampAccount, b: c.Builder): void {
@@ -3507,6 +3519,9 @@ export const Router_UseOnRampAccount = {
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.account);
         b.storeAddress(self.token);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
     },
     toCell(self: Router_UseOnRampAccount): c.Cell {
         return makeCellFrom<Router_UseOnRampAccount>(self, Router_UseOnRampAccount.store);
@@ -3517,12 +3532,14 @@ export const Router_UseOnRampAccount = {
  > struct (0x2c734db9) Router_OnRampAccountFailed {
  >     queryId: uint64
  >     error: uint256
+ >     context: cell?
  > }
  */
 export interface Router_OnRampAccountFailed {
     readonly $: 'Router_OnRampAccountFailed'
     queryId: uint64
     error: uint256
+    context: c.Cell | null
 }
 
 export const Router_OnRampAccountFailed = {
@@ -3531,6 +3548,7 @@ export const Router_OnRampAccountFailed = {
     create(args: {
         queryId?: uint64
         error: uint256
+        context: c.Cell | null
     }): Router_OnRampAccountFailed {
         return {
             $: 'Router_OnRampAccountFailed',
@@ -3544,12 +3562,16 @@ export const Router_OnRampAccountFailed = {
             $: 'Router_OnRampAccountFailed',
             queryId: s.loadUintBig(64),
             error: s.loadUintBig(256),
+            context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: Router_OnRampAccountFailed, b: c.Builder): void {
         b.storeUint(0x2c734db9, 32);
         b.storeUint(self.queryId, 64);
         b.storeUint(self.error, 256);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
     },
     toCell(self: Router_OnRampAccountFailed): c.Cell {
         return makeCellFrom<Router_OnRampAccountFailed>(self, Router_OnRampAccountFailed.store);
@@ -5587,6 +5609,7 @@ export class Router implements c.Contract {
     static createCellOfRouterGetOnRampAccount(body: {
         queryId?: uint64
         token: c.Address
+        context?: c.Cell | null /* = null */
     }) {
         return Router_GetOnRampAccount.toCell(Router_GetOnRampAccount.create(body));
     }
@@ -5945,6 +5968,7 @@ export class Router implements c.Contract {
     async sendRouterGetOnRampAccount(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         token: c.Address
+        context?: c.Cell | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
