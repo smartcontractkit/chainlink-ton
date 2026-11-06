@@ -1,5 +1,13 @@
 # @chainlink/contracts-ton
 
+## 1.6.4
+
+### Patch Changes
+
+- [#966](https://github.com/smartcontractkit/chainlink-ton/pull/966) [`a87c633`](https://github.com/smartcontractkit/chainlink-ton/commit/a87c633981be7593d3f78eae41ab21fe8feefbc2) Thanks [@krebernisak](https://github.com/krebernisak)! - MCMS: avoid deleting old signers one-by-one during setConfig, enabling larger single-transaction config rotations.
+
+- [#841](https://github.com/smartcontractkit/chainlink-ton/pull/841) [`7ba0c36`](https://github.com/smartcontractkit/chainlink-ton/commit/7ba0c36617e08764508fbd1142577e687f063dd1) Thanks [@duck-types](https://github.com/duck-types)! - Breaking change: `Receiver_CCIPReceive` (opcode `0xb3126df1`) was removed in favour of `Receiver_CCIPReceiveV2` (opcode `0x5b4bc7a6`)
+
 ## 1.6.3
 
 ### Patch Changes
