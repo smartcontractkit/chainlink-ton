@@ -226,8 +226,6 @@ export type OpPendingInfo = {
   opPendingId: bigint
   // The logical time of the transaction that executed the pending operation.
   opPendingExecutionLt: bigint
-  // The ids (fingerprints) for calls awaiting finalization in the pending op (true = pending, false = finalized/bounced)
-  opPendingCalls?: Dictionary<bigint, boolean>
 }
 
 export type ExecuteData = {
@@ -722,7 +720,6 @@ export const builder = {
           .storeUint(data.opPendingInfo.opFinalizationTimeout, 32)
           .storeUint(data.opPendingInfo.opPendingId, 256)
           .storeUint(data.opPendingInfo.opPendingExecutionLt, 64)
-          .storeDict(data.opPendingInfo.opPendingCalls)
           .storeRef(data.rbac)
       },
       load: (src: Slice): ContractData => {
@@ -1057,7 +1054,6 @@ export class ContractClient implements Contract {
         opFinalizationTimeout: result.stack.readNumber(),
         opPendingId: result.stack.readBigNumber(),
         opPendingExecutionLt: result.stack.readBigNumber(),
-        // TODO[TEST]: read opPendingCalls dictionary
       }))
   }
 }
