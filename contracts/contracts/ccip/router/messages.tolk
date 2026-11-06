@@ -54,6 +54,7 @@ type Router_InMsg =
 
 type Router_RichBouncedMessage =
     | OnRamp_Send
+    | OnRamp_GetValidatedFee
     | TokenPool_LockOrBurn
     | TokenPool_ReleaseOrMint
     | Deployable_Initialize

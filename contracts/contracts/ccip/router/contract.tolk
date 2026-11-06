@@ -316,6 +316,9 @@ fun onBouncedMessage(in: InMessageBounced) {
         OnRamp_Send => {
             onOnRampSendBounced(richMsg, rich.exitCode);
         }
+        OnRamp_GetValidatedFee => {
+            onOnRampGetValidatedFeeBounced(richMsg, rich.exitCode);
+        }
         TokenPool_LockOrBurn => {
             sendLockOrBurnRelayFailure(
                 richMsg.replyTo,
@@ -810,7 +813,7 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee, sender: address, isV1: bool) 
     }
 
     val feeQuoterMsg = createMessage({
-        bounce: BounceMode.Only256BitsOfBody,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: onRampResult.loadValue(),
         body: OnRamp_GetValidatedFee {
@@ -957,6 +960,13 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
 fun onOnRampSendBounced(msg: OnRamp_Send, errorCode: int32) {
     val ccipSend = lazy msg.msg.load();
     sendMessageRejected(msg.metadata.sender, ccipSend.queryID, errorCode);
+}
+
+// Handles an OnRamp_GetValidatedFee bounced by the OnRamp: replies to the original caller
+// with Router_MessageValidationFailed and returns the remaining value.
+fun onOnRampGetValidatedFeeBounced(msg: OnRamp_GetValidatedFee, errorCode: int32) {
+    val context = lazy Router_GetValidatedFeeContext.fromCell(msg.context!);
+    sendMessageValidationFailed(context.routerContext, errorCode, msg.ccipSend, context.userContext, context.oldContextVersion);
 }
 
 /*

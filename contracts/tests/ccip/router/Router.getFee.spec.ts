@@ -11,6 +11,8 @@ import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 import { FeeQuoterSetup } from '../feequoter/FeeQuoterSetup'
 import { Costs } from '../../../wrappers/ccip/Router'
+import * as bouncer from '../../../wrappers/test/mock/Bouncer'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 const EVM_CC_ADDRESS: rt.CrossChainAddress = EVM_ADDRESS
 
@@ -315,6 +317,69 @@ describe.each(cases)(
               const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
               return (
                 decoded.errorCode === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
+              )
+            },
+          })
+        })
+
+        it('should fail validation with the OnRamp exit code when the OnRamp bounces the request', async () => {
+          // The lane's OnRamp rejects everything.
+          const onRampBouncer = blockchain.openContract(
+            bouncer.ContractClient.createFromConfig(
+              await contractCode.ccip.local('tests.mock.Bouncer'),
+            ),
+          )
+          await onRampBouncer.sendDeploy(deployer.getSender(), toNano('0.05'))
+          const update = await router.sendRouterApplyRampUpdates(
+            deployer.getSender(),
+            toNano('1'),
+            {
+              queryID: 0n,
+              onRampUpdates: rt.OnRamps.create({
+                destChainSelectors: [msg.destChainSelector],
+                onRamp: onRampBouncer.address,
+              }),
+              offRampAdds: null,
+              offRampRemoves: null,
+            },
+          )
+          expect(update.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: router.address,
+            success: true,
+          })
+
+          const result = await router.sendRouterGetValidatedFee(
+            sender.getSender(),
+            Costs.getValidatedFee,
+            { ccipSend: msg, context },
+          )
+
+          expect(result.transactions).toHaveTransaction({
+            from: router.address,
+            to: onRampBouncer.address,
+            success: false,
+            op: or.OnRamp_GetValidatedFee.PREFIX,
+          })
+          expect(result.transactions).toHaveTransaction({
+            from: onRampBouncer.address,
+            to: router.address,
+            success: true,
+            op: 0xfffffffe,
+          })
+          expect(result.transactions).toHaveTransaction({
+            from: router.address,
+            to: sender.address,
+            success: true,
+            op: rt.Router_MessageValidationFailed.PREFIX,
+            inMessageBounceable: false,
+            body(x) {
+              if (!x) return false
+              const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
+              return (
+                decoded.errorCode === 0xffffn && // the Bouncer throws 0xFFFF
+                decoded.msg.queryID === msg.queryID &&
+                contextsEqual(decoded.context, context)
               )
             },
           })
