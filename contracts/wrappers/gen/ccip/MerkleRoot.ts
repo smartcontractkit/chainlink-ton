@@ -305,48 +305,6 @@ export const OffRamp_ExecuteValidated = {
 }
 
 /**
- > struct (0x0d4102ec) OffRamp_ReturnExecuteExcess {
- >     root: MerkleRootId
- >     excessesTo: address
- > }
- */
-export interface OffRamp_ReturnExecuteExcess {
-    readonly $: 'OffRamp_ReturnExecuteExcess'
-    root: MerkleRootId
-    excessesTo: c.Address
-}
-
-export const OffRamp_ReturnExecuteExcess = {
-    PREFIX: 0x0d4102ec,
-
-    create(args: {
-        root: MerkleRootId
-        excessesTo: c.Address
-    }): OffRamp_ReturnExecuteExcess {
-        return {
-            $: 'OffRamp_ReturnExecuteExcess',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): OffRamp_ReturnExecuteExcess {
-        loadAndCheckPrefix32(s, 0x0d4102ec, 'OffRamp_ReturnExecuteExcess');
-        return {
-            $: 'OffRamp_ReturnExecuteExcess',
-            root: MerkleRootId.fromSlice(s),
-            excessesTo: s.loadAddress(),
-        }
-    },
-    store(self: OffRamp_ReturnExecuteExcess, b: c.Builder): void {
-        b.storeUint(0x0d4102ec, 32);
-        MerkleRootId.store(self.root, b);
-        b.storeAddress(self.excessesTo);
-    },
-    toCell(self: OffRamp_ReturnExecuteExcess): c.Cell {
-        return makeCellFrom<OffRamp_ReturnExecuteExcess>(self, OffRamp_ReturnExecuteExcess.store);
-    }
-}
-
-/**
  > struct GasOverride {
  >     receiverExecutionGasLimit: coins?
  >     tokenGasOverrides: SnakedCell<coins>?
@@ -660,6 +618,48 @@ export const MerkleRoot_MarkState = {
     },
     toCell(self: MerkleRoot_MarkState): c.Cell {
         return makeCellFrom<MerkleRoot_MarkState>(self, MerkleRoot_MarkState.store);
+    }
+}
+
+/**
+ > struct (0x150acf6c) MerkleRoot_StateMarked {
+ >     root: MerkleRootId
+ >     excessesTo: address
+ > }
+ */
+export interface MerkleRoot_StateMarked {
+    readonly $: 'MerkleRoot_StateMarked'
+    root: MerkleRootId
+    excessesTo: c.Address
+}
+
+export const MerkleRoot_StateMarked = {
+    PREFIX: 0x150acf6c,
+
+    create(args: {
+        root: MerkleRootId
+        excessesTo: c.Address
+    }): MerkleRoot_StateMarked {
+        return {
+            $: 'MerkleRoot_StateMarked',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): MerkleRoot_StateMarked {
+        loadAndCheckPrefix32(s, 0x150acf6c, 'MerkleRoot_StateMarked');
+        return {
+            $: 'MerkleRoot_StateMarked',
+            root: MerkleRootId.fromSlice(s),
+            excessesTo: s.loadAddress(),
+        }
+    },
+    store(self: MerkleRoot_StateMarked, b: c.Builder): void {
+        b.storeUint(0x150acf6c, 32);
+        MerkleRootId.store(self.root, b);
+        b.storeAddress(self.excessesTo);
+    },
+    toCell(self: MerkleRoot_StateMarked): c.Cell {
+        return makeCellFrom<MerkleRoot_StateMarked>(self, MerkleRoot_StateMarked.store);
     }
 }
 

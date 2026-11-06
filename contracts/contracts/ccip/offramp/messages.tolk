@@ -44,7 +44,7 @@ type OffRamp_InMessage =
     | ReturnExcessesBack
     | Withdrawable_Withdraw
     | OffRamp_ReturnExcessToExecutor
-    | OffRamp_ReturnExecuteExcess;
+    | MerkleRoot_StateMarked;
 
 type OffRamp_InMessageBounced = 
     | ReceiveExecutor_InitExecute
@@ -176,13 +176,6 @@ struct (0x7deaf076) OffRamp_ReleaseOrMint {
 struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
     queryId: uint64;
     execId: ReceiveExecutorId;
-}
-
-/// Sent by a MerkleRoot after marking a message state: carries the execution excesses back to
-/// the OffRamp, which refunds them to the execution caller.
-struct (0x0d4102ec) OffRamp_ReturnExecuteExcess {
-    root: MerkleRootId;
-    excessesTo: address;
 }
 
 /// Relays between the executor and the pool, on top of `destGasAmount`: the OffRamp and Router

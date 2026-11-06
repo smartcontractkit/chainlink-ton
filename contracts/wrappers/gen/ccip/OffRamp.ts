@@ -1581,6 +1581,48 @@ export const MerkleRoot_MarkState = {
 }
 
 /**
+ > struct (0x150acf6c) MerkleRoot_StateMarked {
+ >     root: MerkleRootId
+ >     excessesTo: address
+ > }
+ */
+export interface MerkleRoot_StateMarked {
+    readonly $: 'MerkleRoot_StateMarked'
+    root: MerkleRootId
+    excessesTo: c.Address
+}
+
+export const MerkleRoot_StateMarked = {
+    PREFIX: 0x150acf6c,
+
+    create(args: {
+        root: MerkleRootId
+        excessesTo: c.Address
+    }): MerkleRoot_StateMarked {
+        return {
+            $: 'MerkleRoot_StateMarked',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): MerkleRoot_StateMarked {
+        loadAndCheckPrefix32(s, 0x150acf6c, 'MerkleRoot_StateMarked');
+        return {
+            $: 'MerkleRoot_StateMarked',
+            root: MerkleRootId.fromSlice(s),
+            excessesTo: s.loadAddress(),
+        }
+    },
+    store(self: MerkleRoot_StateMarked, b: c.Builder): void {
+        b.storeUint(0x150acf6c, 32);
+        MerkleRootId.store(self.root, b);
+        b.storeAddress(self.excessesTo);
+    },
+    toCell(self: MerkleRoot_StateMarked): c.Cell {
+        return makeCellFrom<MerkleRoot_StateMarked>(self, MerkleRoot_StateMarked.store);
+    }
+}
+
+/**
  > struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
  >     queryId: uint64
  >     effectiveGasLimit: coins
@@ -3132,48 +3174,6 @@ export const OffRamp_ReturnExcessToExecutor = {
     },
     toCell(self: OffRamp_ReturnExcessToExecutor): c.Cell {
         return makeCellFrom<OffRamp_ReturnExcessToExecutor>(self, OffRamp_ReturnExcessToExecutor.store);
-    }
-}
-
-/**
- > struct (0x0d4102ec) OffRamp_ReturnExecuteExcess {
- >     root: MerkleRootId
- >     excessesTo: address
- > }
- */
-export interface OffRamp_ReturnExecuteExcess {
-    readonly $: 'OffRamp_ReturnExecuteExcess'
-    root: MerkleRootId
-    excessesTo: c.Address
-}
-
-export const OffRamp_ReturnExecuteExcess = {
-    PREFIX: 0x0d4102ec,
-
-    create(args: {
-        root: MerkleRootId
-        excessesTo: c.Address
-    }): OffRamp_ReturnExecuteExcess {
-        return {
-            $: 'OffRamp_ReturnExecuteExcess',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): OffRamp_ReturnExecuteExcess {
-        loadAndCheckPrefix32(s, 0x0d4102ec, 'OffRamp_ReturnExecuteExcess');
-        return {
-            $: 'OffRamp_ReturnExecuteExcess',
-            root: MerkleRootId.fromSlice(s),
-            excessesTo: s.loadAddress(),
-        }
-    },
-    store(self: OffRamp_ReturnExecuteExcess, b: c.Builder): void {
-        b.storeUint(0x0d4102ec, 32);
-        MerkleRootId.store(self.root, b);
-        b.storeAddress(self.excessesTo);
-    },
-    toCell(self: OffRamp_ReturnExecuteExcess): c.Cell {
-        return makeCellFrom<OffRamp_ReturnExecuteExcess>(self, OffRamp_ReturnExecuteExcess.store);
     }
 }
 
@@ -5170,11 +5170,11 @@ export class OffRamp implements c.Contract {
         return OffRamp_ReturnExcessToExecutor.toCell(OffRamp_ReturnExcessToExecutor.create(body));
     }
 
-    static createCellOfOffRampReturnExecuteExcess(body: {
+    static createCellOfMerkleRootStateMarked(body: {
         root: MerkleRootId
         excessesTo: c.Address
     }) {
-        return OffRamp_ReturnExecuteExcess.toCell(OffRamp_ReturnExecuteExcess.create(body));
+        return MerkleRoot_StateMarked.toCell(MerkleRoot_StateMarked.create(body));
     }
 
     static createCellOfOwnable2StepTransferOwnership(body: {
@@ -5472,13 +5472,13 @@ export class OffRamp implements c.Contract {
         });
     }
 
-    async sendOffRampReturnExecuteExcess(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendMerkleRootStateMarked(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         root: MerkleRootId
         excessesTo: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: OffRamp_ReturnExecuteExcess.toCell(OffRamp_ReturnExecuteExcess.create(body)),
+            body: MerkleRoot_StateMarked.toCell(MerkleRoot_StateMarked.create(body)),
             ...extraOptions
         });
     }
