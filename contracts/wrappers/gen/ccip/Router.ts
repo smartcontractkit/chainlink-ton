@@ -4151,12 +4151,14 @@ export const Router_GetValidatedFee_V1 = {
 
 /**
  > struct (0x657ef7ec) Router_GetValidatedFee {
+ >     queryId: uint64
  >     ccipSend: Cell<Router_CCIPSend>
  >     context: cell?
  > }
  */
 export interface Router_GetValidatedFee {
     readonly $: 'Router_GetValidatedFee'
+    queryId: uint64
     ccipSend: Router_CCIPSend
     context: c.Cell | null /* = null */
 }
@@ -4165,25 +4167,29 @@ export const Router_GetValidatedFee = {
     PREFIX: 0x657ef7ec,
 
     create(args: {
+        queryId?: uint64
         ccipSend: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }): Router_GetValidatedFee {
         return {
             $: 'Router_GetValidatedFee',
             context: null,
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_GetValidatedFee {
         loadAndCheckPrefix32(s, 0x657ef7ec, 'Router_GetValidatedFee');
         return {
             $: 'Router_GetValidatedFee',
+            queryId: s.loadUintBig(64),
             ccipSend: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: Router_GetValidatedFee, b: c.Builder): void {
         b.storeUint(0x657ef7ec, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -4375,6 +4381,7 @@ export const Router_TokenTransferDelivered = {
 
 /**
  > struct Router_GetValidatedFeeContext {
+ >     queryId: uint64
  >     routerContext: address
  >     oldContextVersion: bool
  >     userContext: cell?
@@ -4382,6 +4389,7 @@ export const Router_TokenTransferDelivered = {
  */
 export interface Router_GetValidatedFeeContext {
     readonly $: 'Router_GetValidatedFeeContext'
+    queryId: uint64
     routerContext: c.Address
     oldContextVersion: boolean
     userContext: c.Cell | null
@@ -4389,24 +4397,28 @@ export interface Router_GetValidatedFeeContext {
 
 export const Router_GetValidatedFeeContext = {
     create(args: {
+        queryId?: uint64
         routerContext: c.Address
         oldContextVersion: boolean
         userContext: c.Cell | null
     }): Router_GetValidatedFeeContext {
         return {
             $: 'Router_GetValidatedFeeContext',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_GetValidatedFeeContext {
         return {
             $: 'Router_GetValidatedFeeContext',
+            queryId: s.loadUintBig(64),
             routerContext: s.loadAddress(),
             oldContextVersion: s.loadBoolean(),
             userContext: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: Router_GetValidatedFeeContext, b: c.Builder): void {
+        b.storeUint(self.queryId, 64);
         b.storeAddress(self.routerContext);
         b.storeBit(self.oldContextVersion);
         storeTolkNullable<c.Cell>(self.userContext, b,
@@ -4514,6 +4526,7 @@ export const Router_MessageValidationFailed_V1 = {
 
 /**
  > struct (0x97ca8bd8) Router_MessageValidated {
+ >     queryId: uint64
  >     fee: coins
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
@@ -4521,6 +4534,7 @@ export const Router_MessageValidationFailed_V1 = {
  */
 export interface Router_MessageValidated {
     readonly $: 'Router_MessageValidated'
+    queryId: uint64
     fee: coins
     msg: Router_CCIPSend
     context: c.Cell | null
@@ -4530,19 +4544,22 @@ export const Router_MessageValidated = {
     PREFIX: 0x97ca8bd8,
 
     create(args: {
+        queryId?: uint64
         fee: coins
         msg: Router_CCIPSend
         context: c.Cell | null
     }): Router_MessageValidated {
         return {
             $: 'Router_MessageValidated',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_MessageValidated {
         loadAndCheckPrefix32(s, 0x97ca8bd8, 'Router_MessageValidated');
         return {
             $: 'Router_MessageValidated',
+            queryId: s.loadUintBig(64),
             fee: s.loadCoins(),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
@@ -4550,6 +4567,7 @@ export const Router_MessageValidated = {
     },
     store(self: Router_MessageValidated, b: c.Builder): void {
         b.storeUint(0x97ca8bd8, 32);
+        b.storeUint(self.queryId, 64);
         b.storeCoins(self.fee);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
@@ -4563,6 +4581,7 @@ export const Router_MessageValidated = {
 
 /**
  > struct (0xe32e5616) Router_MessageValidationFailed {
+ >     queryId: uint64
  >     error: uint256
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
@@ -4570,6 +4589,7 @@ export const Router_MessageValidated = {
  */
 export interface Router_MessageValidationFailed {
     readonly $: 'Router_MessageValidationFailed'
+    queryId: uint64
     error: uint256
     msg: Router_CCIPSend
     context: c.Cell | null
@@ -4579,19 +4599,22 @@ export const Router_MessageValidationFailed = {
     PREFIX: 0xe32e5616,
 
     create(args: {
+        queryId?: uint64
         error: uint256
         msg: Router_CCIPSend
         context: c.Cell | null
     }): Router_MessageValidationFailed {
         return {
             $: 'Router_MessageValidationFailed',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_MessageValidationFailed {
         loadAndCheckPrefix32(s, 0xe32e5616, 'Router_MessageValidationFailed');
         return {
             $: 'Router_MessageValidationFailed',
+            queryId: s.loadUintBig(64),
             error: s.loadUintBig(256),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
@@ -4599,6 +4622,7 @@ export const Router_MessageValidationFailed = {
     },
     store(self: Router_MessageValidationFailed, b: c.Builder): void {
         b.storeUint(0xe32e5616, 32);
+        b.storeUint(self.queryId, 64);
         b.storeUint(self.error, 256);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
@@ -5444,6 +5468,7 @@ export class Router implements c.Contract {
     }
 
     static createCellOfRouterGetValidatedFee(body: {
+        queryId?: uint64
         ccipSend: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }) {
@@ -5723,6 +5748,7 @@ export class Router implements c.Contract {
     }
 
     async sendRouterGetValidatedFee(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         ccipSend: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }, extraOptions?: ExtraSendOptions) {

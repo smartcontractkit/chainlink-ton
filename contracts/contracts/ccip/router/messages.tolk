@@ -210,6 +210,7 @@ struct (0x4dd6aa82) Router_GetValidatedFee_V1 {
 
 // nolint:opcode : crc32('Router_GetValidatedFee_V2')
 struct (0x657ef7ec) Router_GetValidatedFee {
+    queryId: uint64;
     ccipSend: Cell<Router_CCIPSend>;
     context: cell? = null;
 }
@@ -261,6 +262,7 @@ type Router_DepositAccountInitContext =
     | Router_OnRampAccountContext;
 
 struct Router_GetValidatedFeeContext {
+    queryId: uint64
     routerContext: address // sender
     oldContextVersion: bool
     userContext: cell?
@@ -288,6 +290,7 @@ struct (0xec23c562) Router_MessageValidationFailed_V1 {
 
 // nolint:opcode : crc32('Router_MessageValidated_V2')
 struct (0x97ca8bd8) Router_MessageValidated {
+    queryId: uint64
     fee: coins
     msg: Cell<Router_CCIPSend>
     context: cell?
@@ -295,6 +298,7 @@ struct (0x97ca8bd8) Router_MessageValidated {
 
 // nolint:opcode : crc32('Router_MessageValidationFailed_V2')
 struct (0xe32e5616) Router_MessageValidationFailed {
+    queryId: uint64,
     error: uint256,
     msg: Cell<Router_CCIPSend>,
     context: cell?

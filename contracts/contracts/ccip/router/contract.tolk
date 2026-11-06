@@ -79,6 +79,7 @@ fun onInternalMessage(in: InMessage) {
             val minValue = Router_Costs.GetValidatedFee();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
             onGetValidatedFee(Router_GetValidatedFee {
+                queryId: 0,
                 ccipSend: msg.ccipSend,
                 context: msg.context.toCell(),
             }, in.senderAddress, true);
@@ -780,7 +781,7 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee, sender: address, isV1: bool) 
     var ccipSend = lazy msg.ccipSend.load();
     val onRampResult = st.onRamps.get(ccipSend.destChainSelector);
     if (!onRampResult.isFound) {
-        return sendMessageValidationFailed(sender, Router_Error.DestChainNotEnabled as uint256, msg.ccipSend, msg.context, isV1);
+        return sendMessageValidationFailed(sender, msg.queryId, Router_Error.DestChainNotEnabled as uint256, msg.ccipSend, msg.context, isV1);
     }
 
     if (ccipSend.feeToken == null) {
@@ -788,7 +789,7 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee, sender: address, isV1: bool) 
         // to save on gas, we only update ccipSendCell if necessary
         ccipSendCell = ccipSend.toCell();
     } else if (ccipSend.feeToken != NATIVE_GRAM) {
-        return sendMessageValidationFailed(sender, Router_Error.FeePaymentsWithJettonsNotSupported as uint256, msg.ccipSend, msg.context, isV1);
+        return sendMessageValidationFailed(sender, msg.queryId, Router_Error.FeePaymentsWithJettonsNotSupported as uint256, msg.ccipSend, msg.context, isV1);
     }
 
     val feeQuoterMsg = createMessage({
@@ -798,6 +799,7 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee, sender: address, isV1: bool) 
         body: OnRamp_GetValidatedFee {
             ccipSend: ccipSendCell,
             context: Router_GetValidatedFeeContext {
+                queryId: msg.queryId,
                 routerContext: sender,
                 oldContextVersion: isV1,
                 userContext: msg.context,
@@ -839,6 +841,7 @@ fun onMessageValidatedFromOnRamp(msg: OnRamp_MessageValidated) {
         };
     } else {
         body = Router_MessageValidated {
+            queryId: context.queryId,
             fee: msg.fee,
             msg: msg.msg,
             context: context.userContext,
@@ -871,10 +874,10 @@ fun onMessageValidatedFromOnRamp(msg: OnRamp_MessageValidated) {
 fun onMessageValidationFailedFromOnRamp(msg: OnRamp_MessageValidationFailed) {
     val context = Router_GetValidatedFeeContext.fromCell(msg.context!);
     val userAddress = context.routerContext;
-    sendMessageValidationFailed(userAddress, msg.error, msg.msg, context.userContext, context.oldContextVersion);
+    sendMessageValidationFailed(userAddress, context.queryId, msg.error, msg.msg, context.userContext, context.oldContextVersion);
 }
 
-fun sendMessageValidationFailed(userAddress: address, error: uint256, msg: Cell<Router_CCIPSend>, userContext: cell?, oldContextVersion: bool) {
+fun sendMessageValidationFailed(userAddress: address, queryId: uint64, error: uint256, msg: Cell<Router_CCIPSend>, userContext: cell?, oldContextVersion: bool) {
     var body: Router_MessageValidationFailed | Router_MessageValidationFailed_V1;
     if (oldContextVersion) {
         var contextV1: RemainingBitsAndRefs = createEmptySlice();
@@ -888,6 +891,7 @@ fun sendMessageValidationFailed(userAddress: address, error: uint256, msg: Cell<
         };
     } else {
         body = Router_MessageValidationFailed {
+            queryId,
             error,
             msg,
             context: userContext,
