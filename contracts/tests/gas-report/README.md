@@ -49,7 +49,7 @@ tests/gas-report/
 │   │   ├── FeeQuoter.spec.ts # Fee validation at its min value, FeeQuoter gas by payload size
 │   │   └── config.ts         # Payload sizes and builders
 │   └── tokens/           # Token transfer flows, per pool type (LockRelease, BurnMint)
-│       ├── OnRamp.spec.ts    # OnRamp account deployment, deposit, CCIPSend with tokens at its min value, data size sweep
+│       ├── OnRamp.spec.ts    # Sender account deployment, deposit, CCIPSend with tokens at its min value, data size sweep
 │       ├── OffRamp.spec.ts   # Execute of token transfers (new/existing receiver account, gasLimit 0, max payload)
 │       ├── pools.ts          # CCT jetton + token pool fixture
 │       ├── TokenAdminRegistryFlows.spec.ts, TokenInfoQuery.spec.ts, JettonWalletQuery.spec.ts
