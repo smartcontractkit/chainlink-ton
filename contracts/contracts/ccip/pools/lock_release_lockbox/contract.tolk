@@ -19,6 +19,7 @@ import "../lib/token_pool/messages"
 import "../lib/token_pool/errors"
 import "../lib/token_pool/events"
 import "../lib/token_pool/jetton_fees"
+import "../lockbox/costs"
 import "../lockbox/messages"
 
 import "types"
@@ -144,6 +145,12 @@ fun onLockOrBurnTransferContinue(
 
     val safety = st.TokenPool().budget().lockOrBurn.safety;
     val forwardTonAmount = safety + requestMsg.finalizationValue;
+
+    // The lockbox must be able to fund either continuation: the success reply or a custody
+    // return. Add the pool's own finalization budget on top. Reject before custody moves if the
+    // configured safety is too low.
+    val lockboxMinValue = JettonLockBox_minDepositValue() + TokenPool_Costs.finalization();
+    assert(forwardTonAmount >= lockboxMinValue, TokenPool_Error.InsufficientMessageValue);
 
     // Send AskToTransfer to our jetton wallet (rich bounce on failure).
     val jc = st.poolData.load().jettonClient();

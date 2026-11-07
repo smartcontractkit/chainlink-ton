@@ -36,6 +36,7 @@
     "gas-report-cct": "blueprint test --gas-report -- --config tests/gas-report/cct.config.ts",
     "gas-report-burn-mint-cct": "blueprint test --gas-report -- --config tests/gas-report/burn-mint-cct.config.ts",
     "gas-report-lock-release-wgram": "blueprint test --gas-report -- --config tests/gas-report/lock-release-wgram.config.ts",
+    "gas-report-lockbox": "blueprint test --gas-report -- --config tests/gas-report/lockbox.config.ts",
     "get-key-pair": "ts-node scripts/getKeyPair.ts",
     "check-overflows": "ts-node scripts/overflowCheck.ts"
   },
