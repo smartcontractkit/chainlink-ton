@@ -161,6 +161,7 @@ type coins = bigint
 type int256 = bigint
 
 type uint8 = bigint
+type uint16 = bigint
 type uint32 = bigint
 type uint40 = bigint
 type uint64 = bigint
@@ -338,6 +339,193 @@ export const MCMS_SetConfig = {
     },
     toCell(self: MCMS_SetConfig): c.Cell {
         return makeCellFrom<MCMS_SetConfig>(self, MCMS_SetConfig.store);
+    }
+}
+
+/**
+ > struct (0xeaaf141c) MCMS_BeginConfigStaging {
+ >     queryId: uint64
+ >     groupQuorums: map<uint8, uint8>
+ >     groupParents: map<uint8, uint8>
+ > }
+ */
+export interface MCMS_BeginConfigStaging {
+    readonly $: 'MCMS_BeginConfigStaging'
+    queryId: uint64
+    groupQuorums: Map<uint8, uint8>
+    groupParents: Map<uint8, uint8>
+}
+
+export const MCMS_BeginConfigStaging = {
+    PREFIX: 0xeaaf141c,
+
+    create(args: {
+        queryId?: uint64
+        groupQuorums: Map<uint8, uint8>
+        groupParents: Map<uint8, uint8>
+    }): MCMS_BeginConfigStaging {
+        return {
+            $: 'MCMS_BeginConfigStaging',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): MCMS_BeginConfigStaging {
+        loadAndCheckPrefix32(s, 0xeaaf141c, 'MCMS_BeginConfigStaging');
+        return {
+            $: 'MCMS_BeginConfigStaging',
+            queryId: s.loadUintBig(64),
+            groupQuorums: dictToMap(c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s)),
+            groupParents: dictToMap(c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s)),
+        }
+    },
+    store(self: MCMS_BeginConfigStaging, b: c.Builder): void {
+        b.storeUint(0xeaaf141c, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeDict<uint8, uint8>(mapToDict(self.groupQuorums, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
+        b.storeDict<uint8, uint8>(mapToDict(self.groupParents, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
+    },
+    toCell(self: MCMS_BeginConfigStaging): c.Cell {
+        return makeCellFrom<MCMS_BeginConfigStaging>(self, MCMS_BeginConfigStaging.store);
+    }
+}
+
+/**
+ > struct (0x2847bdb3) MCMS_StageConfig {
+ >     queryId: uint64
+ >     expectedNumSigners: uint16
+ >     signerAddresses: SnakedCell<uint160>
+ >     signerGroups: SnakedCell<uint8>
+ > }
+ */
+export interface MCMS_StageConfig {
+    readonly $: 'MCMS_StageConfig'
+    queryId: uint64
+    expectedNumSigners: uint16
+    signerAddresses: SnakedCell<uint160>
+    signerGroups: SnakedCell<uint8>
+}
+
+export const MCMS_StageConfig = {
+    PREFIX: 0x2847bdb3,
+
+    create(args: {
+        queryId?: uint64
+        expectedNumSigners: uint16
+        signerAddresses: SnakedCell<uint160>
+        signerGroups: SnakedCell<uint8>
+    }): MCMS_StageConfig {
+        return {
+            $: 'MCMS_StageConfig',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): MCMS_StageConfig {
+        loadAndCheckPrefix32(s, 0x2847bdb3, 'MCMS_StageConfig');
+        return {
+            $: 'MCMS_StageConfig',
+            queryId: s.loadUintBig(64),
+            expectedNumSigners: s.loadUintBig(16),
+            signerAddresses: loadSnakedCellOf(s, (s) => s.loadUintBig(160)),
+            signerGroups: loadSnakedCellOf(s, (s) => s.loadUintBig(8)),
+        }
+    },
+    store(self: MCMS_StageConfig, b: c.Builder): void {
+        b.storeUint(0x2847bdb3, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.expectedNumSigners, 16);
+        storeSnakedCellOf(self.signerAddresses, b, (v, b) => b.storeUint(v, 160));
+        storeSnakedCellOf(self.signerGroups, b, (v, b) => b.storeUint(v, 8));
+    },
+    toCell(self: MCMS_StageConfig): c.Cell {
+        return makeCellFrom<MCMS_StageConfig>(self, MCMS_StageConfig.store);
+    }
+}
+
+/**
+ > struct (0x7a475aac) MCMS_CommitConfig {
+ >     queryId: uint64
+ >     expectedNumSigners: uint16
+ >     clearRoot: bool
+ > }
+ */
+export interface MCMS_CommitConfig {
+    readonly $: 'MCMS_CommitConfig'
+    queryId: uint64
+    expectedNumSigners: uint16
+    clearRoot: boolean
+}
+
+export const MCMS_CommitConfig = {
+    PREFIX: 0x7a475aac,
+
+    create(args: {
+        queryId?: uint64
+        expectedNumSigners: uint16
+        clearRoot: boolean
+    }): MCMS_CommitConfig {
+        return {
+            $: 'MCMS_CommitConfig',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): MCMS_CommitConfig {
+        loadAndCheckPrefix32(s, 0x7a475aac, 'MCMS_CommitConfig');
+        return {
+            $: 'MCMS_CommitConfig',
+            queryId: s.loadUintBig(64),
+            expectedNumSigners: s.loadUintBig(16),
+            clearRoot: s.loadBoolean(),
+        }
+    },
+    store(self: MCMS_CommitConfig, b: c.Builder): void {
+        b.storeUint(0x7a475aac, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.expectedNumSigners, 16);
+        b.storeBit(self.clearRoot);
+    },
+    toCell(self: MCMS_CommitConfig): c.Cell {
+        return makeCellFrom<MCMS_CommitConfig>(self, MCMS_CommitConfig.store);
+    }
+}
+
+/**
+ > struct (0xc95d42b1) MCMS_AbortConfig {
+ >     queryId: uint64
+ > }
+ */
+export interface MCMS_AbortConfig {
+    readonly $: 'MCMS_AbortConfig'
+    queryId: uint64
+}
+
+export const MCMS_AbortConfig = {
+    PREFIX: 0xc95d42b1,
+
+    create(args: {
+        queryId?: uint64
+    }): MCMS_AbortConfig {
+        return {
+            $: 'MCMS_AbortConfig',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): MCMS_AbortConfig {
+        loadAndCheckPrefix32(s, 0xc95d42b1, 'MCMS_AbortConfig');
+        return {
+            $: 'MCMS_AbortConfig',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: MCMS_AbortConfig, b: c.Builder): void {
+        b.storeUint(0xc95d42b1, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: MCMS_AbortConfig): c.Cell {
+        return makeCellFrom<MCMS_AbortConfig>(self, MCMS_AbortConfig.store);
     }
 }
 
@@ -631,6 +819,87 @@ export const MCMS_ConfigSet = {
     },
     toCell(self: MCMS_ConfigSet): c.Cell {
         return makeCellFrom<MCMS_ConfigSet>(self, MCMS_ConfigSet.store);
+    }
+}
+
+/**
+ > struct (0x3de839fe) MCMS_ConfigStaged {
+ >     queryId: uint64
+ >     numSigners: uint16
+ > }
+ */
+export interface MCMS_ConfigStaged {
+    readonly $: 'MCMS_ConfigStaged'
+    queryId: uint64
+    numSigners: uint16
+}
+
+export const MCMS_ConfigStaged = {
+    PREFIX: 0x3de839fe,
+
+    create(args: {
+        queryId?: uint64
+        numSigners: uint16
+    }): MCMS_ConfigStaged {
+        return {
+            $: 'MCMS_ConfigStaged',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): MCMS_ConfigStaged {
+        loadAndCheckPrefix32(s, 0x3de839fe, 'MCMS_ConfigStaged');
+        return {
+            $: 'MCMS_ConfigStaged',
+            queryId: s.loadUintBig(64),
+            numSigners: s.loadUintBig(16),
+        }
+    },
+    store(self: MCMS_ConfigStaged, b: c.Builder): void {
+        b.storeUint(0x3de839fe, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.numSigners, 16);
+    },
+    toCell(self: MCMS_ConfigStaged): c.Cell {
+        return makeCellFrom<MCMS_ConfigStaged>(self, MCMS_ConfigStaged.store);
+    }
+}
+
+/**
+ > struct (0x381bbdc2) MCMS_ConfigStagingAborted {
+ >     queryId: uint64
+ > }
+ */
+export interface MCMS_ConfigStagingAborted {
+    readonly $: 'MCMS_ConfigStagingAborted'
+    queryId: uint64
+}
+
+export const MCMS_ConfigStagingAborted = {
+    PREFIX: 0x381bbdc2,
+
+    create(args: {
+        queryId?: uint64
+    }): MCMS_ConfigStagingAborted {
+        return {
+            $: 'MCMS_ConfigStagingAborted',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): MCMS_ConfigStagingAborted {
+        loadAndCheckPrefix32(s, 0x381bbdc2, 'MCMS_ConfigStagingAborted');
+        return {
+            $: 'MCMS_ConfigStagingAborted',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: MCMS_ConfigStagingAborted, b: c.Builder): void {
+        b.storeUint(0x381bbdc2, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: MCMS_ConfigStagingAborted): c.Cell {
+        return makeCellFrom<MCMS_ConfigStagingAborted>(self, MCMS_ConfigStagingAborted.store);
     }
 }
 
@@ -971,7 +1240,7 @@ export const MCMS_BounceHandled = {
  >     ownable: Ownable2Step
  >     oracle: address
  >     signers: map<uint160, Signer>
- >     config: Cell<Config>
+ >     config: Cell<ConfigState>
  >     seenSignedHashes: map<uint256, bool>
  >     rootInfo: Cell<RootInfo>
  > }
@@ -982,7 +1251,7 @@ export interface MCMS_Data {
     ownable: Ownable2Step
     oracle: c.Address
     signers: Map<uint160, Signer>
-    config: Config
+    config: ConfigState
     seenSignedHashes: Map<uint256, boolean>
     rootInfo: RootInfo
 }
@@ -993,7 +1262,7 @@ export const MCMS_Data = {
         ownable: Ownable2Step
         oracle: c.Address
         signers: Map<uint160, Signer>
-        config: Config
+        config: ConfigState
         seenSignedHashes: Map<uint256, boolean>
         rootInfo: RootInfo
     }): MCMS_Data {
@@ -1009,7 +1278,7 @@ export const MCMS_Data = {
             ownable: Ownable2Step.fromSlice(s),
             oracle: s.loadAddress(),
             signers: dictToMap(c.Dictionary.load<uint160, Signer>(c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store), s)),
-            config: loadCellRef<Config>(s, Config.fromSlice),
+            config: loadCellRef<ConfigState>(s, ConfigState.fromSlice),
             seenSignedHashes: dictToMap(c.Dictionary.load<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool(), s)),
             rootInfo: loadCellRef<RootInfo>(s, RootInfo.fromSlice),
         }
@@ -1019,7 +1288,7 @@ export const MCMS_Data = {
         Ownable2Step.store(self.ownable, b);
         b.storeAddress(self.oracle);
         b.storeDict<uint160, Signer>(mapToDict(self.signers, c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store)), c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store));
-        storeCellRef<Config>(self.config, b, Config.store);
+        storeCellRef<ConfigState>(self.config, b, ConfigState.store);
         b.storeDict<uint256, boolean>(mapToDict(self.seenSignedHashes, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool());
         storeCellRef<RootInfo>(self.rootInfo, b, RootInfo.store);
     },
@@ -1111,6 +1380,105 @@ export const Config = {
     },
     toCell(self: Config): c.Cell {
         return makeCellFrom<Config>(self, Config.store);
+    }
+}
+
+/**
+ > struct ConfigState {
+ >     config: Cell<Config>
+ >     stagedConfig: Cell<StagedConfig>?
+ > }
+ */
+export interface ConfigState {
+    readonly $: 'ConfigState'
+    config: Config
+    stagedConfig: StagedConfig | null
+}
+
+export const ConfigState = {
+    create(args: {
+        config: Config
+        stagedConfig: StagedConfig | null
+    }): ConfigState {
+        return {
+            $: 'ConfigState',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): ConfigState {
+        return {
+            $: 'ConfigState',
+            config: loadCellRef<Config>(s, Config.fromSlice),
+            stagedConfig: s.loadBoolean() ? loadCellRef<StagedConfig>(s, StagedConfig.fromSlice) : null,
+        }
+    },
+    store(self: ConfigState, b: c.Builder): void {
+        storeCellRef<Config>(self.config, b, Config.store);
+        storeTolkNullable<StagedConfig>(self.stagedConfig, b,
+            (v,b) => storeCellRef<StagedConfig>(v, b, StagedConfig.store)
+        );
+    },
+    toCell(self: ConfigState): c.Cell {
+        return makeCellFrom<ConfigState>(self, ConfigState.store);
+    }
+}
+
+/**
+ > struct StagedConfig {
+ >     config: Cell<Config>
+ >     signers: map<uint160, Signer>
+ >     numSigners: uint16
+ >     queryId: uint64
+ >     lastAddress: uint160
+ >     groupChildrenCounts: map<uint8, uint8>
+ > }
+ */
+export interface StagedConfig {
+    readonly $: 'StagedConfig'
+    config: Config
+    signers: Map<uint160, Signer>
+    numSigners: uint16
+    queryId: uint64
+    lastAddress: uint160
+    groupChildrenCounts: Map<uint8, uint8>
+}
+
+export const StagedConfig = {
+    create(args: {
+        config: Config
+        signers: Map<uint160, Signer>
+        numSigners: uint16
+        queryId?: uint64
+        lastAddress: uint160
+        groupChildrenCounts: Map<uint8, uint8>
+    }): StagedConfig {
+        return {
+            $: 'StagedConfig',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): StagedConfig {
+        return {
+            $: 'StagedConfig',
+            config: loadCellRef<Config>(s, Config.fromSlice),
+            signers: dictToMap(c.Dictionary.load<uint160, Signer>(c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store), s)),
+            numSigners: s.loadUintBig(16),
+            queryId: s.loadUintBig(64),
+            lastAddress: s.loadUintBig(160),
+            groupChildrenCounts: dictToMap(c.Dictionary.load<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8), s)),
+        }
+    },
+    store(self: StagedConfig, b: c.Builder): void {
+        storeCellRef<Config>(self.config, b, Config.store);
+        b.storeDict<uint160, Signer>(mapToDict(self.signers, c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store)), c.Dictionary.Keys.BigUint(160), createDictionaryValue<Signer>(Signer.fromSlice, Signer.store));
+        b.storeUint(self.numSigners, 16);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.lastAddress, 160);
+        b.storeDict<uint8, uint8>(mapToDict(self.groupChildrenCounts, c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8)), c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8));
+    },
+    toCell(self: StagedConfig): c.Cell {
+        return makeCellFrom<StagedConfig>(self, StagedConfig.store);
     }
 }
 
@@ -1678,6 +2046,10 @@ export class MCMS implements c.Contract {
         'MCMS_Error.UnauthorizedOracle': 10424,
         'MCMS_Error.RootNotExpired': 10425,
         'MCMS_Error.InsufficientFee': 10426,
+        'MCMS_Error.ConfigStagingNotStarted': 10427,
+        'MCMS_Error.ConfigStagingIncomplete': 10428,
+        'MCMS_Error.ConfigStagingChunkTooLarge': 10429,
+        'MCMS_Error.ConfigStagingSessionMismatch': 10430,
         'Utils_Error.InvalidData': 13500,
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
         'Ownable2Step_Error.CannotTransferToSelf': 49801,
@@ -1701,7 +2073,7 @@ export class MCMS implements c.Contract {
         ownable: Ownable2Step
         oracle: c.Address
         signers: Map<uint160, Signer>
-        config: Config
+        config: ConfigState
         seenSignedHashes: Map<uint256, boolean>
         rootInfo: RootInfo
     }, deployedOptions?: DeployedAddrOptions) {
@@ -1744,6 +2116,37 @@ export class MCMS implements c.Contract {
         clearRoot: boolean
     }) {
         return MCMS_SetConfig.toCell(MCMS_SetConfig.create(body));
+    }
+
+    static createCellOfMCMSBeginConfigStaging(body: {
+        queryId?: uint64
+        groupQuorums: Map<uint8, uint8>
+        groupParents: Map<uint8, uint8>
+    }) {
+        return MCMS_BeginConfigStaging.toCell(MCMS_BeginConfigStaging.create(body));
+    }
+
+    static createCellOfMCMSStageConfig(body: {
+        queryId?: uint64
+        expectedNumSigners: uint16
+        signerAddresses: SnakedCell<uint160>
+        signerGroups: SnakedCell<uint8>
+    }) {
+        return MCMS_StageConfig.toCell(MCMS_StageConfig.create(body));
+    }
+
+    static createCellOfMCMSCommitConfig(body: {
+        queryId?: uint64
+        expectedNumSigners: uint16
+        clearRoot: boolean
+    }) {
+        return MCMS_CommitConfig.toCell(MCMS_CommitConfig.create(body));
+    }
+
+    static createCellOfMCMSAbortConfig(body: {
+        queryId?: uint64
+    }) {
+        return MCMS_AbortConfig.toCell(MCMS_AbortConfig.create(body));
     }
 
     static createCellOfMCMSUpdateOpFinalizationTimeout(body: {
@@ -1859,6 +2262,53 @@ export class MCMS implements c.Contract {
         });
     }
 
+    async sendMCMSBeginConfigStaging(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        groupQuorums: Map<uint8, uint8>
+        groupParents: Map<uint8, uint8>
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: MCMS_BeginConfigStaging.toCell(MCMS_BeginConfigStaging.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendMCMSStageConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        expectedNumSigners: uint16
+        signerAddresses: SnakedCell<uint160>
+        signerGroups: SnakedCell<uint8>
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: MCMS_StageConfig.toCell(MCMS_StageConfig.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendMCMSCommitConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        expectedNumSigners: uint16
+        clearRoot: boolean
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: MCMS_CommitConfig.toCell(MCMS_CommitConfig.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendMCMSAbortConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: MCMS_AbortConfig.toCell(MCMS_AbortConfig.create(body)),
+            ...extraOptions
+        });
+    }
+
     async sendMCMSUpdateOpFinalizationTimeout(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         newOpFinalizationTimeout: uint32
@@ -1966,6 +2416,11 @@ export class MCMS implements c.Contract {
             groupQuorums: dictToMap(r.readDictionary<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8))),
             groupParents: dictToMap(r.readDictionary<uint8, uint8>(c.Dictionary.Keys.BigUint(8), c.Dictionary.Values.BigUint(8))),
         });
+    }
+
+    async getStagedConfigNumSigners(provider: ContractProvider): Promise<uint16> {
+        const r = StackReader.fromGetMethod(1, await provider.get('getStagedConfigNumSigners', []));
+        return r.readBigInt();
     }
 
     async getOpCount(provider: ContractProvider): Promise<uint40> {

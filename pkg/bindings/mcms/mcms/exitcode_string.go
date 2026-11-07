@@ -35,11 +35,15 @@ func _() {
 	_ = x[ErrorUnauthorizedOracle-10424]
 	_ = x[ErrorRootNotExpired-10425]
 	_ = x[InsufficientFee-10426]
+	_ = x[ErrorConfigStagingNotStarted-10427]
+	_ = x[ErrorConfigStagingIncomplete-10428]
+	_ = x[ErrorConfigStagingChunkTooLarge-10429]
+	_ = x[ErrorConfigStagingSessionMismatch-10430]
 }
 
-const _ExitCode_name = "ErrorOutOfBoundsNumSignersErrorSignerGroupsLengthMismatchErrorOutOfBoundsGroupErrorGroupTreeNotWellFormedErrorOutOfBoundsGroupQuorumErrorSignerInDisabledGroupErrorSignersAdderssesMustBeStrictlyIncreasingErrorInvalidSignerErrorInsufficientSignersErrorWrongChainIDErrorWrongMultiSigErrorWrongPostOpCountErrorPendingOpsErrorWrongPreOpCountErrorProofCannotBeVerifiedErrorRootExpiredErrorWrongNonceErrorPostOpCountReachedErrorCallRevertedErrorValidUntilHasAlreadyPassedErrorMissingConfigErrorSignedHashAlreadySeenErrorRootNotFinalizedErrorInsufficientValueErrorUnauthorizedOracleErrorRootNotExpiredInsufficientFee"
+const _ExitCode_name = "ErrorOutOfBoundsNumSignersErrorSignerGroupsLengthMismatchErrorOutOfBoundsGroupErrorGroupTreeNotWellFormedErrorOutOfBoundsGroupQuorumErrorSignerInDisabledGroupErrorSignersAdderssesMustBeStrictlyIncreasingErrorInvalidSignerErrorInsufficientSignersErrorWrongChainIDErrorWrongMultiSigErrorWrongPostOpCountErrorPendingOpsErrorWrongPreOpCountErrorProofCannotBeVerifiedErrorRootExpiredErrorWrongNonceErrorPostOpCountReachedErrorCallRevertedErrorValidUntilHasAlreadyPassedErrorMissingConfigErrorSignedHashAlreadySeenErrorRootNotFinalizedErrorInsufficientValueErrorUnauthorizedOracleErrorRootNotExpiredInsufficientFeeErrorConfigStagingNotStartedErrorConfigStagingIncompleteErrorConfigStagingChunkTooLargeErrorConfigStagingSessionMismatch"
 
-var _ExitCode_index = [...]uint16{0, 26, 57, 78, 105, 132, 158, 203, 221, 245, 262, 280, 301, 316, 336, 362, 378, 393, 416, 433, 464, 482, 508, 529, 551, 574, 593, 608}
+var _ExitCode_index = [...]uint16{0, 26, 57, 78, 105, 132, 158, 203, 221, 245, 262, 280, 301, 316, 336, 362, 378, 393, 416, 433, 464, 482, 508, 529, 551, 574, 593, 608, 636, 664, 695, 728}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 10400

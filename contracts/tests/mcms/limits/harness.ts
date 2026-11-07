@@ -7,6 +7,7 @@ import { generateRandomContractId } from '../../../src/utils'
 import { merkleProof } from '../../../src/mcms'
 
 import { MCMS_VERSIONS, McmsVersion } from './versions'
+import { buildStagedConfigMessages } from '../../../src/mcms/staged-config'
 
 export const CHAIN_ID = -239n
 export const COMPUTE_GAS_LIMIT = 1_000_000n
@@ -195,6 +196,29 @@ export class McmsLimitsHarness {
       .asCell()
 
     return this.send(body, options.value)
+  }
+
+  async stageConfig(
+    signers: LimitsSigner[],
+    layout: GroupLayout,
+    options: { chunkSize?: number; clearRoot?: boolean; value?: bigint } = {},
+  ): Promise<Outcome[]> {
+    const { begin, stages, commit } = buildStagedConfigMessages({
+      queryId: 1n,
+      signerAddresses: signers.map((signer) => BigInt(signer.address)),
+      signerGroups: signers.map((signer) => signer.group),
+      groupQuorums: layout.groupQuorums,
+      groupParents: layout.groupParents,
+      clearRoot: options.clearRoot,
+      chunkSize: options.chunkSize,
+    })
+
+    const outcomes = [await this.send(begin, options.value)]
+    for (const stage of stages) {
+      outcomes.push(await this.send(stage, options.value))
+    }
+    outcomes.push(await this.send(commit, options.value))
+    return outcomes
   }
 
   async setRoot(options: {

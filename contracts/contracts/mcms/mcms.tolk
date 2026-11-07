@@ -137,6 +137,45 @@ struct (0x89277f4b) MCMS_SetConfig {
     clearRoot: bool;
 }
 
+/// Starts a new staged config update. Any previously staged config is discarded.
+///
+/// Signers are added in chunks with MCMS_StageConfig, then activated atomically with
+/// MCMS_CommitConfig. This keeps every transaction below the 1M gas limit.
+struct (0xeaaf141c) MCMS_BeginConfigStaging {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    groupQuorums: map<uint8, uint8>; // indexed, iterable backwards
+    groupParents: map<uint8, uint8>; // indexed, iterable backwards
+}
+
+/// Appends a chunk of signers to the staged config.
+struct (0x2847bdb3) MCMS_StageConfig {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    /// Index the chunk must start at. Prevents replay and out-of-order chunks.
+    expectedNumSigners: uint16;
+    signerAddresses: SnakedCell<uint160>; // EVM addresses
+    signerGroups: SnakedCell<uint8>;
+}
+
+/// Atomically activates the staged config.
+struct (0x7a475aac) MCMS_CommitConfig {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    /// Total number of signers expected in the staged config.
+    expectedNumSigners: uint16;
+    clearRoot: bool;
+}
+
+/// Discards the staged config without changing the active config.
+struct (0xc95d42b1) MCMS_AbortConfig {
+    /// Query ID of the change request.
+    queryId: uint64;
+}
+
 /// Changes the timeout required to finalize the currently executing op
 ///
 /// Replies with {MCMS_OpFinalizationTimeoutChange} message.
@@ -211,6 +250,10 @@ type MCMS_InMessage =
     | MCMS_SetRoot
     | MCMS_Execute
     | MCMS_SetConfig
+    | MCMS_BeginConfigStaging
+    | MCMS_StageConfig
+    | MCMS_CommitConfig
+    | MCMS_AbortConfig
     | MCMS_UpdateOpFinalizationTimeout
     | MCMS_SubmitErrorReport
     | MCMS_TransferOracleRole
@@ -244,6 +287,21 @@ struct (0xd80be574) MCMS_ConfigSet {
     config: Config;
     /// Whether the root was cleared.
     isRootCleared: bool;
+}
+
+/// Sent back to sender after each staging message.
+struct (0x3de839fe) MCMS_ConfigStaged {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    /// Number of signers staged so far.
+    numSigners: uint16;
+}
+
+/// Sent back to sender when a staged config is discarded.
+struct (0x381bbdc2) MCMS_ConfigStagingAborted {
+    /// Query ID of the change request.
+    queryId: uint64;
 }
 
 /// Sent back to sender when an op gets successfully executed.
@@ -333,6 +391,8 @@ type MCMS_OutMessage =
     | MCMS_NewRoot
     | MCMS_OpExecuted
     | MCMS_ConfigSet
+    | MCMS_ConfigStaged
+    | MCMS_ConfigStagingAborted
     | MCMS_OpFinalizationTimeoutChange
     | MCMS_ErrorReportSubmitted
     | MCMS_OracleRoleTransferred
@@ -365,8 +425,9 @@ struct MCMS_Data {
     /// have signers stored in config in order to easily deactivate them when a new config is set.
     signers: map<uint160, Signer>; // exists if an EVM address is a signer
 
-    /// The current configuration of the contract
-    config: Cell<Config>; // @dev split out as cell to avoid size limits
+    /// The current configuration and any staged config. ConfigState keeps the inner
+    /// Config cell unchanged while fitting both values into the existing 4-ref data cell.
+    config: Cell<ConfigState>;
 
     /// Remember signedHashes that this contract has seen. Each signedHash can only be set once.
     seenSignedHashes: map<uint256, bool>;
@@ -414,6 +475,10 @@ const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA =
 
 const NUM_GROUPS = 32;
 const MAX_NUM_SIGNERS = 200;
+/// Signers processed per staging transaction. Kept low enough that a chunk stays well
+/// below the 1M per-transaction gas limit.
+const MAX_SIGNERS_PER_STAGE = 32;
+
 
 const TOPIC_BOUNCE_HANDLED = "MCMS_BounceHandled".crc32();
 
@@ -511,6 +576,18 @@ enum MCMS_Error {
 
     /// Value attached to incoming message is not enough to pay for handler execution
     InsufficientFee
+
+    /// Thrown when staging a config chunk without an active staging session.
+    ConfigStagingNotStarted
+
+    /// Thrown when the staged signer count does not match the expected count.
+    ConfigStagingIncomplete
+
+    /// Thrown when a staging chunk exceeds MAX_SIGNERS_PER_STAGE.
+    ConfigStagingChunkTooLarge
+
+    /// Thrown when a staging message does not belong to the active staging session.
+    ConfigStagingSessionMismatch
 }
 
 // --- Constants - storage ---
@@ -589,6 +666,28 @@ struct Config {
     /// - (i != 0) implies (groupParents[i] < i)
     /// - groupParents[0] == 0
     groupParents: map<uint8, uint8>; // indexed, iterable backwards
+}
+
+/// Active config plus the optional config being staged for an atomic commit.
+struct ConfigState {
+    config: Cell<Config>;
+    stagedConfig: Cell<StagedConfig>?;
+}
+
+/// Config assembled across multiple transactions before being activated atomically.
+struct StagedConfig {
+    /// Pending config. Signers are keyed by index, exactly like the active config.
+    config: Cell<Config>;
+    /// Address-keyed mirror used by setRoot once this config is committed.
+    signers: map<uint160, Signer>;
+    numSigners: uint16;
+    /// Query ID is the staging-session nonce. Every stage/commit/abort message
+    /// must carry it so messages from an earlier begin cannot apply to a new session.
+    queryId: uint64;
+    /// Last staged address, used to enforce global strict ordering across chunks.
+    lastAddress: uint160;
+    /// Direct signer count per group, accumulated across chunks.
+    groupChildrenCounts: map<uint8, uint8>;
 }
 
 /// Information about the current root, extracted into a separate struct (wrapped in a cell).
@@ -759,7 +858,7 @@ fun MCMS<T>.setRoot(
     }
 
     // Upack config from the contract data
-    var config = Config.fromCell(self.data.config);
+    var config = Config.fromCell(ConfigState.fromCell(self.data.config).config);
 
     // the group at the root of the tree (with index 0) determines whether the vote passed,
     // we cannot proceed if it isn't configured with a valid (non-zero) quorum
@@ -1120,79 +1219,17 @@ fun MCMS<T>.setConfig(
             groupChildrenCounts.set(g, value);
         }
 
-        // second, we iterate backwards so as to check each group and propagate counts from
-        // child group to parent groups up the tree to the root
-
-        var j = 0;
-        repeat(NUM_GROUPS) {
-            val i = NUM_GROUPS - 1 - j;
-            // ensure we have a well-formed group tree. the root should have itself as parent
-            var gp = 0; // default parent for root group
-            {
-                var value = groupParents.get(i);
-                if (value.isFound) {
-                    gp = value.loadValue();
-                }
-            }
-            if ((i != 0 && gp >= i) || (i == 0 && gp != 0)) {
-                throw MCMS_Error.GroupTreeNotWellFormed;
-            }
-
-            var gq = 0; // default quorum for groups without a set quorum
-            {
-                var value = groupQuorums.get(i);
-                if (value.isFound) {
-                    gq = value.loadValue();
-                }
-            }
-
-            val disabled = gq == 0;
-
-            var count = 0; // default count
-            {
-                // get the number of children for this group
-                var value = groupChildrenCounts.get(i);
-                if (value.isFound) {
-                    count = value.loadValue();
-                }
-            }
-
-            if (disabled) {
-                // a disabled group shouldn't have any children
-                if (count > 0) {
-                    throw MCMS_Error.SignerInDisabledGroup;
-                }
-            } else {
-                // ensure that the group quorum can be met
-                if (count < gq) {
-                    throw MCMS_Error.OutOfBoundsGroupQuorum;
-                }
-
-                var current = 0;
-                {
-                   var value = groupChildrenCounts.get(gp);
-                   if (value.isFound) {
-                       current = value.loadValue();
-                   }
-                }
-                groupChildrenCounts.set(gp, current + 1);
-                // the above line clobbers groupChildrenCounts[0] in last iteration, don't use it after the loop ends
-            }
-
-            // Increment j until we reach the last group
-            j += 1;
-        }
+        validateGroupTree(groupQuorums, groupParents, groupChildrenCounts);
     }
 
-    // Upack config from the contract data
-    var config = Config.fromCell(self.data.config);
-
-    // Remove old signers
-    config.signers = [];
+    // Build the new config from scratch. There is no need to load the old config:
+    // replacing its roots is O(1), and direct setConfig also clears any staged session.
+    var config = Config{
+        signers: [],
+        groupQuorums: groupQuorums,
+        groupParents: groupParents,
+    };
     self.data.signers = [];
-
-    config.groupQuorums = groupQuorums;
-    config.groupParents = groupParents;
 
     // add new signers' addresses, we require that the signers' list be a strictly monotone
     // increasing sequence
@@ -1217,37 +1254,16 @@ fun MCMS<T>.setConfig(
         i += 1;
     }
 
-    // Pack the config back into a data cell
-    self.data.config = config.toCell();
+    // Pack the config back into a data cell.
+    var configState = ConfigState{
+        config: config.toCell(),
+        stagedConfig: null,
+    };
+    self.data.config = configState.toCell();
 
     // Optionally clear root
     if (clearRoot) {
-        // clearRoot is equivalent to overriding with a completely empty root
-        val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
-        val opCount = rootInfo.expiringRootAndOpCount.opCount;
-        val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
-
-        self.data.rootInfo = RootInfo{
-            expiringRootAndOpCount: ExpiringRootAndOpCount{
-                root: 0, // empty root
-                validUntil: 0,
-                opCount,
-                // TON-specific additions below to support the async environment
-                opPendingInfo: OpPendingInfo{
-                    validAfter: blockchain.now(), // immediate
-                    opFinalizationTimeout: opPendingInfo.opFinalizationTimeout, // cp from storage
-                    opPendingReceiver: null,
-                    opPendingExecutionLt: 0
-                }.toCell()
-            },
-            rootMetadata: RootMetadata{
-                chainId: globalId() as int256,
-                multiSig: contract.getAddress(),
-                preOpCount: opCount,
-                postOpCount: opCount,
-                overridePreviousRoot: true
-            }
-        }.toCell();
+        self._clearRoot();
     }
 
     // Reply to sender config is set, return excess
@@ -1256,6 +1272,318 @@ fun MCMS<T>.setConfig(
         value: 0,
         dest: sender,
         body: MCMS_ConfigSet{ queryId, config, isRootCleared: clearRoot }
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Validates a group tree and its quorums. `groupChildrenCounts` contains the direct
+/// signer/child-group counts; this function propagates them up to the root.
+fun validateGroupTree(
+    groupQuorums: map<uint8, uint8>,
+    groupParents: map<uint8, uint8>,
+    groupChildrenCounts: map<uint8, uint8>,
+) {
+    var counts = groupChildrenCounts;
+    var j = 0;
+    repeat(NUM_GROUPS) {
+        val i = NUM_GROUPS - 1 - j;
+        // ensure we have a well-formed group tree. the root should have itself as parent
+        var gp = 0; // default parent for root group
+        {
+            var value = groupParents.get(i);
+            if (value.isFound) {
+                gp = value.loadValue();
+            }
+        }
+        if ((i != 0 && gp >= i) || (i == 0 && gp != 0)) {
+            throw MCMS_Error.GroupTreeNotWellFormed;
+        }
+
+        var gq = 0; // default quorum for groups without a set quorum
+        {
+            var value = groupQuorums.get(i);
+            if (value.isFound) {
+                gq = value.loadValue();
+            }
+        }
+
+        val disabled = gq == 0;
+
+        var count = 0; // default count
+        {
+            var value = counts.get(i);
+            if (value.isFound) {
+                count = value.loadValue();
+            }
+        }
+
+        if (disabled) {
+            // a disabled group shouldn't have any children
+            if (count > 0) {
+                throw MCMS_Error.SignerInDisabledGroup;
+            }
+        } else {
+            // ensure that the group quorum can be met
+            if (count < gq) {
+                throw MCMS_Error.OutOfBoundsGroupQuorum;
+            }
+
+            var current = 0;
+            {
+               var value = counts.get(gp);
+               if (value.isFound) {
+                   current = value.loadValue();
+               }
+            }
+            counts.set(gp, current + 1);
+            // the above line clobbers counts[0] in last iteration, don't use it after the loop ends
+        }
+
+        j += 1;
+    }
+}
+
+/// Clears the current root, preserving the op count and finalization timeout.
+fun MCMS<T>._clearRoot(mutate self) {
+    val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
+    val opCount = rootInfo.expiringRootAndOpCount.opCount;
+    val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
+
+    self.data.rootInfo = RootInfo{
+        expiringRootAndOpCount: ExpiringRootAndOpCount{
+            root: 0, // empty root
+            validUntil: 0,
+            opCount,
+            // TON-specific additions below to support the async environment
+            opPendingInfo: OpPendingInfo{
+                validAfter: blockchain.now(), // immediate
+                opFinalizationTimeout: opPendingInfo.opFinalizationTimeout, // cp from storage
+                opPendingReceiver: null,
+                opPendingExecutionLt: 0
+            }.toCell()
+        },
+        rootMetadata: RootMetadata{
+            chainId: globalId() as int256,
+            multiSig: contract.getAddress(),
+            preOpCount: opCount,
+            postOpCount: opCount,
+            overridePreviousRoot: true
+        }
+    }.toCell();
+}
+
+/// Appends one chunk of signers to a staged config.
+fun _stageSigners(
+    mutate staged: StagedConfig,
+    signerAddresses: SnakedCell<uint160>, // EVM addresses
+    signerGroups: SnakedCell<uint8>,
+) {
+    var addrs = signerAddresses.iter();
+    var groups = signerGroups.iter();
+
+    val n = addrs.size(20 * 8); // notice size in bits
+    if (n == 0) {
+        throw MCMS_Error.OutOfBoundsNumSigners;
+    }
+    if (n > MAX_SIGNERS_PER_STAGE) {
+        throw MCMS_Error.ConfigStagingChunkTooLarge;
+    }
+    if (groups.size(8) != n) { // notice size in bits (1 byte)
+        throw MCMS_Error.SignerGroupsLengthMismatch;
+    }
+    if (staged.numSigners as int + n > MAX_NUM_SIGNERS) {
+        throw MCMS_Error.OutOfBoundsNumSigners;
+    }
+
+    var config = Config.fromCell(staged.config);
+    var prevAddress = staged.lastAddress;
+    var index = staged.numSigners as int;
+    while (!addrs.empty()) {
+        val address = addrs.next();
+        val group = groups.next();
+        if (group >= NUM_GROUPS) {
+            throw MCMS_Error.OutOfBoundsGroup;
+        }
+        if (prevAddress >= address) {
+            throw MCMS_Error.SignersAdderssesMustBeStrictlyIncreasing;
+        }
+
+        val signer = Signer{address, index: index as uint8, group};
+        staged.signers.set(address, signer);
+        config.signers.set(index as uint8, signer);
+
+        var count = 0;
+        {
+            var value = staged.groupChildrenCounts.get(group);
+            if (value.isFound) {
+                count = value.loadValue();
+            }
+        }
+        staged.groupChildrenCounts.set(group, count + 1);
+
+        prevAddress = address;
+        index += 1;
+    }
+
+    staged.numSigners = index as uint16;
+    staged.lastAddress = prevAddress;
+    staged.config = config.toCell();
+}
+
+/// Starts a new staged config, discarding any previous staging session.
+fun MCMS<T>.beginConfigStaging(
+    mutate self,
+    sender: address,
+    value: coins,
+    queryId: uint64,
+    groupQuorums: map<uint8, uint8>, // indexed, iterable backwards
+    groupParents: map<uint8, uint8>, // indexed, iterable backwards
+) {
+    self.data.ownable.requireOwner(sender);
+
+    assert(value >= MCMS_Costs.beginConfigStaging(), MCMS_Error.InsufficientFee);
+
+    var staged = StagedConfig{
+        config: Config{signers: [], groupQuorums, groupParents}.toCell(),
+        signers: [],
+        numSigners: 0,
+        queryId,
+        lastAddress: 0,
+        groupChildrenCounts: [],
+    };
+    var configState = ConfigState.fromCell(self.data.config);
+    configState.stagedConfig = staged.toCell();
+    self.data.config = configState.toCell();
+
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: MCMS_ConfigStaged{queryId, numSigners: 0}
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Appends a chunk of signers to the staged config.
+fun MCMS<T>.stageConfig(
+    mutate self,
+    sender: address,
+    value: coins,
+    queryId: uint64,
+    expectedNumSigners: uint16,
+    signerAddresses: SnakedCell<uint160>, // EVM addresses
+    signerGroups: SnakedCell<uint8>,
+) {
+    self.data.ownable.requireOwner(sender);
+
+    assert(value >= MCMS_Costs.stageConfig(), MCMS_Error.InsufficientFee);
+
+    var configState = ConfigState.fromCell(self.data.config);
+    if (configState.stagedConfig == null) {
+        throw MCMS_Error.ConfigStagingNotStarted;
+    }
+    var staged = StagedConfig.fromCell(configState.stagedConfig!);
+
+    if (staged.queryId != queryId) {
+        throw MCMS_Error.ConfigStagingSessionMismatch;
+    }
+    if (expectedNumSigners as int != staged.numSigners as int) {
+        throw MCMS_Error.ConfigStagingIncomplete;
+    }
+
+    _stageSigners(mutate staged, signerAddresses, signerGroups);
+    configState.stagedConfig = staged.toCell();
+    self.data.config = configState.toCell();
+
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: MCMS_ConfigStaged{queryId, numSigners: staged.numSigners}
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Atomically activates the staged config.
+fun MCMS<T>.commitConfig(
+    mutate self,
+    sender: address,
+    value: coins,
+    queryId: uint64,
+    expectedNumSigners: uint16,
+    clearRoot: bool,
+) {
+    self.data.ownable.requireOwner(sender);
+
+    assert(value >= MCMS_Costs.commitConfig(), MCMS_Error.InsufficientFee);
+
+    var configState = ConfigState.fromCell(self.data.config);
+    if (configState.stagedConfig == null) {
+        throw MCMS_Error.ConfigStagingNotStarted;
+    }
+    var staged = StagedConfig.fromCell(configState.stagedConfig!);
+
+    if (staged.queryId != queryId) {
+        throw MCMS_Error.ConfigStagingSessionMismatch;
+    }
+    if (staged.numSigners == 0
+        || staged.numSigners as int > MAX_NUM_SIGNERS
+        || staged.numSigners as int != expectedNumSigners as int) {
+        throw MCMS_Error.ConfigStagingIncomplete;
+    }
+
+    val config = Config.fromCell(staged.config);
+
+    // This is the only cross-chunk validation needed at commit time: the per-signer
+    // checks (ordering, bounds, counts) were already done when each chunk was staged.
+    validateGroupTree(config.groupQuorums, config.groupParents, staged.groupChildrenCounts);
+
+    // Activate the config by swapping map/cell roots. Old map entries are dropped in O(1).
+    configState.config = staged.config;
+    configState.stagedConfig = null;
+    self.data.config = configState.toCell();
+    self.data.signers = staged.signers;
+
+    if (clearRoot) {
+        self._clearRoot();
+    }
+
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: MCMS_ConfigSet{queryId, config, isRootCleared: clearRoot}
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Discards the staged config, leaving the active config unchanged.
+fun MCMS<T>.abortConfigStaging(
+    mutate self,
+    sender: address,
+    value: coins,
+    queryId: uint64,
+) {
+    self.data.ownable.requireOwner(sender);
+
+    assert(value >= MCMS_Costs.abortConfig(), MCMS_Error.InsufficientFee);
+
+    var configState = ConfigState.fromCell(self.data.config);
+    if (configState.stagedConfig == null) {
+        throw MCMS_Error.ConfigStagingNotStarted;
+    }
+    var staged = StagedConfig.fromCell(configState.stagedConfig!);
+    if (staged.queryId != queryId) {
+        throw MCMS_Error.ConfigStagingSessionMismatch;
+    }
+    configState.stagedConfig = null;
+    self.data.config = configState.toCell();
+
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: MCMS_ConfigStagingAborted{queryId}
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -1483,7 +1811,7 @@ fun MCMS<T>.getId(self): uint32 {
 
 /// Returns the current configuration of the contract
 fun MCMS<T>.getConfig(self): Config {
-    return Config.fromCell(self.data.config);
+    return Config.fromCell(ConfigState.fromCell(self.data.config).config);
 }
 
 /// Returns the current op count, i.e., the number of ops in the current expiring root.
@@ -1530,6 +1858,19 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
         MCMS_SetConfig => {
             self.setConfig(msgSender, msgValue, msg.queryId, msg.signerAddresses, msg.signerGroups,
                 msg.groupQuorums, msg.groupParents, msg.clearRoot);
+        }
+        MCMS_BeginConfigStaging => {
+            self.beginConfigStaging(msgSender, msgValue, msg.queryId, msg.groupQuorums, msg.groupParents);
+        }
+        MCMS_StageConfig => {
+            self.stageConfig(msgSender, msgValue, msg.queryId, msg.expectedNumSigners,
+                msg.signerAddresses, msg.signerGroups);
+        }
+        MCMS_CommitConfig => {
+            self.commitConfig(msgSender, msgValue, msg.queryId, msg.expectedNumSigners, msg.clearRoot);
+        }
+        MCMS_AbortConfig => {
+            self.abortConfigStaging(msgSender, msgValue, msg.queryId);
         }
         MCMS_UpdateOpFinalizationTimeout => {
             self.updateOpFinalizationTimeout(msgSender, msgValue, msg.queryId, msg.newOpFinalizationTimeout);
@@ -1709,6 +2050,27 @@ fun MCMS_Costs.setConfig(): int {
         ;
 }
 
+fun MCMS_Costs.beginConfigStaging(): int {
+    return MCMS_Costs.setConfig();
+}
+
+// A staging chunk writes two signer maps; budget eight large-message gas units.
+fun MCMS_Costs.stageConfig(): int {
+    return
+        + calculateGasFeeFor(FEE_SIZE_LARGE) * 8
+        + grams("0.019") // MCMS_ConfigStaged fwdFee (reply)
+        + calculateGasFeeFor(FEE_SIZE_SMALL) // reply value
+        ;
+}
+
+fun MCMS_Costs.commitConfig(): int {
+    return MCMS_Costs.setConfig();
+}
+
+fun MCMS_Costs.abortConfig(): int {
+    return MCMS_Costs.setConfig();
+}
+
 fun MCMS_Costs.submitErrorReport(): int {
     return
         + grams("0.002") // computeFee
@@ -1731,6 +2093,16 @@ get fun getId(): uint32 {
 /// @see <MCMS<T>.getConfig>
 get fun getConfig(): Config {
     return MCMS<bool>.load().getConfig();
+}
+
+/// Returns the number of signers in the staged config, or 0 if no staging is in progress.
+get fun getStagedConfigNumSigners(): uint16 {
+    val data = MCMS_Data.fromContractData();
+    val configState = ConfigState.fromCell(data.config);
+    if (configState.stagedConfig == null) {
+        return 0;
+    }
+    return StagedConfig.fromCell(configState.stagedConfig!).numSigners;
 }
 
 /// @see <MCMS<T>.getOpCount>

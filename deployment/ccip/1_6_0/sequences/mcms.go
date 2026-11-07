@@ -303,7 +303,44 @@ func (a *TonDeployAdapter) UpdateMCMSConfig() *cldfops.Sequence[ccipddeploy.Upda
 				if currentConfig.Signers != nil {
 					currentSigners = currentConfig.Signers.Len()
 				}
-				steps, err := a.configSteps(contractRef.Version, currentSigners, activeGroupCount(currentConfig.GroupQuorums), in.MCMConfig)
+				currentGroups := activeGroupCount(currentConfig.GroupQuorums)
+				if needsStagedConfig(contractRef.Version, currentSigners, currentGroups, in.MCMConfig) {
+					if !plan {
+						return ccipdseq.OnChainOutput{}, fmt.Errorf("staged setConfig requires Timelock ownership for MCMS contract %s", contractRef.Address)
+					}
+
+					r, stagedErr := cldfops.ExecuteOperation(b, opsmcms.SetConfigStaged, dp, opsmcms.SetConfigStagedInput{
+						Bounce:    true,
+						DstAddr:   contractAddr,
+						Amount:    tlb.MustFromTON("0.5"),
+						Config:    &in.MCMConfig,
+						ClearRoot: false,
+					})
+					if stagedErr != nil {
+						return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to build staged setConfig messages for MCMS contract %s: %w", contractRef.Address, stagedErr)
+					}
+
+					plans := opston.AsCells(r.Output.Plans)
+					metadata := make([]opsmcms.OperationMetadata, len(plans))
+					for i := range metadata {
+						stage := "chunk"
+						switch i {
+						case 0:
+							stage = "begin"
+						case len(metadata) - 1:
+							stage = "commit"
+						}
+						metadata[i] = opsmcms.OperationMetadata{
+							ContractType:     contractRef.Type.String(),
+							ContractTypeFull: bindings.TypeMCMS,
+							Tags:             []string{"MCMS", "setConfig", "configStage:" + stage},
+						}
+					}
+					_inputMCMS.Add(plans, plan, metadata)
+					continue
+				}
+
+				steps, err := a.configSteps(contractRef.Version, currentSigners, currentGroups, in.MCMConfig)
 				if err != nil {
 					return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to resolve setConfig steps for MCMS contract %s: %w", contractRef.Address, err)
 				}
