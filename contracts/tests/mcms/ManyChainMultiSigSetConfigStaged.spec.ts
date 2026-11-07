@@ -1,8 +1,8 @@
 import { Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
 
-import * as mcms from '../../wrappers/mcms/MCMS'
 import { merkleProof } from '../../src/mcms'
+import * as mcms from '../../wrappers/mcms/MCMS'
 
 import { MCMSBaseTestSetup } from './ManyChainMultiSigBaseTest'
 
@@ -22,7 +22,7 @@ const allGroupsConfig = () => {
   return { groupQuorums, groupParents }
 }
 
-const groupForIndex = (i: number) => (i % (mcms.NUM_GROUPS - 1)) + 1
+const groupForIndex = (index: number) => (index % (mcms.NUM_GROUPS - 1)) + 1
 
 const findMcmsTx = (result: SendMessageResult, address: Address) => {
   const tx = result.transactions.find(
@@ -46,7 +46,12 @@ const computeGas = (tx: ReturnType<typeof findMcmsTx>) => {
   }
 }
 
-describe('MCMS - staged SetConfig', () => {
+const expectSuccess = <T extends { exitCode: number }>(result: T): T => {
+  expect(result.exitCode).toBe(0)
+  return result
+}
+
+describe('MCMS - staged setConfig', () => {
   let baseTest: MCMSBaseTestSetup
 
   beforeAll(async () => {
@@ -66,30 +71,33 @@ describe('MCMS - staged SetConfig', () => {
     return { result, ...computeGas(findMcmsTx(result, baseTest.bind.mcms.address)) }
   }
 
-  const begin = (groupQuorums: Map<number, number>, groupParents: Map<number, number>) =>
+  const begin = (queryId = 1n, config = allGroupsConfig()) =>
+    send(mcms.builder.message.in.beginConfigStaging.encode({ queryId, ...config }).endCell())
+
+  const beginSession = async (queryId = 1n, config = allGroupsConfig()) => {
+    expectSuccess(await begin(queryId, config))
+    return config
+  }
+
+  const stageSigners = (
+    addresses: bigint[],
+    groups: number[],
+    expectedNumSigners = 0,
+    queryId = 1n,
+  ) =>
     send(
-      mcms.builder.message.in.beginConfigStaging
-        .encode({ queryId: 1n, groupQuorums, groupParents })
+      mcms.builder.message.in.stageConfig
+        .encode({ queryId, expectedNumSigners, signerAddresses: addresses, signerGroups: groups })
         .endCell(),
     )
 
-  const stage = (
-    offset: number,
-    count: number,
-    expectedNumSigners: number,
-    groupOffset = 0,
-    queryId = 1n,
-  ) => {
+  const stage = (offset: number, count: number, expectedNumSigners = 0, queryId = 1n) => {
     const addresses = deterministicSigners(offset, count)
-    return send(
-      mcms.builder.message.in.stageConfig
-        .encode({
-          queryId,
-          expectedNumSigners,
-          signerAddresses: addresses,
-          signerGroups: addresses.map((_, i) => groupForIndex(i + groupOffset)),
-        })
-        .endCell(),
+    return stageSigners(
+      addresses,
+      addresses.map((_, i) => groupForIndex(i)),
+      expectedNumSigners,
+      queryId,
     )
   }
 
@@ -103,187 +111,169 @@ describe('MCMS - staged SetConfig', () => {
   const abort = (queryId = 1n) =>
     send(mcms.builder.message.in.abortConfig.encode({ queryId }).endCell())
 
-  it('rejects a chunk from a different staging session', async () => {
-    const { groupQuorums, groupParents } = allGroupsConfig()
-    expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
+  const stagedSignerCount = () => baseTest.bind.mcms.getStagedConfigNumSigners()
+  const activeSignerCount = async () => (await baseTest.bind.mcms.getConfig()).signers.size
 
-    const result = await stage(0, 32, 0, 0, 2n)
+  describe('chunk validation', () => {
+    it('rejects a chunk from a different session', async () => {
+      await beginSession()
 
-    expect(result.exitCode).toBe(mcms.Error.ConfigStagingSessionMismatch)
-    expect(await baseTest.bind.mcms.getStagedConfigNumSigners()).toBe(0)
+      const result = await stage(0, 32, 0, 2n)
+
+      expect(result.exitCode).toBe(mcms.Error.ConfigStagingSessionMismatch)
+      expect(await stagedSignerCount()).toBe(0)
+    })
+
+    it('rejects a chunk larger than the stage limit', async () => {
+      await beginSession()
+
+      const result = await stage(0, mcms.MAX_SIGNERS_PER_STAGE + 1)
+
+      expect(result.exitCode).toBe(mcms.Error.ConfigStagingChunkTooLarge)
+      expect(await stagedSignerCount()).toBe(0)
+    })
+
+    it('rejects replaying a chunk in the same session', async () => {
+      await beginSession()
+      expectSuccess(await stage(0, 16))
+
+      const result = await stage(0, 16)
+
+      expect(result.exitCode).toBe(mcms.Error.ConfigStagingIncomplete)
+      expect(await stagedSignerCount()).toBe(16)
+    })
+
+    it('rejects a stale chunk from an earlier session', async () => {
+      await beginSession()
+      expectSuccess(await stage(0, 16))
+
+      await beginSession(2n)
+      const result = await stage(0, 16, 0, 1n)
+
+      expect(result.exitCode).toBe(mcms.Error.ConfigStagingSessionMismatch)
+      expect(await stagedSignerCount()).toBe(0)
+    })
+
+    it('rejects an out-of-order chunk', async () => {
+      await beginSession()
+      expectSuccess(await stage(0, 32))
+      expect(await stagedSignerCount()).toBe(32)
+
+      const result = await stage(32, 32, 0)
+
+      expect(result.exitCode).toBe(mcms.Error.ConfigStagingIncomplete)
+      expect(await stagedSignerCount()).toBe(32)
+    })
+
+    it('rejects commit before all signers are staged', async () => {
+      await beginSession()
+      expectSuccess(await stage(0, 32))
+
+      const result = await commit(69)
+
+      expect(result.exitCode).toBe(mcms.Error.ConfigStagingIncomplete)
+      expect(await activeSignerCount()).toBe(MCMSBaseTestSetup.SIGNERS_NUM)
+    })
+
+    it('validates the group tree at commit, not at stage time', async () => {
+      const config = {
+        groupQuorums: new Map<number, number>([
+          [0, 1],
+          [1, 0],
+        ]),
+        groupParents: new Map<number, number>([
+          [0, 0],
+          [1, 0],
+        ]),
+      }
+      await beginSession(1n, config)
+      expectSuccess(await stage(0, 16))
+
+      const result = await commit(16)
+
+      expect(result.exitCode).toBe(mcms.Error.SignerInDisabledGroup)
+      expect(await activeSignerCount()).toBe(MCMSBaseTestSetup.SIGNERS_NUM)
+    })
   })
 
-  it('rejects a chunk larger than the staging size limit', async () => {
-    const { groupQuorums, groupParents } = allGroupsConfig()
-    expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
+  describe('session lifecycle', () => {
+    it('aborts staging without touching the active config', async () => {
+      await beginSession()
+      expectSuccess(await stage(0, 32))
+      expect(await stagedSignerCount()).toBe(32)
 
-    const result = await stage(0, mcms.MAX_SIGNERS_PER_STAGE + 1, 0)
+      expectSuccess(await abort())
 
-    expect(result.exitCode).toBe(mcms.Error.ConfigStagingChunkTooLarge)
-    expect(await baseTest.bind.mcms.getStagedConfigNumSigners()).toBe(0)
-  })
+      expect(await stagedSignerCount()).toBe(0)
+      expect(await activeSignerCount()).toBe(MCMSBaseTestSetup.SIGNERS_NUM)
+    })
 
-  it('rejects replaying the same chunk in a session', async () => {
-    const { groupQuorums, groupParents } = allGroupsConfig()
-    expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
-    expect((await stage(0, 16, 0)).exitCode).toBe(0)
+    it('clears staged state when setConfig is called directly', async () => {
+      await beginSession()
+      expectSuccess(await stage(0, 32))
 
-    const replay = await stage(0, 16, 0)
+      const setConfig = mcms.builder.message.in.setConfig
+        .encode({
+          queryId: 0n,
+          signerAddresses: baseTest.testSigners.map((signer) => BigInt(signer.address)),
+          signerGroups: baseTest.signerGroups,
+          groupQuorums: baseTest.testGroupQuorums,
+          groupParents: baseTest.testGroupParents,
+          clearRoot: false,
+        })
+        .endCell()
 
-    expect(replay.exitCode).toBe(mcms.Error.ConfigStagingIncomplete)
-    expect(await baseTest.bind.mcms.getStagedConfigNumSigners()).toBe(16)
-  })
+      expectSuccess(await send(setConfig))
+      expect(await stagedSignerCount()).toBe(0)
+    })
 
-  it('rejects a stale chunk from an earlier staging session', async () => {
-    const { groupQuorums, groupParents } = allGroupsConfig()
-    expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
-    expect((await stage(0, 16, 0, 0, 1n)).exitCode).toBe(0)
-
-    // Start a new session with a different query ID.
-    expect(
-      (
-        await send(
-          mcms.builder.message.in.beginConfigStaging
-            .encode({ queryId: 2n, groupQuorums, groupParents })
-            .endCell(),
-        )
-      ).exitCode,
-    ).toBe(0)
-
-    // A chunk from session 1 must not apply to session 2.
-    const result = await stage(0, 16, 0, 0, 1n)
-    expect(result.exitCode).toBe(mcms.Error.ConfigStagingSessionMismatch)
-    expect(await baseTest.bind.mcms.getStagedConfigNumSigners()).toBe(0)
-  })
-
-  it('rejects an out-of-order chunk', async () => {
-    const { groupQuorums, groupParents } = allGroupsConfig()
-    expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
-    expect((await stage(0, 32, 0)).exitCode).toBe(0)
-
-    // expectedNumSigners is stale: the next chunk must start at 32.
-    const result = await stage(32, 32, 0)
-
-    expect(result.exitCode).toBe(mcms.Error.ConfigStagingIncomplete)
-    expect(await baseTest.bind.mcms.getStagedConfigNumSigners()).toBe(32)
-  })
-
-  it('rejects commit before all signers are staged', async () => {
-    const { groupQuorums, groupParents } = allGroupsConfig()
-    expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
-    expect((await stage(0, 32, 0)).exitCode).toBe(0)
-
-    const result = await commit(69)
-
-    expect(result.exitCode).toBe(mcms.Error.ConfigStagingIncomplete)
-    // Active config is unchanged.
-    expect((await baseTest.bind.mcms.getConfig()).signers.size).toBe(MCMSBaseTestSetup.SIGNERS_NUM)
-  })
-
-  it('aborts staging without touching the active config', async () => {
-    const { groupQuorums, groupParents } = allGroupsConfig()
-    expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
-    expect((await stage(0, 32, 0)).exitCode).toBe(0)
-    expect(await baseTest.bind.mcms.getStagedConfigNumSigners()).toBe(32)
-
-    expect((await abort()).exitCode).toBe(0)
-    expect(await baseTest.bind.mcms.getStagedConfigNumSigners()).toBe(0)
-    expect((await baseTest.bind.mcms.getConfig()).signers.size).toBe(MCMSBaseTestSetup.SIGNERS_NUM)
-  })
-
-  it('clears a staged session when setConfig is called directly', async () => {
-    const { groupQuorums, groupParents } = allGroupsConfig()
-    expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
-    expect((await stage(0, 32, 0)).exitCode).toBe(0)
-
-    const setConfigBody = mcms.builder.message.in.setConfig
-      .encode({
-        queryId: 0n,
-        signerAddresses: baseTest.testSigners.map((signer) => BigInt(signer.address)),
-        signerGroups: baseTest.signerGroups,
+    it('allows setRoot after committing the staged config', async () => {
+      await beginSession(1n, {
         groupQuorums: baseTest.testGroupQuorums,
         groupParents: baseTest.testGroupParents,
-        clearRoot: false,
       })
-      .endCell()
-    const result = await send(setConfigBody)
+      expectSuccess(
+        await stageSigners(
+          baseTest.testSigners.map((signer) => BigInt(signer.address)),
+          baseTest.signerGroups,
+        ),
+      )
+      expectSuccess(await commit(baseTest.testSigners.length))
 
-    expect(result.exitCode).toBe(0)
-    expect(await baseTest.bind.mcms.getStagedConfigNumSigners()).toBe(0)
-  })
-
-  it('validates the group tree at commit, not at stage time', async () => {
-    // Group 1 is disabled but signers are assigned to it.
-    const groupQuorums = new Map<number, number>([
-      [0, 1],
-      [1, 0],
-    ])
-    const groupParents = new Map<number, number>([
-      [0, 0],
-      [1, 0],
-    ])
-
-    expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
-    expect((await stage(0, 16, 0)).exitCode).toBe(0)
-
-    const result = await commit(16)
-
-    expect(result.exitCode).toBe(mcms.Error.SignerInDisabledGroup)
-    expect((await baseTest.bind.mcms.getConfig()).signers.size).toBe(MCMSBaseTestSetup.SIGNERS_NUM)
-  })
-
-  it('allows setRoot after committing the staged config', async () => {
-    expect((await begin(baseTest.testGroupQuorums, baseTest.testGroupParents)).exitCode).toBe(0)
-
-    const addresses = baseTest.testSigners.map((signer) => BigInt(signer.address))
-    const result = await send(
-      mcms.builder.message.in.stageConfig
-        .encode({
-          queryId: 1n,
-          expectedNumSigners: 0,
-          signerAddresses: addresses,
-          signerGroups: baseTest.signerGroups,
-        })
-        .endCell(),
-    )
-    expect(result.exitCode).toBe(0)
-    expect((await commit(baseTest.testSigners.length)).exitCode).toBe(0)
-
-    const opCount = await baseTest.bind.mcms.getOpCount()
-    const ops: mcms.Op[] = [0n, 1n, 2n].map((nonce) => ({
-      chainId: -239n,
-      multiSig: baseTest.bind.mcms.address,
-      nonce,
-      to: baseTest.bind.mcms.address,
-      value: 0n,
-      data: Cell.EMPTY,
-    }))
-    const [setRoot] = merkleProof.build(
-      baseTest.testSigners.map((signer) => signer.keyPair),
-      1_000_000n,
-      {
+      const opCount = await baseTest.bind.mcms.getOpCount()
+      const ops: mcms.Op[] = [0n, 1n, 2n].map((nonce) => ({
         chainId: -239n,
         multiSig: baseTest.bind.mcms.address,
-        preOpCount: opCount,
-        postOpCount: opCount + BigInt(ops.length),
-        overridePreviousRoot: false,
-      },
-      ops,
-    )
-    const setRootResult = await send(mcms.builder.message.in.setRoot.encode(setRoot).asCell())
-    expect(setRootResult.exitCode).toBe(0)
-  })
+        nonce,
+        to: baseTest.bind.mcms.address,
+        value: 0n,
+        data: Cell.EMPTY,
+      }))
+      const [setRoot] = merkleProof.build(
+        baseTest.testSigners.map((signer) => signer.keyPair),
+        1_000_000n,
+        {
+          chainId: -239n,
+          multiSig: baseTest.bind.mcms.address,
+          preOpCount: opCount,
+          postOpCount: opCount + BigInt(ops.length),
+          overridePreviousRoot: false,
+        },
+        ops,
+      )
 
-  it('stages and commits a config that clears the root', async () => {
-    const { groupQuorums, groupParents } = allGroupsConfig()
-    expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
-    expect((await stage(0, 32, 0)).exitCode).toBe(0)
+      expectSuccess(await send(mcms.builder.message.in.setRoot.encode(setRoot).asCell()))
+    })
 
-    const result = await commit(32, true)
-    expect(result.exitCode).toBe(0)
+    it('stages and commits a config that clears the root', async () => {
+      await beginSession()
+      expectSuccess(await stage(0, 32))
 
-    const [root, validUntil] = await baseTest.bind.mcms.getRoot()
-    expect(root).toBe(0n)
-    expect(validUntil).toBe(0n)
+      expectSuccess(await commit(32, true))
+
+      const [root, validUntil] = await baseTest.bind.mcms.getRoot()
+      expect(root).toBe(0n)
+      expect(validUntil).toBe(0n)
+    })
   })
 })
