@@ -309,15 +309,15 @@ func (a *TonDeployAdapter) UpdateMCMSConfig() *cldfops.Sequence[ccipddeploy.Upda
 						return ccipdseq.OnChainOutput{}, fmt.Errorf("staged setConfig requires Timelock ownership for MCMS contract %s", contractRef.Address)
 					}
 
-					r, err := cldfops.ExecuteOperation(b, opsmcms.SetConfigStaged, dp, opsmcms.SetConfigStagedInput{
+					r, stagedErr := cldfops.ExecuteOperation(b, opsmcms.SetConfigStaged, dp, opsmcms.SetConfigStagedInput{
 						Bounce:    true,
 						DstAddr:   contractAddr,
 						Amount:    tlb.MustFromTON("0.5"),
 						Config:    &in.MCMConfig,
 						ClearRoot: false,
 					})
-					if err != nil {
-						return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to build staged setConfig messages for MCMS contract %s: %w", contractRef.Address, err)
+					if stagedErr != nil {
+						return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to build staged setConfig messages for MCMS contract %s: %w", contractRef.Address, stagedErr)
 					}
 
 					plans := opston.AsCells(r.Output.Plans)
