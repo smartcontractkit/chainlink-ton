@@ -4,9 +4,11 @@
 // The lockbox gas-report test compares these on-chain estimates with measured sandbox gas so the
 // value checks and the measured costs stay in lockstep.
 
+import "@stdlib/common.tolk"
 import "@stdlib/gas-payments"
 
 import "../../ccip/pools/lockbox/costs"
+import "../../ccip/pools/lockbox/messages"
 
 contract JettonLockBoxCostHarness {
     author: "SmartContract Chainlink Limited SEZC"
@@ -21,7 +23,26 @@ fun onInternalMessage(in: InMessage) {
 get fun get_depositGasUnits(): int { return JettonLockBox_DEPOSIT_GAS_UNITS; }
 get fun get_withdrawGasUnits(): int { return JettonLockBox_WITHDRAW_GAS_UNITS; }
 
-get fun get_depositMinValue(): coins { return JettonLockBox_minDepositValue(); }
+get fun get_depositMinValue(replyFee: coins): coins {
+    return JettonLockBox_minDepositValue(replyFee);
+}
+
+/// Test-only estimate of the `JettonLockBox_Deposited` reply fee for the deposit shape.
+get fun get_depositReplyFee(queryId: uint64, amount: coins, depositContext: cell?): coins {
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: contract.getAddress(),
+        body: JettonLockBox_Deposited {
+            queryId,
+            token: contract.getAddress(),
+            depositor: contract.getAddress(),
+            amount,
+            context: depositContext,
+        },
+    });
+    return reply.estimateFeeWithoutSending(SEND_MODE_CARRY_ALL_BALANCE);
+}
 get fun get_withdrawMinValue(forwardTonAmount: coins, fwdFee: coins): coins {
     return JettonLockBox_minWithdrawValue(forwardTonAmount, fwdFee);
 }

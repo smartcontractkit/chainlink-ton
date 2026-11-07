@@ -167,8 +167,6 @@ fun onDepositWithTransferNotification(
 
     try {
         // Custody already arrived: validation and value failures use the existing custody-return path.
-        // Require enough value for either continuation: the success reply or the custody return.
-        assert(msgValue >= JettonLockBox_minDepositValue(), JettonLockBox_Error.NotEnoughValue);
         assert(deposit != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
         val rbac = hookTrait__AccessControl(st);
         rbac.requireRole(OPERATOR_ROLE, msg.transferInitiator);
@@ -176,15 +174,7 @@ fun onDepositWithTransferNotification(
         assert (deposit.token == st.minterAddress) throw (JettonLockBox_Error.UnsupportedToken);
         assert (deposit.amount == msg.jettonAmount) throw (JettonLockBox_Error.MissingOrMalformedForwardPayload);
 
-        // Custody has arrived; finalize optimistically without rejecting.
-        // The operator funds the confirmation when it sends the deposit.
-
-        // The log and transfer are separate actions. Protect the pre-message balance, then carry
-        // only the unreserved remainder after paying for the log and this transaction.
-        reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
-        emit<JettonLockBox_Deposit>(TOPIC_DEPOSIT, deposit);
-
-        // Reply to the operator (pool) so it knows the deposit is confirmed.
+        // Build the reply once: its estimated fee is part of the happy-path value check.
         val reply = createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
@@ -197,7 +187,24 @@ fun onDepositWithTransferNotification(
                 context: deposit.context,
             },
         });
-        reply.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+
+        // Valid deposit: require enough value for the happy path, including the reply fee. Do not
+        // require the failure-return budget here; a shortfall on that optional path must not
+        // reject a viable success.
+        val replyFee = reply.estimateFeeWithoutSending(SEND_MODE_CARRY_ALL_BALANCE);
+        assert(
+            msgValue >= JettonLockBox_minDepositValue(replyFee),
+            JettonLockBox_Error.NotEnoughValue
+        );
+
+        // Custody has arrived; finalize optimistically without rejecting.
+        // The operator funds the confirmation when it sends the deposit.
+
+        // The log and transfer are separate actions. Protect the pre-message balance, then carry
+        // only the unreserved remainder after paying for the log and this transaction.
+        reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
+        emit<JettonLockBox_Deposit>(TOPIC_DEPOSIT, deposit);
+        reply.send(SEND_MODE_CARRY_ALL_BALANCE);
     } catch (errorCode) {
         onDepositReturn(st, msgValue, msg, deposit, errorCode);
     }
