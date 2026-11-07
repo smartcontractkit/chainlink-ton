@@ -26,6 +26,11 @@ const (
 // this version is no longer live.
 var multiStepSetConfigVersion = semver.MustParse("0.0.4")
 
+// stagedSetConfigMinVersion is the first MCMS version with the staged config
+// entrypoints. Larger configs on these versions use stage/commit instead of the
+// temporary intermediate-config workaround.
+var stagedSetConfigMinVersion = semver.MustParse("0.0.5")
+
 var defaultTonDeployAdapter = NewTonDeployAdapter(nil)
 
 // SetTonDeployAdapterIntermediateConfig injects the approved intermediate config
@@ -61,6 +66,12 @@ func (a *TonDeployAdapter) configSteps(contractVersion *semver.Version, currentS
 
 func supportsMultiStepSetConfig(contractVersion *semver.Version) bool {
 	return contractVersion != nil && contractVersion.Equal(multiStepSetConfigVersion)
+}
+
+func needsStagedConfig(contractVersion *semver.Version, currentSigners, currentGroups int, final mcmstypes.Config) bool {
+	return contractVersion != nil &&
+		!contractVersion.LessThan(stagedSetConfigMinVersion) &&
+		needsTwoStep(currentSigners, currentGroups, final)
 }
 
 func needsTwoStep(currentSigners, currentGroups int, final mcmstypes.Config) bool {
