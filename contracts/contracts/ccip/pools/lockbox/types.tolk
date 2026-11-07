@@ -15,11 +15,8 @@ const OPERATOR_ROLE = "OPERATOR_ROLE".crc32();
 const TOPIC_DEPOSIT = "JettonLockBox_Deposit".crc32();
 const TOPIC_WITHDRAWAL = "JettonLockBox_Withdrawal".crc32();
 
-/// Storage rent reserve to keep the contract alive.
-const MIN_GRAM_TO_RESERVE: int = grams("0.05");
-
 /// Minimum value the init message must carry on top of the rent reserve
-const MIN_GRAM_TO_INIT: int = grams("0.05");
+const MIN_GRAM_TO_INIT: coins = grams("0.05");
 
 /// The estimated lockbox's own work on `JettonLockBox_Withdraw`: validation, the withdrawal log, etc.
 /// Does not include fwdFee or the gas/value used by the jetton wallet for the actual token transfer.

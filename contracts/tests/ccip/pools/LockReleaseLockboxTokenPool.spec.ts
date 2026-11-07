@@ -12,6 +12,7 @@ import {
   TokenPool_AdminConfig,
   TokenPool_DynamicConfig,
   TokenPool_LocalPolicy,
+  TokenPool_ReleaseOrMint,
   TokenPool_ReleaseOrMintFailure,
   TokenPool_ReleaseOrMintFinalized,
   TransferNotificationForRecipient,
@@ -411,6 +412,44 @@ describe('LockReleaseLockboxTokenPool', () => {
       setup: setupTokenPoolBehaviorContext,
     },
   )
+
+  it('keeps the rent target when a release starts below it', async () => {
+    const rentTarget = toNano('0.05')
+    const poolAccount = await blockchain.getContract(lockReleaseLockboxPool.address)
+    poolAccount.balance = toNano('0.01')
+
+    const result = await pool.sendTokenPoolReleaseOrMint(deployer.getSender(), toNano('0.5'), {
+      queryId: 950n,
+      request: TokenPool_ReleaseOrMintInV1.create({
+        transfer: TokenPool_Transfer.create({
+          id: 950n,
+          details: TokenPool_TransferDetails.create({
+            originalSender: sourcePoolAddress,
+            remoteChainSelector,
+            receiver: recipient.address,
+            amount: 1n,
+            localToken: jettonMinter.address,
+          }),
+        }),
+        sourcePoolAddress,
+        sourcePoolData: null,
+        offchainTokenData: null,
+      }),
+      requestedFinalityConfig: 0n,
+      replyTo: deployer.address,
+      delivery: deliveryTo(recipient.address, deployer.address),
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: lockReleaseLockboxPool.address,
+      op: TokenPool_ReleaseOrMint.PREFIX,
+      success: true,
+    })
+    expect(
+      (await blockchain.getContract(lockReleaseLockboxPool.address)).balance,
+    ).toBeGreaterThanOrEqual(rentTarget)
+  })
 
   // Async hook behavior tests (TON-TP/6)
   runTokenPoolAsyncHookBehaviorTests('LockReleaseLockboxTokenPool', async () => {

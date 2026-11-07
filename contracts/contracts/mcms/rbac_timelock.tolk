@@ -629,7 +629,7 @@ enum Timelock_Error {
 // --- Constants - storage ---
 
 /// Represents the amount of TON coins we reserve on the balance to pay for storage fees.
-const MIN_TON_TO_RESERVE: int = grams("0.05");
+const MIN_TON_TO_RESERVE: coins = grams("0.05");
 
 // --- Methods ---
 
@@ -748,6 +748,9 @@ fun Timelock<T>.init(
     assert(!self.isInitialized()) throw (Timelock_Error.ContractAlreadyInitialized);
 
     assert (value >= Timelock_Costs.init()) throw (Timelock_Error.InsufficientFee);
+
+    // Keep the rent target even if the reply costs drift from `Timelock_Costs.init()`.
+    reserveBalanceBeforeInMessage(value, MIN_TON_TO_RESERVE);
 
     var rbac = self.hookTrait__AccessControl();
 
