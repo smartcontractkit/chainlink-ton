@@ -13,10 +13,9 @@ import "../../../lib/gas"
 import "../../../lib/funding/withdrawable"
 import "../../../lib/funding/jetton_withdrawable"
 
-import "../lib/token_pool/jetton_fees"
-
 import "types"
 import "messages"
+import "costs"
 
 /// Single-token escrow for CCIP token pools. Holds jettons that can only be withdrawn by authorized callers
 /// (pool contracts with OPERATOR_ROLE). Incoming jetton transfers from an authorized initiator are treated as deposits.
@@ -168,7 +167,9 @@ fun onDepositWithTransferNotification(
 
     try {
         // Custody already arrived: validation and value failures use the existing custody-return path.
-        assert (deposit != null) throw (JettonLockBox_Error.MissingOrMalformedForwardPayload);
+        // Require enough value for either continuation: the success reply or the custody return.
+        assert(msgValue >= JettonLockBox_minDepositValue(), JettonLockBox_Error.NotEnoughValue);
+        assert(deposit != null, JettonLockBox_Error.MissingOrMalformedForwardPayload);
         val rbac = hookTrait__AccessControl(st);
         rbac.requireRole(OPERATOR_ROLE, msg.transferInitiator);
 
@@ -340,13 +341,11 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     val sendMode = SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
     val fwdFee = createMessage(transferOpts).estimateFeeWithoutSending(sendMode);
 
-    // Before custody moves; check budget for transfer/forward and withdrawal relay/failure
-    // This check is an estimate and an early guard; the actual jetton wallet checks its own
-    // transfer cost and bounces back if not enough value is provided.
-    val w = contract.getAddress().getWorkchain();
-    val minValue = JettonFees.Reference.transferValue(forwardTonAmount, fwdFee)
-        + calculateGasFee(w, JettonLockBox_WITHDRAW_GAS_UNITS);
-    assert (msgValue >= minValue) throw (JettonLockBox_Error.NotEnoughValue);
+    // Before custody moves; check budget for transfer/forward and withdrawal relay/failure.
+    // This check is an early guard; the actual jetton wallet checks its own transfer cost and
+    // bounces back if not enough value is provided.
+    val minValue = JettonLockBox_minWithdrawValue(forwardTonAmount, fwdFee);
+    assert(msgValue >= minValue, JettonLockBox_Error.NotEnoughValue);
 
     val transfer = createMessage(transferOpts);
     transfer.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);

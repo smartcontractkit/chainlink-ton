@@ -27,6 +27,12 @@ replies. With `returnExcess: true`, the remaining init message value is returned
 the sender above the rent target; the pre-existing deploy balance is never returned.
 The lockbox can be topped up at any time with an empty-body message.
 
+Lockbox deposits must carry at least the measured deposit budget so either the success
+reply or the custody return can be funded. The pool adds its own finalization budget
+and rejects the lock before custody moves if the forward amount is too low. A direct
+underfunded deposit is not confirmed; its return is best-effort and does not spend the
+lockbox balance.
+
 ## Rejected Deposits
 
 `JettonLockBox_DepositFailed` (`0x5e28ebd8`) reports the query ID, token, depositor,

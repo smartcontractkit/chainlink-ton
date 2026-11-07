@@ -220,8 +220,8 @@ describe('JettonLockBox', () => {
   })
 
   describe('deposit', () => {
-    it('confirms an authenticated deposit with little value, without a value check', async () => {
-      const forwardTonAmount = toNano('0.005')
+    it('confirms an authenticated deposit above the minimum value', async () => {
+      const forwardTonAmount = toNano('0.03')
       const payload = JettonLockBox_Deposit.toCell(
         JettonLockBox_Deposit.create({
           queryId: 220n,
@@ -259,6 +259,36 @@ describe('JettonLockBox', () => {
         op: JettonLockBox_DepositFailed.PREFIX,
       })
       expect(await lockboxWallet.getJettonBalance()).toEqual(1n)
+    })
+
+    it('does not confirm a deposit below the minimum value', async () => {
+      const payload = JettonLockBox_Deposit.toCell(
+        JettonLockBox_Deposit.create({
+          queryId: 225n,
+          token: jettonMinter.address,
+          remoteChainSelector,
+          amount: 1n,
+          context: null,
+          extra: null,
+        }),
+      )
+      const result = await operatorWallet.sendTransfer(operator.getSender(), {
+        value: toNano('0.2'),
+        message: {
+          queryId: 225,
+          jettonAmount: 1n,
+          destination: lockbox.address,
+          responseDestination: operator.address,
+          customPayload: null,
+          forwardTonAmount: toNano('0.005'),
+          forwardPayload: payload,
+        },
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        from: lockbox.address,
+        to: operator.address,
+        op: JettonLockBox_Deposited.PREFIX,
+      })
     })
 
     it('returns rejected deposits without a failure report when failureValue is zero', async () => {

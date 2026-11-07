@@ -2,6 +2,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, contractAddress, toNano } from '@ton/core'
 
 import { CctCostHarness } from '../../wrappers/gen/test/gas/CctCostHarness'
+import { JettonLockBoxCostHarness } from '../../wrappers/gen/test/gas/JettonLockBoxCostHarness'
 import { WgramCostHarness } from '../../wrappers/gen/test/gas/WgramCostHarness'
 import { contractCode } from '../../wrappers/codeLoader'
 
@@ -21,8 +22,20 @@ class WgramHarness extends WgramCostHarness {
   }
 }
 
+class JettonLockBoxHarness extends JettonLockBoxCostHarness {
+  static create(
+    code: Cell = JettonLockBoxCostHarness.CodeCell,
+    data: Cell = Cell.EMPTY,
+    workchain = 0,
+  ) {
+    const init = { code, data }
+    return new JettonLockBoxHarness(contractAddress(workchain, init), init)
+  }
+}
+
 export type CctHarnessContract = SandboxContract<CctHarness>
 export type WgramHarnessContract = SandboxContract<WgramHarness>
+export type JettonLockBoxHarnessContract = SandboxContract<JettonLockBoxHarness>
 
 export async function deployCctHarness(
   blockchain: Blockchain,
@@ -40,6 +53,15 @@ export async function deployWgramHarness(
 ): Promise<WgramHarnessContract> {
   const code = await contractCode.ccip.local('WgramCostHarness')
   const harness = blockchain.openContract(WgramHarness.create(code))
+  await harness.sendDeploy(deployer.getSender(), toNano('0.1'))
+  return harness
+}
+
+export async function deployJettonLockBoxHarness(
+  blockchain: Blockchain,
+  deployer: SandboxContract<TreasuryContract>,
+): Promise<JettonLockBoxHarnessContract> {
+  const harness = blockchain.openContract(JettonLockBoxHarness.create())
   await harness.sendDeploy(deployer.getSender(), toNano('0.1'))
   return harness
 }

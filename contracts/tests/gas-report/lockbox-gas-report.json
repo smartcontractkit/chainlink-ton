@@ -1,0 +1,178 @@
+[
+  {
+    "label": "current",
+    "createdAt": "2026-11-07T20:48:32.860Z",
+    "result": {
+      "JettonLockBox": {
+        "sendDeploy": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "96"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34946"
+          }
+        },
+        "send": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "4966"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "96"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34946"
+          }
+        },
+        "sendJettonLockBoxInit": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "96"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34946"
+          }
+        },
+        "0xffa6eeb9": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "27965"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "96"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34946"
+          }
+        },
+        "0xbd7e8bce": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "96"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34946"
+          }
+        },
+        "0xcf3ca837": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "103"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "36469"
+          }
+        },
+        "0xe9f4e311": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "96"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34946"
+          }
+        },
+        "sendJettonLockBoxWithdraw": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "96"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34946"
+          }
+        },
+        "0xd065c306": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "16475"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "96"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34946"
+          }
+        },
+        "0xf8a7ea5": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "6922"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "96"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34946"
+          }
+        },
+        "0x178d4519": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "5606"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "96"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34946"
+          }
+        },
+        "0xd53276db": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "4180"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "96"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34946"
+          }
+        }
+      }
+    }
+  }
+]
