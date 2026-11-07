@@ -2,7 +2,7 @@ import { runLimitsSuite } from './limits/suite'
 
 runLimitsSuite({
   version: 'local',
-  expectedVersion: '0.0.6',
+  expectedVersion: '0.0.5',
   limits: {
     maxSigners: 200,
     maxGroups: 31,
