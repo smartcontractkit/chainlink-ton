@@ -9,54 +9,77 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
+	"github.com/smartcontractkit/mcms/sdk"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 )
 
-func TestBuildStagedConfigPlans(t *testing.T) {
+func TestBuildStagedConfigMessages(t *testing.T) {
 	dst := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")
 	cfg := stagedTestConfig(t, 69, 21)
 
-	plans, err := buildStagedConfigPlans(dst, tlb.MustFromTON("0.5"), cfg, false, true)
+	messages, err := buildStagedConfigMessages(dst, tlb.MustFromTON("0.5"), cfg, false, true)
 	require.NoError(t, err)
-	require.Len(t, plans, 5) // begin + 32 + 32 + 5 + commit
+	require.Len(t, messages, 5) // begin + 32 + 32 + 5 + commit
 
-	require.Equal(t, uint32(0xeaaf141c), plans[0].Opcode)
-	require.Equal(t, uint32(0x2847bdb3), plans[1].Opcode)
-	require.Equal(t, uint32(0x2847bdb3), plans[2].Opcode)
-	require.Equal(t, uint32(0x2847bdb3), plans[3].Opcode)
-	require.Equal(t, uint32(0x7a475aac), plans[4].Opcode)
+	require.Equal(t, uint32(0xeaaf141c), mustOpcode(t, messages[0]))
+	require.Equal(t, uint32(0x2847bdb3), mustOpcode(t, messages[1]))
+	require.Equal(t, uint32(0x2847bdb3), mustOpcode(t, messages[2]))
+	require.Equal(t, uint32(0x2847bdb3), mustOpcode(t, messages[3]))
+	require.Equal(t, uint32(0x7a475aac), mustOpcode(t, messages[4]))
 
 	var begin mcms.BeginConfigStaging
-	beginMsg, err := plans[0].Cell.ToValue()
-	require.NoError(t, err)
-	require.NoError(t, tlb.LoadFromCell(&begin, beginMsg.Body.MustBeginParse()))
+	require.NoError(t, tlb.LoadFromCell(&begin, messages[0].Body.Cell.MustBeginParse()))
 	queryID := begin.QueryID
 
+	_, _, expectedAddresses, expectedGroups, err := sdk.ExtractSetConfigInputs(cfg)
+	require.NoError(t, err)
+	signerIndex := 0
 	for _, index := range []int{1, 2, 3} {
 		var stage mcms.StageConfig
-		msg, err := plans[index].Cell.ToValue()
-		require.NoError(t, err)
-		require.NoError(t, tlb.LoadFromCell(&stage, msg.Body.MustBeginParse()))
+		require.NoError(t, tlb.LoadFromCell(&stage, messages[index].Body.Cell.MustBeginParse()))
 		require.Equal(t, queryID, stage.QueryID)
 		require.Equal(t, uint16((index-1)*StageConfigChunkSize), stage.ExpectedNumSigners)
+		for i := range stage.SignerAddresses {
+			require.Equal(t, expectedAddresses[signerIndex].Big(), stage.SignerAddresses[i].Val.Value())
+			require.Equal(t, expectedGroups[signerIndex], stage.SignerGroups[i].Val)
+			signerIndex++
+		}
 	}
+	require.Equal(t, len(expectedAddresses), signerIndex)
 
 	var commit mcms.CommitConfig
-	commitMsg, err := plans[4].Cell.ToValue()
-	require.NoError(t, err)
-	require.NoError(t, tlb.LoadFromCell(&commit, commitMsg.Body.MustBeginParse()))
+	require.NoError(t, tlb.LoadFromCell(&commit, messages[4].Body.Cell.MustBeginParse()))
 	require.Equal(t, queryID, commit.QueryID)
 	require.Equal(t, uint16(69), commit.ExpectedNumSigners)
+	require.False(t, commit.ClearRoot)
 }
 
-func TestBuildStagedConfigPlansMaxSize(t *testing.T) {
+func TestBuildStagedConfigMessagesMaxSize(t *testing.T) {
 	dst := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")
 	cfg := stagedTestConfig(t, MaxStagedConfigSigners, 31)
 
-	plans, err := buildStagedConfigPlans(dst, tlb.MustFromTON("0.5"), cfg, false, true)
+	messages, err := buildStagedConfigMessages(dst, tlb.MustFromTON("0.5"), cfg, false, true)
 	require.NoError(t, err)
-	require.Len(t, plans, 9) // begin + 7 chunks + commit
+	require.Len(t, messages, 9) // begin + 7 chunks + commit
+
+	var lastStage mcms.StageConfig
+	require.NoError(t, tlb.LoadFromCell(&lastStage, messages[7].Body.Cell.MustBeginParse()))
+	require.Equal(t, uint16(192), lastStage.ExpectedNumSigners)
+	var commit mcms.CommitConfig
+	require.NoError(t, tlb.LoadFromCell(&commit, messages[8].Body.Cell.MustBeginParse()))
+	require.Equal(t, uint16(200), commit.ExpectedNumSigners)
+}
+
+func mustOpcode(t *testing.T, msg opston.InternalMessage[any]) uint32 {
+	t.Helper()
+	body, err := msg.ToMessage()
+	require.NoError(t, err)
+	opcode, err := tvm.ExtractOpcode(body.Body)
+	require.NoError(t, err)
+	return opcode
 }
 
 func stagedTestConfig(t *testing.T, signerCount, groupCount int) *mcmstypes.Config {
