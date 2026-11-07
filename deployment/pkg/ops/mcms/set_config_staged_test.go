@@ -9,11 +9,12 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/mcms/sdk"
+	mcmstypes "github.com/smartcontractkit/mcms/types"
+
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
-	"github.com/smartcontractkit/mcms/sdk"
-	mcmstypes "github.com/smartcontractkit/mcms/types"
 )
 
 func TestBuildStagedConfigMessages(t *testing.T) {
@@ -37,11 +38,12 @@ func TestBuildStagedConfigMessages(t *testing.T) {
 	_, _, expectedAddresses, expectedGroups, err := sdk.ExtractSetConfigInputs(cfg)
 	require.NoError(t, err)
 	signerIndex := 0
-	for _, index := range []int{1, 2, 3} {
+	expectedOffsets := []uint16{0, StageConfigChunkSize, 2 * StageConfigChunkSize}
+	for i, index := range []int{1, 2, 3} {
 		var stage mcms.StageConfig
 		require.NoError(t, tlb.LoadFromCell(&stage, messages[index].Body.Cell.MustBeginParse()))
 		require.Equal(t, queryID, stage.QueryID)
-		require.Equal(t, uint16((index-1)*StageConfigChunkSize), stage.ExpectedNumSigners)
+		require.Equal(t, expectedOffsets[i], stage.ExpectedNumSigners)
 		for i := range stage.SignerAddresses {
 			require.Equal(t, expectedAddresses[signerIndex].Big(), stage.SignerAddresses[i].Val.Value())
 			require.Equal(t, expectedGroups[signerIndex], stage.SignerGroups[i].Val)

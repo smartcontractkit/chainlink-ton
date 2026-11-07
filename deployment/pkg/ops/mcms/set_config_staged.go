@@ -98,16 +98,27 @@ func buildStagedConfigMessages(dst *address.Address, amount tlb.Coins, cfg *mcms
 		return nil, fmt.Errorf("failed to build staged query ID: %w", err)
 	}
 
-	gqDict, err := tlbe.NewDictFromSlice[uint8](groupQuorums[:])
-	if err != nil {
-		return nil, fmt.Errorf("failed to create group quorums dict: %w", err)
-	}
-	gpDict, err := tlbe.NewDictFromSlice[uint8](groupParents[:])
-	if err != nil {
-		return nil, fmt.Errorf("failed to create group parents dict: %w", err)
+	signerAddressObjs := make([]mcms.SignerAddress, len(signerAddresses))
+	signerGroupObjs := make([]mcms.SignerGroup, len(signerGroups))
+	for i := range signerAddresses {
+		signerAddressObjs[i] = mcms.SignerAddress{Val: tlbe.NewUint160(signerAddresses[i].Big())}
+		signerGroupObjs[i] = mcms.SignerGroup{Val: signerGroups[i]}
 	}
 
-	messages := make([]opston.InternalMessage[any], 0, 2+(len(signerAddresses)+StageConfigChunkSize-1)/StageConfigChunkSize)
+	staged, err := mcms.BuildStagedConfigMessages(
+		groupQuorums,
+		groupParents,
+		signerAddressObjs,
+		signerGroupObjs,
+		queryID,
+		clearRoot,
+		StageConfigChunkSize,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to split staged config: %w", err)
+	}
+
+	messages := make([]opston.InternalMessage[any], 0, 2+len(staged.Stages))
 	addMessage := func(val any) error {
 		meta, err := codec.NewMessageMetaFromValue(bindings.TypeMCMS, val)
 		if err != nil {
@@ -117,7 +128,6 @@ func buildStagedConfigMessages(dst *address.Address, amount tlb.Coins, cfg *mcms
 		if err != nil {
 			return fmt.Errorf("failed to encode message body: %w", err)
 		}
-		valAny := any(val)
 		messages = append(messages, opston.InternalMessage[any]{
 			Bounce:  bounce,
 			DstAddr: dst,
@@ -125,46 +135,21 @@ func buildStagedConfigMessages(dst *address.Address, amount tlb.Coins, cfg *mcms
 			Body: &codec.MessageEnvelope[any]{
 				Metadata: meta,
 				Cell:     bodyCell,
-				Value:    &valAny,
+				Value:    &val,
 			},
 		})
 		return nil
 	}
 
-	if err := addMessage(mcms.BeginConfigStaging{
-		QueryID:      queryID,
-		GroupQuorums: gqDict,
-		GroupParents: gpDict,
-	}); err != nil {
+	if err := addMessage(staged.Begin); err != nil {
 		return nil, fmt.Errorf("failed to build beginConfigStaging: %w", err)
 	}
-
-	for offset := 0; offset < len(signerAddresses); offset += StageConfigChunkSize {
-		end := offset + StageConfigChunkSize
-		if end > len(signerAddresses) {
-			end = len(signerAddresses)
-		}
-		chunk := make([]mcms.SignerAddress, end-offset)
-		groups := make([]mcms.SignerGroup, end-offset)
-		for i := offset; i < end; i++ {
-			chunk[i-offset] = mcms.SignerAddress{Val: tlbe.NewUint160(signerAddresses[i].Big())}
-			groups[i-offset] = mcms.SignerGroup{Val: signerGroups[i]}
-		}
-		if err := addMessage(mcms.StageConfig{
-			QueryID:            queryID,
-			ExpectedNumSigners: uint16(offset),
-			SignerAddresses:    chunk,
-			SignerGroups:       groups,
-		}); err != nil {
-			return nil, fmt.Errorf("failed to build stageConfig chunk %d: %w", offset, err)
+	for i, stage := range staged.Stages {
+		if err := addMessage(stage); err != nil {
+			return nil, fmt.Errorf("failed to build stageConfig chunk %d: %w", i, err)
 		}
 	}
-
-	if err := addMessage(mcms.CommitConfig{
-		QueryID:            queryID,
-		ExpectedNumSigners: uint16(len(signerAddresses)),
-		ClearRoot:          clearRoot,
-	}); err != nil {
+	if err := addMessage(staged.Commit); err != nil {
 		return nil, fmt.Errorf("failed to build commitConfig: %w", err)
 	}
 
