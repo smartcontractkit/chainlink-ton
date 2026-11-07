@@ -11,6 +11,7 @@ import {
   JettonLockBox_DepositExtra,
   JettonLockBox_Deposited,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
+import { AskToTransfer } from '../../../wrappers/gen/ccip/pools/LockReleaseLockboxTokenPool'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { deployJettonLockBoxHarness } from '../harness'
@@ -262,5 +263,11 @@ describe('JettonLockBox gas calibration', () => {
 
     expect(gas).toBeLessThanOrEqual(BigInt(await costs.getWithdrawGasUnits()))
     expect(transactionFee(tx)).toBeLessThanOrEqual(minValue)
+    expect(result.transactions).toHaveTransaction({
+      from: jettonLockBox.address,
+      to: lockboxWallet.address,
+      op: AskToTransfer.PREFIX,
+      success: true,
+    })
   })
 })
