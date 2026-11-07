@@ -261,7 +261,9 @@ describe('JettonLockBox', () => {
       expect(await lockboxWallet.getJettonBalance()).toEqual(1n)
     })
 
-    it('does not confirm a deposit below the minimum value', async () => {
+    it('returns instead of confirming a deposit below the minimum value', async () => {
+      // 0.004 TON is below the on-chain deposit minimum (handler gas + reply fee), so the
+      // valid deposit must take the failure path instead of emitting JettonLockBox_Deposited.
       const payload = JettonLockBox_Deposit.toCell(
         JettonLockBox_Deposit.create({
           queryId: 225n,
@@ -283,6 +285,11 @@ describe('JettonLockBox', () => {
           forwardTonAmount: toNano('0.004'),
           forwardPayload: payload,
         },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: lockbox.address,
+        to: lockboxWallet.address,
+        op: AskToTransfer.PREFIX,
       })
       expect(result.transactions).not.toHaveTransaction({
         from: lockbox.address,
