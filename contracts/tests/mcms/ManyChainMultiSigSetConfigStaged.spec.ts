@@ -1,11 +1,12 @@
-import { toNano } from '@ton/core'
+import { Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
 
 import * as mcms from '../../wrappers/mcms/MCMS'
+import { merkleProof } from '../../src/mcms'
 
 import { MCMSBaseTestSetup } from './ManyChainMultiSigBaseTest'
 
-import type { Address, Cell } from '@ton/core'
+import type { Address } from '@ton/core'
 import type { SendMessageResult } from '@ton/sandbox'
 
 const deterministicSigners = (offset: number, count: number): bigint[] =>
@@ -112,6 +113,16 @@ describe('MCMS - staged SetConfig', () => {
     expect(await baseTest.bind.mcms.getStagedConfigNumSigners()).toBe(0)
   })
 
+  it('rejects a chunk larger than the staging size limit', async () => {
+    const { groupQuorums, groupParents } = allGroupsConfig()
+    expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
+
+    const result = await stage(0, mcms.MAX_SIGNERS_PER_STAGE + 1, 0)
+
+    expect(result.exitCode).toBe(mcms.Error.ConfigStagingChunkTooLarge)
+    expect(await baseTest.bind.mcms.getStagedConfigNumSigners()).toBe(0)
+  })
+
   it('rejects an out-of-order chunk', async () => {
     const { groupQuorums, groupParents } = allGroupsConfig()
     expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
@@ -147,6 +158,27 @@ describe('MCMS - staged SetConfig', () => {
     expect((await baseTest.bind.mcms.getConfig()).signers.size).toBe(MCMSBaseTestSetup.SIGNERS_NUM)
   })
 
+  it('clears a staged session when setConfig is called directly', async () => {
+    const { groupQuorums, groupParents } = allGroupsConfig()
+    expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
+    expect((await stage(0, 32, 0)).exitCode).toBe(0)
+
+    const setConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 0n,
+        signerAddresses: baseTest.testSigners.map((signer) => BigInt(signer.address)),
+        signerGroups: baseTest.signerGroups,
+        groupQuorums: baseTest.testGroupQuorums,
+        groupParents: baseTest.testGroupParents,
+        clearRoot: false,
+      })
+      .endCell()
+    const result = await send(setConfigBody)
+
+    expect(result.exitCode).toBe(0)
+    expect(await baseTest.bind.mcms.getStagedConfigNumSigners()).toBe(0)
+  })
+
   it('validates the group tree at commit, not at stage time', async () => {
     // Group 1 is disabled but signers are assigned to it.
     const groupQuorums = new Map<number, number>([
@@ -165,6 +197,48 @@ describe('MCMS - staged SetConfig', () => {
 
     expect(result.exitCode).toBe(mcms.Error.SignerInDisabledGroup)
     expect((await baseTest.bind.mcms.getConfig()).signers.size).toBe(MCMSBaseTestSetup.SIGNERS_NUM)
+  })
+
+  it('allows setRoot after committing the staged config', async () => {
+    expect((await begin(baseTest.testGroupQuorums, baseTest.testGroupParents)).exitCode).toBe(0)
+
+    const addresses = baseTest.testSigners.map((signer) => BigInt(signer.address))
+    const result = await send(
+      mcms.builder.message.in.stageConfig
+        .encode({
+          queryId: 1n,
+          expectedNumSigners: 0,
+          signerAddresses: addresses,
+          signerGroups: baseTest.signerGroups,
+        })
+        .endCell(),
+    )
+    expect(result.exitCode).toBe(0)
+    expect((await commit(baseTest.testSigners.length)).exitCode).toBe(0)
+
+    const opCount = await baseTest.bind.mcms.getOpCount()
+    const ops: mcms.Op[] = [0n, 1n, 2n].map((nonce) => ({
+      chainId: -239n,
+      multiSig: baseTest.bind.mcms.address,
+      nonce,
+      to: baseTest.bind.mcms.address,
+      value: 0n,
+      data: Cell.EMPTY,
+    }))
+    const [setRoot] = merkleProof.build(
+      baseTest.testSigners.map((signer) => signer.keyPair),
+      1_000_000n,
+      {
+        chainId: -239n,
+        multiSig: baseTest.bind.mcms.address,
+        preOpCount: opCount,
+        postOpCount: opCount + BigInt(ops.length),
+        overridePreviousRoot: false,
+      },
+      ops,
+    )
+    const setRootResult = await send(mcms.builder.message.in.setRoot.encode(setRoot).asCell())
+    expect(setRootResult.exitCode).toBe(0)
   })
 
   it('stages and commits a config that clears the root', async () => {
