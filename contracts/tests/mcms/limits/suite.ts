@@ -44,23 +44,6 @@ export type SetConfigCase = CaseBase & {
   strategy?: SetConfigStrategy
 }
 
-export type SetConfigStep = {
-  signers: number
-  groups: number
-}
-
-export type SetConfigSequenceCase = {
-  name: string
-  op: 'setConfigSequence'
-  /** Existing config before the first step. Omit for a fresh contract. */
-  initial?: { signers: number; groups: number }
-  steps: SetConfigStep[]
-  /** Gas ceiling applied to every successful step. */
-  maxGasPerStep?: bigint
-  /** Outcome expected for the final step. Previous steps must always succeed. */
-  expected?: ExpectedOutcome
-}
-
 export type SetRootCase = CaseBase & {
   op: 'setRoot'
   signers: number
@@ -77,7 +60,7 @@ export type ExecuteCase = CaseBase & {
   ops?: number
 }
 
-export type LimitsCase = SetConfigCase | SetConfigSequenceCase | SetRootCase | ExecuteCase
+export type LimitsCase = SetConfigCase | SetRootCase | ExecuteCase
 
 export type LimitsSuiteConfig = {
   version: McmsVersion
@@ -202,44 +185,6 @@ const runSetConfigCase = async (version: McmsVersion, testCase: SetConfigCase, s
   }
 }
 
-const runSetConfigSequenceCase = async (
-  version: McmsVersion,
-  testCase: SetConfigSequenceCase,
-  seed: string,
-) => {
-  let harness: McmsLimitsHarness
-
-  if (testCase.initial) {
-    const layout = layoutFor(testCase.initial.groups)
-    harness = await McmsLimitsHarness.create({
-      version,
-      ownerSeed: seed,
-      initialConfig: { signers: makeSigners(testCase.initial.signers, layout), layout },
-    })
-  } else {
-    harness = await McmsLimitsHarness.create({ version, ownerSeed: seed })
-  }
-
-  const finalExpected = testCase.expected ?? 'success'
-
-  for (const [index, step] of testCase.steps.entries()) {
-    const isFinalStep = index === testCase.steps.length - 1
-    const expected = isFinalStep ? finalExpected : 'success'
-    const maxGas = expected === 'success' ? testCase.maxGasPerStep : undefined
-    const layout = layoutFor(step.groups)
-    const signers = makeSigners(step.signers, layout)
-    const outcome = await harness.setConfig(signers, layout)
-
-    logOutcome(`${version} ${testCase.name} [step ${index + 1}]`, outcome)
-    expectOutcome(outcome, { ...testCase, expected, maxGas })
-
-    if (expected !== 'success') {
-      return
-    }
-    expectConfigSigners(await harness.getConfig(), signers, layout)
-  }
-}
-
 // setRoot cases deploy a preconfigured signer set so that signature/group limits are
 // measured independently of whether setConfig itself can write that config in one tx.
 const runSetRootCase = async (version: McmsVersion, testCase: SetRootCase, seed: string) => {
@@ -303,8 +248,6 @@ const runCase = async (version: McmsVersion, testCase: LimitsCase, seed: string)
   switch (testCase.op) {
     case 'setConfig':
       return runSetConfigCase(version, testCase, seed)
-    case 'setConfigSequence':
-      return runSetConfigSequenceCase(version, testCase, seed)
     case 'setRoot':
       return runSetRootCase(version, testCase, seed)
     case 'execute':
