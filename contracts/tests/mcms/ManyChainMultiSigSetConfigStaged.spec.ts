@@ -123,6 +123,28 @@ describe('MCMS - staged SetConfig', () => {
     expect(await baseTest.bind.mcms.getStagedConfigNumSigners()).toBe(0)
   })
 
+  it('rejects a stale chunk from an earlier staging session', async () => {
+    const { groupQuorums, groupParents } = allGroupsConfig()
+    expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
+    expect((await stage(0, 16, 0, 0, 1n)).exitCode).toBe(0)
+
+    // Start a new session with a different query ID.
+    expect(
+      (
+        await send(
+          mcms.builder.message.in.beginConfigStaging
+            .encode({ queryId: 2n, groupQuorums, groupParents })
+            .endCell(),
+        )
+      ).exitCode,
+    ).toBe(0)
+
+    // A chunk from session 1 must not apply to session 2.
+    const result = await stage(0, 16, 0, 0, 1n)
+    expect(result.exitCode).toBe(mcms.Error.ConfigStagingSessionMismatch)
+    expect(await baseTest.bind.mcms.getStagedConfigNumSigners()).toBe(0)
+  })
+
   it('rejects an out-of-order chunk', async () => {
     const { groupQuorums, groupParents } = allGroupsConfig()
     expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
