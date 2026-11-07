@@ -146,12 +146,6 @@ fun onLockOrBurnTransferContinue(
     val safety = st.TokenPool().budget().lockOrBurn.safety;
     val forwardTonAmount = safety + requestMsg.finalizationValue;
 
-    // The lockbox must be able to fund either continuation: the success reply or a custody
-    // return. Add the pool's own finalization budget on top. Reject before custody moves if the
-    // configured safety is too low.
-    val lockboxMinValue = JettonLockBox_minDepositValue() + TokenPool_Costs.finalization();
-    assert(forwardTonAmount >= lockboxMinValue, TokenPool_Error.InsufficientMessageValue);
-
     // Send AskToTransfer to our jetton wallet (rich bounce on failure).
     val jc = st.poolData.load().jettonClient();
     val transferOpts = CreateMessageOptions<AskToTransfer> {
@@ -163,6 +157,13 @@ fun onLockOrBurnTransferContinue(
 
     val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
     val fwdFee = createMessage(transferOpts).estimateFeeWithoutSending(sendMode);
+
+    // The lockbox must be able to fund the happy-path confirmation plus the pool's own
+    // finalization. Use the deposit transfer's forward fee as a conservative proxy for the
+    // lockbox reply fee; reject before custody moves if the configured safety is too low.
+    val lockboxMinValue = JettonLockBox_minDepositValue(fwdFee)
+        + TokenPool_Costs.finalization();
+    assert(forwardTonAmount >= lockboxMinValue, TokenPool_Error.InsufficientMessageValue);
 
     // `S` is the custody phase's budget; it must cover the reference transfer plus the
     // finalization it may have to fund after custody moves.
@@ -202,6 +203,7 @@ fun createLockboxTransfer(
         forwardPayload: fwdPayload.toCell(),
         transferInitiator,
     };
+    val contextCell = context.toCell();
 
     // Budget amount to return to the pool to cover failure finalization costs.
     val failureValue =
@@ -212,7 +214,7 @@ fun createLockboxTransfer(
         token: jc.masterAddress,
         remoteChainSelector: requestDetails.remoteChainSelector,
         amount: prepared.destTokenAmount,
-        context: context.toCell(),
+        context: contextCell,
         extra: JettonLockBox_DepositExtra { returnTo, failureValue, sendExcessesTo }.toCell(),
     };
 
@@ -221,7 +223,7 @@ fun createLockboxTransfer(
         jettonAmount: prepared.destTokenAmount,
         transferRecipient: st.lockbox,
         sendExcessesTo, // Return any excess
-        customPayload: context.toCell(),
+        customPayload: contextCell,
         forwardTonAmount,
         forwardPayload: beginCell()
             .storeMaybeRef(depositMsg.toCell())

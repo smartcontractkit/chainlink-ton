@@ -112,6 +112,68 @@ class StackReader {
 
 type coins = bigint
 
+type uint64 = bigint
+
+/**
+ > struct (0x6d077f2e) JettonLockBox_Deposited {
+ >     queryId: uint64
+ >     token: address
+ >     depositor: address
+ >     amount: coins
+ >     context: cell?
+ > }
+ */
+export interface JettonLockBox_Deposited {
+    readonly $: 'JettonLockBox_Deposited'
+    queryId: uint64
+    token: c.Address
+    depositor: c.Address
+    amount: coins
+    context: c.Cell | null
+}
+
+export const JettonLockBox_Deposited = {
+    PREFIX: 0x6d077f2e,
+
+    create(args: {
+        queryId?: uint64
+        token: c.Address
+        depositor: c.Address
+        amount: coins
+        context: c.Cell | null
+    }): JettonLockBox_Deposited {
+        return {
+            $: 'JettonLockBox_Deposited',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): JettonLockBox_Deposited {
+        loadAndCheckPrefix32(s, 0x6d077f2e, 'JettonLockBox_Deposited');
+        return {
+            $: 'JettonLockBox_Deposited',
+            queryId: s.loadUintBig(64),
+            token: s.loadAddress(),
+            depositor: s.loadAddress(),
+            amount: s.loadCoins(),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: JettonLockBox_Deposited, b: c.Builder): void {
+        b.storeUint(0x6d077f2e, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.token);
+        b.storeAddress(self.depositor);
+        b.storeCoins(self.amount);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: JettonLockBox_Deposited): c.Cell {
+        return makeCellFrom<JettonLockBox_Deposited>(self, JettonLockBox_Deposited.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class JettonLockBoxCostHarness
 //
@@ -151,7 +213,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class JettonLockBoxCostHarness implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBDAEAuAABFP8A9KQT9LzyyAsBAgFiAgMAGND4kfJAhA8BxwDy9AIBIAQFAgEgBgcCASAKCwAduoTIIIBJPg+Cj6RDD4NoAgEgCAkAE7dkXwUfSIYfBtAAC7W+kC6mEAClur6CFxcOMEcnHjBG0gboEYJiLjBCFugR05WAPjBFAjqHOBA6Nw+DygAXD4NqABcPg2oHOBBAmCEAlmAYBw+DegcaiBA+igoIF1MPgo+kQw+DaggAD7rlCCCAST4I');
+    static CodeCell = c.Cell.fromBase64('te6ccgEBDgEA8AABFP8A9KQT9LzyyAsBAgFiAgMAGND4kfJAhA8BxwDy9AIBIAQFAgEgBgcCASAKCwAduoTIIA6mD4KPpEMPg2oIAgEgCAkAE7dkXwUfSIYfBtAAC7W+kC6mEAIBIAwNAA265QggDqYIAGO2RN8FHwUfBRkZ8jaDv5dC2Wf/SkKfSksfQF6AGTkZ8KECX0pOOeFt2ZkwYNBhNj9hEACltX0ELi4cYI5OPGCNpA3QIwTEXGCELdAjpysAfGCKBHUOcCB0bh8HlAAuHwbUAC4fBtQOcCCBMEIBLMAwDh8G9A41ECB9FBQQLqYfBR9Ihh8G1BA=');
 
     static Errors = {
     }
@@ -194,8 +256,19 @@ export class JettonLockBoxCostHarness implements c.Contract {
         return r.readBigInt();
     }
 
-    async getDepositMinValue(provider: ContractProvider): Promise<coins> {
-        const r = StackReader.fromGetMethod(1, await provider.get('get_depositMinValue', []));
+    async getDepositMinValue(provider: ContractProvider, replyFee: coins): Promise<coins> {
+        const r = StackReader.fromGetMethod(1, await provider.get('get_depositMinValue', [
+            { type: 'int', value: replyFee },
+        ]));
+        return r.readBigInt();
+    }
+
+    async getDepositReplyFee(provider: ContractProvider, queryId: uint64, amount: coins, depositContext: c.Cell | null): Promise<coins> {
+        const r = StackReader.fromGetMethod(1, await provider.get('get_depositReplyFee', [
+            { type: 'int', value: queryId },
+            { type: 'int', value: amount },
+            depositContext === null ? { type: 'null' } : { type: 'cell', cell: depositContext },
+        ]));
         return r.readBigInt();
     }
 

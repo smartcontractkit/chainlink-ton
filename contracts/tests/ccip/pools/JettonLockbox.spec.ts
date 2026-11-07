@@ -280,7 +280,7 @@ describe('JettonLockBox', () => {
           destination: lockbox.address,
           responseDestination: operator.address,
           customPayload: null,
-          forwardTonAmount: toNano('0.005'),
+          forwardTonAmount: toNano('0.004'),
           forwardPayload: payload,
         },
       })

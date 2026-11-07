@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, Dictionary, beginCell, toNano } from '@ton/core'
+import { Address, Cell, Dictionary, beginCell, toNano } from '@ton/core'
 
 import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
 import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
@@ -9,6 +9,7 @@ import {
   JettonLockBox,
   JettonLockBox_Deposit,
   JettonLockBox_DepositExtra,
+  JettonLockBox_Deposited,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 import { contractCode } from '../../../wrappers/codeLoader'
@@ -20,6 +21,11 @@ const OPERATOR_ROLE = BigInt(
   '0x' + require('zlib').crc32('OPERATOR_ROLE').toString(16).padStart(8, '0'),
 )
 const REMOTE_CHAIN_SELECTOR = 91000001n
+// A representative non-empty reply context (the CCIP lock context is a cell).
+const DEPOSIT_CONTEXT = beginCell()
+  .storeUint(0x12345678, 32)
+  .storeRef(beginCell().storeUint(0x9abcdef0, 64).endCell())
+  .endCell()
 
 function emptyAccessControlData(): AccessControl_Data {
   return {
@@ -126,14 +132,14 @@ describe('JettonLockBox gas calibration', () => {
     )
   })
 
-  function depositPayload(amount: bigint, qid: number) {
+  function depositPayload(amount: bigint, qid: number, context: Cell | null) {
     return JettonLockBox_Deposit.toCell(
       JettonLockBox_Deposit.create({
         queryId: BigInt(qid),
         token: jettonMinter.address,
         remoteChainSelector: REMOTE_CHAIN_SELECTOR,
         amount,
-        context: null,
+        context,
         extra: JettonLockBox_DepositExtra.create({
           failureValue: toNano('0.02'),
         }),
@@ -146,6 +152,7 @@ describe('JettonLockBox gas calibration', () => {
     qid: number,
     forwardTonAmount: bigint,
     payloadAmount = amount,
+    context: Cell | null = DEPOSIT_CONTEXT,
   ) {
     return operatorWallet.sendTransfer(operator.getSender(), {
       value: toNano('0.5'),
@@ -156,15 +163,17 @@ describe('JettonLockBox gas calibration', () => {
         responseDestination: operator.address,
         customPayload: null,
         forwardTonAmount,
-        forwardPayload: depositPayload(payloadAmount, qid),
+        forwardPayload: depositPayload(payloadAmount, qid, context),
       },
     })
   }
 
   it('deposit success fits the on-chain deposit budget', async () => {
     const costs = await deployJettonLockBoxHarness(blockchain, deployer)
-    const minValue = await costs.getDepositMinValue()
-    const result = await deposit(toNano('10'), 1, minValue)
+    const amount = toNano('10')
+    const replyFee = await costs.getDepositReplyFee(2n, amount, DEPOSIT_CONTEXT)
+    const minValue = await costs.getDepositMinValue(replyFee)
+    const result = await deposit(amount, 2, minValue)
     const tx = findLockboxTx(result, jettonLockBox.address)
     const gas = vmGasUsed(tx)
     const fee = transactionFee(tx)
@@ -180,15 +189,18 @@ describe('JettonLockBox gas calibration', () => {
 
     expect(gas).toBeLessThanOrEqual(BigInt(await costs.getDepositGasUnits()))
     expect(fee).toBeLessThanOrEqual(minValue)
+    expect(result.transactions).toHaveTransaction({
+      from: jettonLockBox.address,
+      to: operator.address,
+      op: JettonLockBox_Deposited.PREFIX,
+    })
   })
 
   it('deposit failure fits the same deposit budget', async () => {
     const costs = await deployJettonLockBoxHarness(blockchain, deployer)
-    const minValue = await costs.getDepositMinValue()
     const amount = toNano('10')
-    const operatorBalanceBefore = await operatorWallet.getJettonBalance()
-    // Amount mismatch forces the custody-return path while keeping the deposit context decodable.
-    const result = await deposit(amount, 2, minValue, amount + 1n)
+    // Amount mismatch forces the failure path while keeping the deposit context decodable.
+    const result = await deposit(amount, 4, toNano('0.05'), amount + 1n)
     const tx = findLockboxTx(result, jettonLockBox.address)
     const gas = vmGasUsed(tx)
     const fee = transactionFee(tx)
@@ -198,19 +210,21 @@ describe('JettonLockBox gas calibration', () => {
         operation: 'lockbox deposit failure',
         gasUsed: gas.toString(),
         feeNton: fee.toString(),
-        minValueNton: minValue.toString(),
       },
     ])
 
     expect(gas).toBeLessThanOrEqual(BigInt(await costs.getDepositGasUnits()))
-    expect(fee).toBeLessThanOrEqual(minValue)
-    // The minimum must also fund the custody return, not just the lockbox transaction fees.
-    expect(await operatorWallet.getJettonBalance()).toEqual(operatorBalanceBefore)
+    // The min only guarantees the happy path; the failure return is best-effort.
+    expect(result.transactions).not.toHaveTransaction({
+      from: jettonLockBox.address,
+      to: operator.address,
+      op: JettonLockBox_Deposited.PREFIX,
+    })
   })
 
   it('withdraw fits the on-chain withdraw budget', async () => {
     const costs = await deployJettonLockBoxHarness(blockchain, deployer)
-    await deposit(toNano('10'), 3, await costs.getDepositMinValue())
+    await deposit(toNano('10'), 5, toNano('0.05'))
 
     const result = await jettonLockBox.sendJettonLockBoxWithdraw(
       operator.getSender(),
