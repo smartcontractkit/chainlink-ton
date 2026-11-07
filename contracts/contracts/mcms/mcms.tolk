@@ -12,11 +12,11 @@ const MCMS_FACILITY_ID = MCMS_FACILITY_NAME.crc32() % 640 + 10;  // 104
 // NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
 const MCMS_ERROR_CODE = MCMS_FACILITY_ID * 100;
-const CONTRACT_VERSION = "0.0.6".literalSlice();
+const CONTRACT_VERSION = "0.0.5".literalSlice();
 
 contract MCMS {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "0.0.6"
+    version: "0.0.5"
     description: "link.chain.ton.mcms.MCMS"
 
     storage: MCMS_Data
@@ -1219,80 +1219,17 @@ fun MCMS<T>.setConfig(
             groupChildrenCounts.set(g, value);
         }
 
-        // second, we iterate backwards so as to check each group and propagate counts from
-        // child group to parent groups up the tree to the root
-
-        var j = 0;
-        repeat(NUM_GROUPS) {
-            val i = NUM_GROUPS - 1 - j;
-            // ensure we have a well-formed group tree. the root should have itself as parent
-            var gp = 0; // default parent for root group
-            {
-                var value = groupParents.get(i);
-                if (value.isFound) {
-                    gp = value.loadValue();
-                }
-            }
-            if ((i != 0 && gp >= i) || (i == 0 && gp != 0)) {
-                throw MCMS_Error.GroupTreeNotWellFormed;
-            }
-
-            var gq = 0; // default quorum for groups without a set quorum
-            {
-                var value = groupQuorums.get(i);
-                if (value.isFound) {
-                    gq = value.loadValue();
-                }
-            }
-
-            val disabled = gq == 0;
-
-            var count = 0; // default count
-            {
-                // get the number of children for this group
-                var value = groupChildrenCounts.get(i);
-                if (value.isFound) {
-                    count = value.loadValue();
-                }
-            }
-
-            if (disabled) {
-                // a disabled group shouldn't have any children
-                if (count > 0) {
-                    throw MCMS_Error.SignerInDisabledGroup;
-                }
-            } else {
-                // ensure that the group quorum can be met
-                if (count < gq) {
-                    throw MCMS_Error.OutOfBoundsGroupQuorum;
-                }
-
-                var current = 0;
-                {
-                   var value = groupChildrenCounts.get(gp);
-                   if (value.isFound) {
-                       current = value.loadValue();
-                   }
-                }
-                groupChildrenCounts.set(gp, current + 1);
-                // the above line clobbers groupChildrenCounts[0] in last iteration, don't use it after the loop ends
-            }
-
-            // Increment j until we reach the last group
-            j += 1;
-        }
+        validateGroupTree(groupQuorums, groupParents, groupChildrenCounts);
     }
 
-    // Upack config from the contract data
-    var configState = ConfigState.fromCell(self.data.config);
-    var config = Config.fromCell(configState.config);
-    // The whole config is replaced. Dropping the old map roots is O(1); deleting every old
-    // entry individually is not, and is the main reason large configs used to run out of gas.
-    config.signers = [];
+    // Build the new config from scratch. There is no need to load the old config:
+    // replacing its roots is O(1), and direct setConfig also clears any staged session.
+    var config = Config{
+        signers: [],
+        groupQuorums: groupQuorums,
+        groupParents: groupParents,
+    };
     self.data.signers = [];
-
-    config.groupQuorums = groupQuorums;
-    config.groupParents = groupParents;
 
     // add new signers' addresses, we require that the signers' list be a strictly monotone
     // increasing sequence
@@ -1317,10 +1254,11 @@ fun MCMS<T>.setConfig(
         i += 1;
     }
 
-    // Pack the config back into a data cell
-    configState.config = config.toCell();
-    // A direct setConfig supersedes any in-progress staging session.
-    configState.stagedConfig = null;
+    // Pack the config back into a data cell.
+    var configState = ConfigState{
+        config: config.toCell(),
+        stagedConfig: null,
+    };
     self.data.config = configState.toCell();
 
     // Optionally clear root
