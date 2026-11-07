@@ -681,7 +681,8 @@ struct StagedConfig {
     /// Address-keyed mirror used by setRoot once this config is committed.
     signers: map<uint160, Signer>;
     numSigners: uint16;
-    /// Query ID of the staging session. Every staged message must carry it.
+    /// Query ID is the staging-session nonce. Every stage/commit/abort message
+    /// must carry it so messages from an earlier begin cannot apply to a new session.
     queryId: uint64;
     /// Last staged address, used to enforce global strict ordering across chunks.
     lastAddress: uint160;
