@@ -425,7 +425,8 @@ struct MCMS_Data {
     /// have signers stored in config in order to easily deactivate them when a new config is set.
     signers: map<uint160, Signer>; // exists if an EVM address is a signer
 
-    /// The current configuration and any staged config (split out as cell to avoid size limits)
+    /// The current configuration and any staged config. ConfigState keeps the inner
+    /// Config cell unchanged while fitting both values into the existing 4-ref data cell.
     config: Cell<ConfigState>;
 
     /// Remember signedHashes that this contract has seen. Each signedHash can only be set once.
