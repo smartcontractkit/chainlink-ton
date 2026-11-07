@@ -10,7 +10,6 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -19,8 +18,9 @@ import (
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
@@ -59,15 +59,22 @@ var SetConfigStaged = cldfops.NewOperation(
 		if in.DstAddr == nil {
 			return opston.SendMessagesOutput{}, errors.New("destination address (DstAddr) is required")
 		}
-		plans, err := buildStagedConfigPlans(in.DstAddr, in.Amount, in.Config, in.ClearRoot, in.Bounce)
+		messages, err := buildStagedConfigMessages(in.DstAddr, in.Amount, in.Config, in.ClearRoot, in.Bounce)
 		if err != nil {
 			return opston.SendMessagesOutput{}, err
 		}
-		return opston.SendMessagesOutput{Plans: plans}, nil
+		out, err := cldfops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
+			Messages: messages,
+			Plan:     true,
+		})
+		if err != nil {
+			return opston.SendMessagesOutput{}, fmt.Errorf("failed to plan staged MCMS messages: %w", err)
+		}
+		return out.Output, nil
 	},
 )
 
-func buildStagedConfigPlans(dst *address.Address, amount tlb.Coins, cfg *mcmstypes.Config, clearRoot, bounce bool) ([]opston.MessagePlanRaw, error) {
+func buildStagedConfigMessages(dst *address.Address, amount tlb.Coins, cfg *mcmstypes.Config, clearRoot, bounce bool) ([]opston.InternalMessage[any], error) {
 	if dst == nil {
 		return nil, errors.New("destination address is required")
 	}
@@ -100,40 +107,36 @@ func buildStagedConfigPlans(dst *address.Address, amount tlb.Coins, cfg *mcmstyp
 		return nil, fmt.Errorf("failed to create group parents dict: %w", err)
 	}
 
-	plans := make([]opston.MessagePlanRaw, 0, 2+(len(signerAddresses)+StageConfigChunkSize-1)/StageConfigChunkSize)
-	addPlan := func(body *cell.Cell) error {
-		mcell, err := tlbe.NewCellFrom(tlb.InternalMessage{
+	messages := make([]opston.InternalMessage[any], 0, 2+(len(signerAddresses)+StageConfigChunkSize-1)/StageConfigChunkSize)
+	addMessage := func(val any) error {
+		meta, err := codec.NewMessageMetaFromValue(bindings.TypeMCMS, val)
+		if err != nil {
+			return fmt.Errorf("failed to build message metadata: %w", err)
+		}
+		bodyCell, err := tlb.ToCell(val)
+		if err != nil {
+			return fmt.Errorf("failed to encode message body: %w", err)
+		}
+		valAny := any(val)
+		messages = append(messages, opston.InternalMessage[any]{
 			Bounce:  bounce,
 			DstAddr: dst,
 			Amount:  amount,
-			Body:    body,
-		})
-		if err != nil {
-			return err
-		}
-		opcode, err := tvm.ExtractOpcode(body)
-		if err != nil {
-			return err
-		}
-		plans = append(plans, opston.MessagePlanRaw{
-			Opcode:  opcode,
-			DstAddr: dst,
-			Amount:  amount,
-			Cell:    mcell,
+			Body: &codec.MessageEnvelope[any]{
+				Metadata: meta,
+				Cell:     bodyCell,
+				Value:    &valAny,
+			},
 		})
 		return nil
 	}
 
-	beginBody, err := tlb.ToCell(mcms.BeginConfigStaging{
+	if err := addMessage(mcms.BeginConfigStaging{
 		QueryID:      queryID,
 		GroupQuorums: gqDict,
 		GroupParents: gpDict,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode beginConfigStaging: %w", err)
-	}
-	if err := addPlan(beginBody); err != nil {
-		return nil, fmt.Errorf("failed to plan beginConfigStaging: %w", err)
+	}); err != nil {
+		return nil, fmt.Errorf("failed to build beginConfigStaging: %w", err)
 	}
 
 	for offset := 0; offset < len(signerAddresses); offset += StageConfigChunkSize {
@@ -147,34 +150,25 @@ func buildStagedConfigPlans(dst *address.Address, amount tlb.Coins, cfg *mcmstyp
 			chunk[i-offset] = mcms.SignerAddress{Val: tlbe.NewUint160(signerAddresses[i].Big())}
 			groups[i-offset] = mcms.SignerGroup{Val: signerGroups[i]}
 		}
-
-		body, err := tlb.ToCell(mcms.StageConfig{
+		if err := addMessage(mcms.StageConfig{
 			QueryID:            queryID,
 			ExpectedNumSigners: uint16(offset),
 			SignerAddresses:    chunk,
 			SignerGroups:       groups,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to encode stageConfig chunk %d: %w", offset, err)
-		}
-		if err := addPlan(body); err != nil {
-			return nil, fmt.Errorf("failed to plan stageConfig chunk %d: %w", offset, err)
+		}); err != nil {
+			return nil, fmt.Errorf("failed to build stageConfig chunk %d: %w", offset, err)
 		}
 	}
 
-	commitBody, err := tlb.ToCell(mcms.CommitConfig{
+	if err := addMessage(mcms.CommitConfig{
 		QueryID:            queryID,
 		ExpectedNumSigners: uint16(len(signerAddresses)),
 		ClearRoot:          clearRoot,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode commitConfig: %w", err)
-	}
-	if err := addPlan(commitBody); err != nil {
-		return nil, fmt.Errorf("failed to plan commitConfig: %w", err)
+	}); err != nil {
+		return nil, fmt.Errorf("failed to build commitConfig: %w", err)
 	}
 
-	return plans, nil
+	return messages, nil
 }
 
 func deterministicStagedQueryID(dst *address.Address, cfg *mcmstypes.Config, clearRoot bool) (uint64, error) {
