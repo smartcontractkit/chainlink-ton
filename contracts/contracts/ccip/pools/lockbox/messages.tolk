@@ -95,6 +95,9 @@ struct (0xffa6eeb9) JettonLockBox_Init {
     walletAddress: address;
     /// Admin address (defaults to msg.senderAddress if null).
     admin: address?;
+    /// If true, return the remaining init message value to the sender. The pre-existing balance is
+    /// always preserved. Defaults to false: the attached value is initial funding and stays.
+    returnExcess: bool = false;
 }
 
 /// Sent to the deployer after successful initialization.

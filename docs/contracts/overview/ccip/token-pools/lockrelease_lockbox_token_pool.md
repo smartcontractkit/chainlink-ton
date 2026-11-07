@@ -13,6 +13,20 @@ The pool retains transfer fees in its own jetton wallet and deposits the destina
 amount into a separate `JettonLockBox`. The lockbox authenticates its wallet,
 requires the pool's `OPERATOR_ROLE`, and validates the deposit token and amount.
 
+## Rent Reserve and Init Funding
+
+The pool and lockbox keep a `0.05 GRAM` rent target. Before custody moves, the rent
+target is enforced with an exact reserve; a shortfall fails the operation and bounces
+before tokens leave. Custody, confirmation, and recovery paths only preserve the
+pre-existing balance, so a reserve shortfall cannot roll back a custody return or a
+confirmation.
+
+By default, lockbox init treats the attached value as initial funding and keeps it,
+including any pre-existing deploy balance. The init value must also fund the init
+replies. With `returnExcess: true`, the remaining init message value is returned to
+the sender above the rent target; the pre-existing deploy balance is never returned.
+The lockbox can be topped up at any time with an empty-body message.
+
 ## Rejected Deposits
 
 `JettonLockBox_DepositFailed` (`0x5e28ebd8`) reports the query ID, token, depositor,

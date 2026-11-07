@@ -349,6 +349,50 @@ export function runTokenPoolBehaviorTests(
       expect(await ctx.pool.getIsSupportedChain(ctx.remoteChainSelector)).toBe(true)
     })
 
+    it('keeps the rent target when a lock/burn starts below it', async () => {
+      const ctx = await setup()
+      const rentTarget = toNano('0.05')
+
+      const poolAccount = await ctx.blockchain.getContract(ctx.pool.address)
+      poolAccount.balance = toNano('0.01')
+
+      const { lockOrBurn } = await ctx.pool.getBudget()
+      const result = await ctx.pool.sendTokenPoolLockOrBurn(
+        ctx.deployer.getSender(),
+        lockOrBurn.admission + toNano('0.5'),
+        {
+          queryId: 904n,
+          request: TokenPool_LockOrBurnInV1.create({
+            transfer: TokenPool_Transfer.create({
+              id: 904n,
+              details: TokenPool_TransferDetails.create({
+                receiver: ctx.destTokenAddress,
+                remoteChainSelector: ctx.remoteChainSelector,
+                originalSender: ctx.deployer.address,
+                amount: 1n,
+                localToken: ctx.localToken,
+              }),
+            }),
+          }),
+          requestedFinalityConfig: 0n,
+          tokenArgs: null,
+          replyTo: ctx.deployer.address,
+          finalizationValue: toNano('0.01'),
+          onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        op: TokenPool_LockOrBurn.PREFIX,
+        success: true,
+      })
+      expect((await ctx.blockchain.getContract(ctx.pool.address)).balance).toBeGreaterThanOrEqual(
+        rentTarget,
+      )
+    })
+
     it('reverts releaseOrMint when caller is not the configured Router', async () => {
       const ctx = await setup()
 

@@ -41,20 +41,41 @@ fun calculateGasFeeFor(size: int): coins {
     return calculateGasFeeDefault();
 }
 
-/// Reserves the balance the account had before this inbound message plus any storage due, so
+/// Minimum GRAM balance a long-lived contract (pool, lockbox, Timelock) should retain for storage
+/// rent. It is a target, not a hard floor: pass it only where retaining it cannot starve a custody
+/// action, a custody confirmation, or the init replies.
+const MIN_GRAM_TO_RESERVE: coins = grams("0.05");
+
+/// Default hard rent-reserve mode: fail the transaction if the target cannot be left.
+const RESERVE_MODE_RENT = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
+
+/// Reserves the larger of the pre-message balance and `minBalance`, plus any storage due, so
 /// action-phase sends *and external-out events* are funded by the inbound value.
 ///
 /// `getOriginalBalance()` already includes the inbound value, hence the subtraction; callers must
 /// pass the actual inbound `in.valueCoins`. The reserve must be installed before the first send or
-/// emit in the transaction. `RESERVE_MODE_AT_MOST` is best-effort: if gas/fees/events exceed the
-/// inbound value, the reserve is capped at the available balance and the pre-message balance may
-/// be touched. Success paths rely on the admission gates to make that impossible; recovery paths
-/// deliberately accept it rather than roll back.
-fun reserveBalanceBeforeInMessage(msgValue: coins): void {
+/// emit in the transaction. Returns the reserved amount.
+///
+/// Defaults to `RESERVE_MODE_RENT` (exact/fail). Pass `RESERVE_MODE_AT_MOST` explicitly on custody,
+/// confirmation, or recovery paths: there, best-effort is deliberate so a reserve shortfall cannot
+/// roll back a custody return or a confirmation. The default exact mode fails the transaction
+/// instead of proceeding below the target.
+///
+/// Unlike `reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE)`, which only
+/// preserves an already-funded pre-message balance, this keeps `max(preMessageBalance, minBalance)`
+/// and can top up a rent target from the inbound value. Pass `minBalance = 0` for preserve-only
+/// behavior (grams only; the stdlib mode also reserves extra currencies).
+fun reserveBalanceBeforeInMessage(
+    msgValue: coins,
+    minBalance: coins = 0,
+    reserveMode: int = RESERVE_MODE_RENT,
+): coins {
     val rentDue = contract.getStorageDuePayment();
     val originalBalance = contract.getOriginalBalance();
     val balanceBeforeMessage = originalBalance > msgValue
         ? originalBalance - msgValue
         : 0 as coins;
-    reserveGramsOnBalance(balanceBeforeMessage + rentDue, RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
+    val reserve = max(balanceBeforeMessage, minBalance) + rentDue;
+    reserveGramsOnBalance(reserve, reserveMode);
+    return reserve;
 }

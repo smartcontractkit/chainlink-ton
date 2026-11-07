@@ -91,6 +91,7 @@ type Init struct {
 	MinterAddress *address.Address `tlb:"addr required"` // The jetton minter address.
 	WalletAddress *address.Address `tlb:"addr required"` // The jetton wallet address of the lockbox.
 	Admin         *address.Address `tlb:"addr"`          // Optional admin address (falls back to sender).
+	ReturnExcess  bool             `tlb:"bool"`          // If true, return the remaining init value; the pre-existing balance stays.
 }
 
 // Initialized is sent as a reply after successful initialization.

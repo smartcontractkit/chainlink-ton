@@ -98,14 +98,15 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
     st.minterAddress = msg.minterAddress;
     st.walletAddress = msg.walletAddress;
 
-    // Require enough value to cover the rent reserve plus the init replies
-    assert (contract.getOriginalBalance() >= MIN_GRAM_TO_RESERVE + MIN_GRAM_TO_INIT) throw (JettonLockBox_Error.NotEnoughValue);
-
-    val reserveMode = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
-    reserveGramsOnBalance(MIN_GRAM_TO_RESERVE, reserveMode);
+    // Require enough value to cover the rent reserve plus the init cost.
+    val rentReserve = reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
+    assert(
+        contract.getOriginalBalance() >= rentReserve + MIN_GRAM_TO_INIT,
+        JettonLockBox_Error.NotEnoughValue
+    );
 
     // Initialize AccessControl roles.
-    // @dev Pass `returnExcess = false` so each reply is sent with a fixed gas budget
+    // @dev Pass `returnExcess = false` so each role notification is sent with a fixed gas budget
     // (SEND_MODE_PAY_FEES_SEPARATELY) instead of carrying all remaining inbound value.
     val returnExcess = false;
     var rbac = hookTrait__AccessControl(st);
@@ -117,10 +118,10 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
 
     st.rbac = rbac.data;
 
-    // Notify sender that initialization is complete, returning the excess value
+    // Notify sender that initialization is complete, returning the excess value if chosen.
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
-        value: 0,
+        value: msg.returnExcess ? 0 as coins : calculateGasFeeFor(FEE_SIZE_SMALL),
         dest: sender,
         body: JettonLockBox_Initialized {
             queryId: msg.queryId,
@@ -129,7 +130,9 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
             admin: adminAddress,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    reply.send(msg.returnExcess
+        ? SEND_MODE_CARRY_ALL_BALANCE
+        : SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// Handles jetton transfer notifications — treats them as deposits.
@@ -177,7 +180,7 @@ fun onDepositWithTransferNotification(
 
         // The log and transfer are separate actions. Protect the pre-message balance, then carry
         // only the unreserved remainder after paying for the log and this transaction.
-        reserveBalanceBeforeInMessage(msgValue);
+        reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
         emit<JettonLockBox_Deposit>(TOPIC_DEPOSIT, deposit);
 
         // Reply to the operator (pool) so it knows the deposit is confirmed.
@@ -266,9 +269,9 @@ fun onDepositReturn(
     // failureValue. If not enough funds are provided, the failure message will not be sent.
     val failureCost = failureValue + failure.estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
     if (failureValue > 0 && msgValue > failureCost) {
-        reserveBalanceBeforeInMessage(msgValue);
-        failure.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-        transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+        reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
+        failure.send(SEND_MODE_PAY_FEES_SEPARATELY);
+        transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
 
         return;
     }
@@ -291,9 +294,8 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     assert (!isZeroAddress(msg.recipient)) throw (JettonLockBox_Error.RecipientCannotBeZeroAddress);
     assert (st.walletAddress != null) throw (JettonLockBox_Error.UnsupportedToken);
 
-    // The log and transfer are separate actions. Protect the pre-message balance, then carry
-    // only the unreserved remainder after paying for the log and this transaction.
-    reserveBalanceBeforeInMessage(msgValue);
+    // Enforce a balance reserve before processing the withdrawal
+    reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
     emit<JettonLockBox_Withdraw>(TOPIC_WITHDRAWAL, msg);
 
     // Resolve the optional withdraw extras once.

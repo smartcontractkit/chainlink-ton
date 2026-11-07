@@ -473,9 +473,7 @@ fun TokenPool<T>.setDynamicConfig(
     adminConfig.dynamicConfig = dynamicConfig.toCell();
     self.data.adminConfig = adminConfig.toCell();
 
-    // TODO[RESERVE-REBASE]: chore/tp-rent-reserve changes the admin reserve/value model.
-    // Reconcile the admin reserves when rebasing that PR on top.
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
 
     val configSet = TokenPool_DynamicConfigSet { router, rateLimitAdmin, feeAdmin };
     emit(TOPIC_TOKEN_POOL_DYNAMIC_CONFIG_SET, configSet);
@@ -506,7 +504,7 @@ fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, msgValue
     adminConfig.allowedFinalityConfig = allowedFinalityConfig;
     self.data.adminConfig = adminConfig.toCell();
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
 
     val configSet = TokenPool_FinalityConfigSet { allowedFinalityConfig };
     emit(TOPIC_TOKEN_POOL_FINALITY_CONFIG_SET, configSet);
@@ -539,7 +537,7 @@ fun TokenPool<T>.setAdvancedPoolHooks(
     adminConfig.advancedPoolHooks = advancedPoolHooks;
     self.data.adminConfig = adminConfig.toCell();
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
 
     val hooksUpdated = TokenPool_AdvancedPoolHooksUpdated { oldHook, newHook: advancedPoolHooks };
     emit(TOPIC_TOKEN_POOL_ADVANCED_POOL_HOOKS_UPDATED, hooksUpdated);
@@ -576,7 +574,7 @@ fun TokenPool<T>.addRemotePool(
 
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
     self._setRemotePool(mutate config, remoteChainSelector, remotePoolAddress);
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
@@ -616,7 +614,7 @@ fun TokenPool<T>.removeRemotePool(
     assert (deleted) throw (TokenPool_Error.InvalidRemotePoolForChain);
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
     emit(TOPIC_TOKEN_POOL_REMOTE_POOL_REMOVED, TokenPool_RemotePoolRemoved {
         remoteChainSelector,
         remotePoolAddress,
@@ -652,7 +650,7 @@ fun TokenPool<T>.applyChainUpdates(
     self.requireMinValue(msgValue);
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
 
     var rmIter = remoteChainSelectorsToRemove.iter();
     while (!rmIter.empty()) {
@@ -944,10 +942,8 @@ fun TokenPool<T>.onPreflightCheckFinished(
         return;
     }
 
-    // TODO[RESERVE-REBASE]: chore/tp-rent-reserve polishes this continuation's value model.
-    // Reconcile when rebasing that PR on top.
-    // This continuation path expects the reserve to be installed
-    reserveBalanceBeforeInMessage(msgValue);
+    // This continuation path expects the rent target to be installed.
+    reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
     self.onLockOrBurnWithdraw(fwdp.originalSender, msgValue, requestMsg, prepared);
 }
 
@@ -999,10 +995,8 @@ fun TokenPool<T>.onPostflightCheckFinished(
         val minValue = self.releaseOrMintForward(requestMsg.finalizationValue());
         assert (msgValue >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
 
-        // TODO[RESERVE-REBASE]: chore/tp-rent-reserve polishes this continuation's value model.
-        // Reconcile when rebasing that PR on top.
-        // This continuation path expects the reserve to be installed
-        reserveBalanceBeforeInMessage(msgValue);
+        // This continuation path expects the rent target to be installed.
+        reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
         self.onReleaseOrMintContinue(fwdp.originalSender, msgValue, requestMsg, prepared);
     } catch (errorCode) {
         self.recoverReleaseOrMintFailure(fwdp, errorCode, msgValue);
@@ -1070,7 +1064,7 @@ fun TokenPool<T>.recoverLockOrBurnFailure(
     msgValue: coins,
     custodyReturn: AskToTransfer? = null,
 ): void {
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
     self.refundLockOrBurnRateLimit(forwardPayload);
 
     // Determine the failure value to send back based on whether custody return is required.
@@ -1122,7 +1116,7 @@ fun TokenPool<T>.recoverReleaseOrMintFailure(
     errorCode: int32,
     msgValue: coins,
 ): void {
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
     self.refundReleaseOrMintRateLimit(forwardPayload);
 
     val requestMsg = lazy forwardPayload.requestMsg.load();
@@ -1151,7 +1145,7 @@ fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
 
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
 
     var iter = updates.iter();
     while (!iter.empty()) {
@@ -1608,9 +1602,9 @@ fun TokenPool<T>.onLockOrBurn(
 
     self.updateDepositNamespaces(sender, msg.onRampNamespaces);
 
-    // The validation step emits events (RL) so we reserve the inbound value,
-    // and any continuation should finally carry all (remaining) balance.
-    reserveBalanceBeforeInMessage(msgValue);
+    // The validation step emits events (RL) so we reserve the inbound value and the rent
+    // target; any continuation should finally carry all (remaining) balance.
+    reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
 
     // Validate and call preflightCheck with full message.
     val (wait, prepared) = self.validateLockOrBurn(sender, msg);
@@ -1890,7 +1884,7 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
     val request = lazy requestMsg.request.load();
     val details = lazy request.transfer.details.load();
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
     emit(TOPIC_TOKEN_POOL_LOCKED_OR_BURNED, TokenPool_LockedOrBurned {
         remoteChainSelector: details.remoteChainSelector,
         details: TokenPool_LockedOrBurnedDetails {
@@ -2001,9 +1995,9 @@ fun TokenPool<T>.onReleaseOrMint(
         return;
     }
 
-    // The validation step emits events (RL) so we reserve the inbound value,
-    // and any continuation should finally carry all (remaining) balance.
-    reserveBalanceBeforeInMessage(msgValue);
+    // The validation step emits events (RL) so we reserve the inbound value and the rent
+    // target; any continuation should finally carry all (remaining) balance.
+    reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
 
     // Validate and call postflightCheck with full message.
     val (wait, prepared) = self.validateReleaseOrMint(sender, msg);
@@ -2045,7 +2039,7 @@ fun TokenPool<T>.onReleaseOrMintDelivered(
     val transfer = lazy msg.transfer.load();
     assert (self.isSupportedToken(transfer.localToken)) throw (TokenPool_Error.InvalidToken);
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
     emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
         remoteChainSelector: transfer.remoteChainSelector,
         details: TokenPool_ReleasedOrMintedDetails {
@@ -2492,9 +2486,7 @@ fun TokenPool<T>.setRateLimitConfig(
     self.requireMinValue(msgValue);
     self.onlyOwnerOrRateLimitAdmin(sender);
 
-    // TODO[RESERVE-REBASE]: chore/tp-rent-reserve changes the admin reserve/value model.
-    // Reconcile this reserve when rebasing that PR on top.
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
 
     var iter = updates.iter();
     while (!iter.empty()) {
