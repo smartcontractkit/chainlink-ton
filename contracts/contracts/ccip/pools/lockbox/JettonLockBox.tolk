@@ -105,15 +105,15 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
     );
 
     // Initialize AccessControl roles.
-    // @dev Pass `returnExcess = false` so each role notification is sent with a fixed gas budget
-    // (SEND_MODE_PAY_FEES_SEPARATELY) instead of carrying all remaining inbound value.
-    val returnExcess = false;
+    // @dev Pass `returnRoleExcess = false` so each role notification is sent with a fixed gas
+    // budget (SEND_MODE_PAY_FEES_SEPARATELY) instead of carrying all remaining inbound value.
+    val returnRoleExcess = false;
     var rbac = hookTrait__AccessControl(st);
-    rbac._setRoleAdmin(msg.queryId, sender, DEFAULT_ADMIN_ROLE, DEFAULT_ADMIN_ROLE, returnExcess);
-    rbac._setRoleAdmin(msg.queryId, sender, OPERATOR_ROLE, DEFAULT_ADMIN_ROLE, returnExcess);
+    rbac._setRoleAdmin(msg.queryId, sender, DEFAULT_ADMIN_ROLE, DEFAULT_ADMIN_ROLE, returnRoleExcess);
+    rbac._setRoleAdmin(msg.queryId, sender, OPERATOR_ROLE, DEFAULT_ADMIN_ROLE, returnRoleExcess);
 
     val adminAddress = msg.admin != null ? msg.admin! : sender;
-    rbac._grantRole(msg.queryId, sender, DEFAULT_ADMIN_ROLE, adminAddress, returnExcess);
+    rbac._grantRole(msg.queryId, sender, DEFAULT_ADMIN_ROLE, adminAddress, returnRoleExcess);
 
     st.rbac = rbac.data;
 

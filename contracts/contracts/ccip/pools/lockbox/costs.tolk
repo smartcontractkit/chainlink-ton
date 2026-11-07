@@ -4,9 +4,10 @@ import "@stdlib/gas-payments"
 import "../../../lib/gas"
 import "../lib/token_pool/jetton_fees"
 
-/// Lockbox deposit gas budget. Covers the happy-path handler and a small reply buffer. Failure
-/// returns are best-effort and may require more value; the min must not block a viable success.
-/// Calibrated by `tests/gas-report/pools/lockbox.spec.ts`; callers add their own finalization.
+/// Lockbox deposit gas budget. Covers the happy-path handler with a small margin; the reply fee is
+/// added separately. Failure returns are best-effort and may require more value; the min must not
+/// block a viable success. Calibrated by `tests/gas-report/pools/lockbox.spec.ts`; callers add
+/// their own finalization.
 const JettonLockBox_DEPOSIT_GAS_UNITS = BUDGET_UNITS_LVL1_LOW;
 
 /// Lockbox withdraw gas budget. Covers the handler's own compute and event. Calibrated by the
