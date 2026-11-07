@@ -181,12 +181,14 @@ describe('MCMS - IntegrationTest', () => {
 
       const data = {
         id: Number(generateRandomContractId()),
+        initializer: acc.deployer.address,
         minDelay: MIN_DELAY,
         executorRoleCheckEnabled: true,
         opPendingInfo: {
           validAfter: 0n,
           opFinalizationTimeout: 0,
           opPendingId: 0n,
+          opPendingExecutionLt: 0n,
         },
         rbac: ac.builder.data.contractData.encode(rbacStorage).asCell(),
       }

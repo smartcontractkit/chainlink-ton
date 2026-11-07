@@ -713,7 +713,7 @@ export const Timelock_SubmitErrorReport = {
 /**
  > struct (0x3ed17038) Timelock_BounceHandled {
  >     sender: address
- >     bouncedBody: uint256
+ >     opcode: uint32
  >     opPendingId: uint256
  >     matchesPendingOp: bool
  > }
@@ -721,7 +721,7 @@ export const Timelock_SubmitErrorReport = {
 export interface Timelock_BounceHandled {
     readonly $: 'Timelock_BounceHandled'
     sender: c.Address
-    bouncedBody: uint256
+    opcode: uint32
     opPendingId: uint256
     matchesPendingOp: boolean
 }
@@ -731,7 +731,7 @@ export const Timelock_BounceHandled = {
 
     create(args: {
         sender: c.Address
-        bouncedBody: uint256
+        opcode: uint32
         opPendingId: uint256
         matchesPendingOp: boolean
     }): Timelock_BounceHandled {
@@ -745,7 +745,7 @@ export const Timelock_BounceHandled = {
         return {
             $: 'Timelock_BounceHandled',
             sender: s.loadAddress(),
-            bouncedBody: s.loadUintBig(256),
+            opcode: s.loadUintBig(32),
             opPendingId: s.loadUintBig(256),
             matchesPendingOp: s.loadBoolean(),
         }
@@ -753,7 +753,7 @@ export const Timelock_BounceHandled = {
     store(self: Timelock_BounceHandled, b: c.Builder): void {
         b.storeUint(0x3ed17038, 32);
         b.storeAddress(self.sender);
-        b.storeUint(self.bouncedBody, 256);
+        b.storeUint(self.opcode, 32);
         b.storeUint(self.opPendingId, 256);
         b.storeBit(self.matchesPendingOp);
     },
@@ -1328,6 +1328,7 @@ export const Timelock_ErrorReportSubmitted = {
 /**
  > struct Timelock_Data {
  >     id: uint32
+ >     initializer: address
  >     minDelay: uint32
  >     timestamps: map<uint256, uint64>
  >     blockedFnSelectorsLen: uint32
@@ -1340,6 +1341,7 @@ export const Timelock_ErrorReportSubmitted = {
 export interface Timelock_Data {
     readonly $: 'Timelock_Data'
     id: uint32
+    initializer: c.Address
     minDelay: uint32
     timestamps: Map<uint256, uint64>
     blockedFnSelectorsLen: uint32
@@ -1352,6 +1354,7 @@ export interface Timelock_Data {
 export const Timelock_Data = {
     create(args: {
         id: uint32
+        initializer: c.Address
         minDelay: uint32
         timestamps: Map<uint256, uint64>
         blockedFnSelectorsLen: uint32
@@ -1369,6 +1372,7 @@ export const Timelock_Data = {
         return {
             $: 'Timelock_Data',
             id: s.loadUintBig(32),
+            initializer: s.loadAddress(),
             minDelay: s.loadUintBig(32),
             timestamps: dictToMap(c.Dictionary.load<uint256, uint64>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64), s)),
             blockedFnSelectorsLen: s.loadUintBig(32),
@@ -1380,6 +1384,7 @@ export const Timelock_Data = {
     },
     store(self: Timelock_Data, b: c.Builder): void {
         b.storeUint(self.id, 32);
+        b.storeAddress(self.initializer);
         b.storeUint(self.minDelay, 32);
         b.storeDict<uint256, uint64>(mapToDict(self.timestamps, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64)), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.BigUint(64));
         b.storeUint(self.blockedFnSelectorsLen, 32);
@@ -1484,7 +1489,7 @@ export const Timelock_OperationBatch = {
  >     validAfter: uint64
  >     opFinalizationTimeout: uint32
  >     opPendingId: uint256
- >     opPendingCalls: map<uint256, bool>
+ >     opPendingExecutionLt: uint64
  > }
  */
 export interface Timelock_OpPendingInfo {
@@ -1492,7 +1497,7 @@ export interface Timelock_OpPendingInfo {
     validAfter: uint64
     opFinalizationTimeout: uint32
     opPendingId: uint256
-    opPendingCalls: Map<uint256, boolean>
+    opPendingExecutionLt: uint64
 }
 
 export const Timelock_OpPendingInfo = {
@@ -1500,7 +1505,7 @@ export const Timelock_OpPendingInfo = {
         validAfter: uint64
         opFinalizationTimeout: uint32
         opPendingId: uint256
-        opPendingCalls: Map<uint256, boolean>
+        opPendingExecutionLt: uint64
     }): Timelock_OpPendingInfo {
         return {
             $: 'Timelock_OpPendingInfo',
@@ -1513,14 +1518,14 @@ export const Timelock_OpPendingInfo = {
             validAfter: s.loadUintBig(64),
             opFinalizationTimeout: s.loadUintBig(32),
             opPendingId: s.loadUintBig(256),
-            opPendingCalls: dictToMap(c.Dictionary.load<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool(), s)),
+            opPendingExecutionLt: s.loadUintBig(64),
         }
     },
     store(self: Timelock_OpPendingInfo, b: c.Builder): void {
         b.storeUint(self.validAfter, 64);
         b.storeUint(self.opFinalizationTimeout, 32);
         b.storeUint(self.opPendingId, 256);
-        b.storeDict<uint256, boolean>(mapToDict(self.opPendingCalls, c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool()), c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool());
+        b.storeUint(self.opPendingExecutionLt, 64);
     },
     toCell(self: Timelock_OpPendingInfo): c.Cell {
         return makeCellFrom<Timelock_OpPendingInfo>(self, Timelock_OpPendingInfo.store);
@@ -1876,6 +1881,7 @@ export class Timelock implements c.Contract {
         'Timelock_Error.ContractAlreadyInitialized': 60609,
         'Timelock_Error.ContractNotInitialized': 60610,
         'Timelock_Error.InsufficientFee': 60611,
+        'Timelock_Error.UnauthorizedInitializer': 60612,
     }
 
     readonly address: c.Address
@@ -1892,6 +1898,7 @@ export class Timelock implements c.Contract {
 
     static fromStorage(emptyStorage: {
         id: uint32
+        initializer: c.Address
         minDelay: uint32
         timestamps: Map<uint256, uint64>
         blockedFnSelectorsLen: uint32
@@ -2261,7 +2268,7 @@ export class Timelock implements c.Contract {
             validAfter: r.readBigInt(),
             opFinalizationTimeout: r.readBigInt(),
             opPendingId: r.readBigInt(),
-            opPendingCalls: dictToMap(r.readDictionary<uint256, boolean>(c.Dictionary.Keys.BigUint(256), c.Dictionary.Values.Bool())),
+            opPendingExecutionLt: r.readBigInt(),
         });
     }
 

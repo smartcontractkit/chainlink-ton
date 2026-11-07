@@ -1,7 +1,9 @@
 import '@ton/test-utils'
-import { Cell, toNano } from '@ton/core'
+import { internal, SendMessageResult } from '@ton/sandbox'
+import { beginCell, Cell, toNano } from '@ton/core'
 
 import * as mcms from '../../wrappers/mcms/MCMS'
+import { MCMS_BounceHandled } from '../../wrappers/gen/mcms/MCMS'
 
 import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
 
@@ -353,7 +355,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     expect(opPendingInfo).toBeDefined()
     expect(opPendingInfo.validAfter).toBeGreaterThan(0)
     expect(opPendingInfo.opPendingReceiver).toEqual(null)
-    expect(opPendingInfo.opPendingBodyTruncated).toEqual(0n)
+    expect(opPendingInfo.opPendingExecutionLt).toEqual(0n)
   })
 
   it('should handle value operations correctly - insufficient balance', async () => {
@@ -463,4 +465,132 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       await baseTest.generateCoverageArtifacts()
     }
   })
+
+  it('does not roll back a later op on a late bounce from an identical earlier op', async () => {
+    // Make op 1 and op 2 carry identical payloads so only the message identity can
+    // distinguish them.
+    baseTest.testOps[1].data = baseTest.testOps[2].data
+    baseTest.testOps[1].value = baseTest.testOps[2].value
+    await baseTest.setInitialRoot(
+      baseTest.createTestRootMetadata(0n, BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM), true),
+    )
+
+    const finalizationTimeout = 200
+    await baseTest.executeOperationsUpTo(3, finalizationTimeout)
+    expect(await baseTest.bind.mcms.getOpCount()).toEqual(3n)
+
+    const pending = await baseTest.bind.mcms.getOpPendingInfo()
+    expect(pending.opPendingReceiver).not.toBeNull()
+
+    // Simulate a bounce from op 1 arriving after op 2 executed. Its createdLt
+    // predates op 2's execute transaction.
+    const lateCreatedLt = pending.opPendingExecutionLt - 1n
+    const result = await baseTest.blockchain.sendMessage(
+      internal({
+        from: baseTest.bind.counter.address,
+        to: baseTest.bind.mcms.address,
+        value: toNano('0.1'),
+        bounced: true,
+        body: buildRichBounce(baseTest.testOps[1].data, lateCreatedLt),
+      }),
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: baseTest.bind.counter.address,
+      to: baseTest.bind.mcms.address,
+      success: true,
+    })
+    expectBounceHandledOpcode(result, baseTest.testOps[1].data.beginParse().preloadUint(32))
+
+    // The late bounce must not roll back opCount.
+    expect(await baseTest.bind.mcms.getOpCount()).toEqual(3n)
+
+    // The root must be expired instead.
+    const [, validUntil] = await baseTest.bind.mcms.getRoot()
+    expect(validUntil).toEqual(BigInt(baseTest.blockchain.now!) - 1n)
+
+    // Already-executed op 2 cannot be re-executed.
+    const execBody = mcms.builder.message.in.execute
+      .encode({
+        queryId: 99n,
+        op: mcms.builder.data.op.encode(baseTest.testOps[2]).asCell(),
+        proof: baseTest.getProofForOp(2),
+      })
+      .asCell()
+    const retry = await baseTest.bind.mcms.sendInternal(
+      baseTest.acc.deployer.getSender(),
+      toNano('0.05'),
+      execBody,
+    )
+    expect(retry.transactions).toHaveTransaction({
+      from: baseTest.acc.deployer.address,
+      to: baseTest.bind.mcms.address,
+      success: false,
+      exitCode: mcms.Error.RootExpired,
+    })
+  })
+
+  it('expires the root on an unexpected non-rich bounce', async () => {
+    const finalizationTimeout = 200
+    await baseTest.executeOperationsUpTo(1, finalizationTimeout)
+    expect(await baseTest.bind.mcms.getOpCount()).toEqual(1n)
+
+    const opData = baseTest.testOps[0].data
+    const bits = Math.min(256, opData.bits.length)
+    const shortBody = beginCell()
+      .storeUint(0xffffffff, 32)
+      .storeBits(opData.beginParse().loadBits(bits))
+      .endCell()
+
+    const result = await baseTest.blockchain.sendMessage(
+      internal({
+        from: baseTest.bind.counter.address,
+        to: baseTest.bind.mcms.address,
+        value: toNano('0.1'),
+        bounced: true,
+        body: shortBody,
+      }),
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: baseTest.bind.counter.address,
+      to: baseTest.bind.mcms.address,
+      success: true,
+    })
+    expectBounceHandledOpcode(result, opData.beginParse().preloadUint(32))
+
+    // Non-rich bounces are not attributable, so they expire the root instead of
+    // rolling back opCount.
+    expect(await baseTest.bind.mcms.getOpCount()).toEqual(1n)
+    const [, validUntil] = await baseTest.bind.mcms.getRoot()
+    expect(validUntil).toEqual(BigInt(baseTest.blockchain.now!) - 1n)
+  })
+
+  function expectBounceHandledOpcode(result: SendMessageResult, expected: number) {
+    const event = result.externals.find(
+      (e) =>
+        e.info.src.equals(baseTest.bind.mcms.address) &&
+        e.info.dest?.value === BigInt(mcms.opcodes.out.BounceHandled),
+    )
+    expect(event).toBeDefined()
+    expect(MCMS_BounceHandled.fromSlice(event!.body.beginParse()).opcode).toEqual(BigInt(expected))
+  }
+
+  function buildRichBounce(originalBody: Cell, createdLt: bigint): Cell {
+    const originalInfo = beginCell()
+      .storeCoins(toNano('0.05'))
+      .storeDict(null)
+      .storeUint(createdLt, 64)
+      .storeUint(0, 32)
+      .endCell()
+
+    return beginCell()
+      .storeUint(0xfffffffe, 32)
+      .storeRef(originalBody)
+      .storeRef(originalInfo)
+      .storeUint(1, 8) // bouncedByPhase
+      .storeInt(47, 32) // exitCode
+      .storeBit(false) // no compute phase
+      .endCell()
+  }
 })

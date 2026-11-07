@@ -58,12 +58,14 @@ describe('RBACTimelock', () => {
 
     const data = {
       id: Number(generateRandomContractId()),
+      initializer: deployer.address,
       minDelay,
       executorRoleCheckEnabled: true,
       opPendingInfo: {
         validAfter: 0n,
         opFinalizationTimeout: 0,
         opPendingId: 0n,
+        opPendingExecutionLt: 0n,
       },
       rbac: ac.builder.data.contractData.encode(rbacStorage).asCell(),
     }
@@ -151,6 +153,43 @@ describe('RBACTimelock', () => {
     expect(await acContract.getHasRole(rbactl.roles.canceller, deployer.address)).toEqual(true)
     expect(await acContract.getHasRole(rbactl.roles.executor, deployer.address)).toEqual(true)
     expect(await acContract.getHasRole(rbactl.roles.bypasser, deployer.address)).toEqual(true)
+  })
+
+  it('rejects init from a non-initializer, then allows the initializer', async () => {
+    const body = rbactl.builder.message.in.init
+      .encode({
+        queryId: 1n,
+        minDelay,
+        admin: deployer.address,
+        proposers: [deployer.address],
+        executors: [deployer.address],
+        cancellers: [deployer.address],
+        bypassers: [deployer.address],
+        executorRoleCheckEnabled: true,
+        opFinalizationTimeout: 0,
+      })
+      .asCell()
+
+    const rejected = await timelock.sendInternal(other.getSender(), toNano('0.5'), body)
+
+    expect(rejected.transactions).toHaveTransaction({
+      from: other.address,
+      to: timelock.address,
+      deploy: true,
+      success: false,
+      exitCode: rbactl.Error.UnauthorizedInitializer,
+    })
+
+    const accepted = await timelock.sendInternal(deployer.getSender(), toNano('0.5'), body)
+
+    expect(accepted.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: timelock.address,
+      success: true,
+      op: rbactl.opcodes.in.Init,
+    })
+
+    expect(await acContract.getHasRole(rbactl.roles.admin, deployer.address)).toEqual(true)
   })
 
   const deployInitTimelock = async () => {

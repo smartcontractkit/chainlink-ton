@@ -171,12 +171,14 @@ export class BaseTestSetup {
 
     const data = {
       id: Number(generateRandomContractId()),
+      initializer: this.acc.deployer.address,
       minDelay: BaseTestSetup.MIN_DELAY,
       executorRoleCheckEnabled: true,
       opPendingInfo: {
         validAfter: 0n,
         opFinalizationTimeout: 0,
         opPendingId: 0n,
+        opPendingExecutionLt: 0n,
       },
       rbac: ac.builder.data.contractData.encode(rbacStorage).asCell(),
     }

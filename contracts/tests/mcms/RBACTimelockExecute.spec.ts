@@ -1,8 +1,9 @@
 import '@ton/test-utils'
 import { toNano, beginCell, Cell } from '@ton/core'
-import { SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { internal, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
+import { Timelock_BounceHandled } from '../../wrappers/gen/mcms/Timelock'
 import * as counter from '../../wrappers/examples/Counter'
 import * as ac from '../../wrappers/lib/access/AccessControl'
 
@@ -456,6 +457,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         success: true,
         inMessageBounced: true,
       })
+      expectBounceHandledOpcode(result, 0x99999999)
 
       // Verify operation was marked as error
       const operationBatch: rbactl.OperationBatch = {
@@ -467,6 +469,234 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const timestamp = await baseTest.bind.timelock.getTimestamp(operationId)
       expect(timestamp).toEqual(rbactl.ERROR_TIMESTAMP)
     })
+
+    it('does not mark a later op as error on a late bounce from an identical earlier op', async () => {
+      const call: rbactl.Call = {
+        target: baseTest.bind.counter.address,
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
+      }
+      const calls = BaseTestSetup.singletonCalls(call)
+
+      const batchOne: rbactl.OperationBatch = {
+        calls,
+        predecessor: BaseTestSetup.NO_PREDECESSOR,
+        salt: 1n,
+      }
+      const batchTwo: rbactl.OperationBatch = {
+        calls,
+        predecessor: BaseTestSetup.NO_PREDECESSOR,
+        salt: 2n,
+      }
+
+      await scheduleBatch(batchOne, 1n)
+      await scheduleBatch(batchTwo, 2n)
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
+
+      const idOne = await baseTest.bind.timelock.getHashOperationBatch(batchOne)
+      const idTwo = await baseTest.bind.timelock.getHashOperationBatch(batchTwo)
+
+      await executeBatch(batchOne, 3n)
+      await executeBatch(batchTwo, 4n)
+
+      const pending = await baseTest.bind.timelock.getOpPendingInfo()
+      expect(pending.opPendingId).toEqual(idTwo)
+      expect(pending.opPendingExecutionLt).toBeGreaterThan(0n)
+
+      // Simulate a bounce from batch one arriving after batch two executed.
+      const result = await baseTest.blockchain.sendMessage(
+        internal({
+          from: baseTest.bind.counter.address,
+          to: baseTest.bind.timelock.address,
+          value: toNano('0.1'),
+          bounced: true,
+          body: buildRichBounce(call.data, pending.opPendingExecutionLt - 1n),
+        }),
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.counter.address,
+        to: baseTest.bind.timelock.address,
+        success: true,
+      })
+
+      expect(await baseTest.bind.timelock.getTimestamp(idOne)).toEqual(rbactl.DONE_TIMESTAMP)
+      expect(await baseTest.bind.timelock.getTimestamp(idTwo)).toEqual(rbactl.DONE_TIMESTAMP)
+    })
+
+    it('ignores an unexpected non-rich bounce', async () => {
+      const call: rbactl.Call = {
+        target: baseTest.bind.counter.address,
+        value: toNano('0.05'),
+        data: counter.builder.message.in.setCount.encode({ queryId: 1n, newCount: 10 }).asCell(),
+      }
+      const calls = BaseTestSetup.singletonCalls(call)
+      const operationBatch: rbactl.OperationBatch = {
+        calls,
+        predecessor: BaseTestSetup.NO_PREDECESSOR,
+        salt: BaseTestSetup.EMPTY_SALT,
+      }
+
+      await scheduleBatch(operationBatch, 1n)
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
+      await executeBatch(operationBatch, 2n)
+
+      const operationId = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
+      expect(await baseTest.bind.timelock.getTimestamp(operationId)).toEqual(rbactl.DONE_TIMESTAMP)
+
+      const bits = Math.min(256, call.data.bits.length)
+      const shortBody = beginCell()
+        .storeUint(0xffffffff, 32)
+        .storeBits(call.data.beginParse().loadBits(bits))
+        .endCell()
+
+      const result = await baseTest.blockchain.sendMessage(
+        internal({
+          from: baseTest.bind.counter.address,
+          to: baseTest.bind.timelock.address,
+          value: toNano('0.1'),
+          bounced: true,
+          body: shortBody,
+        }),
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.counter.address,
+        to: baseTest.bind.timelock.address,
+        success: true,
+      })
+
+      expect(await baseTest.bind.timelock.getTimestamp(operationId)).toEqual(rbactl.DONE_TIMESTAMP)
+    })
+
+    it('does not mark a pending op as error when a bypass call bounces', async () => {
+      const call: rbactl.Call = {
+        target: baseTest.bind.counter.address,
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 0n }).asCell(),
+      }
+      const operationBatch: rbactl.OperationBatch = {
+        calls: BaseTestSetup.singletonCalls(call),
+        predecessor: BaseTestSetup.NO_PREDECESSOR,
+        salt: BaseTestSetup.EMPTY_SALT,
+      }
+
+      await scheduleBatch(operationBatch, 1n)
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
+      await executeBatch(operationBatch, 2n)
+
+      const operationId = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
+      expect(await baseTest.bind.timelock.getTimestamp(operationId)).toEqual(rbactl.DONE_TIMESTAMP)
+
+      const invalidCall: rbactl.Call = {
+        target: baseTest.bind.counter.address,
+        value: toNano('0.05'),
+        data: beginCell().storeUint(0x99999999, 32).endCell(),
+      }
+      const body = rbactl.builder.message.in.bypasserExecuteBatch
+        .encode({ queryId: 3n, calls: BaseTestSetup.singletonCalls(invalidCall) })
+        .asCell()
+
+      const result = await baseTest.bind.timelock.sendInternal(
+        baseTest.acc.bypasserOne.getSender(),
+        toNano('0.15'),
+        body,
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.timelock.address,
+        to: baseTest.bind.counter.address,
+        success: false,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.counter.address,
+        to: baseTest.bind.timelock.address,
+        success: true,
+        inMessageBounced: true,
+      })
+      expectBounceHandledOpcode(result, 0x99999999)
+
+      expect(await baseTest.bind.timelock.getTimestamp(operationId)).toEqual(rbactl.DONE_TIMESTAMP)
+      expect((await baseTest.bind.timelock.getOpPendingInfo()).opPendingId).toEqual(operationId)
+    })
+
+    function expectBounceHandledOpcode(result: SendMessageResult, expected: number) {
+      const event = result.externals.find(
+        (e) =>
+          e.info.src.equals(baseTest.bind.timelock.address) &&
+          e.info.dest?.value === BigInt(rbactl.opcodes.out.BounceHandled),
+      )
+      expect(event).toBeDefined()
+      expect(Timelock_BounceHandled.fromSlice(event!.body.beginParse()).opcode).toEqual(
+        BigInt(expected),
+      )
+    }
+
+    async function scheduleBatch(operationBatch: rbactl.OperationBatch, queryId: bigint) {
+      const body = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId,
+          calls: operationBatch.calls,
+          predecessor: operationBatch.predecessor,
+          salt: operationBatch.salt,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
+
+      const result = await baseTest.bind.timelock.sendInternal(
+        baseTest.acc.proposerOne.getSender(),
+        toNano('0.05'),
+        body,
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.acc.proposerOne.address,
+        to: baseTest.bind.timelock.address,
+        success: true,
+      })
+    }
+
+    async function executeBatch(operationBatch: rbactl.OperationBatch, queryId: bigint) {
+      const body = rbactl.builder.message.in.executeBatch
+        .encode({
+          queryId,
+          calls: operationBatch.calls,
+          predecessor: operationBatch.predecessor,
+          salt: operationBatch.salt,
+        })
+        .asCell()
+
+      const result = await baseTest.bind.timelock.sendInternal(
+        baseTest.acc.executorOne.getSender(),
+        toNano('1'),
+        body,
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.acc.executorOne.address,
+        to: baseTest.bind.timelock.address,
+        success: true,
+      })
+    }
+
+    function buildRichBounce(originalBody: Cell, createdLt: bigint): Cell {
+      const originalInfo = beginCell()
+        .storeCoins(toNano('0.05'))
+        .storeDict(null)
+        .storeUint(createdLt, 64)
+        .storeUint(0, 32)
+        .endCell()
+
+      return beginCell()
+        .storeUint(0xfffffffe, 32)
+        .storeRef(originalBody)
+        .storeRef(originalInfo)
+        .storeUint(1, 8) // bouncedByPhase
+        .storeInt(47, 32) // exitCode
+        .storeBit(false) // no compute phase
+        .endCell()
+    }
 
     it('should allow executor to execute scheduled operation', async () => {
       await executeOperationTest(baseTest.acc.executorOne)

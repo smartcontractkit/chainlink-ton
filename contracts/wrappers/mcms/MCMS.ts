@@ -381,9 +381,8 @@ export type OpPendingInfo = {
   opFinalizationTimeout: number // uint32
   /// The address that the (pending) operation was sent to (and could bounce from).
   opPendingReceiver: Maybe<Address>
-  /// The truncated body of the pending operation (256 bits from the original message),
-  /// stored as the next expected potential bounce, and verified in onBounceMessage handler.
-  opPendingBodyTruncated: bigint // uint256
+  /// The transaction logical time at which the pending op was executed.
+  opPendingExecutionLt: bigint // uint64
 }
 
 /// Each root also authenticates metadata about itself (stored as one of the leaves)
@@ -709,14 +708,14 @@ export const builder = {
           .storeUint(data.validAfter, 64)
           .storeUint(data.opFinalizationTimeout, 32)
           .storeAddress(data.opPendingReceiver)
-          .storeUint(data.opPendingBodyTruncated, 256)
+          .storeUint(data.opPendingExecutionLt, 64)
       },
       load: (src: Slice): OpPendingInfo => {
         return {
           validAfter: src.loadUintBig(64),
           opFinalizationTimeout: src.loadUint(32),
           opPendingReceiver: src.loadAddress(),
-          opPendingBodyTruncated: src.loadUintBig(256),
+          opPendingExecutionLt: src.loadUintBig(64),
         }
       },
     }
@@ -882,7 +881,7 @@ export const builder = {
               validAfter: 0n, // no valid after
               opFinalizationTimeout: 0, // no op finalization timeout
               opPendingReceiver: null, // no op pending receiver
-              opPendingBodyTruncated: 0n, // no op pending body
+              opPendingExecutionLt: 0n, // no op pending execution LT
             },
           },
           rootMetadata: {
@@ -998,7 +997,7 @@ export class ContractClient implements Contract {
         validAfter: r.stack.readBigNumber(),
         opFinalizationTimeout: r.stack.readNumber(),
         opPendingReceiver: r.stack.readAddressOpt(),
-        opPendingBodyTruncated: r.stack.readBigNumber(),
+        opPendingExecutionLt: r.stack.readBigNumber(),
       }
     })
   }

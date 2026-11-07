@@ -20,11 +20,12 @@ func _() {
 	_ = x[ErrorContractAlreadyInitialized-60609]
 	_ = x[ErrorContractNotInitialized-60610]
 	_ = x[InsufficientFee-60611]
+	_ = x[ErrorUnauthorizedInitializer-60612]
 }
 
-const _ExitCode_name = "ErrorSelectorIsBlockedErrorOperationNotReadyErrorOperationMissingDependencyErrorOperationCannotBeCancelledErrorOperationAlreadyScheduledErrorInsufficientDelayErrorPendingOperationNotFinalErrorInsufficientValueErrorOperationNotDoneErrorContractAlreadyInitializedErrorContractNotInitializedInsufficientFee"
+const _ExitCode_name = "ErrorSelectorIsBlockedErrorOperationNotReadyErrorOperationMissingDependencyErrorOperationCannotBeCancelledErrorOperationAlreadyScheduledErrorInsufficientDelayErrorPendingOperationNotFinalErrorInsufficientValueErrorOperationNotDoneErrorContractAlreadyInitializedErrorContractNotInitializedInsufficientFeeErrorUnauthorizedInitializer"
 
-var _ExitCode_index = [...]uint16{0, 22, 44, 75, 106, 136, 158, 187, 209, 230, 261, 288, 303}
+var _ExitCode_index = [...]uint16{0, 22, 44, 75, 106, 136, 158, 187, 209, 230, 261, 288, 303, 331}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 60600

@@ -906,7 +906,7 @@ export const MCMS_ExpiredRootsCleaned = {
 /**
  > struct (0xe695431e) MCMS_BounceHandled {
  >     sender: address
- >     bouncedBody: uint256
+ >     opcode: uint32
  >     root: uint256
  >     nonce: uint40
  >     matchesPendingOp: bool
@@ -916,7 +916,7 @@ export const MCMS_ExpiredRootsCleaned = {
 export interface MCMS_BounceHandled {
     readonly $: 'MCMS_BounceHandled'
     sender: c.Address
-    bouncedBody: uint256
+    opcode: uint32
     root: uint256
     nonce: uint40
     matchesPendingOp: boolean
@@ -928,7 +928,7 @@ export const MCMS_BounceHandled = {
 
     create(args: {
         sender: c.Address
-        bouncedBody: uint256
+        opcode: uint32
         root: uint256
         nonce: uint40
         matchesPendingOp: boolean
@@ -944,7 +944,7 @@ export const MCMS_BounceHandled = {
         return {
             $: 'MCMS_BounceHandled',
             sender: s.loadAddress(),
-            bouncedBody: s.loadUintBig(256),
+            opcode: s.loadUintBig(32),
             root: s.loadUintBig(256),
             nonce: s.loadUintBig(40),
             matchesPendingOp: s.loadBoolean(),
@@ -954,7 +954,7 @@ export const MCMS_BounceHandled = {
     store(self: MCMS_BounceHandled, b: c.Builder): void {
         b.storeUint(0xe695431e, 32);
         b.storeAddress(self.sender);
-        b.storeUint(self.bouncedBody, 256);
+        b.storeUint(self.opcode, 32);
         b.storeUint(self.root, 256);
         b.storeUint(self.nonce, 40);
         b.storeBit(self.matchesPendingOp);
@@ -1205,7 +1205,7 @@ export const ExpiringRootAndOpCount = {
  >     validAfter: uint64
  >     opFinalizationTimeout: uint32
  >     opPendingReceiver: address?
- >     opPendingBodyTruncated: uint256
+ >     opPendingExecutionLt: uint64
  > }
  */
 export interface OpPendingInfo {
@@ -1213,7 +1213,7 @@ export interface OpPendingInfo {
     validAfter: uint64
     opFinalizationTimeout: uint32
     opPendingReceiver: c.Address | null
-    opPendingBodyTruncated: uint256
+    opPendingExecutionLt: uint64
 }
 
 export const OpPendingInfo = {
@@ -1221,7 +1221,7 @@ export const OpPendingInfo = {
         validAfter: uint64
         opFinalizationTimeout: uint32
         opPendingReceiver: c.Address | null
-        opPendingBodyTruncated: uint256
+        opPendingExecutionLt: uint64
     }): OpPendingInfo {
         return {
             $: 'OpPendingInfo',
@@ -1234,14 +1234,14 @@ export const OpPendingInfo = {
             validAfter: s.loadUintBig(64),
             opFinalizationTimeout: s.loadUintBig(32),
             opPendingReceiver: s.loadMaybeAddress(),
-            opPendingBodyTruncated: s.loadUintBig(256),
+            opPendingExecutionLt: s.loadUintBig(64),
         }
     },
     store(self: OpPendingInfo, b: c.Builder): void {
         b.storeUint(self.validAfter, 64);
         b.storeUint(self.opFinalizationTimeout, 32);
         b.storeAddress(self.opPendingReceiver);
-        b.storeUint(self.opPendingBodyTruncated, 256);
+        b.storeUint(self.opPendingExecutionLt, 64);
     },
     toCell(self: OpPendingInfo): c.Cell {
         return makeCellFrom<OpPendingInfo>(self, OpPendingInfo.store);
@@ -1993,7 +1993,7 @@ export class MCMS implements c.Contract {
             opPendingReceiver: r.readNullable<c.Address>(
                 (r) => r.readSlice().loadAddress()
             ),
-            opPendingBodyTruncated: r.readBigInt(),
+            opPendingExecutionLt: r.readBigInt(),
         });
     }
 

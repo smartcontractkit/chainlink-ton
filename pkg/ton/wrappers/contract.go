@@ -198,27 +198,20 @@ func (c tolkCompiledContract) codeCell() (*cell.Cell, error) {
 // compiled contract, the initial data for the contract, and the amount of
 // TON to be sent to the contract upon deployment.
 // It returns the contract wrapper if the deployment is successful.
-// The function does not check the exit code of the deployment transaction as
-// the exit code depends on the contract implementation. This is left to the
-// caller. Example:
-//
-// ```
-//
-// msg, err := tlb.ToCell(jetton_wrappers.TopUpTons{})
-//
-// require.NoError(t, err, "failed to create top-up message")
-//
-// receiverJettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.receiver, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"),
-// //msg)
-// require.NoError(t, err, "failed to deploy JettonWallet contract")
-//
-// deployExitCode, err := deployMsg.OutgoingInternalReceivedMessages[0].ExitCode()
-//
-// require.NoError(t, err, "failed to get deploy exit code")
-// require.Zero(t, deployExitCode, "contract deployment failed: exit code %d: %s", deployExitCode, deployExitCode.Describe())
-//
-// ```
+// The deploy transaction must complete with a success exit code.
 func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell) (*Contract, *tracetracking.ReceivedMessage, error) {
+	return deploy(ctx, client, codeCell, initData, amount, msgBody, true)
+}
+
+// DeployActivateOnly deploys a contract and requires only that its account
+// becomes active. The deploy transaction exit code is left to the caller,
+// which is useful for legacy contracts that activate but reject the
+// deployment message.
+func DeployActivateOnly(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell) (*Contract, *tracetracking.ReceivedMessage, error) {
+	return deploy(ctx, client, codeCell, initData, amount, msgBody, false)
+}
+
+func deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell, requireSuccess bool) (*Contract, *tracetracking.ReceivedMessage, error) {
 	// Deploy the contract
 	addr, tx, _, err := client.Wallet.DeployContractWaitTransaction(
 		ctx,
@@ -260,15 +253,23 @@ func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 		return nil, nil, fmt.Errorf("contract deployment failed: no transaction to the new contract address %s found in the deployment trace. This usually indicates an issue with the deployment process or contract code", addr)
 	}
 
-	// The deployment transaction (the internal message received by the new contract) is
-	// only required to have actually deployed the contract.
-	// We deliberately do NOT assert a success exit code here
+	// The deploy transaction must both activate the account and complete successfully.
 	if !deploymentMessage.IsDeployment() {
 		deployExitCode, ecErr := deploymentMessage.ExitCode()
 		if ecErr != nil {
 			return nil, nil, fmt.Errorf("contract deployment failed: account did not become active (orig=%s end=%s)", deploymentMessage.OrigStatus, deploymentMessage.EndStatus)
 		}
 		return nil, nil, fmt.Errorf("contract deployment failed: account did not become active (orig=%s end=%s), deploy tx exit code %d: %s", deploymentMessage.OrigStatus, deploymentMessage.EndStatus, deployExitCode, deployExitCode.Describe())
+	}
+
+	if requireSuccess {
+		deployExitCode, err := deploymentMessage.ExitCode()
+		if err != nil {
+			return nil, nil, fmt.Errorf("contract deployment failed: failed to get deploy transaction exit code: %w", err)
+		}
+		if deployExitCode != tvm.ExitCodeSuccess {
+			return nil, nil, fmt.Errorf("contract deployment failed: deploy tx exit code %d: %s", deployExitCode, deployExitCode.Describe())
+		}
 	}
 
 	return &Contract{addr, client}, &receivedMessage, nil
