@@ -123,6 +123,17 @@ describe('MCMS - staged SetConfig', () => {
     expect(await baseTest.bind.mcms.getStagedConfigNumSigners()).toBe(0)
   })
 
+  it('rejects replaying the same chunk in a session', async () => {
+    const { groupQuorums, groupParents } = allGroupsConfig()
+    expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
+    expect((await stage(0, 16, 0)).exitCode).toBe(0)
+
+    const replay = await stage(0, 16, 0)
+
+    expect(replay.exitCode).toBe(mcms.Error.ConfigStagingIncomplete)
+    expect(await baseTest.bind.mcms.getStagedConfigNumSigners()).toBe(16)
+  })
+
   it('rejects a stale chunk from an earlier staging session', async () => {
     const { groupQuorums, groupParents } = allGroupsConfig()
     expect((await begin(groupQuorums, groupParents)).exitCode).toBe(0)
