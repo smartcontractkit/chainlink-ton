@@ -1,9 +1,10 @@
-import { Address, Cell, toNano } from '@ton/core'
+import { Address, beginCell, Builder, Cell, toNano } from '@ton/core'
 
 import { crc32 } from 'zlib'
 import { errorCode, facilityId } from '../utils'
 import { contractCode } from '../codeLoader'
 import * as rt from '../gen/ccip/Router'
+import { asSnakedCell } from '../../src/utils'
 import { Costs as RegistryCosts } from './TokenAdminRegistry'
 
 export const ARTIFACT_NAME = 'Router'
@@ -91,6 +92,46 @@ export function createSplitCursePolicy(
     rbac: rt.AccessControl_Data.create({ roles }),
     cursedSubjects: rt.CursedSubjects.create({ data: new Set() }),
   })
+}
+
+/**
+ * Variant of the generated `rt.Router_CCIPSend` whose `data` is a raw `Cell`
+ * instead of `SnakedCell<byte>`. Lets tests inject malformed (branched, partial,
+ * exotic) data cells that the typed snake binding would re-encode into a valid
+ * snake. Serializes with the exact same wire layout as the generated binding.
+ */
+export interface Router_CCIPSend_RawData {
+  queryID: bigint
+  destChainSelector: bigint
+  receiver: rt.CrossChainAddress
+  data: Cell
+  tokenAmounts: rt.TokenAmount[]
+  feeToken: Address | null
+  extraArgs: rt.ExtraArgs
+}
+
+export const Router_CCIPSend_RawData = {
+  store(self: Router_CCIPSend_RawData, b: Builder): void {
+    b.storeUint(rt.Router_CCIPSend.PREFIX, 32)
+    b.storeUint(self.queryID, 64)
+    b.storeUint(self.destChainSelector, 64)
+    rt.CrossChainAddress.store(self.receiver, b)
+    b.storeRef(self.data)
+    b.storeRef(
+      asSnakedCell(self.tokenAmounts, (item: rt.TokenAmount): Builder => {
+        const ib = beginCell()
+        rt.TokenAmount.store(item, ib)
+        return ib
+      }),
+    )
+    b.storeAddress(self.feeToken)
+    b.storeRef(rt.ExtraArgs.toCell(self.extraArgs))
+  },
+  toCell(self: Router_CCIPSend_RawData): Cell {
+    const b = beginCell()
+    Router_CCIPSend_RawData.store(self, b)
+    return b.endCell()
+  },
 }
 
 export const opcodes = {

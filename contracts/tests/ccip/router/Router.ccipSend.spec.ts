@@ -47,7 +47,7 @@ describe('Router.ccipSend', () => {
     queryId: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
-    data: Cell.EMPTY,
+    data: [],
     tokenAmounts: [],
     feeToken: null, // defaults to NATIVE_GRAM
     extraArgs: rt.GenericExtraArgsV2.create({ gasLimit: 100n, allowOutOfOrderExecution: true }),

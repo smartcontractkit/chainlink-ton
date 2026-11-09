@@ -32,7 +32,7 @@ describe('OnRamp - executor exit', () => {
     queryId: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
-    data: Cell.EMPTY,
+    data: [],
     tokenAmounts: [or.TokenAmount.create({ amount: 1n, token: NATIVE_GRAM })],
     feeToken: NATIVE_GRAM,
     extraArgs: or.GenericExtraArgsV2.create({

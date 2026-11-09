@@ -8,7 +8,7 @@ struct (0x31768d95) Router_CCIPSend {
     queryId: uint64;
     destChainSelector: uint64;
     receiver: CrossChainAddress;
-    data: cell;
+    data: SnakedCell<byte>;
     tokenAmounts: SnakedCell<TokenAmount>;
     feeToken: address?;
     extraArgs: Cell<ExtraArgs>;

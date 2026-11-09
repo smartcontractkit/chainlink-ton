@@ -48,7 +48,7 @@ describe('Router.cursing', () => {
       queryId: 1n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_ADDRESS,
-      data: Cell.EMPTY,
+      data: [],
       tokenAmounts: [],
       feeToken: NATIVE_GRAM,
       extraArgs: rt.GenericExtraArgsV2.create({ gasLimit: 100n, allowOutOfOrderExecution: true }),

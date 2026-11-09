@@ -27,6 +27,11 @@ export function createPayload(size: number): Cell {
   return asSnakedCell(chunks, (chunk: Buffer) => beginCell().storeBuffer(chunk))
 }
 
+// Byte array filled with 0xff, for Router_CCIPSend.data (SnakedCell<byte>).
+export function createPayloadBytes(size: number): bigint[] {
+  return Array.from(Buffer.alloc(size, 0xff), BigInt)
+}
+
 export function createExtraArgs(): Cell {
   return rt.GenericExtraArgsV2.toCell(
     rt.GenericExtraArgsV2.create({

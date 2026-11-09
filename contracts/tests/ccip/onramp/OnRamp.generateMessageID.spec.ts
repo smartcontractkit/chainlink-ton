@@ -33,7 +33,7 @@ describe('OnRamp - generate message id', () => {
     queryId: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
-    data: Cell.EMPTY,
+    data: [],
     tokenAmounts: [],
     feeToken: NATIVE_GRAM,
     extraArgs: or.GenericExtraArgsV2.create({
@@ -197,7 +197,7 @@ describe('OnRamp - generate message id', () => {
       sender: senderAddress,
       body: on.TVM2AnyRampMessageBody.create({
         receiver: ccipSend.receiver,
-        data: ccipSend.data,
+        data: asSnakeBytes(Buffer.from(ccipSend.data.map(Number))),
         extraArgs: ccipSend.extraArgs,
         tokenTransfer: [
           on.TVM2AnyTokenTransfer.create({
@@ -293,8 +293,8 @@ describe('OnRamp - generate message id', () => {
 
   it('generates matching message id for a multi-cell data payload', async () => {
     // A payload larger than one cell (127 bytes) forces the snake encoding to span
-    // multiple cells, exercising the data path that the Cell.EMPTY case cannot reach.
-    const multiCellData = asSnakeBytes(Buffer.alloc(2000, 0xab))
+    // multiple cells, exercising the data path that the empty case cannot reach.
+    const multiCellData = Array.from(Buffer.alloc(2000, 0xab), BigInt)
 
     const ccipSendWithData = or.Router_CCIPSend.create({
       ...ccipSend,
@@ -312,7 +312,7 @@ describe('OnRamp - generate message id', () => {
       sender: senderAddress,
       body: on.TVM2AnyRampMessageBody.create({
         receiver: ccipSendWithData.receiver,
-        data: ccipSendWithData.data,
+        data: asSnakeBytes(Buffer.from(ccipSendWithData.data.map(Number))),
         extraArgs: ccipSendWithData.extraArgs,
         tokenTransfer: [],
         feeToken: ccipSendWithData.feeToken!,

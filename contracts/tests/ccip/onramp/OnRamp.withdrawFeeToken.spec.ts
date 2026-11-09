@@ -243,7 +243,7 @@ describe('OnRamp - WithdrawFeeTokens', () => {
       queryId: 1n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_ADDRESS,
-      data: Cell.EMPTY,
+      data: [],
       // A token transfer keeps the executor mid-flight after the reservation:
       // it pauses awaiting the TokenAdminRegistry's reply instead of finishing
       // immediately (which would release the reservation in the same chain).

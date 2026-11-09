@@ -407,7 +407,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       queryId: 1n,
       destChainSelector: DestChainSelector,
       receiver: EVM_ADDRESS,
-      data: Cell.EMPTY,
+      data: [],
       tokenAmounts: [rt.TokenAmount.create({ amount: TOKEN_AMOUNT, token: minter.address })],
       feeToken: NATIVE_GRAM,
       extraArgs: rt.GenericExtraArgsV2.create({
