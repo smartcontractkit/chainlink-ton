@@ -356,9 +356,7 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
 }
 
 // Returns all balance to the OffRamp; a manual execution funds the retry again.
-// TODO[ERROR]: [NONEVM-5463]: add reason
 fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, _errorCode: uint16 = 0) {
-    // TODO[ERROR]: [NONEVM-5463]: propagate `_errorCode` through `OffRamp_NotifyFailure` so the reason is observable.
 
     reserveGramsOnBalance(RECEIVE_EXECUTOR_INIT_VALUE, RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
