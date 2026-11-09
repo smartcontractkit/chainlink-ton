@@ -137,7 +137,7 @@ export class OCR3Base {
     via: Sender,
     opts: {
       value: bigint
-      queryID?: number
+      queryId?: number
       configDigest: bigint
       ocrPluginType: number
       bigF: number
@@ -151,7 +151,7 @@ export class OCR3Base {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
         .storeUint(opcodes.in.OP_SET_OCR3_CONFIG, 32)
-        .storeUint(opts.queryID ?? 0, 64)
+        .storeUint(opts.queryId ?? 0, 64)
         .storeUint(opts.configDigest, 256)
         .storeUint(opts.ocrPluginType, 16)
         .storeUint(opts.bigF, 8)

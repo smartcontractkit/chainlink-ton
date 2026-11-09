@@ -41,7 +41,7 @@ runTokenGasCalibration({
       sendBurn: (owner, walletAddress, opts) => {
         const wallet = blockchain.openContract(cctWallet.JettonWallet.fromAddress(walletAddress))
         return wallet.sendCCTAskToBurn(owner.getSender(), opts.value, {
-          queryID: opts.queryID,
+          queryId: opts.queryId,
           jettonAmount: opts.jettonAmount,
           sendExcessesTo: opts.responseDestination,
           customPayload: opts.customPayload,

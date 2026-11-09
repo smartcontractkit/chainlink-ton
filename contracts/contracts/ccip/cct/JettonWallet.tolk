@@ -56,7 +56,7 @@ fun onInternalMessage(in: InMessage) {
                     dest: storage.ownerAddress,
                     value: msg.forwardTonAmount,
                     body: TransferNotificationForRecipient {
-                        queryID: msg.queryID,
+                        queryId: msg.queryId,
                         jettonAmount: msg.jettonAmount,
                         transferInitiator: msg.transferInitiator,
                         forwardPayload: msg.forwardPayload,
@@ -74,7 +74,7 @@ fun onInternalMessage(in: InMessage) {
                     dest: msg.sendExcessesTo,
                     value: 0,
                     body: CCT_ReturnExcessesBack {
-                        queryID: msg.queryID,
+                        queryId: msg.queryId,
                         initiator: msg.transferInitiator != null ? msg.transferInitiator! : storage.ownerAddress,
                     }
                 });
@@ -98,7 +98,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: calcDeployedJettonWallet(msg.transferRecipient, storage.minterAddress, contract.getCode()),
                 value: 0,
                 body: InternalTransferStep {
-                    queryID: msg.queryID,
+                    queryId: msg.queryId,
                     jettonAmount: msg.jettonAmount,
                     transferInitiator: storage.ownerAddress,
                     sendExcessesTo: msg.sendExcessesTo,
@@ -123,7 +123,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: storage.minterAddress,
                 value: 0,
                 body: CCT_BurnNotificationForMinter {
-                    queryID: msg.queryID,
+                    queryId: msg.queryId,
                     jettonAmount: msg.jettonAmount,
                     burnInitiator: storage.ownerAddress,
                     sendExcessesTo: msg.sendExcessesTo,

@@ -66,14 +66,14 @@ describe('Router.relayReleaseOrMint', () => {
       deployableCode,
     )
 
-  const relayOf = (queryID: bigint, jetton: Address = token) =>
+  const relayOf = (queryId: bigint, jetton: Address = token) =>
     rt.Router_RelayReleaseOrMint.create({
-      queryID,
+      queryId,
       sourceChainSelector,
       tokenPool: tokenPool.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
         transfer: rt.TokenPool_Transfer.create({
-          id: queryID,
+          id: queryId,
           details: rt.TokenPool_TransferDetails.create({
             originalSender: EVM_ADDRESS,
             remoteChainSelector: sourceChainSelector,
@@ -102,7 +102,7 @@ describe('Router.relayReleaseOrMint', () => {
     blockchain
       .openContract(deposit.DepositAccount.fromAddress(account))
       .sendResponseWalletAddress(master.getSender(), toNano('0.05'), {
-        queryID: 0n,
+        queryId: 0n,
         jettonWalletAddress: generateWalletAddress(account),
         ownerAddress: null,
       })
@@ -121,7 +121,7 @@ describe('Router.relayReleaseOrMint', () => {
 
   const expectRelayedToPool = (
     result: Awaited<ReturnType<typeof relay>>,
-    queryID: bigint,
+    queryId: bigint,
     account: Address,
   ) =>
     expect(result.transactions).toHaveTransaction({
@@ -132,7 +132,7 @@ describe('Router.relayReleaseOrMint', () => {
         if (!body) return false
         const msg = rt.TokenPool_ReleaseOrMint.fromSlice(body.beginParse())
         return (
-          msg.queryID === queryID &&
+          msg.queryId === queryId &&
           msg.delivery?.recipient.equals(account) === true &&
           msg.replyTo?.equals(executor.address) === true &&
           msg.sendExcessesTo?.equals(offRamp.address) === true
@@ -307,7 +307,7 @@ describe('Router.relayReleaseOrMint', () => {
           if (!body) return false
           const failed = rt.Router_TokenPoolReleaseOrMintFailed.fromSlice(body.beginParse())
           return (
-            failed.queryID === 14n &&
+            failed.queryId === 14n &&
             failed.tokenPool.equals(tokenPool.address) &&
             failed.replyTo.equals(executor.address) &&
             failed.errorCode ===
@@ -325,7 +325,7 @@ describe('Router.relayReleaseOrMint', () => {
       const result = await router.sendDepositAccountWalletUnavailable(
         blockchain.sender(receiverAccountFor()),
         toNano('0.5'),
-        { queryID: 15n, context: rt.Router_RelayReleaseOrMint.toCell(relayOf(15n)) },
+        { queryId: 15n, context: rt.Router_RelayReleaseOrMint.toCell(relayOf(15n)) },
       )
       expect(result.transactions).toHaveTransaction({
         from: router.address,
@@ -335,7 +335,7 @@ describe('Router.relayReleaseOrMint', () => {
           if (!body) return false
           const failed = rt.Router_TokenPoolReleaseOrMintFailed.fromSlice(body.beginParse())
           return (
-            failed.queryID === 15n &&
+            failed.queryId === 15n &&
             failed.errorCode === BigInt(DEPOSIT_ACCOUNT_WALLET_UNAVAILABLE)
           )
         },
@@ -379,7 +379,7 @@ describe('Router.relayReleaseOrMint', () => {
         offRamp.getSender(),
         toNano('0.1'),
         {
-          queryID: 20n,
+          queryId: 20n,
           tokenPool: tokenPool.address,
           replyTo: receiver.address,
           transfer: delivered(),
@@ -394,7 +394,7 @@ describe('Router.relayReleaseOrMint', () => {
             return false
           const msg = rt.TokenPool_ReleaseOrMintDelivered.fromSlice(body.beginParse())
           return (
-            msg.queryID === 20n &&
+            msg.queryId === 20n &&
             msg.replyTo.equals(receiver.address) &&
             msg.transfer.amount === 1000n &&
             msg.transfer.localToken.equals(token) &&
@@ -410,7 +410,7 @@ describe('Router.relayReleaseOrMint', () => {
         attacker.getSender(),
         toNano('0.1'),
         {
-          queryID: 21n,
+          queryId: 21n,
           tokenPool: tokenPool.address,
           replyTo: receiver.address,
           transfer: delivered(),
@@ -430,7 +430,7 @@ describe('Router.relayReleaseOrMint', () => {
         offRamp.getSender(),
         toNano('0.1'),
         {
-          queryID: 22n,
+          queryId: 22n,
           tokenPool: tokenPool.address,
           replyTo: receiver.address,
           transfer: delivered(sourceChainSelector + 1n),

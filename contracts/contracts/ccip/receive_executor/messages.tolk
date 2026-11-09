@@ -30,7 +30,7 @@ type ReceiveExecutor_BouncedMessage =
     | OffRamp_DispatchValidated;
 
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
-    queryID: uint64;
+    queryId: uint64;
     effectiveGasLimit: coins;
     root: address;
     sequenceNumber: uint64;
@@ -51,7 +51,7 @@ struct ReceiveExecutor_TokenTransfer {
 
 // Sent by the off-ramp to the receive executor when a release or mint operation has reverted.
 struct (0xdf58530e) ReceiveExecutor_ReleaseOrMintFailed {
-    queryID: uint64;
+    queryId: uint64;
     reason: ReleaseOrMint_ReleaseOrMintFailedReason;
 }
 
@@ -66,7 +66,7 @@ struct (0xb70c2a9a) ReleaseOrMintBounced {
 struct (0xb304ecdf) NotEnoughDestGasAmountForTokenTransfer {}
 
 struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
-    queryID: uint64;
+    queryId: uint64;
     receiver: address
     /// Unused by the executor; it lets the OffRamp relay a rejection to the Router. Last, so
     /// executors deployed before it was added still accept the message.
@@ -74,7 +74,7 @@ struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
 }
 
 struct (0x8854993b) ReceiveExecutor_CCIPReceiveFailed {
-    queryID: uint64;
+    queryId: uint64;
     receiver: address
     reason: ReceiveExecutor_FailedReason;
 }

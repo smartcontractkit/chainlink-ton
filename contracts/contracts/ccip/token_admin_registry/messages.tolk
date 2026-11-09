@@ -30,7 +30,7 @@ type TokenAdminRegistry_BouncedEntryMessage =
 
 // crc32('TokenAdminRegistry_RegisterToken')
 struct (0xbe8621a2) TokenAdminRegistry_RegisterToken {
-    queryID: uint64;
+    queryId: uint64;
     tokenAddress: address;
     tokenInfo: Cell<TokenRegistry_TokenInfo>;
     administrator: address;
@@ -43,7 +43,7 @@ fun TokenAdminRegistry_RegisterToken.cost(): coins {
 // Replaces a proposal only while the entry has no active administrator.
 // crc32('TokenAdminRegistry_OverridePendingAdministrator')
 struct (0xfddaa034) TokenAdminRegistry_OverridePendingAdministrator {
-    queryID: uint64;
+    queryId: uint64;
     tokenAddress: address;
     administrator: address;
 }
@@ -53,7 +53,7 @@ struct (0xfddaa034) TokenAdminRegistry_OverridePendingAdministrator {
 /// per-token administrator state.
 // crc32('TokenAdminRegistry_TransferAdminRole')
 struct (0xdc67ebd0) TokenAdminRegistry_TransferAdminRole {
-    queryID: uint64;
+    queryId: uint64;
     tokenAddress: address;
     newAdministrator: address?;
 }
@@ -62,7 +62,7 @@ struct (0xdc67ebd0) TokenAdminRegistry_TransferAdminRole {
 /// forwards its sender as the trusted `actor` to the entry.
 // crc32('TokenAdminRegistry_AcceptAdminRole')
 struct (0xbe28e166) TokenAdminRegistry_AcceptAdminRole {
-    queryID: uint64;
+    queryId: uint64;
     tokenAddress: address;
 }
 
@@ -70,7 +70,7 @@ struct (0xbe28e166) TokenAdminRegistry_AcceptAdminRole {
 /// trusted `actor`; the entry checks it is the active administrator.
 // crc32('TokenAdminRegistry_SetPool')
 struct (0x37bcaede) TokenAdminRegistry_SetPool {
-    queryID: uint64;
+    queryId: uint64;
     tokenAddress: address;
     /// A null pool delists the token from CCIP. A new pool is only set once it answers the
     /// `TokenPool_GetConfig` probe.
@@ -81,7 +81,7 @@ struct (0x37bcaede) TokenAdminRegistry_SetPool {
 /// admission budgets).
 // crc32('TokenAdminRegistry_RefreshPoolConfig')
 struct (0xbb82eda5) TokenAdminRegistry_RefreshPoolConfig {
-    queryID: uint64;
+    queryId: uint64;
     tokenAddress: address;
 }
 
@@ -89,7 +89,7 @@ struct (0xbb82eda5) TokenAdminRegistry_RefreshPoolConfig {
 /// master answers with a wallet. A no-op for a verified token.
 // crc32('TokenAdminRegistry_VerifyToken')
 struct (0x182affc2) TokenAdminRegistry_VerifyToken {
-    queryID: uint64;
+    queryId: uint64;
     tokenAddress: address;
 }
 
@@ -98,7 +98,7 @@ struct (0x182affc2) TokenAdminRegistry_VerifyToken {
 /// TokenAdminRegistry_GetTokenInfoFailed if the token is not registered.
 // crc32('TokenAdminRegistry_GetTokenInfo')
 struct (0xec5f855e) TokenAdminRegistry_GetTokenInfo {
-    queryID: uint64;
+    queryId: uint64;
     token: address;
 }
 
@@ -109,7 +109,7 @@ fun TokenAdminRegistry_GetTokenInfo.cost(): coins {
 
 // crc32('TokenAdminRegistry_TokenInfo')
 struct (0x0a9bf5d1) TokenAdminRegistry_TokenInfo {
-    queryID: uint64;
+    queryId: uint64;
     token: address;
     /// Pool interface version.
     version: uint32;
@@ -131,7 +131,7 @@ struct TokenAdminRegistry_PoolInfo {
 /// means the token was never registered.
 // crc32('TokenAdminRegistry_GetTokenInfoFailed')
 struct (0xe533c614) TokenAdminRegistry_GetTokenInfoFailed {
-    queryID: uint64;
+    queryId: uint64;
     token: address;
 }
 
@@ -139,7 +139,7 @@ struct (0xe533c614) TokenAdminRegistry_GetTokenInfoFailed {
 /// OverridePendingAdministrator. Carries the unspent value and the request the root sent to the entry.
 // crc32('TokenAdminRegistry_RequestFailed')
 struct (0xe73a39de) TokenAdminRegistry_RequestFailed {
-    queryID: uint64;
+    queryId: uint64;
     errorCode: int32;
     request: Cell<TokenAdminRegistryEntry_MessageFromRoot>;
 }
@@ -148,7 +148,7 @@ struct (0xe73a39de) TokenAdminRegistry_RequestFailed {
 /// Upgrade to its compiled-in entry code, then the request as a Resume.
 // crc32('TokenAdminRegistry_EntryUpgradeRequest')
 struct (0x55b8b654) TokenAdminRegistry_EntryUpgradeRequest {
-    queryID: uint64;
+    queryId: uint64;
     token: address;
     request: Cell<TokenAdminRegistryEntry_MessageFromRoot>;
 }
@@ -156,13 +156,13 @@ struct (0x55b8b654) TokenAdminRegistry_EntryUpgradeRequest {
 /// Returns the value of an Upgradeable_Upgrade that an entry already running that code skipped.
 // crc32('TokenAdminRegistry_UpgradeRefund')
 struct (0x85f1f9f0) TokenAdminRegistry_UpgradeRefund {
-    queryID: uint64;
+    queryId: uint64;
 }
 
 /// Permissionless: upgrades the derived entry to the root's entry code.
 // crc32('TokenAdminRegistry_UpgradeEntry')
 struct (0x4d52f09d) TokenAdminRegistry_UpgradeEntry {
-    queryID: uint64;
+    queryId: uint64;
     tokenAddress: address;
 }
 
@@ -177,7 +177,7 @@ fun TokenAdminRegistry_forwardCost(): coins {
 /// entry address has been validated. This is also the external event ABI.
 // crc32('TokenAdminRegistry_AdministratorTransferRequested')
 struct (0x140b1e91) TokenAdminRegistry_AdministratorTransferRequested {
-    queryID: uint64;
+    queryId: uint64;
     token: address;
     currentAdministrator: address?;
     newAdministrator: address?;
@@ -185,7 +185,7 @@ struct (0x140b1e91) TokenAdminRegistry_AdministratorTransferRequested {
 
 // crc32('TokenAdminRegistry_AdministratorTransferred')
 struct (0xe2c74db4) TokenAdminRegistry_AdministratorTransferred {
-    queryID: uint64;
+    queryId: uint64;
     token: address;
     newAdministrator: address;
 }
@@ -193,7 +193,7 @@ struct (0xe2c74db4) TokenAdminRegistry_AdministratorTransferred {
 /// Records a pool update. A null pool delists the token from CCIP.
 // crc32('TokenAdminRegistry_PoolSet')
 struct (0xcef01a87) TokenAdminRegistry_PoolSet {
-    queryID: uint64;
+    queryId: uint64;
     token: address;
     previousPool: address?;
     newPool: address?;

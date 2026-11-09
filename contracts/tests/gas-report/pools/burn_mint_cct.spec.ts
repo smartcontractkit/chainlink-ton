@@ -87,7 +87,7 @@ runTokenPoolGasCalibration({
       value: toNano('1'),
       mintOpcode: 0x00000015,
       message: {
-        queryID: 101n,
+        queryId: 101n,
         destination: deployer.address,
         tonAmount: toNano('0.05'),
         jettonAmount: toNano('10'),
@@ -99,10 +99,10 @@ runTokenPoolGasCalibration({
     // The pool must own the minter to mint on the release path.
     await cctMinterRuntime.sendChangeAdmin(deployer.getSender(), {
       value: toNano('0.2'),
-      message: { queryID: 201n, newAdmin: burnMintPool.address },
+      message: { queryId: 201n, newAdmin: burnMintPool.address },
     })
     await burnMintPool.sendBurnMintTokenPoolClaimMinterAdmin(deployer.getSender(), toNano('0.2'), {
-      queryID: 202n,
+      queryId: 202n,
     })
 
     const harness = await deployCctHarness(blockchain, deployer)

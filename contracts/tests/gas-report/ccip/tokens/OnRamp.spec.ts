@@ -219,7 +219,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
 
   async function ccipSend(token: TokenWithPool, data: Cell, amount = TOKEN_AMOUNT) {
     const msg = rt.Router_CCIPSend.create({
-      queryID: 1n,
+      queryId: 1n,
       destChainSelector: DEST_CHAIN_SELECTOR,
       receiver: EVM_ADDRESS,
       data,

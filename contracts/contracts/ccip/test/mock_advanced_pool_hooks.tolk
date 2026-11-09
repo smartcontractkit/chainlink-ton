@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Stateless mock AdvancedPoolHooks for testing async preflight/postflight flows.
-// Uses the incoming message queryID to determine reply behavior:
-//   queryID % 2 == 0  → Finished  (success)
-//   queryID % 2 == 1  → Failed    (failure)
+// Uses the incoming message queryId to determine reply behavior:
+//   queryId % 2 == 0  → Finished  (success)
+//   queryId % 2 == 1  → Failed    (failure)
 //
 // It always replies to the sender, so it cannot be used as a generic echo to forge
 // continuations. This is a test double, not a production hook template; see the
@@ -93,7 +93,7 @@ fun replyGetCCVs(msg: TokenPool_GetCCVs, sender: address) {
         value: 0,
         dest: sender,
         body: TokenPool_QueryCCVsReply {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             requiredCCVs: requiredCCVs,
             forwardPayload: msg.forwardPayload,
         },
@@ -108,18 +108,18 @@ fun replyPreflight(msg: TokenPool_PreflightCheck, msgValue: coins, sender: addre
         throw 0xFFFF;
     }
 
-    val queryID = msg.queryID;
+    val queryId = msg.queryId;
     val fwd = msg.forwardPayload!;
 
     var body: cell;
-    if (queryID % 2 == 0) {
+    if (queryId % 2 == 0) {
         body = TokenPool_PreflightCheckFinished {
-            queryID: queryID,
+            queryId: queryId,
             forwardPayload: fwd as Cell<TokenPool_LockOrBurnForwardPayload>,
         }.toCell();
     } else {
         body = TokenPool_PreflightCheckFailed {
-            queryID: queryID,
+            queryId: queryId,
             forwardPayload: fwd as Cell<TokenPool_LockOrBurnForwardPayload>,
         }.toCell();
     }
@@ -145,18 +145,18 @@ fun replyPostflight(msg: TokenPool_PostflightCheck, msgValue: coins, sender: add
         throw 0xFFFF;
     }
 
-    val queryID = msg.queryID;
+    val queryId = msg.queryId;
     val fwd: cell = msg.forwardPayload!;
 
     var body: cell;
-    if (queryID % 2 == 0) {
+    if (queryId % 2 == 0) {
         body = TokenPool_PostflightCheckFinished {
-            queryID: queryID,
+            queryId: queryId,
             forwardPayload: fwd as Cell<TokenPool_ReleaseOrMintForwardPayload>,
         }.toCell();
     } else {
         body = TokenPool_PostflightCheckFailed {
-            queryID: queryID,
+            queryId: queryId,
             forwardPayload: fwd as Cell<TokenPool_ReleaseOrMintForwardPayload>,
         }.toCell();
     }

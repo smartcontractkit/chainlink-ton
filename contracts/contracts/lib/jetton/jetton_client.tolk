@@ -28,7 +28,7 @@ fun JettonClient.sendSimple(
     self,
     sendOptions: JettonMessageOptions,
     sendMode: int,
-    queryID: uint64,
+    queryId: uint64,
     amount: coins,
     destination: address,
     responseDestination: address,
@@ -38,7 +38,7 @@ fun JettonClient.sendSimple(
         value: sendOptions.value,
         dest: self.walletAddress(),
         body: AskToTransfer {
-            queryID: queryID,
+            queryId: queryId,
             jettonAmount: amount,
             transferRecipient: destination,
             sendExcessesTo: responseDestination,
@@ -55,7 +55,7 @@ fun JettonClient.sendExtended(
     self,
     sendOptions: JettonMessageOptions,
     sendMode: int,
-    queryID: uint64,
+    queryId: uint64,
     amount: coins,
     destination: address,
     responseDestination: address,
@@ -64,7 +64,7 @@ fun JettonClient.sendExtended(
     forwardPayload: slice | cell,
 ) {
     var body = beginCell().storeAny(AskToTransfer {
-        queryID: queryID,
+        queryId: queryId,
         jettonAmount: amount,
         transferRecipient: destination,
         sendExcessesTo: responseDestination,

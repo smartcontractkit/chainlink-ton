@@ -67,25 +67,25 @@ fun onMessageFromRoot(msg: TokenAdminRegistryEntry_MessageFromRoot, replay: bool
     val content = lazy msg.content.load();
     match (content) {
         TokenAdminRegistryEntry_GetTokenInfo => {
-            onGetTokenInfo(msg.queryID, content);
+            onGetTokenInfo(msg.queryId, content);
         }
         TokenAdminRegistryEntry_ProposeAdministrator => {
-            onProposeAdministrator(msg.queryID, content);
+            onProposeAdministrator(msg.queryId, content);
         }
         TokenAdminRegistryEntry_TransferAdminRole => {
-            onTransferAdminRole(msg.queryID, content);
+            onTransferAdminRole(msg.queryId, content);
         }
         TokenAdminRegistryEntry_AcceptAdminRole => {
-            onAcceptAdminRole(msg.queryID, content);
+            onAcceptAdminRole(msg.queryId, content);
         }
         TokenAdminRegistryEntry_SetPool => {
-            onSetPool(msg.queryID, content);
+            onSetPool(msg.queryId, content);
         }
         TokenAdminRegistryEntry_VerifyToken => {
-            onVerifyToken(msg.queryID);
+            onVerifyToken(msg.queryId);
         }
         TokenAdminRegistryEntry_RefreshPoolConfig => {
-            onRefreshPoolConfig(msg.queryID);
+            onRefreshPoolConfig(msg.queryId);
         }
     }
 }
@@ -100,7 +100,7 @@ fun onBouncedMessage(in: InMessageBounced) {
         TokenPool_GetConfig => {
             val st = lazy TokenRegistry_Storage.load();
             if (st.pendingPool != null && in.senderAddress == st.pendingPool!) {
-                delist(bounced.queryID, true);
+                delist(bounced.queryId, true);
             }
         }
         RequestWalletAddress => {}
@@ -122,7 +122,7 @@ fun deferToRoot(msg: TokenAdminRegistryEntry_MessageFromRoot) {
         value: 0,
         dest: st.adminConfig.load().tokenAdminRegistry,
         body: TokenAdminRegistry_EntryUpgradeRequest {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             token: st.tokenAddress,
             request: msg.toCell(),
         },
@@ -138,14 +138,14 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
             bounce: BounceMode.NoBounce,
             value: 0,
             dest: st.adminConfig.load().tokenAdminRegistry,
-            body: TokenAdminRegistry_UpgradeRefund { queryID: msg.queryID },
+            body: TokenAdminRegistry_UpgradeRefund { queryId: msg.queryId },
         }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
     Upgradeable { migrate, version }.upgrade(msg);
 }
 
-fun onGetTokenInfo(queryID: uint64, msg: TokenAdminRegistryEntry_GetTokenInfo) {
+fun onGetTokenInfo(queryId: uint64, msg: TokenAdminRegistryEntry_GetTokenInfo) {
     val st = TokenRegistry_Storage.load();
     var tokenInfo = st.tokenInfo;
     if (!st.isEnabled()) {
@@ -158,7 +158,7 @@ fun onGetTokenInfo(queryID: uint64, msg: TokenAdminRegistryEntry_GetTokenInfo) {
         value: 0,
         dest: st.adminConfig.load().tokenAdminRegistry,
         body: TokenAdminRegistryEntry_TokenInfo {
-            queryID,
+            queryId,
             token: st.tokenAddress,
             requester: msg.requester,
             tokenInfo,
@@ -175,7 +175,7 @@ fun onRegistrationInitialized(msg: TokenAdminRegistryEntry_RegistrationInitializ
     assert(sender == contract.getAddress()) throw (TokenAdminRegistryEntry_Error.Unauthorized);
     assert(adminConfig.administrator == null && adminConfig.pendingAdministrator != null)
         throw (TokenAdminRegistryEntry_Error.InvalidAdministrator);
-    notifyAdministratorTransferRequested(msg.queryID, st.tokenAddress, null, adminConfig.pendingAdministrator);
+    notifyAdministratorTransferRequested(msg.queryId, st.tokenAddress, null, adminConfig.pendingAdministrator);
 
     var tokenInfo = st.tokenInfo.load();
     if (tokenInfo.tokenPool != null) {
@@ -186,37 +186,37 @@ fun onRegistrationInitialized(msg: TokenAdminRegistryEntry_RegistrationInitializ
         st.tokenInfo = tokenInfo.toCell();
         st.store();
     }
-    verify(st, msg.queryID);
+    verify(st, msg.queryId);
 }
 
 /// Runs the checks that gate the token: the TEP-89 wallet query until the token answers it, and
 /// the transfer initiator probe of the pending pool.
-fun verify(st: TokenRegistry_Storage, queryID: uint64) {
+fun verify(st: TokenRegistry_Storage, queryId: uint64) {
     if (!st.tokenVerified) {
-        queryWallet(st.tokenAddress, queryID);
+        queryWallet(st.tokenAddress, queryId);
     }
     if (st.pendingPool != null) {
-        probePoolConfig(st.pendingPool!, queryID);
+        probePoolConfig(st.pendingPool!, queryId);
     }
 }
 
 /// Re-sends the TEP-89 query of an unverified token, e.g. one whose master was deployed or
 /// upgraded after registration.
-fun onVerifyToken(queryID: uint64) {
+fun onVerifyToken(queryId: uint64) {
     val st = lazy TokenRegistry_Storage.load();
     if (!st.tokenVerified) {
-        queryWallet(st.tokenAddress, queryID);
+        queryWallet(st.tokenAddress, queryId);
     }
 }
 
 /// A bounced query or a response without a wallet leaves the token unverified.
-fun queryWallet(token: address, queryID: uint64) {
+fun queryWallet(token: address, queryId: uint64) {
     createMessage({
         bounce: BounceMode.RichBounce,
         value: TokenAdminRegistryEntry_WALLET_QUERY_VALUE,
         dest: token,
         body: RequestWalletAddress {
-            queryID,
+            queryId,
             ownerAddress: contract.getAddress(),
             includeOwnerAddress: false,
         },
@@ -232,17 +232,17 @@ fun onResponseWalletAddress(msg: ResponseWalletAddress, sender: address) {
     st.store();
 }
 
-fun onProposeAdministrator(queryID: uint64, msg: TokenAdminRegistryEntry_ProposeAdministrator) {
+fun onProposeAdministrator(queryId: uint64, msg: TokenAdminRegistryEntry_ProposeAdministrator) {
     var st = lazy TokenRegistry_Storage.load();
     var adminConfig = st.adminConfig.load();
     assert(adminConfig.administrator == null) throw (TokenAdminRegistryEntry_Error.AlreadyRegistered);
     adminConfig.pendingAdministrator = msg.administrator;
     st.adminConfig = adminConfig.toCell();
     st.store();
-    notifyAdministratorTransferRequested(queryID, st.tokenAddress, adminConfig.administrator, msg.administrator);
+    notifyAdministratorTransferRequested(queryId, st.tokenAddress, adminConfig.administrator, msg.administrator);
 }
 
-fun onTransferAdminRole(queryID: uint64, msg: TokenAdminRegistryEntry_TransferAdminRole) {
+fun onTransferAdminRole(queryId: uint64, msg: TokenAdminRegistryEntry_TransferAdminRole) {
     var st = lazy TokenRegistry_Storage.load();
     var adminConfig = st.adminConfig.load();
     assert(adminConfig.administrator != null && msg.actor == adminConfig.administrator) throw (TokenAdminRegistryEntry_Error.Unauthorized);
@@ -250,10 +250,10 @@ fun onTransferAdminRole(queryID: uint64, msg: TokenAdminRegistryEntry_TransferAd
     adminConfig.pendingAdministrator = msg.newAdministrator;
     st.adminConfig = adminConfig.toCell();
     st.store();
-    notifyAdministratorTransferRequested(queryID, st.tokenAddress, currentAdministrator, msg.newAdministrator);
+    notifyAdministratorTransferRequested(queryId, st.tokenAddress, currentAdministrator, msg.newAdministrator);
 }
 
-fun onAcceptAdminRole(queryID: uint64, msg: TokenAdminRegistryEntry_AcceptAdminRole) {
+fun onAcceptAdminRole(queryId: uint64, msg: TokenAdminRegistryEntry_AcceptAdminRole) {
     var st = lazy TokenRegistry_Storage.load();
     var adminConfig = st.adminConfig.load();
     assert(adminConfig.pendingAdministrator != null && msg.actor == adminConfig.pendingAdministrator) throw (TokenAdminRegistryEntry_Error.OnlyPendingAdministrator);
@@ -261,12 +261,12 @@ fun onAcceptAdminRole(queryID: uint64, msg: TokenAdminRegistryEntry_AcceptAdminR
     adminConfig.pendingAdministrator = null;
     st.adminConfig = adminConfig.toCell();
     st.store();
-    notifyAdministratorTransferred(queryID, st.tokenAddress, msg.actor);
+    notifyAdministratorTransferred(queryId, st.tokenAddress, msg.actor);
 }
 
 /// Delists the token right away. A new pool only replaces the current one once it answers the
 /// transfer initiator probe, so the registry never holds an initiator the pool did not report.
-fun onSetPool(queryID: uint64, msg: TokenAdminRegistryEntry_SetPool) {
+fun onSetPool(queryId: uint64, msg: TokenAdminRegistryEntry_SetPool) {
     var st = lazy TokenRegistry_Storage.load();
     val adminConfig = st.adminConfig.load();
     assert(adminConfig.administrator != null && msg.actor == adminConfig.administrator) throw (TokenAdminRegistryEntry_Error.Unauthorized);
@@ -274,13 +274,13 @@ fun onSetPool(queryID: uint64, msg: TokenAdminRegistryEntry_SetPool) {
     if (msg.tokenPool != null) {
         st.pendingPool = msg.tokenPool;
         st.store();
-        return probePoolConfig(msg.tokenPool!, queryID);
+        return probePoolConfig(msg.tokenPool!, queryId);
     }
 
-    delist(queryID, true);
+    delist(queryId, true);
 }
 
-fun delist(queryID: uint64, clearPendingPool: bool) {
+fun delist(queryId: uint64, clearPendingPool: bool) {
     var st = lazy TokenRegistry_Storage.load();
     var tokenInfo = st.tokenInfo.load();
     val previousPool = tokenInfo.tokenPool;
@@ -293,26 +293,26 @@ fun delist(queryID: uint64, clearPendingPool: bool) {
     }
     st.store();
     if (previousPool != null) {
-        notifyPoolSet(queryID, st.tokenAddress, previousPool, null, null);
+        notifyPoolSet(queryId, st.tokenAddress, previousPool, null, null);
     }
 }
 
 /// Re-probes the pending pool, or the current one, e.g. after the pool changed its transfer
 /// initiator or admission budget.
-fun onRefreshPoolConfig(queryID: uint64) {
+fun onRefreshPoolConfig(queryId: uint64) {
     val st = lazy TokenRegistry_Storage.load();
     val pool = st.pendingPool != null ? st.pendingPool : st.tokenInfo.load().tokenPool;
     if (pool != null) {
-        probePoolConfig(pool!, queryID);
+        probePoolConfig(pool!, queryId);
     }
 }
 
-fun probePoolConfig(pool: address, queryID: uint64) {
+fun probePoolConfig(pool: address, queryId: uint64) {
     createMessage({
         bounce: BounceMode.RichBounce,
         value: TokenAdminRegistryEntry_POOL_PROBE_VALUE,
         dest: pool,
-        body: TokenPool_GetConfig { queryID },
+        body: TokenPool_GetConfig { queryId },
     }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
@@ -329,7 +329,7 @@ fun onPoolConfig(msg: TokenPool_Config, sender: address) {
     }
     if (msg.token != st.tokenAddress) {
         // A mismatch from the current pool must not cancel a pending replacement.
-        return delist(msg.queryID, isPendingPool);
+        return delist(msg.queryId, isPendingPool);
     }
     if (isPendingPool) {
         st.pendingPool = null;
@@ -343,7 +343,7 @@ fun onPoolConfig(msg: TokenPool_Config, sender: address) {
     st.store();
 
     if (!sameAddress(currentPool, sender) || !sameAddress(previousTransferInitiator, msg.transferInitiator)) {
-        notifyPoolSet(msg.queryID, st.tokenAddress, currentPool, sender, msg.transferInitiator);
+        notifyPoolSet(msg.queryId, st.tokenAddress, currentPool, sender, msg.transferInitiator);
     }
 }
 
@@ -357,26 +357,26 @@ fun sameAddress(left: address?, right: address?): bool {
     return left! == right!;
 }
 
-fun notifyAdministratorTransferRequested(queryID: uint64, token: address, currentAdministrator: address?, newAdministrator: address?) {
+fun notifyAdministratorTransferRequested(queryId: uint64, token: address, currentAdministrator: address?, newAdministrator: address?) {
     notifyRoot(TokenAdminRegistry_AdministratorTransferRequested {
-            queryID,
+            queryId,
             token,
             currentAdministrator,
             newAdministrator,
     }.toCell());
 }
 
-fun notifyAdministratorTransferred(queryID: uint64, token: address, newAdministrator: address) {
+fun notifyAdministratorTransferred(queryId: uint64, token: address, newAdministrator: address) {
     notifyRoot(TokenAdminRegistry_AdministratorTransferred {
-            queryID,
+            queryId,
             token,
             newAdministrator,
     }.toCell());
 }
 
-fun notifyPoolSet(queryID: uint64, token: address, previousPool: address?, newPool: address?, transferInitiator: address?) {
+fun notifyPoolSet(queryId: uint64, token: address, previousPool: address?, newPool: address?, transferInitiator: address?) {
     notifyRoot(TokenAdminRegistry_PoolSet {
-            queryID,
+            queryId,
             token,
             previousPool,
             newPool,

@@ -214,7 +214,7 @@ async function withdrawFromContract(
   const contractProvider = provider.provider(contractAddress)
 
   const withdrawParams: withdrawable.Withdraw = {
-    queryID: BigInt(Date.now()), // Use timestamp as query ID
+    queryId: BigInt(Date.now()), // Use timestamp as query ID
     destination,
     amount,
     reserve,

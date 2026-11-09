@@ -21,7 +21,7 @@ fun isShortAskToTransferBounce(bouncedBody: slice): bool {
 
 // nolint:opcode
 struct (0x0f8a7ea5) AskToTransfer {
-    queryID: uint64
+    queryId: uint64
     jettonAmount: coins
     transferRecipient: address
     sendExcessesTo: address?
@@ -32,7 +32,7 @@ struct (0x0f8a7ea5) AskToTransfer {
 
 // nolint:opcode
 struct (0x7362d09c) TransferNotificationForRecipient {
-    queryID: uint64
+    queryId: uint64
     jettonAmount: coins
     transferInitiator: address?
     forwardPayload: ForwardPayloadRemainder
@@ -40,7 +40,7 @@ struct (0x7362d09c) TransferNotificationForRecipient {
 
 // nolint:opcode
 struct (0x178d4519) InternalTransferStep {
-    queryID: uint64
+    queryId: uint64
     jettonAmount: coins
     transferInitiator: address? // is null when minting (not initiated by another wallet)
     sendExcessesTo: address?
@@ -50,12 +50,12 @@ struct (0x178d4519) InternalTransferStep {
 
 // nolint:opcode
 struct (0xd53276db) ReturnExcessesBack {
-    queryID: uint64
+    queryId: uint64
 }
 
 // nolint:opcode
 struct (0x595f07bc) AskToBurn {
-    queryID: uint64
+    queryId: uint64
     jettonAmount: coins
     sendExcessesTo: address?
     customPayload: cell?
@@ -63,7 +63,7 @@ struct (0x595f07bc) AskToBurn {
 
 // nolint:opcode
 struct (0x7bdd97de) BurnNotificationForMinter {
-    queryID: uint64
+    queryId: uint64
     jettonAmount: coins
     burnInitiator: address
     sendExcessesTo: address?
@@ -75,7 +75,7 @@ struct (0x7bdd97de) BurnNotificationForMinter {
 //
 // nolint:opcode
 struct (0x2c76b973) RequestWalletAddress {
-    queryID: uint64
+    queryId: uint64
     /// Owner whose Jetton Wallet address is requested
     ownerAddress: address
     /// If true, the response message will include the sent `ownerAddress`
@@ -85,7 +85,7 @@ struct (0x2c76b973) RequestWalletAddress {
 /// Response to `RequestWalletAddress` message
 // nolint:opcode
 struct (0xd1735400) ResponseWalletAddress {
-    queryID: uint64
+    queryId: uint64
     /// Address of the Jetton Wallet owned by `RequestWalletAddress.ownerAddress`. Can be null if current workchain is not supported by the Minter
     jettonWalletAddress: address?
     /// Address of the owner of the Jetton Wallet. Can be null if `RequestWalletAddress.includeOwnerAddress` was false
@@ -94,7 +94,7 @@ struct (0xd1735400) ResponseWalletAddress {
 
 // nolint:opcode
 struct (0x00000015) MintNewJettons {
-    queryID: uint64
+    queryId: uint64
     mintRecipient: address
     tonAmount: coins
     internalTransferMsg: Cell<InternalTransferStep>
@@ -102,30 +102,30 @@ struct (0x00000015) MintNewJettons {
 
 // nolint:opcode
 struct (0x6501f354) ChangeMinterAdmin {
-    queryID: uint64
+    queryId: uint64
     newAdminAddress: address
 }
 
 // nolint:opcode
 struct (0xfb88e119) ClaimMinterAdmin {
-    queryID: uint64
+    queryId: uint64
 }
 
 // nolint:opcode
 struct (0x7431f221) DropMinterAdmin {
-    queryID: uint64
+    queryId: uint64
 }
 
 // nolint:opcode
 struct (0x2508d66a) UpgradeMinterCode {
-    queryID: uint64
+    queryId: uint64
     newData: cell
     newCode: cell
 }
 
 // nolint:opcode
 struct (0xcb862902) ChangeMinterMetadataUri {
-    queryID: uint64
+    queryId: uint64
     newMetadataUri: RemainingBitsAndRefs   // by standard, it's "inlined snake string" (but not in a ref, that's why not `string`)
 }
 

@@ -217,7 +217,7 @@ export class BaseTestSetup {
 
     const body = rbactl.builder.message.in.init
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         minDelay: BaseTestSetup.MIN_DELAY,
         admin: this.acc.admin.address,
         proposers: PROPOSERS,

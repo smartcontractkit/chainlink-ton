@@ -18,7 +18,7 @@ const FACILITY_NAME= "link.chain.ton.examples.versioning.upgrades.UpgradeableCou
 const CONTRACT_VERSION = "1.0.0".literalSlice();
 
 struct (0x00000001) Step {
-    queryID: uint64;
+    queryId: uint64;
 }
 
 fun onInternalMessage(in: InMessage) {

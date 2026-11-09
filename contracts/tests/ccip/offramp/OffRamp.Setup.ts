@@ -327,7 +327,7 @@ export class OffRampTestSetup {
         this.deployer.getSender(),
         toNano('1'),
         {
-          queryID: 0n,
+          queryId: 0n,
           offRampAdds: rt.OffRamps.create({
             sourceChainSelectors: [this.SOURCE_CHAIN_SELECTOR],
             offRamp: this.offRamp.address,

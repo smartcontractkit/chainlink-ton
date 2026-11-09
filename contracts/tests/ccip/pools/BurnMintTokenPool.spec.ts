@@ -66,7 +66,7 @@ import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 function buildForgedCCTReturnExcessesBack(poolAddress: Address): Cell {
   return CCT_ReturnExcessesBack.toCell(
     CCT_ReturnExcessesBack.create({
-      queryID: 999n,
+      queryId: 999n,
       initiator: poolAddress,
       forwardPayload: beginCell().storeUint(BurnMintTokenPool_BurnContext.PREFIX, 32).endCell(),
     }),
@@ -170,7 +170,7 @@ describe('BurnMintTokenPool', () => {
         deployer.getSender(),
         toNano('0.2'),
         {
-          queryID: 1n,
+          queryId: 1n,
           remoteChainSelectorsToRemove: [],
           chainsToAdd: [
             TokenPool_ChainUpdate.create({
@@ -206,7 +206,7 @@ describe('BurnMintTokenPool', () => {
       value: toNano('1'),
       mintOpcode: 0x00000015,
       message: {
-        queryID: 101n,
+        queryId: 101n,
         destination: deployer.address,
         tonAmount: toNano('0.05'),
         jettonAmount: toNano('10'),
@@ -225,7 +225,7 @@ describe('BurnMintTokenPool', () => {
       value: toNano('1'),
       mintOpcode: 0x00000015,
       message: {
-        queryID: 102n,
+        queryId: 102n,
         destination: unauthorized.address,
         tonAmount: toNano('0.05'),
         jettonAmount: toNano('2'),
@@ -239,7 +239,7 @@ describe('BurnMintTokenPool', () => {
     const changeAdminResult = await cctMinterRuntime.sendChangeAdmin(deployer.getSender(), {
       value: toNano('0.2'),
       message: {
-        queryID: 201n,
+        queryId: 201n,
         newAdmin: burnMintPool.address,
       },
     })
@@ -252,7 +252,7 @@ describe('BurnMintTokenPool', () => {
     const claimAdminResult = await burnMintPool.sendBurnMintTokenPoolClaimMinterAdmin(
       deployer.getSender(),
       toNano('0.2'),
-      { queryID: 202n },
+      { queryId: 202n },
     )
     expect(claimAdminResult.transactions).toHaveTransaction({
       from: burnMintPool.address,
@@ -319,7 +319,7 @@ describe('BurnMintTokenPool', () => {
       deployer.getSender(),
       toNano('0.2'),
       {
-        queryID: 9999n,
+        queryId: 9999n,
         advancedPoolHooks: hooks.address,
       },
     )
@@ -363,7 +363,7 @@ describe('BurnMintTokenPool', () => {
       deployer.getSender(),
       toNano('0.2'),
       {
-        queryID: 3n,
+        queryId: 3n,
         updates: [
           TokenPool_TokenTransferFeeConfigArgs.create({
             destChainSelector: remoteChainSelector,
@@ -384,13 +384,13 @@ describe('BurnMintTokenPool', () => {
 
     // Performs a successful fee-accruing lock of `amount` jettons. The pool burns only the
     // post-fee amount, leaving `feeAmount` in the pool's own wallet.
-    const doLock = async (amount: bigint, queryID: bigint) => {
+    const doLock = async (amount: bigint, queryId: bigint) => {
       const feeAmount = (amount * feeBps) / 10000n
       const lockOrBurn = TokenPool_LockOrBurn.create({
-        queryID,
+        queryId,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: queryID,
+            id: queryId,
             details: TokenPool_TransferDetails.create({
               receiver: receiverAddress,
               remoteChainSelector,
@@ -428,7 +428,7 @@ describe('BurnMintTokenPool', () => {
       await deployerWallet.sendTransfer(deployer.getSender(), {
         value: toNano('2'),
         message: {
-          queryID: Number(queryID),
+          queryId: Number(queryId),
           jettonAmount: amount,
           destination: accountAddress,
           responseDestination: deployer.address,
@@ -443,7 +443,7 @@ describe('BurnMintTokenPool', () => {
       const result = await accountWallet.sendTransfer(blockchain.sender(accountAddress), {
         value: toNano('2'),
         message: {
-          queryID: Number(queryID),
+          queryId: Number(queryId),
           jettonAmount: amount,
           destination: burnMintPool.address,
           responseDestination: deployer.address,
@@ -510,7 +510,7 @@ describe('BurnMintTokenPool', () => {
     const result = await burnMintPool.sendBurnMintTokenPoolClaimMinterAdmin(
       unauthorized.getSender(),
       toNano('0.2'),
-      { queryID: 302n },
+      { queryId: 302n },
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -526,7 +526,7 @@ describe('BurnMintTokenPool', () => {
     const result = await unauthorizedWallet.sendTransfer(unauthorized.getSender(), {
       value: toNano('2'),
       message: {
-        queryID: 303,
+        queryId: 303,
         jettonAmount: toNano('1'),
         destination: burnMintPool.address,
         responseDestination: unauthorized.address,
@@ -534,7 +534,7 @@ describe('BurnMintTokenPool', () => {
         forwardTonAmount: toNano('0.2'),
         forwardPayload: TokenPool_LockOrBurn.toCell(
           TokenPool_LockOrBurn.create({
-            queryID: 303n,
+            queryId: 303n,
             request: TokenPool_LockOrBurnInV1.create({
               transfer: TokenPool_Transfer.create({
                 id: 303n,
@@ -573,7 +573,7 @@ describe('BurnMintTokenPool', () => {
     'does not refund capacity for an unauthorized deposit with $inbound TON',
     async ({ inbound, returned }) => {
       const request = TokenPool_LockOrBurn.create({
-        queryID: 666n,
+        queryId: 666n,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
             id: 666n,
@@ -594,7 +594,7 @@ describe('BurnMintTokenPool', () => {
       })
       const admitted = await pool.sendTokenPoolLockOrBurn(deployer.getSender(), toNano('1'), {
         ...request,
-        queryID: 1n,
+        queryId: 1n,
         replyTo: deployer.address,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
@@ -622,7 +622,7 @@ describe('BurnMintTokenPool', () => {
       const result = await attackerWallet.sendTransfer(unauthorized.getSender(), {
         value: toNano('1'),
         message: {
-          queryID: 666,
+          queryId: 666,
           jettonAmount: 1n,
           destination: pool.address,
           responseDestination: unauthorized.address,
@@ -681,7 +681,7 @@ describe('BurnMintTokenPool', () => {
     const poolWallet = await userWallet(burnMintPool.address)
 
     const request = TokenPool_LockOrBurn.create({
-      queryID: 667n,
+      queryId: 667n,
       request: TokenPool_LockOrBurnInV1.create({
         transfer: TokenPool_Transfer.create({
           id: 667n,
@@ -754,7 +754,7 @@ describe('BurnMintTokenPool', () => {
     })
     const account = blockchain.openContract(da.DepositAccount.fromAddress(accountAddress))
     const initRes = await account.sendDepositAccountInit(deployer.getSender(), toNano('0.3'), {
-      queryID: 0n,
+      queryId: 0n,
       context: null,
     })
     expect(initRes.transactions).toHaveTransaction({
@@ -766,7 +766,7 @@ describe('BurnMintTokenPool', () => {
     await attackerWallet.sendTransfer(attacker.getSender(), {
       value: toNano('2'),
       message: {
-        queryID: 667,
+        queryId: 667,
         jettonAmount: toNano('1'),
         destination: accountAddress,
         responseDestination: attacker.address,
@@ -789,7 +789,7 @@ describe('BurnMintTokenPool', () => {
       attacker.getSender(),
       toNano('2'),
       {
-        queryID: 667n,
+        queryId: 667n,
         ask: da.AskToTransfer.create({
           jettonAmount: toNano('1'),
           transferRecipient: burnMintPool.address,
@@ -861,7 +861,7 @@ describe('BurnMintTokenPool', () => {
     it('returns tokens and notifies the requester when payload amount does not match transferred amount', async () => {
       const poolWallet = await userWallet(burnMintPool.address)
       const requestMsg = TokenPool_LockOrBurn.create({
-        queryID: 304n,
+        queryId: 304n,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
             id: 304n,
@@ -902,7 +902,7 @@ describe('BurnMintTokenPool', () => {
       await deployerWallet.sendTransfer(deployer.getSender(), {
         value: toNano('2'),
         message: {
-          queryID: 304,
+          queryId: 304,
           jettonAmount: toNano('2'),
           destination: accountAddress,
           responseDestination: deployer.address,
@@ -915,7 +915,7 @@ describe('BurnMintTokenPool', () => {
       const result = await accountWallet.sendTransfer(blockchain.sender(accountAddress), {
         value: toNano('2'),
         message: {
-          queryID: 304,
+          queryId: 304,
           jettonAmount: toNano('2'),
           destination: burnMintPool.address,
           responseDestination: deployer.address,
@@ -955,7 +955,7 @@ describe('BurnMintTokenPool', () => {
           if (!body) return false
           const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
           return (
-            failure.queryID === 304n &&
+            failure.queryId === 304n &&
             failure.errorCode === BigInt(BurnMintTokenPool.Errors['TokenPool_Error.AmountMismatch'])
           )
         },
@@ -971,7 +971,7 @@ describe('BurnMintTokenPool', () => {
       const result = await deployerWallet.sendTransfer(deployer.getSender(), {
         value: toNano('2'),
         message: {
-          queryID: 45,
+          queryId: 45,
           jettonAmount: toNano('1'),
           destination: burnMintPool.address,
           responseDestination: deployer.address,
@@ -1006,7 +1006,7 @@ describe('BurnMintTokenPool', () => {
     const deployerWallet = await userWallet(deployer.address)
     const poolWallet = await userWallet(burnMintPool.address)
 
-    const queryID = 11n
+    const queryId = 11n
     const jettonAmount = toNano('3')
 
     // === Step 0: Mint jettons to deployer ===
@@ -1014,7 +1014,7 @@ describe('BurnMintTokenPool', () => {
       value: toNano('1'),
       mintOpcode: 0x00000015,
       message: {
-        queryID: 100n,
+        queryId: 100n,
         destination: deployer.address,
         tonAmount: toNano('0.05'),
         jettonAmount: toNano('10'),
@@ -1029,10 +1029,10 @@ describe('BurnMintTokenPool', () => {
     const adminFloor = toNano('0.3')
     await setTokenPoolSafetyFloor(blockchain, pool.address, adminFloor)
     const lockOrBurn = TokenPool_LockOrBurn.create({
-      queryID,
+      queryId,
       request: TokenPool_LockOrBurnInV1.create({
         transfer: TokenPool_Transfer.create({
-          id: queryID,
+          id: queryId,
           details: TokenPool_TransferDetails.create({
             receiver: receiverAddress,
             remoteChainSelector,
@@ -1073,7 +1073,7 @@ describe('BurnMintTokenPool', () => {
     expect(withdrawEvent).toBeDefined()
 
     const withdrawBody = TokenPool_LockOrBurnWithdraw.fromSlice(withdrawEvent!.body.beginParse())
-    expect(withdrawBody.queryID).toBe(queryID)
+    expect(withdrawBody.queryId).toBe(queryId)
     expect(withdrawBody.forwardTonAmount).toBe(adminFloor * 2n + lockOrBurn.finalizationValue)
 
     // Build expected forward payload (matching what pool creates in validateLockOrBurn)
@@ -1091,8 +1091,8 @@ describe('BurnMintTokenPool', () => {
     })
 
     // Verify pool's forward payload matches our expected one
-    expect(withdrawBody.forwardPayload.requestMsg.queryID).toBe(
-      expectedForwardPayload.requestMsg.queryID,
+    expect(withdrawBody.forwardPayload.requestMsg.queryId).toBe(
+      expectedForwardPayload.requestMsg.queryId,
     )
     expect(withdrawBody.forwardPayload.prepared.feeAmount).toBe(
       expectedForwardPayload.prepared.feeAmount,
@@ -1116,7 +1116,7 @@ describe('BurnMintTokenPool', () => {
     await deployerWallet.sendTransfer(deployer.getSender(), {
       value: toNano('2'),
       message: {
-        queryID: Number(queryID),
+        queryId: Number(queryId),
         jettonAmount,
         destination: accountAddress,
         responseDestination: deployer.address,
@@ -1133,7 +1133,7 @@ describe('BurnMintTokenPool', () => {
     const result2 = await accountWallet.sendTransfer(blockchain.sender(accountAddress), {
       value: toNano('1'),
       message: {
-        queryID: Number(queryID),
+        queryId: Number(queryId),
         jettonAmount,
         destination: burnMintPool.address,
         responseDestination: null,
@@ -1175,16 +1175,16 @@ describe('BurnMintTokenPool', () => {
     )
     await executorBouncer.sendDeploy(deployer.getSender(), toNano('0.05'))
 
-    const queryID = 33n
+    const queryId = 33n
     const amount = toNano('5') // < outbound capacity (100), so admission succeeds
 
     const before = await burnMintPool.getCurrentRateLimiterState(remoteChainSelector, false)
 
     const lockOrBurn = TokenPool_LockOrBurn.create({
-      queryID,
+      queryId,
       request: TokenPool_LockOrBurnInV1.create({
         transfer: TokenPool_Transfer.create({
-          id: queryID,
+          id: queryId,
           details: TokenPool_TransferDetails.create({
             receiver: receiverAddress,
             remoteChainSelector,
@@ -1228,7 +1228,7 @@ describe('BurnMintTokenPool', () => {
       body(body) {
         if (!body) return false
         const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
-        return failure.queryID === queryID && failure.errorCode === 65535n
+        return failure.queryId === queryId && failure.errorCode === 65535n
       },
     })
 
@@ -1239,7 +1239,7 @@ describe('BurnMintTokenPool', () => {
 
   it('accepts a short Only256 bounce from a failed best-effort return', async () => {
     const ask = AskToTransfer.create({
-      queryID: 35n,
+      queryId: 35n,
       jettonAmount: toNano('3'),
       transferRecipient: deployer.address,
       sendExcessesTo: deployer.address,
@@ -1291,7 +1291,7 @@ describe('BurnMintTokenPool', () => {
       await user.sendTransfer(deployer.getSender(), {
         value: toNano('0.5'),
         message: {
-          queryID: 34,
+          queryId: 34,
           jettonAmount: amount,
           destination: burnMintPool.address,
           responseDestination: deployer.address,
@@ -1302,7 +1302,7 @@ describe('BurnMintTokenPool', () => {
       })
       const rateLimitBefore = await pool.getCurrentRateLimiterState(remoteChainSelector, false)
       const request = TokenPool_LockOrBurn.create({
-        queryID: 34n,
+        queryId: 34n,
         extra: TokenPool_LockOrBurnExtra.create({
           returnTo: recipient.address,
         }),
@@ -1349,7 +1349,7 @@ describe('BurnMintTokenPool', () => {
       )
       const originalBody = CCT_AskToBurn.toCell(
         CCT_AskToBurn.create({
-          queryID: 34n,
+          queryId: 34n,
           jettonAmount: amount,
           sendExcessesTo: burnMintPool.address,
           customPayload: context,
@@ -1427,10 +1427,10 @@ describe('BurnMintTokenPool', () => {
     },
   )
 
-  const mintRequest = (queryID: bigint, amount: bigint) =>
+  const mintRequest = (queryId: bigint, amount: bigint) =>
     TokenPool_ReleaseOrMintInV1.create({
       transfer: TokenPool_Transfer.create({
-        id: queryID,
+        id: queryId,
         details: TokenPool_TransferDetails.create({
           originalSender: sourcePoolAddress,
           remoteChainSelector,
@@ -1451,7 +1451,7 @@ describe('BurnMintTokenPool', () => {
       deployer.getSender(),
       toNano('0.6'),
       {
-        queryID: 22n,
+        queryId: 22n,
         request: mintRequest(22n, toNano('2')),
         requestedFinalityConfig: 0n,
         replyTo: offRamp.address,
@@ -1494,12 +1494,12 @@ describe('BurnMintTokenPool', () => {
     })
   })
 
-  function mintToRecipient(funding: string, queryID: bigint, offchainTokenData: Cell | null) {
+  function mintToRecipient(funding: string, queryId: bigint, offchainTokenData: Cell | null) {
     return burnMintPool.sendTokenPoolReleaseOrMint(deployer.getSender(), toNano(funding), {
-      queryID,
+      queryId,
       request: TokenPool_ReleaseOrMintInV1.create({
         transfer: TokenPool_Transfer.create({
-          id: queryID,
+          id: queryId,
           details: TokenPool_TransferDetails.create({
             originalSender: sourcePoolAddress,
             remoteChainSelector,
@@ -1537,11 +1537,11 @@ describe('BurnMintTokenPool', () => {
 
       // First mint creates the recipient wallet; the second reuses it with more funding.
       for (const [index, funding] of ['0.3', '0.6'].entries()) {
-        const queryID = 22n + BigInt(index)
+        const queryId = 22n + BigInt(index)
         const minterBalance = minterAccount.balance
         const poolBalance = (await blockchain.getContract(burnMintPool.address)).balance
         const supplyBefore = (await cctMinterRuntime.getJettonData()).totalSupply
-        const result = await mintToRecipient(funding, queryID, offchainTokenData)
+        const result = await mintToRecipient(funding, queryId, offchainTokenData)
 
         expect(result.transactions).toHaveTransaction({
           from: burnMintPool.address,

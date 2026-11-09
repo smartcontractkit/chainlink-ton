@@ -37,7 +37,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     const executeBody = mcms.builder.message.in.execute
       .encode({
-        queryID: 999n,
+        queryId: 999n,
         op: mcms.builder.data.op.encode(fakeOp).asCell(),
         proof: [], // fakeProof
       })
@@ -65,7 +65,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     // Try with empty proof first
     const executeBody1 = mcms.builder.message.in.execute
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         op: mcms.builder.data.op.encode(modifiedOp).asCell(),
         proof: [], // emptyProof
       })
@@ -89,7 +89,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     const executeBody2 = mcms.builder.message.in.execute
       .encode({
-        queryID: 2n,
+        queryId: 2n,
         op: mcms.builder.data.op.encode(modifiedOp).asCell(),
         proof: originalProof,
       })
@@ -119,7 +119,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     const executeBody1 = mcms.builder.message.in.execute
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         op: mcms.builder.data.op.encode(wrongChainIdOp).asCell(),
         proof: dummyProof,
       })
@@ -144,7 +144,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     const executeBody2 = mcms.builder.message.in.execute
       .encode({
-        queryID: 2n,
+        queryId: 2n,
         op: mcms.builder.data.op.encode(wrongMultiSigOp).asCell(),
         proof: dummyProof,
       })
@@ -169,7 +169,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     const executeBody3 = mcms.builder.message.in.execute
       .encode({
-        queryID: 3n,
+        queryId: 3n,
         op: mcms.builder.data.op.encode(wrongNonceOp).asCell(),
         proof: dummyProof,
       })
@@ -193,7 +193,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     const executeBody4 = mcms.builder.message.in.execute
       .encode({
-        queryID: 4n,
+        queryId: 4n,
         op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
         proof: dummyProof,
       })
@@ -219,7 +219,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     const executeBody1 = mcms.builder.message.in.execute
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
         proof: proof1,
       })
@@ -260,7 +260,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     const executeBody3 = mcms.builder.message.in.execute
       .encode({
-        queryID: 3n,
+        queryId: 3n,
         op: mcms.builder.data.op.encode(baseTest.testOps[2]).asCell(),
         proof: proof3,
       })
@@ -284,7 +284,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     const executeBody2 = mcms.builder.message.in.execute
       .encode({
-        queryID: 2n,
+        queryId: 2n,
         op: mcms.builder.data.op.encode(baseTest.testOps[1]).asCell(),
         proof: proof2,
       })
@@ -320,7 +320,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     const executeBody = mcms.builder.message.in.execute
       .encode({
-        queryID: BigInt(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX + 1),
+        queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX + 1),
         op: mcms.builder.data.op
           .encode(baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX])
           .asCell(),
@@ -379,7 +379,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     const executeBody = mcms.builder.message.in.execute
       .encode({
-        queryID: BigInt(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX + 1),
+        queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX + 1),
         op: mcms.builder.data.op
           .encode(baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX])
           .asCell(),
@@ -418,7 +418,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     const executeBody = mcms.builder.message.in.execute
       .encode({
-        queryID: BigInt(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX + 1),
+        queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX + 1),
         op: mcms.builder.data.op
           .encode(baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX])
           .asCell(),

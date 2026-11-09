@@ -127,7 +127,7 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_TokenTransferDelivered => {
             val st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
-            relayTokenTransferDelivered(st, msg.queryID, msg.execId, in.senderAddress, msg.delivered, true);
+            relayTokenTransferDelivered(st, msg.queryId, msg.execId, in.senderAddress, msg.delivered, true);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifyFailure => {
@@ -235,7 +235,7 @@ fun onUpdatePricesBounced(msg: FeeQuoter_UpdatePrices, feeQuoter: address, error
 // The MerkleRoot rejected MerkleRoot_Validate: the root was never committed (no contract at that
 // address), the message was already executed, or manual execution is not yet enabled. Nothing was
 // validated and no state changed here, so the caller's remaining value goes back to `excessesTo`
-// with the queryID; the cause is in the MerkleRoot's failed transaction, so no errorCode is
+// with the queryId; the cause is in the MerkleRoot's failed transaction, so no errorCode is
 // relayed. NoBounce: a refund, so a bounce could not unwind anything.
 fun onBouncedMerkleRootValidate(msg: MerkleRoot_Validate) {
     val rejected = createMessage({
@@ -243,7 +243,7 @@ fun onBouncedMerkleRootValidate(msg: MerkleRoot_Validate) {
         value: 0,
         dest: msg.excessesTo,
         body: OffRamp_MerkleRootValidateRejected {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
         },
     });
     rejected.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
@@ -261,7 +261,7 @@ fun onBouncedCCIPReceiveConfirm(msg: ReceiveExecutor_CCIPReceiveConfirm) {
         value: 0,
         dest: getRouterFromSelector(st, sourceChainSelector),
         body: Router_CCIPReceiveConfirmRejectedByExecutor {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             sourceChainSelector,
             receiver: msg.receiver,
         },
@@ -331,7 +331,7 @@ fun onBouncedDeployableInitialize(msg: Deployable_Initialize, senderAddress: add
 // (e.g. this OffRamp is no longer registered, or it reverted). Fails the
 // executor through the usual rail.
 fun onBouncedRouterRelayReleaseOrMint(msg: Router_RelayReleaseOrMint, errorCode: int32) {
-    mintOrReleaseFailed(msg.replyTo, msg.queryID, ReleaseOrMintBounced { errorCode });
+    mintOrReleaseFailed(msg.replyTo, msg.queryId, ReleaseOrMintBounced { errorCode });
 }
 
 // Handles bounced Router_RouteMessage messages. This should never happen; if
@@ -345,7 +345,7 @@ fun onBouncedRouterRouteMessage(msg: Router_RouteMessage, senderAddress: address
     });
 
     // Send ReceiveBounced to initiate the failure notification trace 
-    ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryID, msg.receiver, ReceiveExecutor_FailedReason.BouncedFromRouter)
+    ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, msg.receiver, ReceiveExecutor_FailedReason.BouncedFromRouter)
 }
 
 // Handles contract upgrade requests using the Upgradeable pattern. Invokes the
@@ -430,15 +430,15 @@ fun version(): slice { return CONTRACT_VERSION; }
 fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
     val st = Storage.load();
 
-    // queryID is not available on this path (OffRamp_CCIPReceiveBounced originates from a
+    // queryId is not available on this path (OffRamp_CCIPReceiveBounced originates from a
     // bounced Receiver_CCIPReceiveV2, where only the first 256 bits are returned). The
-    // ReceiveExecutor already stores the queryID in its own storage.
+    // ReceiveExecutor already stores the queryId in its own storage.
     val receiveBounced = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_CCIPReceiveFailed{ 
-            queryID: 0,
+            queryId: 0,
             receiver: msg.receiver,
             reason: ReceiveExecutor_FailedReason.BouncedFromReceiver,
         }
@@ -516,7 +516,7 @@ fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState, excess
 fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: address) {
     if (msg.delivered != null) {
         // Fixed value; the executor's leftover stays on the OffRamp.
-        relayTokenTransferDelivered(st, msg.queryID, msg.execId, receiveExecutor, msg.delivered!, false);
+        relayTokenTransferDelivered(st, msg.queryId, msg.execId, receiveExecutor, msg.delivered!, false);
     }
 
     val messageHeader = lazy msg.header.load();
@@ -545,14 +545,14 @@ fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: ad
 //     OffRamp         ->> Router:    Router_TokenTransferDelivered
 //     Router          ->> TokenPool: TokenPool_ReleaseOrMintDelivered
 //     TokenPool       ->> ReceiveExecutor: TokenPool_ReleaseOrMintFinalized
-fun relayTokenTransferDelivered(st: Storage, queryID: uint64, execId: ReceiveExecutorId, receiveExecutor: address, deliveredCell: Cell<OffRamp_DeliveredTransfer>, carryValue: bool) {
+fun relayTokenTransferDelivered(st: Storage, queryId: uint64, execId: ReceiveExecutorId, receiveExecutor: address, deliveredCell: Cell<OffRamp_DeliveredTransfer>, carryValue: bool) {
     val delivered = lazy deliveredCell.load();
     val relay = createMessage({
         bounce: BounceMode.NoBounce,
         value: carryValue ? 0 : OffRamp_Costs.tokenTransferDelivered(),
         dest: getRouterFromSelector(st, execId.getSourceChainSelector()),
         body: Router_TokenTransferDelivered {
-            queryID,
+            queryId,
             tokenPool: delivered.tokenPool,
             replyTo: receiveExecutor,
             transfer: delivered.transfer,
@@ -605,7 +605,7 @@ fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
         value: 0,
         dest:  getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_CCIPReceiveConfirm {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             receiver: msg.receiver,
             execId: msg.execId,
         },
@@ -632,14 +632,14 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
 
     if (msg.effectiveGasLimit < st.config.load().dynamicConfig.load().minGasLimit) {
-        return ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryID, message.receiver, ReceiveExecutor_FailedReason.NotEnoughGas);
+        return ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, message.receiver, ReceiveExecutor_FailedReason.NotEnoughGas);
     }
     val routeMessage = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
         dest: router,
         body: Router_RouteMessage {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             message: Any2TVMMessage {
                 messageId: message.header.messageId,
                 sourceChainSelector: message.header.sourceChainSelector,
@@ -656,13 +656,13 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     routeMessage.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
-fun ccipReceiveFailed(receiveExecutor: address, queryID: uint64, receiver: address, reason: ReceiveExecutor_FailedReason) {
+fun ccipReceiveFailed(receiveExecutor: address, queryId: uint64, receiver: address, reason: ReceiveExecutor_FailedReason) {
     val receiveBounced = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: receiveExecutor,
         body: ReceiveExecutor_CCIPReceiveFailed{
-            queryID,
+            queryId,
             receiver,
             reason,
         }
@@ -671,13 +671,13 @@ fun ccipReceiveFailed(receiveExecutor: address, queryID: uint64, receiver: addre
 }
 
 // Send ReceiveBounced to initiate the failure notification trace
-fun mintOrReleaseFailed(receiveExecutor: address, queryID: uint64, reason: ReleaseOrMint_ReleaseOrMintFailedReason) {
+fun mintOrReleaseFailed(receiveExecutor: address, queryId: uint64, reason: ReleaseOrMint_ReleaseOrMintFailedReason) {
     val receiveBounced = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: receiveExecutor,
         body: ReceiveExecutor_ReleaseOrMintFailed {
-            queryID,
+            queryId,
             reason,
         }
     });
@@ -687,7 +687,7 @@ fun mintOrReleaseFailed(receiveExecutor: address, queryID: uint64, reason: Relea
 // Fails the executor after the Router reported a release/mint failure (lane
 // cursed, or the pool bounced the relay).
 fun onTokenPoolReleaseOrMintFailed(msg: Router_TokenPoolReleaseOrMintFailed) {
-    mintOrReleaseFailed(msg.replyTo, msg.queryID, ReleaseOrMintBounced { errorCode: msg.errorCode });
+    mintOrReleaseFailed(msg.replyTo, msg.queryId, ReleaseOrMintBounced { errorCode: msg.errorCode });
 }
 
 // Relays a release/mint request through the Router, the single access point of
@@ -697,7 +697,7 @@ fun onTokenPoolReleaseOrMintFailed(msg: Router_TokenPoolReleaseOrMintFailed) {
 fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMint) {
     if (msg.destGasAmount < st.config.load().dynamicConfig.load().minTTGasLimit) {
         val receiveExecutor = getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress();
-        return mintOrReleaseFailed(receiveExecutor, msg.queryID, NotEnoughDestGasAmountForTokenTransfer {});
+        return mintOrReleaseFailed(receiveExecutor, msg.queryId, NotEnoughDestGasAmountForTokenTransfer {});
     }
 
     val relayMsg = createMessage({
@@ -705,7 +705,7 @@ fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMi
         value: 0,
         dest: getRouterFromSelector(st, msg.execId.getSourceChainSelector()),
         body: Router_RelayReleaseOrMint {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             sourceChainSelector: msg.execId.getSourceChainSelector(),
             tokenPool: msg.tokenPool,
             request: msg.request,
@@ -896,7 +896,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
 //     Wallet  ->> OffRamp:    OffRamp_ManuallyExecute
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
 fun onManuallyExecute(msg: OffRamp_ManuallyExecute, sender: address, value: coins) {
-    onExecuteSingleReport(msg.report, msg.gasOverride, value, msg.queryID, sender);
+    onExecuteSingleReport(msg.report, msg.gasOverride, value, msg.queryId, sender);
 }
 
 // Executes a single cross-chain execution report.
@@ -921,7 +921,7 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
         createEmptyCell(),
     );
 
-    onExecuteSingleReport(msg.report, null, value, msg.queryID, sender);
+    onExecuteSingleReport(msg.report, null, value, msg.queryId, sender);
 }
 
 // Executes a single cross-chain execution report. Verifies source chain
@@ -937,7 +937,7 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
 //
 // @param excessesTo: caller of the execution, refunded with the excesses when the flow ends.
-fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, value: coins, queryID: uint64, excessesTo: address) {
+fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, value: coins, queryId: uint64, excessesTo: address) {
     var st = Storage.load();
 
     // check if chain was cursed by RMNRemote
@@ -1039,7 +1039,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
         value: 0,
         dest: getMerkleRootDeployAddress(st, root),
         body: MerkleRoot_Validate {
-            queryID,
+            queryId,
             message: report.messages as Cell<Any2TVMRampMessage>,
             metadataHash,
             permissionlessExecutionThresholdSeconds: st.config.load().dynamicConfig.load().permissionlessExecutionThresholdSeconds,
@@ -1158,7 +1158,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
                             tokenTransfer: null,
                             messageExecution: ReceiveExecutor_MessageExecutionState.Untouched,
                             effectiveGasLimit: 0,
-                            queryID: msg.queryID,
+                            queryId: msg.queryId,
                             excesses,
                         },
                     }.toCell(),
@@ -1169,7 +1169,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
     }
 
     var initExecuteMsg = ReceiveExecutor_InitExecute {
-        queryID: msg.queryID,
+        queryId: msg.queryId,
         effectiveGasLimit: message.gasLimit,
         root: sender,
         sequenceNumber: message.header.sequenceNumber,

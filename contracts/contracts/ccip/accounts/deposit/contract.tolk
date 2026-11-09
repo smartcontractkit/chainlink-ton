@@ -95,7 +95,7 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
             value: 0,
             dest: sender,
             body: DepositAccount_Initialized {
-                queryID: msg.queryID,
+                queryId: msg.queryId,
                 context: msg.context,
             },
         });
@@ -106,7 +106,7 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
 
     assert (data.pendingInit == null) throw (DepositAccount_Error.InitPending);
     data.pendingInit = DepositAccount_PendingInit {
-        queryID: msg.queryID,
+        queryId: msg.queryId,
         context: msg.context,
     }.toCell();
     data.store();
@@ -115,7 +115,7 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
         value: DepositAccount_WALLET_QUERY_VALUE,
         dest: data.token,
         body: RequestWalletAddress {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             ownerAddress: contract.getAddress(),
             includeOwnerAddress: false,
         },
@@ -143,14 +143,14 @@ fun replyToPendingInit(mutate data: DepositAccount_Data, walletLearned: bool) {
             bounce: BounceMode.NoBounce,
             value: 0,
             dest: data.owner,
-            body: DepositAccount_Initialized { queryID: pending.queryID, context: pending.context },
+            body: DepositAccount_Initialized { queryId: pending.queryId, context: pending.context },
         }).send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     } else {
         createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
             dest: data.owner,
-            body: DepositAccount_WalletUnavailable { queryID: pending.queryID, context: pending.context },
+            body: DepositAccount_WalletUnavailable { queryId: pending.queryId, context: pending.context },
         }).send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     }
 }
@@ -165,7 +165,7 @@ fun onWithdraw(sender: address, msg: DepositAccount_Withdraw, msgCell: cell) {
         value: 0,
         dest: data.wallet.load(),
         body: AskToTransfer {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             jettonAmount: msg.ask.jettonAmount,
             transferRecipient: msg.ask.transferRecipient,
             sendExcessesTo: msg.ask.sendExcessesTo,
@@ -193,7 +193,7 @@ fun onWithdrawBounced(wallet: address, ask: AskToTransfer) {
         value: 0,
         dest: wrap.initiator,
         body: DepositAccount_WithdrawFailed {
-            queryID: ask.queryID,
+            queryId: ask.queryId,
             user: data.user,
             token: data.token,
             walletAddress: wallet,
@@ -230,7 +230,7 @@ fun returnForeignTransfer(wallet: address, msg: TransferNotificationForRecipient
         value: 0,
         dest: wallet,
         body: AskToTransfer {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             jettonAmount: msg.jettonAmount,
             transferRecipient: recipient,
             sendExcessesTo: recipient,

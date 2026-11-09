@@ -42,9 +42,9 @@ describe('TokenAdminRegistry - Get Token Info', () => {
     fx = await setup(blockchain)
   })
 
-  const getTokenInfo = (queryID = 0n, value = toNano('0.1')) =>
+  const getTokenInfo = (queryId = 0n, value = toNano('0.1')) =>
     fx.registry.sendTokenAdminRegistryGetTokenInfo(fx.other.getSender(), value, {
-      queryID,
+      queryId,
       token: fx.token,
     })
 
@@ -71,7 +71,7 @@ describe('TokenAdminRegistry - Get Token Info', () => {
     })
     expect(returnedTokenInfo(fx, result, fx.other.address)).toEqual(
       tar.TokenAdminRegistry_TokenInfo.create({
-        queryID: 106n,
+        queryId: 106n,
         token: fx.token,
         version: 1n,
         poolInfo: tar.TokenAdminRegistry_PoolInfo.create({
@@ -99,7 +99,7 @@ describe('TokenAdminRegistry - Get Token Info', () => {
       success: true,
     })
     expect(failedTokenInfo(fx, result, fx.other.address)).toEqual(
-      tar.TokenAdminRegistry_GetTokenInfoFailed.create({ queryID: 107n, token: fx.token }),
+      tar.TokenAdminRegistry_GetTokenInfoFailed.create({ queryId: 107n, token: fx.token }),
     )
   })
 
@@ -170,11 +170,11 @@ describe('TokenAdminRegistry - Get Token Info', () => {
     const result = await fx.registry.sendTokenAdminRegistryEntryTokenInfo(
       asEntry(fx),
       toNano('0.05'),
-      { queryID: 3n, token: fx.token, requester: fx.other.address, tokenInfo: tokenInfo(fx) },
+      { queryId: 3n, token: fx.token, requester: fx.other.address, tokenInfo: tokenInfo(fx) },
     )
     expect(returnedTokenInfo(fx, result, fx.other.address)).toEqual(
       tar.TokenAdminRegistry_TokenInfo.create({
-        queryID: 3n,
+        queryId: 3n,
         token: fx.token,
         version: 1n,
         poolInfo: tar.TokenAdminRegistry_PoolInfo.create({

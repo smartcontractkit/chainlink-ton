@@ -56,7 +56,7 @@ export class OCR3BaseExample extends OCR3Base {
     via: Sender,
     opts: {
       value: bigint
-      queryID?: number
+      queryId?: number
       ocrPluginType: number
       reportContext: ReportContext
       report: Cell

@@ -92,7 +92,7 @@ describe('Router', () => {
       offRamp.getSender(),
       toNano('0.05'),
       {
-        queryID: 7n,
+        queryId: 7n,
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         receiver: receiver.address,
       },
@@ -106,7 +106,7 @@ describe('Router', () => {
       value: (v) => v !== undefined && v > 0n,
       body(x) {
         if (!x) return false
-        return rt.Router_CCIPReceiveConfirmRejected.fromSlice(x.beginParse()).queryID === 7n
+        return rt.Router_CCIPReceiveConfirmRejected.fromSlice(x.beginParse()).queryId === 7n
       },
     })
   })
@@ -116,7 +116,7 @@ describe('Router', () => {
       receiver.getSender(),
       toNano('0.05'),
       {
-        queryID: 7n,
+        queryId: 7n,
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         receiver: receiver.address,
       },

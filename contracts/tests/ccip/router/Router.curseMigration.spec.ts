@@ -47,7 +47,7 @@ describe('Router.cursing - migration from 1.6.x', () => {
 
       // Curse through the legacy path, so the migration has state to carry.
       const cursed = await router.sendRouterRMNRemoteCurse(rmnOwner.getSender(), toNano('1'), {
-        queryID: 0n,
+        queryId: 0n,
         subjects: [SUBJECT],
       })
       expect(cursed.transactions).toHaveTransaction({
@@ -61,7 +61,7 @@ describe('Router.cursing - migration from 1.6.x', () => {
       const upgrade = await router.sendUpgradeableUpgrade(
         contractOwner.getSender(),
         toNano('0.05'),
-        { queryID: 0n, code: await contractCode.ccip.local('Router') },
+        { queryId: 0n, code: await contractCode.ccip.local('Router') },
       )
       expect(upgrade.transactions).toHaveTransaction({
         from: contractOwner.address,
@@ -84,7 +84,7 @@ describe('Router.cursing - migration from 1.6.x', () => {
 
       // No further transaction needed: the legacy caller still works.
       const uncursed = await router.sendRouterRMNRemoteUncurse(rmnOwner.getSender(), toNano('1'), {
-        queryID: 0n,
+        queryId: 0n,
         subjects: [SUBJECT],
       })
       expect(uncursed.transactions).toHaveTransaction({
@@ -137,7 +137,7 @@ describe('Router.cursing - migration from 1.6.x', () => {
     const upgrade = await mismatchedRouter.sendUpgradeableUpgrade(
       owner.getSender(),
       toNano('0.05'),
-      { queryID: 0n, code: await contractCode.ccip.local('Router') },
+      { queryId: 0n, code: await contractCode.ccip.local('Router') },
     )
     expect(upgrade.transactions).toHaveTransaction({
       from: owner.address,

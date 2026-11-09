@@ -216,7 +216,7 @@ describe('TokenAdminRegistry - Unit Tests', () => {
     const result = await fx.registry.sendTokenAdminRegistryVerifyToken(
       fx.other.getSender(),
       OPERATION_VALUE,
-      { queryID: 5n, tokenAddress: fx.otherToken },
+      { queryId: 5n, tokenAddress: fx.otherToken },
     )
     expect(result.transactions).toHaveTransaction({
       from: fx.registry.address,
@@ -224,7 +224,7 @@ describe('TokenAdminRegistry - Unit Tests', () => {
       op: tar.TokenAdminRegistry_RequestFailed.PREFIX,
       body(body) {
         if (!body) return false
-        return tar.TokenAdminRegistry_RequestFailed.fromSlice(body.beginParse()).queryID === 5n
+        return tar.TokenAdminRegistry_RequestFailed.fromSlice(body.beginParse()).queryId === 5n
       },
     })
     const failed = result.transactions
@@ -253,7 +253,7 @@ describe('TokenAdminRegistry - Unit Tests', () => {
     })
     const withdraw = (via: SandboxContract<TreasuryContract>) =>
       fx.registry.sendWithdrawableWithdraw(via.getSender(), toNano('0.05'), {
-        queryID: 0n,
+        queryId: 0n,
         destination: via.address,
         amount: 0n,
         reserve: null,

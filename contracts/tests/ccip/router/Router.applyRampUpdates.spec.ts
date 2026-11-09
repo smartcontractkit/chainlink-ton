@@ -46,7 +46,7 @@ describe('Router', () => {
         deployer.getSender(),
         toNano('1'),
         rt.Router_ApplyRampUpdates.create({
-          queryID: BigInt(0),
+          queryId: BigInt(0),
           onRampUpdates: rt.OnRamps.create({
             destChainSelectors: [
               ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
@@ -104,7 +104,7 @@ describe('Router', () => {
         deployer.getSender(),
         toNano('1'),
         rt.Router_ApplyRampUpdates.create({
-          queryID: BigInt(0),
+          queryId: BigInt(0),
           offRampAdds: rt.OffRamps.create({
             sourceChainSelectors: [
               ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
@@ -133,7 +133,7 @@ describe('Router', () => {
         deployer.getSender(),
         toNano('1'),
         rt.Router_ApplyRampUpdates.create({
-          queryID: BigInt(0),
+          queryId: BigInt(0),
           offRampRemoves: rt.OffRamps.create({
             sourceChainSelectors: [
               ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
@@ -167,7 +167,7 @@ describe('Router', () => {
         deployer.getSender(),
         toNano('1'),
         rt.Router_ApplyRampUpdates.create({
-          queryID: BigInt(0),
+          queryId: BigInt(0),
           offRampAdds: rt.OffRamps.create({
             sourceChainSelectors: [
               ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
@@ -224,7 +224,7 @@ describe('Router', () => {
         deployer.getSender(),
         toNano('1'),
         rt.Router_ApplyRampUpdates.create({
-          queryID: BigInt(0),
+          queryId: BigInt(0),
           offRampRemoves: rt.OffRamps.create({
             sourceChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
             offRamp: offRampAddress1,
@@ -254,7 +254,7 @@ describe('Router', () => {
         deployer.getSender(),
         toNano('1'),
         rt.Router_ApplyRampUpdates.create({
-          queryID: BigInt(0),
+          queryId: BigInt(0),
           offRampAdds: rt.OffRamps.create({
             sourceChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
             offRamp: offRampAddress2,
@@ -289,7 +289,7 @@ describe('Router', () => {
         deployer.getSender(),
         toNano('1'),
         rt.Router_ApplyRampUpdates.create({
-          queryID: BigInt(0),
+          queryId: BigInt(0),
           offRampAdds: rt.OffRamps.create({
             sourceChainSelectors: [
               ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
@@ -312,7 +312,7 @@ describe('Router', () => {
         deployer.getSender(),
         toNano('1'),
         rt.Router_ApplyRampUpdates.create({
-          queryID: BigInt(0),
+          queryId: BigInt(0),
           offRampRemoves: rt.OffRamps.create({
             sourceChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
             offRamp: offRampAddress,

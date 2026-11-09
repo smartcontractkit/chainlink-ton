@@ -156,7 +156,7 @@ describe('RBACTimelock', () => {
   const deployInitTimelock = async () => {
     const body = rbactl.builder.message.in.init
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         minDelay: minDelay,
         admin: deployer.address,
         proposers: [deployer.address],
@@ -184,7 +184,7 @@ describe('RBACTimelock', () => {
 
     const body = ac.builder.message.in.grantRole
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         role: rbactl.roles.proposer,
         account: other.address,
       })
@@ -217,7 +217,7 @@ describe('RBACTimelock', () => {
 
     const body = ac.builder.message.in.grantRole
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         role: rbactl.roles.admin,
         account: other.address,
       })
@@ -239,7 +239,7 @@ describe('RBACTimelock', () => {
 
     const body = ac.builder.message.in.grantRole
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         role: rbactl.roles.admin,
         account: other.address,
       })
@@ -252,7 +252,7 @@ describe('RBACTimelock', () => {
     {
       const body = ac.builder.message.in.renounceRole
         .encode({
-          queryID: 1n,
+          queryId: 1n,
           role: rbactl.roles.admin,
           callerConfirmation: other.address,
         })
@@ -275,7 +275,7 @@ describe('RBACTimelock', () => {
 
     const body = ac.builder.message.in.grantRole
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         role: rbactl.roles.proposer,
         account: other.address,
       })
@@ -297,7 +297,7 @@ describe('RBACTimelock', () => {
 
     const body = ac.builder.message.in.grantRole
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         role: rbactl.roles.canceller,
         account: other.address,
       })
@@ -319,7 +319,7 @@ describe('RBACTimelock', () => {
 
     const body = ac.builder.message.in.grantRole
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         role: rbactl.roles.executor,
         account: other.address,
       })
@@ -341,7 +341,7 @@ describe('RBACTimelock', () => {
 
     const bodyInit = ac.builder.message.in.grantRole
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         role: rbactl.roles.admin,
         account: deployer.address,
       })
@@ -351,7 +351,7 @@ describe('RBACTimelock', () => {
 
     const body = ac.builder.message.in.revokeRole
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         role: rbactl.roles.admin,
         account: deployer.address,
       })
@@ -373,7 +373,7 @@ describe('RBACTimelock', () => {
 
     const bodyInit = ac.builder.message.in.grantRole
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         role: rbactl.roles.proposer,
         account: deployer.address,
       })
@@ -383,7 +383,7 @@ describe('RBACTimelock', () => {
 
     const body = ac.builder.message.in.revokeRole
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         role: rbactl.roles.proposer,
         account: deployer.address,
       })
@@ -405,7 +405,7 @@ describe('RBACTimelock', () => {
 
     const bodyInit = ac.builder.message.in.grantRole
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         role: rbactl.roles.canceller,
         account: deployer.address,
       })
@@ -415,7 +415,7 @@ describe('RBACTimelock', () => {
 
     const body = ac.builder.message.in.revokeRole
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         role: rbactl.roles.canceller,
         account: deployer.address,
       })
@@ -437,7 +437,7 @@ describe('RBACTimelock', () => {
 
     const bodyInit = ac.builder.message.in.grantRole
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         role: rbactl.roles.executor,
         account: deployer.address,
       })
@@ -447,7 +447,7 @@ describe('RBACTimelock', () => {
 
     const body = ac.builder.message.in.revokeRole
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         role: rbactl.roles.executor,
         account: deployer.address,
       })
@@ -469,7 +469,7 @@ describe('RBACTimelock', () => {
 
     const bodyInit = ac.builder.message.in.grantRole
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         role: rbactl.roles.admin,
         account: other.address,
       })
@@ -491,7 +491,7 @@ describe('RBACTimelock', () => {
     const delay = 100
 
     const bodyInit = rbactl.builder.message.in.updateDelay
-      .encode({ queryID: 1n, newDelay: delay })
+      .encode({ queryId: 1n, newDelay: delay })
       .asCell()
     const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), bodyInit)
 
@@ -509,7 +509,7 @@ describe('RBACTimelock', () => {
     await deployInitTimelock()
 
     const bodyInit = rbactl.builder.message.in.updateDelay
-      .encode({ queryID: 1n, newDelay: 100 })
+      .encode({ queryId: 1n, newDelay: 100 })
       .asCell()
     const result = await timelock.sendInternal(other.getSender(), toNano('0.05'), bodyInit)
 
@@ -545,7 +545,7 @@ describe('RBACTimelock', () => {
     }
 
     const result = await timelock.sendScheduleBatch(deployer.getSender(), toNano('1.05'), {
-      queryID: 1n,
+      queryId: 1n,
       calls: op.calls,
       predecessor: op.predecessor,
       salt: op.salt,

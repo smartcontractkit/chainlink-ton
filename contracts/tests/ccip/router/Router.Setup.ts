@@ -489,7 +489,7 @@ async function configureRouterWithOnRamp(
   offRamp: Address,
 ) {
   const result = await router.sendRouterApplyRampUpdates(deployer.getSender(), toNano('1'), {
-    queryID: 0n,
+    queryId: 0n,
     onRampUpdates: rt.OnRamps.create({
       destChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
       onRamp,

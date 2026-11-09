@@ -62,7 +62,7 @@ const AccessControl_ERROR_CODE = AccessControl_FACILITY_ID * 100;
 ///
 struct (0x95cd540f) AccessControl_GrantRole {
     /// Query ID of the change request.
-    queryID: uint64;
+    queryId: uint64;
 
     /// Role definition.
     role: uint256;
@@ -82,7 +82,7 @@ struct (0x95cd540f) AccessControl_GrantRole {
 ///
 struct (0x969b0db9) AccessControl_RevokeRole {
     /// Query ID of the change request.
-    queryID: uint64;
+    queryId: uint64;
 
     /// Role definition.
     role: uint256;
@@ -107,7 +107,7 @@ struct (0x969b0db9) AccessControl_RevokeRole {
 ///
 struct (0x39452c46) AccessControl_RenounceRole {
     /// Query ID of the change request.
-    queryID: uint64;
+    queryId: uint64;
 
     /// Role definition.
     role: uint256;
@@ -130,7 +130,7 @@ type AccessControl_InMessage =
 ///
 struct (0xcf3ca837) AccessControl_RoleGranted {
     /// Query ID of the change request.
-    queryID: uint64;
+    queryId: uint64;
 
     /// Role definition.
     role: uint256;
@@ -148,7 +148,7 @@ struct (0xcf3ca837) AccessControl_RoleGranted {
 ///
 struct (0x990fe1c7) AccessControl_RoleRevoked {
     /// Query ID of the change request.
-    queryID: uint64;
+    queryId: uint64;
 
     /// Role definition.
     role: uint256;
@@ -165,7 +165,7 @@ struct (0x990fe1c7) AccessControl_RoleRevoked {
 ///
 struct (0xbd7e8bce) AccessControl_RoleAdminChanged {
     /// Query ID of the change request.
-    queryID: uint64;
+    queryId: uint64;
 
     /// Role definition.
     role: uint256;
@@ -419,7 +419,7 @@ fun AccessControl<T>.getRoleMembers(self, role: uint256): map<address, bool> {
 /// Sends a {AccessControl_RoleGranted} event (to: sender, account) if `role` was granted.
 fun AccessControl<T>.grantRole(
     mutate self,
-    queryID: uint64,
+    queryId: uint64,
     sender: address,
     role: uint256,
     account: address,
@@ -428,7 +428,7 @@ fun AccessControl<T>.grantRole(
     // the caller owns funding; TODO: check min value
 
     self.requireRole(self.getRoleAdmin(role), sender);
-    return self._grantRole(queryID, sender, role, account, returnExcess);
+    return self._grantRole(queryId, sender, role, account, returnExcess);
 }
 
 /// @dev Revokes `role` from `account`.
@@ -439,7 +439,7 @@ fun AccessControl<T>.grantRole(
 /// Sends a {AccessControl_RoleRevoked} event (to: sender, account) if `role` was revoked.
 fun AccessControl<T>.revokeRole(
     mutate self,
-    queryID: uint64,
+    queryId: uint64,
     sender: address,
     role: uint256,
     account: address,
@@ -448,7 +448,7 @@ fun AccessControl<T>.revokeRole(
     // the caller owns funding; TODO: check min value
 
     self.requireRole(self.getRoleAdmin(role), sender);
-    return self._revokeRole(queryID, sender, role, account, returnExcess);
+    return self._revokeRole(queryId, sender, role, account, returnExcess);
 }
 
 /// @dev Revokes `role` from the calling account.
@@ -466,7 +466,7 @@ fun AccessControl<T>.revokeRole(
 /// Sends a {AccessControl_RoleRevoked} event (to: sender, account) if `role` was revoked.
 fun AccessControl<T>.renounceRole(
     mutate self,
-    queryID: uint64,
+    queryId: uint64,
     sender: address,
     role: uint256,
     callerConfirmation: address,
@@ -479,7 +479,7 @@ fun AccessControl<T>.renounceRole(
     }
 
     // Renouncing a role is equivalent to revoking it from the caller
-    return self._revokeRole(queryID, sender, role, callerConfirmation, returnExcess);
+    return self._revokeRole(queryId, sender, role, callerConfirmation, returnExcess);
 }
 
 /// @dev Sets `adminRole` as `role`'s admin role.
@@ -489,7 +489,7 @@ fun AccessControl<T>.renounceRole(
 /// Sends a {AccessControl_RoleAdminChanged} reply to sender.
 fun AccessControl<T>._setRoleAdmin(
     mutate self,
-    queryID: uint64,
+    queryId: uint64,
     sender: address,
     role: uint256,
     adminRole: uint256,
@@ -503,7 +503,7 @@ fun AccessControl<T>._setRoleAdmin(
     // Save the updated role data
     self.data.roles.set(role, d.toCell());
 
-    val body = AccessControl_RoleAdminChanged{queryID, role, previousAdminRole, newAdminRole: adminRole};
+    val body = AccessControl_RoleAdminChanged{queryId, role, previousAdminRole, newAdminRole: adminRole};
     self.sendReply(sender, body, calculateGasFeeFor(FEE_SIZE_SMALL), returnExcess);
 }
 
@@ -513,14 +513,14 @@ fun AccessControl<T>._setRoleAdmin(
 /// Sends a {AccessControl_RoleGranted} event (to: sender, account) if `role` was granted.
 fun AccessControl<T>._grantRole(
     mutate self,
-    queryID: uint64,
+    queryId: uint64,
     sender: address,
     role: uint256,
     account: address,
     returnExcess: bool = false
 ): bool {
     if (self.hooks != null && self.hooks.shouldGrantRole != null) {
-        self.hooks.shouldGrantRole(self.context, queryID, role, account); // extension hook
+        self.hooks.shouldGrantRole(self.context, queryId, role, account); // extension hook
     }
 
     // Default implementation of granting a role
@@ -540,7 +540,7 @@ fun AccessControl<T>._grantRole(
     self.data.roles.set(role, d.toCell());
 
     val minFee = calculateGasFeeFor(FEE_SIZE_SMALL);
-    val body = AccessControl_RoleGranted{queryID, role, account, sender};
+    val body = AccessControl_RoleGranted{queryId, role, account, sender};
     self.sendNotification(sender, body, minFee, account);
     self.sendReply(sender, body, minFee, returnExcess);
 
@@ -553,14 +553,14 @@ fun AccessControl<T>._grantRole(
 /// Sends a {AccessControl_RoleRevoked} event (to: sender, account) if `role` was revoked.
 fun AccessControl<T>._revokeRole(
     mutate self,
-    queryID: uint64,
+    queryId: uint64,
     sender: address,
     role: uint256,
     account: address,
     returnExcess: bool = false
 ): bool {
     if (self.hooks != null && self.hooks.shouldRevokeRole != null) {
-        self.hooks.shouldRevokeRole(self.context, queryID, role, account); // extension hook
+        self.hooks.shouldRevokeRole(self.context, queryId, role, account); // extension hook
     }
 
     // Default implementation of revoking a role
@@ -580,7 +580,7 @@ fun AccessControl<T>._revokeRole(
     self.data.roles.set(role, d.toCell());
 
     val minFee = calculateGasFeeFor(FEE_SIZE_SMALL);
-    val body = AccessControl_RoleRevoked{queryID, role, account, sender};
+    val body = AccessControl_RoleRevoked{queryId, role, account, sender};
     self.sendNotification(sender, body, minFee, account);
     self.sendReply(sender, body, minFee, returnExcess);
 
@@ -701,13 +701,13 @@ fun AccessControl<T>.onInternalMessage(mutate self, msgSender: address, _msgValu
     val msg = lazy AccessControl_InMessage.fromSlice(msgBody);
     match (msg) {
         AccessControl_GrantRole => {
-            self.grantRole(msg.queryID, sender, msg.role, msg.account, returnExcess);
+            self.grantRole(msg.queryId, sender, msg.role, msg.account, returnExcess);
         },
         AccessControl_RevokeRole => {
-            self.revokeRole(msg.queryID, sender, msg.role, msg.account, returnExcess);
+            self.revokeRole(msg.queryId, sender, msg.role, msg.account, returnExcess);
         },
         AccessControl_RenounceRole => {
-            self.renounceRole(msg.queryID, sender, msg.role, msg.callerConfirmation, returnExcess);
+            self.renounceRole(msg.queryId, sender, msg.role, msg.callerConfirmation, returnExcess);
         },
         else => {
             return 0; // unknown message, not handled

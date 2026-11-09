@@ -1096,7 +1096,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     it('reverts with empty extra args', async () => {
       const message = feeQuoterManual.FeeQuoter_GetValidatedFee.toCell({
         msg: {
-          queryID: 0n,
+          queryId: 0n,
           destChainSelector: ChainSelectors.testnet.solana,
           receiver: FeeQuoterSetup.DEST_ADDRESS,
           data: Cell.EMPTY,
@@ -1190,7 +1190,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     it('reverts with empty extra args', async () => {
       const message = feeQuoterManual.FeeQuoter_GetValidatedFee.toCell({
         msg: {
-          queryID: 0n,
+          queryId: 0n,
           destChainSelector: ChainSelectors.testnet.solana,
           receiver: FeeQuoterSetup.DEST_ADDRESS,
           data: Cell.EMPTY,
@@ -1798,7 +1798,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const destAddressBytes = ToBuffer(FeeQuoterSetup.DEST_ADDRESS)
       const ccipSendBody = beginCell()
         .storeUint(rt.Router_CCIPSend.PREFIX, 32)
-        .storeUint(0, 64) // queryID
+        .storeUint(0, 64) // queryId
         .storeUint(ChainSelectors.testnet.evm, 64)
         .storeUint(destAddressBytes.byteLength, 8) // CrossChainAddress length prefix
         .storeBuffer(destAddressBytes)
@@ -1826,7 +1826,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     const rawExtraArgsMessage = (destChainSelector: bigint, extraArgs: Cell): Cell =>
       feeQuoterManual.FeeQuoter_GetValidatedFee.toCell({
         msg: {
-          queryID: 0n,
+          queryId: 0n,
           destChainSelector,
           receiver: FeeQuoterSetup.DEST_ADDRESS,
           data: Cell.EMPTY,

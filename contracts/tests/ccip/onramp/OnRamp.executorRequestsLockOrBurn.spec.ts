@@ -80,7 +80,7 @@ describe('OnRamp - ExecutorRequestsLockOrBurn', () => {
   async function deployRealExecutor(): Promise<Sender> {
     const result = await onramp.sendOnRampSend(mockRouter.getSender(), toNano('4'), {
       msg: or.Router_CCIPSend.create({
-        queryID: 1n,
+        queryId: 1n,
         destChainSelector: DEST_CHAIN_SELECTOR,
         receiver: FromBuffer(EVM_ADDRESS),
         data: beginCell().endCell(),
@@ -116,7 +116,7 @@ describe('OnRamp - ExecutorRequestsLockOrBurn', () => {
 
   const sendLockOrBurn = async () =>
     onramp.sendOnRampExecutorRequestsLockOrBurn(executorSender, toNano('1'), {
-      queryID: 7n,
+      queryId: 7n,
       tokenAmount: or.TokenAmount.create({ amount: 1n, token: deployer.address }),
       tokenPool: mockTokenPool.address,
       destChainSelector: DEST_CHAIN_SELECTOR,
@@ -137,7 +137,7 @@ describe('OnRamp - ExecutorRequestsLockOrBurn', () => {
         if (!x) return false
         const request = rt.Router_LockOrBurn.fromSlice(x.beginParse())
         return (
-          request.queryID === 7n &&
+          request.queryId === 7n &&
           request.tokenPool.equals(mockTokenPool.address) &&
           request.executorAddress.equals(executorAddress)
         )
@@ -167,7 +167,7 @@ describe('OnRamp - ExecutorRequestsLockOrBurn', () => {
       success: true,
       op: 0xfffffffe,
     })
-    // The failure carries the request's queryID and the Router's exit code (the Bouncer throws
+    // The failure carries the request's queryId and the Router's exit code (the Bouncer throws
     // 0xFFFF).
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
@@ -176,7 +176,7 @@ describe('OnRamp - ExecutorRequestsLockOrBurn', () => {
       body(x) {
         if (!x) return false
         const failed = or.OnRamp_LockOrBurnFailed.fromSlice(x.beginParse())
-        return failed.queryID === 7n && failed.errorCode === 0xffffn
+        return failed.queryId === 7n && failed.errorCode === 0xffffn
       },
     })
   })

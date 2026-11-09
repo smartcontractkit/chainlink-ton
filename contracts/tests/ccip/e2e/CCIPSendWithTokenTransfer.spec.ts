@@ -113,7 +113,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       value: TOKEN_AMOUNT + toNano('1') + toNano('0.3'),
       mintOpcode: WGRAM_MINT_OPCODE,
       message: {
-        queryID: 0n,
+        queryId: 0n,
         destination: sender.address,
         tonAmount: toNano('1'),
         jettonAmount: TOKEN_AMOUNT,
@@ -377,7 +377,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       const result = await senderWallet.sendTransfer(sender.getSender(), {
         value: toNano('2'),
         message: {
-          queryID: 1,
+          queryId: 1,
           jettonAmount: TOKEN_AMOUNT,
           destination: onRampAcccount.address,
           responseDestination: sender.address,
@@ -404,7 +404,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     }
 
     const ccipSend = rt.Router_CCIPSend.create({
-      queryID: 1n,
+      queryId: 1n,
       destChainSelector: DestChainSelector,
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,

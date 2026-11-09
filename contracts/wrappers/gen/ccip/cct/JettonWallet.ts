@@ -245,7 +245,7 @@ export const ForwardPayloadRemainder = {
 
 /**
  > struct (0x0f8a7ea5) AskToTransfer {
- >     queryID: uint64
+ >     queryId: uint64
  >     jettonAmount: coins
  >     transferRecipient: address
  >     sendExcessesTo: address?
@@ -256,7 +256,7 @@ export const ForwardPayloadRemainder = {
  */
 export interface AskToTransfer {
     readonly $: 'AskToTransfer'
-    queryID: uint64
+    queryId: uint64
     jettonAmount: coins
     transferRecipient: c.Address
     sendExcessesTo: c.Address | null
@@ -269,7 +269,7 @@ export const AskToTransfer = {
     PREFIX: 0x0f8a7ea5,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferRecipient: c.Address
         sendExcessesTo: c.Address | null
@@ -280,14 +280,14 @@ export const AskToTransfer = {
         return {
             $: 'AskToTransfer',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): AskToTransfer {
         loadAndCheckPrefix32(s, 0x0f8a7ea5, 'AskToTransfer');
         return {
             $: 'AskToTransfer',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             jettonAmount: s.loadCoins(),
             transferRecipient: s.loadAddress(),
             sendExcessesTo: s.loadMaybeAddress(),
@@ -298,7 +298,7 @@ export const AskToTransfer = {
     },
     store(self: AskToTransfer, b: c.Builder): void {
         b.storeUint(0x0f8a7ea5, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeCoins(self.jettonAmount);
         b.storeAddress(self.transferRecipient);
         b.storeAddress(self.sendExcessesTo);
@@ -315,7 +315,7 @@ export const AskToTransfer = {
 
 /**
  > struct (0x7362d09c) TransferNotificationForRecipient {
- >     queryID: uint64
+ >     queryId: uint64
  >     jettonAmount: coins
  >     transferInitiator: address?
  >     forwardPayload: ForwardPayloadRemainder
@@ -323,7 +323,7 @@ export const AskToTransfer = {
  */
 export interface TransferNotificationForRecipient {
     readonly $: 'TransferNotificationForRecipient'
-    queryID: uint64
+    queryId: uint64
     jettonAmount: coins
     transferInitiator: c.Address | null
     forwardPayload: ForwardPayloadRemainder
@@ -333,7 +333,7 @@ export const TransferNotificationForRecipient = {
     PREFIX: 0x7362d09c,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         forwardPayload: ForwardPayloadRemainder
@@ -341,14 +341,14 @@ export const TransferNotificationForRecipient = {
         return {
             $: 'TransferNotificationForRecipient',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TransferNotificationForRecipient {
         loadAndCheckPrefix32(s, 0x7362d09c, 'TransferNotificationForRecipient');
         return {
             $: 'TransferNotificationForRecipient',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             jettonAmount: s.loadCoins(),
             transferInitiator: s.loadMaybeAddress(),
             forwardPayload: ForwardPayloadRemainder.fromSlice(s),
@@ -356,7 +356,7 @@ export const TransferNotificationForRecipient = {
     },
     store(self: TransferNotificationForRecipient, b: c.Builder): void {
         b.storeUint(0x7362d09c, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeCoins(self.jettonAmount);
         b.storeAddress(self.transferInitiator);
         ForwardPayloadRemainder.store(self.forwardPayload, b);
@@ -368,7 +368,7 @@ export const TransferNotificationForRecipient = {
 
 /**
  > struct (0x178d4519) InternalTransferStep {
- >     queryID: uint64
+ >     queryId: uint64
  >     jettonAmount: coins
  >     transferInitiator: address?
  >     sendExcessesTo: address?
@@ -378,7 +378,7 @@ export const TransferNotificationForRecipient = {
  */
 export interface InternalTransferStep {
     readonly $: 'InternalTransferStep'
-    queryID: uint64
+    queryId: uint64
     jettonAmount: coins
     transferInitiator: c.Address | null
     sendExcessesTo: c.Address | null
@@ -390,7 +390,7 @@ export const InternalTransferStep = {
     PREFIX: 0x178d4519,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         sendExcessesTo: c.Address | null
@@ -400,14 +400,14 @@ export const InternalTransferStep = {
         return {
             $: 'InternalTransferStep',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): InternalTransferStep {
         loadAndCheckPrefix32(s, 0x178d4519, 'InternalTransferStep');
         return {
             $: 'InternalTransferStep',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             jettonAmount: s.loadCoins(),
             transferInitiator: s.loadMaybeAddress(),
             sendExcessesTo: s.loadMaybeAddress(),
@@ -417,7 +417,7 @@ export const InternalTransferStep = {
     },
     store(self: InternalTransferStep, b: c.Builder): void {
         b.storeUint(0x178d4519, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeCoins(self.jettonAmount);
         b.storeAddress(self.transferInitiator);
         b.storeAddress(self.sendExcessesTo);
@@ -461,7 +461,7 @@ export const TopUpTons = {
 
 /**
  > struct (0x595f07bc) CCT_AskToBurn {
- >     queryID: uint64
+ >     queryId: uint64
  >     jettonAmount: coins
  >     sendExcessesTo: address?
  >     customPayload: cell?
@@ -470,7 +470,7 @@ export const TopUpTons = {
  */
 export interface CCT_AskToBurn {
     readonly $: 'CCT_AskToBurn'
-    queryID: uint64
+    queryId: uint64
     jettonAmount: coins
     sendExcessesTo: c.Address | null
     customPayload: c.Cell | null
@@ -481,7 +481,7 @@ export const CCT_AskToBurn = {
     PREFIX: 0x595f07bc,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         jettonAmount: coins
         sendExcessesTo: c.Address | null
         customPayload: c.Cell | null
@@ -490,14 +490,14 @@ export const CCT_AskToBurn = {
         return {
             $: 'CCT_AskToBurn',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): CCT_AskToBurn {
         loadAndCheckPrefix32(s, 0x595f07bc, 'CCT_AskToBurn');
         return {
             $: 'CCT_AskToBurn',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             jettonAmount: s.loadCoins(),
             sendExcessesTo: s.loadMaybeAddress(),
             customPayload: s.loadBoolean() ? s.loadRef() : null,
@@ -506,7 +506,7 @@ export const CCT_AskToBurn = {
     },
     store(self: CCT_AskToBurn, b: c.Builder): void {
         b.storeUint(0x595f07bc, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeCoins(self.jettonAmount);
         b.storeAddress(self.sendExcessesTo);
         storeTolkNullable<c.Cell>(self.customPayload, b,
@@ -523,7 +523,7 @@ export const CCT_AskToBurn = {
 
 /**
  > struct (0x7bdd97de) CCT_BurnNotificationForMinter {
- >     queryID: uint64
+ >     queryId: uint64
  >     jettonAmount: coins
  >     burnInitiator: address
  >     sendExcessesTo: address?
@@ -532,7 +532,7 @@ export const CCT_AskToBurn = {
  */
 export interface CCT_BurnNotificationForMinter {
     readonly $: 'CCT_BurnNotificationForMinter'
-    queryID: uint64
+    queryId: uint64
     jettonAmount: coins
     burnInitiator: c.Address
     sendExcessesTo: c.Address | null
@@ -543,7 +543,7 @@ export const CCT_BurnNotificationForMinter = {
     PREFIX: 0x7bdd97de,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         jettonAmount: coins
         burnInitiator: c.Address
         sendExcessesTo: c.Address | null
@@ -553,14 +553,14 @@ export const CCT_BurnNotificationForMinter = {
             $: 'CCT_BurnNotificationForMinter',
             forwardPayload: null,
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): CCT_BurnNotificationForMinter {
         loadAndCheckPrefix32(s, 0x7bdd97de, 'CCT_BurnNotificationForMinter');
         return {
             $: 'CCT_BurnNotificationForMinter',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             jettonAmount: s.loadCoins(),
             burnInitiator: s.loadAddress(),
             sendExcessesTo: s.loadMaybeAddress(),
@@ -569,7 +569,7 @@ export const CCT_BurnNotificationForMinter = {
     },
     store(self: CCT_BurnNotificationForMinter, b: c.Builder): void {
         b.storeUint(0x7bdd97de, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeCoins(self.jettonAmount);
         b.storeAddress(self.burnInitiator);
         b.storeAddress(self.sendExcessesTo);
@@ -584,14 +584,14 @@ export const CCT_BurnNotificationForMinter = {
 
 /**
  > struct (0xd53276db) CCT_ReturnExcessesBack {
- >     queryID: uint64
+ >     queryId: uint64
  >     initiator: address
  >     forwardPayload: cell?
  > }
  */
 export interface CCT_ReturnExcessesBack {
     readonly $: 'CCT_ReturnExcessesBack'
-    queryID: uint64
+    queryId: uint64
     initiator: c.Address
     forwardPayload: c.Cell | null /* = null */
 }
@@ -600,7 +600,7 @@ export const CCT_ReturnExcessesBack = {
     PREFIX: 0xd53276db,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         initiator: c.Address
         forwardPayload?: c.Cell | null /* = null */
     }): CCT_ReturnExcessesBack {
@@ -608,21 +608,21 @@ export const CCT_ReturnExcessesBack = {
             $: 'CCT_ReturnExcessesBack',
             forwardPayload: null,
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): CCT_ReturnExcessesBack {
         loadAndCheckPrefix32(s, 0xd53276db, 'CCT_ReturnExcessesBack');
         return {
             $: 'CCT_ReturnExcessesBack',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             initiator: s.loadAddress(),
             forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: CCT_ReturnExcessesBack, b: c.Builder): void {
         b.storeUint(0xd53276db, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeAddress(self.initiator);
         storeTolkNullable<c.Cell>(self.forwardPayload, b,
             (v,b) => b.storeRef(v)
@@ -710,7 +710,7 @@ export class JettonWallet implements c.Contract {
     }
 
     static createCellOfAskToTransfer(body: {
-        queryID?: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferRecipient: c.Address
         sendExcessesTo: c.Address | null
@@ -722,7 +722,7 @@ export class JettonWallet implements c.Contract {
     }
 
     static createCellOfCCTAskToBurn(body: {
-        queryID?: uint64
+        queryId?: uint64
         jettonAmount: coins
         sendExcessesTo: c.Address | null
         customPayload: c.Cell | null
@@ -732,7 +732,7 @@ export class JettonWallet implements c.Contract {
     }
 
     static createCellOfInternalTransferStep(body: {
-        queryID?: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         sendExcessesTo: c.Address | null
@@ -764,7 +764,7 @@ export class JettonWallet implements c.Contract {
     }
 
     async sendAskToTransfer(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferRecipient: c.Address
         sendExcessesTo: c.Address | null
@@ -780,7 +780,7 @@ export class JettonWallet implements c.Contract {
     }
 
     async sendCCTAskToBurn(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         jettonAmount: coins
         sendExcessesTo: c.Address | null
         customPayload: c.Cell | null
@@ -794,7 +794,7 @@ export class JettonWallet implements c.Contract {
     }
 
     async sendInternalTransferStep(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         jettonAmount: coins
         transferInitiator: c.Address | null
         sendExcessesTo: c.Address | null

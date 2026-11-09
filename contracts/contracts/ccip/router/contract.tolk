@@ -167,7 +167,7 @@ fun onInternalMessage(in: InMessage) {
                 bounce: BounceMode.NoBounce,
                 value: 0,
                 dest: in.senderAddress,
-                body: Router_RMNRemoteVerifyNotCursedResponse { queryID: msg.queryID, result },
+                body: Router_RMNRemoteVerifyNotCursedResponse { queryId: msg.queryId, result },
             });
             reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
@@ -223,7 +223,7 @@ fun onInternalMessage(in: InMessage) {
             if (isCursed(st, details.remoteChainSelector)) {
                 return sendLockOrBurnRelayFailure(
                     msg.executorAddress,
-                    msg.queryID,
+                    msg.queryId,
                     msg.tokenPool,
                     Router_Error.SubjectCursed as int32,
                 );
@@ -244,7 +244,7 @@ fun onInternalMessage(in: InMessage) {
                     expectedOffRamp,
                     msg.sourceChainSelector,
                     msg.replyTo,
-                    msg.queryID,
+                    msg.queryId,
                     msg.tokenPool,
                     Router_Error.SubjectCursed as int32,
                 );
@@ -322,7 +322,7 @@ fun onBouncedMessage(in: InMessageBounced) {
         TokenPool_LockOrBurn => {
             sendLockOrBurnRelayFailure(
                 richMsg.replyTo,
-                richMsg.queryID,
+                richMsg.queryId,
                 in.senderAddress,
                 rich.exitCode,
             );
@@ -338,7 +338,7 @@ fun onBouncedMessage(in: InMessageBounced) {
                 offRamp,
                 details.remoteChainSelector,
                 richMsg.replyTo,
-                richMsg.queryID,
+                richMsg.queryId,
                 in.senderAddress,
                 rich.exitCode,
             );
@@ -355,7 +355,7 @@ fun onBouncedMessage(in: InMessageBounced) {
                         sendDepositAccountInitFailure(context, rich.exitCode);
                     }
                     Router_OnRampAccountContext => {
-                        sendOnRampAccountFailed(context.user, richMsg.queryID, rich.exitCode);
+                        sendOnRampAccountFailed(context.user, richMsg.queryId, rich.exitCode);
                     }
                 }
             }
@@ -396,7 +396,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 //     Router          ->> Receiver: Receiver_CCIPReceiveV2
 fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>, offramp: address) {
     val ccipReceive: Receiver_CCIPReceiveV2 = {
-        queryID: msg.queryID,
+        queryId: msg.queryId,
         execId: msg.execId,
         confirmValue: ROUTER_RECEIVE_CONFIRM_VALUE,
         message,
@@ -422,7 +422,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>, offr
         value: 0,
         dest: offramp,
         body: OffRamp_ReturnExcessToExecutor {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             execId: msg.execId,
         },
     });
@@ -440,7 +440,7 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     if (request.replyTo != msg.executor) {
         return sendLockOrBurnRelayFailure(
             msg.executor,
-            msg.queryID,
+            msg.queryId,
             withdrawRequest.tokenPool,
             Router_Error.WithdrawExecutorMismatch as int32,
         );
@@ -452,7 +452,7 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     // wallet's unused value returns to it rather than accumulating in the OnRamp.
     val extra = request.extra != null ? request.extra!.load() : null;
     val ask = AskToTransfer {
-        queryID: msg.queryID,
+        queryId: msg.queryId,
         jettonAmount: withdrawRequest.amount,
         transferRecipient: withdrawRequest.tokenPool,
         sendExcessesTo: extra != null && extra.sendExcessesTo != null
@@ -467,7 +467,7 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
         bounce: BounceMode.RichBounce,
         value: 0,
         dest: onRampAccountAddress(account.user, account.token),
-        body: DepositAccount_Withdraw { queryID: msg.queryID, ask },
+        body: DepositAccount_Withdraw { queryId: msg.queryId, ask },
     });
     withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
@@ -513,7 +513,7 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
         value: 0,
         dest: account.calculateAddress(),
         body: DepositAccount_Init {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             context: Router_OnRampAccountContext { user: sender, token: msg.token }.toCell(),
         },
     });
@@ -531,7 +531,7 @@ fun onOnRampAccountReady(context: Router_OnRampAccountContext, msg: DepositAccou
         value: 0,
         dest: user,
         body: Router_UseOnRampAccount {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             account: sender,
             token: context.token,
         },
@@ -551,7 +551,7 @@ fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: a
     emit(TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC, TokenPoolWithdrawBounced {
         wallet: msg.walletAddress,
         tokenPool: request.ask.transferRecipient,
-        queryID: msg.queryID,
+        queryId: msg.queryId,
         exitCode: 0,
     });
     // The event's forward fee comes out of the inbound value, not the Router's balance.
@@ -565,7 +565,7 @@ fun failWithdrawToTokenPool(request: DepositAccount_Withdraw, errorCode: int32, 
     val fwpCell = loadForwardPayloadAsCell(request.ask.forwardPayload)!;
     val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromCell(fwpCell);
     val lockOrBurn = lazy fwdp.requestMsg.load();
-    sendLockOrBurnRelayFailure(lockOrBurn.replyTo, lockOrBurn.queryID, request.ask.transferRecipient, errorCode, mode);
+    sendLockOrBurnRelayFailure(lockOrBurn.replyTo, lockOrBurn.queryId, request.ask.transferRecipient, errorCode, mode);
 }
 
 /// Returns accidentally transferred jettons to the transfer initiator. The Router's own jetton
@@ -582,7 +582,7 @@ fun returnAccidentalTransfer(walletSender: address, msg: TransferNotificationFor
         value: 0,
         dest: walletSender,
         body: AskToTransfer {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             jettonAmount: msg.jettonAmount,
             transferRecipient: msg.transferInitiator,
             sendExcessesTo: msg.transferInitiator,
@@ -614,7 +614,7 @@ fun onWithdrawToTokenPoolFailed(msg: Router_WithdrawToTokenPoolFailed) {
         value: 0,
         dest: withdrawRequest.tokenPool,
         body: TokenPool_LockOrBurnWithdrawFailed {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             forwardPayload: withdrawRequest.forwardPayload,
             errorCode: msg.errorCode,
         },
@@ -721,7 +721,7 @@ fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
         value: 0, 
         dest: offRamp,
         body: OffRamp_CCIPReceiveConfirm {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             execId: msg.execId,
             receiver: sender,
         },
@@ -738,7 +738,7 @@ fun onCCIPReceiveConfirmRejected(msg: Router_CCIPReceiveConfirmRejectedByExecuto
         value: 0,
         dest: msg.receiver,
         body: Router_CCIPReceiveConfirmRejected {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
         },
     });
     rejected.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
@@ -766,7 +766,7 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
     val sourceChainSelector = execId.getSourceChainSelector();
     val offRamp = st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled);
 
-    // queryID is omitted: the ReceiveExecutor already stores it in its own storage.
+    // queryId is omitted: the ReceiveExecutor already stores it in its own storage.
     val receiveBounced = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
@@ -939,12 +939,12 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
     if (msg.feeToken == null) {
         msg.feeToken = NATIVE_GRAM
     } else if (msg.feeToken != NATIVE_GRAM) {
-        return sendMessageRejected(sender, msg.queryID, Router_Error.FeePaymentsWithJettonsNotSupported as int32);
+        return sendMessageRejected(sender, msg.queryId, Router_Error.FeePaymentsWithJettonsNotSupported as int32);
     }
 
     val onRampResult = st.onRamps.get(msg.destChainSelector);
     if (!onRampResult.isFound) {
-        return sendMessageRejected(sender, msg.queryID, Router_Error.DestChainNotEnabled as int32);
+        return sendMessageRejected(sender, msg.queryId, Router_Error.DestChainNotEnabled as int32);
     }
     val sendMsg = createMessage({
         bounce: BounceMode.RichBounce,
@@ -959,7 +959,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
 /// exit code, forwarding the returned value.
 fun onOnRampSendBounced(msg: OnRamp_Send, errorCode: int32) {
     val ccipSend = lazy msg.msg.load();
-    sendMessageRejected(msg.metadata.sender, ccipSend.queryID, errorCode);
+    sendMessageRejected(msg.metadata.sender, ccipSend.queryId, errorCode);
 }
 
 // Handles an OnRamp_GetValidatedFee bounced by the OnRamp: replies to the original caller
@@ -1049,7 +1049,7 @@ fun onSendACK(msg: Router_MessageSent) {
         value: 0,
         dest: msg.sender,
         body: Router_CCIPSendACK {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             messageId: msg.messageId,
         }
     });
@@ -1070,16 +1070,16 @@ fun onSendACK(msg: Router_MessageSent) {
 //     OnRamp           ->> Router:    Router_MessageRejected
 //     Router           ->> SenderAcc: Router_CCIPSendNACK
 fun onSendNACK(msg: Router_MessageRejected) {
-    sendMessageRejected(msg.sender, msg.queryID, msg.errorCode);
+    sendMessageRejected(msg.sender, msg.queryId, msg.errorCode);
 }
 
-fun sendMessageRejected(sender: address, queryID: uint64, errorCode: int32) {
+fun sendMessageRejected(sender: address, queryId: uint64, errorCode: int32) {
     val nackMsg = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: Router_CCIPSendNACK {
-            queryID,
+            queryId,
             errorCode,
         }
     });
@@ -1110,7 +1110,7 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
         value: 0,
         dest: msg.tokenPool,
         body: TokenPool_LockOrBurn {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             request: msg.request,
             requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
             tokenArgs: null, // TODO[REFACTOR]: [NONEVM-5336] tokenArgs are not supported?
@@ -1178,7 +1178,7 @@ fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
         value: 0,
         dest: account.calculateAddress(),
         body: DepositAccount_Init {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             context: msg.toCell(),
         },
     });
@@ -1212,7 +1212,7 @@ fun onReceiverAccountReady(relay: Router_RelayReleaseOrMint, sender: address) {
         value: 0,
         dest: relay.tokenPool,
         body: TokenPool_ReleaseOrMint {
-            queryID: relay.queryID,
+            queryId: relay.queryId,
             request: relay.request,
             requestedFinalityConfig: relay.requestedFinalityConfig,
             replyTo: relay.replyTo,
@@ -1242,17 +1242,17 @@ fun onDepositAccountWalletUnavailable(msg: DepositAccount_WalletUnavailable, sen
         }
         Router_OnRampAccountContext => {
             assert (sender == onRampAccountAddress(context.user, context.token)) throw (Router_Error.SenderIsNotOnRampAccount);
-            sendOnRampAccountFailed(context.user, msg.queryID, Router_Error.DepositAccountWalletUnavailable as int32);
+            sendOnRampAccountFailed(context.user, msg.queryId, Router_Error.DepositAccountWalletUnavailable as int32);
         }
     }
 }
 
-fun sendOnRampAccountFailed(user: address, queryID: uint64, errorCode: int32) {
+fun sendOnRampAccountFailed(user: address, queryId: uint64, errorCode: int32) {
     val failed = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: user,
-        body: Router_OnRampAccountFailed { queryID, errorCode },
+        body: Router_OnRampAccountFailed { queryId, errorCode },
     });
     failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
@@ -1264,7 +1264,7 @@ fun sendDepositAccountInitFailure(relay: Router_RelayReleaseOrMint, errorCode: i
         offRamp,
         relay.sourceChainSelector,
         relay.replyTo,
-        relay.queryID,
+        relay.queryId,
         relay.tokenPool,
         errorCode,
     );
@@ -1277,7 +1277,7 @@ fun onTokenTransferDelivered(msg: Router_TokenTransferDelivered) {
         value: 0,
         dest: msg.tokenPool,
         body: TokenPool_ReleaseOrMintDelivered {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             replyTo: msg.replyTo,
             transfer: msg.transfer,
         },
@@ -1319,7 +1319,7 @@ fun isCursed(st: Storage, remoteChainSelector: uint64): bool {
 
 fun sendLockOrBurnRelayFailure(
     executor: address,
-    queryID: uint64,
+    queryId: uint64,
     tokenPool: address,
     errorCode: int32,
     mode: int = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
@@ -1328,7 +1328,7 @@ fun sendLockOrBurnRelayFailure(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: executor,
-        body: Router_TokenPoolLockOrBurnFailed { queryID, tokenPool, errorCode },
+        body: Router_TokenPoolLockOrBurnFailed { queryId, tokenPool, errorCode },
     });
     failed.send(mode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
@@ -1340,7 +1340,7 @@ fun sendReleaseOrMintRelayFailure(
     offRamp: address,
     sourceChainSelector: uint64,
     replyTo: address,
-    queryID: uint64,
+    queryId: uint64,
     tokenPool: address,
     errorCode: int32,
 ) {
@@ -1349,7 +1349,7 @@ fun sendReleaseOrMintRelayFailure(
         value: 0,
         dest: offRamp,
         body: Router_TokenPoolReleaseOrMintFailed {
-            queryID,
+            queryId,
             sourceChainSelector,
             replyTo,
             tokenPool,

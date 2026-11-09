@@ -143,7 +143,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
   // so the OnRamp's executor-address authorization passes.
   async function deployRealExecutor(): Promise<Sender> {
     const ccipSend = or.Router_CCIPSend.create({
-      queryID: 1n,
+      queryId: 1n,
       destChainSelector: DEST_CHAIN_SELECTOR,
       receiver: FromBuffer(VALID_EVM_TOKEN_ADDRESS),
       data: beginCell().endCell(),
@@ -192,7 +192,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
     destBytesOverhead: bigint = 32n,
   ) =>
     onramp.sendOnRampExecutorRequestsWithdraw(executorSender, toNano('1'), {
-      queryID: 1n,
+      queryId: 1n,
       executorID,
       destChainSelector: DEST_CHAIN_SELECTOR,
       chainFamilySelector,
@@ -259,7 +259,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
         if (!x) return false
         const failure = rt.Router_WithdrawToTokenPoolFailed.fromSlice(x.beginParse())
         return (
-          failure.queryID === 1n &&
+          failure.queryId === 1n &&
           failure.errorCode === BigInt(or.OnRamp.Errors['OnRamp_Error.SourceTokenDataTooLarge'])
         )
       },
@@ -289,7 +289,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
         if (!x) return false
         const failure = rt.Router_WithdrawToTokenPoolFailed.fromSlice(x.beginParse())
         return (
-          failure.queryID === 1n &&
+          failure.queryId === 1n &&
           failure.errorCode === BigInt(or.OnRamp.Errors['OnRamp_Error.InvalidDestTokenAddress'])
         )
       },

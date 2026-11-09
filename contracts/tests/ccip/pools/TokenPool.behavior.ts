@@ -176,7 +176,7 @@ export function runTokenPoolBehaviorTests(
         describe('LockOrBurn', () => {
           function sendLockOrBurn(value: bigint) {
             return ctx.pool.sendTokenPoolLockOrBurn(ctx.deployer.getSender(), value, {
-              queryID: 903n,
+              queryId: 903n,
               request: TokenPool_LockOrBurnInV1.create({
                 transfer: TokenPool_Transfer.create({
                   id: 903n,
@@ -235,7 +235,7 @@ export function runTokenPoolBehaviorTests(
         describe('ReleaseOrMint', () => {
           function sendReleaseOrMint(value: bigint) {
             return ctx.pool.sendTokenPoolReleaseOrMint(ctx.deployer.getSender(), value, {
-              queryID: 903n,
+              queryId: 903n,
               request: releaseRequest(ctx),
               requestedFinalityConfig: 0n,
               replyTo: ctx.deployer.address,
@@ -340,7 +340,7 @@ export function runTokenPoolBehaviorTests(
         ctx.unauthorized.getSender(),
         toNano('0.3'),
         {
-          queryID: 901n,
+          queryId: 901n,
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
@@ -363,7 +363,7 @@ export function runTokenPoolBehaviorTests(
         ctx.offRamp.getSender(),
         toNano('0.3'),
         {
-          queryID: 900n,
+          queryId: 900n,
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
@@ -389,7 +389,7 @@ export function runTokenPoolBehaviorTests(
         ctx.unauthorized.getSender(),
         toNano('0.3'),
         {
-          queryID: 920n,
+          queryId: 920n,
           jettonAmount: toNano('1'),
           transferInitiator: ctx.unauthorized.address,
           forwardPayload: Cell.EMPTY.beginParse(),
@@ -408,7 +408,7 @@ export function runTokenPoolBehaviorTests(
       const ctx = await setup()
 
       await ctx.pool.sendTokenPoolCurse(ctx.deployer.getSender(), toNano('0.2'), {
-        queryID: 901n,
+        queryId: 901n,
         subjects: [ctx.remoteChainSelector],
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
@@ -417,7 +417,7 @@ export function runTokenPoolBehaviorTests(
         ctx.deployer.getSender(),
         toNano('0.3'),
         {
-          queryID: 902n,
+          queryId: 902n,
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
@@ -443,7 +443,7 @@ export function runTokenPoolBehaviorTests(
       // Tighten the inbound bucket to a non-refilling capacity of 1 so we can
       // deterministically hit the ceiling on the second release (EVM parity: TokenRateLimitReached).
       await ctx.pool.sendTokenPoolSetRateLimitConfig(ctx.deployer.getSender(), toNano('0.2'), {
-        queryID: 930n,
+        queryId: 930n,
         updates: [
           TokenPool_RateLimitConfigArgs.create({
             remoteChainSelector: ctx.remoteChainSelector,
@@ -467,7 +467,7 @@ export function runTokenPoolBehaviorTests(
         ctx.deployer.getSender(),
         toNano('0.3'),
         {
-          queryID: 931n,
+          queryId: 931n,
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
@@ -485,7 +485,7 @@ export function runTokenPoolBehaviorTests(
         ctx.deployer.getSender(),
         toNano('0.3'),
         {
-          queryID: 932n,
+          queryId: 932n,
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
@@ -511,7 +511,7 @@ export function runTokenPoolBehaviorTests(
         ctx.unauthorized.getSender(),
         toNano('0.2'),
         {
-          queryID: 903n,
+          queryId: 903n,
           remoteChainSelectorsToRemove: [],
           chainsToAdd: [],
         },
@@ -530,7 +530,7 @@ export function runTokenPoolBehaviorTests(
         ctx.unauthorized.getSender(),
         toNano('0.2'),
         {
-          queryID: 904n,
+          queryId: 904n,
           subjects: [ctx.remoteChainSelector],
         },
       )
@@ -545,13 +545,13 @@ export function runTokenPoolBehaviorTests(
     it('can clear cursed subject back to not cursed', async () => {
       const ctx = await setup()
       await ctx.pool.sendTokenPoolCurse(ctx.deployer.getSender(), toNano('0.2'), {
-        queryID: 901n,
+        queryId: 901n,
         subjects: [ctx.remoteChainSelector],
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(false)
 
       await ctx.pool.sendTokenPoolUncurse(ctx.deployer.getSender(), toNano('0.2'), {
-        queryID: 902n,
+        queryId: 902n,
         subjects: [ctx.remoteChainSelector],
       })
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(true)
@@ -567,7 +567,7 @@ export function runTokenPoolBehaviorTests(
         toNano('0.2'),
         {
           content: AccessControl_GrantRole.create({
-            queryID: 905n,
+            queryId: 905n,
             role: CURSE_ROLE,
             account: ctx.unauthorized.address,
           }),
@@ -583,7 +583,7 @@ export function runTokenPoolBehaviorTests(
         ctx.unauthorized.getSender(),
         toNano('0.2'),
         {
-          queryID: 906n,
+          queryId: 906n,
           subjects: [ctx.remoteChainSelector],
         },
       )
@@ -598,7 +598,7 @@ export function runTokenPoolBehaviorTests(
       const uncursed = await ctx.pool.sendTokenPoolUncurse(
         ctx.unauthorized.getSender(),
         toNano('0.2'),
-        { queryID: 907n, subjects: [ctx.remoteChainSelector] },
+        { queryId: 907n, subjects: [ctx.remoteChainSelector] },
       )
       expect(uncursed.transactions).toHaveTransaction({
         from: ctx.unauthorized.address,
@@ -614,7 +614,7 @@ export function runTokenPoolBehaviorTests(
         toNano('0.2'),
         {
           content: AccessControl_GrantRole.create({
-            queryID: 908n,
+            queryId: 908n,
             role: CURSE_ROLE,
             account: ctx.unauthorized.address,
           }),
@@ -638,12 +638,12 @@ export function runTokenPoolBehaviorTests(
 
       await ctx.pool.sendTokenPoolRMNOwnableMessage(ctx.deployer.getSender(), toNano('0.2'), {
         content: Ownable2Step_TransferOwnership.toCell(
-          Ownable2Step_TransferOwnership.create({ queryID: 910n, newOwner: newAdmin.address }),
+          Ownable2Step_TransferOwnership.create({ queryId: 910n, newOwner: newAdmin.address }),
         ).asSlice(),
       })
       await ctx.pool.sendTokenPoolRMNOwnableMessage(newAdmin.getSender(), toNano('0.2'), {
         content: Ownable2Step_AcceptOwnership.toCell(
-          Ownable2Step_AcceptOwnership.create({ queryID: 911n }),
+          Ownable2Step_AcceptOwnership.create({ queryId: 911n }),
         ).asSlice(),
       })
 
@@ -653,7 +653,7 @@ export function runTokenPoolBehaviorTests(
       expect(await ctx.pool.getRmnCanCurse(ctx.deployer.address)).toBe(false)
 
       const byOwner = await ctx.pool.sendTokenPoolCurse(ctx.deployer.getSender(), toNano('0.2'), {
-        queryID: 912n,
+        queryId: 912n,
         subjects: [ctx.remoteChainSelector],
       })
       expect(byOwner.transactions).toHaveTransaction({
@@ -664,7 +664,7 @@ export function runTokenPoolBehaviorTests(
       expect(await ctx.pool.getVerifyNotCursed(ctx.remoteChainSelector)).toBe(true)
 
       const byAdmin = await ctx.pool.sendTokenPoolCurse(newAdmin.getSender(), toNano('0.2'), {
-        queryID: 913n,
+        queryId: 913n,
         subjects: [ctx.remoteChainSelector],
       })
       expect(byAdmin.transactions).toHaveTransaction({
@@ -681,7 +681,7 @@ export function runTokenPoolBehaviorTests(
         ctx.deployer.getSender(),
         toNano('0.2'),
         {
-          queryID: 905n,
+          queryId: 905n,
           remoteChainSelectorsToRemove: [ctx.remoteChainSelector],
           chainsToAdd: [],
         },
@@ -698,7 +698,7 @@ export function runTokenPoolBehaviorTests(
     it('reverts releaseOrMint after configured chain is removed', async () => {
       const ctx = await setup()
       await ctx.pool.sendTokenPoolApplyChainUpdates(ctx.deployer.getSender(), toNano('0.2'), {
-        queryID: 906n,
+        queryId: 906n,
         remoteChainSelectorsToRemove: [ctx.remoteChainSelector],
         chainsToAdd: [],
       })
@@ -707,7 +707,7 @@ export function runTokenPoolBehaviorTests(
         ctx.deployer.getSender(),
         toNano('0.3'),
         {
-          queryID: 907n,
+          queryId: 907n,
           request: releaseRequest(ctx),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
@@ -728,7 +728,7 @@ export function runTokenPoolBehaviorTests(
         ctx.deployer.getSender(),
         toNano('0.2'),
         {
-          queryID: 908n,
+          queryId: 908n,
           remoteChainSelectorsToRemove: [ctx.remoteChainSelector + 1n],
           chainsToAdd: [],
         },
@@ -752,7 +752,7 @@ export function runTokenPoolBehaviorTests(
         ctx.deployer.getSender(),
         toNano('0.3'),
         {
-          queryID: 912n,
+          queryId: 912n,
           request: releaseRequest(ctx, { sourcePoolAddress: wrongSourcePoolAddress }),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
@@ -774,7 +774,7 @@ export function runTokenPoolBehaviorTests(
         ctx.deployer.getSender(),
         toNano('0.3'),
         {
-          queryID: 913n,
+          queryId: 913n,
           request: releaseRequest(ctx, {
             transfer: TokenPool_Transfer.create({
               id: 1n,
@@ -804,7 +804,7 @@ export function runTokenPoolBehaviorTests(
       const ctx = await setup()
 
       await ctx.pool.sendTokenPoolApplyChainUpdates(ctx.deployer.getSender(), toNano('0.2'), {
-        queryID: 917n,
+        queryId: 917n,
         remoteChainSelectorsToRemove: [ctx.remoteChainSelector],
         chainsToAdd: [],
       })
@@ -813,7 +813,7 @@ export function runTokenPoolBehaviorTests(
         ctx.deployer.getSender(),
         toNano('0.2'),
         {
-          queryID: 918n,
+          queryId: 918n,
           remoteChainSelectorsToRemove: [],
           chainsToAdd: [
             TokenPool_ChainUpdate.create({
@@ -845,16 +845,16 @@ export function runTokenPoolBehaviorTests(
       expect(await ctx.pool.getIsSupportedChain(ctx.remoteChainSelector)).toBe(true)
     })
 
-    it('reuses the same caller queryID safely across repeated release continuations', async () => {
+    it('reuses the same caller queryId safely across repeated release continuations', async () => {
       const ctx = await setup()
       const amount = toNano('1')
-      const queryID = 700n
+      const queryId = 700n
 
       const repeatedRequest = {
-        queryID,
+        queryId,
         request: releaseRequest(ctx, {
           transfer: TokenPool_Transfer.create({
-            id: queryID,
+            id: queryId,
             details: TokenPool_TransferDetails.create({
               originalSender: ctx.sourcePoolAddress,
               remoteChainSelector: ctx.remoteChainSelector,
@@ -898,7 +898,7 @@ export function runTokenPoolBehaviorTests(
         const notification = TransferNotificationForRecipient.fromSlice(slice)
         const notify = parseDepositAccountNotify(notification.forwardPayload)
         return (
-          notification.queryID === queryID &&
+          notification.queryId === queryId &&
           notification.jettonAmount === amount &&
           sameInitiator(notification.transferInitiator, ctx.releaseOrMintInitiator) &&
           notify?.equals(ctx.deployer.address) === true
@@ -923,7 +923,7 @@ export function runTokenPoolBehaviorTests(
           return false
         }
 
-        return TokenPool_ReleaseOrMintFailure.fromSlice(slice).queryID === queryID
+        return TokenPool_ReleaseOrMintFailure.fromSlice(slice).queryId === queryId
       })
 
       expect(completions).toHaveLength(2)
@@ -937,7 +937,7 @@ export function runTokenPoolBehaviorTests(
         ctx.unauthorized.getSender(),
         toNano('0.05'),
         {
-          queryID: 950n,
+          queryId: 950n,
         },
       )
       expect(result.transactions).toHaveTransaction({
@@ -948,7 +948,7 @@ export function runTokenPoolBehaviorTests(
           if (!body) return false
           const answer = TokenPool_Config.fromSlice(body.beginParse())
           return (
-            answer.queryID === 950n &&
+            answer.queryId === 950n &&
             sameInitiator(answer.transferInitiator, ctx.releaseOrMintInitiator) &&
             answer.admission.lockOrBurn === lockOrBurn.admission &&
             answer.admission.releaseOrMint === releaseOrMint.admission
@@ -972,7 +972,7 @@ export function runTokenPoolBehaviorTests(
           ctx.deployer.getSender(),
           toNano('0.05'),
           {
-            queryID: 960n,
+            queryId: 960n,
             budget: raised,
           },
         )
@@ -988,7 +988,7 @@ export function runTokenPoolBehaviorTests(
           from: ctx.pool.address,
           to: ctx.deployer.address,
           body: TokenPool_BudgetSet.toCell(
-            TokenPool_BudgetSet.create({ queryID: 960n, budget: effective }),
+            TokenPool_BudgetSet.create({ queryId: 960n, budget: effective }),
           ),
         })
       })
@@ -997,7 +997,7 @@ export function runTokenPoolBehaviorTests(
         const ctx = await setup()
         const defaults = await ctx.pool.getBudget()
         await ctx.pool.sendTokenPoolSetBudget(ctx.deployer.getSender(), toNano('0.05'), {
-          queryID: 961n,
+          queryId: 961n,
           budget: TokenPool_Budget.create({
             lockOrBurn: TokenPool_LockOrBurnBudget.create({ admission: 1n, safety: 1n }),
             releaseOrMint: TokenPool_ReleaseOrMintBudget.create({ admission: 1n, safety: 1n }),
@@ -1012,7 +1012,7 @@ export function runTokenPoolBehaviorTests(
           ctx.unauthorized.getSender(),
           toNano('0.05'),
           {
-            queryID: 962n,
+            queryId: 962n,
             budget: raised,
           },
         )
@@ -1038,7 +1038,7 @@ export function runTokenPoolBehaviorTests(
       const result = await ctx.pool.sendTokenPoolReleaseOrMintDelivered(
         ctx.deployer.getSender(),
         toNano('0.1'),
-        { queryID: 941n, replyTo: ctx.recipient.address, transfer: deliveredTransfer(ctx) },
+        { queryId: 941n, replyTo: ctx.recipient.address, transfer: deliveredTransfer(ctx) },
       )
       expect(result.transactions).toHaveTransaction({
         from: ctx.deployer.address,
@@ -1051,7 +1051,7 @@ export function runTokenPoolBehaviorTests(
         op: TokenPool_ReleaseOrMintFinalized.PREFIX,
         body(body) {
           if (!body) return false
-          return TokenPool_ReleaseOrMintFinalized.fromSlice(body.beginParse()).queryID === 941n
+          return TokenPool_ReleaseOrMintFinalized.fromSlice(body.beginParse()).queryId === 941n
         },
       })
       const events = getExternals(result.transactions).filter((ext) =>
@@ -1080,7 +1080,7 @@ export function runTokenPoolBehaviorTests(
       const result = await ctx.pool.sendTokenPoolReleaseOrMintDelivered(
         ctx.unauthorized.getSender(),
         toNano('0.1'),
-        { queryID: 942n, replyTo: ctx.recipient.address, transfer: deliveredTransfer(ctx) },
+        { queryId: 942n, replyTo: ctx.recipient.address, transfer: deliveredTransfer(ctx) },
       )
       expect(result.transactions).toHaveTransaction({
         from: ctx.unauthorized.address,
@@ -1097,7 +1097,7 @@ export function runTokenPoolBehaviorTests(
         ctx.deployer.getSender(),
         toNano('0.1'),
         {
-          queryID: 943n,
+          queryId: 943n,
           replyTo: ctx.recipient.address,
           transfer: deliveredTransfer(ctx, ctx.unauthorized.address),
         },

@@ -64,7 +64,7 @@ sequenceDiagram
     ORM ->> OR: ExecutorFinishedSuccessfully{msgID, data:<br>CCIPSend} +<br>TON remaining balance
     note over OR: assign seqNum
     note over OR: emit{CCIPSend}
-    OR ->> R: MessageSent{queryID, seqNum}<br>+ TON remaining from <br/> gas fees and CCIP fee
+    OR ->> R: MessageSent{queryId, seqNum}<br>+ TON remaining from <br/> gas fees and CCIP fee
     end
     end
 ```

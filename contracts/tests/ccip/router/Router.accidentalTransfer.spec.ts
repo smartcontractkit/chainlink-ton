@@ -39,7 +39,7 @@ describe('Router - accidental jetton transfers', () => {
     await jettonMinter.sendMint(deployer.getSender(), {
       value: toNano('1'),
       message: {
-        queryID: 0n,
+        queryId: 0n,
         destination: user.address,
         tonAmount: toNano('0.05'),
         jettonAmount: MINTED,
@@ -63,7 +63,7 @@ describe('Router - accidental jetton transfers', () => {
     const result = await userWallet.sendTransfer(user.getSender(), {
       value: toNano('0.5'),
       message: {
-        queryID: 1,
+        queryId: 1,
         jettonAmount: amount,
         destination: router.address,
         responseDestination: user.address,

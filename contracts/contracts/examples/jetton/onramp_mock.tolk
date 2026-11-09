@@ -22,13 +22,13 @@ struct OnrampMock {
 
 // Event emitted when fee is insufficient
 struct InsufficientFee {
-    queryID: uint64
+    queryId: uint64
     sender: address
 }
 
 // Event emitted when request is accepted
 struct AcceptedRequest {
-    queryID: uint64
+    queryId: uint64
     sender: address
     payload: cell
 }
@@ -53,12 +53,12 @@ fun OnrampMock.handleJettonTransferNotification(
 
     // Handle the jetton transfer
     if (msg.jettonAmount < FEE) {
-        emit(JETTON_TOPIC, InsufficientFee { queryID: msg.queryID, sender: msg.transferInitiator! });
+        emit(JETTON_TOPIC, InsufficientFee { queryId: msg.queryId, sender: msg.transferInitiator! });
     } else {
         emit(
             JETTON_TOPIC,
             AcceptedRequest {
-                queryID: msg.queryID,
+                queryId: msg.queryId,
                 sender: msg.transferInitiator!,
                 payload: forwardPayloadCell!,
             }

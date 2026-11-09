@@ -39,7 +39,7 @@ export function build(
 
   return [
     {
-      queryID: 0n,
+      queryId: 0n,
       root,
       validUntil,
       metadata,

@@ -398,13 +398,13 @@ export const Ownable2Step = {
 
 /**
  > struct (0xf21b7da1) Ownable2Step_TransferOwnership {
- >     queryID: uint64
+ >     queryId: uint64
  >     newOwner: address
  > }
  */
 export interface Ownable2Step_TransferOwnership {
     readonly $: 'Ownable2Step_TransferOwnership'
-    queryID: uint64
+    queryId: uint64
     newOwner: c.Address
 }
 
@@ -412,26 +412,26 @@ export const Ownable2Step_TransferOwnership = {
     PREFIX: 0xf21b7da1,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         newOwner: c.Address
     }): Ownable2Step_TransferOwnership {
         return {
             $: 'Ownable2Step_TransferOwnership',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_TransferOwnership {
         loadAndCheckPrefix32(s, 0xf21b7da1, 'Ownable2Step_TransferOwnership');
         return {
             $: 'Ownable2Step_TransferOwnership',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             newOwner: s.loadAddress(),
         }
     },
     store(self: Ownable2Step_TransferOwnership, b: c.Builder): void {
         b.storeUint(0xf21b7da1, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeAddress(self.newOwner);
     },
     toCell(self: Ownable2Step_TransferOwnership): c.Cell {
@@ -441,36 +441,36 @@ export const Ownable2Step_TransferOwnership = {
 
 /**
  > struct (0xf9e29e4a) Ownable2Step_AcceptOwnership {
- >     queryID: uint64
+ >     queryId: uint64
  > }
  */
 export interface Ownable2Step_AcceptOwnership {
     readonly $: 'Ownable2Step_AcceptOwnership'
-    queryID: uint64
+    queryId: uint64
 }
 
 export const Ownable2Step_AcceptOwnership = {
     PREFIX: 0xf9e29e4a,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
     }): Ownable2Step_AcceptOwnership {
         return {
             $: 'Ownable2Step_AcceptOwnership',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_AcceptOwnership {
         loadAndCheckPrefix32(s, 0xf9e29e4a, 'Ownable2Step_AcceptOwnership');
         return {
             $: 'Ownable2Step_AcceptOwnership',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
         }
     },
     store(self: Ownable2Step_AcceptOwnership, b: c.Builder): void {
         b.storeUint(0xf9e29e4a, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
     },
     toCell(self: Ownable2Step_AcceptOwnership): c.Cell {
         return makeCellFrom<Ownable2Step_AcceptOwnership>(self, Ownable2Step_AcceptOwnership.store);
@@ -479,36 +479,36 @@ export const Ownable2Step_AcceptOwnership = {
 
 /**
  > struct Ownable2Step_OwnershipTransferRequested {
- >     queryID: uint64
+ >     queryId: uint64
  >     newOwner: address
  > }
  */
 export interface Ownable2Step_OwnershipTransferRequested {
     readonly $: 'Ownable2Step_OwnershipTransferRequested'
-    queryID: uint64
+    queryId: uint64
     newOwner: c.Address
 }
 
 export const Ownable2Step_OwnershipTransferRequested = {
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferRequested {
         return {
             $: 'Ownable2Step_OwnershipTransferRequested',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferRequested {
         return {
             $: 'Ownable2Step_OwnershipTransferRequested',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             newOwner: s.loadAddress(),
         }
     },
     store(self: Ownable2Step_OwnershipTransferRequested, b: c.Builder): void {
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeAddress(self.newOwner);
     },
     toCell(self: Ownable2Step_OwnershipTransferRequested): c.Cell {
@@ -518,40 +518,40 @@ export const Ownable2Step_OwnershipTransferRequested = {
 
 /**
  > struct Ownable2Step_OwnershipTransferred {
- >     queryID: uint64
+ >     queryId: uint64
  >     oldOwner: address
  >     newOwner: address
  > }
  */
 export interface Ownable2Step_OwnershipTransferred {
     readonly $: 'Ownable2Step_OwnershipTransferred'
-    queryID: uint64
+    queryId: uint64
     oldOwner: c.Address
     newOwner: c.Address
 }
 
 export const Ownable2Step_OwnershipTransferred = {
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         oldOwner: c.Address
         newOwner: c.Address
     }): Ownable2Step_OwnershipTransferred {
         return {
             $: 'Ownable2Step_OwnershipTransferred',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Ownable2Step_OwnershipTransferred {
         return {
             $: 'Ownable2Step_OwnershipTransferred',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             oldOwner: s.loadAddress(),
             newOwner: s.loadAddress(),
         }
     },
     store(self: Ownable2Step_OwnershipTransferred, b: c.Builder): void {
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeAddress(self.oldOwner);
         b.storeAddress(self.newOwner);
     },
@@ -631,13 +631,13 @@ export const Upgradeable_Error = {
 
 /**
  > struct (0x0aa811ed) Upgradeable_Upgrade {
- >     queryID: uint64
+ >     queryId: uint64
  >     code: cell
  > }
  */
 export interface Upgradeable_Upgrade {
     readonly $: 'Upgradeable_Upgrade'
-    queryID: uint64
+    queryId: uint64
     code: c.Cell
 }
 
@@ -645,26 +645,26 @@ export const Upgradeable_Upgrade = {
     PREFIX: 0x0aa811ed,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         code: c.Cell
     }): Upgradeable_Upgrade {
         return {
             $: 'Upgradeable_Upgrade',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Upgradeable_Upgrade {
         loadAndCheckPrefix32(s, 0x0aa811ed, 'Upgradeable_Upgrade');
         return {
             $: 'Upgradeable_Upgrade',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             code: s.loadRef(),
         }
     },
     store(self: Upgradeable_Upgrade, b: c.Builder): void {
         b.storeUint(0x0aa811ed, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeRef(self.code);
     },
     toCell(self: Upgradeable_Upgrade): c.Cell {
@@ -792,7 +792,7 @@ export const Deployable_Message = {
 
 /**
  > struct (0x31768d95) Router_CCIPSend {
- >     queryID: uint64
+ >     queryId: uint64
  >     destChainSelector: uint64
  >     receiver: CrossChainAddress
  >     data: cell
@@ -803,7 +803,7 @@ export const Deployable_Message = {
  */
 export interface Router_CCIPSend {
     readonly $: 'Router_CCIPSend'
-    queryID: uint64
+    queryId: uint64
     destChainSelector: uint64
     receiver: CrossChainAddress
     data: c.Cell
@@ -816,7 +816,7 @@ export const Router_CCIPSend = {
     PREFIX: 0x31768d95,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         receiver: CrossChainAddress
         data: c.Cell
@@ -827,14 +827,14 @@ export const Router_CCIPSend = {
         return {
             $: 'Router_CCIPSend',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_CCIPSend {
         loadAndCheckPrefix32(s, 0x31768d95, 'Router_CCIPSend');
         return {
             $: 'Router_CCIPSend',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             destChainSelector: s.loadUintBig(64),
             receiver: CrossChainAddress.fromSlice(s),
             data: s.loadRef(),
@@ -845,7 +845,7 @@ export const Router_CCIPSend = {
     },
     store(self: Router_CCIPSend, b: c.Builder): void {
         b.storeUint(0x31768d95, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeUint(self.destChainSelector, 64);
         CrossChainAddress.store(self.receiver, b);
         b.storeRef(self.data);
@@ -1142,7 +1142,7 @@ export const CCIPSendExecutor_ID = {
 
 /**
  > struct (0x19f0098f) Router_WithdrawToTokenPool {
- >     queryID: uint64
+ >     queryId: uint64
  >     destChainSelector: uint64
  >     executor: address
  >     withdrawRequest: Cell<Router_WithdrawRequest>
@@ -1150,7 +1150,7 @@ export const CCIPSendExecutor_ID = {
  */
 export interface Router_WithdrawToTokenPool {
     readonly $: 'Router_WithdrawToTokenPool'
-    queryID: uint64
+    queryId: uint64
     destChainSelector: uint64
     executor: c.Address
     withdrawRequest: Router_WithdrawRequest
@@ -1160,7 +1160,7 @@ export const Router_WithdrawToTokenPool = {
     PREFIX: 0x19f0098f,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         executor: c.Address
         withdrawRequest: Router_WithdrawRequest
@@ -1168,14 +1168,14 @@ export const Router_WithdrawToTokenPool = {
         return {
             $: 'Router_WithdrawToTokenPool',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_WithdrawToTokenPool {
         loadAndCheckPrefix32(s, 0x19f0098f, 'Router_WithdrawToTokenPool');
         return {
             $: 'Router_WithdrawToTokenPool',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             destChainSelector: s.loadUintBig(64),
             executor: s.loadAddress(),
             withdrawRequest: loadCellRef<Router_WithdrawRequest>(s, Router_WithdrawRequest.fromSlice),
@@ -1183,7 +1183,7 @@ export const Router_WithdrawToTokenPool = {
     },
     store(self: Router_WithdrawToTokenPool, b: c.Builder): void {
         b.storeUint(0x19f0098f, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeUint(self.destChainSelector, 64);
         b.storeAddress(self.executor);
         storeCellRef<Router_WithdrawRequest>(self.withdrawRequest, b, Router_WithdrawRequest.store);
@@ -1248,7 +1248,7 @@ export const Router_WithdrawRequest = {
 
 /**
  > struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
- >     queryID: uint64
+ >     queryId: uint64
  >     destChainSelector: uint64
  >     withdrawRequest: Cell<Router_WithdrawRequest>
  >     errorCode: int32
@@ -1256,7 +1256,7 @@ export const Router_WithdrawRequest = {
  */
 export interface Router_WithdrawToTokenPoolFailed {
     readonly $: 'Router_WithdrawToTokenPoolFailed'
-    queryID: uint64
+    queryId: uint64
     destChainSelector: uint64
     withdrawRequest: Router_WithdrawRequest
     errorCode: int32
@@ -1266,7 +1266,7 @@ export const Router_WithdrawToTokenPoolFailed = {
     PREFIX: 0xee40ec65,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         withdrawRequest: Router_WithdrawRequest
         errorCode: int32
@@ -1274,14 +1274,14 @@ export const Router_WithdrawToTokenPoolFailed = {
         return {
             $: 'Router_WithdrawToTokenPoolFailed',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_WithdrawToTokenPoolFailed {
         loadAndCheckPrefix32(s, 0xee40ec65, 'Router_WithdrawToTokenPoolFailed');
         return {
             $: 'Router_WithdrawToTokenPoolFailed',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             destChainSelector: s.loadUintBig(64),
             withdrawRequest: loadCellRef<Router_WithdrawRequest>(s, Router_WithdrawRequest.fromSlice),
             errorCode: s.loadIntBig(32),
@@ -1289,7 +1289,7 @@ export const Router_WithdrawToTokenPoolFailed = {
     },
     store(self: Router_WithdrawToTokenPoolFailed, b: c.Builder): void {
         b.storeUint(0xee40ec65, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeUint(self.destChainSelector, 64);
         storeCellRef<Router_WithdrawRequest>(self.withdrawRequest, b, Router_WithdrawRequest.store);
         b.storeInt(self.errorCode, 32);
@@ -1301,7 +1301,7 @@ export const Router_WithdrawToTokenPoolFailed = {
 
 /**
  > struct (0x6513f8e1) Router_MessageSent {
- >     queryID: uint64
+ >     queryId: uint64
  >     messageId: uint256
  >     destChainSelector: uint64
  >     sender: address
@@ -1309,7 +1309,7 @@ export const Router_WithdrawToTokenPoolFailed = {
  */
 export interface Router_MessageSent {
     readonly $: 'Router_MessageSent'
-    queryID: uint64
+    queryId: uint64
     messageId: uint256
     destChainSelector: uint64
     sender: c.Address
@@ -1319,7 +1319,7 @@ export const Router_MessageSent = {
     PREFIX: 0x6513f8e1,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         messageId: uint256
         destChainSelector: uint64
         sender: c.Address
@@ -1327,14 +1327,14 @@ export const Router_MessageSent = {
         return {
             $: 'Router_MessageSent',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_MessageSent {
         loadAndCheckPrefix32(s, 0x6513f8e1, 'Router_MessageSent');
         return {
             $: 'Router_MessageSent',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             messageId: s.loadUintBig(256),
             destChainSelector: s.loadUintBig(64),
             sender: s.loadAddress(),
@@ -1342,7 +1342,7 @@ export const Router_MessageSent = {
     },
     store(self: Router_MessageSent, b: c.Builder): void {
         b.storeUint(0x6513f8e1, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeUint(self.messageId, 256);
         b.storeUint(self.destChainSelector, 64);
         b.storeAddress(self.sender);
@@ -1354,7 +1354,7 @@ export const Router_MessageSent = {
 
 /**
  > struct (0x8ae25114) Router_MessageRejected {
- >     queryID: uint64
+ >     queryId: uint64
  >     destChainSelector: uint64
  >     sender: address
  >     errorCode: int32
@@ -1362,7 +1362,7 @@ export const Router_MessageSent = {
  */
 export interface Router_MessageRejected {
     readonly $: 'Router_MessageRejected'
-    queryID: uint64
+    queryId: uint64
     destChainSelector: uint64
     sender: c.Address
     errorCode: int32
@@ -1372,7 +1372,7 @@ export const Router_MessageRejected = {
     PREFIX: 0x8ae25114,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         sender: c.Address
         errorCode: int32
@@ -1380,14 +1380,14 @@ export const Router_MessageRejected = {
         return {
             $: 'Router_MessageRejected',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_MessageRejected {
         loadAndCheckPrefix32(s, 0x8ae25114, 'Router_MessageRejected');
         return {
             $: 'Router_MessageRejected',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             destChainSelector: s.loadUintBig(64),
             sender: s.loadAddress(),
             errorCode: s.loadIntBig(32),
@@ -1395,7 +1395,7 @@ export const Router_MessageRejected = {
     },
     store(self: Router_MessageRejected, b: c.Builder): void {
         b.storeUint(0x8ae25114, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeUint(self.destChainSelector, 64);
         b.storeAddress(self.sender);
         b.storeInt(self.errorCode, 32);
@@ -1407,7 +1407,7 @@ export const Router_MessageRejected = {
 
 /**
  > struct (0x6f2d00df) Router_LockOrBurn {
- >     queryID: uint64
+ >     queryId: uint64
  >     tokenPool: address
  >     request: Cell<TokenPool_LockOrBurnInV1>
  >     executorAddress: address
@@ -1416,7 +1416,7 @@ export const Router_MessageRejected = {
  */
 export interface Router_LockOrBurn {
     readonly $: 'Router_LockOrBurn'
-    queryID: uint64
+    queryId: uint64
     tokenPool: c.Address
     request: TokenPool_LockOrBurnInV1
     executorAddress: c.Address
@@ -1427,7 +1427,7 @@ export const Router_LockOrBurn = {
     PREFIX: 0x6f2d00df,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         tokenPool: c.Address
         request: TokenPool_LockOrBurnInV1
         executorAddress: c.Address
@@ -1436,14 +1436,14 @@ export const Router_LockOrBurn = {
         return {
             $: 'Router_LockOrBurn',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_LockOrBurn {
         loadAndCheckPrefix32(s, 0x6f2d00df, 'Router_LockOrBurn');
         return {
             $: 'Router_LockOrBurn',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             tokenPool: s.loadAddress(),
             request: loadCellRef<TokenPool_LockOrBurnInV1>(s, TokenPool_LockOrBurnInV1.fromSlice),
             executorAddress: s.loadAddress(),
@@ -1452,7 +1452,7 @@ export const Router_LockOrBurn = {
     },
     store(self: Router_LockOrBurn, b: c.Builder): void {
         b.storeUint(0x6f2d00df, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeAddress(self.tokenPool);
         storeCellRef<TokenPool_LockOrBurnInV1>(self.request, b, TokenPool_LockOrBurnInV1.store);
         b.storeAddress(self.executorAddress);
@@ -2623,7 +2623,7 @@ export const OnRamp_GetValidatedFee = {
 
 /**
  > struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
- >     queryID: uint64
+ >     queryId: uint64
  >     tokenAmount: Cell<TokenAmount>
  >     tokenPool: address
  >     destChainSelector: uint64
@@ -2634,7 +2634,7 @@ export const OnRamp_GetValidatedFee = {
  */
 export interface OnRamp_ExecutorRequestsLockOrBurn {
     readonly $: 'OnRamp_ExecutorRequestsLockOrBurn'
-    queryID: uint64
+    queryId: uint64
     tokenAmount: TokenAmount
     tokenPool: c.Address
     destChainSelector: uint64
@@ -2647,7 +2647,7 @@ export const OnRamp_ExecutorRequestsLockOrBurn = {
     PREFIX: 0x9be1fb61,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         tokenAmount: TokenAmount
         tokenPool: c.Address
         destChainSelector: uint64
@@ -2658,14 +2658,14 @@ export const OnRamp_ExecutorRequestsLockOrBurn = {
         return {
             $: 'OnRamp_ExecutorRequestsLockOrBurn',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OnRamp_ExecutorRequestsLockOrBurn {
         loadAndCheckPrefix32(s, 0x9be1fb61, 'OnRamp_ExecutorRequestsLockOrBurn');
         return {
             $: 'OnRamp_ExecutorRequestsLockOrBurn',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             tokenAmount: loadCellRef<TokenAmount>(s, TokenAmount.fromSlice),
             tokenPool: s.loadAddress(),
             destChainSelector: s.loadUintBig(64),
@@ -2676,7 +2676,7 @@ export const OnRamp_ExecutorRequestsLockOrBurn = {
     },
     store(self: OnRamp_ExecutorRequestsLockOrBurn, b: c.Builder): void {
         b.storeUint(0x9be1fb61, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         storeCellRef<TokenAmount>(self.tokenAmount, b, TokenAmount.store);
         b.storeAddress(self.tokenPool);
         b.storeUint(self.destChainSelector, 64);
@@ -2691,7 +2691,7 @@ export const OnRamp_ExecutorRequestsLockOrBurn = {
 
 /**
  > struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {
- >     queryID: uint64
+ >     queryId: uint64
  >     executorID: CCIPSendExecutor_ID
  >     destChainSelector: uint64
  >     chainFamilySelector: uint32
@@ -2701,7 +2701,7 @@ export const OnRamp_ExecutorRequestsLockOrBurn = {
  */
 export interface OnRamp_ExecutorRequestsWithdraw {
     readonly $: 'OnRamp_ExecutorRequestsWithdraw'
-    queryID: uint64
+    queryId: uint64
     executorID: CCIPSendExecutor_ID
     destChainSelector: uint64
     chainFamilySelector: uint32
@@ -2713,7 +2713,7 @@ export const OnRamp_ExecutorRequestsWithdraw = {
     PREFIX: 0x05e47a89,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         executorID: CCIPSendExecutor_ID
         destChainSelector: uint64
         chainFamilySelector: uint32
@@ -2723,14 +2723,14 @@ export const OnRamp_ExecutorRequestsWithdraw = {
         return {
             $: 'OnRamp_ExecutorRequestsWithdraw',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OnRamp_ExecutorRequestsWithdraw {
         loadAndCheckPrefix32(s, 0x05e47a89, 'OnRamp_ExecutorRequestsWithdraw');
         return {
             $: 'OnRamp_ExecutorRequestsWithdraw',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             executorID: CCIPSendExecutor_ID.fromSlice(s),
             destChainSelector: s.loadUintBig(64),
             chainFamilySelector: s.loadUintBig(32),
@@ -2740,7 +2740,7 @@ export const OnRamp_ExecutorRequestsWithdraw = {
     },
     store(self: OnRamp_ExecutorRequestsWithdraw, b: c.Builder): void {
         b.storeUint(0x05e47a89, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         CCIPSendExecutor_ID.store(self.executorID, b);
         b.storeUint(self.destChainSelector, 64);
         b.storeUint(self.chainFamilySelector, 32);
@@ -3006,7 +3006,7 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
 
 /**
  > struct (0xc4068e21) OnRamp_ExecutorFinishedWithError {
- >     queryID: uint64
+ >     queryId: uint64
  >     executorID: CCIPSendExecutor_ID
  >     destChainSelector: uint64
  >     sender: address
@@ -3016,7 +3016,7 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
  */
 export interface OnRamp_ExecutorFinishedWithError {
     readonly $: 'OnRamp_ExecutorFinishedWithError'
-    queryID: uint64
+    queryId: uint64
     executorID: CCIPSendExecutor_ID
     destChainSelector: uint64
     sender: c.Address
@@ -3028,7 +3028,7 @@ export const OnRamp_ExecutorFinishedWithError = {
     PREFIX: 0xc4068e21,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         executorID: CCIPSendExecutor_ID
         destChainSelector: uint64
         sender: c.Address
@@ -3038,14 +3038,14 @@ export const OnRamp_ExecutorFinishedWithError = {
         return {
             $: 'OnRamp_ExecutorFinishedWithError',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OnRamp_ExecutorFinishedWithError {
         loadAndCheckPrefix32(s, 0xc4068e21, 'OnRamp_ExecutorFinishedWithError');
         return {
             $: 'OnRamp_ExecutorFinishedWithError',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             executorID: CCIPSendExecutor_ID.fromSlice(s),
             destChainSelector: s.loadUintBig(64),
             sender: s.loadAddress(),
@@ -3057,7 +3057,7 @@ export const OnRamp_ExecutorFinishedWithError = {
     },
     store(self: OnRamp_ExecutorFinishedWithError, b: c.Builder): void {
         b.storeUint(0xc4068e21, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         CCIPSendExecutor_ID.store(self.executorID, b);
         b.storeUint(self.destChainSelector, 64);
         b.storeAddress(self.sender);
@@ -3149,13 +3149,13 @@ export const OnRamp_UpdateAllowlists = {
 
 /**
  > struct (0xdf46b714) OnRamp_LockOrBurnFailed {
- >     queryID: uint64
+ >     queryId: uint64
  >     errorCode: int32
  > }
  */
 export interface OnRamp_LockOrBurnFailed {
     readonly $: 'OnRamp_LockOrBurnFailed'
-    queryID: uint64
+    queryId: uint64
     errorCode: int32
 }
 
@@ -3163,26 +3163,26 @@ export const OnRamp_LockOrBurnFailed = {
     PREFIX: 0xdf46b714,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         errorCode: int32
     }): OnRamp_LockOrBurnFailed {
         return {
             $: 'OnRamp_LockOrBurnFailed',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OnRamp_LockOrBurnFailed {
         loadAndCheckPrefix32(s, 0xdf46b714, 'OnRamp_LockOrBurnFailed');
         return {
             $: 'OnRamp_LockOrBurnFailed',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             errorCode: s.loadIntBig(32),
         }
     },
     store(self: OnRamp_LockOrBurnFailed, b: c.Builder): void {
         b.storeUint(0xdf46b714, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeInt(self.errorCode, 32);
     },
     toCell(self: OnRamp_LockOrBurnFailed): c.Cell {
@@ -3568,7 +3568,7 @@ export const SuiExtraArgsV1 = {
 
 /**
  > struct (0xfa7da444) TokenPool_LockOrBurn {
- >     queryID: uint64
+ >     queryId: uint64
  >     request: Cell<TokenPool_LockOrBurnInV1>
  >     requestedFinalityConfig: uint32
  >     tokenArgs: cell?
@@ -3580,7 +3580,7 @@ export const SuiExtraArgsV1 = {
  */
 export interface TokenPool_LockOrBurn {
     readonly $: 'TokenPool_LockOrBurn'
-    queryID: uint64
+    queryId: uint64
     request: TokenPool_LockOrBurnInV1
     requestedFinalityConfig: uint32
     tokenArgs: c.Cell | null
@@ -3594,7 +3594,7 @@ export const TokenPool_LockOrBurn = {
     PREFIX: 0xfa7da444,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         request: TokenPool_LockOrBurnInV1
         requestedFinalityConfig: uint32
         tokenArgs: c.Cell | null
@@ -3607,14 +3607,14 @@ export const TokenPool_LockOrBurn = {
             $: 'TokenPool_LockOrBurn',
             extra: null,
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_LockOrBurn {
         loadAndCheckPrefix32(s, 0xfa7da444, 'TokenPool_LockOrBurn');
         return {
             $: 'TokenPool_LockOrBurn',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             request: loadCellRef<TokenPool_LockOrBurnInV1>(s, TokenPool_LockOrBurnInV1.fromSlice),
             requestedFinalityConfig: s.loadUintBig(32),
             tokenArgs: s.loadBoolean() ? s.loadRef() : null,
@@ -3629,7 +3629,7 @@ export const TokenPool_LockOrBurn = {
     },
     store(self: TokenPool_LockOrBurn, b: c.Builder): void {
         b.storeUint(0xfa7da444, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         storeCellRef<TokenPool_LockOrBurnInV1>(self.request, b, TokenPool_LockOrBurnInV1.store);
         b.storeUint(self.requestedFinalityConfig, 32);
         storeTolkNullable<c.Cell>(self.tokenArgs, b,
@@ -3908,7 +3908,7 @@ export class OnRamp implements c.Contract {
     }
 
     static createCellOfOnRampExecutorRequestsLockOrBurn(body: {
-        queryID?: uint64
+        queryId?: uint64
         tokenAmount: TokenAmount
         tokenPool: c.Address
         destChainSelector: uint64
@@ -3920,7 +3920,7 @@ export class OnRamp implements c.Contract {
     }
 
     static createCellOfOnRampExecutorRequestsWithdraw(body: {
-        queryID?: uint64
+        queryId?: uint64
         executorID: CCIPSendExecutor_ID
         destChainSelector: uint64
         chainFamilySelector: uint32
@@ -3948,7 +3948,7 @@ export class OnRamp implements c.Contract {
     }
 
     static createCellOfOnRampExecutorFinishedWithError(body: {
-        queryID?: uint64
+        queryId?: uint64
         executorID: CCIPSendExecutor_ID
         destChainSelector: uint64
         sender: c.Address
@@ -3989,21 +3989,21 @@ export class OnRamp implements c.Contract {
     }
 
     static createCellOfUpgradeableUpgrade(body: {
-        queryID?: uint64
+        queryId?: uint64
         code: c.Cell
     }) {
         return Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body));
     }
 
     static createCellOfOwnable2StepTransferOwnership(body: {
-        queryID?: uint64
+        queryId?: uint64
         newOwner: c.Address
     }) {
         return Ownable2Step_TransferOwnership.toCell(Ownable2Step_TransferOwnership.create(body));
     }
 
     static createCellOfOwnable2StepAcceptOwnership(body: {
-        queryID?: uint64
+        queryId?: uint64
     }) {
         return Ownable2Step_AcceptOwnership.toCell(Ownable2Step_AcceptOwnership.create(body));
     }
@@ -4073,7 +4073,7 @@ export class OnRamp implements c.Contract {
     }
 
     async sendOnRampExecutorRequestsLockOrBurn(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         tokenAmount: TokenAmount
         tokenPool: c.Address
         destChainSelector: uint64
@@ -4089,7 +4089,7 @@ export class OnRamp implements c.Contract {
     }
 
     async sendOnRampExecutorRequestsWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         executorID: CCIPSendExecutor_ID
         destChainSelector: uint64
         chainFamilySelector: uint32
@@ -4129,7 +4129,7 @@ export class OnRamp implements c.Contract {
     }
 
     async sendOnRampExecutorFinishedWithError(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         executorID: CCIPSendExecutor_ID
         destChainSelector: uint64
         sender: c.Address
@@ -4194,7 +4194,7 @@ export class OnRamp implements c.Contract {
     }
 
     async sendUpgradeableUpgrade(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         code: c.Cell
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -4205,7 +4205,7 @@ export class OnRamp implements c.Contract {
     }
 
     async sendOwnable2StepTransferOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         newOwner: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -4216,7 +4216,7 @@ export class OnRamp implements c.Contract {
     }
 
     async sendOwnable2StepAcceptOwnership(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

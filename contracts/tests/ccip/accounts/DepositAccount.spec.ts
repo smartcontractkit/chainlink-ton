@@ -143,10 +143,10 @@ describe('DepositAccount', () => {
 
   // Build a boxed Jetton `TransferNotificationForRecipient` body as a real wallet would send it
   // (the forward payload is boxed as a maybe_ref; here empty — no CCIPSend carried).
-  const buildNotificationBody = (queryID: bigint, amount: bigint, to: Address) =>
+  const buildNotificationBody = (queryId: bigint, amount: bigint, to: Address) =>
     TransferNotificationForRecipient.toCell(
       TransferNotificationForRecipient.create({
-        queryID,
+        queryId,
         jettonAmount: amount,
         transferInitiator: to,
         forwardPayload: beginCell().storeMaybeRef(null).asSlice(),
@@ -172,7 +172,7 @@ describe('DepositAccount', () => {
       : envelope
     return TransferNotificationForRecipient.toCell(
       TransferNotificationForRecipient.create({
-        queryID: 4n,
+        queryId: 4n,
         jettonAmount: amount,
         transferInitiator: null,
         forwardPayload: beginCell().storeMaybeRef(payload).asSlice(),
@@ -199,11 +199,11 @@ describe('DepositAccount', () => {
 
   const initAccount = (
     account: SandboxContract<da.DepositAccount>,
-    queryID = 0n,
+    queryId = 0n,
     context: Cell | null = null,
   ) =>
     account.sendDepositAccountInit(recipient.getSender(), toNano('0.5'), {
-      queryID,
+      queryId,
       context,
     })
 
@@ -213,7 +213,7 @@ describe('DepositAccount', () => {
     from: SandboxContract<TreasuryContract> = tokenMaster,
   ) =>
     account.sendResponseWalletAddress(from.getSender(), toNano('0.05'), {
-      queryID: 0n,
+      queryId: 0n,
       jettonWalletAddress: wallet,
       ownerAddress: null,
     })
@@ -490,7 +490,7 @@ describe('DepositAccount', () => {
       bounce: false,
       body: TransferNotificationForRecipient.toCell(
         TransferNotificationForRecipient.create({
-          queryID: 3n,
+          queryId: 3n,
           jettonAmount: toNano('2'),
           transferInitiator: null,
           forwardPayload: beginCell().storeMaybeRef(null).asSlice(),
@@ -687,7 +687,7 @@ describe('DepositAccount', () => {
         body(body) {
           if (!body) return false
           const reply = da.DepositAccount_Initialized.fromSlice(body.beginParse())
-          return reply.queryID === 7n && reply.context?.equals(context) === true
+          return reply.queryId === 7n && reply.context?.equals(context) === true
         },
       })
     })
@@ -710,7 +710,7 @@ describe('DepositAccount', () => {
         to: recipient.address,
         op: da.DepositAccount_Initialized.PREFIX,
         body: (body) =>
-          !!body && da.DepositAccount_Initialized.fromSlice(body.beginParse()).queryID === 1n,
+          !!body && da.DepositAccount_Initialized.fromSlice(body.beginParse()).queryId === 1n,
       })
       expect(res.transactions).not.toHaveTransaction({
         from: depositAccount.address,
@@ -719,7 +719,7 @@ describe('DepositAccount', () => {
         body: (body) =>
           !!body &&
           body.beginParse().preloadUint(32) === da.DepositAccount_Initialized.PREFIX &&
-          da.DepositAccount_Initialized.fromSlice(body.beginParse()).queryID === 2n,
+          da.DepositAccount_Initialized.fromSlice(body.beginParse()).queryId === 2n,
       })
 
       const retry = await initAccount(depositAccount, 2n)
@@ -765,7 +765,7 @@ describe('DepositAccount', () => {
         to: recipient.address,
         op: da.DepositAccount_WalletUnavailable.PREFIX,
         body: (body) =>
-          !!body && da.DepositAccount_WalletUnavailable.fromSlice(body.beginParse()).queryID === 5n,
+          !!body && da.DepositAccount_WalletUnavailable.fromSlice(body.beginParse()).queryId === 5n,
       })
       expect(await depositAccount.getWallet()).toBeNull()
     })
@@ -786,7 +786,7 @@ describe('DepositAccount', () => {
     const { depositAccount } = await deployWithLearnedWallet()
     const notificationBody = TransferNotificationForRecipient.toCell(
       TransferNotificationForRecipient.create({
-        queryID: 5n,
+        queryId: 5n,
         jettonAmount: toNano('1'),
         transferInitiator: null,
         forwardPayload: beginCell()
@@ -817,7 +817,7 @@ describe('DepositAccount', () => {
       recipient.getSender(),
       toNano('0.5'),
       {
-        queryID: 6n,
+        queryId: 6n,
         // The bounce handler requires a well-formed wrap with withdraw context (attached by the account itself).
         ask: buildAskToTransfer(toNano('4'), recipient.address, recipient.address, Cell.EMPTY),
       },

@@ -45,7 +45,7 @@ describe('Router.cursing', () => {
 
   it('router respects cursing', async () => {
     const msg = {
-      queryID: 1n,
+      queryId: 1n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
@@ -57,7 +57,7 @@ describe('Router.cursing', () => {
     // Curse the lane
     {
       const result = await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
-        queryID: 0n,
+        queryId: 0n,
         subjects: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
       })
       expect(result.transactions).toHaveTransaction({
@@ -92,7 +92,7 @@ describe('Router.cursing', () => {
     // Uncurse the lane
     {
       const result = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), toNano('1'), {
-        queryID: 0n,
+        queryId: 0n,
         subjects: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
       })
       expect(result.transactions).toHaveTransaction({
@@ -131,12 +131,12 @@ describe('Router.cursing', () => {
   it('rejects LockOrBurn through the executor failure channel while cursed', async () => {
     const remoteChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
     await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
-      queryID: 10n,
+      queryId: 10n,
       subjects: [remoteChainSelector],
     })
 
     const result = await router.sendRouterLockOrBurn(onRamp.getSender(), toNano('1'), {
-      queryID: 11n,
+      queryId: 11n,
       tokenPool: deployer.address,
       request: rt.TokenPool_LockOrBurnInV1.create({
         transfer: rt.TokenPool_Transfer.create({
@@ -174,12 +174,12 @@ describe('Router.cursing', () => {
   it('rejects ReleaseOrMint back to the OffRamp while the source lane is cursed', async () => {
     const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
     await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
-      queryID: 20n,
+      queryId: 20n,
       subjects: [sourceChainSelector],
     })
 
     const result = await router.sendRouterRelayReleaseOrMint(offRamp.getSender(), toNano('1'), {
-      queryID: 21n,
+      queryId: 21n,
       sourceChainSelector,
       tokenPool: deployer.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
@@ -223,7 +223,7 @@ describe('Router.cursing', () => {
     const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 
     const result = await router.sendRouterRelayReleaseOrMint(sender.getSender(), toNano('1'), {
-      queryID: 30n,
+      queryId: 30n,
       sourceChainSelector,
       tokenPool: deployer.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
@@ -258,7 +258,7 @@ describe('Router.cursing', () => {
     const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 
     const result = await router.sendRouterRelayReleaseOrMint(offRamp.getSender(), toNano('1'), {
-      queryID: 31n,
+      queryId: 31n,
       sourceChainSelector,
       tokenPool: deployer.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
@@ -294,7 +294,7 @@ describe('Router.cursing', () => {
     // Curse all lanes
     {
       const result = await router.sendRouterRMNRemoteCurse(deployer.getSender(), toNano('1'), {
-        queryID: 0n,
+        queryId: 0n,
         subjects: [RMNREMOTE_GLOBAL_CURSE_SUBJECT],
       })
       expect(result.transactions).toHaveTransaction({
@@ -315,7 +315,7 @@ describe('Router.cursing', () => {
     // Uncurse all lanes
     {
       const result = await router.sendRouterRMNRemoteUncurse(deployer.getSender(), toNano('1'), {
-        queryID: 0n,
+        queryId: 0n,
         subjects: [RMNREMOTE_GLOBAL_CURSE_SUBJECT],
       })
       expect(result.transactions).toHaveTransaction({
@@ -356,7 +356,7 @@ async function verifyNotCursed(
   const verification = await router.sendRouterRMNRemoteVerifyNotCursed(
     deployer.getSender(),
     toNano('1'),
-    { queryID: 0n, subject: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 },
+    { queryId: 0n, subject: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 },
   )
   expect(verification.transactions).toHaveTransaction({
     from: deployer.address,
@@ -371,7 +371,7 @@ async function verifyNotCursed(
     body(x) {
       if (!x) return false
       const resp = rt.Router_RMNRemoteVerifyNotCursedResponse.fromSlice(x.beginParse())
-      return resp.queryID === 0n && resp.result === expected
+      return resp.queryId === 0n && resp.result === expected
     },
   })
 }

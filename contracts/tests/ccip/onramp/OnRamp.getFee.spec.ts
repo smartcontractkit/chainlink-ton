@@ -20,7 +20,7 @@ describe('OnRamp - Get Fee', () => {
   let mockFeeQuoter: SandboxContract<TreasuryContract>
 
   const ccipSend = or.Router_CCIPSend.create({
-    queryID: 1n,
+    queryId: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000002,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
@@ -108,7 +108,7 @@ describe('OnRamp - Get Fee', () => {
     const body = outMsg.body.beginParse()
     expect(body.loadUint(32)).toBe(fq.FeeQuoter_GetValidatedFee.PREFIX)
     const decoded = fq.Router_CCIPSend.fromSlice(body.loadRef().beginParse())
-    expect(decoded.queryID).toBe(ccipSend.queryID)
+    expect(decoded.queryId).toBe(ccipSend.queryId)
     expect(decoded.destChainSelector).toBe(ccipSend.destChainSelector)
     expect(decoded.feeToken).toEqual(ccipSend.feeToken)
   })
@@ -145,7 +145,7 @@ describe('OnRamp - Get Fee', () => {
         const failed = or.OnRamp_MessageValidationFailed.fromSlice(x.beginParse())
         return (
           failed.errorCode === 0xffffn && // the Bouncer throws 0xFFFF
-          failed.msg.queryID === ccipSend.queryID &&
+          failed.msg.queryId === ccipSend.queryId &&
           failed.context !== null &&
           failed.context.equals(userContext)
         )
@@ -271,7 +271,7 @@ describe('OnRamp - Get Fee', () => {
         const decoded = or.OnRamp_MessageValidationFailed.fromSlice(body.beginParse())
         return (
           decoded.errorCode === validationFailedMsg.errorCode &&
-          decoded.msg.queryID === ccipSend.queryID
+          decoded.msg.queryId === ccipSend.queryId
         )
       },
     })

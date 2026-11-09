@@ -106,7 +106,7 @@ describe('SendExecutor - Unit tests', () => {
 
     onrampSend = or.OnRamp_Send.create({
       msg: or.Router_CCIPSend.create({
-        queryID: 1n,
+        queryId: 1n,
         destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         receiver: EVM_ADDRESS,
         data: Cell.EMPTY,
@@ -1115,7 +1115,7 @@ describe('SendExecutor - Unit tests', () => {
       tokenRegistryMock.getSender(),
       toNano('0.3'),
       {
-        queryID: 0n,
+        queryId: 0n,
         token: NATIVE_GRAM,
         version: 0n,
         poolInfo: null, // token not enabled
@@ -1154,7 +1154,7 @@ describe('SendExecutor - Unit tests', () => {
       tokenRegistryMock.getSender(),
       toNano('0.3'),
       {
-        queryID: 0n,
+        queryId: 0n,
         token: NATIVE_GRAM,
         version: 0n,
         poolInfo: sx.TokenAdminRegistry_PoolInfo.create({
@@ -1179,7 +1179,7 @@ describe('SendExecutor - Unit tests', () => {
     const result = await sendExecutor.sendOnRampLockOrBurnFailed(
       onRampMock.getSender(),
       toNano('0.1'),
-      { queryID: 1n, errorCode: 0xffffn },
+      { queryId: 1n, errorCode: 0xffffn },
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -1206,7 +1206,7 @@ describe('SendExecutor - Unit tests', () => {
     const result = await sendExecutor.sendRouterTokenPoolLockOrBurnFailed(
       routerMock.getSender(),
       toNano('0.1'),
-      { queryID: 1n, tokenPool, errorCode: -14n },
+      { queryId: 1n, tokenPool, errorCode: -14n },
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -1251,7 +1251,7 @@ describe('SendExecutor - Unit tests', () => {
         tokenRegistryMock.getSender(),
         toNano('0.3'),
         {
-          queryID: 0n,
+          queryId: 0n,
           token: NATIVE_GRAM,
           version: 0n,
           poolInfo: sx.TokenAdminRegistry_PoolInfo.create({
@@ -1300,7 +1300,7 @@ describe('SendExecutor - Unit tests', () => {
     const result = await sendExecutor.sendOnRampLockOrBurnFailed(
       routerMock.getSender(),
       toNano('0.1'),
-      { queryID: 1n, errorCode: 0xffffn },
+      { queryId: 1n, errorCode: 0xffffn },
     )
 
     expect(result.transactions).toHaveTransaction({

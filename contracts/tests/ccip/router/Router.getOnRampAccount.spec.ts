@@ -85,7 +85,7 @@ describe('Router.getOnRampAccount', () => {
     const answer = await blockchain
       .openContract(deposit.DepositAccount.fromAddress(account))
       .sendResponseWalletAddress(blockchain.sender(jetton), toNano('0.05'), {
-        queryID: 0n,
+        queryId: 0n,
         jettonWalletAddress: new Address(0, beginCell().storeAddress(account).endCell().hash()),
         ownerAddress: null,
       })
@@ -303,7 +303,7 @@ describe('Router.getOnRampAccount', () => {
 
   const expectOnRampAccountFailed = (
     result: Awaited<ReturnType<typeof router.sendRouterGetOnRampAccount>>,
-    queryID: bigint,
+    queryId: bigint,
     error: number,
   ) =>
     expect(result.transactions).toHaveTransaction({
@@ -313,7 +313,7 @@ describe('Router.getOnRampAccount', () => {
       body(body) {
         if (!body) return false
         const failed = rt.Router_OnRampAccountFailed.fromSlice(body.beginParse())
-        return failed.queryID === queryID && failed.errorCode === BigInt(error)
+        return failed.queryId === queryId && failed.errorCode === BigInt(error)
       },
     })
 
@@ -333,13 +333,13 @@ describe('Router.getOnRampAccount', () => {
 
   it('notifies the user when the token cannot report the account wallet', async () => {
     await router.sendRouterGetOnRampAccount(sender.getSender(), getOnRampAccountValue, {
-      queryID: 3n,
+      queryId: 3n,
       token,
     })
     const result = await blockchain
       .openContract(deposit.DepositAccount.fromAddress(expectedAccountAddress()))
       .sendResponseWalletAddress(blockchain.sender(token), toNano('0.05'), {
-        queryID: 0n,
+        queryId: 0n,
         jettonWalletAddress: null,
         ownerAddress: null,
       })
@@ -354,13 +354,13 @@ describe('Router.getOnRampAccount', () => {
   it('notifies the user when the account init bounces', async () => {
     // The first request waits for the token's wallet response, so a second one is refused.
     await router.sendRouterGetOnRampAccount(sender.getSender(), getOnRampAccountValue, {
-      queryID: 1n,
+      queryId: 1n,
       token,
     })
     const result = await router.sendRouterGetOnRampAccount(
       sender.getSender(),
       getOnRampAccountValue,
-      { queryID: 2n, token },
+      { queryId: 2n, token },
     )
     expectOnRampAccountFailed(
       result,

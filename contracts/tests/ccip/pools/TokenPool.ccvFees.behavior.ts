@@ -48,7 +48,7 @@ function createSharedDeployHooks(ctx: TokenPoolCcvFeesBehaviorContext) {
     )
     await hooks.sendDeploy(ctx.deployer.getSender(), toNano('0.1'))
     await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
-      queryID: BigInt(6000 + id),
+      queryId: BigInt(6000 + id),
       advancedPoolHooks: hooks.address,
     })
     return hooks
@@ -95,7 +95,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
           ctx.deployer.getSender(),
           toNano('0.2'),
           {
-            queryID: 12345n,
+            queryId: 12345n,
             updates: [
               TokenPool_TokenTransferFeeConfigArgs.create({
                 destChainSelector: ctx.remoteChainSelector,
@@ -114,7 +114,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
       const fwd = beginCell().storeUint(0xbeef, 16).endCell()
 
       const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.3'), {
-        queryID: 10n,
+        queryId: 10n,
         localToken: ctx.localToken,
         remoteChainSelector: ctx.remoteChainSelector,
         amount: toNano('1'),
@@ -135,7 +135,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
           if (!body) return false
           const reply = TokenPool_CCVs.fromSlice(body.beginParse())
           return (
-            reply.queryID === 10n &&
+            reply.queryId === 10n &&
             reply.requiredCCVs.length === 0 && // empty == use lane defaults
             reply.forwardPayload !== null &&
             reply.forwardPayload!.hash().equals(fwd.hash())
@@ -147,7 +147,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
     it('GetCCVs replies to the Router-selected replyTo', async () => {
       const fwd = beginCell().storeUint(0xbeef, 16).endCell()
       const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.3'), {
-        queryID: 16n,
+        queryId: 16n,
         localToken: ctx.localToken,
         remoteChainSelector: ctx.remoteChainSelector,
         amount: toNano('1'),
@@ -176,7 +176,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
         ctx.unauthorized.getSender(),
         toNano('0.3'),
         {
-          queryID: 17n,
+          queryId: 17n,
           localToken: ctx.localToken,
           remoteChainSelector: ctx.remoteChainSelector,
           amount: toNano('1'),
@@ -201,7 +201,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
         ctx.unauthorized.getSender(),
         toNano('0.3'),
         {
-          queryID: 18n,
+          queryId: 18n,
           localToken: ctx.localToken,
           remoteChainSelector: ctx.remoteChainSelector,
           amount: toNano('1'),
@@ -223,7 +223,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
 
     it('GetCCVs reverts for an unsupported token', async () => {
       const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.3'), {
-        queryID: 12n,
+        queryId: 12n,
         localToken: ctx.deployer.address, // not the pool's local token
         remoteChainSelector: ctx.remoteChainSelector,
         amount: toNano('1'),
@@ -243,7 +243,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
 
     it('GetCCVs reverts for an un-configured chain', async () => {
       const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.3'), {
-        queryID: 13n,
+        queryId: 13n,
         localToken: ctx.localToken,
         remoteChainSelector: 99999999n, // not configured
         amount: toNano('1'),
@@ -263,7 +263,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
 
     it('GetCCVs reverts for a disallowed finality config', async () => {
       const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.3'), {
-        queryID: 14n,
+        queryId: 14n,
         localToken: ctx.localToken,
         remoteChainSelector: ctx.remoteChainSelector,
         amount: toNano('1'),
@@ -293,7 +293,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
         ctx.deployer.getSender(),
         toNano('0.3'),
         {
-          queryID: 11n,
+          queryId: 11n,
           localToken: ctx.localToken,
           remoteChainSelector: ctx.remoteChainSelector,
           amount,
@@ -314,7 +314,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
           if (!body) return false
           const reply = TokenPool_CCVsAndFees.fromSlice(body.beginParse())
           return (
-            reply.queryID === 11n &&
+            reply.queryId === 11n &&
             reply.fees.feesProvided === true &&
             reply.fees.amountPostFee === postFee &&
             reply.fees.feeConfig.finalityTransferFeeBps === FEE_BPS &&
@@ -332,7 +332,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
         ctx.deployer.getSender(),
         toNano('0.2'),
         {
-          queryID: 12346n,
+          queryId: 12346n,
           updates: [],
           disableChainSelectors: [ctx.remoteChainSelector],
         },
@@ -343,7 +343,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
         ctx.deployer.getSender(),
         toNano('0.3'),
         {
-          queryID: 15n,
+          queryId: 15n,
           localToken: ctx.localToken,
           remoteChainSelector: ctx.remoteChainSelector,
           amount,
@@ -364,7 +364,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
           if (!body) return false
           const reply = TokenPool_CCVsAndFees.fromSlice(body.beginParse())
           return (
-            reply.queryID === 15n &&
+            reply.queryId === 15n &&
             reply.fees.feesProvided === false &&
             reply.fees.amountPostFee === amount && // no bps fee deducted when disabled
             reply.fees.feeConfig.isEnabled === false
@@ -380,7 +380,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
 
       const fwd = beginCell().storeUint(0xabcd, 16).endCell()
       const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.3'), {
-        queryID: 20n,
+        queryId: 20n,
         localToken: ctx.localToken,
         remoteChainSelector: ctx.remoteChainSelector,
         amount: toNano('1'),
@@ -408,7 +408,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
         body(body) {
           if (!body) return false
           const reply = TokenPool_CCVs.fromSlice(body.beginParse())
-          return reply.queryID === 20n && reply.requiredCCVs.length === 0
+          return reply.queryId === 20n && reply.requiredCCVs.length === 0
         },
       })
     })
@@ -419,7 +419,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
       const expectedCCV: Address = ctx.pool.address
 
       const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.3'), {
-        queryID: 21n,
+        queryId: 21n,
         localToken: ctx.localToken,
         remoteChainSelector: ctx.remoteChainSelector,
         amount: toNano('1'),
@@ -447,7 +447,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
           if (!body) return false
           const reply = TokenPool_CCVs.fromSlice(body.beginParse())
           return (
-            reply.queryID === 21n &&
+            reply.queryId === 21n &&
             reply.requiredCCVs.length === 1 &&
             reply.requiredCCVs[0].equals(expectedCCV)
           )
@@ -460,7 +460,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
 
       const fwd = beginCell().storeUint(0x1234, 16).endCell()
       const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.5'), {
-        queryID: 22n,
+        queryId: 22n,
         localToken: ctx.localToken,
         remoteChainSelector: ctx.remoteChainSelector,
         amount: toNano('1'),
@@ -491,7 +491,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
           if (!body) return false
           const reply = TokenPool_GetCCVsFailed.fromSlice(body.beginParse())
           return (
-            reply.queryID === 22n &&
+            reply.queryId === 22n &&
             reply.errorCode === 0xffffn &&
             reply.forwardPayload !== null &&
             reply.forwardPayload!.hash().equals(fwd.hash())
@@ -508,7 +508,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
 
       const fwd = beginCell().storeUint(0x4321, 16).endCell()
       const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.5'), {
-        queryID: 23n,
+        queryId: 23n,
         localToken: ctx.localToken,
         remoteChainSelector: ctx.remoteChainSelector,
         amount: toNano('1'),
@@ -528,7 +528,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
           if (!body) return false
           const reply = TokenPool_GetCCVsFailed.fromSlice(body.beginParse())
           return (
-            reply.queryID === 23n &&
+            reply.queryId === 23n &&
             reply.errorCode === -14n && // ExitCodeOutOfGasErrorVariant, not a clamped 0xFFFF
             reply.forwardPayload !== null &&
             reply.forwardPayload!.hash().equals(fwd.hash())
@@ -550,7 +550,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
           value: toNano('0.3'),
           body: TokenPool_QueryCCVsReply.toCell(
             TokenPool_QueryCCVsReply.create({
-              queryID: 23n,
+              queryId: 23n,
               requiredCCVs: [ctx.pool.address],
               forwardPayload: Cell.EMPTY,
             }),
@@ -576,7 +576,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
           value: toNano('0.3'),
           body: TokenPool_QueryCCVsReply.toCell(
             TokenPool_QueryCCVsReply.create({
-              queryID: 24n,
+              queryId: 24n,
               requiredCCVs: [],
               forwardPayload: null,
             }),

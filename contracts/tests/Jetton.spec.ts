@@ -86,7 +86,7 @@ describe('Send and Receive Jettons', () => {
     const mintResult = await jettonMinter.sendMint(deployer.getSender(), {
       value: toNano('1'),
       message: {
-        queryID: 0n,
+        queryId: 0n,
         destination: jettonSenderContract.address,
         tonAmount: toNano('0.05'),
         jettonAmount: toNano('1'),
@@ -156,7 +156,7 @@ describe('Send and Receive Jettons', () => {
     const jettonSendResult = await jettonSenderContract.sendJettonsFast(deployer.getSender(), {
       value: toNano('2'),
       message: {
-        queryID: 0n,
+        queryId: 0n,
         amount: jettonTransferAmount,
         destination: receiverAddress,
       },
@@ -203,7 +203,7 @@ describe('Send and Receive Jettons', () => {
       {
         value: toNano('2'),
         message: {
-          queryID: 0n,
+          queryId: 0n,
           amount: jettonTransferAmount,
           destination: receiverAddress,
           forwardPayload: jettonTransferPayload,
@@ -342,7 +342,7 @@ describe('Receiving Jettons as an Onramp Mock', () => {
     const mintResult = await jettonMinter.sendMint(deployer.getSender(), {
       value: toNano('1'),
       message: {
-        queryID: 0n,
+        queryId: 0n,
         destination: jettonSenderContract.address,
         tonAmount: toNano('0.05'),
         jettonAmount: toNano('6'),
@@ -409,7 +409,7 @@ describe('Receiving Jettons as an Onramp Mock', () => {
       const callResult = await jettonSenderContract.sendJettonsExtended(deployer.getSender(), {
         value: toNano('2'),
         message: {
-          queryID: nextQueryId,
+          queryId: nextQueryId,
           amount: jettonAmount,
           destination: onrampMock.address,
           forwardPayload: jettonTransferPayload,

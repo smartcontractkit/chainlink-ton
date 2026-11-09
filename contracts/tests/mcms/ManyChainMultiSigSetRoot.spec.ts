@@ -375,7 +375,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       // Set config with clearRoot = true
       const setConfigBody = mcms.builder.message.in.setConfig
         .encode({
-          queryID: 1n,
+          queryId: 1n,
           signerAddresses: baseTest.testSigners.map((s) => BigInt(s.address)),
           signerGroups: baseTest.testSigners.map((s) => s.group),
           groupQuorums: baseTest.testGroupQuorums,
@@ -555,7 +555,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
           toNano('0.05'),
           mcms.builder.message.in.updateOpFinalizationTimeout
             .encode({
-              queryID: 0n,
+              queryId: 0n,
               newOpFinalizationTimeout,
             })
             .asCell(),
@@ -776,7 +776,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       {
         const setConfigBody = mcms.builder.message.in.setConfig
           .encode({
-            queryID: 1n,
+            queryId: 1n,
             signerAddresses: signers.map((s) => BigInt(s.address)),
             signerGroups,
             groupQuorums: stricterGroupQuorums,
@@ -968,7 +968,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
 
       const cleanExpiredRootsBody = mcms.builder.message.in.cleanExpiredRoots
         .encode({
-          queryID: 1n,
+          queryId: 1n,
           roots: [
             {
               root: setRoot.root,

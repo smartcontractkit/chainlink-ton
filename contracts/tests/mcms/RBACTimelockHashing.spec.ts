@@ -24,12 +24,12 @@ describe('MCMS - RBACTimelockHashingTest', () => {
         {
           target: baseTest.bind.counter.address,
           value: 0n,
-          data: counter.builder.message.in.increaseCount.encode({ queryID: 1n }).asCell(),
+          data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
         },
         {
           target: baseTest.bind.counter.address,
           value: 0n,
-          data: counter.builder.message.in.increaseCount.encode({ queryID: 2n }).asCell(),
+          data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }).asCell(),
         },
       ],
       (c) => rbactl.builder.data.call.encode(c),
@@ -37,7 +37,7 @@ describe('MCMS - RBACTimelockHashingTest', () => {
 
     // Schedule operation
     const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-      queryID: 1n,
+      queryId: 1n,
       calls,
       predecessor: BaseTestSetup.NO_PREDECESSOR,
       salt: BaseTestSetup.EMPTY_SALT,

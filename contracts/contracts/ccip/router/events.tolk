@@ -32,6 +32,6 @@ const TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC = "TokenPoolWithdrawBounced".crc32();
 struct TokenPoolWithdrawBounced {
     wallet: address,
     tokenPool: address,
-    queryID: uint64,
+    queryId: uint64,
     exitCode: int32,
 }

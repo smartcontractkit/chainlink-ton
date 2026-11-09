@@ -66,7 +66,7 @@ type Router_RichBouncedMessage =
 
 // update multiple chain selectors in batch to the same onramp/offramp address
 struct (0x7db6745d) Router_ApplyRampUpdates {
-    queryID: uint64;
+    queryId: uint64;
     onRampUpdates: OnRamps? = null;
     offRampAdds: OffRamps? = null;
     offRampRemoves: OffRamps? = null;
@@ -75,7 +75,7 @@ struct (0x7db6745d) Router_ApplyRampUpdates {
 /// From the OffRamp: the ReceiveExecutor rejected the confirmation `receiver` sent. Relayed to
 /// `receiver` as Router_CCIPReceiveConfirmRejected. `sourceChainSelector` authenticates the OffRamp.
 struct (0xfe1f013c) Router_CCIPReceiveConfirmRejectedByExecutor {
-    queryID: uint64;
+    queryId: uint64;
     sourceChainSelector: uint64;
     receiver: address;
 }
@@ -86,11 +86,11 @@ struct (0xfe1f013c) Router_CCIPReceiveConfirmRejectedByExecutor {
 /// transaction. Defined here, not in the receiver library: a correct receiver confirms its own
 /// messages and never gets it.
 struct (0xe3c98863) Router_CCIPReceiveConfirmRejected {
-    queryID: uint64;
+    queryId: uint64;
 }
 
 struct (0xfc69c50b) Router_RouteMessage {
-    queryID: uint64;
+    queryId: uint64;
     message: Cell<Any2TVMMessage>;
     execId: ReceiveExecutorId;
     receiver: address;
@@ -98,7 +98,7 @@ struct (0xfc69c50b) Router_RouteMessage {
 }
 
 struct (0x19f0098f) Router_WithdrawToTokenPool {
-    queryID: uint64;
+    queryId: uint64;
     destChainSelector: uint64;
     /// The CCIPSendExecutor requesting the withdraw, authenticated by the OnRamp.
     executor: address;
@@ -122,7 +122,7 @@ struct Router_WithdrawRequest {
 /// Router_OnRampAccountFailed otherwise (e.g. the token can't report the wallet, or another request
 /// for the same new account is still waiting for it).
 struct (0x0e24d5ba) Router_GetOnRampAccount {
-    queryID: uint64;
+    queryId: uint64;
     /// Jetton master the account will escrow. One account per (sender, token).
     token: address;
 }
@@ -130,14 +130,14 @@ struct (0x0e24d5ba) Router_GetOnRampAccount {
 /// Sent to a user once their onramp account confirmed initialization: `account` is the
 /// address the user must send `token` jettons to (via its jetton wallet).
 struct (0xf28658e0) Router_UseOnRampAccount {
-    queryID: uint64;
+    queryId: uint64;
     account: address;
     token: address;
 }
 
 /// Sent to a user whose Router_GetOnRampAccount failed. `error` is the failure's exit code.
 struct (0x2c734db9) Router_OnRampAccountFailed {
-    queryID: uint64;
+    queryId: uint64;
     errorCode: int32;
 }
 
@@ -145,7 +145,7 @@ struct (0x2c734db9) Router_OnRampAccountFailed {
 /// Router moves custody. The Router relays the failure to the token pool so it can reinstate
 /// the rate limit consumed at admission and fail the send.
 struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
-    queryID: uint64;
+    queryId: uint64;
     destChainSelector: uint64;
     withdrawRequest: Cell<Router_WithdrawRequest>;
     errorCode: int32;                                   // Raw TVM exit code (signed).
@@ -153,41 +153,41 @@ struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
 
 // curse/uncurse/verify uncursed (also as getter)
 struct (0xf3388046) Router_RMNRemoteCurse {
-    queryID: uint64
+    queryId: uint64
     subjects: SnakedCell<uint128>
 }
 
 struct (0x3f153a31) Router_RMNRemoteUncurse {
-    queryID: uint64
+    queryId: uint64
     subjects: SnakedCell<uint128>
 }
 
 // Internal contracts can have their own cache, but external contracts will need to fetch the curse status via this method.
 struct (0x0b95aa4e) Router_RMNRemoteVerifyNotCursed {
-    queryID: uint64
+    queryId: uint64
     subject: uint128
 }
 
 struct (0x22ba83b3) Router_RMNRemoteVerifyNotCursedResponse {
-    queryID: uint64
+    queryId: uint64
     result: bool
 }
 
 /// Re-sends the current cursed subjects to every registered OffRamp, e.g. after
 /// adding a new OffRamp.
 struct (0x0fdd7b0f) Router_RMNRemoteSyncOffRamps {
-    queryID: uint64
+    queryId: uint64
 }
 
 struct (0x6513f8e1) Router_MessageSent {
-    queryID: uint64;
+    queryId: uint64;
     messageId: uint256;
     destChainSelector: uint64;
     sender: address;
 }
 
 struct (0x8ae25114) Router_MessageRejected {
-    queryID: uint64;
+    queryId: uint64;
     destChainSelector: uint64;
     sender: address;
     errorCode: int32;
@@ -217,7 +217,7 @@ struct (0x657ef7ec) Router_GetValidatedFee {
 }
 
 struct (0x6f2d00df) Router_LockOrBurn {
-    queryID: uint64,
+    queryId: uint64,
     tokenPool: address,
     request: Cell<TokenPool_LockOrBurnInV1>,
     executorAddress: address,
@@ -229,7 +229,7 @@ struct (0x6f2d00df) Router_LockOrBurn {
 /// The Router binds the authenticated OffRamp selector to the selector encoded
 /// in the pool request and applies its own RMN policy before dispatch.
 struct (0xb19862a3) Router_RelayReleaseOrMint {
-    queryID: uint64;
+    queryId: uint64;
     sourceChainSelector: uint64;
     tokenPool: address;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
@@ -241,7 +241,7 @@ struct (0xb19862a3) Router_RelayReleaseOrMint {
 /// Sent by the OffRamp once a ReceiveExecutor confirmed the released/minted tokens reached the
 /// receiver's deposit account. Relayed to the pool as `TokenPool_ReleaseOrMintDelivered`.
 struct (0xddfdefa8) Router_TokenTransferDelivered {
-    queryID: uint64;
+    queryId: uint64;
     tokenPool: address;
     replyTo: address;
     transfer: Cell<TokenPool_DeliveredTransfer>;
@@ -304,7 +304,7 @@ struct (0xe32e5616) Router_MessageValidationFailed {
 /// Canonical Router failure returned when a LockOrBurn request bounced before
 /// the token pool admitted it.
 struct (0xb76e3a84) Router_TokenPoolLockOrBurnFailed {
-    queryID: uint64;
+    queryId: uint64;
     tokenPool: address;
     errorCode: int32;
 }
@@ -316,7 +316,7 @@ struct (0xb76e3a84) Router_TokenPoolLockOrBurnFailed {
 /// authority allowed to fail a ReceiveExecutor. The OffRamp authenticates the
 /// Router by `sourceChainSelector` and forwards the failure to `replyTo`.
 struct (0xb980cb4e) Router_TokenPoolReleaseOrMintFailed {
-    queryID: uint64;
+    queryId: uint64;
     sourceChainSelector: uint64;
     replyTo: address;
     tokenPool: address;

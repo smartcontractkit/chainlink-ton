@@ -276,7 +276,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onFeeReserved
         value: TokenAdminRegistry_GetTokenInfo.cost(),
         dest: tokenRegistry.load(),
         body: TokenAdminRegistry_GetTokenInfo {
-            queryID: 0,
+            queryId: 0,
             token: tokenAmount.token,
         }
     });
@@ -318,7 +318,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
         value: OnRamp_Costs.ExecutorRequestsLockOrBurn(lockOrBurnAdmission),
         dest: addresses.onramp,
         body: OnRamp_ExecutorRequestsLockOrBurn {
-            queryID: ccipSend.queryID,
+            queryId: ccipSend.queryId,
             tokenAmount: tokenAmount.toCell(),
             tokenPool,
             destChainSelector: ccipSend.destChainSelector,
@@ -371,7 +371,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
         value: 0,
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorRequestsWithdraw {
-            queryID: self.onrampSend.msg.load().queryID,
+            queryId: self.onrampSend.msg.load().queryId,
             executorID: self.id,
             destChainSelector: self.onrampSend.msg.load().destChainSelector,
             chainFamilySelector: state.chainFamilySelector,
@@ -495,7 +495,7 @@ fun CCIPSendExecutor<T>.exitWithError(self, errorCode: int32, chargedFee: coins?
         value: 0,
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedWithError {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             executorID: self.id,
             destChainSelector: msg.destChainSelector,
             sender: self.onrampSend.metadata.sender,

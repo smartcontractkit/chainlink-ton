@@ -511,7 +511,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           notification: TransferNotificationForRecipient.create({
-            queryID: 0n,
+            queryId: 0n,
             jettonAmount: amount,
             transferInitiator: opts.initiator === undefined ? tokenPool.address : opts.initiator,
             forwardPayload: beginCell().storeMaybeRef(null).asSlice(),

@@ -31,12 +31,12 @@ export const EventOpcodes = {
 }
 
 export type InsufficientFeeEvent = {
-  queryID: bigint
+  queryId: bigint
   sender: Address
 }
 
 export type AcceptedRequestEvent = {
-  queryID: bigint
+  queryId: bigint
   sender: Address
   payload: Cell
 }
@@ -73,7 +73,7 @@ export class OnrampMock implements Contract {
   static parseInsufficientFeeEvent(cell: Cell): InsufficientFeeEvent {
     const slice = cell.beginParse()
     return {
-      queryID: BigInt(slice.loadUint(64)),
+      queryId: BigInt(slice.loadUint(64)),
       sender: slice.loadAddress(),
     }
   }
@@ -81,7 +81,7 @@ export class OnrampMock implements Contract {
   static parseAcceptedRequestEvent(cell: Cell): AcceptedRequestEvent {
     const slice = cell.beginParse()
     return {
-      queryID: BigInt(slice.loadUint(64)),
+      queryId: BigInt(slice.loadUint(64)),
       sender: slice.loadAddress(),
       payload: slice.loadRef(),
     }

@@ -44,7 +44,7 @@ describe('Router.ccipSend', () => {
   })
 
   const msg = rt.Router_CCIPSend.create({
-    queryID: 1n,
+    queryId: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
@@ -77,7 +77,7 @@ describe('Router.ccipSend', () => {
     )
     await onRampBouncer.sendDeploy(deployer.getSender(), toNano('0.05'))
     const update = await router.sendRouterApplyRampUpdates(deployer.getSender(), toNano('1'), {
-      queryID: 0n,
+      queryId: 0n,
       onRampUpdates: rt.OnRamps.create({
         destChainSelectors: [msg.destChainSelector],
         onRamp: onRampBouncer.address,
@@ -113,7 +113,7 @@ describe('Router.ccipSend', () => {
       body(x) {
         if (!x) return false
         const nack = rt.Router_CCIPSendNACK.fromSlice(x.beginParse())
-        return nack.queryID === msg.queryID && nack.errorCode === 0xffffn // the Bouncer throws 0xFFFF
+        return nack.queryId === msg.queryId && nack.errorCode === 0xffffn // the Bouncer throws 0xFFFF
       },
     })
   })
@@ -234,7 +234,7 @@ describe('Router.ccipSend', () => {
     // Disable the onRamp for the chain
     {
       const result = await router.sendRouterApplyRampUpdates(deployer.getSender(), toNano('1'), {
-        queryID: 1n,
+        queryId: 1n,
         onRampUpdates: rt.OnRamps.create({
           destChainSelectors: [ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001],
           onRamp: null,

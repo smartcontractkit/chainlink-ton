@@ -67,7 +67,7 @@ describe('Ownable2Step Counter', () => {
     const newCount = 100
 
     const result = await bind.counter.sendSetCount(owner.getSender(), toNano('0.05'), {
-      queryID: 1n,
+      queryId: 1n,
       newCount: newCount,
     })
     expect(result.transactions).toHaveTransaction({
@@ -86,7 +86,7 @@ describe('Ownable2Step Counter', () => {
     const initialCount = await bind.counter.getValue()
 
     const result = await bind.counter.sendSetCount(other.getSender(), toNano('0.05'), {
-      queryID: 1n,
+      queryId: 1n,
       newCount: 100,
     })
     expect(result.transactions).toHaveTransaction({
@@ -110,7 +110,7 @@ describe('Ownable2Step Counter', () => {
       owner.getSender(),
       toNano('0.05'),
       {
-        queryID: 1n,
+        queryId: 1n,
         newOwner: other.address,
       },
     )
@@ -126,7 +126,7 @@ describe('Ownable2Step Counter', () => {
 
     // Check that the pending owner cannot operate as owner
     const resultSetCount = await bind.counter.sendSetCount(other.getSender(), toNano('0.05'), {
-      queryID: 1n,
+      queryId: 1n,
       newCount: 100,
     })
 
@@ -147,7 +147,7 @@ describe('Ownable2Step Counter', () => {
     const other = await blockchain.treasury('other')
 
     await bind.ownable.sendOwnable2StepTransferOwnership(owner.getSender(), toNano('0.05'), {
-      queryID: 1n,
+      queryId: 1n,
       newOwner: other.address,
     })
 
@@ -155,7 +155,7 @@ describe('Ownable2Step Counter', () => {
       other.getSender(),
       toNano('0.05'),
       {
-        queryID: 1n,
+        queryId: 1n,
       },
     )
     expect(resultAcceptOwnership.transactions).toHaveTransaction({
@@ -170,7 +170,7 @@ describe('Ownable2Step Counter', () => {
 
     // Check that the new owner can operate as owner
     const resultSetCount = await bind.counter.sendSetCount(other.getSender(), toNano('0.05'), {
-      queryID: 1n,
+      queryId: 1n,
       newCount: 100,
     })
 
@@ -188,16 +188,16 @@ describe('Ownable2Step Counter', () => {
     const owner = await blockchain.treasury('deployer')
     const other = await blockchain.treasury('other')
     await bind.ownable.sendOwnable2StepTransferOwnership(owner.getSender(), toNano('0.05'), {
-      queryID: 1n,
+      queryId: 1n,
       newOwner: other.address,
     })
     await bind.ownable.sendOwnable2StepAcceptOwnership(other.getSender(), toNano('0.05'), {
-      queryID: 1n,
+      queryId: 1n,
     })
 
     // Check that the original owner cannot operate as owner
     const resultSetCount = await bind.counter.sendSetCount(owner.getSender(), toNano('0.05'), {
-      queryID: 1n,
+      queryId: 1n,
       newCount: 100,
     })
     expect(resultSetCount.transactions).toHaveTransaction({
@@ -214,7 +214,7 @@ describe('Ownable2Step Counter', () => {
       other.getSender(),
       toNano('0.05'),
       {
-        queryID: 1n,
+        queryId: 1n,
       },
     )
     expect(result.transactions).toHaveTransaction({
@@ -230,7 +230,7 @@ describe('Ownable2Step Counter', () => {
     const other = await blockchain.treasury('other')
 
     await bind.ownable.sendOwnable2StepTransferOwnership(deployer.getSender(), toNano('0.05'), {
-      queryID: 1n,
+      queryId: 1n,
       newOwner: pendingOwner.address,
     })
 
@@ -238,7 +238,7 @@ describe('Ownable2Step Counter', () => {
       other.getSender(),
       toNano('0.05'),
       {
-        queryID: 1n,
+        queryId: 1n,
       },
     )
 
@@ -256,7 +256,7 @@ describe('Ownable2Step Counter', () => {
       other.getSender(),
       toNano('0.05'),
       {
-        queryID: 1n,
+        queryId: 1n,
         newOwner: other.address,
       },
     )
@@ -274,7 +274,7 @@ describe('Ownable2Step Counter', () => {
       owner.getSender(),
       toNano('0.05'),
       {
-        queryID: 1n,
+        queryId: 1n,
         newOwner: owner.address,
       },
     )

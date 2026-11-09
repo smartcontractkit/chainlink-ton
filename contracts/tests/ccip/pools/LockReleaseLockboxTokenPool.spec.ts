@@ -152,7 +152,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       deployer.getSender(),
       toNano('0.2'),
       {
-        queryID: 1n,
+        queryId: 1n,
         minterAddress: jettonMinter.address,
         walletAddress: lockboxWalletAddress,
         admin: deployer.address,
@@ -211,7 +211,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       AccessControlClient.createFromAddress(jettonLockBox.address),
     )
     const grantRoleResult = await acClient.sendGrantRole(deployer.getSender(), toNano('0.1'), {
-      queryID: 0n,
+      queryId: 0n,
       role: OPERATOR_ROLE_VALUE,
       account: lockReleaseLockboxPool.address,
     })
@@ -230,7 +230,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       deployer.getSender(),
       toNano('0.2'),
       {
-        queryID: 1n,
+        queryId: 1n,
         remoteChainSelectorsToRemove: [],
         chainsToAdd: [
           TokenPool_ChainUpdate.create({
@@ -264,7 +264,7 @@ describe('LockReleaseLockboxTokenPool', () => {
     const mintToDeployer = await jettonMinter.sendMint(deployer.getSender(), {
       value: toNano('1'),
       message: {
-        queryID: 0n,
+        queryId: 0n,
         destination: deployer.address,
         tonAmount: toNano('0.05'),
         jettonAmount: toNano('1000'),
@@ -295,17 +295,17 @@ describe('LockReleaseLockboxTokenPool', () => {
   // offchain) transfers to the pool carrying the forward payload, tagged with
   // `initiator` = Router, which the pool requires to trust the payload.
   // @param amount Number of jettons to deposit into the lockbox.
-  // @param queryID Unique queryID to avoid collisions across repeated calls.
+  // @param queryId Unique queryId to avoid collisions across repeated calls.
   // @returns The lockbox's jetton wallet address.
   const fundLockboxViaLock = async (
     amount: bigint,
-    queryID: number | bigint = 7000n,
+    queryId: number | bigint = 7000n,
   ): Promise<Address> => {
     const lockOrBurn = TokenPool_LockOrBurn.create({
-      queryID: BigInt(queryID),
+      queryId: BigInt(queryId),
       request: TokenPool_LockOrBurnInV1.create({
         transfer: TokenPool_Transfer.create({
-          id: BigInt(queryID),
+          id: BigInt(queryId),
           details: TokenPool_TransferDetails.create({
             receiver: receiverAddress,
             remoteChainSelector,
@@ -343,7 +343,7 @@ describe('LockReleaseLockboxTokenPool', () => {
     await deployerWallet.sendTransfer(deployer.getSender(), {
       value: toNano('3'),
       message: {
-        queryID: Number(queryID),
+        queryId: Number(queryId),
         jettonAmount: amount,
         destination: accountAddress,
         responseDestination: deployer.address,
@@ -356,7 +356,7 @@ describe('LockReleaseLockboxTokenPool', () => {
     const result = await accountWallet.sendTransfer(blockchain.sender(accountAddress), {
       value: toNano('3'),
       message: {
-        queryID: Number(queryID),
+        queryId: Number(queryId),
         jettonAmount: amount,
         destination: lockReleaseLockboxPool.address,
         responseDestination: deployer.address,
@@ -429,7 +429,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       deployer.getSender(),
       toNano('0.2'),
       {
-        queryID: 9999n,
+        queryId: 9999n,
         advancedPoolHooks: hooks.address,
       },
     )
@@ -469,7 +469,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       deployer.getSender(),
       toNano('0.2'),
       {
-        queryID: 3n,
+        queryId: 3n,
         updates: [
           TokenPool_TokenTransferFeeConfigArgs.create({
             destChainSelector: remoteChainSelector,
@@ -490,13 +490,13 @@ describe('LockReleaseLockboxTokenPool', () => {
 
     // Performs a successful fee-accruing lock of `amount` jettons. The pool forwards only the
     // post-fee amount to the lockbox, leaving `feeAmount` in the pool's own wallet.
-    const doLock = async (amount: bigint, queryID: bigint) => {
+    const doLock = async (amount: bigint, queryId: bigint) => {
       const feeAmount = (amount * feeBps) / 10000n
       const lockOrBurn = TokenPool_LockOrBurn.create({
-        queryID,
+        queryId,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: queryID,
+            id: queryId,
             details: TokenPool_TransferDetails.create({
               receiver: receiverAddress,
               remoteChainSelector,
@@ -534,7 +534,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       await deployerWallet.sendTransfer(deployer.getSender(), {
         value: toNano('2'),
         message: {
-          queryID: Number(queryID),
+          queryId: Number(queryId),
           jettonAmount: amount,
           destination: accountAddress,
           responseDestination: deployer.address,
@@ -547,7 +547,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       await accountWallet.sendTransfer(blockchain.sender(accountAddress), {
         value: toNano('2'),
         message: {
-          queryID: Number(queryID),
+          queryId: Number(queryId),
           jettonAmount: amount,
           destination: lockReleaseLockboxPool.address,
           responseDestination: deployer.address,
@@ -624,12 +624,12 @@ describe('LockReleaseLockboxTokenPool', () => {
     // which then transfers to the pool carrying the Router-initiated forward payload wrapper
     // (same shape as `fundLockboxViaLock`). Sending directly from a user wallet with an
     // unwrapped payload would take the pool's recovery path instead of locking.
-    const lockViaOnRampAccount = async (amount: bigint, queryID: bigint) => {
+    const lockViaOnRampAccount = async (amount: bigint, queryId: bigint) => {
       const lockOrBurn = TokenPool_LockOrBurn.create({
-        queryID,
+        queryId,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: queryID,
+            id: queryId,
             details: TokenPool_TransferDetails.create({
               receiver: receiverAddress,
               remoteChainSelector,
@@ -669,7 +669,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       await deployerWallet.sendTransfer(deployer.getSender(), {
         value: toNano('3'),
         message: {
-          queryID: Number(queryID),
+          queryId: Number(queryId),
           jettonAmount: amount,
           destination: accountAddress,
           responseDestination: deployer.address,
@@ -682,7 +682,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       return accountWallet.sendTransfer(blockchain.sender(accountAddress), {
         value: toNano('3'),
         message: {
-          queryID: Number(queryID),
+          queryId: Number(queryId),
           jettonAmount: amount,
           destination: lockReleaseLockboxPool.address,
           responseDestination: deployer.address,
@@ -776,7 +776,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       await jettonMinter.sendMint(deployer.getSender(), {
         value: toNano('1'),
         message: {
-          queryID: 0n,
+          queryId: 0n,
           destination: lockboxWalletAddress,
           tonAmount: toNano('0.05'),
           jettonAmount: toNano('50'),
@@ -790,7 +790,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         deployer.getSender(),
         toNano('0.5'),
         {
-          queryID: 200n,
+          queryId: 200n,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
               id: 200n,
@@ -833,7 +833,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         deployer.getSender(),
         toNano('0.4'),
         {
-          queryID: 201n,
+          queryId: 201n,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
               id: 201n,
@@ -866,16 +866,16 @@ describe('LockReleaseLockboxTokenPool', () => {
   describe('release failure reported by the lockbox', () => {
     // Releases through the pool and returns the JettonLockBox_Withdraw it sent to the lockbox,
     // which the lockbox echoes back as context in JettonLockBox_WithdrawFailed.
-    const releaseAndCaptureWithdraw = async (queryID: bigint) => {
-      await fundLockboxViaLock(toNano('50'), 600n + queryID)
+    const releaseAndCaptureWithdraw = async (queryId: bigint) => {
+      await fundLockboxViaLock(toNano('50'), 600n + queryId)
       const result = await lockReleaseLockboxPool.sendTokenPoolReleaseOrMint(
         deployer.getSender(),
         toNano('1'),
         {
-          queryID,
+          queryId,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: queryID,
+              id: queryId,
               details: TokenPool_TransferDetails.create({
                 originalSender: sourcePoolAddress,
                 remoteChainSelector,
@@ -907,14 +907,14 @@ describe('LockReleaseLockboxTokenPool', () => {
     }
 
     it('replies ReleaseOrMintFailure to replyTo when the lockbox reports the withdraw failed', async () => {
-      const queryID = 610n
-      const withdraw = await releaseAndCaptureWithdraw(queryID)
+      const queryId = 610n
+      const withdraw = await releaseAndCaptureWithdraw(queryId)
 
       const result = await lockReleaseLockboxPool.sendJettonLockBoxWithdrawFailed(
         blockchain.sender(jettonLockBox.address),
         toNano('0.2'),
         {
-          queryID,
+          queryId,
           token: jettonMinter.address,
           context: withdraw,
         },
@@ -925,21 +925,21 @@ describe('LockReleaseLockboxTokenPool', () => {
         op: TokenPool_ReleaseOrMintFailure.PREFIX,
         body(body) {
           if (!body) return false
-          return TokenPool_ReleaseOrMintFailure.fromSlice(body.beginParse()).queryID === queryID
+          return TokenPool_ReleaseOrMintFailure.fromSlice(body.beginParse()).queryId === queryId
         },
       })
     })
 
     it('rejects a JettonLockBox_WithdrawFailed that does not come from the lockbox', async () => {
-      const queryID = 611n
-      const withdraw = await releaseAndCaptureWithdraw(queryID)
+      const queryId = 611n
+      const withdraw = await releaseAndCaptureWithdraw(queryId)
 
       const unauthorized = await blockchain.treasury('unauthorized')
       const result = await lockReleaseLockboxPool.sendJettonLockBoxWithdrawFailed(
         unauthorized.getSender(),
         toNano('0.2'),
         {
-          queryID,
+          queryId,
           token: jettonMinter.address,
           context: withdraw,
         },
@@ -964,21 +964,21 @@ describe('LockReleaseLockboxTokenPool', () => {
         AccessControlClient.createFromAddress(jettonLockBox.address),
       )
       await accessControl.sendRevokeRole(deployer.getSender(), toNano('0.1'), {
-        queryID: 0n,
+        queryId: 0n,
         role: BigInt(require('zlib').crc32('OPERATOR_ROLE')),
         account: lockReleaseLockboxPool.address,
       })
 
-      const queryID = 620n
+      const queryId = 620n
       const rateLimitBefore = await pool.getCurrentRateLimiterState(remoteChainSelector, false)
       const result = await lockReleaseLockboxPool.sendTokenPoolReleaseOrMint(
         deployer.getSender(),
         toNano('1'),
         {
-          queryID,
+          queryId,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: queryID,
+              id: queryId,
               details: TokenPool_TransferDetails.create({
                 originalSender: sourcePoolAddress,
                 remoteChainSelector,
@@ -1015,7 +1015,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         op: TokenPool_ReleaseOrMintFailure.PREFIX,
         body(body) {
           if (!body) return false
-          return TokenPool_ReleaseOrMintFailure.fromSlice(body.beginParse()).queryID === queryID
+          return TokenPool_ReleaseOrMintFailure.fromSlice(body.beginParse()).queryId === queryId
         },
       })
       expect(
@@ -1037,7 +1037,7 @@ describe('LockReleaseLockboxTokenPool', () => {
             value: toNano('0.05'),
             body: TransferNotificationForRecipient.toCell(
               TransferNotificationForRecipient.create({
-                queryID: 304n,
+                queryId: 304n,
                 jettonAmount: 1n,
                 transferInitiator: deployer.address,
                 forwardPayload:
@@ -1081,7 +1081,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           AccessControlClient.createFromAddress(jettonLockBox.address),
         )
         await accessControl.sendRevokeRole(deployer.getSender(), toNano('0.1'), {
-          queryID: 0n,
+          queryId: 0n,
           role: BigInt(require('zlib').crc32('OPERATOR_ROLE')),
           account: lockReleaseLockboxPool.address,
         })
@@ -1090,7 +1090,7 @@ describe('LockReleaseLockboxTokenPool', () => {
             deployer.getSender(),
             toNano('0.2'),
             {
-              queryID: 0n,
+              queryId: 0n,
               updates: [
                 TokenPool_TokenTransferFeeConfigArgs.create({
                   destChainSelector: remoteChainSelector,
@@ -1118,12 +1118,12 @@ describe('LockReleaseLockboxTokenPool', () => {
         const lockboxBalance = (await blockchain.getContract(jettonLockBox.address)).balance
         const poolBalance = (await blockchain.getContract(lockReleaseLockboxPool.address)).balance
         const rateLimitBefore = await pool.getCurrentRateLimiterState(remoteChainSelector, false)
-        const queryID = 301n
+        const queryId = 301n
         const request = TokenPool_LockOrBurn.create({
-          queryID,
+          queryId,
           request: TokenPool_LockOrBurnInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: queryID,
+              id: queryId,
               details: TokenPool_TransferDetails.create({
                 receiver: receiverAddress,
                 remoteChainSelector,
@@ -1164,7 +1164,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           toNano('0.5'),
           TokenPool_LockOrBurn.create({
             ...request,
-            queryID: 303n,
+            queryId: 303n,
             request: TokenPool_LockOrBurnInV1.create({
               transfer: TokenPool_Transfer.create({
                 id: 303n,
@@ -1188,7 +1188,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         await onRampWallet.sendTransfer(deployer.getSender(), {
           value: toNano('2'),
           message: {
-            queryID: Number(queryID),
+            queryId: Number(queryId),
             jettonAmount: toNano('10'),
             destination: accountAddress,
             responseDestination: deployer.address,
@@ -1201,7 +1201,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         const result = await accountWallet.sendTransfer(blockchain.sender(accountAddress), {
           value: toNano('2'),
           message: {
-            queryID: Number(queryID),
+            queryId: Number(queryId),
             jettonAmount: toNano('10'),
             destination: lockReleaseLockboxPool.address,
             responseDestination: deployer.address,
@@ -1224,7 +1224,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           body(body) {
             if (!body) return false
             const failure = JettonLockBox_DepositFailed.fromSlice(body.beginParse())
-            return failure.queryID === queryID
+            return failure.queryId === queryId
           },
         })
         expect(result.transactions).toHaveTransaction({
@@ -1288,13 +1288,13 @@ describe('LockReleaseLockboxTokenPool', () => {
           toNano('0.5'),
           {
             withdrawMsg: JettonWithdrawable_Withdraw.create({
-              queryID: 302n,
+              queryId: 302n,
               transfers: [
                 JettonWithdrawable_WithdrawFeeTransfer.create({
                   wallet: poolWallet.address,
                   value: toNano('0.2'),
                   msg: AskToTransfer.create({
-                    queryID: 302n,
+                    queryId: 302n,
                     jettonAmount: toNano('1'),
                     transferRecipient: recipient.address,
                     sendExcessesTo: lockReleaseLockboxPool.address,
@@ -1325,7 +1325,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       const poolWallet = await userWallet(lockReleaseLockboxPool.address)
 
       const request = TokenPool_LockOrBurn.create({
-        queryID: 305n,
+        queryId: 305n,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
             id: 305n,
@@ -1398,7 +1398,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       })
       const account = blockchain.openContract(da.DepositAccount.fromAddress(accountAddress))
       const initRes = await account.sendDepositAccountInit(deployer.getSender(), toNano('0.3'), {
-        queryID: 0n,
+        queryId: 0n,
         context: null,
       })
       expect(initRes.transactions).toHaveTransaction({
@@ -1412,7 +1412,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       await jettonMinter.sendMint(deployer.getSender(), {
         value: toNano('1'),
         message: {
-          queryID: 305n,
+          queryId: 305n,
           destination: attacker.address,
           tonAmount: toNano('0.05'),
           jettonAmount: toNano('5'),
@@ -1424,7 +1424,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       await attackerWallet.sendTransfer(attacker.getSender(), {
         value: toNano('2'),
         message: {
-          queryID: 305,
+          queryId: 305,
           jettonAmount: toNano('5'),
           destination: accountAddress,
           responseDestination: attacker.address,
@@ -1451,7 +1451,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         attacker.getSender(),
         toNano('2'),
         {
-          queryID: 305n,
+          queryId: 305n,
           ask: da.AskToTransfer.create({
             jettonAmount: toNano('5'),
             transferRecipient: lockReleaseLockboxPool.address,
@@ -1540,7 +1540,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         await jettonMinter.sendMint(deployer.getSender(), {
           value: toNano('1'),
           message: {
-            queryID: 0n,
+            queryId: 0n,
             destination: jettonLockBox.address,
             tonAmount: toNano('0.05'),
             jettonAmount: toNano('1'),
@@ -1561,7 +1561,7 @@ describe('LockReleaseLockboxTokenPool', () => {
 
         const safety = (await lockReleaseLockboxPool.getBudget()).lockOrBurn.safety
         const lockOrBurn = TokenPool_LockOrBurn.create({
-          queryID: 300n,
+          queryId: 300n,
           request: TokenPool_LockOrBurnInV1.create({
             transfer: TokenPool_Transfer.create({
               id: 300n,
@@ -1606,7 +1606,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         await onRampWallet.sendTransfer(deployer.getSender(), {
           value: toNano('3'),
           message: {
-            queryID: 300,
+            queryId: 300,
             jettonAmount: toNano('8'),
             destination: accountAddress,
             responseDestination: deployer.address,
@@ -1619,7 +1619,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         const result = await accountWallet.sendTransfer(blockchain.sender(accountAddress), {
           value: toNano('3'),
           message: {
-            queryID: 300,
+            queryId: 300,
             jettonAmount: toNano('8'),
             destination: lockReleaseLockboxPool.address,
             responseDestination: deployer.address,
@@ -1657,7 +1657,7 @@ describe('LockReleaseLockboxTokenPool', () => {
             body(body) {
               if (!body) return false
               const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
-              return failure.queryID === 300n && failure.errorCode === 51725n
+              return failure.queryId === 300n && failure.errorCode === 51725n
             },
           })
           expect(await poolWallet.getJettonBalance()).toEqual(toNano('8'))
@@ -1709,7 +1709,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         deployer.getSender(),
         toNano('1'),
         {
-          queryID: 400n,
+          queryId: 400n,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
               id: 400n,
@@ -1793,7 +1793,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         deployer.getSender(),
         toNano('1'),
         {
-          queryID: 401n,
+          queryId: 401n,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
               id: 401n,
@@ -1835,8 +1835,8 @@ describe('LockReleaseLockboxTokenPool', () => {
           if (!body) return false
           const failure = JettonLockBox_WithdrawFailed.fromSlice(body.beginParse())
           return (
-            failure.queryID === 401n &&
-            failure.context?.queryID === 401n &&
+            failure.queryId === 401n &&
+            failure.context?.queryId === 401n &&
             failure.context.amount === toNano('5') &&
             failure.context.extra?.forwardPayload !== null
           )
@@ -1863,7 +1863,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         deployer.getSender(),
         toNano('0.2'),
         {
-          queryID: 901n,
+          queryId: 901n,
           subjects: [remoteChainSelector],
         },
       )

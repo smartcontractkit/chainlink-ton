@@ -33,7 +33,7 @@ export function runTokenPoolContinuationBehaviorTests(
 ) {
   function releaseOneToken(ctx: TokenPoolBehaviorContext, value = toNano('0.6')) {
     return ctx.pool.sendTokenPoolReleaseOrMint(ctx.deployer.getSender(), value, {
-      queryID: 1n,
+      queryId: 1n,
       request: releaseRequest(ctx),
       requestedFinalityConfig: 0n,
       replyTo: ctx.deployer.address,
@@ -123,7 +123,7 @@ export function runTokenPoolContinuationBehaviorTests(
         ctx.deployer.getSender(),
         floor * 3n + toNano('0.01'),
         {
-          queryID: 1n,
+          queryId: 1n,
           request: TokenPool_LockOrBurnInV1.create({
             transfer: TokenPool_Transfer.create({
               id: 1n,
@@ -168,7 +168,7 @@ export function runTokenPoolContinuationBehaviorTests(
       await wallet.sendTransfer(ctx.deployer.getSender(), {
         value: toNano('0.6'),
         message: {
-          queryID: 1,
+          queryId: 1,
           jettonAmount: 1n,
           destination: accountAddress,
           responseDestination: ctx.deployer.address,
@@ -185,7 +185,7 @@ export function runTokenPoolContinuationBehaviorTests(
         {
           value: toNano('0.6'),
           message: {
-            queryID: 1,
+            queryId: 1,
             jettonAmount: 1n,
             destination: ctx.pool.address,
             responseDestination: ctx.deployer.address,
@@ -213,7 +213,7 @@ export function runTokenPoolContinuationBehaviorTests(
         to: ctx.deployer.address,
         body: TokenPool_LockOrBurnFailure.toCell({
           $: 'TokenPool_LockOrBurnFailure',
-          queryID: 1n,
+          queryId: 1n,
           errorCode: INSUFFICIENT_MESSAGE_VALUE,
         }),
       })

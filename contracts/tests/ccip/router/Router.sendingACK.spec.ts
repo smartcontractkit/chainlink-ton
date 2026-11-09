@@ -38,7 +38,7 @@ describe('Router', () => {
 
   it('should forward message sent from onRamp', async () => {
     const result = await router.sendRouterMessageSent(onRamp.getSender(), toNano('1'), {
-      queryID: 0n,
+      queryId: 0n,
       messageId: 42n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       sender: sender.address,
@@ -58,14 +58,14 @@ describe('Router', () => {
       body(x) {
         if (!x) return false
         const decoded = rt.Router_CCIPSendACK.fromSlice(x.beginParse())
-        return decoded.queryID === 0n && decoded.messageId === 42n
+        return decoded.queryId === 0n && decoded.messageId === 42n
       },
     })
   })
 
   it('should not forward message sent from non onRamp', async () => {
     const result = await router.sendRouterMessageSent(deployer.getSender(), toNano('1'), {
-      queryID: 0n,
+      queryId: 0n,
       messageId: 42n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       sender: sender.address,
@@ -81,7 +81,7 @@ describe('Router', () => {
 
   it('should forward message rejected from onRamp', async () => {
     const result = await router.sendRouterMessageRejected(onRamp.getSender(), toNano('1'), {
-      queryID: 0n,
+      queryId: 0n,
       errorCode: 42n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       sender: sender.address,
@@ -101,14 +101,14 @@ describe('Router', () => {
       body(x) {
         if (!x) return false
         const decoded = rt.Router_CCIPSendNACK.fromSlice(x.beginParse())
-        return decoded.queryID === 0n && decoded.errorCode === 42n
+        return decoded.queryId === 0n && decoded.errorCode === 42n
       },
     })
   })
 
   it('should not forward message rejected from non onRamp', async () => {
     const result = await router.sendRouterMessageRejected(deployer.getSender(), toNano('1'), {
-      queryID: 0n,
+      queryId: 0n,
       errorCode: 42n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       sender: sender.address,

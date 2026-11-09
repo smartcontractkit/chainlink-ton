@@ -123,7 +123,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
     await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
 
     await router.sendRouterApplyRampUpdates(deployer.getSender(), toNano('0.1'), {
-      queryID: 0n,
+      queryId: 0n,
       onRampUpdates: rt.OnRamps.create({
         destChainSelectors: [ChainSelectors.testnet.evm],
         onRamp: onRamp.address,
@@ -218,7 +218,7 @@ async function measureGetValidatedFee(
     Costs.getValidatedFee,
     rt.Router_GetValidatedFee.create({
       ccipSend: rt.Router_CCIPSend.create({
-        queryID: 1n,
+        queryId: 1n,
         destChainSelector: ChainSelectors.testnet.evm,
         receiver: EVM_ADDRESS,
         data: payload,

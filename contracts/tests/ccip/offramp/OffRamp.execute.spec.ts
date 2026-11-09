@@ -260,15 +260,15 @@ describe('OffRamp - Execute', () => {
     })
 
     // R5: when the MerkleRoot rejects MerkleRoot_Validate, the OffRamp refunds the caller
-    // (excessesTo) with OffRamp_MerkleRootValidateRejected { queryID }, NoBounce.
+    // (excessesTo) with OffRamp_MerkleRootValidateRejected { queryId }, NoBounce.
     describe('MerkleRoot_Validate rejection refunds the caller', () => {
       // Asserts the MerkleRoot rejected the validate, the OffRamp handled the rich bounce, and
-      // the caller got a non-bounceable OffRamp_MerkleRootValidateRejected carrying the queryID
+      // the caller got a non-bounceable OffRamp_MerkleRootValidateRejected carrying the queryId
       // and the remaining value.
       const expectValidateRejectedRefund = (
         transactions: any[],
         caller: Address,
-        queryID: bigint,
+        queryId: bigint,
         merkleRootExitCode: number,
       ) => {
         // The MerkleRoot rejected the validate.
@@ -283,7 +283,7 @@ describe('OffRamp - Execute', () => {
           op: 0xfffffffe,
           success: true,
         })
-        // The caller got the rejection with the queryID and the remaining value, non-bounceable.
+        // The caller got the rejection with the queryId and the remaining value, non-bounceable.
         expect(transactions).toHaveTransaction({
           from: setup.offRamp.address,
           to: caller,
@@ -294,7 +294,7 @@ describe('OffRamp - Execute', () => {
           body(x) {
             if (!x) return false
             return (
-              of.OffRamp_MerkleRootValidateRejected.fromSlice(x.beginParse()).queryID === queryID
+              of.OffRamp_MerkleRootValidateRejected.fromSlice(x.beginParse()).queryId === queryId
             )
           },
         })
@@ -307,7 +307,7 @@ describe('OffRamp - Execute', () => {
         const report = setup.createExecuteReport([message])
 
         const caller = setup.transmitters[0]
-        const queryID = 0n
+        const queryId = 0n
         const result = await setup.offRamp.sendOffRampExecute(caller.getSender(), toNano('0.5'), {
           reportContext: of.ReportContext.create({
             configDigest: setup.configDigest,
@@ -332,7 +332,7 @@ describe('OffRamp - Execute', () => {
           body(x) {
             if (!x) return false
             return (
-              of.OffRamp_MerkleRootValidateRejected.fromSlice(x.beginParse()).queryID === queryID
+              of.OffRamp_MerkleRootValidateRejected.fromSlice(x.beginParse()).queryId === queryId
             )
           },
         })
@@ -348,7 +348,7 @@ describe('OffRamp - Execute', () => {
 
         // Second execution of the same report: the MerkleRoot rejects it.
         const caller = setup.transmitters[0]
-        const queryID = 0n
+        const queryId = 0n
         const result = await setup.offRamp.sendOffRampExecute(caller.getSender(), toNano('0.5'), {
           reportContext: of.ReportContext.create({
             configDigest: setup.configDigest,
@@ -360,7 +360,7 @@ describe('OffRamp - Execute', () => {
         expectValidateRejectedRefund(
           result.transactions,
           caller.address,
-          queryID,
+          queryId,
           mr.MerkleRoot.Errors['MerkleRoot_Error.SkippedAlreadyExecutedMessage'],
         )
       })
@@ -372,13 +372,13 @@ describe('OffRamp - Execute', () => {
 
         // Manual execution before the permissionless threshold: the MerkleRoot rejects it.
         const caller = setup.transmitters[0]
-        const queryID = 0n
+        const queryId = 0n
         const result = await setup.manualExecuteReport(report, undefined, false)
 
         expectValidateRejectedRefund(
           result.transactions,
           caller.address,
-          queryID,
+          queryId,
           mr.MerkleRoot.Errors['MerkleRoot_Error.ManualExecutionNotYetEnabled'],
         )
       })
@@ -926,7 +926,7 @@ describe('OffRamp - Execute', () => {
       const result = await setup.router.sendRouterCCIPReceiveConfirm(
         stranger.getSender(),
         toNano('0.1'),
-        { queryID: 9n, execId },
+        { queryId: 9n, execId },
       )
 
       expect(result.transactions).toHaveTransaction({
@@ -953,7 +953,7 @@ describe('OffRamp - Execute', () => {
         value: (v) => v !== undefined && v > 0n,
         body(x) {
           if (!x) return false
-          return rt.Router_CCIPReceiveConfirmRejected.fromSlice(x.beginParse()).queryID === 9n
+          return rt.Router_CCIPReceiveConfirmRejected.fromSlice(x.beginParse()).queryId === 9n
         },
       })
     })
@@ -2321,7 +2321,7 @@ describe('OffRamp - Execute', () => {
         setup.deployer.getSender(),
         toNano('0.5'),
         {
-          queryID: 1n,
+          queryId: 1n,
           sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
           replyTo: setup.deployer.address,
           tokenPool: setup.tokenPool.address,
@@ -3117,7 +3117,7 @@ describe('OffRamp - Execute', () => {
 
       // Raise the pool's release admission above the message's source destGasAmount (0.2 TON).
       await setup.tokenPool.sendTokenPoolSetBudget(setup.deployer.getSender(), toNano('0.1'), {
-        queryID: 900n,
+        queryId: 900n,
         budget: tp.TokenPool_Budget.create({
           lockOrBurn: tp.TokenPool_LockOrBurnBudget.create({ admission: 0n, safety: 0n }),
           releaseOrMint: tp.TokenPool_ReleaseOrMintBudget.create({
@@ -3129,7 +3129,7 @@ describe('OffRamp - Execute', () => {
       await setup.registry.sendTokenAdminRegistryRefreshPoolConfig(
         setup.deployer.getSender(),
         toNano('0.1'),
-        { queryID: 901n, tokenAddress: setup.token },
+        { queryId: 901n, tokenAddress: setup.token },
       )
       expect((await setup.tokenRegistry.getTokenInfo()).admission?.releaseOrMint).toEqual(
         toNano('0.5'),

@@ -15,8 +15,8 @@ struct ReceiveExecutor_State {
     messageExecution: ReceiveExecutor_MessageExecutionState
     /// TON to use for message execution. Updated by the latest execute call. Depends on the gasOverride in the message
     effectiveGasLimit: coins
-    /// queryID propagated from the OffRamp execution flow, used in outgoing messages
-    queryID: uint64 = 0
+    /// queryId propagated from the OffRamp execution flow, used in outgoing messages
+    queryId: uint64 = 0
     /// Refund target of the latest execute call, echoed back to the OffRamp when execution ends
     excesses: Cell<ReceiveExecutor_Excesses>?
 }

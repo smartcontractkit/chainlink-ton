@@ -26,7 +26,7 @@ export type CounterConfig = {
 }
 
 export type Step = {
-  queryID: bigint
+  queryId: bigint
 }
 
 export const opcodes = {
@@ -39,12 +39,12 @@ export const builder = {
       step: ((): CellCodec<Step> => {
         return {
           encode: (msg: Step): Builder => {
-            return beginCell().storeUint(opcodes.Step, 32).storeUint(msg.queryID, 64)
+            return beginCell().storeUint(opcodes.Step, 32).storeUint(msg.queryId, 64)
           },
           load: (src: Slice): Step => {
             src.skip(32)
             return {
-              queryID: src.loadUintBig(64),
+              queryId: src.loadUintBig(64),
             }
           },
         }

@@ -20,7 +20,7 @@ import { asSnakedCell, fromSnakeData, uint8ArrayToBigInt } from '../../src/utils
 // Initializes the contract
 export type Init = {
   // Query ID of the change request.
-  queryID: bigint
+  queryId: bigint
 
   // Minimum delay in seconds for future operations.
   minDelay: number
@@ -43,7 +43,7 @@ export type Init = {
 // Schedule an operation containing a batch of transactions.
 export type ScheduleBatch = {
   // Query ID of the change request.
-  queryID: bigint
+  queryId: bigint
 
   // Array of calls to be scheduled
   calls: Cell // vec<Timelock_Call>
@@ -58,7 +58,7 @@ export type ScheduleBatch = {
 // Cancel an operation.
 export type Cancel = {
   // Query ID of the change request.
-  queryID: bigint
+  queryId: bigint
 
   // ID of the operation to cancel.
   id: bigint
@@ -67,7 +67,7 @@ export type Cancel = {
 // Execute an (ready) operation containing a batch of transactions.
 export type ExecuteBatch = {
   // Query ID of the change request.
-  queryID: bigint
+  queryId: bigint
 
   // Array of calls to be scheduled
   calls: Cell // vec<Timelock_Call>
@@ -80,7 +80,7 @@ export type ExecuteBatch = {
 // Changes the minimum timelock duration for future operations.
 export type UpdateDelay = {
   // Query ID of the change request.
-  queryID: bigint
+  queryId: bigint
 
   // New minimum delay in seconds for future operations.
   newDelay: number
@@ -89,7 +89,7 @@ export type UpdateDelay = {
 /// Changes the timeout required to finalize the currently executing op
 export type UpdateOpFinalizationTimeout = {
   // Query ID of the change request.
-  queryID: bigint
+  queryId: bigint
 
   // The timeout required to finalize the currently executing op
   newOpFinalizationTimeout: number
@@ -98,7 +98,7 @@ export type UpdateOpFinalizationTimeout = {
 // Blocks a function selector from being used
 export type BlockFunctionSelector = {
   // Query ID of the change request.
-  queryID: bigint
+  queryId: bigint
 
   // Function selector to block.
   selector: number
@@ -107,7 +107,7 @@ export type BlockFunctionSelector = {
 // Unblocks a previously blocked function selector so it can be used again.
 export type UnblockFunctionSelector = {
   /// Query ID of the change request.
-  queryID: bigint
+  queryId: bigint
 
   /// Function selector to unblock.
   selector: number
@@ -116,7 +116,7 @@ export type UnblockFunctionSelector = {
 // @dev Directly execute a batch of transactions, bypassing any other checks.
 export type BypasserExecuteBatch = {
   // Query ID of the change request.
-  queryID: bigint
+  queryId: bigint
 
   // Array of calls to be scheduled
   calls: Cell // vec<Timelock_Call>
@@ -125,7 +125,7 @@ export type BypasserExecuteBatch = {
 // Updates the executor role check (enabled/disabled) which guards the execution of operations.
 export type UpdateExecutorRoleCheck = {
   // Query ID of the change request.
-  queryID: bigint
+  queryId: bigint
 
   // Flag to enable/disable the executor role check (if disabled, anyone can execute)
   enabled: boolean
@@ -139,7 +139,7 @@ export type UpdateExecutorRoleCheck = {
 // struct (0xf4538b79) Timelock_SubmitErrorReport {
 export type SubmitErrorReport = {
   // Query ID of the change request.
-  queryID: bigint
+  queryId: bigint
 
   // The operation which produced the error (used to re-derive the op id).
   opBatch: OperationBatch // Cell<OperationBatch>
@@ -236,7 +236,7 @@ export type ExecuteData = {
 // Events
 
 export type CallScheduled = {
-  queryID: number
+  queryId: number
   id: bigint
   index: number
   call: Cell
@@ -246,7 +246,7 @@ export type CallScheduled = {
 }
 
 export type CallExecuted = {
-  queryID: number
+  queryId: number
   id: bigint
   index: number
   target: Address
@@ -255,7 +255,7 @@ export type CallExecuted = {
 }
 
 export type BypasserCallExecuted = {
-  queryID: number
+  queryId: number
   index: number
   target: Address
   value: bigint
@@ -263,23 +263,23 @@ export type BypasserCallExecuted = {
 }
 
 export type Canceled = {
-  queryID: number
+  queryId: number
   id: bigint
 }
 
 export type MinDelayChange = {
-  queryID: number
+  queryId: number
   oldDelay: number
   newDelay: number
 }
 
 export type FunctionSelectorBlocked = {
-  queryID: number
+  queryId: number
   selector: number
 }
 
 export type FunctionSelectorUnblocked = {
-  queryID: number
+  queryId: number
   selector: number
 }
 
@@ -339,7 +339,7 @@ export const builder = {
         encode: (msg: Init): Builder => {
           return beginCell()
             .storeUint(opcodes.in.Init, 32)
-            .storeUint(msg.queryID, 64)
+            .storeUint(msg.queryId, 64)
             .storeUint(msg.minDelay, 32)
             .storeAddress(msg.admin)
             .storeRef(asSnakedCell<Address>(msg.proposers, (a) => beginCell().storeAddress(a)))
@@ -352,7 +352,7 @@ export const builder = {
         load: (src: Slice): Init => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUintBig(64),
+            queryId: src.loadUintBig(64),
             minDelay: src.loadUint(32),
             admin: src.loadAddress(),
             proposers: fromSnakeData<Address>(src.loadRef(), (s) => s.loadAddress()),
@@ -369,7 +369,7 @@ export const builder = {
         encode: (msg: ScheduleBatch): Builder => {
           return beginCell()
             .storeUint(opcodes.in.ScheduleBatch, 32)
-            .storeUint(msg.queryID, 64)
+            .storeUint(msg.queryId, 64)
             .storeRef(msg.calls)
             .storeUint(msg.predecessor, 256)
             .storeUint(msg.salt, 256)
@@ -378,7 +378,7 @@ export const builder = {
         load: (src: Slice): ScheduleBatch => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUintBig(64),
+            queryId: src.loadUintBig(64),
             calls: src.loadRef(),
             predecessor: src.loadUintBig(256),
             salt: src.loadUintBig(256),
@@ -391,13 +391,13 @@ export const builder = {
         encode: (msg: Cancel): Builder => {
           return beginCell()
             .storeUint(opcodes.in.Cancel, 32)
-            .storeUint(msg.queryID, 64)
+            .storeUint(msg.queryId, 64)
             .storeUint(msg.id, 256)
         },
         load: (src: Slice): Cancel => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUintBig(64),
+            queryId: src.loadUintBig(64),
             id: src.loadUintBig(256),
           }
         },
@@ -407,7 +407,7 @@ export const builder = {
         encode: (msg: ExecuteBatch): Builder => {
           return beginCell()
             .storeUint(opcodes.in.ExecuteBatch, 32)
-            .storeUint(msg.queryID, 64)
+            .storeUint(msg.queryId, 64)
             .storeRef(msg.calls)
             .storeUint(msg.predecessor, 256)
             .storeUint(msg.salt, 256)
@@ -415,7 +415,7 @@ export const builder = {
         load: (src: Slice): ExecuteBatch => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUintBig(64),
+            queryId: src.loadUintBig(64),
             calls: src.loadRef(),
             predecessor: src.loadUintBig(256),
             salt: src.loadUintBig(256),
@@ -427,13 +427,13 @@ export const builder = {
         encode: (msg: UpdateDelay): Builder => {
           return beginCell()
             .storeUint(opcodes.in.UpdateDelay, 32)
-            .storeUint(msg.queryID, 64)
+            .storeUint(msg.queryId, 64)
             .storeUint(msg.newDelay, 32)
         },
         load: (src: Slice): UpdateDelay => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUintBig(64),
+            queryId: src.loadUintBig(64),
             newDelay: src.loadUint(32),
           }
         },
@@ -443,13 +443,13 @@ export const builder = {
         encode: (msg: UpdateOpFinalizationTimeout): Builder => {
           return beginCell()
             .storeUint(opcodes.in.UpdateOpFinalizationTimeout, 32)
-            .storeUint(msg.queryID, 64)
+            .storeUint(msg.queryId, 64)
             .storeUint(msg.newOpFinalizationTimeout, 32)
         },
         load: (src: Slice): UpdateOpFinalizationTimeout => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUintBig(64),
+            queryId: src.loadUintBig(64),
             newOpFinalizationTimeout: src.loadUint(32),
           }
         },
@@ -459,13 +459,13 @@ export const builder = {
         encode: (msg: BlockFunctionSelector): Builder => {
           return beginCell()
             .storeUint(opcodes.in.BlockFunctionSelector, 32)
-            .storeUint(msg.queryID, 64)
+            .storeUint(msg.queryId, 64)
             .storeUint(msg.selector, 32)
         },
         load: (src: Slice): BlockFunctionSelector => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUintBig(64),
+            queryId: src.loadUintBig(64),
             selector: src.loadUint(32),
           }
         },
@@ -475,13 +475,13 @@ export const builder = {
         encode: (msg: UnblockFunctionSelector): Builder => {
           return beginCell()
             .storeUint(opcodes.in.UnblockFunctionSelector, 32)
-            .storeUint(msg.queryID, 64)
+            .storeUint(msg.queryId, 64)
             .storeUint(msg.selector, 32)
         },
         load: (src: Slice): UnblockFunctionSelector => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUintBig(64),
+            queryId: src.loadUintBig(64),
             selector: src.loadUint(32),
           }
         },
@@ -491,13 +491,13 @@ export const builder = {
         encode: (msg: BypasserExecuteBatch): Builder => {
           return beginCell()
             .storeUint(opcodes.in.BypasserExecuteBatch, 32)
-            .storeUint(msg.queryID, 64)
+            .storeUint(msg.queryId, 64)
             .storeRef(msg.calls)
         },
         load: (src: Slice): BypasserExecuteBatch => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUintBig(64),
+            queryId: src.loadUintBig(64),
             calls: src.loadRef(),
           }
         },
@@ -507,13 +507,13 @@ export const builder = {
         encode: (msg: UpdateExecutorRoleCheck): Builder => {
           return beginCell()
             .storeUint(opcodes.in.UpdateExecutorRoleCheck, 32)
-            .storeUint(msg.queryID, 64)
+            .storeUint(msg.queryId, 64)
             .storeBit(msg.enabled)
         },
         load: (s: Slice): UpdateExecutorRoleCheck => {
           s.skip(32) // skip opcode
           return {
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             enabled: s.loadBit(),
           }
         },
@@ -523,7 +523,7 @@ export const builder = {
         encode: (msg: SubmitErrorReport): Builder => {
           return beginCell()
             .storeUint(opcodes.in.SubmitErrorReport, 32)
-            .storeUint(msg.queryID, 64)
+            .storeUint(msg.queryId, 64)
             .storeRef(operationBatch.encode(msg.opBatch).asCell())
             .storeUint(msg.opTxHash, 256)
             .storeUint(msg.errorTxHash, 256)
@@ -532,7 +532,7 @@ export const builder = {
         load: (s: Slice): SubmitErrorReport => {
           s.skip(32) // skip opcode
           return {
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             opBatch: operationBatch.load(s.loadRef().asSlice()),
             opTxHash: s.loadUintBig(256),
             errorTxHash: s.loadUintBig(256),
@@ -560,7 +560,7 @@ export const builder = {
         encode: (event: CallScheduled): Builder => {
           return beginCell()
             .storeUint(opcodes.out.CallScheduled, 32)
-            .storeUint(event.queryID, 64)
+            .storeUint(event.queryId, 64)
             .storeUint(event.id, 256)
             .storeUint(event.index, 64)
             .storeRef(event.call)
@@ -571,7 +571,7 @@ export const builder = {
         load: (src: Slice): CallScheduled => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUint(64),
+            queryId: src.loadUint(64),
             id: src.loadUintBig(256),
             index: src.loadUint(64),
             call: src.loadRef(),
@@ -585,7 +585,7 @@ export const builder = {
         encode: (event: CallExecuted): Builder => {
           return beginCell()
             .storeUint(opcodes.out.CallExecuted, 32)
-            .storeUint(event.queryID, 64)
+            .storeUint(event.queryId, 64)
             .storeUint(event.id, 256)
             .storeUint(event.index, 64)
             .storeAddress(event.target)
@@ -595,7 +595,7 @@ export const builder = {
         load: (src: Slice): CallExecuted => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUint(64),
+            queryId: src.loadUint(64),
             id: src.loadUintBig(256),
             index: src.loadUint(64),
             target: src.loadAddress(),
@@ -608,7 +608,7 @@ export const builder = {
         encode: (event: BypasserCallExecuted): Builder => {
           return beginCell()
             .storeUint(opcodes.out.BypasserCallExecuted, 32)
-            .storeUint(event.queryID, 64)
+            .storeUint(event.queryId, 64)
             .storeUint(event.index, 64)
             .storeAddress(event.target)
             .storeCoins(event.value)
@@ -617,7 +617,7 @@ export const builder = {
         load: (src: Slice): BypasserCallExecuted => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUint(64),
+            queryId: src.loadUint(64),
             index: src.loadUint(64),
             target: src.loadAddress(),
             value: src.loadCoins(),
@@ -629,13 +629,13 @@ export const builder = {
         encode: (event: Canceled): Builder => {
           return beginCell()
             .storeUint(opcodes.out.Canceled, 32)
-            .storeUint(event.queryID, 64)
+            .storeUint(event.queryId, 64)
             .storeUint(event.id, 256)
         },
         load: (src: Slice): Canceled => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUint(64),
+            queryId: src.loadUint(64),
             id: src.loadUintBig(256),
           }
         },
@@ -644,14 +644,14 @@ export const builder = {
         encode: (event: MinDelayChange): Builder => {
           return beginCell()
             .storeUint(opcodes.out.MinDelayChange, 32)
-            .storeUint(event.queryID, 64)
+            .storeUint(event.queryId, 64)
             .storeUint(event.oldDelay, 32)
             .storeUint(event.newDelay, 32)
         },
         load: (src: Slice): MinDelayChange => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUint(64),
+            queryId: src.loadUint(64),
             oldDelay: src.loadUint(32),
             newDelay: src.loadUint(32),
           }
@@ -661,13 +661,13 @@ export const builder = {
         encode: (event: FunctionSelectorBlocked): Builder => {
           return beginCell()
             .storeUint(opcodes.out.FunctionSelectorBlocked, 32)
-            .storeUint(event.queryID, 64)
+            .storeUint(event.queryId, 64)
             .storeUint(event.selector, 32)
         },
         load: (src: Slice): FunctionSelectorBlocked => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUint(64),
+            queryId: src.loadUint(64),
             selector: src.loadUint(32),
           }
         },
@@ -676,13 +676,13 @@ export const builder = {
         encode: (event: FunctionSelectorUnblocked): Builder => {
           return beginCell()
             .storeUint(opcodes.out.FunctionSelectorUnblocked, 32)
-            .storeUint(event.queryID, 64)
+            .storeUint(event.queryId, 64)
             .storeUint(event.selector, 32)
         },
         load: (src: Slice): FunctionSelectorUnblocked => {
           src.skip(32) // skip opcode
           return {
-            queryID: src.loadUint(64),
+            queryId: src.loadUint(64),
             selector: src.loadUint(32),
           }
         },

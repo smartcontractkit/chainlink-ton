@@ -26,7 +26,7 @@ describe('OnRamp - Send', () => {
 
   const senderAddress = randomAddress()
   const ccipSend = or.Router_CCIPSend.create({
-    queryID: 1n,
+    queryId: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
@@ -129,7 +129,7 @@ describe('OnRamp - Send', () => {
     expect(selfMsg.onrampSend.metadata.value).toBe(toNano('42'))
     expect(selfMsg.onrampSend.msg.destChainSelector).toBe(ccipSend.destChainSelector)
     expect(selfMsg.onrampSend.msg.feeToken).toEqual(ccipSend.feeToken)
-    expect(selfMsg.onrampSend.msg.queryID).toBe(ccipSend.queryID)
+    expect(selfMsg.onrampSend.msg.queryId).toBe(ccipSend.queryId)
     expect(selfMsg.onrampSend.msg.receiver.toString()).toBe(ccipSend.receiver.toString())
     expect(selfMsg.onrampSend.msg.tokenAmounts.length).toBe(0)
     expect(selfMsg.onrampSend.msg.data).toEqual(ccipSend.data)
@@ -190,7 +190,7 @@ describe('OnRamp - Send', () => {
         if (!body) return false
         const msg = rt.Router_MessageRejected.fromSlice(body.beginParse())
         return (
-          msg.queryID === ccipSend.queryID &&
+          msg.queryId === ccipSend.queryId &&
           msg.destChainSelector === ccipSend.destChainSelector &&
           msg.sender.equals(senderAddress) &&
           msg.errorCode === 0xffffn // the executor rejects the unknown opcode

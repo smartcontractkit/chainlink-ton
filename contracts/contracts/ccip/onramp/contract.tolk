@@ -72,7 +72,7 @@ fun onInternalMessage(in: InMessage) {
             val destChainConfigResult = st.destChainConfigs.get(ccipSend.destChainSelector);
             if (!destChainConfigResult.isFound) {
                 // This is a config error. The Router should not be sending messages to unknown chains.
-                return rejectMessage(OnRamp_Error.UnknownDestChainSelector, in.senderAddress, ccipSend.queryID, ccipSend.destChainSelector, msg.metadata.sender);
+                return rejectMessage(OnRamp_Error.UnknownDestChainSelector, in.senderAddress, ccipSend.queryId, ccipSend.destChainSelector, msg.metadata.sender);
             }
             val destChainConfig = destChainConfigResult.loadValue();
             // ccipSend must be forwarded from the router
@@ -309,18 +309,18 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
     if (destChainConfig.allowlistEnabled) {
         val entry = destChainConfig.allowedSenders.get(payload.metadata.sender);
         if (!entry.isFound || !entry.loadValue()) {
-            return rejectMessage(OnRamp_Error.SenderNotAllowed, destChainConfig.router, msg.queryID, msg.destChainSelector, payload.metadata.sender, 0);
+            return rejectMessage(OnRamp_Error.SenderNotAllowed, destChainConfig.router, msg.queryId, msg.destChainSelector, payload.metadata.sender, 0);
         }
     }
     if (msg.feeToken != null && msg.feeToken != NATIVE_GRAM) {
-        return rejectMessage(OnRamp_Error.FeePaymentsWithJettonsNotSupported, destChainConfig.router, msg.queryID, msg.destChainSelector, payload.metadata.sender, 0);
+        return rejectMessage(OnRamp_Error.FeePaymentsWithJettonsNotSupported, destChainConfig.router, msg.queryId, msg.destChainSelector, payload.metadata.sender, 0);
     }
     val config = st.config.load();
     val staticConfig = st.staticConfig.load();
     var tokenRegistry: address? = null;
     if (!msg.tokenAmounts.empty()) {
         if (isZeroAddress(staticConfig.tokenAdminRegistry)) {
-            return rejectMessage(OnRamp_Error.TokenAdminRegistryNotSet, destChainConfig.router, msg.queryID, msg.destChainSelector, payload.metadata.sender, 0);
+            return rejectMessage(OnRamp_Error.TokenAdminRegistryNotSet, destChainConfig.router, msg.queryId, msg.destChainSelector, payload.metadata.sender, 0);
         }
         tokenRegistry = staticConfig.tokenAdminRegistry;
     }
@@ -364,7 +364,7 @@ fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequest
         value: 0,
         dest: destChainConfig.router,
         body: Router_LockOrBurn {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             tokenPool: msg.tokenPool,
             request: TokenPool_LockOrBurnInV1{
                 transfer: TokenPool_Transfer {
@@ -399,7 +399,7 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
             value: 0,
             dest: destChainConfig.router,
             body: Router_WithdrawToTokenPoolFailed {
-                queryID: msg.queryID,
+                queryId: msg.queryId,
                 destChainSelector: msg.destChainSelector,
                 withdrawRequest: msg.withdrawRequest,
                 errorCode: e,
@@ -414,7 +414,7 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
         value: 0,
         dest: destChainConfig.router,
         body: Router_WithdrawToTokenPool {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             destChainSelector: msg.destChainSelector,
             executor: sender,
             withdrawRequest: msg.withdrawRequest,
@@ -442,7 +442,7 @@ fun onBouncedMessage(in: InMessageBounced) {
             onExecutorDeployBounced(bounced, rich.exitCode);
         }
         Router_LockOrBurn => {
-            sendLockOrBurnFailed(bounced.executorAddress, bounced.queryID, rich.exitCode);
+            sendLockOrBurnFailed(bounced.executorAddress, bounced.queryId, rich.exitCode);
         }
         Router_WithdrawToTokenPool => {
             // TODO: [NONEVM-6725] report the bounced withdraw. The pool has already consumed its outbound rate
@@ -469,15 +469,15 @@ fun onExecutorDeployBounced(msg: Deployable_InitializeAndSend, errorCode: int32)
     val execute = lazy CCIPSendExecutor_Execute.fromCell(msg.selfMessage.body);
     val ccipSend = lazy execute.onrampSend.msg.load();
     val config = lazy execute.config.load();
-    rejectMessage(errorCode, config.router, ccipSend.queryID, ccipSend.destChainSelector, execute.onrampSend.metadata.sender);
+    rejectMessage(errorCode, config.router, ccipSend.queryId, ccipSend.destChainSelector, execute.onrampSend.metadata.sender);
 }
 
-fun sendLockOrBurnFailed(executor: address, queryID: uint64, errorCode: int32) {
+fun sendLockOrBurnFailed(executor: address, queryId: uint64, errorCode: int32) {
     val failed = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: executor,
-        body: OnRamp_LockOrBurnFailed { queryID, errorCode },
+        body: OnRamp_LockOrBurnFailed { queryId, errorCode },
     });
     failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
@@ -582,7 +582,7 @@ fun onExecutorFinishedSuccessfully(mutate st: OnRamp_Storage, msg: OnRamp_Execut
         value: 0,
         dest: destChainConfig.router,
         body: Router_MessageSent {
-            queryID: ccipsend.queryID,
+            queryId: ccipsend.queryId,
             messageId: rampMessage.header.messageId,
             destChainSelector: ccipsend.destChainSelector,
             sender: metadata.sender,
@@ -609,17 +609,17 @@ fun onExecutorFinishedWithError(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorF
     // the counter (which would inflate the spendable balance).
     st.pendingFeeReservations = max(st.pendingFeeReservations - refund, 0);
 
-    rejectMessage(msg.errorCode, router, msg.queryID, msg.destChainSelector, msg.sender, refund);
+    rejectMessage(msg.errorCode, router, msg.queryId, msg.destChainSelector, msg.sender, refund);
 }
 
-fun rejectMessage(errorCode: int32, router: address, queryID: uint64, destChainSelector: uint64, sender: address, refund: coins = 0) {
+fun rejectMessage(errorCode: int32, router: address, queryId: uint64, destChainSelector: uint64, sender: address, refund: coins = 0) {
     val errorMsg = createMessage({
         bounce: BounceMode.NoBounce,
         // A charged fee is already reserved on this contract.
         value: refund,
         dest: router,
         body: Router_MessageRejected {
-            queryID,
+            queryId,
             destChainSelector,
             sender,
             errorCode,

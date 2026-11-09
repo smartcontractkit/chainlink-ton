@@ -294,7 +294,7 @@ describe('TokenAdminRegistry flow fees', () => {
       blockchain.sender(fx.owner.address),
       Costs.registerToken,
       {
-        queryID: 0n,
+        queryId: 0n,
         tokenAddress: fx.token,
         tokenInfo: tokenInfo(fx, pool),
         administrator: fx.administrator.address,
@@ -306,7 +306,7 @@ describe('TokenAdminRegistry flow fees', () => {
       blockchain.sender(fx.administrator.address),
       Costs.forward,
       {
-        queryID: 0n,
+        queryId: 0n,
         tokenAddress: fx.token,
       },
     )
@@ -343,7 +343,7 @@ describe('TokenAdminRegistry flow fees', () => {
         ownBudget: Costs.registerTokenBase + Costs.deployBase + Costs.registrationInitializedBase,
         run: (via, value) =>
           fx.registry.sendTokenAdminRegistryRegisterToken(via, value, {
-            queryID: 0n,
+            queryId: 0n,
             tokenAddress: fx.token,
             tokenInfo: tokenInfo(fx, pools[poolName]),
             administrator: fx.administrator.address,
@@ -366,7 +366,7 @@ describe('TokenAdminRegistry flow fees', () => {
         ownBudget: Costs.forwardBase,
         run: (via, value) =>
           fx.registry.sendTokenAdminRegistrySetPool(via, value, {
-            queryID: 0n,
+            queryId: 0n,
             tokenAddress: fx.token,
             tokenPool: pools[poolName],
           }),
@@ -385,7 +385,7 @@ describe('TokenAdminRegistry flow fees', () => {
         ownBudget: Costs.forwardBase,
         run: (via, value) =>
           fx.registry.sendTokenAdminRegistryRefreshPoolConfig(via, value, {
-            queryID: 0n,
+            queryId: 0n,
             tokenAddress: fx.token,
           }),
         expectOutcome: async (result) => {
@@ -410,7 +410,7 @@ describe('TokenAdminRegistry flow fees', () => {
       ownBudget: Costs.forwardBase,
       run: (via, value) =>
         fx.registry.sendTokenAdminRegistrySetPool(via, value, {
-          queryID: 0n,
+          queryId: 0n,
           tokenAddress: fx.token,
           tokenPool: null,
         }),
@@ -434,7 +434,7 @@ describe('TokenAdminRegistry flow fees', () => {
       ownBudget: Costs.forwardBase,
       run: (via, value) =>
         fx.registry.sendTokenAdminRegistryVerifyToken(via, value, {
-          queryID: 0n,
+          queryId: 0n,
           tokenAddress: fx.token,
         }),
       expectOutcome: async () => {
@@ -451,7 +451,7 @@ describe('TokenAdminRegistry flow fees', () => {
       ownBudget: Costs.getTokenInfo,
       run: (via, value) =>
         fx.registry.sendTokenAdminRegistryGetTokenInfo(via, value, {
-          queryID: 0n,
+          queryId: 0n,
           token: fx.token,
         }),
       expectOutcome: replied(tar.TokenAdminRegistry_TokenInfo.PREFIX),
@@ -466,7 +466,7 @@ describe('TokenAdminRegistry flow fees', () => {
       aborts: ['Root->Entry'],
       run: (via, value) =>
         fx.registry.sendTokenAdminRegistryGetTokenInfo(via, value, {
-          queryID: 0n,
+          queryId: 0n,
           token: fx.token,
         }),
       expectOutcome: replied(tar.TokenAdminRegistry_GetTokenInfoFailed.PREFIX),
@@ -481,7 +481,7 @@ describe('TokenAdminRegistry flow fees', () => {
       ownBudget: Costs.forwardBase,
       run: (via, value) =>
         fx.registry.sendTokenAdminRegistryOverridePendingAdministrator(via, value, {
-          queryID: 0n,
+          queryId: 0n,
           tokenAddress: fx.token,
           administrator: fx.replacementAdministrator.address,
         }),
@@ -497,7 +497,7 @@ describe('TokenAdminRegistry flow fees', () => {
       ownBudget: Costs.forwardBase,
       run: (via, value) =>
         fx.registry.sendTokenAdminRegistryAcceptAdminRole(via, value, {
-          queryID: 0n,
+          queryId: 0n,
           tokenAddress: fx.token,
         }),
       expectOutcome: relayed(tar.TokenAdminRegistry_AdministratorTransferred.PREFIX),
@@ -513,7 +513,7 @@ describe('TokenAdminRegistry flow fees', () => {
       ownBudget: Costs.forwardBase,
       run: (via, value) =>
         fx.registry.sendTokenAdminRegistryTransferAdminRole(via, value, {
-          queryID: 0n,
+          queryId: 0n,
           tokenAddress: fx.token,
           newAdministrator: fx.replacementAdministrator.address,
         }),
@@ -531,7 +531,7 @@ describe('TokenAdminRegistry flow fees', () => {
       ownBudget: upgradeCost,
       run: (via, value) =>
         fx.registry.sendTokenAdminRegistryUpgradeEntry(via, value, {
-          queryID: 0n,
+          queryId: 0n,
           tokenAddress: fx.token,
         }),
       expectOutcome: (result) =>

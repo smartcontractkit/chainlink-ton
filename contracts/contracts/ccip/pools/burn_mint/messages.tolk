@@ -4,7 +4,7 @@ import "../../cct/messages"
 import "../lib/token_pool/messages"
 
 struct (0x39898e4d) BurnMintTokenPool_ClaimMinterAdmin {
-    queryID: uint64;
+    queryId: uint64;
 }
 
 type BurnMintTokenPool_InMessage =

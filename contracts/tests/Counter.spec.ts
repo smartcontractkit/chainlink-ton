@@ -63,7 +63,7 @@ describe('Counter', () => {
 
     const newCount = 42
     const setCountResult = await bind.counter.sendSetCount(deployer.getSender(), toNano('0.05'), {
-      queryID: 1n,
+      queryId: 1n,
       newCount,
     })
 

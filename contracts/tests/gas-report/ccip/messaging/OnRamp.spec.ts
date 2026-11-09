@@ -130,7 +130,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
       deployer.getSender(),
       toNano('0.1'),
       rt.Router_ApplyRampUpdates.create({
-        queryID: 0n,
+        queryId: 0n,
         onRampUpdates: rt.OnRamps.create({
           destChainSelectors: [ChainSelectors.testnet.evm],
           onRamp: onRamp.address,
@@ -159,7 +159,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
     const extraArgs = rt.GenericExtraArgsV2.fromSlice(createExtraArgs().beginParse())
     if (gasLimit !== undefined) extraArgs.gasLimit = gasLimit
     return rt.Router_CCIPSend.create({
-      queryID: 1n,
+      queryId: 1n,
       destChainSelector: ChainSelectors.testnet.evm,
       receiver: EVM_ADDRESS,
       data,

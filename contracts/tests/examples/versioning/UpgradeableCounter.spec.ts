@@ -143,7 +143,7 @@ describe('UpgradeableCounter - Unit Tests', () => {
         increaser.getSender(),
         toNano('0.05'),
         {
-          queryID: BigInt(Math.floor(Math.random() * 10000)),
+          queryId: BigInt(Math.floor(Math.random() * 10000)),
         },
       )
 
@@ -187,7 +187,7 @@ describe('UpgradeableCounter - Unit Tests', () => {
         decreaser.getSender(),
         toNano('0.05'),
         {
-          queryID: BigInt(Math.floor(Math.random() * 10000)),
+          queryId: BigInt(Math.floor(Math.random() * 10000)),
         },
       )
 
@@ -215,7 +215,7 @@ describe('UpgradeableCounter - Unit Tests', () => {
       owner.getSender(),
       toNano('0.05'),
       {
-        queryID: BigInt(Math.floor(Math.random() * 10000)),
+        queryId: BigInt(Math.floor(Math.random() * 10000)),
         newOwner: newOwner.address,
       },
     )
@@ -235,7 +235,7 @@ describe('UpgradeableCounter - Unit Tests', () => {
       newOwner.getSender(),
       toNano('0.05'),
       {
-        queryID: BigInt(Math.floor(Math.random() * 10000)),
+        queryId: BigInt(Math.floor(Math.random() * 10000)),
       },
     )
 
@@ -254,7 +254,7 @@ describe('UpgradeableCounter - Unit Tests', () => {
       owner.getSender(),
       toNano('0.05'),
       {
-        queryID: BigInt(Math.floor(Math.random() * 10000)),
+        queryId: BigInt(Math.floor(Math.random() * 10000)),
         code: codeV2,
       },
     )

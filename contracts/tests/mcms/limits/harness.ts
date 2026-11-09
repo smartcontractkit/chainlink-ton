@@ -185,7 +185,7 @@ export class McmsLimitsHarness {
   ): Promise<Outcome> {
     const body = mcms.builder.message.in.setConfig
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         signerAddresses: signers.map((signer) => BigInt(signer.address)),
         signerGroups: signers.map((signer) => signer.group),
         groupQuorums: layout.groupQuorums,
@@ -221,7 +221,7 @@ export class McmsLimitsHarness {
   async execute(op: mcms.Op, proof: bigint[], value = DEFAULT_VALUE): Promise<Outcome> {
     const body = mcms.builder.message.in.execute
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         op: mcms.builder.data.op.encode(op).asCell(),
         proof,
       })

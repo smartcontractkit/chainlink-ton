@@ -38,7 +38,7 @@ type OnRamp_NotificationInMessage =
     ;
 
 struct (0xdcf993c2) OnRamp_Send {
-    // queryID is embedded in the first element of CCIPSend
+    // queryId is embedded in the first element of CCIPSend
     msg: Cell<Router_CCIPSend>;
     metadata: Metadata;
 }
@@ -49,7 +49,7 @@ struct (0x9c2ccc7e) OnRamp_GetValidatedFee {
 }
 
 struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
-    queryID: uint64,
+    queryId: uint64,
     tokenAmount: Cell<TokenAmount>, // Cell<> otherwise they don't fit
     tokenPool: address,
     destChainSelector: uint64,
@@ -64,7 +64,7 @@ struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
 const TOKEN_POOL_DEFAULT_LOCK_OR_BURN_ADMISSION: coins = grams("0.105");
 
 struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {
-    queryID: uint64,
+    queryId: uint64,
     executorID: CCIPSendExecutor_ID,
     destChainSelector: uint64,
     // Destination chain family echoed from the FeeQuoter's validation reply.
@@ -111,7 +111,7 @@ struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
 }
 
 struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
-    queryID: uint64
+    queryId: uint64
     executorID: CCIPSendExecutor_ID
     destChainSelector: uint64
     sender: address
@@ -141,7 +141,7 @@ type OnRamp_RichBouncedMessage =
 /// executor fails the CCIPSend instead of waiting.
 // crc32('OnRamp_LockOrBurnFailed')
 struct (0xdf46b714) OnRamp_LockOrBurnFailed {
-    queryID: uint64,
+    queryId: uint64,
     errorCode: int32,
 }
 

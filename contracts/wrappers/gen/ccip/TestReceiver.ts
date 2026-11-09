@@ -288,13 +288,13 @@ export const Ownable2Step = {
 
 /**
  > struct (0x0aa811ed) Upgradeable_Upgrade {
- >     queryID: uint64
+ >     queryId: uint64
  >     code: cell
  > }
  */
 export interface Upgradeable_Upgrade {
     readonly $: 'Upgradeable_Upgrade'
-    queryID: uint64
+    queryId: uint64
     code: c.Cell
 }
 
@@ -302,26 +302,26 @@ export const Upgradeable_Upgrade = {
     PREFIX: 0x0aa811ed,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         code: c.Cell
     }): Upgradeable_Upgrade {
         return {
             $: 'Upgradeable_Upgrade',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Upgradeable_Upgrade {
         loadAndCheckPrefix32(s, 0x0aa811ed, 'Upgradeable_Upgrade');
         return {
             $: 'Upgradeable_Upgrade',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             code: s.loadRef(),
         }
     },
     store(self: Upgradeable_Upgrade, b: c.Builder): void {
         b.storeUint(0x0aa811ed, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeRef(self.code);
     },
     toCell(self: Upgradeable_Upgrade): c.Cell {
@@ -370,7 +370,7 @@ export const Upgradeable_UpgradedEvent = {
 /**
  > struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
  >     execId: uint192
- >     queryID: uint64
+ >     queryId: uint64
  >     confirmValue: coins
  >     message: Cell<Any2TVMMessage>
  > }
@@ -378,7 +378,7 @@ export const Upgradeable_UpgradedEvent = {
 export interface Receiver_CCIPReceiveV2 {
     readonly $: 'Receiver_CCIPReceiveV2'
     execId: uint192
-    queryID: uint64
+    queryId: uint64
     confirmValue: coins
     message: Any2TVMMessage
 }
@@ -388,14 +388,14 @@ export const Receiver_CCIPReceiveV2 = {
 
     create(args: {
         execId: uint192
-        queryID?: uint64
+        queryId?: uint64
         confirmValue: coins
         message: Any2TVMMessage
     }): Receiver_CCIPReceiveV2 {
         return {
             $: 'Receiver_CCIPReceiveV2',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Receiver_CCIPReceiveV2 {
@@ -403,7 +403,7 @@ export const Receiver_CCIPReceiveV2 = {
         return {
             $: 'Receiver_CCIPReceiveV2',
             execId: s.loadUintBig(192),
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             confirmValue: s.loadCoins(),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
         }
@@ -411,7 +411,7 @@ export const Receiver_CCIPReceiveV2 = {
     store(self: Receiver_CCIPReceiveV2, b: c.Builder): void {
         b.storeUint(0x5b4bc7a6, 32);
         b.storeUint(self.execId, 192);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeCoins(self.confirmValue);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
     },
@@ -422,13 +422,13 @@ export const Receiver_CCIPReceiveV2 = {
 
 /**
  > struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
- >     queryID: uint64
+ >     queryId: uint64
  >     execId: ReceiveExecutorId
  > }
  */
 export interface Router_CCIPReceiveConfirm {
     readonly $: 'Router_CCIPReceiveConfirm'
-    queryID: uint64
+    queryId: uint64
     execId: ReceiveExecutorId
 }
 
@@ -436,26 +436,26 @@ export const Router_CCIPReceiveConfirm = {
     PREFIX: 0x1e55bbf6,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         execId: ReceiveExecutorId
     }): Router_CCIPReceiveConfirm {
         return {
             $: 'Router_CCIPReceiveConfirm',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_CCIPReceiveConfirm {
         loadAndCheckPrefix32(s, 0x1e55bbf6, 'Router_CCIPReceiveConfirm');
         return {
             $: 'Router_CCIPReceiveConfirm',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             execId: ReceiveExecutorId.fromSlice(s),
         }
     },
     store(self: Router_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0x1e55bbf6, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         ReceiveExecutorId.store(self.execId, b);
     },
     toCell(self: Router_CCIPReceiveConfirm): c.Cell {
@@ -821,7 +821,7 @@ export class TestReceiver implements c.Contract {
 
     static createCellOfReceiverCCIPReceiveV2(body: {
         execId: uint192
-        queryID?: uint64
+        queryId?: uint64
         confirmValue: coins
         message: Any2TVMMessage
     }) {
@@ -841,7 +841,7 @@ export class TestReceiver implements c.Contract {
     }
 
     static createCellOfUpgradeableUpgrade(body: {
-        queryID?: uint64
+        queryId?: uint64
         code: c.Cell
     }) {
         return Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body));
@@ -865,7 +865,7 @@ export class TestReceiver implements c.Contract {
 
     async sendReceiverCCIPReceiveV2(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         execId: uint192
-        queryID?: uint64
+        queryId?: uint64
         confirmValue: coins
         message: Any2TVMMessage
     }, extraOptions?: ExtraSendOptions) {
@@ -897,7 +897,7 @@ export class TestReceiver implements c.Contract {
     }
 
     async sendUpgradeableUpgrade(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         code: c.Cell
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {

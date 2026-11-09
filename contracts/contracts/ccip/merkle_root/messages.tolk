@@ -10,7 +10,7 @@ type MerkleRoot_BouncedMessage =
     | OffRamp_ExecuteValidated;
 
 struct (0x038ede91) MerkleRoot_Validate {
-    queryID: uint64,
+    queryId: uint64,
     message: Cell<Any2TVMRampMessage>,
     permissionlessExecutionThresholdSeconds: uint32,
     metadataHash: uint256,

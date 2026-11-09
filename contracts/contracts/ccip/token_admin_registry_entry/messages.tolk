@@ -32,7 +32,7 @@ type TokenAdminRegistryEntry_RootMessage =
 /// so an older entry can defer and upgrade for messages it does not know.
 // crc32('TokenAdminRegistryEntry_MessageFromRoot')
 struct (0x558e7559) TokenAdminRegistryEntry_MessageFromRoot {
-    queryID: uint64;
+    queryId: uint64;
     minEntryVersion: uint16;
     content: Cell<TokenAdminRegistryEntry_RootMessage>;
 }
@@ -50,7 +50,7 @@ struct (0x7aef4c2d) TokenAdminRegistryEntry_GetTokenInfo {
 /// `requester` after the root validates the entry address.
 // crc32('TokenAdminRegistryEntry_TokenInfo')
 struct (0x4e1c9ad5) TokenAdminRegistryEntry_TokenInfo {
-    queryID: uint64;
+    queryId: uint64;
     token: address;
     requester: address;
     tokenInfo: Cell<TokenRegistry_TokenInfo>;
@@ -59,7 +59,7 @@ struct (0x4e1c9ad5) TokenAdminRegistryEntry_TokenInfo {
 // crc32('TokenAdminRegistryEntry_RegistrationInitialized')
 // Sent only by Deployable_InitializeAndSend after initial state installation.
 struct (0x31580269) TokenAdminRegistryEntry_RegistrationInitialized {
-    queryID: uint64;
+    queryId: uint64;
 }
 
 /// Entry execution, the TEP-89 wallet query, the pool probe, and the relays of

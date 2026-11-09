@@ -30,7 +30,7 @@ struct DepositAccount_Data {
 }
 
 struct DepositAccount_PendingInit {
-    queryID: uint64;
+    queryId: uint64;
     context: cell?;
 }
 

@@ -19,7 +19,7 @@ describe('MCMS - RBACTimelockConstructorTest', () => {
   it('should not init twice', async () => {
     const body = rbactl.builder.message.in.init
       .encode({
-        queryID: 1n,
+        queryId: 1n,
         minDelay: BaseTestSetup.MIN_DELAY,
         admin: baseTest.acc.admin.address,
         proposers: [],

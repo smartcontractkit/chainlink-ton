@@ -67,7 +67,7 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy BurnMintTokenPool_InMessage.fromSlice(in.body);
     match (msg) {
         BurnMintTokenPool_ClaimMinterAdmin => {
-            onClaimMinterAdmin(mutate st, in.senderAddress, in.valueCoins, msg.queryID);
+            onClaimMinterAdmin(mutate st, in.senderAddress, in.valueCoins, msg.queryId);
             st.store();
         }
         CCT_ReturnExcessesBack => {
@@ -164,7 +164,7 @@ fun onLockOrBurnTransferContinue(
         value: 0,
         dest: context.wallet,
         body: CCT_AskToBurn {
-            queryID: requestMsg.queryID,
+            queryId: requestMsg.queryId,
             jettonAmount: prepared.destTokenAmount,
             sendExcessesTo,
             customPayload: null, // not supported atm
@@ -225,7 +225,7 @@ fun onReleaseOrMintContinue(
     // continuation. The minter gets the exact cost of the mint, so it keeps nothing; the wallet
     // returns its unused fee to the pool.
     val transfer = InternalTransferStep {
-        queryID: msg.queryID,
+        queryId: msg.queryId,
         jettonAmount: prepared.localAmount,
         transferInitiator: null,
         sendExcessesTo,
@@ -237,7 +237,7 @@ fun onReleaseOrMintContinue(
         value: msgValue, // Upper bound for the fee quote; reduced below.
         dest: jettonClient.masterAddress,
         body: MintNewJettons {
-            queryID: msg.queryID,
+            queryId: msg.queryId,
             mintRecipient: delivery.recipient,
             tonAmount: msgValue, // Upper bound for the fee quote; reduced below.
             internalTransferMsg: transfer.toCell(),
@@ -277,7 +277,7 @@ fun onClaimMinterAdmin(
     mutate st: Storage,
     sender: address,
     msgValue: coins,
-    queryID: uint64,
+    queryId: uint64,
 ) {
     assert (msgValue >= TokenPool_Costs.admin()) throw (TokenPool_Error.InsufficientMessageValue);
 
@@ -287,7 +287,7 @@ fun onClaimMinterAdmin(
         bounce: BounceMode.Only256BitsOfBody,
         value: BurnMintTokenPool_CLAIM_ADMIN_VALUE,
         dest: st.poolData.load().token(),
-        body: ClaimMinterAdmin { queryID },
+        body: ClaimMinterAdmin { queryId },
     });
     claim.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }

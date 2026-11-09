@@ -10,13 +10,13 @@ const CONTRACT_VERSION = "1.1.3".literalSlice();
 /// Counter contract + event emission (Tolk example)
 /// Message to set the counter value.
 struct (0x00000004) SetCount {
-    queryID: uint64 // Standard query_id field
+    queryId: uint64 // Standard query_id field
     newCount: uint32 // Argument for the operation
 }
 
 /// Message to increase the counter value.
 struct (0x10000005) IncreaseCount {
-    queryID: uint64 // Standard query_id field
+    queryId: uint64 // Standard query_id field
 }
 
 /// Event Topics

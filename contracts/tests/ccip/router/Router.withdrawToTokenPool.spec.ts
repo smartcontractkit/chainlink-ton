@@ -90,7 +90,7 @@ describe('Router.withdrawToTokenPool', () => {
     const answer = await blockchain
       .openContract(deposit.DepositAccount.fromAddress(account))
       .sendResponseWalletAddress(blockchain.sender(jetton), toNano('0.05'), {
-        queryID: 0n,
+        queryId: 0n,
         jettonWalletAddress: new Address(0, beginCell().storeAddress(account).endCell().hash()),
         ownerAddress: null,
       })
@@ -134,7 +134,7 @@ describe('Router.withdrawToTokenPool', () => {
     rt.TokenPool_LockOrBurnForwardPayload.create({
       originalSender: sender.address,
       requestMsg: rt.TokenPool_LockOrBurn.create({
-        queryID: 0n,
+        queryId: 0n,
         request: rt.TokenPool_LockOrBurnInV1.create({
           transfer: {
             $: 'TokenPool_Transfer',
@@ -168,7 +168,7 @@ describe('Router.withdrawToTokenPool', () => {
   // in a DepositAccount_WithdrawFailed.
   const buildWithdraw = (tokenPool: Address): deposit.DepositAccount_Withdraw =>
     deposit.DepositAccount_Withdraw.create({
-      queryID: 0n,
+      queryId: 0n,
       ask: deposit.AskToTransfer.create({
         jettonAmount: toNano('5'),
         transferRecipient: tokenPool,
@@ -251,7 +251,7 @@ describe('Router.withdrawToTokenPool', () => {
     const accountAddress = await deployDepositAccount(sender)
 
     const result = await router.sendRouterWithdrawToTokenPool(onRamp.getSender(), withdrawValue, {
-      queryID: 7n,
+      queryId: 7n,
       destChainSelector: destChainSelector + 1n, // never registered
       executor: executor.address,
       withdrawRequest: buildWithdrawRequest({

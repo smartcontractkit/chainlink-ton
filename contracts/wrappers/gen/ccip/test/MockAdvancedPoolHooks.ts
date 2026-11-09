@@ -181,14 +181,14 @@ export const MockAdvancedPoolHooks_Data = {
 
 /**
  > struct (0x30612b17) TokenPool_QueryCCVsReply {
- >     queryID: uint64
+ >     queryId: uint64
  >     requiredCCVs: array<address>
  >     forwardPayload: cell?
  > }
  */
 export interface TokenPool_QueryCCVsReply {
     readonly $: 'TokenPool_QueryCCVsReply'
-    queryID: uint64
+    queryId: uint64
     requiredCCVs: array<c.Address>
     forwardPayload: c.Cell | null
 }
@@ -197,21 +197,21 @@ export const TokenPool_QueryCCVsReply = {
     PREFIX: 0x30612b17,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         requiredCCVs: array<c.Address>
         forwardPayload: c.Cell | null
     }): TokenPool_QueryCCVsReply {
         return {
             $: 'TokenPool_QueryCCVsReply',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_QueryCCVsReply {
         loadAndCheckPrefix32(s, 0x30612b17, 'TokenPool_QueryCCVsReply');
         return {
             $: 'TokenPool_QueryCCVsReply',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             requiredCCVs: loadArrayOf<c.Address>(s,
                 (s) => s.loadAddress()
             ),
@@ -220,7 +220,7 @@ export const TokenPool_QueryCCVsReply = {
     },
     store(self: TokenPool_QueryCCVsReply, b: c.Builder): void {
         b.storeUint(0x30612b17, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         storeArrayOf<c.Address>(self.requiredCCVs, b,
             (v,b) => b.storeAddress(v)
         );

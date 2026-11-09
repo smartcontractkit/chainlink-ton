@@ -26,7 +26,7 @@ export enum Error {
 }
 
 export type Withdraw = {
-  queryID: bigint
+  queryId: bigint
   destination: Address
   amount: bigint
   reserve: bigint | null
@@ -41,7 +41,7 @@ export const builder = {
           encode: (msg: Withdraw): Builder => {
             return beginCell()
               .storeUint(opcodes.Withdraw, 32)
-              .storeUint(msg.queryID, 64)
+              .storeUint(msg.queryId, 64)
               .storeAddress(msg.destination)
               .storeCoins(msg.amount)
               .storeMaybeCoins(msg.reserve)
@@ -50,7 +50,7 @@ export const builder = {
           load: (src: Slice): Withdraw => {
             src.skip(32) // opcode
             return {
-              queryID: src.loadUintBig(64),
+              queryId: src.loadUintBig(64),
               destination: src.loadAddress(),
               amount: src.loadCoins(),
               reserve: src.loadMaybeCoins(),

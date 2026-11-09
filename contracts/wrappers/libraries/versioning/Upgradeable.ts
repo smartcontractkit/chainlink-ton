@@ -30,7 +30,7 @@ export const eventTopics = {
 }
 
 export type Upgrade = {
-  queryID: bigint
+  queryId: bigint
   code: Cell
 }
 
@@ -48,13 +48,13 @@ export const builder = {
           encode: (msg: Upgrade): Builder => {
             return beginCell()
               .storeUint(opcodes.Upgrade, 32)
-              .storeUint(msg.queryID, 64)
+              .storeUint(msg.queryId, 64)
               .storeRef(msg.code)
           },
           load: (src: Slice): Upgrade => {
             src.skip(32) // opcode
             return {
-              queryID: src.loadUintBig(64),
+              queryId: src.loadUintBig(64),
               code: src.loadRef(),
             }
           },
@@ -110,11 +110,11 @@ export async function sendUpgradeAndReturnNewVersion<T extends Interface>(
   value: bigint,
   newVersion: (address: Address) => T,
   newCode: Cell,
-  queryID?: bigint,
+  queryId?: bigint,
 ): Promise<{ upgradeResult: SendMessageResult; newVersionInstance: T }> {
   const newVersionInstance = newVersion(current.address)
   const upgradeResult = await current.sendUpgradeableUpgrade(via, value, {
-    queryID: queryID ?? 0n,
+    queryId: queryId ?? 0n,
     code: newCode,
   })
   return { upgradeResult, newVersionInstance }

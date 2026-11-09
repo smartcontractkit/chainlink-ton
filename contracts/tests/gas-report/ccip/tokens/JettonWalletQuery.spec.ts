@@ -142,7 +142,7 @@ describe('Jetton wallet query fees', () => {
       blockchain.sender(fx.owner.address),
       Costs.registerToken,
       {
-        queryID: 0n,
+        queryId: 0n,
         tokenAddress: token,
         // No pool, so the entry is enabled once the token answers.
         tokenInfo: tokenInfo(fx, null, token),
@@ -219,7 +219,7 @@ describe('Jetton wallet query fees', () => {
       const result = await fx.registry.sendTokenAdminRegistryVerifyToken(
         blockchain.sender(fx.other.address),
         Costs.verifyToken,
-        { queryID: 0n, tokenAddress: minter.address },
+        { queryId: 0n, tokenAddress: minter.address },
       )
       await measure(`VerifyToken: ${minterName}`, minter.address, result)
     })

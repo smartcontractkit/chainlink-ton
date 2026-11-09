@@ -40,7 +40,7 @@ struct OCR3Base_Transmitted {
 /// && len(transmitters) <= len(signers) [if sig verification is enabled].
 // 0x2B78359F = crc32('OCR3Base_SetOCR3Config')
 struct (0x2B78359F) OCR3Base_SetOCR3Config {
-    queryID: uint64;
+    queryId: uint64;
     configDigest: uint256;
     ocrPluginType: uint16;
     bigF: uint8;

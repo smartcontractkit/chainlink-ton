@@ -419,7 +419,7 @@ export function newCurrentVersionSpec<TCurrentVersionContract extends Upgradeabl
           nonOwner.getSender(),
           amount,
           {
-            queryID: BigInt(Math.floor(Math.random() * 10000)),
+            queryId: BigInt(Math.floor(Math.random() * 10000)),
             code: Cell.EMPTY, // Dummy code
           },
         )
@@ -468,7 +468,7 @@ export function newCurrentVersionSpec<TCurrentVersionContract extends Upgradeabl
           owner.getSender(),
           amount,
           {
-            queryID: BigInt(Math.floor(Math.random() * 10000)),
+            queryId: BigInt(Math.floor(Math.random() * 10000)),
             code: currentCode,
           },
         )

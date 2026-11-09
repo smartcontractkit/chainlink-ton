@@ -60,7 +60,7 @@ export const FeeQuoter_GetValidatedFee = {
 }
 
 export interface Router_CCIPSend {
-  queryID: bigint
+  queryId: bigint
   destChainSelector: bigint
   receiver: rtGen.CrossChainAddress
   data: c.Cell
@@ -73,7 +73,7 @@ export const Router_CCIPSend = {
   fromSlice(s: c.Slice): Router_CCIPSend {
     loadAndCheckPrefix32(s, rtGen.Router_CCIPSend.PREFIX, 'Router_CCIPSend')
     return {
-      queryID: s.loadUintBig(64),
+      queryId: s.loadUintBig(64),
       destChainSelector: s.loadUintBig(64),
       receiver: CrossChainAddressCodec.unpackFromSlice(s),
       data: s.loadRef(),
@@ -84,7 +84,7 @@ export const Router_CCIPSend = {
   },
   store: (self: Router_CCIPSend, b: c.Builder): void => {
     b.storeUint(rtGen.Router_CCIPSend.PREFIX, 32)
-    b.storeUint(self.queryID, 64)
+    b.storeUint(self.queryId, 64)
     b.storeUint(self.destChainSelector, 64)
     rtGen.CrossChainAddress.store(self.receiver, b)
     b.storeRef(self.data)

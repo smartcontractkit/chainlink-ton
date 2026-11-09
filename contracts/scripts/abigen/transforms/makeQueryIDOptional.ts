@@ -3,7 +3,7 @@ import * as common from '../common'
 import { shallowInterface } from './cellRefs'
 
 // ---------------------------------------------------------------------------
-//   queryId / queryID omittable transform
+//   queryId / queryId omittable transform
 //
 //   acton generates `queryId: uint64` as a required field in every message
 //   struct. In practice callers almost always pass 0n, so this makes the
@@ -12,7 +12,7 @@ import { shallowInterface } from './cellRefs'
 //   required, since the value is always present after creation/deserialization.
 
 // ---------------------------------------------------------------------------
-const QUERY_ID_NAMES = new Set(['queryId', 'queryID'])
+const QUERY_ID_NAMES = new Set(['queryId'])
 
 function isInsideInterface(node: morph.Node): boolean {
   for (let parent = node.getParent(); parent; parent = parent.getParent()) {
@@ -36,7 +36,7 @@ function makeQueryIdFieldsOptional(sourceFile: morph.SourceFile): void {
   }
 }
 
-/** In every struct's create(), default the omitted queryId/queryID to 0n after the `...args` spread. */
+/** In every struct's create(), default the omitted queryId/queryId to 0n after the `...args` spread. */
 function addQueryIdCreateDefaults(sourceFile: morph.SourceFile): void {
   for (const block of common.getStructBlocks(sourceFile)) {
     for (const methodName of [common.codecInterface.create, shallowInterface.create]) {
@@ -82,7 +82,7 @@ function addQueryIdStackDefaults(sourceFile: morph.SourceFile): void {
 
 export default function makeQueryIDOptional(sourceFile: morph.SourceFile): void {
   const text = sourceFile.getFullText()
-  if (!text.includes('queryId') && !text.includes('queryID')) return
+  if (!text.includes('queryId')) return
 
   makeQueryIdFieldsOptional(sourceFile)
   addQueryIdCreateDefaults(sourceFile)
