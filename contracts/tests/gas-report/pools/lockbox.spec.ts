@@ -10,6 +10,8 @@ import {
   JettonLockBox_Deposit,
   JettonLockBox_DepositExtra,
   JettonLockBox_Deposited,
+  JettonLockBox_Withdraw,
+  JettonLockBox_WithdrawExtra,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { AskToTransfer } from '../../../wrappers/gen/ccip/pools/LockReleaseLockboxTokenPool'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
@@ -223,38 +225,51 @@ describe('JettonLockBox gas calibration', () => {
     })
   })
 
-  it('withdraw fits the on-chain withdraw budget', async () => {
+  it('withdraw exact minimum delivers jettons and preserves the lockbox balance', async () => {
     const costs = await deployJettonLockBoxHarness(blockchain, deployer)
+    const amount = toNano('1')
     await deposit(toNano('10'), 5, toNano('0.05'))
+
+    const forwardTonAmount = toNano('0.01')
+    const extra = JettonLockBox_WithdrawExtra.create({
+      sendExcessesTo: jettonLockBox.address,
+      forwardTonAmount,
+      forwardPayload: beginCell().storeUint(0x12345678, 32).endCell(),
+    })
+
+    const withdraw = JettonLockBox_Withdraw.create({
+      queryId: 4n,
+      token: jettonMinter.address,
+      remoteChainSelector: REMOTE_CHAIN_SELECTOR,
+      amount,
+      recipient: recipient.address,
+      extra,
+    })
+    // Quote the same forward fee the lockbox computes, then send exactly the resulting minimum.
+    const fwdFee = await costs.getWithdrawFwdFee(
+      JettonLockBox_Withdraw.toCell(withdraw),
+      operator.address,
+      lockboxWallet.address,
+      jettonLockBox.address,
+    )
+    const minValue = await costs.getWithdrawMinValue(forwardTonAmount, fwdFee)
+
+    const lockboxBalanceBefore = (await blockchain.getContract(jettonLockBox.address)).balance
 
     const result = await jettonLockBox.sendJettonLockBoxWithdraw(
       operator.getSender(),
-      toNano('0.2'),
-      {
-        queryId: 4n,
-        token: jettonMinter.address,
-        remoteChainSelector: REMOTE_CHAIN_SELECTOR,
-        amount: toNano('1'),
-        recipient: recipient.address,
-        extra: null,
-      },
+      minValue,
+      withdraw,
     )
     const tx = findLockboxTx(result, jettonLockBox.address)
     const gas = vmGasUsed(tx)
-    const walletMessage = tx.outMessages
-      .values()
-      .find(
-        (message: any) =>
-          message.info.type === 'internal' &&
-          message.info.dest instanceof Address &&
-          message.info.dest.equals(lockboxWallet.address),
-      )
-    const fwdFee = walletMessage?.info.forwardFee ?? 0n
-    const minValue = await costs.getWithdrawMinValue(0n, fwdFee)
+    const recipientWallet = blockchain.openContract(
+      JettonWallet.createFromAddress(await jettonMinter.getWalletAddress(recipient.address)),
+    )
 
     console.table([
       {
-        operation: 'lockbox withdraw',
+        operation: 'lockbox withdraw exact minimum',
         gasUsed: gas.toString(),
         feeNton: transactionFee(tx).toString(),
         minValueNton: minValue.toString(),
@@ -262,12 +277,21 @@ describe('JettonLockBox gas calibration', () => {
     ])
 
     expect(gas).toBeLessThanOrEqual(BigInt(await costs.getWithdrawGasUnits()))
-    expect(transactionFee(tx)).toBeLessThanOrEqual(minValue)
+    expect(result.transactions).toHaveTransaction({
+      from: operator.address,
+      to: jettonLockBox.address,
+      op: JettonLockBox_Withdraw.PREFIX,
+      success: true,
+    })
     expect(result.transactions).toHaveTransaction({
       from: jettonLockBox.address,
       to: lockboxWallet.address,
       op: AskToTransfer.PREFIX,
       success: true,
     })
+    expect(await recipientWallet.getJettonBalance()).toEqual(amount)
+    expect((await blockchain.getContract(jettonLockBox.address)).balance).toBeGreaterThanOrEqual(
+      lockboxBalanceBefore,
+    )
   })
 })

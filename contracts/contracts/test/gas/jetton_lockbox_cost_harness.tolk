@@ -9,6 +9,8 @@ import "@stdlib/gas-payments"
 
 import "../../ccip/pools/lockbox/costs"
 import "../../ccip/pools/lockbox/messages"
+import "../../lib/jetton/messages"
+import "../../lib/jetton/forward_payload_wrap"
 
 contract JettonLockBoxCostHarness {
     author: "SmartContract Chainlink Limited SEZC"
@@ -43,8 +45,53 @@ get fun get_depositReplyFee(queryId: uint64, amount: coins, depositContext: cell
     });
     return reply.estimateFeeWithoutSending(SEND_MODE_CARRY_ALL_BALANCE);
 }
+
 get fun get_withdrawMinValue(forwardTonAmount: coins, fwdFee: coins): coins {
     return JettonLockBox_minWithdrawValue(forwardTonAmount, fwdFee);
+}
+
+/// Test-only estimate of the `AskToTransfer` forward fee for the exact withdraw shape.
+/// Mirrors `onWithdraw` so the reported minimum matches the lockbox's on-chain guard.
+get fun get_withdrawFwdFee(
+    withdraw: cell,
+    sender: address,
+    walletAddress: address,
+    lockboxAddress: address,
+): coins {
+    val msg = JettonLockBox_Withdraw.fromCell(withdraw);
+
+    val extra = msg.extra != null ? msg.extra.load() : null;
+    val sendExcessesTo = extra != null && extra.sendExcessesTo != null
+        ? extra.sendExcessesTo
+        : lockboxAddress;
+    val forwardTonAmount = extra != null ? extra.forwardTonAmount : 0 as coins;
+    val delivered = Jetton_ForwardPayloadWrap.unwrapForwardPayload(
+        extra != null ? extra.forwardPayload : null
+    );
+
+    val wrap = Jetton_ForwardPayloadWrap {
+        initiator: sender,
+        context: withdraw,
+        forwardPayload: delivered,
+    };
+
+    val transferOpts = CreateMessageOptions<AskToTransfer> {
+        bounce: BounceMode.RichBounce,
+        value: 0,
+        dest: walletAddress,
+        body: AskToTransfer {
+            queryId: msg.queryId,
+            jettonAmount: msg.amount,
+            transferRecipient: msg.recipient,
+            sendExcessesTo,
+            customPayload: null,
+            forwardTonAmount,
+            forwardPayload: wrap.asForwardPayload(),
+        },
+    };
+
+    val sendMode = SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
+    return createMessage(transferOpts).estimateFeeWithoutSending(sendMode);
 }
 
 /// Price measured gas with the same on-chain config the cost functions use.

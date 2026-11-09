@@ -1,7 +1,7 @@
 [
   {
     "label": "current",
-    "createdAt": "2026-11-07T22:48:38.829Z",
+    "createdAt": "2026-11-09T16:53:47.896Z",
     "result": {
       "JettonLockBox": {
         "sendDeploy": {
@@ -119,7 +119,7 @@
         "0xd065c306": {
           "gasUsed": {
             "kind": "init",
-            "value": "16475"
+            "value": "17034"
           },
           "cells": {
             "kind": "init",
@@ -147,7 +147,21 @@
         "0x178d4519": {
           "gasUsed": {
             "kind": "init",
-            "value": "5606"
+            "value": "7566"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "96"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "35034"
+          }
+        },
+        "0x7362d09c": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "309"
           },
           "cells": {
             "kind": "init",
