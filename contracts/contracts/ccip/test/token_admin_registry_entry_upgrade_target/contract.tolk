@@ -33,7 +33,7 @@ fun onInternalMessage(in: InMessage) {
 
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
-    assert (version.bitsEqual("1.6.0".literalSlice())) throw (Upgradeable_Error.VersionMismatch);
+    assert (version.bitsEqual("1.7.0".literalSlice())) throw Upgradeable_Error.VersionMismatch;
     return UpgradeTarget_Storage { previousStorage: storage, resumed: null }.toCell();
 }
 

@@ -25,7 +25,7 @@ tolk 1.4.2
 /// stale entry round-trips the request through the root to get the new code.
 contract TokenAdminRegistry {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.6.0"
+    version: "1.7.0"
     description: "link.chain.ton.ccip.TokenAdminRegistry"
 
     storage: TokenAdminRegistry_Storage
@@ -33,7 +33,7 @@ contract TokenAdminRegistry {
     thrownErrors: Ownable2Step_Error | TokenAdminRegistry_Error | Upgradeable_Error | Withdrawable_Error
 }
 
-const CONTRACT_VERSION = "1.6.0".literalSlice();
+const CONTRACT_VERSION = "1.7.0".literalSlice();
 const RICH_BOUNCE_PREFIX = 0xfffffffe;
 const WITHDRAW_RESERVE = ton("0.1");
 
