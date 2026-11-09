@@ -165,7 +165,7 @@ describe('OnRamp - WithdrawFeeTokens', () => {
     const sender = await blockchain.treasury('sender')
     const mockRouter = await blockchain.treasury('mockRouter')
     const mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
-    const executorID = BigInt(generateRandomContractId())
+    const executorId = BigInt(generateRandomContractId())
     const fee = toNano('0.3')
 
     // Configure the lane and point the fee quoter at the mock.

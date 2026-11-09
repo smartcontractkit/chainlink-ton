@@ -187,7 +187,7 @@ export const Costs = (() => {
     depositAccountReserve,
     depositAccountInit,
     depositAccountWalletQuery,
-    getOnRampAccount:
+    getSenderAccount:
       toNano('0.0055') + depositAccountReserve + depositAccountInit + depositAccountWalletQuery,
   }
 })()

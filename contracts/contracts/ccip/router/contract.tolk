@@ -79,6 +79,7 @@ fun onInternalMessage(in: InMessage) {
             val minValue = Router_Costs.GetValidatedFee();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
             onGetValidatedFee(Router_GetValidatedFee {
+                queryId: 0,
                 ccipSend: msg.ccipSend,
                 context: msg.context.toCell(),
             }, in.senderAddress, true);
@@ -245,10 +246,14 @@ fun onInternalMessage(in: InMessage) {
             onRelayReleaseOrMint(msg);
         }
         // Permissionless
-        Router_GetOnRampAccount => {
+        Router_GetSenderAccount => {
             // Check that the amount sent by the user is enough to cover deployment trace costs.
-            assert (in.valueCoins >= Router_Costs.GetOnRampAccount()) throw Router_Error.InsufficientFee;
-            onGetOnRampAccount(msg, in.senderAddress);
+            assert (in.valueCoins >= Router_Costs.GetSenderAccount()) throw Router_Error.InsufficientFee;
+            onGetSenderAccount(msg, in.senderAddress);
+        }
+        // Permissionless, read-only
+        Router_GetReceiverAccountAddress => {
+            onGetReceiverAccountAddress(msg, in.senderAddress);
         }
         // Sender must be a deposit account owned by this Router (verified against the derived address)
         DepositAccount_Initialized => {
@@ -258,7 +263,7 @@ fun onInternalMessage(in: InMessage) {
         DepositAccount_WalletUnavailable => {
             onDepositAccountWalletUnavailable(msg, in.senderAddress);
         }
-        // Sender must be the sender's on-ramp account (verified against the derived address)
+        // Sender must be the sender's sender account (verified against the derived address)
         DepositAccount_WithdrawFailed => {
             onDepositAccountWithdrawFailed(msg, in.senderAddress);
         }
@@ -341,13 +346,13 @@ fun onBouncedMessage(in: InMessageBounced) {
                         Router_RelayReleaseOrMint => {
                             sendDepositAccountInitFailure(context, rich.exitCode);
                         }
-                        Router_OnRampAccountContext => {
-                            sendOnRampAccountFailed(context.user, richMsg.queryId, rich.exitCode as uint256);
+                        Router_SenderAccountContext => {
+                            sendSenderAccountFailed(context.user, richMsg.queryId, rich.exitCode as uint256, context.userContext);
                         }
                     }
                 }
             }
-            // The on-ramp account rejected the withdraw (e.g. it doesn't know its wallet yet).
+            // The sender account rejected the withdraw (e.g. it doesn't know its wallet yet).
             DepositAccount_Withdraw => {
                 failWithdrawToTokenPool(richMsg, rich.exitCode);
             }
@@ -393,6 +398,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>, offr
         execId: msg.execId,
         confirmValue: ROUTER_RECEIVE_CONFIRM_VALUE,
         message,
+        receiverAccounts: receiverAccountsOf(msg.receiver, message),
     };
 
     val messageForReceiver = createMessage({
@@ -422,12 +428,12 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>, offr
     excess.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
-/// Asks the sender's on-ramp account to transfer the jettons to the pool. A rejected or bounced
+/// Asks the sender's sender account to transfer the jettons to the pool. A rejected or bounced
 /// transfer fails the CCIPSend through `failWithdrawToTokenPool`, which finds the executor in the
 /// transfer's forward payload, so that payload must name the executor requesting the withdraw.
 fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
-    val account = withdrawRequest.onRampAccount.load();
+    val account = withdrawRequest.senderAccount.load();
     val fwdp = lazy withdrawRequest.forwardPayload.load();
     val request = lazy fwdp.requestMsg.load();
     if (request.replyTo != msg.executor) {
@@ -459,22 +465,22 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     val withdraw = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
-        dest: onRampAccountAddress(account.user, account.token),
+        dest: senderAccountAddress(account.user, account.token),
         body: DepositAccount_Withdraw { queryId: msg.queryID, ask },
     });
     withdraw.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// Deploys (or re-confirms) the sender's on-ramp account for `msg.token`. `Deployable_Initialize`
+/// Deploys (or re-confirms) the sender's sender account for `msg.token`. `Deployable_Initialize`
 /// installs the account and `DepositAccount_Init` activates it, learning the account's jetton
 /// wallet on the first init; the account answers with `DepositAccount_Initialized`, which the
-/// Router turns into `Router_UseOnRampAccount`.
-fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
+/// Router turns into `Router_UseSenderAccount`.
+fun onGetSenderAccount(msg: Router_GetSenderAccount, sender: address) {
     var beneficiaries: map<address, ()> = [];
     // Both the Router and the sender can withdraw from the deposit account.
     beneficiaries.set(contract.getAddress(), ());
     beneficiaries.set(sender, ());
-    val account = onRampAccount(sender, msg.token);
+    val account = senderAccount(sender, msg.token);
 
     // 1. Install the account's code/data at the shell address. On a retry to an already-deployed
     // account this bounces (unrecognized opcode) — the init below still re-confirms the account.
@@ -507,39 +513,40 @@ fun onGetOnRampAccount(msg: Router_GetOnRampAccount, sender: address) {
         dest: account.calculateAddress(),
         body: DepositAccount_Init {
             queryId: msg.queryId,
-            context: Router_OnRampAccountContext { user: sender, token: msg.token }.toCell(),
+            context: Router_SenderAccountContext { user: sender, token: msg.token, userContext: msg.context }.toCell(),
         },
     });
     // SAFETY: reserveGramsOnBalance is called before sending the init message, ensuring the account has enough balance to cover the reserved grams.
     init.send(SEND_MODE_CARRY_ALL_BALANCE + SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
-/// Hands the on-ramp account to the user once it confirmed initialization.
-fun onOnRampAccountReady(context: Router_OnRampAccountContext, msg: DepositAccount_Initialized, sender: address) {
+/// Hands the sender account to the user once it confirmed initialization.
+fun onSenderAccountReady(context: Router_SenderAccountContext, msg: DepositAccount_Initialized, sender: address) {
     val user = context.user;
-    assert(sender == onRampAccountAddress(user, context.token), Router_Error.SenderIsNotOnRampAccount);
+    assert(sender == senderAccountAddress(user, context.token), Router_Error.SenderIsNotSenderAccount);
 
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: user,
-        body: Router_UseOnRampAccount {
+        body: Router_UseSenderAccount {
             queryId: msg.queryId,
             account: sender,
             token: context.token,
+            context: context.userContext,
         },
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// Handles a `DepositAccount_WithdrawFailed` from one of this Router's on-ramp accounts: the
+/// Handles a `DepositAccount_WithdrawFailed` from one of this Router's sender accounts: the
 /// withdraw's AskToTransfer bounced, so the jettons never left the account and the CCIPSend fails.
 ///
 /// @dev The account self-reports the `(user, token)` pair it was deployed for; the pair is only
-///      believed because re-deriving the on-ramp account address from it must yield the sender.
-///      Off-ramp accounts never report here: only their receiver can withdraw from them.
+///      believed because re-deriving the sender account address from it must yield the sender.
+///      Receiver accounts never report here: only their receiver can withdraw from them.
 fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: address) {
-    assert(sender == onRampAccountAddress(msg.user, msg.token), Router_Error.SenderIsNotOnRampAccount);
+    assert(sender == senderAccountAddress(msg.user, msg.token), Router_Error.SenderIsNotSenderAccount);
     val request = lazy msg.request.load();
     emit(TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC, TokenPoolWithdrawBounced {
         wallet: msg.walletAddress,
@@ -549,10 +556,10 @@ fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: a
     });
     // The event's forward fee comes out of the inbound value, not the Router's balance.
     reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
-    failWithdrawToTokenPool(request, Router_Error.OnRampAccountWithdrawFailed as int32, SEND_MODE_CARRY_ALL_BALANCE);
+    failWithdrawToTokenPool(request, Router_Error.SenderAccountWithdrawFailed as int32, SEND_MODE_CARRY_ALL_BALANCE);
 }
 
-/// Fails the CCIPSend whose withdraw from the sender's on-ramp account did not go through. `ask`
+/// Fails the CCIPSend whose withdraw from the sender's sender account did not go through. `ask`
 /// was built by `onWithdrawToTokenPool`, which checked that its forward payload names the executor.
 fun failWithdrawToTokenPool(request: DepositAccount_Withdraw, exitCode: int32, mode: int = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE) {
     val fwpCell = loadForwardPayloadAsCell(request.ask.forwardPayload)!;
@@ -587,13 +594,29 @@ fun returnAccidentalTransfer(walletSender: address, msg: TransferNotificationFor
     returnMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
 }
 
-/// Returns the deposit account escrowing `token` sent by `user` for on-ramp transfers.
-get fun onRampAccountAddress(user: address, token: address): address {
-    return onRampAccount(user, token).calculateAddress();
+/// Answers the caller with its receiver account address for `msg.token`. Nothing is deployed.
+fun onGetReceiverAccountAddress(msg: Router_GetReceiverAccountAddress, sender: address) {
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: Router_ReceiverAccountAddress {
+            queryId: msg.queryId,
+            account: receiverAccount(sender, msg.token).calculateAddress(),
+            token: msg.token,
+            context: msg.context,
+        },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun onRampAccount(user: address, token: address): AutoDeployAddress {
-    return Router.onRampAccount(contract.getAddress(), user, token, deployableCompiledCode());
+/// Returns the deposit account escrowing `token` sent by `user` for on-ramp transfers.
+get fun senderAccountAddress(user: address, token: address): address {
+    return senderAccount(user, token).calculateAddress();
+}
+
+fun senderAccount(user: address, token: address): AutoDeployAddress {
+    return Router.senderAccount(contract.getAddress(), user, token, deployableCompiledCode());
 }
 
 /*
@@ -739,7 +762,7 @@ fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
 //     Receiver        ->> Router:          Receiver_CCIPReceiveV2 (bounce, process)
 //     Router          ->> OffRamp:         OffRamp_CCIPReceiveBounced
 //     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Bounced
-fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
+fun onCCIPReceiveBounced(execId: ReceiveExecutionID, sender: address) {
     val st = Storage.load();
     val sourceChainSelector = execId.getSourceChainSelector();
     val offRamp = st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled);
@@ -779,7 +802,7 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee, sender: address, isV1: bool) 
     var ccipSend = lazy msg.ccipSend.load();
     val onRampResult = st.onRamps.get(ccipSend.destChainSelector);
     if (!onRampResult.isFound) {
-        return sendMessageValidationFailed(sender, Router_Error.DestChainNotEnabled as uint256, msg.ccipSend, msg.context, isV1);
+        return sendMessageValidationFailed(sender, msg.queryId, Router_Error.DestChainNotEnabled as uint256, msg.ccipSend, msg.context, isV1);
     }
 
     if (ccipSend.feeToken == null) {
@@ -787,7 +810,7 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee, sender: address, isV1: bool) 
         // to save on gas, we only update ccipSendCell if necessary
         ccipSendCell = ccipSend.toCell();
     } else if (ccipSend.feeToken != NATIVE_GRAM) {
-        return sendMessageValidationFailed(sender, Router_Error.FeePaymentsWithJettonsNotSupported as uint256, msg.ccipSend, msg.context, isV1);
+        return sendMessageValidationFailed(sender, msg.queryId, Router_Error.FeePaymentsWithJettonsNotSupported as uint256, msg.ccipSend, msg.context, isV1);
     }
 
     val feeQuoterMsg = createMessage({
@@ -797,6 +820,7 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee, sender: address, isV1: bool) 
         body: OnRamp_GetValidatedFee {
             ccipSend: ccipSendCell,
             context: Router_GetValidatedFeeContext {
+                queryId: msg.queryId,
                 routerContext: sender,
                 oldContextVersion: isV1,
                 userContext: msg.context,
@@ -838,6 +862,7 @@ fun onMessageValidatedFromOnRamp(msg: OnRamp_MessageValidated) {
         };
     } else {
         body = Router_MessageValidated {
+            queryId: context.queryId,
             fee: msg.fee,
             msg: msg.msg,
             context: context.userContext,
@@ -870,10 +895,10 @@ fun onMessageValidatedFromOnRamp(msg: OnRamp_MessageValidated) {
 fun onMessageValidationFailedFromOnRamp(msg: OnRamp_MessageValidationFailed) {
     val context = Router_GetValidatedFeeContext.fromCell(msg.context!);
     val userAddress = context.routerContext;
-    sendMessageValidationFailed(userAddress, msg.error, msg.msg, context.userContext, context.oldContextVersion);
+    sendMessageValidationFailed(userAddress, context.queryId, msg.error, msg.msg, context.userContext, context.oldContextVersion);
 }
 
-fun sendMessageValidationFailed(userAddress: address, error: uint256, msg: Cell<Router_CCIPSend>, userContext: cell?, oldContextVersion: bool) {
+fun sendMessageValidationFailed(userAddress: address, queryId: uint64, error: uint256, msg: Cell<Router_CCIPSend>, userContext: cell?, oldContextVersion: bool) {
     var body: Router_MessageValidationFailed | Router_MessageValidationFailed_V1;
     if (oldContextVersion) {
         var contextV1: RemainingBitsAndRefs = createEmptySlice();
@@ -887,6 +912,7 @@ fun sendMessageValidationFailed(userAddress: address, error: uint256, msg: Cell<
         };
     } else {
         body = Router_MessageValidationFailed {
+            queryId,
             error,
             msg,
             context: userContext,
@@ -1059,7 +1085,7 @@ withdraw path should go through the executor - so the TP needs to withdraw -> ex
 */
 fun onLockOrBurn(msg: Router_LockOrBurn) {
     var onRampNamespaces: map<uint32, ()> = [];
-    onRampNamespaces.set(DeployableNamespace_OnRampAccount, ());
+    onRampNamespaces.set(DeployableNamespace_SenderAccount, ());
     val details = lazy msg.request.load().transfer.details.load();
     val extra = TokenPool_LockOrBurnExtra {
         // The source sender paid the source-side budget; return unused TON to it.
@@ -1111,7 +1137,7 @@ fun onLockOrBurn(msg: Router_LockOrBurn) {
 fun onRelayReleaseOrMint(msg: Router_RelayReleaseOrMint) {
     val request = lazy msg.request.load();
     val details = lazy request.transfer.details.load();
-    val account = offRampAccount(details.receiver, details.localToken);
+    val account = receiverAccount(details.receiver, details.localToken);
 
     var beneficiaries: map<address, ()> = [];
     beneficiaries.set(details.receiver, ());
@@ -1157,8 +1183,8 @@ fun onDepositAccountInitialized(msg: DepositAccount_Initialized, sender: address
         Router_RelayReleaseOrMint => {
             onReceiverAccountReady(context, sender);
         }
-        Router_OnRampAccountContext => {
-            onOnRampAccountReady(context, msg, sender);
+        Router_SenderAccountContext => {
+            onSenderAccountReady(context, msg, sender);
         }
     }
 }
@@ -1167,7 +1193,7 @@ fun onDepositAccountInitialized(msg: DepositAccount_Initialized, sender: address
 fun onReceiverAccountReady(relay: Router_RelayReleaseOrMint, sender: address) {
     val request = lazy relay.request.load();
     val details = lazy request.transfer.details.load();
-    assert(sender == offRampAccount(details.receiver, details.localToken).calculateAddress(), Router_Error.SenderIsNotDepositAccount);
+    assert(sender == receiverAccount(details.receiver, details.localToken).calculateAddress(), Router_Error.SenderIsNotDepositAccount);
 
     val tokenPoolReleaseOrMint = createMessage({
         bounce: BounceMode.RichBounce,
@@ -1198,23 +1224,23 @@ fun onDepositAccountWalletUnavailable(msg: DepositAccount_WalletUnavailable, sen
         Router_RelayReleaseOrMint => {
             val request = lazy context.request.load();
             val details = lazy request.transfer.details.load();
-            assert(sender == offRampAccount(details.receiver, details.localToken).calculateAddress(), Router_Error.SenderIsNotDepositAccount);
+            assert(sender == receiverAccount(details.receiver, details.localToken).calculateAddress(), Router_Error.SenderIsNotDepositAccount);
 
             sendDepositAccountInitFailure(context, Router_Error.DepositAccountWalletUnavailable as int32);
         }
-        Router_OnRampAccountContext => {
-            assert(sender == onRampAccountAddress(context.user, context.token), Router_Error.SenderIsNotOnRampAccount);
-            sendOnRampAccountFailed(context.user, msg.queryId, Router_Error.DepositAccountWalletUnavailable as uint256);
+        Router_SenderAccountContext => {
+            assert(sender == senderAccountAddress(context.user, context.token), Router_Error.SenderIsNotSenderAccount);
+            sendSenderAccountFailed(context.user, msg.queryId, Router_Error.DepositAccountWalletUnavailable as uint256, context.userContext);
         }
     }
 }
 
-fun sendOnRampAccountFailed(user: address, queryId: uint64, error: uint256) {
+fun sendSenderAccountFailed(user: address, queryId: uint64, error: uint256, context: cell?) {
     val failed = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: user,
-        body: Router_OnRampAccountFailed { queryId, error },
+        body: Router_SenderAccountFailed { queryId, error, context },
     });
     failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -1247,8 +1273,23 @@ fun onTokenTransferDelivered(msg: Router_TokenTransferDelivered) {
     delivered.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun offRampAccount(receiver: address, token: address): AutoDeployAddress {
-    return Router.offRampAccount(contract.getAddress(), receiver, token, deployableCompiledCode());
+/// The receiver accounts the message's tokens were delivered to, index-aligned with
+/// `message.tokenAmounts` (empty when the message carries no tokens).
+fun receiverAccountsOf(receiver: address, message: Cell<Any2TVMMessage>): array<address> {
+    var accounts: array<address> = [];
+    val any2tvm = lazy message.load();
+    if (any2tvm.tokenAmounts != null) {
+        var tokenAmounts = any2tvm.tokenAmounts!.iter();
+        while (!tokenAmounts.empty()) {
+            val tokenAmount = tokenAmounts.next();
+            accounts.push(receiverAccount(receiver, tokenAmount.token).calculateAddress());
+        }
+    }
+    return accounts;
+}
+
+fun receiverAccount(receiver: address, token: address): AutoDeployAddress {
+    return Router.receiverAccount(contract.getAddress(), receiver, token, deployableCompiledCode());
 }
 
 /*
@@ -1487,8 +1528,8 @@ get fun destChainSelectors(): lisp_list<uint64> {
 }
 
 /// Returns the deposit account where off-ramped `token` for `receiver` is delivered.
-get fun offRampAccountAddress(receiver: address, token: address): address {
-    return offRampAccount(receiver, token).calculateAddress();
+get fun receiverAccountAddress(receiver: address, token: address): address {
+    return receiverAccount(receiver, token).calculateAddress();
 }
 
 get fun reserve(): coins {

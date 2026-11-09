@@ -193,7 +193,7 @@ export function runTokenPoolBehaviorTests(
               tokenArgs: null,
               replyTo: ctx.deployer.address,
               finalizationValue: toNano('0.01'),
-              onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+              onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
             })
           }
 

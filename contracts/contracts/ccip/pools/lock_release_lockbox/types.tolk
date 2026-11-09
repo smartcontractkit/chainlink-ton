@@ -45,7 +45,7 @@ struct (0x60fdb63b) LockReleaseLockboxTokenPool_LockContext {
     transferInitiator: address; // incoming transfer notification's initiator (the source DA)
 }
 
-/// @notice Context passed to OffRampAccount for release (withdraw) operations.
+/// @notice Context passed to ReceiverAccount for release (withdraw) operations.
 /// Carries the full forward payload for post-release finalization.
 struct (0x90230477) LockReleaseLockboxTokenPool_ReleaseContext {
     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
@@ -57,9 +57,9 @@ enum LockReleaseLockBoxTokenPool_Error {
     UnexpectedLockboxConfirmationSender // 20901
 
     UnexpectedLockBounce // 20902
-    InvalidOffRampAccountReply // 20903
-    InvalidOffRampAccountNotification // 20904
-    OffRampAccountDeployFailed // 20905
+    InvalidReceiverAccountReply // 20903
+    InvalidReceiverAccountNotification // 20904
+    ReceiverAccountDeployFailed // 20905
     // The lockbox reported that the jetton transfer for a release (withdraw) bounced.
     LockBoxWithdrawFailed // 20906
 }
