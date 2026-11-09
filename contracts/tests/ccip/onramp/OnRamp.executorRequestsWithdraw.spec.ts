@@ -50,7 +50,7 @@ function buildWithdrawRequest(opts: {
     tokenArgs: null,
     replyTo: opts.originalSender,
     finalizationValue: toNano('0.01'),
-    onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+    onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
   })
 
   const prepared = tp.TokenPool_LockOrBurnPrepared.create({
@@ -63,7 +63,7 @@ function buildWithdrawRequest(opts: {
   })
 
   return rt.Router_WithdrawRequest.create({
-    onRampAccount: rt.Router_DepositAccountID.create({
+    senderAccount: rt.Router_DepositAccountID.create({
       user: opts.originalSender,
       token: opts.token,
     }),

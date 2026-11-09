@@ -61,7 +61,7 @@ struct (0xba302a47) BurnMintTokenPool_BurnContext {
     transferInitiator: address; // incoming transfer notification's initiator (the source DA)
 }
 
-/// Context passed to OffRampAccount for mint (release) operations.
+/// Context passed to ReceiverAccount for mint (release) operations.
 /// Carries the full forward payload for post-mint finalization.
 struct (0xb3d52361) BurnMintTokenPool_MintContext {
     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
@@ -71,7 +71,7 @@ struct (0xb3d52361) BurnMintTokenPool_MintContext {
 enum BurnMintTokenPool_Error {
     UnexpectedBurnBounce = BurnMintTokenPool_FACILITY_ID * 100 // 45000
     UnexpectedMintBounce // 45001
-    InvalidOffRampAccountReply // 45002
-    InvalidOffRampAccountNotification // 45003
-    OffRampAccountDeployFailed // 45004
+    InvalidReceiverAccountReply // 45002
+    InvalidReceiverAccountNotification // 45003
+    ReceiverAccountDeployFailed // 45004
 }

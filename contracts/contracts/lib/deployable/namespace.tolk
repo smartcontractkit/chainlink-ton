@@ -5,8 +5,8 @@ const DeployableNamespace_CCIPSendExecutor: Namespace = 0;
 const DeployableNamespace_ReceiveExecutor: Namespace = 1;
 const DeployableNamespace_MerkleRoot: Namespace = 2;
 const DeployableNamespace_TokenRegistry: Namespace = 3;
-const DeployableNamespace_OffRampAccount: Namespace = 4;
-const DeployableNamespace_OnRampAccount: Namespace = 5;
+const DeployableNamespace_ReceiverAccount: Namespace = 4;
+const DeployableNamespace_SenderAccount: Namespace = 5;
 
 struct Namespaced<T> {
     namespace: Namespace;

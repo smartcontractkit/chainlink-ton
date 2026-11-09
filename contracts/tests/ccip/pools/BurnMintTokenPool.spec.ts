@@ -58,7 +58,7 @@ import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdraw
 import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
 import { runTokenPoolContinuationBehaviorTests } from './TokenPool.continuation.behavior'
 import { setTokenPoolSafetyFloor } from '../../utils/minValue'
-import { deriveOnRampAccountAddress } from '../../../wrappers/ccip/OnRampAccount'
+import { deriveSenderAccountAddress } from '../../../wrappers/ccip/SenderAccount'
 import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 
 // Builds a forged `CCT_ReturnExcessesBack` carrying a burn continuation payload. It is sent
@@ -140,7 +140,7 @@ describe('BurnMintTokenPool', () => {
                 rateLimitAdmin: null,
                 feeAdmin: null,
               }),
-              allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+              allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
               jettonClient: JettonClient.create({
                 masterAddress: cctMinter.address,
                 jettonWalletCode: cctWalletCode,
@@ -404,7 +404,7 @@ describe('BurnMintTokenPool', () => {
         tokenArgs: null,
         replyTo: deployer.address,
         finalizationValue: toNano('0.01'),
-        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
       })
       const transferPayload = TokenPool_LockOrBurnForwardPayload.create({
         originalSender: deployer.address,
@@ -418,7 +418,7 @@ describe('BurnMintTokenPool', () => {
           }),
         }),
       })
-      const accountAddress = deriveOnRampAccountAddress({
+      const accountAddress = deriveSenderAccountAddress({
         router: deployer.address,
         user: deployer.address,
         token: cctMinter.address,
@@ -438,7 +438,7 @@ describe('BurnMintTokenPool', () => {
         },
       })
       const accountWallet = await userWallet(accountAddress)
-      // The jetton wallet only accepts AskToTransfer from its owner (the OnRampAccount), so
+      // The jetton wallet only accepts AskToTransfer from its owner (the SenderAccount), so
       // impersonate the account — exactly what the real Router-driven withdraw does.
       const result = await accountWallet.sendTransfer(blockchain.sender(accountAddress), {
         value: toNano('2'),
@@ -551,7 +551,7 @@ describe('BurnMintTokenPool', () => {
             tokenArgs: null,
             replyTo: unauthorized.address,
             finalizationValue: toNano('0.01'),
-            onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+            onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
           }),
         ),
       },
@@ -590,7 +590,7 @@ describe('BurnMintTokenPool', () => {
         tokenArgs: null,
         replyTo: unauthorized.address,
         finalizationValue: toNano('0.01'),
-        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
       })
       const admitted = await pool.sendTokenPoolLockOrBurn(deployer.getSender(), toNano('1'), {
         ...request,
@@ -698,7 +698,7 @@ describe('BurnMintTokenPool', () => {
       tokenArgs: null,
       replyTo: attacker.address,
       finalizationValue: toNano('0.01'),
-      onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+      onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
     })
     const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
       originalSender: attacker.address,
@@ -713,9 +713,9 @@ describe('BurnMintTokenPool', () => {
       }),
     })
 
-    // Deploy the attacker's OnRampAccount the way the Router does, with the attacker as a
+    // Deploy the attacker's SenderAccount the way the Router does, with the attacker as a
     // beneficiary, and fund its wallet.
-    const accountAddress = deriveOnRampAccountAddress({
+    const accountAddress = deriveSenderAccountAddress({
       router: deployer.address,
       user: attacker.address,
       token: cctMinter.address,
@@ -726,7 +726,7 @@ describe('BurnMintTokenPool', () => {
         {
           owner: deployer.address,
           id: Deployable.builder.data.namespaced.encode({
-            namespace: NameSpace.CCIPNamespace.OnRampAccount,
+            namespace: NameSpace.CCIPNamespace.SenderAccount,
             id: beginCell().storeAddress(attacker.address).storeAddress(cctMinter.address),
           }),
         },
@@ -878,7 +878,7 @@ describe('BurnMintTokenPool', () => {
         tokenArgs: null,
         replyTo: deployer.address,
         finalizationValue: toNano('0.01'),
-        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
       })
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
         originalSender: deployer.address,
@@ -892,7 +892,7 @@ describe('BurnMintTokenPool', () => {
           }),
         }),
       })
-      const accountAddress = deriveOnRampAccountAddress({
+      const accountAddress = deriveSenderAccountAddress({
         router: deployer.address,
         user: deployer.address,
         token: cctMinter.address,
@@ -1046,7 +1046,7 @@ describe('BurnMintTokenPool', () => {
       tokenArgs: null,
       replyTo: deployer.address,
       finalizationValue: toNano('0.01'),
-      onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+      onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
     })
 
     const result1 = await burnMintPool.sendTokenPoolLockOrBurn(
@@ -1101,13 +1101,13 @@ describe('BurnMintTokenPool', () => {
       expectedForwardPayload.prepared.destTokenAmount,
     )
 
-    // === Step 2: Deposit through the impersonated OnRampAccount wallet with the pool's
+    // === Step 2: Deposit through the impersonated SenderAccount wallet with the pool's
     // forward payload ===
     const forwardPayloadCell = TokenPool_LockOrBurnForwardPayload.toCell(
       withdrawBody.forwardPayload,
     )
 
-    const accountAddress = deriveOnRampAccountAddress({
+    const accountAddress = deriveSenderAccountAddress({
       router: deployer.address,
       user: deployer.address,
       token: cctMinter.address,
@@ -1198,7 +1198,7 @@ describe('BurnMintTokenPool', () => {
       tokenArgs: null,
       replyTo: executorBouncer.address,
       finalizationValue: toNano('0.01'),
-      onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+      onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
     })
 
     const result = await burnMintPool.sendTokenPoolLockOrBurn(
@@ -1322,7 +1322,7 @@ describe('BurnMintTokenPool', () => {
         tokenArgs: null,
         replyTo: deployer.address,
         finalizationValue: toNano('0.01'),
-        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
       })
       const admitted = await pool.sendTokenPoolLockOrBurn(
         deployer.getSender(),

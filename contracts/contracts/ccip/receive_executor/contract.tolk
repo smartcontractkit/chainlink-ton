@@ -247,7 +247,7 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
             dest: st.owner,
             body: OffRamp_ReleaseOrMint {
                 queryId: st.state.queryId,
-                execId: st.execId,
+                execID: st.execID,
                 destGasAmount: transfer.destGasAmount,
                 tokenPool,
                 requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
@@ -283,7 +283,7 @@ fun execute(mutate st: ReceiveExecutor_Storage) {
             body: OffRamp_DispatchValidated {
                 queryId: st.state.queryId,
                 message: st.message,
-                execId: st.execId,
+                execID: st.execID,
                 effectiveGasLimit: st.state.effectiveGasLimit,
                 tokenAmounts: receiverTokenAmounts(st),
             }
@@ -338,7 +338,7 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
         body: OffRamp_NotifyFailure {
             queryId: st.state.queryId,
             header: messageHeader.toCell(),
-            execId: st.execId,
+            execID: st.execID,
             root: st.root,
             excesses: st.state.excesses!,
         },
@@ -407,7 +407,7 @@ fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: Receive
         dest: st.owner,
         body: OffRamp_TokenTransferDelivered {
             queryId: st.state.queryId,
-            execId: st.execId,
+            execID: st.execID,
             delivered: delivered.toCell(),
         },
     });
@@ -425,7 +425,7 @@ fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: 
         body: OffRamp_NotifySuccess {
             queryId: st.state.queryId,
             header: messageHeader.toCell(),
-            execId: st.execId,
+            execID: st.execID,
             root: st.root,
             delivered,
             excesses: st.state.excesses!,

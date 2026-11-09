@@ -132,7 +132,7 @@ async function lockOrBurn(
       tokenArgs: null,
       replyTo: deployer.address,
       finalizationValue: FINALIZATION_VALUE,
-      onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+      onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
     },
   )
 

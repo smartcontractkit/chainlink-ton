@@ -48,7 +48,7 @@ describe('Router', () => {
       messageID: 1n,
     })
     const result = await router.sendRouterCCIPReceiveConfirm(receiver.getSender(), toNano('1'), {
-      execId: execID,
+      execID: execID,
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -65,7 +65,7 @@ describe('Router', () => {
       body(x) {
         if (!x) return false
         const decoded = of.OffRamp_CCIPReceiveConfirm.fromSlice(x.beginParse())
-        return decoded.execId === execID
+        return decoded.execID === execID
       },
     })
   })
@@ -76,7 +76,7 @@ describe('Router', () => {
       messageID: 1n,
     })
     const result = await router.sendRouterCCIPReceiveConfirm(receiver.getSender(), toNano('1'), {
-      execId: execID,
+      execID: execID,
     })
 
     expect(result.transactions).toHaveTransaction({

@@ -222,7 +222,7 @@ const RECEIVE_EXECUTOR_ID_SIZE = 192;
 
 type MerkleRootId = uint256;
 
-fun ReceiveExecutorId.getSourceChainSelector(self): uint64 {
+fun ReceiveExecutionID.getSourceChainSelector(self): uint64 {
     var cs = beginCell().storeUint(self, RECEIVE_EXECUTOR_ID_SIZE).endCell().beginParse();
     return cs.loadUint(64);
 }

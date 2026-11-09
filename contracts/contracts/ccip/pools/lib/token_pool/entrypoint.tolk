@@ -1734,7 +1734,7 @@ fun TokenPool<T>.processLockOrBurnTransfer(
 /// @param originalSender The original CCIP sender on the source chain, used to derive its
 ///        Router-owned account.
 ///
-/// @dev Accepts an OnRampAccount deposit account in an allowed namespace for (originalSender,
+/// @dev Accepts an SenderAccount deposit account in an allowed namespace for (originalSender,
 ///        the pool's jetton master), so an account holding a different jetton never authenticates here.
 ///
 ///      The `withdrawalInitiator == Router` check is what makes the forward payload trustworthy:

@@ -8,7 +8,7 @@ export enum CCIPNamespace {
   MerkleRoot,
   TokenRegistry,
   DepositAccount,
-  OnRampAccount,
+  SenderAccount,
 }
 
 // pass `await contractCode.ccip.local('Deployable')` to `deployableCode`
