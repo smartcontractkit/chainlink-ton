@@ -1,6 +1,9 @@
 import { Cell, beginCell } from '@ton/core'
-import * as rt from '../../../../wrappers/gen/ccip/Router'
+
 import { asSnakedCell } from '../../../../src/utils'
+import { testSnakeData } from '../../../utils/snakeData'
+
+import * as rt from '../../../../wrappers/gen/ccip/Router'
 
 // `MaxDataBytes` of the FeeQuoter dest chain config TON lanes are deployed with
 // (deployment/ccip/1_6_0/sequences/connect_chains.go).
@@ -29,7 +32,7 @@ export function createPayload(size: number): Cell {
 
 // Byte array filled with 0xff, for Router_CCIPSend.data (SnakedCell<byte>).
 export function createPayloadBytes(size: number): bigint[] {
-  return Array.from(Buffer.alloc(size, 0xff), BigInt)
+  return testSnakeData(size)
 }
 
 export function createExtraArgs(): Cell {

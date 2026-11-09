@@ -1,22 +1,21 @@
 import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
+import { ChainSelectors } from '../../utils/Selectors'
+import { NATIVE_GRAM, asSnakeBytes } from '../../../src/utils'
+import { testSnakeData } from '../../utils/snakeData'
 import * as coverage from '../../coverage/coverage'
-import { NATIVE_GRAM } from '../../../src/utils'
+import EVM_ADDRESS from '../../utils/evmAddress'
 
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as dep from '../../../wrappers/libraries/Deployable'
-import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { ChainSelectors } from '../../utils/Selectors'
 import * as on from '../../../wrappers/gen/ccip/OnRamp'
 import generateMessageID, { getMetadataHash } from '../../../src/onramp/generateMessageID'
 import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
-import EVM_ADDRESS from '../../utils/evmAddress'
-import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
-import { asSnakeBytes } from '../../../src/utils'
+import { setup } from './OnRamp.Setup'
 
 describe('OnRamp - generate message id', () => {
   let blockchain: Blockchain
@@ -294,7 +293,7 @@ describe('OnRamp - generate message id', () => {
   it('generates matching message id for a multi-cell data payload', async () => {
     // A payload larger than one cell (127 bytes) forces the snake encoding to span
     // multiple cells, exercising the data path that the empty case cannot reach.
-    const multiCellData = Array.from(Buffer.alloc(2000, 0xab), BigInt)
+    const multiCellData = testSnakeData(2000, 0xab)
 
     const ccipSendWithData = or.Router_CCIPSend.create({
       ...ccipSend,

@@ -1,19 +1,19 @@
 import '@ton/test-utils'
-
 import { Address, toNano, beginCell, Cell } from '@ton/core'
+import { Blockchain } from '@ton/sandbox'
+
+import { testSnakeData } from '../../utils/snakeData'
+import { verifyBodyMessage } from '../../utils/verifyMessageBody'
+import { ChainSelectors } from '../../utils/Selectors'
+import * as coverage from '../../coverage/coverage'
 
 import { FeeQuoterSetup, FeeQuoterFeeSetup, Token } from './FeeQuoterSetup'
-import * as feeQuoterManual from '../../../wrappers/ccip/FeeQuoter'
-import * as feeQuoter from '../../../wrappers/gen/ccip/FeeQuoter'
-import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
-import * as rt from '../../../wrappers/gen/ccip/Router'
-import { Router_CCIPSend_RawData } from '../../../wrappers/ccip/Router'
-import { verifyBodyMessage } from '../../utils/verifyMessageBody'
-import { Blockchain } from '@ton/sandbox'
-import * as coverage from '../../coverage/coverage'
-import { ChainSelectors } from '../../utils/Selectors'
 import { FromBuffer, ToBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
-import { findTransactionRequired } from '@ton/test-utils'
+import { Router_CCIPSend_RawData } from '../../../wrappers/ccip/Router'
+import * as feeQuoter from '../../../wrappers/gen/ccip/FeeQuoter'
+import * as feeQuoterManual from '../../../wrappers/ccip/FeeQuoter'
+import * as rt from '../../../wrappers/gen/ccip/Router'
+import * as sx from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 
 describe('FeeQuoter GetValidatedFee', () => {
   let setup: FeeQuoterFeeSetup
@@ -66,7 +66,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.evm,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: Array.from(Buffer.alloc(Number(customDataSize)), BigInt),
+        data: testSnakeData(Number(customDataSize), 0x00),
         tokenAmounts: [],
         feeToken: token.token,
         extraArgs: rt.GenericExtraArgsV2.create({
@@ -191,7 +191,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     const message = rt.Router_CCIPSend.create({
       destChainSelector: ChainSelectors.testnet.evm,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
-      data: Array.from(Buffer.alloc(Number(FeeQuoterSetup.MAX_DATA_SIZE + 1n)), BigInt),
+      data: testSnakeData(Number(FeeQuoterSetup.MAX_DATA_SIZE + 1n), 0x00),
       tokenAmounts: [],
       feeToken: FeeQuoterSetup.NATIVE_TON.token,
       extraArgs: rt.GenericExtraArgsV2.create({
@@ -517,7 +517,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.evm,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: Array.from(Buffer.alloc(dataSize), BigInt),
+        data: testSnakeData(dataSize, 0x00),
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: rt.GenericExtraArgsV2.create({
@@ -544,7 +544,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const message = rt.Router_CCIPSend.create({
         destChainSelector: ChainSelectors.testnet.evm,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: Array.from(Buffer.alloc(dataSize), BigInt),
+        data: testSnakeData(dataSize, 0x00),
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: rt.GenericExtraArgsV2.create({

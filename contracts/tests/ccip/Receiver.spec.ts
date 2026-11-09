@@ -1,10 +1,11 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, toNano } from '@ton/core'
+import { Address, Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
 
+import { crc32 } from 'zlib'
 import { generateRandomContractId } from '../../src/utils'
 import { facilityId } from '../../wrappers/utils'
-import { crc32 } from 'zlib'
+import { testSnakeData } from '../utils/snakeData'
 import { contractCode } from '../../wrappers/codeLoader'
 
 import * as r from '../../wrappers/gen/ccip/Receiver'
@@ -323,7 +324,7 @@ describe('Receiver', () => {
       ...ccipReceiveSampleMessage,
       message: rt.Any2TVMMessage.create({
         ...ccipReceiveSampleMessage.message,
-        data: Array.from(Buffer.alloc(2000, 0xab), BigInt),
+        data: testSnakeData(2000, 0xab),
       }),
     })
     const result = await receiver.sendReceiverCCIPReceiveV2(

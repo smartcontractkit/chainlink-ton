@@ -7,8 +7,9 @@ import * as coverage from '../../coverage/coverage'
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { assertLog, expectFailedTransaction } from '../../Logs'
 import { ChainSelectors } from '../../utils/Selectors'
-import generateMessageID from '../../../src/offramp/generateMessageID'
+import { snakeData, testSnakeData } from '../../utils/snakeData'
 import { sendMessageAsync, captureAccountChanges } from '../../utils/sendInternalMessage'
+import generateMessageID from '../../../src/offramp/generateMessageID'
 
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as ocr from '../../../wrappers/libraries/ocr/MultiOCR3Base'
@@ -34,10 +35,6 @@ import {
 } from './OffRamp.Setup'
 import { DEFAULT_MIN_TT_GASLIMIT, executeValue } from '../../../wrappers/ccip/OffRamp'
 
-// Byte payload of the given size, the data the OffRamp measures with snakedBytesLen.
-function snakeData(size: number): bigint[] {
-  return Array.from(Buffer.alloc(size, 0xff), BigInt)
-}
 import { codec } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 describe('OffRamp - Execute', () => {
@@ -2245,7 +2242,7 @@ describe('OffRamp - Execute', () => {
     })
 
     it('fails a PTT with gasLimit 0 because the OffRamp rejects the low-gas dispatch', async () => {
-      const data = [0xden, 0xadn, 0xben, 0xefn]
+      const data = snakeData('0xdeadbeef')
       const message = setup.createTestMessageWithToken({ data })
       message.gasLimit = 0n
 
@@ -2350,7 +2347,7 @@ describe('OffRamp - Execute', () => {
     })
 
     it('rejects a report whose data exceeds OFFRAMP_MAX_DATA_BYTES', async () => {
-      const message = setup.createTestMessageWithToken({ data: snakeData(2001) })
+      const message = setup.createTestMessageWithToken({ data: testSnakeData(2001) })
       await setup.setupAndCommitMessage(message)
       await setup.executeReportExpectingFailure(
         setup.createExecuteReport([message]),
@@ -2359,7 +2356,7 @@ describe('OffRamp - Execute', () => {
     })
 
     it('accepts a report whose data is exactly OFFRAMP_MAX_DATA_BYTES', async () => {
-      const message = setup.createTestMessageWithToken({ data: snakeData(2000) })
+      const message = setup.createTestMessageWithToken({ data: testSnakeData(2000) })
       await setup.setupAndCommitMessage(message)
       const result = await setup.executeReport(setup.createExecuteReport([message]))
       expect(result.transactions).toHaveTransaction({
@@ -2810,7 +2807,7 @@ describe('OffRamp - Execute', () => {
     })
 
     it('executes a PTT (token transfer + data) end to end', async () => {
-      const data = [0xden, 0xadn, 0xben, 0xefn]
+      const data = snakeData('0xdeadbeef')
       const message = setup.createTestMessageWithToken({ data })
 
       await setup.setupAndCommitMessage(message)
@@ -2965,7 +2962,7 @@ describe('OffRamp - Execute', () => {
     it('fails a PTT when the token is not enabled in the TokenRegistry', async () => {
       await setup.disableToken()
 
-      const data = [0xden, 0xadn, 0xben, 0xefn]
+      const data = snakeData('0xdeadbeef')
       const message = setup.createTestMessageWithToken({ data })
 
       await setup.setupAndCommitMessage(message)
@@ -2998,7 +2995,7 @@ describe('OffRamp - Execute', () => {
       // Rate limit capacity is 0, so the releaseOrMint will be rejected.
       await setup.updateRateLimit(0n, 0n)
 
-      const data = [0xden, 0xadn, 0xben, 0xefn]
+      const data = snakeData('0xdeadbeef')
       const message = setup.createTestMessageWithToken({ data })
 
       await setup.setupAndCommitMessage(message)
@@ -3045,7 +3042,7 @@ describe('OffRamp - Execute', () => {
       // initial rate limit of 0 so the first releaseOrMint fails
       await setup.updateRateLimit(0n, 0n)
 
-      const data = [0xden, 0xadn, 0xben, 0xefn]
+      const data = snakeData('0xdeadbeef')
       const message = setup.createTestMessageWithToken({ data })
 
       await setup.setupAndCommitMessage(message)
@@ -3194,7 +3191,7 @@ describe('OffRamp - Execute', () => {
     // --- gasOverride validation ---
 
     it('fails manual execute when token gas override count does not match token transfers', async () => {
-      const data = [0xden, 0xadn, 0xben, 0xefn]
+      const data = snakeData('0xdeadbeef')
       const message = setup.createTestMessageWithToken({ data })
 
       await setup.setupAndCommitMessage(message)
