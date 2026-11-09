@@ -30,6 +30,24 @@ const DEPOSIT_CONTEXT = beginCell()
   .storeRef(beginCell().storeUint(0x9abcdef0, 64).endCell())
   .endCell()
 
+// A shallow, wide cell tree: enough cells to make the log fee material.
+function makeWideContext(cellCount: number): Cell {
+  let layer: Cell[] = []
+  for (let i = 0; i < cellCount; i++) {
+    layer.push(beginCell().storeUint(i, 32).endCell())
+  }
+  while (layer.length > 1) {
+    const next: Cell[] = []
+    for (let i = 0; i < layer.length; i += 4) {
+      const builder = beginCell()
+      for (let j = 0; j < 4 && i + j < layer.length; j++) builder.storeRef(layer[i + j])
+      next.push(builder.endCell())
+    }
+    layer = next
+  }
+  return layer[0]
+}
+
 function emptyAccessControlData(): AccessControl_Data {
   return {
     $: 'AccessControl_Data',
@@ -197,6 +215,45 @@ describe('JettonLockBox gas calibration', () => {
       to: operator.address,
       op: JettonLockBox_Deposited.PREFIX,
     })
+  })
+
+  it('deposit exact minimum covers the event log with a large context', async () => {
+    const costs = await deployJettonLockBoxHarness(blockchain, deployer)
+    const amount = toNano('10')
+    const queryId = 6n
+    const context = makeWideContext(300)
+    const depositCell = depositPayload(amount, Number(queryId), context)
+    const replyFee = await costs.getDepositReplyFee(queryId, amount, context)
+    const minValue = await costs.getDepositMinValue(replyFee)
+
+    const result = await deposit(amount, Number(queryId), minValue, amount, context)
+    const tx = findLockboxTx(result, jettonLockBox.address)
+    const gas = vmGasUsed(tx)
+    const log = tx.externals.find(
+      (message: any) =>
+        message.info.type === 'external-out' &&
+        message.body.beginParse().preloadUint(32) === JettonLockBox_Deposit.PREFIX,
+    )
+
+    console.table([
+      {
+        operation: 'lockbox deposit large context',
+        gasUsed: gas.toString(),
+        feeNton: transactionFee(tx).toString(),
+        replyFeeNton: replyFee.toString(),
+        minValueNton: minValue.toString(),
+      },
+    ])
+
+    expect(gas).toBeLessThanOrEqual(BigInt(await costs.getDepositGasUnits()))
+    expect(result.transactions).toHaveTransaction({
+      from: jettonLockBox.address,
+      to: operator.address,
+      op: JettonLockBox_Deposited.PREFIX,
+      success: true,
+    })
+    expect(log).toBeDefined()
+    expect(log!.body.equals(depositCell)).toBe(true)
   })
 
   it('deposit failure fits the same deposit budget', async () => {

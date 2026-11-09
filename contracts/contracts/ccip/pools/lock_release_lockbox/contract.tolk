@@ -158,9 +158,8 @@ fun onLockOrBurnTransferContinue(
     val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
     val fwdFee = createMessage(transferOpts).estimateFeeWithoutSending(sendMode);
 
-    // The lockbox must be able to fund the happy-path confirmation plus the pool's own
-    // finalization. Use the deposit transfer's forward fee as a conservative proxy for the
-    // lockbox reply fee; reject before custody moves if the configured safety is too low.
+    // Fund the lockbox log, reply, and our finalization. The deposit transfer fee is a conservative
+    // per-message proxy; reject before custody if the configured safety is too low.
     val lockboxMinValue = JettonLockBox_minDepositValue(fwdFee)
         + TokenPool_Costs.finalization();
     assert(forwardTonAmount >= lockboxMinValue, TokenPool_Error.InsufficientMessageValue);

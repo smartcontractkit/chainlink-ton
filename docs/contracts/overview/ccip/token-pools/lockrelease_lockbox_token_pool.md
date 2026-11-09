@@ -28,9 +28,10 @@ the sender above the rent target; the pre-existing deploy balance is never retur
 The lockbox can be topped up at any time with an empty-body message.
 
 Lockbox deposits must carry at least the measured happy-path deposit budget, including
-the confirmation reply fee. The pool adds its own finalization budget and rejects the
-lock before custody moves if the forward amount is too low. Failure returns are
-best-effort and may require more value; they do not spend the lockbox balance.
+the confirmation reply and mandatory deposit-log forwarding fees. The pool adds its
+own finalization budget and rejects the lock before custody moves if the forward
+amount is too low. Failure returns are best-effort and may require more value; they do
+not spend the lockbox balance.
 
 ## Rejected Deposits
 
