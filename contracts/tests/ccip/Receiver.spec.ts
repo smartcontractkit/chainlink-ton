@@ -43,7 +43,7 @@ async function deployReceiverContract(
 }
 
 const ccipReceiveSampleMessage = r.Receiver_CCIPReceiveV2.create({
-  execID: 1n,
+  execId: 1n,
   confirmValue: toNano('0.015'),
   message: rt.Any2TVMMessage.create({
     messageId: 1n,
@@ -176,7 +176,7 @@ describe('Receiver', () => {
       success: true,
       deploy: false,
       body: rt.Router_CCIPReceiveConfirm.toCell(
-        rt.Router_CCIPReceiveConfirm.create({ execID: ccipReceiveSampleMessage.execID }),
+        rt.Router_CCIPReceiveConfirm.create({ execId: ccipReceiveSampleMessage.execId }),
       ),
     })
 

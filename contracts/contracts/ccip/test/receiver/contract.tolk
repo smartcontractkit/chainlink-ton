@@ -75,7 +75,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: in.senderAddress,
                 body: Router_CCIPReceiveConfirm {
                     queryId: msg.queryId,
-                    execID: msg.execID,
+                    execId: msg.execId,
                 }
             });
             receiveConfirm.send(SEND_MODE_CARRY_ALL_BALANCE);

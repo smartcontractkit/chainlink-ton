@@ -793,14 +793,14 @@ describe('OffRamp - Execute', () => {
       const messageIdSlice = beginCell()
         .storeUint(generateMessageID(message, metadataHash), 256)
         .asSlice()
-      const execID = messageIdSlice.loadUintBig(192)
+      const execId = messageIdSlice.loadUintBig(192)
 
       const result = await setup.offRamp.sendOffRampDispatchValidated(
         setup.deployer.getSender(),
         toNano('0.5'),
         {
           message,
-          execID: execID,
+          execId: execId,
           effectiveGasLimit: setup.DEFAULT_GAS_LIMIT,
           tokenAmounts: null,
         },
