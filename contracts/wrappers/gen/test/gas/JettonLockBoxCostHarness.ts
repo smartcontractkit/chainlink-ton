@@ -315,7 +315,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class JettonLockBoxCostHarness implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgECEgEAAdUAART/APSkE/S88sgLAQIBYgIDABjQ+JHyQIQPAccA8vQCASAEBQIBIAYHAgEgCgsAHbqEyCAOpg+Cj6RDD4NqCAIBIAgJABO3ZF8FH0iGHwbQAAu1vpAuphACASAMDQIBWA4PAGO2RN8FHwUfBRkZ8jaDv5dC2Wf/SkKfSksfQF6AGTkZ8KECX0pOOeFt2ZkwYNBhNj9hEACntX0ORE4uHGCELjxgjaQN0CMExFxghC3QI6crAHxgigSVDnAgdG4fB5QALh8G1ABOHwbCVA5wIIEwQgEswDAOHwb0FRAgfRQUEC6mHwUfSIYfBtQQAA2zlCCAOpggAaOwogj0NcsJoMuGDTyv9M/+kgx0z8x+gD6SPQE0SBus5vQ+lD6APQE0YEAiJUwbW1tcOIgwwCVI26zwwCRcOJASOMEIsMAknAy3wLDAFAGbeMEgEAH+IG6SMG2OLSDQghAtYWAMIddJwSCSW3+XAdcLH73DAOLc0NcsIWsLAGTyv/pIMfQEMfQE0eJtyM+QtYWAMhn6Uhn0ABj0AMnI9ADPUIEAkMjPkD4p+pYVyz9QA/oC+lIW+lQU9AAB+gITzsnIz4WIE/pSz4QQc/oCcc8LZRLMyREADAGDCbH7CA==');
+    static CodeCell = c.Cell.fromBase64('te6ccgECEgEAAdwAART/APSkE/S88sgLAQIBYgIDABjQ+JHyQIQPAccA8vQCASAEBQIBIAYHAgEgCgsAJbqEz4KPpEMIIA6mAB+DYBqgCggCASAICQATt2RfBR9Ihh8G0AALtb6QLqYQAgEgDA0CAVgODwBjtkTfBR8FHwUZGfI2g7+XQtln/0pCn0pLH0BegBk5GfChAl9KTjnhbdmZMGDQYTY/YRAArbV9HwUfSIYORG4uHGCELjxgjaQN0CMExFxghC3QI6crAHxgigS1DnAgdG4fB5QALh8G1ABuHwbCdA5wIIEwQgEswDAOHwb0CxUQIH0UAlQQLqYLHwbUEAANs5QggDqYIAGjsKII9DXLCaDLhg08r/TP/pIMdM/MfoA+kj0BNEgbrOb0PpQ+gD0BNGBAIiVMG1tbXDiIMMAlSNus8MAkXDiQEjjBCLDAJJwMt8CwwBQBm3jBIBAB/iBukjBtji0g0IIQLWFgDCHXScEgklt/lwHXCx+9wwDi3NDXLCFrCwBk8r/6SDH0BDH0BNHibcjPkLWFgDIZ+lIZ9AAY9ADJyPQAz1CBAJDIz5A+KfqWFcs/UAP6AvpSFvpUFPQAAfoCE87JyM+FiBP6Us+EEHP6AnHPC2USzMkRAAwBgwmx+wg=');
 
     static Errors = {
     }
@@ -358,9 +358,9 @@ export class JettonLockBoxCostHarness implements c.Contract {
         return r.readBigInt();
     }
 
-    async getDepositMinValue(provider: ContractProvider, replyFee: coins): Promise<coins> {
+    async getDepositMinValue(provider: ContractProvider, fwdFee: coins): Promise<coins> {
         const r = StackReader.fromGetMethod(1, await provider.get('get_depositMinValue', [
-            { type: 'int', value: replyFee },
+            { type: 'int', value: fwdFee },
         ]));
         return r.readBigInt();
     }

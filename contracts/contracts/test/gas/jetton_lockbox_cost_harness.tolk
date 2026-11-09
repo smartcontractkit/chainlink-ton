@@ -25,8 +25,8 @@ fun onInternalMessage(in: InMessage) {
 get fun get_depositGasUnits(): int { return JettonLockBox_DEPOSIT_GAS_UNITS; }
 get fun get_withdrawGasUnits(): int { return JettonLockBox_WITHDRAW_GAS_UNITS; }
 
-get fun get_depositMinValue(replyFee: coins): coins {
-    return JettonLockBox_minDepositValue(replyFee);
+get fun get_depositMinValue(fwdFee: coins): coins {
+    return JettonLockBox_minDepositValue(fwdFee);
 }
 
 /// Test-only estimate of the `JettonLockBox_Deposited` reply fee for the deposit shape.

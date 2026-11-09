@@ -188,9 +188,8 @@ fun onDepositWithTransferNotification(
             },
         });
 
-        // Valid deposit: require enough value for the happy path, including the reply fee. Do not
-        // require the failure-return budget here; a shortfall on that optional path must not
-        // reject a viable success.
+        // The happy path needs the event log and reply; use the larger reply fee for both. The
+        // optional failure return is not required here, so a viable success is never rejected.
         val replyFee = reply.estimateFeeWithoutSending(SEND_MODE_CARRY_ALL_BALANCE);
         assert(
             msgValue >= JettonLockBox_minDepositValue(replyFee),
