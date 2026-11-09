@@ -431,6 +431,3 @@ fun Router_Costs.forwardCursedSubjects(): int {
 
 const ROUTER_RECEIVE_CONFIRM_FEE = grams("0.0015");
 
-/// Value receivers attach to Router_CCIPReceiveConfirm: `Router_Costs.receiveConfirm()` with
-/// headroom for later changes.
-const ROUTER_RECEIVE_CONFIRM_VALUE = grams("0.015");

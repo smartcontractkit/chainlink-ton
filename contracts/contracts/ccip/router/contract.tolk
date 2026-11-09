@@ -396,7 +396,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>, offr
     val ccipReceive: Receiver_CCIPReceiveV2 = {
         queryId: msg.queryId,
         execId: msg.execId,
-        confirmValue: ROUTER_RECEIVE_CONFIRM_VALUE,
+        confirmValue: Router_Costs.receiveConfirm() + grams("0.01"), // headroom for later changes
         message,
         receiverAccounts: receiverAccountsOf(msg.receiver, message),
     };
