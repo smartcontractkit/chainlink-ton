@@ -8,4 +8,6 @@ enum MerkleRoot_Error {
     SkippedAlreadyExecutedMessage
     InvalidState
     SeqNumOutOfBounds
+    /// A legacy 256-bit bounce. Every MerkleRoot send is RichBounce or NoBounce, so none is expected.
+    UnhandledLegacyBounce
 }

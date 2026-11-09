@@ -843,6 +843,7 @@ export class MerkleRoot implements c.Contract {
         'MerkleRoot_Error.SkippedAlreadyExecutedMessage': 18603,
         'MerkleRoot_Error.InvalidState': 18604,
         'MerkleRoot_Error.SeqNumOutOfBounds': 18605,
+        'MerkleRoot_Error.UnhandledLegacyBounce': 18606,
     }
 
     readonly address: c.Address

@@ -26,7 +26,7 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistryEntry_Resume.fromSlice(in.body);
     var st = UpgradeTarget_Storage.fromCell(contract.getData());
     val previous = TokenRegistry_Storage.fromCell(st.previousStorage);
-    assert(in.senderAddress == previous.adminConfig.load().tokenAdminRegistry) throw 0xFFFF;
+    assert(in.senderAddress == previous.adminConfig.load().tokenAdminRegistry) throw (0xFFFF);
     st.resumed = msg.request;
     contract.setData(st.toCell());
 }

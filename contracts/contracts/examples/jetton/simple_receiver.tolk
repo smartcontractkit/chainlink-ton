@@ -37,7 +37,7 @@ fun onInternalMessage(in: InMessage) {
         }
         else => {
             // ignore empty messages, "wrong opcode" for others  
-            assert (in.body.isEmpty()) throw 0xFFFF;
+            assert (in.body.isEmpty()) throw (0xFFFF);
         }
     }
 }
@@ -48,7 +48,7 @@ fun SimpleJettonReceiver.handleJettonTransferNotification(
     sender: address,
 ) {
     // Check if the sender is our jetton wallet
-    assert (self.JettonClient.isWallet(sender)) throw INCORRECT_SENDER_ERROR;
+    assert (self.JettonClient.isWallet(sender)) throw (INCORRECT_SENDER_ERROR);
 
     // Handle the jetton transfer - simple implementation just updates trackers
     self.amountChecker += msg.jettonAmount;

@@ -6,6 +6,9 @@ type MerkleRoot_InMessage =
     | MerkleRoot_Validate
     | MerkleRoot_MarkState;
 
+type MerkleRoot_BouncedMessage =
+    | OffRamp_ExecuteValidated;
+
 struct (0x038ede91) MerkleRoot_Validate {
     queryId: uint64,
     message: Cell<Any2TVMRampMessage>,
@@ -13,6 +16,8 @@ struct (0x038ede91) MerkleRoot_Validate {
     metadataHash: uint256,
     gasOverride: GasOverride?,
     offchainTokenData: lisp_list<lisp_list<cell>>,
+    // Caller of the execution: refunded with the excesses when the flow ends, or with the whole
+    // value if this message bounces.
     excessesTo: address,
 }
 

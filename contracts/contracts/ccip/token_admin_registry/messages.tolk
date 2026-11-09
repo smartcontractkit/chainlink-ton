@@ -140,7 +140,7 @@ struct (0xe533c614) TokenAdminRegistry_GetTokenInfoFailed {
 // crc32('TokenAdminRegistry_RequestFailed')
 struct (0xe73a39de) TokenAdminRegistry_RequestFailed {
     queryId: uint64;
-    exitCode: int32;
+    errorCode: int32;
     request: Cell<TokenAdminRegistryEntry_MessageFromRoot>;
 }
 

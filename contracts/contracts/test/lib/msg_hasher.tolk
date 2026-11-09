@@ -16,7 +16,7 @@ struct Storage {}
 // Test wrapper for math library functions
 fun onInternalMessage(in: InMessage) {
     // ignore empty messages, "wrong opcode" for others
-    assert (in.body.isEmpty()) throw 0xFFFF
+    assert (in.body.isEmpty()) throw (0xFFFF)
 }
 
 get fun getAny2TVMRampMessageID(msg: Cell<Any2TVMRampMessage>, metadataHash: int): (int) {

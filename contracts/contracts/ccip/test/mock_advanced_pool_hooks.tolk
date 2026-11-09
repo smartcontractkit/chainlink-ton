@@ -50,7 +50,7 @@ fun onInternalMessage(in: InMessage) {
         }
         else => {
             // Accept empty messages (top-up), reject everything else.
-            assert(in.body.isEmpty()) throw 0xFFFF;
+            assert(in.body.isEmpty()) throw (0xFFFF);
         }
     }
 }
@@ -89,7 +89,7 @@ fun replyGetCCVs(msg: TokenPool_GetCCVs, sender: address) {
     }
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: TokenPool_QueryCCVsReply {
@@ -98,7 +98,7 @@ fun replyGetCCVs(msg: TokenPool_GetCCVs, sender: address) {
             forwardPayload: msg.forwardPayload,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun replyPreflight(msg: TokenPool_PreflightCheck, msgValue: coins, sender: address) {
@@ -125,17 +125,17 @@ fun replyPreflight(msg: TokenPool_PreflightCheck, msgValue: coins, sender: addre
     }
 
     if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_COSTLY_ID) {
-        createMessage({ bounce: false, value: msgValue / 2, dest: sender, body: body })
-            .send(SEND_MODE_PAY_FEES_SEPARATELY);
+        createMessage({ bounce: BounceMode.NoBounce, value: msgValue / 2, dest: sender, body: body })
+            .send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: body,
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun replyPostflight(msg: TokenPool_PostflightCheck, msgValue: coins, sender: address) {
@@ -162,15 +162,15 @@ fun replyPostflight(msg: TokenPool_PostflightCheck, msgValue: coins, sender: add
     }
 
     if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_COSTLY_ID) {
-        createMessage({ bounce: false, value: msgValue / 2, dest: sender, body: body })
-            .send(SEND_MODE_PAY_FEES_SEPARATELY);
+        createMessage({ bounce: BounceMode.NoBounce, value: msgValue / 2, dest: sender, body: body })
+            .send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: body,
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }

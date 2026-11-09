@@ -218,7 +218,7 @@ async function measureGetValidatedFee(
     Costs.getValidatedFee,
     rt.Router_GetValidatedFee.create({
       ccipSend: rt.Router_CCIPSend.create({
-        queryID: 1n,
+        queryId: 1n,
         destChainSelector: ChainSelectors.testnet.evm,
         receiver: EVM_ADDRESS,
         data: payload,

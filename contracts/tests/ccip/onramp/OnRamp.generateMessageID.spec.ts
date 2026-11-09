@@ -29,7 +29,7 @@ describe('OnRamp - generate message id', () => {
   let executorId: bigint
 
   const ccipSend = or.Router_CCIPSend.create({
-    queryID: 1n,
+    queryId: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,

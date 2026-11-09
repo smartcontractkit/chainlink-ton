@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../lib/utils"
 import "../../lib/versioning/upgradeable"
+import "../../lib/deployable/types"
 import "../lib/cross_chain_address/types"
 import "../lib/client/sender/messages"
 import "../lib/client/common/types"
@@ -43,12 +44,13 @@ struct (0xdcf993c2) OnRamp_Send {
 }
 
 struct (0x9c2ccc7e) OnRamp_GetValidatedFee {
+    queryId: uint64;
     ccipSend: Cell<Router_CCIPSend>;
     context: cell? = null;
 }
 
 struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
-    queryID: uint64,
+    queryId: uint64,
     tokenAmount: Cell<TokenAmount>, // Cell<> otherwise they don't fit
     tokenPool: address,
     destChainSelector: uint64,
@@ -63,7 +65,7 @@ struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
 const TOKEN_POOL_DEFAULT_LOCK_OR_BURN_ADMISSION: coins = grams("0.105");
 
 struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {
-    queryID: uint64,
+    queryId: uint64,
     executorId: CCIPSendExecutorId,
     destChainSelector: uint64,
     // Destination chain family echoed from the FeeQuoter's validation reply.
@@ -110,11 +112,11 @@ struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
 }
 
 struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
-    queryID: uint64
+    queryId: uint64
     executorId: CCIPSendExecutorId
     destChainSelector: uint64
     sender: address
-    error: uint256
+    errorCode: int32
     refund: Cell<coins>?
 }
 
@@ -126,7 +128,23 @@ struct (0x9dc06185) OnRamp_UpdateAllowlists {
     updates: SnakedCell<UpdateAllowlist>;
 }
 
+// The OnRamp's sends whose bounces it handles: the fee query, the executor deployment, and the
+// requests it relays to the Router for the executor.
+type OnRamp_RichBouncedMessage =
+    | FeeQuoter_GetValidatedFee
+    | Deployable_InitializeAndSend
+    | Router_LockOrBurn
+    | Router_WithdrawToTokenPool;
+
 // --- Outgoing messages ---
+
+/// Reports to the CCIPSendExecutor that the Router bounced its lock-or-burn request, so the
+/// executor fails the CCIPSend instead of waiting.
+// crc32('OnRamp_LockOrBurnFailed')
+struct (0xdf46b714) OnRamp_LockOrBurnFailed {
+    queryId: uint64,
+    errorCode: int32,
+}
 
 // crc32('OnRamp_MessageValidated')
 struct (0x2afb11bd) OnRamp_MessageValidated {
@@ -137,7 +155,7 @@ struct (0x2afb11bd) OnRamp_MessageValidated {
 
 // crc32('OnRamp_MessageValidationFailed')
 struct (0xac1dd12e) OnRamp_MessageValidationFailed {
-    error: uint256,
+    errorCode: int32,
     msg: Cell<Router_CCIPSend>,
     context: cell?
 }

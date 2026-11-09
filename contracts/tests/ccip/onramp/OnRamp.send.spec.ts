@@ -26,7 +26,7 @@ describe('OnRamp - Send', () => {
 
   const senderAddress = randomAddress()
   const ccipSend = or.Router_CCIPSend.create({
-    queryID: 1n,
+    queryId: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
@@ -129,7 +129,7 @@ describe('OnRamp - Send', () => {
     expect(selfMsg.onrampSend.metadata.value).toBe(toNano('42'))
     expect(selfMsg.onrampSend.msg.destChainSelector).toBe(ccipSend.destChainSelector)
     expect(selfMsg.onrampSend.msg.feeToken).toEqual(ccipSend.feeToken)
-    expect(selfMsg.onrampSend.msg.queryID).toBe(ccipSend.queryID)
+    expect(selfMsg.onrampSend.msg.queryId).toBe(ccipSend.queryId)
     expect(selfMsg.onrampSend.msg.receiver.toString()).toBe(ccipSend.receiver.toString())
     expect(selfMsg.onrampSend.msg.tokenAmounts.length).toBe(0)
     expect(selfMsg.onrampSend.msg.data).toEqual(ccipSend.data)
@@ -138,6 +138,65 @@ describe('OnRamp - Send', () => {
       msg.stateInit.data.beginParse(),
     )
     expect(executableData.onramp).toEqual(onramp.address)
+  })
+
+  it('should reject the send when the executor deployment bounces', async () => {
+    // The executor ID is random, but with a fixed seed replaying the same send from the same
+    // state picks the same ID. Deploy once to learn the address, then replay with an executor
+    // already there (an ID collision), which rejects the deployment.
+    blockchain.random = Buffer.alloc(32, 7)
+    const snapshot = blockchain.snapshot()
+    const first = await onramp.sendOnRampSend(mockRouter.getSender(), toNano('1'), onRampSendBody())
+    const deployTX = first.transactions.find(
+      (tx) =>
+        tx.inMessage?.info.type === 'internal' &&
+        tx.inMessage.info.src.equals(onramp.address) &&
+        tx.inMessage.body.beginParse().loadUint(32) === deployable.opcodes.in.initializeAndSend,
+    )
+    if (!deployTX || deployTX.inMessage?.info.type !== 'internal') {
+      throw new Error('Executor deploy transaction not found')
+    }
+    const executorAddress = deployTX.inMessage.info.dest
+    const executorAccount = (await blockchain.getContract(executorAddress)).account
+
+    await blockchain.loadFrom(snapshot)
+    await blockchain.setShardAccount(executorAddress, executorAccount)
+
+    const result = await onramp.sendOnRampSend(
+      mockRouter.getSender(),
+      toNano('1'),
+      onRampSendBody(),
+    )
+    blockchain.random = undefined
+
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: executorAddress,
+      success: false,
+      op: deployable.opcodes.in.initializeAndSend,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: executorAddress,
+      to: onramp.address,
+      success: true,
+      op: 0xfffffffe,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: mockRouter.address,
+      success: true,
+      op: rt.Router_MessageRejected.PREFIX,
+      body: (body) => {
+        if (!body) return false
+        const msg = rt.Router_MessageRejected.fromSlice(body.beginParse())
+        return (
+          msg.queryId === ccipSend.queryId &&
+          msg.destChainSelector === ccipSend.destChainSelector &&
+          msg.sender.equals(senderAddress) &&
+          msg.errorCode === 0xffffn // the executor rejects the unknown opcode
+        )
+      },
+    })
   })
 
   it('should fail if sender is not the router', async () => {
@@ -246,7 +305,7 @@ describe('OnRamp - Send', () => {
         return (
           msg.destChainSelector === ccipSend.destChainSelector &&
           msg.sender.equals(senderAddress) &&
-          msg.error === BigInt(or.OnRamp.Errors['OnRamp_Error.SenderNotAllowed'])
+          msg.errorCode === BigInt(or.OnRamp.Errors['OnRamp_Error.SenderNotAllowed'])
         )
       },
     })
@@ -281,7 +340,8 @@ describe('OnRamp - Send', () => {
         return (
           msg.destChainSelector === jettonCCIPSend.destChainSelector &&
           msg.sender.equals(senderAddress) &&
-          msg.error === BigInt(or.OnRamp.Errors['OnRamp_Error.FeePaymentsWithJettonsNotSupported'])
+          msg.errorCode ===
+            BigInt(or.OnRamp.Errors['OnRamp_Error.FeePaymentsWithJettonsNotSupported'])
         )
       },
     })
@@ -322,7 +382,7 @@ describe('OnRamp - Send', () => {
         return (
           msg.destChainSelector === unknownChainCCIPSend.destChainSelector &&
           msg.sender.equals(senderAddress) &&
-          msg.error === BigInt(or.OnRamp.Errors['OnRamp_Error.UnknownDestChainSelector'])
+          msg.errorCode === BigInt(or.OnRamp.Errors['OnRamp_Error.UnknownDestChainSelector'])
         )
       },
     })

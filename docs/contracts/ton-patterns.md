@@ -29,7 +29,7 @@ Examples
 ```tolk
 // AUTHORIZED: STORED_ADDRESS (st.ownable.owner).
 // AUTHORIZED: STORED_ADDRESS (st.config.feeQuoter).
-// AUTHORIZED: DERIVED_ADDRESS (st.executor.deployableCode, executorID, OnRamp owner). SendExecutor can only reach this state through a trusted OnRamp path.
+// AUTHORIZED: DERIVED_ADDRESS (st.executor.deployableCode, executorId, OnRamp owner). SendExecutor can only reach this state through a trusted OnRamp path.
 ```
 
 The comment is descriptive only; the authorization is the actual

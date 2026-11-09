@@ -11,6 +11,8 @@ import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 import { FeeQuoterSetup } from '../feequoter/FeeQuoterSetup'
 import { Costs } from '../../../wrappers/ccip/Router'
+import * as bouncer from '../../../wrappers/test/mock/Bouncer'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 const EVM_CC_ADDRESS: rt.CrossChainAddress = EVM_ADDRESS
 
@@ -85,7 +87,7 @@ describe.each(cases)(
     })
 
     const msg = rt.Router_CCIPSend.create({
-      queryID: 1n,
+      queryId: 1n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_CC_ADDRESS,
       data: Cell.EMPTY,
@@ -151,7 +153,7 @@ describe.each(cases)(
                 decodedContext.routerContext.equals(sender.address) &&
                 decodedContext.oldContextVersion === false &&
                 contextsEqual(decodedContext.userContext, context) &&
-                decoded.ccipSend.queryID === 1n &&
+                decoded.ccipSend.queryId === 1n &&
                 decoded.ccipSend.data.equals(Cell.EMPTY) &&
                 decoded.ccipSend.destChainSelector ===
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
@@ -166,7 +168,7 @@ describe.each(cases)(
         it('should reject getValidatedFee paying fees with a non-native token', async () => {
           const jettonMsg: rt.Router_CCIPSend = {
             $: 'Router_CCIPSend',
-            queryID: 1n,
+            queryId: 1n,
             destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             receiver: EVM_ADDRESS,
             data: Cell.EMPTY,
@@ -202,7 +204,7 @@ describe.each(cases)(
               const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
               return (
                 decoded.queryId === QUERY_ID &&
-                decoded.error ===
+                decoded.errorCode ===
                   BigInt(rt.Router.Errors['Router_Error.FeePaymentsWithJettonsNotSupported'])
               )
             },
@@ -219,7 +221,7 @@ describe.each(cases)(
         it('should reject getValidatedFee for disabled dest chain (missing OnRamp)', async () => {
           const badMsg: rt.Router_CCIPSend = {
             $: 'Router_CCIPSend',
-            queryID: 1n,
+            queryId: 1n,
             destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 + 1n,
             receiver: EVM_ADDRESS,
             data: Cell.EMPTY,
@@ -255,7 +257,7 @@ describe.each(cases)(
               const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
               return (
                 decoded.queryId === QUERY_ID &&
-                decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
+                decoded.errorCode === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
               )
             },
           })
@@ -288,7 +290,7 @@ describe.each(cases)(
 
           const badMsg: rt.Router_CCIPSend = {
             $: 'Router_CCIPSend',
-            queryID: 1n,
+            queryId: 1n,
             destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             receiver: EVM_CC_ADDRESS,
             data: Cell.EMPTY,
@@ -321,7 +323,72 @@ describe.each(cases)(
             body(x) {
               if (!x) return false
               const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
-              return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
+              return (
+                decoded.errorCode === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
+              )
+            },
+          })
+        })
+
+        it('should fail validation with the OnRamp exit code when the OnRamp bounces the request', async () => {
+          // The lane's OnRamp rejects everything.
+          const onRampBouncer = blockchain.openContract(
+            bouncer.ContractClient.createFromConfig(
+              await contractCode.ccip.local('tests.mock.Bouncer'),
+            ),
+          )
+          await onRampBouncer.sendDeploy(deployer.getSender(), toNano('0.05'))
+          const update = await router.sendRouterApplyRampUpdates(
+            deployer.getSender(),
+            toNano('1'),
+            {
+              queryId: 0n,
+              onRampUpdates: rt.OnRamps.create({
+                destChainSelectors: [msg.destChainSelector],
+                onRamp: onRampBouncer.address,
+              }),
+              offRampAdds: null,
+              offRampRemoves: null,
+            },
+          )
+          expect(update.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: router.address,
+            success: true,
+          })
+
+          const result = await router.sendRouterGetValidatedFee(
+            sender.getSender(),
+            Costs.getValidatedFee,
+            { ccipSend: msg, context },
+          )
+
+          expect(result.transactions).toHaveTransaction({
+            from: router.address,
+            to: onRampBouncer.address,
+            success: false,
+            op: or.OnRamp_GetValidatedFee.PREFIX,
+          })
+          expect(result.transactions).toHaveTransaction({
+            from: onRampBouncer.address,
+            to: router.address,
+            success: true,
+            op: 0xfffffffe,
+          })
+          expect(result.transactions).toHaveTransaction({
+            from: router.address,
+            to: sender.address,
+            success: true,
+            op: rt.Router_MessageValidationFailed.PREFIX,
+            inMessageBounceable: false,
+            body(x) {
+              if (!x) return false
+              const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
+              return (
+                decoded.errorCode === 0xffffn && // the Bouncer throws 0xFFFF
+                decoded.msg.queryId === msg.queryId &&
+                contextsEqual(decoded.context, context)
+              )
             },
           })
         })
@@ -357,7 +424,7 @@ describe.each(cases)(
                 decoded.queryId === QUERY_ID &&
                 contextsEqual(decoded.context, context) &&
                 decoded.fee === toNano('0.5') &&
-                decoded.msg.queryID === 1n &&
+                decoded.msg.queryId === 1n &&
                 decoded.msg.data.equals(Cell.EMPTY) &&
                 decoded.msg.destChainSelector ===
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
@@ -395,7 +462,7 @@ describe.each(cases)(
             onRamp.getSender(),
             toNano('1'),
             {
-              error: 12345n,
+              errorCode: 12345n,
               msg,
               context: rt.Router_GetValidatedFeeContext.toCell(
                 rt.Router_GetValidatedFeeContext.create({
@@ -424,8 +491,8 @@ describe.each(cases)(
               return (
                 decoded.queryId === QUERY_ID &&
                 contextsEqual(decoded.context, context) &&
-                decoded.error === 12345n &&
-                decoded.msg.queryID === 1n &&
+                decoded.errorCode === 12345n &&
+                decoded.msg.queryId === 1n &&
                 decoded.msg.data.equals(Cell.EMPTY) &&
                 decoded.msg.destChainSelector ===
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
@@ -442,7 +509,7 @@ describe.each(cases)(
             sender.getSender(),
             toNano('1'),
             {
-              error: 12345n,
+              errorCode: 12345n,
               msg,
               context: rt.Router_GetValidatedFeeContext.toCell(
                 rt.Router_GetValidatedFeeContext.create({
@@ -495,7 +562,7 @@ describe.each(cases)(
                 decodedContext.routerContext.equals(sender.address) &&
                 decodedContext.oldContextVersion === true &&
                 contextsEqual(decodedContext.userContext, context ?? Cell.EMPTY) &&
-                decoded.ccipSend.queryID === 1n &&
+                decoded.ccipSend.queryId === 1n &&
                 decoded.ccipSend.data.equals(Cell.EMPTY) &&
                 decoded.ccipSend.destChainSelector ===
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
@@ -546,7 +613,7 @@ describe.each(cases)(
               return (
                 decoded.context.asCell().equals(context ?? Cell.EMPTY) &&
                 decoded.fee === toNano('0.5') &&
-                decoded.msg.queryID === 1n &&
+                decoded.msg.queryId === 1n &&
                 decoded.msg.data.equals(Cell.EMPTY) &&
                 decoded.msg.destChainSelector ===
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
@@ -563,7 +630,7 @@ describe.each(cases)(
             onRamp.getSender(),
             toNano('1'),
             {
-              error: 12345n,
+              errorCode: 12345n,
               msg,
               context: rt.Router_GetValidatedFeeContext.toCell(
                 rt.Router_GetValidatedFeeContext.create({
@@ -600,8 +667,8 @@ describe.each(cases)(
               const decoded = rt.Router_MessageValidationFailed_V1.fromSlice(x.beginParse())
               return (
                 decoded.context.asCell().equals(context ?? Cell.EMPTY) &&
-                decoded.error === 12345n &&
-                decoded.msg.queryID === 1n &&
+                decoded.errorCode === 12345n &&
+                decoded.msg.queryId === 1n &&
                 decoded.msg.data.equals(Cell.EMPTY) &&
                 decoded.msg.destChainSelector ===
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&

@@ -29,7 +29,7 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be the owner (OffRamp)
         MerkleRoot_Validate => {
             var st = lazy MerkleRoot_Storage.load();
-            assert(in.senderAddress == st.owner, MerkleRoot_Error.NotOwner);
+            assert (in.senderAddress == st.owner) throw (MerkleRoot_Error.NotOwner);
             onInitExecute(mutate st, msg);
             st.store();
 
@@ -37,15 +37,38 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be the owner (OffRamp)
         MerkleRoot_MarkState => {
             var st = lazy MerkleRoot_Storage.load();
-            assert(in.senderAddress == st.owner, MerkleRoot_Error.NotOwner);
+            assert (in.senderAddress == st.owner) throw (MerkleRoot_Error.NotOwner);
             onMarkState(mutate st, msg);
             st.store();
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF
+            assert (in.body.isEmpty()) throw (0xFFFF)
         }
     }
+}
+
+fun onBouncedMessage(in: InMessageBounced) {
+    assert (in.bouncedBody.preloadUint(32) == 0xfffffffe) throw (MerkleRoot_Error.UnhandledLegacyBounce);
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val bounced = lazy MerkleRoot_BouncedMessage.fromCell(rich.originalBody);
+    var st = lazy MerkleRoot_Storage.load();
+    match (bounced) {
+        OffRamp_ExecuteValidated => {
+            onExecuteValidatedBounced(mutate st, bounced);
+        }
+    }
+    st.store();
+}
+
+/// The OffRamp rejected the validated message, so no ReceiveExecutor was started. Marks it
+/// Failure instead of leaving it InProgress, so it can be manually executed again. Nothing else
+/// moves the message off InProgress before the OffRamp answers, so any other state is a bug.
+fun onExecuteValidatedBounced(mutate st: MerkleRoot_Storage, msg: OffRamp_ExecuteValidated) {
+    val message = lazy msg.message.load();
+    val seqNum = message.header.sequenceNumber;
+    assert (st.getMessageState(seqNum) == ExecutionState.InProgress) throw (MerkleRoot_Error.InvalidState);
+    st.setMessageState(seqNum, ExecutionState.Failure);
 }
 
 /*
@@ -58,8 +81,8 @@ fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
     // validate we're transitioning states correctly: success is final
     val previousState= st.getMessageState(msg.seqNum);
 
-    assert(previousState != ExecutionState.Success, MerkleRoot_Error.InvalidState);
-    assert(msg.state == ExecutionState.Success || msg.state == ExecutionState.Failure, MerkleRoot_Error.InvalidState);
+    assert (previousState != ExecutionState.Success) throw (MerkleRoot_Error.InvalidState);
+    assert (msg.state == ExecutionState.Success || msg.state == ExecutionState.Failure) throw (MerkleRoot_Error.InvalidState);
 
     st.setMessageState(msg.seqNum, msg.state);
 
@@ -70,7 +93,7 @@ fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
     // Return the excesses carried by this message (inbound value minus this transaction's fees)
     // to the OffRamp, which refunds them to the execution caller.
     val excesses = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: st.owner,
         body: MerkleRoot_StateMarked {
@@ -78,19 +101,19 @@ fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
             excessesTo: msg.excessesTo,
         },
     });
-    excesses.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    excesses.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     if (st.deliveredMessageCount == st.expectedMessages()) {
         // If this is the last message from the root we return the rest of the balance to the
         // OffRamp and freeze the contract. This is the root's own balance (funded by the commit),
         // not the caller's: the caller's excesses were already returned above.
         val freezeRoot = createMessage({
-            bounce: true,
+            bounce: BounceMode.NoBounce,
             value: 0,
             dest: st.owner,
             body: createEmptyCell()
         });
-        freezeRoot.send(SEND_MODE_CARRY_ALL_BALANCE);
+        freezeRoot.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     }
 }
 
@@ -104,7 +127,7 @@ This triggers OffRamp deployment of the ReceiveExecutor contract that handles ex
 fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
     val message = lazy msg.message.load();
     val state = st.getMessageState(message.header.sequenceNumber);
-    assert(state == ExecutionState.Failure || state == ExecutionState.Untouched, MerkleRoot_Error.SkippedAlreadyExecutedMessage);
+    assert (state == ExecutionState.Failure || state == ExecutionState.Untouched) throw (MerkleRoot_Error.SkippedAlreadyExecutedMessage);
 
     val isManualExecute = msg.gasOverride != null;
 
@@ -112,16 +135,16 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
         val isOldCommitReport = (blockchain.now() - st.timestamp > msg.permissionlessExecutionThresholdSeconds);
         // Manual execution is fine if we previously failed or if the commit report is just too old.
         // (In that case the report will still be in UNTOUCHED state)
-        assert(isOldCommitReport || state == ExecutionState.Failure, MerkleRoot_Error.ManualExecutionNotYetEnabled);
+        assert (isOldCommitReport || state == ExecutionState.Failure) throw (MerkleRoot_Error.ManualExecutionNotYetEnabled);
     } else {
         // DON can only execute a message once.
-        assert(state == ExecutionState.Untouched, MerkleRoot_Error.AlreadyExecuted);
+        assert (state == ExecutionState.Untouched) throw (MerkleRoot_Error.AlreadyExecuted);
     }
 
     st.setMessageState(message.header.sequenceNumber, ExecutionState.InProgress);
 
     val executeValidated = createMessage({
-        bounce: true,
+        bounce: BounceMode.RichBounce,
         value: 0,
         dest: st.owner,
         body: OffRamp_ExecuteValidated {
@@ -135,7 +158,7 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
             excessesTo: msg.excessesTo,
         }
     });
-    executeValidated.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    executeValidated.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 get fun typeAndVersion(): (slice, slice) {

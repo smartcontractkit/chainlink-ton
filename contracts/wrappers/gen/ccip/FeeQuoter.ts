@@ -298,6 +298,8 @@ function invokeCustomUnpackFromSlice<T>(typeName: string, s: c.Slice): T {
 
 type coins = bigint
 
+type int32 = bigint
+
 type uint8 = bigint
 type uint16 = bigint
 type uint32 = bigint
@@ -1029,7 +1031,7 @@ export const TokenAmount = {
 
 /**
  > struct (0x31768d95) Router_CCIPSend {
- >     queryID: uint64
+ >     queryId: uint64
  >     destChainSelector: uint64
  >     receiver: CrossChainAddress
  >     data: cell
@@ -1040,7 +1042,7 @@ export const TokenAmount = {
  */
 export interface Router_CCIPSend {
     readonly $: 'Router_CCIPSend'
-    queryID: uint64
+    queryId: uint64
     destChainSelector: uint64
     receiver: CrossChainAddress
     data: c.Cell
@@ -1053,7 +1055,7 @@ export const Router_CCIPSend = {
     PREFIX: 0x31768d95,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         receiver: CrossChainAddress
         data: c.Cell
@@ -1064,14 +1066,14 @@ export const Router_CCIPSend = {
         return {
             $: 'Router_CCIPSend',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_CCIPSend {
         loadAndCheckPrefix32(s, 0x31768d95, 'Router_CCIPSend');
         return {
             $: 'Router_CCIPSend',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             destChainSelector: s.loadUintBig(64),
             receiver: CrossChainAddress.fromSlice(s),
             data: s.loadRef(),
@@ -1082,7 +1084,7 @@ export const Router_CCIPSend = {
     },
     store(self: Router_CCIPSend, b: c.Builder): void {
         b.storeUint(0x31768d95, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeUint(self.destChainSelector, 64);
         CrossChainAddress.store(self.receiver, b);
         b.storeRef(self.data);
@@ -1450,14 +1452,14 @@ export const FeeQuoter_MessageValidated = {
 
 /**
  > struct (0x4785cb72) FeeQuoter_MessageValidationFailed {
- >     error: uint256
+ >     errorCode: int32
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
  > }
  */
 export interface FeeQuoter_MessageValidationFailed {
     readonly $: 'FeeQuoter_MessageValidationFailed'
-    error: uint256
+    errorCode: int32
     msg: Router_CCIPSend
     context: c.Cell | null /* = null */
 }
@@ -1466,7 +1468,7 @@ export const FeeQuoter_MessageValidationFailed = {
     PREFIX: 0x4785cb72,
 
     create(args: {
-        error: uint256
+        errorCode: int32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }): FeeQuoter_MessageValidationFailed {
@@ -1480,14 +1482,14 @@ export const FeeQuoter_MessageValidationFailed = {
         loadAndCheckPrefix32(s, 0x4785cb72, 'FeeQuoter_MessageValidationFailed');
         return {
             $: 'FeeQuoter_MessageValidationFailed',
-            error: s.loadUintBig(256),
+            errorCode: s.loadIntBig(32),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: FeeQuoter_MessageValidationFailed, b: c.Builder): void {
         b.storeUint(0x4785cb72, 32);
-        b.storeUint(self.error, 256);
+        b.storeInt(self.errorCode, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -2698,7 +2700,7 @@ export class FeeQuoter implements c.Contract {
 
     async getValidatedFee(provider: ContractProvider, msg: Router_CCIPSend): Promise<coins> {
         const r = StackReader.fromGetMethod(1, await provider.get('validatedFee', [
-            { type: 'int', value: msg.queryID ?? 0n },
+            { type: 'int', value: msg.queryId ?? 0n },
             { type: 'int', value: msg.destChainSelector },
             { type: 'slice', cell: beginCell().storeSlice(msg.receiver).endCell() },
             { type: 'cell', cell: msg.data },

@@ -31,6 +31,7 @@ type Router_InMsg =
     | Router_WithdrawToTokenPool
     | Router_WithdrawToTokenPoolFailed
     | Router_CCIPReceiveConfirm
+    | Router_CCIPReceiveConfirmRejectedByExecutor
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
     | Router_RMNRemoteCurse
@@ -52,17 +53,17 @@ type Router_InMsg =
     | TransferNotificationForRecipient
     | ReturnExcessesBack;
 
-type Router_BouncedMessage = 
-    | Receiver_CCIPReceiveV2
-    | OffRamp_CCIPReceiveConfirm
-    | OffRamp_CCIPReceiveBounced;
-
 type Router_RichBouncedMessage =
+    | OnRamp_Send
+    | OnRamp_GetValidatedFee
     | TokenPool_LockOrBurn
     | TokenPool_ReleaseOrMint
     | Deployable_Initialize
     | DepositAccount_Init
-    | DepositAccount_Withdraw;
+    | DepositAccount_Withdraw
+    | Receiver_CCIPReceiveV2
+    | OffRamp_CCIPReceiveConfirm
+    | OffRamp_CCIPReceiveBounced;
 
 // update multiple chain selectors in batch to the same onramp/offramp address
 struct (0x7db6745d) Router_ApplyRampUpdates {
@@ -70,6 +71,23 @@ struct (0x7db6745d) Router_ApplyRampUpdates {
     onRampUpdates: OnRamps? = null;
     offRampAdds: OffRamps? = null;
     offRampRemoves: OffRamps? = null;
+}
+
+/// From the OffRamp: the ReceiveExecutor rejected the confirmation `receiver` sent. Relayed to
+/// `receiver` as Router_CCIPReceiveConfirmRejected. `sourceChainSelector` authenticates the OffRamp.
+struct (0xfe1f013c) Router_CCIPReceiveConfirmRejectedByExecutor {
+    queryId: uint64;
+    sourceChainSelector: uint64;
+    receiver: address;
+}
+
+/// Sent by the Router when the ReceiveExecutor rejected a Router_CCIPReceiveConfirm: the sender is
+/// not the message's receiver, or the message is not awaiting a confirmation. Carries the
+/// confirmation's remaining value back to its sender; the exit code is in the executor's
+/// transaction. Defined here, not in the receiver library: a correct receiver confirms its own
+/// messages and never gets it.
+struct (0xe3c98863) Router_CCIPReceiveConfirmRejected {
+    queryId: uint64;
 }
 
 struct (0xfc69c50b) Router_RouteMessage {
@@ -81,7 +99,7 @@ struct (0xfc69c50b) Router_RouteMessage {
 }
 
 struct (0x19f0098f) Router_WithdrawToTokenPool {
-    queryID: uint64;
+    queryId: uint64;
     destChainSelector: uint64;
     /// The CCIPSendExecutor requesting the withdraw, authenticated by the OnRamp.
     executor: address;
@@ -125,7 +143,7 @@ struct (0x900d5435) Router_UseSenderAccount {
 /// Sent to a user whose Router_GetSenderAccount failed. `error` is the failure's exit code.
 struct (0xda7b0350) Router_SenderAccountFailed {
     queryId: uint64;
-    error: uint256;
+    errorCode: int32;
     /// `Router_GetSenderAccount.context`, echoed back.
     context: cell?;
 }
@@ -156,10 +174,10 @@ struct (0xf540f227) Router_ReceiverAccountAddress {
 /// Router moves custody. The Router relays the failure to the token pool so it can reinstate
 /// the rate limit consumed at admission and fail the send.
 struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
-    queryID: uint64;
+    queryId: uint64;
     destChainSelector: uint64;
     withdrawRequest: Cell<Router_WithdrawRequest>;
-    error: int32;                                   // Raw TVM exit code (signed).
+    errorCode: int32;                                   // Raw TVM exit code (signed).
 }
 
 // curse/uncurse/verify uncursed (also as getter)
@@ -191,17 +209,17 @@ struct (0x0fdd7b0f) Router_RMNRemoteSyncOffRamps {
 }
 
 struct (0x6513f8e1) Router_MessageSent {
-    queryID: uint64;
+    queryId: uint64;
     messageId: uint256;
     destChainSelector: uint64;
     sender: address;
 }
 
 struct (0x8ae25114) Router_MessageRejected {
-    queryID: uint64;
+    queryId: uint64;
     destChainSelector: uint64;
     sender: address;
-    error: uint256;
+    errorCode: int32;
 }
 
 struct (0xaf7a9ac6) Router_RMNOwnableMessage {
@@ -212,16 +230,6 @@ struct (0xaf7a9ac6) Router_RMNOwnableMessage {
 /// curse policy do not collide with the Router's own top-level messages.
 struct (0xf9123a10) Router_RMNAccessControlMessage {
     content: Cell<AccessControl_InMessage>;
-}
-
-struct (0x78d0f21e) Router_CCIPSendACK {
-    queryID: uint64;
-    messageId: uint256;
-}
-
-struct (0x5a45d434) Router_CCIPSendNACK {
-    queryID: uint64;
-    error: uint256;
 }
 
 @deprecated("use Router_GetValidatedFee instead")
@@ -239,7 +247,7 @@ struct (0x657ef7ec) Router_GetValidatedFee {
 }
 
 struct (0x6f2d00df) Router_LockOrBurn {
-    queryID: uint64,
+    queryId: uint64,
     tokenPool: address,
     request: Cell<TokenPool_LockOrBurnInV1>,
     executorAddress: address,
@@ -251,7 +259,7 @@ struct (0x6f2d00df) Router_LockOrBurn {
 /// The Router binds the authenticated OffRamp selector to the selector encoded
 /// in the pool request and applies its own RMN policy before dispatch.
 struct (0xb19862a3) Router_RelayReleaseOrMint {
-    queryID: uint64;
+    queryId: uint64;
     sourceChainSelector: uint64;
     tokenPool: address;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
@@ -304,7 +312,7 @@ struct (0x9e2155ec) Router_MessageValidated_V1 {
 @deprecated("use Router_MessageValidationFailed instead")
 // nolint:opcode : crc32('Router_MessageValidationFailed')
 struct (0xec23c562) Router_MessageValidationFailed_V1 {
-    error: uint256,
+    errorCode: uint256,
     msg: Cell<Router_CCIPSend>,
     context: RemainingBitsAndRefs,
 }
@@ -322,7 +330,7 @@ struct (0x97ca8bd8) Router_MessageValidated {
 // nolint:opcode : crc32('Router_MessageValidationFailed_V2')
 struct (0xe32e5616) Router_MessageValidationFailed {
     queryId: uint64,
-    error: uint256,
+    errorCode: int32,
     msg: Cell<Router_CCIPSend>,
     context: cell?
 }
@@ -330,9 +338,9 @@ struct (0xe32e5616) Router_MessageValidationFailed {
 /// Canonical Router failure returned when a LockOrBurn request bounced before
 /// the token pool admitted it.
 struct (0xb76e3a84) Router_TokenPoolLockOrBurnFailed {
-    queryID: uint64;
+    queryId: uint64;
     tokenPool: address;
-    exitCode: int32;
+    errorCode: int32;
 }
 
 /// Canonical Router failure for an inbound release/mint that the Router could
@@ -342,11 +350,11 @@ struct (0xb76e3a84) Router_TokenPoolLockOrBurnFailed {
 /// authority allowed to fail a ReceiveExecutor. The OffRamp authenticates the
 /// Router by `sourceChainSelector` and forwards the failure to `replyTo`.
 struct (0xb980cb4e) Router_TokenPoolReleaseOrMintFailed {
-    queryID: uint64;
+    queryId: uint64;
     sourceChainSelector: uint64;
     replyTo: address;
     tokenPool: address;
-    exitCode: int32;
+    errorCode: int32;
 }
 
 // Costs associated with Router operations
@@ -431,6 +439,3 @@ fun Router_Costs.forwardCursedSubjects(): int {
 
 const ROUTER_RECEIVE_CONFIRM_FEE = grams("0.0015");
 
-/// Value receivers attach to Router_CCIPReceiveConfirm: `Router_Costs.receiveConfirm()` with
-/// headroom for later changes.
-const ROUTER_RECEIVE_CONFIRM_VALUE = grams("0.015");

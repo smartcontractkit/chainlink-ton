@@ -20,7 +20,7 @@ contract CctCostHarness {
 }
 
 fun onInternalMessage(in: InMessage) {
-    assert (in.body.isEmpty()) throw 0xFFFF
+    assert (in.body.isEmpty()) throw (0xFFFF)
 }
 
 /* === CCT wallet / minter gas constants (ccip/cct/fees-management) === */

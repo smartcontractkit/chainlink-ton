@@ -572,7 +572,7 @@ export class FeeQuoterSetup {
       if (errorCode === sx.FeeQuoter_MessageValidationFailed.PREFIX) {
         const failure = sx.FeeQuoter_MessageValidationFailed.fromSlice(resp.body.beginParse())
         throw new Error(
-          `Message validation failed with error ${printErrorName(Number(failure.error))}`,
+          `Message validation failed with error ${printErrorName(Number(failure.errorCode))}`,
         )
       } else {
         throw new Error(`Unexpected response opcode: ${errorCode}`)
@@ -681,7 +681,7 @@ export class FeeQuoterSetup {
       if (parsed.remainingBits < 32) continue
       if (parsed.loadUint(32) === sx.FeeQuoter_MessageValidationFailed.PREFIX) {
         sawValidationFailed = true
-        actualError = parsed.loadUintBig(256)
+        actualError = parsed.loadIntBig(32)
         break
       }
     }

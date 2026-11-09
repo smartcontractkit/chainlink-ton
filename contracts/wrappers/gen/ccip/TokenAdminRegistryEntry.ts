@@ -752,7 +752,7 @@ export const TokenRegistry_Storage = {
 }
 
 /**
- > enum TokenAdminRegistryEntry_Error { 5 variants }
+ > enum TokenAdminRegistryEntry_Error { 6 variants }
  */
 export type TokenAdminRegistryEntry_Error = bigint
 
@@ -762,6 +762,7 @@ export const TokenAdminRegistryEntry_Error = {
     AlreadyRegistered: 45002n,
     InvalidAdministrator: 45003n,
     VersionUnavailable: 45004n,
+    UnhandledLegacyBounce: 45005n,
 
     fromSlice(s: c.Slice): TokenAdminRegistryEntry_Error {
         return s.loadUintBig(16);
@@ -1290,6 +1291,7 @@ export class TokenAdminRegistryEntry implements c.Contract {
         'TokenAdminRegistryEntry_Error.AlreadyRegistered': 45002,
         'TokenAdminRegistryEntry_Error.InvalidAdministrator': 45003,
         'TokenAdminRegistryEntry_Error.VersionUnavailable': 45004,
+        'TokenAdminRegistryEntry_Error.UnhandledLegacyBounce': 45005,
     }
 
     readonly address: c.Address

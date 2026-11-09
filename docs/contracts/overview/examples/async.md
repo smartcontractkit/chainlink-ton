@@ -79,21 +79,21 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Alice
-    Alice-->>+AliceWallet: send(StorageAddr, getPriceFrom(queryID, PriceRegistry, apple))
-    AliceWallet->+Storage: getPriceFrom(queryID, PriceRegistry, apple)
+    Alice-->>+AliceWallet: send(StorageAddr, getPriceFrom(queryId, PriceRegistry, apple))
+    AliceWallet->+Storage: getPriceFrom(queryId, PriceRegistry, apple)
     deactivate AliceWallet
     Storage->>Storage: store request
-    Storage->>+PriceRegistry: getPrice(queryID, apple)
+    Storage->>+PriceRegistry: getPrice(queryId, apple)
     deactivate Storage
-    PriceRegistry->>+ApplePrice: getPrice(queryID)
+    PriceRegistry->>+ApplePrice: getPrice(queryId)
     deactivate PriceRegistry
-    ApplePrice->>+PriceRegistry: requestedPrice(queryID, price)
+    ApplePrice->>+PriceRegistry: requestedPrice(queryId, price)
     deactivate ApplePrice
-    PriceRegistry->>+Storage: storeValue(queryID, price)
+    PriceRegistry->>+Storage: storeValue(queryId, price)
     deactivate PriceRegistry
     Storage->>Storage: store value
     deactivate Storage
-    Alice-->>+Storage: getStoredValue(queryID)
+    Alice-->>+Storage: getStoredValue(queryId)
     Storage-->>-Alice: stored price
 ```
 
@@ -102,26 +102,26 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     actor Alice
-    Alice-->>+AliceWallet: send(StorageAddr, getCapital(queryID, Inventory, apple))
-    AliceWallet->+Storage: getCapital(queryID, Inventory, apple)
+    Alice-->>+AliceWallet: send(StorageAddr, getCapital(queryId, Inventory, apple))
+    AliceWallet->+Storage: getCapital(queryId, Inventory, apple)
     deactivate AliceWallet
     Storage->>Storage: store request
-    Storage->>+Inventory: getCapital(queryID, apple)
+    Storage->>+Inventory: getCapital(queryId, apple)
     deactivate Storage
-    Inventory->>Inventory: storePending(queryID)
-    Inventory->>+ApplePrice: getPrice(queryID)
-    Inventory->>+AppleInventory: getCount(queryID)
+    Inventory->>Inventory: storePending(queryId)
+    Inventory->>+ApplePrice: getPrice(queryId)
+    Inventory->>+AppleInventory: getCount(queryId)
     deactivate Inventory
-    ApplePrice->>+Inventory: requestedPrice(queryID, price)
+    ApplePrice->>+Inventory: requestedPrice(queryId, price)
     deactivate ApplePrice
-    Inventory->>-Inventory: storePrice(queryID)
-    AppleInventory->>+Inventory: requestedCount(queryID)
+    Inventory->>-Inventory: storePrice(queryId)
+    AppleInventory->>+Inventory: requestedCount(queryId)
     deactivate AppleInventory
-    Inventory->>+Storage: storeValue(queryID, count * price)
+    Inventory->>+Storage: storeValue(queryId, count * price)
     deactivate Inventory
     Storage->>Storage: store value
     deactivate Storage
-    Alice-->>+Storage: getStoredValue(queryID)
+    Alice-->>+Storage: getStoredValue(queryId)
     Storage-->>-Alice: stored price
 ```
 
@@ -132,33 +132,33 @@ This experiment has events all over the play to make it easier to track the flow
 ```mermaid
 sequenceDiagram
     actor Alice
-    Alice-->>+AliceWallet: send(DBAddr, beginTransaction(queryID))
-    AliceWallet->>+DB: beginTransaction(queryID)
+    Alice-->>+AliceWallet: send(DBAddr, beginTransaction(queryId))
+    AliceWallet->>+DB: beginTransaction(queryId)
     deactivate AliceWallet
-    Alice-->>+AliceWallet: send(DBAddr, setValue(queryID, CounterAAddr, 1))
-    AliceWallet->>+DB: setValue(queryID, CounterAAddr, 1)
+    Alice-->>+AliceWallet: send(DBAddr, setValue(queryId, CounterAAddr, 1))
+    AliceWallet->>+DB: setValue(queryId, CounterAAddr, 1)
     deactivate AliceWallet
-    DB->>DB: addPendingAck(queryID, counterA)
+    DB->>DB: addPendingAck(queryId, counterA)
     DB->>+CounterA: prepareSetValue(1)
     deactivate DB
-    Alice-->>+AliceWallet: send(DBAddr, setValue(queryID, CounterBAddr, 1))
-    AliceWallet->>+DB: setValue(queryID, CounterBAddr, 2)
+    Alice-->>+AliceWallet: send(DBAddr, setValue(queryId, CounterBAddr, 1))
+    AliceWallet->>+DB: setValue(queryId, CounterBAddr, 2)
     deactivate AliceWallet
-    DB->>DB: addPendingAck(queryID, counterB)
+    DB->>DB: addPendingAck(queryId, counterB)
     DB->>+CounterB: prepareSetValue(2)
     deactivate DB
-    Alice-->>+AliceWallet: send(DBAddr, commit(queryID))
-    AliceWallet->>+DB: commit(queryID)
+    Alice-->>+AliceWallet: send(DBAddr, commit(queryId))
+    AliceWallet->>+DB: commit(queryId)
     deactivate AliceWallet
     DB->>DB: await for acks
     deactivate DB
-    CounterA->>+DB: ack(queryID)
+    CounterA->>+DB: ack(queryId)
     deactivate CounterA
-    DB->>DB: rmPendingAck(queryID, counterA)
+    DB->>DB: rmPendingAck(queryId, counterA)
     deactivate DB
-    CounterB->>+DB: ack(queryID)
+    CounterB->>+DB: ack(queryId)
     deactivate CounterB
-    DB->>DB: rmPendingAck(queryID, counterB)
+    DB->>DB: rmPendingAck(queryId, counterB)
     DB->>+CounterA: saveValue()
     DB->>+CounterB: saveValue()
     deactivate DB
