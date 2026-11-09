@@ -78,11 +78,6 @@ export function fromSnakeData<T>(data: Cell, readerFn: (cs: Slice) => T): T[] {
   return array
 }
 
-export function asSnakeBytes(data: Buffer): Cell {
-  return asSnakedCell(Array.from(data), (item: number) => new Builder().storeUint(item, 8))
-}
-
-// TODO[TEST]: we should be able to get rid of SnakeData helpers after migrating to the new gen bindings
 export function asSnakeDataUint(data: bigint[] | number[], bits: number): Cell {
   return asSnakedCell(data, (item: bigint | number) => new Builder().storeUint(item, bits))
 }

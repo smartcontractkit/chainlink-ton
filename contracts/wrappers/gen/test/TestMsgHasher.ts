@@ -350,7 +350,7 @@ export const TVM2AnyRampMessage = {
 /**
  > struct TVM2AnyRampMessageBody {
  >     receiver: Cell<CrossChainAddress>
- >     data: cell
+ >     data: SnakedCell<byte>
  >     extraArgs: Cell<ExtraArgs>
  >     tokenTransfer: SnakedCell<TVM2AnyTokenTransfer>
  >     feeToken: address
@@ -360,7 +360,7 @@ export const TVM2AnyRampMessage = {
 export interface TVM2AnyRampMessageBody {
     readonly $: 'TVM2AnyRampMessageBody'
     receiver: CrossChainAddress
-    data: c.Cell
+    data: SnakedCell<byte>
     extraArgs: ExtraArgs
     tokenTransfer: SnakedCell<TVM2AnyTokenTransfer>
     feeToken: c.Address
@@ -370,7 +370,7 @@ export interface TVM2AnyRampMessageBody {
 export const TVM2AnyRampMessageBody = {
     create(args: {
         receiver: CrossChainAddress
-        data: c.Cell
+        data: SnakedCell<byte>
         extraArgs: ExtraArgs
         tokenTransfer: SnakedCell<TVM2AnyTokenTransfer>
         feeToken: c.Address
@@ -385,7 +385,7 @@ export const TVM2AnyRampMessageBody = {
         return {
             $: 'TVM2AnyRampMessageBody',
             receiver: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
-            data: s.loadRef(),
+            data: loadSnakedCellOf(s, (s) => s.loadUintBig(8)),
             extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
             tokenTransfer: loadSnakedCellOf(s, TVM2AnyTokenTransfer.fromSlice),
             feeToken: s.loadAddress(),
@@ -394,7 +394,7 @@ export const TVM2AnyRampMessageBody = {
     },
     store(self: TVM2AnyRampMessageBody, b: c.Builder): void {
         storeCellRef<CrossChainAddress>(self.receiver, b, CrossChainAddress.store);
-        b.storeRef(self.data);
+        storeSnakedCellOf(self.data, b, (v, b) => b.storeUint(v, 8));
         storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
         storeSnakedCellOf(self.tokenTransfer, b, TVM2AnyTokenTransfer.store);
         b.storeAddress(self.feeToken);

@@ -2,7 +2,7 @@ import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { ChainSelectors } from '../../utils/Selectors'
-import { NATIVE_GRAM, asSnakeBytes } from '../../../src/utils'
+import { NATIVE_GRAM } from '../../../src/utils'
 import { testSnakeData } from '../../utils/snakeData'
 import * as coverage from '../../coverage/coverage'
 import EVM_ADDRESS from '../../utils/evmAddress'
@@ -196,7 +196,7 @@ describe('OnRamp - generate message id', () => {
       sender: senderAddress,
       body: on.TVM2AnyRampMessageBody.create({
         receiver: ccipSend.receiver,
-        data: asSnakeBytes(Buffer.from(ccipSend.data.map(Number))),
+        data: ccipSend.data,
         extraArgs: ccipSend.extraArgs,
         tokenTransfer: [
           on.TVM2AnyTokenTransfer.create({
@@ -311,7 +311,7 @@ describe('OnRamp - generate message id', () => {
       sender: senderAddress,
       body: on.TVM2AnyRampMessageBody.create({
         receiver: ccipSendWithData.receiver,
-        data: asSnakeBytes(Buffer.from(ccipSendWithData.data.map(Number))),
+        data: ccipSendWithData.data,
         extraArgs: ccipSendWithData.extraArgs,
         tokenTransfer: [],
         feeToken: ccipSendWithData.feeToken!,
