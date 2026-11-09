@@ -2,7 +2,7 @@ import { Address, Cell, toNano, beginCell } from '@ton/core'
 import { Blockchain } from '@ton/sandbox'
 import { findTransaction } from '@ton/test-utils'
 
-import { generateMockTonAddress, asSnakedCell } from '../../../src/utils'
+import { generateMockTonAddress, asSnakedCell, fromSnakeData } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { assertLog, expectFailedTransaction } from '../../Logs'
@@ -588,7 +588,7 @@ describe('OffRamp - Execute', () => {
             messageId: message.header.messageId,
             sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             sender: message.sender,
-            data: message.data,
+            data: fromSnakeData(message.data, (s) => s.loadUintBig(8)),
             tokenAmounts: null,
           }),
         },
@@ -669,7 +669,7 @@ describe('OffRamp - Execute', () => {
             messageId: message.header.messageId,
             sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             sender: message.sender,
-            data: message.data,
+            data: fromSnakeData(message.data, (s) => s.loadUintBig(8)),
             tokenAmounts: null,
           }),
         },
@@ -784,7 +784,7 @@ describe('OffRamp - Execute', () => {
             messageId: message.header.messageId,
             sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             sender: message.sender,
-            data: message.data,
+            data: fromSnakeData(message.data, (s) => s.loadUintBig(8)),
             tokenAmounts: null,
           }),
         },
@@ -836,7 +836,7 @@ describe('OffRamp - Execute', () => {
             messageId: message.header.messageId,
             sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             sender: message.sender,
-            data: message.data,
+            data: fromSnakeData(message.data, (s) => s.loadUintBig(8)),
             tokenAmounts: null,
           }),
         },
@@ -1120,7 +1120,7 @@ describe('OffRamp - Execute', () => {
             messageId: message.header.messageId,
             sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             sender: message.sender,
-            data: message.data,
+            data: fromSnakeData(message.data, (s) => s.loadUintBig(8)),
             tokenAmounts: null,
           }),
         },
@@ -1221,7 +1221,7 @@ describe('OffRamp - Execute', () => {
             messageId: message.header.messageId,
             sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             sender: message.sender,
-            data: message.data,
+            data: fromSnakeData(message.data, (s) => s.loadUintBig(8)),
             tokenAmounts: null,
           }),
         },
@@ -1454,7 +1454,7 @@ describe('OffRamp - Execute', () => {
             messageId: message.header.messageId,
             sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             sender: message.sender,
-            data: message.data,
+            data: fromSnakeData(message.data, (s) => s.loadUintBig(8)),
             tokenAmounts: null,
           }),
         },

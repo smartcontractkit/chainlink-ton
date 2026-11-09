@@ -3,7 +3,6 @@ import { Address, beginCell, Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
 
 import { generateRandomContractId } from '../../src/utils'
-import { asSnakeBytes } from '../../src/utils/types'
 import { facilityId } from '../../wrappers/utils'
 import { crc32 } from 'zlib'
 import { contractCode } from '../../wrappers/codeLoader'
@@ -49,7 +48,7 @@ const ccipReceiveSampleMessage = r.Receiver_CCIPReceiveV2.create({
     messageId: 1n,
     sourceChainSelector: 2n,
     sender: EVM_ADDRESS,
-    data: beginCell().storeBuffer(Buffer.from('cross chain data')).endCell(),
+    data: Array.from(Buffer.from('cross chain data'), BigInt),
     tokenAmounts: null,
   }),
   receiverAccounts: [],
@@ -324,7 +323,7 @@ describe('Receiver', () => {
       ...ccipReceiveSampleMessage,
       message: rt.Any2TVMMessage.create({
         ...ccipReceiveSampleMessage.message,
-        data: asSnakeBytes(Buffer.alloc(2000, 0xab)),
+        data: Array.from(Buffer.alloc(2000, 0xab), BigInt),
       }),
     })
     const result = await receiver.sendReceiverCCIPReceiveV2(

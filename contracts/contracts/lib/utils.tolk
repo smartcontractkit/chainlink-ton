@@ -116,6 +116,10 @@ fun emit<T>(topic: int, body: T, sendMode: int = SEND_MODE_REGULAR) {
 
 type SnakedCell<T> = cell;
 
+/// A single byte. Alias for `uint8` that reads better for byte-oriented
+/// snake payloads (e.g. `SnakedCell<byte>` for CCIP message data).
+type byte = uint8;
+
 fun SnakedCell<T>.iter(self): Iterator<T> {
     return Iterator<T>.new(self)
 }
