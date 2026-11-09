@@ -16,6 +16,7 @@ import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
+import { asSnakeBytes } from '../../../src/utils'
 
 describe('OnRamp - generate message id', () => {
   let blockchain: Blockchain
@@ -288,6 +289,61 @@ describe('OnRamp - generate message id', () => {
         }
       }
     }
+  })
+
+  it('generates matching message id for a multi-cell data payload', async () => {
+    // A payload larger than one cell (127 bytes) forces the snake encoding to span
+    // multiple cells, exercising the data path that the Cell.EMPTY case cannot reach.
+    const multiCellData = asSnakeBytes(Buffer.alloc(2000, 0xab))
+
+    const ccipSendWithData = or.Router_CCIPSend.create({
+      ...ccipSend,
+      data: multiCellData,
+    })
+
+    const rampMessage = on.TVM2AnyRampMessage.create({
+      header: on.RampMessageHeader.create({
+        messageId: 0n,
+        sourceChainSelector: ChainSelectors.testnet.ton,
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        nonce: 0n,
+      }),
+      sender: senderAddress,
+      body: on.TVM2AnyRampMessageBody.create({
+        receiver: ccipSendWithData.receiver,
+        data: ccipSendWithData.data,
+        extraArgs: ccipSendWithData.extraArgs,
+        tokenTransfer: [],
+        feeToken: ccipSendWithData.feeToken!,
+        feeTokenAmount: 1n,
+      }),
+      feeValueJuels: 0n,
+    })
+
+    const metadataHash = getMetadataHash(
+      rampMessage.header.sourceChainSelector,
+      rampMessage.header.destChainSelector,
+      onramp.address,
+    )
+
+    const localMessageId = generateMessageID(rampMessage, metadataHash)
+
+    const onChainMessageId = await msgHasher.getTVM2AnyRampMessageID(
+      tmh.TVM2AnyRampMessage.create({
+        header: tmh.RampMessageHeader.fromSlice(
+          on.RampMessageHeader.toCell(rampMessage.header).beginParse(),
+        ),
+        sender: rampMessage.sender,
+        body: tmh.TVM2AnyRampMessageBody.fromSlice(
+          on.TVM2AnyRampMessageBody.toCell(rampMessage.body).beginParse(),
+        ),
+        feeValueJuels: rampMessage.feeValueJuels,
+      }),
+      metadataHash,
+    )
+
+    expect(onChainMessageId).toBe(localMessageId)
   })
 
   it('getMetadataHash matches the on-chain msg_hasher implementation', async () => {
