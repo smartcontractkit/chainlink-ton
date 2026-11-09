@@ -1324,7 +1324,7 @@ describe('ReceiveExecutor - Execution', () => {
       beforeEach(async () => {
         messageWithTT = createTestMessageWithToken({
           receiver: deployer.address,
-          data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
+          data: [0xden, 0xadn, 0xben, 0xefn],
           gasLimit: toNano('0.03'),
         })
         receiveExecutorPtt = await setupTestReceiveExecutor(
@@ -1399,7 +1399,7 @@ describe('ReceiveExecutor - Execution', () => {
         // is covered by the OffRamp e2e suite.
         messageWithTT = createTestMessageWithToken({
           receiver: deployer.address,
-          data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
+          data: [0xden, 0xadn, 0xben, 0xefn],
           gasLimit: 0n,
         })
         receiveExecutorPtt = await setupTestReceiveExecutor(
@@ -1442,7 +1442,7 @@ describe('ReceiveExecutor - Execution', () => {
         const token = (await blockchain.treasury('localToken')).address
         messageWithTT = createTestMessageWithToken({
           receiver: deployer.address,
-          data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
+          data: [0xden, 0xadn, 0xben, 0xefn],
           amount: sourceAmount,
           token,
           gasLimit: toNano('0.03'),

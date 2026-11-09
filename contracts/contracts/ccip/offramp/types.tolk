@@ -155,7 +155,7 @@ struct SourceChainConfig {
 struct Any2TVMRampMessage {
     header: RampMessageHeader;
     sender: Cell<CrossChainAddress>;
-    data: cell;
+    data: SnakedCell<byte>;
     receiver: address;
     gasLimit: coins;
     tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?;
@@ -185,7 +185,7 @@ struct Any2TVMRampMessageIDData {
     metadataHash: uint256;
     metadata: Cell<Any2TVMRampMessageIDHeader>;
     sender: Cell<CrossChainAddress>;
-    data: cell;
+    data: SnakedCell<byte>;
     tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?
 }
 

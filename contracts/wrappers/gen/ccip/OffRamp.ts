@@ -3811,7 +3811,7 @@ export const SourceChainConfig = {
  > struct Any2TVMRampMessage {
  >     header: RampMessageHeader
  >     sender: Cell<CrossChainAddress>
- >     data: cell
+ >     data: SnakedCell<byte>
  >     receiver: address
  >     gasLimit: coins
  >     tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?
@@ -3821,7 +3821,7 @@ export interface Any2TVMRampMessage {
     readonly $: 'Any2TVMRampMessage'
     header: RampMessageHeader
     sender: CrossChainAddress
-    data: c.Cell
+    data: SnakedCell<byte>
     receiver: c.Address
     gasLimit: coins
     tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
@@ -3831,7 +3831,7 @@ export const Any2TVMRampMessage = {
     create(args: {
         header: RampMessageHeader
         sender: CrossChainAddress
-        data: c.Cell
+        data: SnakedCell<byte>
         receiver: c.Address
         gasLimit: coins
         tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
@@ -3846,7 +3846,7 @@ export const Any2TVMRampMessage = {
             $: 'Any2TVMRampMessage',
             header: RampMessageHeader.fromSlice(s),
             sender: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
-            data: s.loadRef(),
+            data: loadSnakedCellOf(s, (s) => s.loadUintBig(8)),
             receiver: s.loadAddress(),
             gasLimit: s.loadCoins(),
             tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null,
@@ -3855,7 +3855,7 @@ export const Any2TVMRampMessage = {
     store(self: Any2TVMRampMessage, b: c.Builder): void {
         RampMessageHeader.store(self.header, b);
         storeCellRef<CrossChainAddress>(self.sender, b, CrossChainAddress.store);
-        b.storeRef(self.data);
+        storeSnakedCellOf(self.data, b, (v, b) => b.storeUint(v, 8));
         b.storeAddress(self.receiver);
         b.storeCoins(self.gasLimit);
         storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
@@ -3871,7 +3871,7 @@ export const Any2TVMRampMessage = {
  >     metadataHash: uint256
  >     metadata: Cell<Any2TVMRampMessageIDHeader>
  >     sender: Cell<CrossChainAddress>
- >     data: cell
+ >     data: SnakedCell<byte>
  >     tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?
  > }
  */
@@ -3881,7 +3881,7 @@ export interface Any2TVMRampMessageIDData {
     metadataHash: uint256
     metadata: Any2TVMRampMessageIDHeader
     sender: CrossChainAddress
-    data: c.Cell
+    data: SnakedCell<byte>
     tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
 }
 
@@ -3891,7 +3891,7 @@ export const Any2TVMRampMessageIDData = {
         metadataHash: uint256
         metadata: Any2TVMRampMessageIDHeader
         sender: CrossChainAddress
-        data: c.Cell
+        data: SnakedCell<byte>
         tokenAmounts: SnakedCell<Any2TVMTokenTransfer> | null
     }): Any2TVMRampMessageIDData {
         return {
@@ -3907,7 +3907,7 @@ export const Any2TVMRampMessageIDData = {
             metadataHash: s.loadUintBig(256),
             metadata: loadCellRef<Any2TVMRampMessageIDHeader>(s, Any2TVMRampMessageIDHeader.fromSlice),
             sender: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
-            data: s.loadRef(),
+            data: loadSnakedCellOf(s, (s) => s.loadUintBig(8)),
             tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, Any2TVMTokenTransfer.fromSlice) : null,
         }
     },
@@ -3916,7 +3916,7 @@ export const Any2TVMRampMessageIDData = {
         b.storeUint(self.metadataHash, 256);
         storeCellRef<Any2TVMRampMessageIDHeader>(self.metadata, b, Any2TVMRampMessageIDHeader.store);
         storeCellRef<CrossChainAddress>(self.sender, b, CrossChainAddress.store);
-        b.storeRef(self.data);
+        storeSnakedCellOf(self.data, b, (v, b) => b.storeUint(v, 8));
         storeTolkNullable<SnakedCell<Any2TVMTokenTransfer>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, Any2TVMTokenTransfer.store));
     },
     toCell(self: Any2TVMRampMessageIDData): c.Cell {
