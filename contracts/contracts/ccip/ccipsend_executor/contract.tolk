@@ -216,7 +216,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         value: msg.fee.feeTokenAmount + OnRamp_Costs.ExecutorReserveFee(),
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorReserveFee {
-            executorID: self.id,
+            executorId: self.id,
             fee: msg.fee.feeTokenAmount,
         },
     });
@@ -235,7 +235,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeReservation>.onFeeReserved(mutate self, msg: OnRamp_ExecutorFeeReserved) {
-    assert(msg.executorID == self.id) throw CCIPSendExecutor_Error.Unauthorized;
+    assert(msg.executorId == self.id) throw CCIPSendExecutor_Error.Unauthorized;
     val state = self.state.load();
     val chargedFee = state.fee;
     val message = Router_CCIPSend.fromCell(self.onrampSend.msg);
@@ -314,7 +314,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoRece
             tokenAmount: tokenAmount.toCell(),
             tokenPool: poolInfo.tokenPool,
             destChainSelector: ccipSend.destChainSelector,
-            executorID: self.id,
+            executorId: self.id,
             receiver: ccipSend.receiver.toCell(),
             originalSender: self.onrampSend.metadata.sender,
         }
@@ -364,7 +364,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorRequestsWithdraw {
             queryID: self.onrampSend.msg.load().queryID,
-            executorID: self.id,
+            executorId: self.id,
             destChainSelector: self.onrampSend.msg.load().destChainSelector,
             chainFamilySelector: state.chainFamilySelector,
             destBytesOverhead: state.destOverhead.destBytesOverhead,
@@ -410,7 +410,7 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee, tokenTransfer: Cell<OnR
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedSuccessfully {
             fee,
-            executorID: self.id,
+            executorId: self.id,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
             tokenTransfer,
@@ -443,7 +443,7 @@ fun CCIPSendExecutor<T>.exitWithError(self, error: uint256, chargedFee: coins?) 
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedWithError {
             queryID: msg.queryID,
-            executorID: self.id,
+            executorId: self.id,
             destChainSelector: msg.destChainSelector,
             sender: self.onrampSend.metadata.sender,
             error,
