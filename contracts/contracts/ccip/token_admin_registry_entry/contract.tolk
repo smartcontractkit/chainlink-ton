@@ -14,7 +14,7 @@ tolk 1.4.2
 // The state-bearing shard of TokenAdminRegistry.
 contract TokenAdminRegistryEntry {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.6.0"
+    version: "1.7.0"
     description: "link.chain.ton.ccip.TokenAdminRegistryEntry"
 
     storage: TokenRegistry_Storage
@@ -23,7 +23,7 @@ contract TokenAdminRegistryEntry {
     thrownErrors: TokenAdminRegistryEntry_Error | Upgradeable_Error
 }
 
-const CONTRACT_VERSION = "1.6.0";
+const CONTRACT_VERSION = "1.7.0";
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistryEntry_InMessage.fromSlice(in.body);
