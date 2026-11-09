@@ -41,7 +41,7 @@ sequenceDiagram
     
     Note over OR: Create msgID
     create participant ORM
-    OR ->> ORM: InitializeAndSend { <br/>stateInit: executorID <br/> selfMessage: Execute{msg} }<br>store{msg}
+    OR ->> ORM: InitializeAndSend { <br/>stateInit: executorId <br/> selfMessage: Execute{msg} }<br>store{msg}
 
     box OnRamp
     participant OR as OnRamp

@@ -26,7 +26,7 @@ describe('OnRamp - executor exit', () => {
   let mockTokenRegistry: SandboxContract<TreasuryContract>
   let executorSender: Sender
   let executorAddress: Address
-  let executorID: bigint
+  let executorId: bigint
 
   const ccipSend = or.Router_CCIPSend.create({
     queryId: 1n,
@@ -58,7 +58,7 @@ describe('OnRamp - executor exit', () => {
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
     mockTokenRegistry = await blockchain.treasury('mockTokenRegistry')
-    executorID = BigInt(generateRandomContractId())
+    executorId = BigInt(generateRandomContractId())
     ;({ deployer, onramp } = await setup(blockchain, {
       config: {
         feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
@@ -137,7 +137,7 @@ describe('OnRamp - executor exit', () => {
     const storage = ex.CCIPSendExecutor_InitialData.fromSlice(
       deployMessage.stateInit.data.beginParse(),
     )
-    executorID = storage.id
+    executorId = storage.id
   })
 
   it('should return message sent to router', async () => {
@@ -149,7 +149,7 @@ describe('OnRamp - executor exit', () => {
     // otherwise the report is rejected with PendingFeeReservationsUnderflow.
     const fee = 1n
     await onramp.sendOnRampExecutorReserveFee(executorSender, fee + toNano('0.05'), {
-      executorID: executorID,
+      executorId: executorId,
       fee,
     })
     expect(await onramp.getPendingFeeReservations()).toBe(fee)
@@ -158,7 +158,7 @@ describe('OnRamp - executor exit', () => {
       executorSender,
       toNano('0.5'),
       {
-        executorID: executorID,
+        executorId: executorId,
         fee: or.Fee.create({
           feeTokenAmount: 1n,
           feeValueJuels: 1n,
@@ -211,7 +211,7 @@ describe('OnRamp - executor exit', () => {
     const originalBalance = (await blockchain.getContract(onramp.address)).balance
     const refund = toNano('0.2')
     const result = await onramp.sendOnRampExecutorFinishedWithError(executorSender, toNano('0.5'), {
-      executorID: executorID,
+      executorId: executorId,
       queryId: ccipSend.queryId,
       destChainSelector: ccipSend.destChainSelector,
       sender: senderAddress,
@@ -253,13 +253,13 @@ describe('OnRamp - executor exit', () => {
     // Reserve the fee directly (as the executor would), then report the error.
     const fee = toNano('0.1')
     await onramp.sendOnRampExecutorReserveFee(executorSender, fee + toNano('0.05'), {
-      executorID: executorID,
+      executorId: executorId,
       fee,
     })
     expect(await onramp.getPendingFeeReservations()).toBe(fee)
 
     const result = await onramp.sendOnRampExecutorFinishedWithError(executorSender, toNano('0.5'), {
-      executorID: executorID,
+      executorId: executorId,
       queryId: ccipSend.queryId,
       destChainSelector: ccipSend.destChainSelector,
       sender: senderAddress,
@@ -310,7 +310,7 @@ describe('OnRamp - executor exit', () => {
         body(x) {
           if (!x) return false
           const reserveFee = or.OnRamp_ExecutorReserveFee.fromSlice(x.beginParse())
-          return reserveFee.fee === fee && reserveFee.executorID === executorID
+          return reserveFee.fee === fee && reserveFee.executorId === executorId
         },
       })
 
@@ -324,7 +324,7 @@ describe('OnRamp - executor exit', () => {
         body(x) {
           if (!x) return false
           const confirmed = or.OnRamp_ExecutorFeeReserved.fromSlice(x.beginParse())
-          return confirmed.executorID === executorID
+          return confirmed.executorId === executorId
         },
       })
 
@@ -383,7 +383,7 @@ describe('OnRamp - executor exit', () => {
       // The executor's success report releases the reservation: the fee was
       // consumed by the send.
       await onramp.sendOnRampExecutorFinishedSuccessfully(executorSender, toNano('0.5'), {
-        executorID: executorID,
+        executorId: executorId,
         fee: or.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
         msg: ccipSend,
         metadata: or.Metadata.create({ sender: senderAddress, value: toNano('42') }),
@@ -397,7 +397,7 @@ describe('OnRamp - executor exit', () => {
         executorSender,
         toNano('0.5'),
         {
-          executorID: executorID,
+          executorId: executorId,
           fee: or.Fee.create({ feeTokenAmount: fee, feeValueJuels: fee }),
           msg: ccipSend,
           metadata: or.Metadata.create({ sender: senderAddress, value: toNano('42') }),
@@ -418,7 +418,7 @@ describe('OnRamp - executor exit', () => {
         deployer.getSender(),
         toNano('0.5'),
         {
-          executorID: executorID,
+          executorId: executorId,
           fee: toNano('0.3'),
         },
       )
@@ -431,9 +431,9 @@ describe('OnRamp - executor exit', () => {
       })
     })
 
-    it('should fail to reserve fee if executorID is incorrect', async () => {
+    it('should fail to reserve fee if executorId is incorrect', async () => {
       const result = await onramp.sendOnRampExecutorReserveFee(executorSender, toNano('0.5'), {
-        executorID: executorID + 1n, // incorrect ID
+        executorId: executorId + 1n, // incorrect ID
         fee: toNano('0.3'),
       })
 
@@ -451,7 +451,7 @@ describe('OnRamp - executor exit', () => {
       // reverted (RESERVE_MODE_BOUNCE_ON_ACTION_FAIL).
       const fee = toNano('1')
       const result = await onramp.sendOnRampExecutorReserveFee(executorSender, fee - 1n, {
-        executorID: executorID,
+        executorId: executorId,
         fee,
       })
 
@@ -475,7 +475,7 @@ describe('OnRamp - executor exit', () => {
     // than underflow the reservation counter.
     const reserved = toNano('0.04')
     await onramp.sendOnRampExecutorReserveFee(executorSender, reserved + toNano('0.05'), {
-      executorID: executorID,
+      executorId: executorId,
       fee: reserved,
     })
     expect(await onramp.getPendingFeeReservations()).toBe(reserved)
@@ -485,7 +485,7 @@ describe('OnRamp - executor exit', () => {
       executorSender,
       toNano('0.5'),
       {
-        executorID: executorID,
+        executorId: executorId,
         fee: or.Fee.create({ feeTokenAmount: reportedFee, feeValueJuels: reportedFee }),
         msg: ccipSend,
         metadata: or.Metadata.create({ sender: senderAddress, value: toNano('42') }),
@@ -508,7 +508,7 @@ describe('OnRamp - executor exit', () => {
       deployer.getSender(),
       toNano('0.5'),
       {
-        executorID: executorID,
+        executorId: executorId,
         fee: or.Fee.create({
           feeTokenAmount: 1n,
           feeValueJuels: 1n,
@@ -538,9 +538,9 @@ describe('OnRamp - executor exit', () => {
     })
   })
 
-  it('should fail to send message rejected if executorID is incorrect', async () => {
+  it('should fail to send message rejected if executorId is incorrect', async () => {
     const result = await onramp.sendOnRampExecutorFinishedWithError(executorSender, toNano('3'), {
-      executorID: executorID + 1n, // incorrect ID
+      executorId: executorId + 1n, // incorrect ID
       queryId: ccipSend.queryId,
       destChainSelector: ccipSend.destChainSelector,
       sender: senderAddress,
@@ -561,7 +561,7 @@ describe('OnRamp - executor exit', () => {
       deployer.getSender(),
       toNano('0.5'),
       {
-        executorID: executorID,
+        executorId: executorId,
         queryId: ccipSend.queryId,
         destChainSelector: ccipSend.destChainSelector,
         sender: senderAddress,

@@ -11,6 +11,8 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 
 type RemainingBitsAndRefs = c.Slice
 
+type array<T> = T[]
+
 // TypeScript wrappers flatten a TVM linked list `[1 [2 [3 null]]]` to `[1 2 3]`
 type lisp_list<T> = T[]
 
@@ -104,6 +106,35 @@ function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallbac
         b.storeUint(1, 1);
         storeFn_T(v, b);
     }
+}
+
+function storeArrayOf<T>(v: array<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    // the compiler stores array<T> in chunks; in TypeScript, for simplicity, store "1 elem = 1 ref"
+    let tail = null as c.Cell | null;
+    for (let i = 0; i < v.length; ++i) {
+        let chunkB = beginCell().storeMaybeRef(tail);
+        storeFn_T(v[v.length - 1 - i], chunkB);
+        tail = chunkB.endCell();
+    }
+    b.storeUint(v.length, 8);
+    b.storeMaybeRef(tail);
+}
+
+function loadArrayOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): array<T> {
+    let len = s.loadUint(8);
+    let head = s.loadMaybeRef();
+    let outArr = [] as array<T>;
+    while (head != null) {
+        let s = head.beginParse();
+        head = s.loadMaybeRef();
+        while (s.remainingBits || s.remainingRefs) {
+            outArr.push(loadFn_T(s));
+        }
+    }
+    if (len !== outArr.length) {
+        throw new Error(`mismatch array binary data: expected ${len} elements, got ${outArr.length}`);
+    }
+    return outArr;
 }
 
 function storeLispListOf<T>(v: lisp_list<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
@@ -1506,6 +1537,7 @@ export const Router_CCIPSendNACK = {
  >     queryId: uint64
  >     confirmValue: coins
  >     message: Cell<Any2TVMMessage>
+ >     receiverAccounts: array<address>
  > }
  */
 export interface Receiver_CCIPReceiveV2 {
@@ -1514,6 +1546,7 @@ export interface Receiver_CCIPReceiveV2 {
     queryId: uint64
     confirmValue: coins
     message: Any2TVMMessage
+    receiverAccounts: array<c.Address>
 }
 
 export const Receiver_CCIPReceiveV2 = {
@@ -1524,6 +1557,7 @@ export const Receiver_CCIPReceiveV2 = {
         queryId?: uint64
         confirmValue: coins
         message: Any2TVMMessage
+        receiverAccounts: array<c.Address>
     }): Receiver_CCIPReceiveV2 {
         return {
             $: 'Receiver_CCIPReceiveV2',
@@ -1539,6 +1573,9 @@ export const Receiver_CCIPReceiveV2 = {
             queryId: s.loadUintBig(64),
             confirmValue: s.loadCoins(),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
+            receiverAccounts: loadArrayOf<c.Address>(s,
+                (s) => s.loadAddress()
+            ),
         }
     },
     store(self: Receiver_CCIPReceiveV2, b: c.Builder): void {
@@ -1547,6 +1584,9 @@ export const Receiver_CCIPReceiveV2 = {
         b.storeUint(self.queryId, 64);
         b.storeCoins(self.confirmValue);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
+        storeArrayOf<c.Address>(self.receiverAccounts, b,
+            (v,b) => b.storeAddress(v)
+        );
     },
     toCell(self: Receiver_CCIPReceiveV2): c.Cell {
         return makeCellFrom<Receiver_CCIPReceiveV2>(self, Receiver_CCIPReceiveV2.store);
@@ -1556,13 +1596,13 @@ export const Receiver_CCIPReceiveV2 = {
 /**
  > struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
  >     queryId: uint64
- >     execId: ReceiveExecutorId
+ >     execId: ReceiveExecutionID
  > }
  */
 export interface Router_CCIPReceiveConfirm {
     readonly $: 'Router_CCIPReceiveConfirm'
     queryId: uint64
-    execId: ReceiveExecutorId
+    execId: ReceiveExecutionID
 }
 
 export const Router_CCIPReceiveConfirm = {
@@ -1570,7 +1610,7 @@ export const Router_CCIPReceiveConfirm = {
 
     create(args: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execId: ReceiveExecutionID
     }): Router_CCIPReceiveConfirm {
         return {
             $: 'Router_CCIPReceiveConfirm',
@@ -1583,13 +1623,13 @@ export const Router_CCIPReceiveConfirm = {
         return {
             $: 'Router_CCIPReceiveConfirm',
             queryId: s.loadUintBig(64),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execId: ReceiveExecutionID.fromSlice(s),
         }
     },
     store(self: Router_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0x1e55bbf6, 32);
         b.storeUint(self.queryId, 64);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execId, b);
     },
     toCell(self: Router_CCIPReceiveConfirm): c.Cell {
         return makeCellFrom<Router_CCIPReceiveConfirm>(self, Router_CCIPReceiveConfirm.store);
@@ -1650,19 +1690,19 @@ export const Any2TVMMessage = {
 }
 
 /**
- > type ReceiveExecutorId = uint192
+ > type ReceiveExecutionID = uint192
  */
-export type ReceiveExecutorId = uint192
+export type ReceiveExecutionID = uint192
 
-export const ReceiveExecutorId = {
-    fromSlice(s: c.Slice): ReceiveExecutorId {
+export const ReceiveExecutionID = {
+    fromSlice(s: c.Slice): ReceiveExecutionID {
         return s.loadUintBig(192);
     },
-    store(self: ReceiveExecutorId, b: c.Builder): void {
+    store(self: ReceiveExecutionID, b: c.Builder): void {
         b.storeUint(self, 192);
     },
-    toCell(self: ReceiveExecutorId): c.Cell {
-        return makeCellFrom<ReceiveExecutorId>(self, ReceiveExecutorId.store);
+    toCell(self: ReceiveExecutionID): c.Cell {
+        return makeCellFrom<ReceiveExecutionID>(self, ReceiveExecutionID.store);
     }
 }
 
@@ -1946,12 +1986,14 @@ export const OnRamp_Send = {
 
 /**
  > struct (0x9c2ccc7e) OnRamp_GetValidatedFee {
+ >     queryId: uint64
  >     ccipSend: Cell<Router_CCIPSend>
  >     context: cell?
  > }
  */
 export interface OnRamp_GetValidatedFee {
     readonly $: 'OnRamp_GetValidatedFee'
+    queryId: uint64
     ccipSend: Router_CCIPSend
     context: c.Cell | null /* = null */
 }
@@ -1960,25 +2002,29 @@ export const OnRamp_GetValidatedFee = {
     PREFIX: 0x9c2ccc7e,
 
     create(args: {
+        queryId?: uint64
         ccipSend: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }): OnRamp_GetValidatedFee {
         return {
             $: 'OnRamp_GetValidatedFee',
             context: null,
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OnRamp_GetValidatedFee {
         loadAndCheckPrefix32(s, 0x9c2ccc7e, 'OnRamp_GetValidatedFee');
         return {
             $: 'OnRamp_GetValidatedFee',
+            queryId: s.loadUintBig(64),
             ccipSend: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: OnRamp_GetValidatedFee, b: c.Builder): void {
         b.storeUint(0x9c2ccc7e, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -2128,14 +2174,14 @@ export const Metadata = {
 /**
  > struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
  >     queryId: uint64
- >     execId: ReceiveExecutorId
+ >     execId: ReceiveExecutionID
  >     receiver: address
  > }
  */
 export interface OffRamp_CCIPReceiveConfirm {
     readonly $: 'OffRamp_CCIPReceiveConfirm'
     queryId: uint64
-    execId: ReceiveExecutorId
+    execId: ReceiveExecutionID
     receiver: c.Address
 }
 
@@ -2144,7 +2190,7 @@ export const OffRamp_CCIPReceiveConfirm = {
 
     create(args: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execId: ReceiveExecutionID
         receiver: c.Address
     }): OffRamp_CCIPReceiveConfirm {
         return {
@@ -2158,14 +2204,14 @@ export const OffRamp_CCIPReceiveConfirm = {
         return {
             $: 'OffRamp_CCIPReceiveConfirm',
             queryId: s.loadUintBig(64),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execId: ReceiveExecutionID.fromSlice(s),
             receiver: s.loadAddress(),
         }
     },
     store(self: OffRamp_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0x28f4166f, 32);
         b.storeUint(self.queryId, 64);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execId, b);
         b.storeAddress(self.receiver);
     },
     toCell(self: OffRamp_CCIPReceiveConfirm): c.Cell {
@@ -2175,13 +2221,13 @@ export const OffRamp_CCIPReceiveConfirm = {
 
 /**
  > struct (0x2dcf2a43) OffRamp_CCIPReceiveBounced {
- >     execId: ReceiveExecutorId
+ >     execId: ReceiveExecutionID
  >     receiver: address
  > }
  */
 export interface OffRamp_CCIPReceiveBounced {
     readonly $: 'OffRamp_CCIPReceiveBounced'
-    execId: ReceiveExecutorId
+    execId: ReceiveExecutionID
     receiver: c.Address
 }
 
@@ -2189,7 +2235,7 @@ export const OffRamp_CCIPReceiveBounced = {
     PREFIX: 0x2dcf2a43,
 
     create(args: {
-        execId: ReceiveExecutorId
+        execId: ReceiveExecutionID
         receiver: c.Address
     }): OffRamp_CCIPReceiveBounced {
         return {
@@ -2201,13 +2247,13 @@ export const OffRamp_CCIPReceiveBounced = {
         loadAndCheckPrefix32(s, 0x2dcf2a43, 'OffRamp_CCIPReceiveBounced');
         return {
             $: 'OffRamp_CCIPReceiveBounced',
-            execId: ReceiveExecutorId.fromSlice(s),
+            execId: ReceiveExecutionID.fromSlice(s),
             receiver: s.loadAddress(),
         }
     },
     store(self: OffRamp_CCIPReceiveBounced, b: c.Builder): void {
         b.storeUint(0x2dcf2a43, 32);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execId, b);
         b.storeAddress(self.receiver);
     },
     toCell(self: OffRamp_CCIPReceiveBounced): c.Cell {
@@ -2255,13 +2301,13 @@ export const OffRamp_UpdateCursedSubjects = {
 /**
  > struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
  >     queryId: uint64
- >     execId: ReceiveExecutorId
+ >     execId: ReceiveExecutionID
  > }
  */
 export interface OffRamp_ReturnExcessToExecutor {
     readonly $: 'OffRamp_ReturnExcessToExecutor'
     queryId: uint64
-    execId: ReceiveExecutorId
+    execId: ReceiveExecutionID
 }
 
 export const OffRamp_ReturnExcessToExecutor = {
@@ -2269,7 +2315,7 @@ export const OffRamp_ReturnExcessToExecutor = {
 
     create(args: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execId: ReceiveExecutionID
     }): OffRamp_ReturnExcessToExecutor {
         return {
             $: 'OffRamp_ReturnExcessToExecutor',
@@ -2282,13 +2328,13 @@ export const OffRamp_ReturnExcessToExecutor = {
         return {
             $: 'OffRamp_ReturnExcessToExecutor',
             queryId: s.loadUintBig(64),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execId: ReceiveExecutionID.fromSlice(s),
         }
     },
     store(self: OffRamp_ReturnExcessToExecutor, b: c.Builder): void {
         b.storeUint(0x5397c75e, 32);
         b.storeUint(self.queryId, 64);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execId, b);
     },
     toCell(self: OffRamp_ReturnExcessToExecutor): c.Cell {
         return makeCellFrom<OffRamp_ReturnExcessToExecutor>(self, OffRamp_ReturnExcessToExecutor.store);
@@ -3434,7 +3480,7 @@ export const Router_CCIPReceiveConfirmRejected = {
  > struct (0xfc69c50b) Router_RouteMessage {
  >     queryId: uint64
  >     message: Cell<Any2TVMMessage>
- >     execId: ReceiveExecutorId
+ >     execId: ReceiveExecutionID
  >     receiver: address
  >     gasLimit: coins
  > }
@@ -3443,7 +3489,7 @@ export interface Router_RouteMessage {
     readonly $: 'Router_RouteMessage'
     queryId: uint64
     message: Any2TVMMessage
-    execId: ReceiveExecutorId
+    execId: ReceiveExecutionID
     receiver: c.Address
     gasLimit: coins
 }
@@ -3454,7 +3500,7 @@ export const Router_RouteMessage = {
     create(args: {
         queryId?: uint64
         message: Any2TVMMessage
-        execId: ReceiveExecutorId
+        execId: ReceiveExecutionID
         receiver: c.Address
         gasLimit: coins
     }): Router_RouteMessage {
@@ -3470,7 +3516,7 @@ export const Router_RouteMessage = {
             $: 'Router_RouteMessage',
             queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execId: ReceiveExecutionID.fromSlice(s),
             receiver: s.loadAddress(),
             gasLimit: s.loadCoins(),
         }
@@ -3479,7 +3525,7 @@ export const Router_RouteMessage = {
         b.storeUint(0xfc69c50b, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execId, b);
         b.storeAddress(self.receiver);
         b.storeCoins(self.gasLimit);
     },
@@ -3543,7 +3589,7 @@ export const Router_WithdrawToTokenPool = {
 
 /**
  > struct Router_WithdrawRequest {
- >     onRampAccount: Cell<Router_DepositAccountID>
+ >     senderAccount: Cell<Router_DepositAccountID>
  >     amount: coins
  >     tokenPool: address
  >     forwardTonAmount: coins
@@ -3552,7 +3598,7 @@ export const Router_WithdrawToTokenPool = {
  */
 export interface Router_WithdrawRequest {
     readonly $: 'Router_WithdrawRequest'
-    onRampAccount: Router_DepositAccountID
+    senderAccount: Router_DepositAccountID
     amount: coins
     tokenPool: c.Address
     forwardTonAmount: coins
@@ -3561,7 +3607,7 @@ export interface Router_WithdrawRequest {
 
 export const Router_WithdrawRequest = {
     create(args: {
-        onRampAccount: Router_DepositAccountID
+        senderAccount: Router_DepositAccountID
         amount: coins
         tokenPool: c.Address
         forwardTonAmount: coins
@@ -3575,7 +3621,7 @@ export const Router_WithdrawRequest = {
     fromSlice(s: c.Slice): Router_WithdrawRequest {
         return {
             $: 'Router_WithdrawRequest',
-            onRampAccount: loadCellRef<Router_DepositAccountID>(s, Router_DepositAccountID.fromSlice),
+            senderAccount: loadCellRef<Router_DepositAccountID>(s, Router_DepositAccountID.fromSlice),
             amount: s.loadCoins(),
             tokenPool: s.loadAddress(),
             forwardTonAmount: s.loadCoins(),
@@ -3583,7 +3629,7 @@ export const Router_WithdrawRequest = {
         }
     },
     store(self: Router_WithdrawRequest, b: c.Builder): void {
-        storeCellRef<Router_DepositAccountID>(self.onRampAccount, b, Router_DepositAccountID.store);
+        storeCellRef<Router_DepositAccountID>(self.senderAccount, b, Router_DepositAccountID.store);
         b.storeCoins(self.amount);
         b.storeAddress(self.tokenPool);
         b.storeCoins(self.forwardTonAmount);
@@ -3595,136 +3641,264 @@ export const Router_WithdrawRequest = {
 }
 
 /**
- > struct (0x0e24d5ba) Router_GetOnRampAccount {
+ > struct (0x6cafd96f) Router_GetSenderAccount {
  >     queryId: uint64
  >     token: address
+ >     context: cell?
  > }
  */
-export interface Router_GetOnRampAccount {
-    readonly $: 'Router_GetOnRampAccount'
+export interface Router_GetSenderAccount {
+    readonly $: 'Router_GetSenderAccount'
     queryId: uint64
     token: c.Address
+    context: c.Cell | null /* = null */
 }
 
-export const Router_GetOnRampAccount = {
-    PREFIX: 0x0e24d5ba,
+export const Router_GetSenderAccount = {
+    PREFIX: 0x6cafd96f,
 
     create(args: {
         queryId?: uint64
         token: c.Address
-    }): Router_GetOnRampAccount {
+        context?: c.Cell | null /* = null */
+    }): Router_GetSenderAccount {
         return {
-            $: 'Router_GetOnRampAccount',
+            $: 'Router_GetSenderAccount',
+            context: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): Router_GetOnRampAccount {
-        loadAndCheckPrefix32(s, 0x0e24d5ba, 'Router_GetOnRampAccount');
+    fromSlice(s: c.Slice): Router_GetSenderAccount {
+        loadAndCheckPrefix32(s, 0x6cafd96f, 'Router_GetSenderAccount');
         return {
-            $: 'Router_GetOnRampAccount',
+            $: 'Router_GetSenderAccount',
             queryId: s.loadUintBig(64),
             token: s.loadAddress(),
+            context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
-    store(self: Router_GetOnRampAccount, b: c.Builder): void {
-        b.storeUint(0x0e24d5ba, 32);
+    store(self: Router_GetSenderAccount, b: c.Builder): void {
+        b.storeUint(0x6cafd96f, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.token);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
     },
-    toCell(self: Router_GetOnRampAccount): c.Cell {
-        return makeCellFrom<Router_GetOnRampAccount>(self, Router_GetOnRampAccount.store);
+    toCell(self: Router_GetSenderAccount): c.Cell {
+        return makeCellFrom<Router_GetSenderAccount>(self, Router_GetSenderAccount.store);
     }
 }
 
 /**
- > struct (0xf28658e0) Router_UseOnRampAccount {
+ > struct (0x900d5435) Router_UseSenderAccount {
  >     queryId: uint64
  >     account: address
  >     token: address
+ >     context: cell?
  > }
  */
-export interface Router_UseOnRampAccount {
-    readonly $: 'Router_UseOnRampAccount'
+export interface Router_UseSenderAccount {
+    readonly $: 'Router_UseSenderAccount'
     queryId: uint64
     account: c.Address
     token: c.Address
+    context: c.Cell | null
 }
 
-export const Router_UseOnRampAccount = {
-    PREFIX: 0xf28658e0,
+export const Router_UseSenderAccount = {
+    PREFIX: 0x900d5435,
 
     create(args: {
         queryId?: uint64
         account: c.Address
         token: c.Address
-    }): Router_UseOnRampAccount {
+        context: c.Cell | null
+    }): Router_UseSenderAccount {
         return {
-            $: 'Router_UseOnRampAccount',
+            $: 'Router_UseSenderAccount',
             ...args,
             queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): Router_UseOnRampAccount {
-        loadAndCheckPrefix32(s, 0xf28658e0, 'Router_UseOnRampAccount');
+    fromSlice(s: c.Slice): Router_UseSenderAccount {
+        loadAndCheckPrefix32(s, 0x900d5435, 'Router_UseSenderAccount');
         return {
-            $: 'Router_UseOnRampAccount',
+            $: 'Router_UseSenderAccount',
             queryId: s.loadUintBig(64),
             account: s.loadAddress(),
             token: s.loadAddress(),
+            context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
-    store(self: Router_UseOnRampAccount, b: c.Builder): void {
-        b.storeUint(0xf28658e0, 32);
+    store(self: Router_UseSenderAccount, b: c.Builder): void {
+        b.storeUint(0x900d5435, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.account);
         b.storeAddress(self.token);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
     },
-    toCell(self: Router_UseOnRampAccount): c.Cell {
-        return makeCellFrom<Router_UseOnRampAccount>(self, Router_UseOnRampAccount.store);
+    toCell(self: Router_UseSenderAccount): c.Cell {
+        return makeCellFrom<Router_UseSenderAccount>(self, Router_UseSenderAccount.store);
     }
 }
 
 /**
- > struct (0x2c734db9) Router_OnRampAccountFailed {
+ > struct (0xda7b0350) Router_SenderAccountFailed {
  >     queryId: uint64
  >     errorCode: int32
+ >     context: cell?
  > }
  */
-export interface Router_OnRampAccountFailed {
-    readonly $: 'Router_OnRampAccountFailed'
+export interface Router_SenderAccountFailed {
+    readonly $: 'Router_SenderAccountFailed'
     queryId: uint64
     errorCode: int32
+    context: c.Cell | null
 }
 
-export const Router_OnRampAccountFailed = {
-    PREFIX: 0x2c734db9,
+export const Router_SenderAccountFailed = {
+    PREFIX: 0xda7b0350,
 
     create(args: {
         queryId?: uint64
         errorCode: int32
-    }): Router_OnRampAccountFailed {
+        context: c.Cell | null
+    }): Router_SenderAccountFailed {
         return {
-            $: 'Router_OnRampAccountFailed',
+            $: 'Router_SenderAccountFailed',
             ...args,
             queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): Router_OnRampAccountFailed {
-        loadAndCheckPrefix32(s, 0x2c734db9, 'Router_OnRampAccountFailed');
+    fromSlice(s: c.Slice): Router_SenderAccountFailed {
+        loadAndCheckPrefix32(s, 0xda7b0350, 'Router_SenderAccountFailed');
         return {
-            $: 'Router_OnRampAccountFailed',
+            $: 'Router_SenderAccountFailed',
             queryId: s.loadUintBig(64),
             errorCode: s.loadIntBig(32),
+            context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
-    store(self: Router_OnRampAccountFailed, b: c.Builder): void {
-        b.storeUint(0x2c734db9, 32);
+    store(self: Router_SenderAccountFailed, b: c.Builder): void {
+        b.storeUint(0xda7b0350, 32);
         b.storeUint(self.queryId, 64);
         b.storeInt(self.errorCode, 32);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
     },
-    toCell(self: Router_OnRampAccountFailed): c.Cell {
-        return makeCellFrom<Router_OnRampAccountFailed>(self, Router_OnRampAccountFailed.store);
+    toCell(self: Router_SenderAccountFailed): c.Cell {
+        return makeCellFrom<Router_SenderAccountFailed>(self, Router_SenderAccountFailed.store);
+    }
+}
+
+/**
+ > struct (0x0d5421b4) Router_GetReceiverAccountAddress {
+ >     queryId: uint64
+ >     token: address
+ >     context: cell?
+ > }
+ */
+export interface Router_GetReceiverAccountAddress {
+    readonly $: 'Router_GetReceiverAccountAddress'
+    queryId: uint64
+    token: c.Address
+    context: c.Cell | null /* = null */
+}
+
+export const Router_GetReceiverAccountAddress = {
+    PREFIX: 0x0d5421b4,
+
+    create(args: {
+        queryId?: uint64
+        token: c.Address
+        context?: c.Cell | null /* = null */
+    }): Router_GetReceiverAccountAddress {
+        return {
+            $: 'Router_GetReceiverAccountAddress',
+            context: null,
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_GetReceiverAccountAddress {
+        loadAndCheckPrefix32(s, 0x0d5421b4, 'Router_GetReceiverAccountAddress');
+        return {
+            $: 'Router_GetReceiverAccountAddress',
+            queryId: s.loadUintBig(64),
+            token: s.loadAddress(),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: Router_GetReceiverAccountAddress, b: c.Builder): void {
+        b.storeUint(0x0d5421b4, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.token);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: Router_GetReceiverAccountAddress): c.Cell {
+        return makeCellFrom<Router_GetReceiverAccountAddress>(self, Router_GetReceiverAccountAddress.store);
+    }
+}
+
+/**
+ > struct (0xf540f227) Router_ReceiverAccountAddress {
+ >     queryId: uint64
+ >     account: address
+ >     token: address
+ >     context: cell?
+ > }
+ */
+export interface Router_ReceiverAccountAddress {
+    readonly $: 'Router_ReceiverAccountAddress'
+    queryId: uint64
+    account: c.Address
+    token: c.Address
+    context: c.Cell | null
+}
+
+export const Router_ReceiverAccountAddress = {
+    PREFIX: 0xf540f227,
+
+    create(args: {
+        queryId?: uint64
+        account: c.Address
+        token: c.Address
+        context: c.Cell | null
+    }): Router_ReceiverAccountAddress {
+        return {
+            $: 'Router_ReceiverAccountAddress',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_ReceiverAccountAddress {
+        loadAndCheckPrefix32(s, 0xf540f227, 'Router_ReceiverAccountAddress');
+        return {
+            $: 'Router_ReceiverAccountAddress',
+            queryId: s.loadUintBig(64),
+            account: s.loadAddress(),
+            token: s.loadAddress(),
+            context: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: Router_ReceiverAccountAddress, b: c.Builder): void {
+        b.storeUint(0xf540f227, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.account);
+        b.storeAddress(self.token);
+        storeTolkNullable<c.Cell>(self.context, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: Router_ReceiverAccountAddress): c.Cell {
+        return makeCellFrom<Router_ReceiverAccountAddress>(self, Router_ReceiverAccountAddress.store);
     }
 }
 
@@ -4215,12 +4389,14 @@ export const Router_GetValidatedFee_V1 = {
 
 /**
  > struct (0x657ef7ec) Router_GetValidatedFee {
+ >     queryId: uint64
  >     ccipSend: Cell<Router_CCIPSend>
  >     context: cell?
  > }
  */
 export interface Router_GetValidatedFee {
     readonly $: 'Router_GetValidatedFee'
+    queryId: uint64
     ccipSend: Router_CCIPSend
     context: c.Cell | null /* = null */
 }
@@ -4229,25 +4405,29 @@ export const Router_GetValidatedFee = {
     PREFIX: 0x657ef7ec,
 
     create(args: {
+        queryId?: uint64
         ccipSend: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }): Router_GetValidatedFee {
         return {
             $: 'Router_GetValidatedFee',
             context: null,
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_GetValidatedFee {
         loadAndCheckPrefix32(s, 0x657ef7ec, 'Router_GetValidatedFee');
         return {
             $: 'Router_GetValidatedFee',
+            queryId: s.loadUintBig(64),
             ccipSend: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: Router_GetValidatedFee, b: c.Builder): void {
         b.storeUint(0x657ef7ec, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -4439,6 +4619,7 @@ export const Router_TokenTransferDelivered = {
 
 /**
  > struct Router_GetValidatedFeeContext {
+ >     queryId: uint64
  >     routerContext: address
  >     oldContextVersion: bool
  >     userContext: cell?
@@ -4446,6 +4627,7 @@ export const Router_TokenTransferDelivered = {
  */
 export interface Router_GetValidatedFeeContext {
     readonly $: 'Router_GetValidatedFeeContext'
+    queryId: uint64
     routerContext: c.Address
     oldContextVersion: boolean
     userContext: c.Cell | null
@@ -4453,24 +4635,28 @@ export interface Router_GetValidatedFeeContext {
 
 export const Router_GetValidatedFeeContext = {
     create(args: {
+        queryId?: uint64
         routerContext: c.Address
         oldContextVersion: boolean
         userContext: c.Cell | null
     }): Router_GetValidatedFeeContext {
         return {
             $: 'Router_GetValidatedFeeContext',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_GetValidatedFeeContext {
         return {
             $: 'Router_GetValidatedFeeContext',
+            queryId: s.loadUintBig(64),
             routerContext: s.loadAddress(),
             oldContextVersion: s.loadBoolean(),
             userContext: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: Router_GetValidatedFeeContext, b: c.Builder): void {
+        b.storeUint(self.queryId, 64);
         b.storeAddress(self.routerContext);
         b.storeBit(self.oldContextVersion);
         storeTolkNullable<c.Cell>(self.userContext, b,
@@ -4578,6 +4764,7 @@ export const Router_MessageValidationFailed_V1 = {
 
 /**
  > struct (0x97ca8bd8) Router_MessageValidated {
+ >     queryId: uint64
  >     fee: coins
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
@@ -4585,6 +4772,7 @@ export const Router_MessageValidationFailed_V1 = {
  */
 export interface Router_MessageValidated {
     readonly $: 'Router_MessageValidated'
+    queryId: uint64
     fee: coins
     msg: Router_CCIPSend
     context: c.Cell | null
@@ -4594,19 +4782,22 @@ export const Router_MessageValidated = {
     PREFIX: 0x97ca8bd8,
 
     create(args: {
+        queryId?: uint64
         fee: coins
         msg: Router_CCIPSend
         context: c.Cell | null
     }): Router_MessageValidated {
         return {
             $: 'Router_MessageValidated',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_MessageValidated {
         loadAndCheckPrefix32(s, 0x97ca8bd8, 'Router_MessageValidated');
         return {
             $: 'Router_MessageValidated',
+            queryId: s.loadUintBig(64),
             fee: s.loadCoins(),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
@@ -4614,6 +4805,7 @@ export const Router_MessageValidated = {
     },
     store(self: Router_MessageValidated, b: c.Builder): void {
         b.storeUint(0x97ca8bd8, 32);
+        b.storeUint(self.queryId, 64);
         b.storeCoins(self.fee);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
@@ -4627,6 +4819,7 @@ export const Router_MessageValidated = {
 
 /**
  > struct (0xe32e5616) Router_MessageValidationFailed {
+ >     queryId: uint64
  >     errorCode: int32
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
@@ -4634,6 +4827,7 @@ export const Router_MessageValidated = {
  */
 export interface Router_MessageValidationFailed {
     readonly $: 'Router_MessageValidationFailed'
+    queryId: uint64
     errorCode: int32
     msg: Router_CCIPSend
     context: c.Cell | null
@@ -4643,19 +4837,22 @@ export const Router_MessageValidationFailed = {
     PREFIX: 0xe32e5616,
 
     create(args: {
+        queryId?: uint64
         errorCode: int32
         msg: Router_CCIPSend
         context: c.Cell | null
     }): Router_MessageValidationFailed {
         return {
             $: 'Router_MessageValidationFailed',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_MessageValidationFailed {
         loadAndCheckPrefix32(s, 0xe32e5616, 'Router_MessageValidationFailed');
         return {
             $: 'Router_MessageValidationFailed',
+            queryId: s.loadUintBig(64),
             errorCode: s.loadIntBig(32),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
@@ -4663,6 +4860,7 @@ export const Router_MessageValidationFailed = {
     },
     store(self: Router_MessageValidationFailed, b: c.Builder): void {
         b.storeUint(0xe32e5616, 32);
+        b.storeUint(self.queryId, 64);
         b.storeInt(self.errorCode, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
@@ -4918,10 +5116,10 @@ export const Router_Error = {
     ForwardPayloadIsNotCCIPSend: 57111n,
     SourceChainSelectorMismatch: 57112n,
     SenderIsNotDepositAccount: 57113n,
-    SenderIsNotOnRampAccount: 57114n,
+    SenderIsNotSenderAccount: 57114n,
     DepositAccountWalletUnavailable: 57115n,
     WithdrawExecutorMismatch: 57116n,
-    OnRampAccountWithdrawFailed: 57117n,
+    SenderAccountWithdrawFailed: 57117n,
     FeePaymentsWithJettonsNotSupported: 57118n,
     UnhandledLegacyBounce: 57119n,
 
@@ -5432,10 +5630,10 @@ export class Router implements c.Contract {
         'Router_Error.ForwardPayloadIsNotCCIPSend': 57111,
         'Router_Error.SourceChainSelectorMismatch': 57112,
         'Router_Error.SenderIsNotDepositAccount': 57113,
-        'Router_Error.SenderIsNotOnRampAccount': 57114,
+        'Router_Error.SenderIsNotSenderAccount': 57114,
         'Router_Error.DepositAccountWalletUnavailable': 57115,
         'Router_Error.WithdrawExecutorMismatch': 57116,
-        'Router_Error.OnRampAccountWithdrawFailed': 57117,
+        'Router_Error.SenderAccountWithdrawFailed': 57117,
         'Router_Error.FeePaymentsWithJettonsNotSupported': 57118,
         'Router_Error.UnhandledLegacyBounce': 57119,
     }
@@ -5510,6 +5708,7 @@ export class Router implements c.Contract {
     }
 
     static createCellOfRouterGetValidatedFee(body: {
+        queryId?: uint64
         ccipSend: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }) {
@@ -5535,7 +5734,7 @@ export class Router implements c.Contract {
     static createCellOfRouterRouteMessage(body: {
         queryId?: uint64
         message: Any2TVMMessage
-        execId: ReceiveExecutorId
+        execId: ReceiveExecutionID
         receiver: c.Address
         gasLimit: coins
     }) {
@@ -5562,7 +5761,7 @@ export class Router implements c.Contract {
 
     static createCellOfRouterCCIPReceiveConfirm(body: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execId: ReceiveExecutionID
     }) {
         return Router_CCIPReceiveConfirm.toCell(Router_CCIPReceiveConfirm.create(body));
     }
@@ -5680,11 +5879,20 @@ export class Router implements c.Contract {
         return Router_TokenTransferDelivered.toCell(Router_TokenTransferDelivered.create(body));
     }
 
-    static createCellOfRouterGetOnRampAccount(body: {
+    static createCellOfRouterGetSenderAccount(body: {
         queryId?: uint64
         token: c.Address
+        context?: c.Cell | null /* = null */
     }) {
-        return Router_GetOnRampAccount.toCell(Router_GetOnRampAccount.create(body));
+        return Router_GetSenderAccount.toCell(Router_GetSenderAccount.create(body));
+    }
+
+    static createCellOfRouterGetReceiverAccountAddress(body: {
+        queryId?: uint64
+        token: c.Address
+        context?: c.Cell | null /* = null */
+    }) {
+        return Router_GetReceiverAccountAddress.toCell(Router_GetReceiverAccountAddress.create(body));
     }
 
     static createCellOfDepositAccountInitialized(body: {
@@ -5796,6 +6004,7 @@ export class Router implements c.Contract {
     }
 
     async sendRouterGetValidatedFee(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         ccipSend: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
@@ -5833,7 +6042,7 @@ export class Router implements c.Contract {
     async sendRouterRouteMessage(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         message: Any2TVMMessage
-        execId: ReceiveExecutorId
+        execId: ReceiveExecutionID
         receiver: c.Address
         gasLimit: coins
     }, extraOptions?: ExtraSendOptions) {
@@ -5872,7 +6081,7 @@ export class Router implements c.Contract {
 
     async sendRouterCCIPReceiveConfirm(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execId: ReceiveExecutionID
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -6050,13 +6259,26 @@ export class Router implements c.Contract {
         });
     }
 
-    async sendRouterGetOnRampAccount(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendRouterGetSenderAccount(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         token: c.Address
+        context?: c.Cell | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: Router_GetOnRampAccount.toCell(Router_GetOnRampAccount.create(body)),
+            body: Router_GetSenderAccount.toCell(Router_GetSenderAccount.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendRouterGetReceiverAccountAddress(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        token: c.Address
+        context?: c.Cell | null /* = null */
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Router_GetReceiverAccountAddress.toCell(Router_GetReceiverAccountAddress.create(body)),
             ...extraOptions
         });
     }
@@ -6141,8 +6363,8 @@ export class Router implements c.Contract {
         });
     }
 
-    async getOnRampAccountAddress(provider: ContractProvider, user: c.Address, token: c.Address): Promise<c.Address> {
-        const r = StackReader.fromGetMethod(1, await provider.get('onRampAccountAddress', [
+    async getSenderAccountAddress(provider: ContractProvider, user: c.Address, token: c.Address): Promise<c.Address> {
+        const r = StackReader.fromGetMethod(1, await provider.get('senderAccountAddress', [
             { type: 'slice', cell: makeCellFrom<c.Address>(user,
                 (v,b) => b.storeAddress(v)
             ) },
@@ -6301,8 +6523,8 @@ export class Router implements c.Contract {
         );
     }
 
-    async getOffRampAccountAddress(provider: ContractProvider, receiver: c.Address, token: c.Address): Promise<c.Address> {
-        const r = StackReader.fromGetMethod(1, await provider.get('offRampAccountAddress', [
+    async getReceiverAccountAddress(provider: ContractProvider, receiver: c.Address, token: c.Address): Promise<c.Address> {
+        const r = StackReader.fromGetMethod(1, await provider.get('receiverAccountAddress', [
             { type: 'slice', cell: makeCellFrom<c.Address>(receiver,
                 (v,b) => b.storeAddress(v)
             ) },

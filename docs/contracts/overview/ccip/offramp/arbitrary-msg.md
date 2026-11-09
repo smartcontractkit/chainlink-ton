@@ -77,7 +77,7 @@ sequenceDiagram
     Note over OR: Verifies sender is MerkleRoot
     Note over OR: emits: ExecutionStateChanged { sourceChainSelector,<br>sequenceNumber, messageId, state: InProgress }
     create participant RE as ReceiveExecutor{id}
-    OR ->> RE: stateInit: Deployable {owner: OffRamp, id: truncated rootId}<br>Init: {owner: OffRamp, message,<br>execId: truncated rootId, state: Untouched}
+    OR ->> RE: stateInit: Deployable {owner: OffRamp, id: truncated rootId}<br>Init: {owner: OffRamp, message,<br>execID: truncated rootId, state: Untouched}
     OR ->> RE: InitExecute {}
     deactivate OR
 
@@ -85,7 +85,7 @@ sequenceDiagram
 
     activate RE
     Note over RE: Verifies sender is OffRamp
-    RE ->> OR: DispatchValidated { message, execId }
+    RE ->> OR: DispatchValidated { message, execID }
     Note over RE: Set state: Execute
     deactivate RE
 
@@ -99,7 +99,7 @@ sequenceDiagram
     Note over RE: [...]
     else
 
-    OR ->> R: RouteMessage { dest: receiver,<br>message: Receiver_CCIPReceiveV2 { execId,<br>message: { messageId,<br>sourceChain, sender, data }
+    OR ->> R: RouteMessage { dest: receiver,<br>message: Receiver_CCIPReceiveV2 { execID,<br>message: { messageId,<br>sourceChain, sender, data, tokenAmounts },<br>receiverAccounts }
     deactivate OR
 
 
@@ -139,8 +139,8 @@ sequenceDiagram
 
 
     activate R
-    Note over R: RECEIVES CCIPReceiveConfirm<br>{ execId }
-    R ->> OR: CCIPReceiveConfirm { execId, receiver }
+    Note over R: RECEIVES CCIPReceiveConfirm<br>{ execID }
+    R ->> OR: CCIPReceiveConfirm { execID, receiver }
     deactivate R
 
 
@@ -157,7 +157,7 @@ sequenceDiagram
     Note over RE: Set state: Success
     deactivate RE
     destroy RE
-    RE ->> OR: NotifySuccess { header, execId }
+    RE ->> OR: NotifySuccess { header, execID }
 
 
 
@@ -191,7 +191,7 @@ sequenceDiagram
 
 
     activate R
-    Note over R: RECEIVES Bounced<br>Receiver_CCIPReceiveV2 { execId }
+    Note over R: RECEIVES Bounced<br>Receiver_CCIPReceiveV2 { execID }
     R ->> OR: CCIPReceiveBounced { sender }
     deactivate R
 
@@ -208,7 +208,7 @@ sequenceDiagram
     Note over RE: Verifies Confirm.sender is Receiver
     Note over RE: Set state: ExecuteFailed
     deactivate RE
-    RE ->> OR: NotifyFailure { header, execId }
+    RE ->> OR: NotifyFailure { header, execID }
 
 
 

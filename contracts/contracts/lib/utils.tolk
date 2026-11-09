@@ -91,7 +91,8 @@ fun extractBouncedBody(body: slice): uint256 {
 }
 
 /// The zero internal (standard) address: workchain 0 with an all-zero 256-bit hash.
-/// This is the TON analog of EVM's `address(0)`.
+/// This is the canonical zero/placeholder sentinel (the TON analog of EVM's `address(0)`),
+/// not an exhaustive burn-address check: any account without a known StateInit can be a sink.
 const ZERO_ADDRESS = address("0:0000000000000000000000000000000000000000000000000000000000000000");
 
 /// Returns true if the given address is the zero address.

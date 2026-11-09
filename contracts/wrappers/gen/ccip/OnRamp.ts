@@ -1124,19 +1124,19 @@ export const TokenPool_LockOrBurnOutV1 = {
 }
 
 /**
- > type CCIPSendExecutor_ID = uint224
+ > type CCIPSendExecutorId = uint224
  */
-export type CCIPSendExecutor_ID = uint224
+export type CCIPSendExecutorId = uint224
 
-export const CCIPSendExecutor_ID = {
-    fromSlice(s: c.Slice): CCIPSendExecutor_ID {
+export const CCIPSendExecutorId = {
+    fromSlice(s: c.Slice): CCIPSendExecutorId {
         return s.loadUintBig(224);
     },
-    store(self: CCIPSendExecutor_ID, b: c.Builder): void {
+    store(self: CCIPSendExecutorId, b: c.Builder): void {
         b.storeUint(self, 224);
     },
-    toCell(self: CCIPSendExecutor_ID): c.Cell {
-        return makeCellFrom<CCIPSendExecutor_ID>(self, CCIPSendExecutor_ID.store);
+    toCell(self: CCIPSendExecutorId): c.Cell {
+        return makeCellFrom<CCIPSendExecutorId>(self, CCIPSendExecutorId.store);
     }
 }
 
@@ -1195,7 +1195,7 @@ export const Router_WithdrawToTokenPool = {
 
 /**
  > struct Router_WithdrawRequest {
- >     onRampAccount: Cell<Router_DepositAccountID>
+ >     senderAccount: Cell<Router_DepositAccountID>
  >     amount: coins
  >     tokenPool: address
  >     forwardTonAmount: coins
@@ -1204,7 +1204,7 @@ export const Router_WithdrawToTokenPool = {
  */
 export interface Router_WithdrawRequest {
     readonly $: 'Router_WithdrawRequest'
-    onRampAccount: Router_DepositAccountID
+    senderAccount: Router_DepositAccountID
     amount: coins
     tokenPool: c.Address
     forwardTonAmount: coins
@@ -1213,7 +1213,7 @@ export interface Router_WithdrawRequest {
 
 export const Router_WithdrawRequest = {
     create(args: {
-        onRampAccount: Router_DepositAccountID
+        senderAccount: Router_DepositAccountID
         amount: coins
         tokenPool: c.Address
         forwardTonAmount: coins
@@ -1227,7 +1227,7 @@ export const Router_WithdrawRequest = {
     fromSlice(s: c.Slice): Router_WithdrawRequest {
         return {
             $: 'Router_WithdrawRequest',
-            onRampAccount: loadCellRef<Router_DepositAccountID>(s, Router_DepositAccountID.fromSlice),
+            senderAccount: loadCellRef<Router_DepositAccountID>(s, Router_DepositAccountID.fromSlice),
             amount: s.loadCoins(),
             tokenPool: s.loadAddress(),
             forwardTonAmount: s.loadCoins(),
@@ -1235,7 +1235,7 @@ export const Router_WithdrawRequest = {
         }
     },
     store(self: Router_WithdrawRequest, b: c.Builder): void {
-        storeCellRef<Router_DepositAccountID>(self.onRampAccount, b, Router_DepositAccountID.store);
+        storeCellRef<Router_DepositAccountID>(self.senderAccount, b, Router_DepositAccountID.store);
         b.storeCoins(self.amount);
         b.storeAddress(self.tokenPool);
         b.storeCoins(self.forwardTonAmount);
@@ -2578,12 +2578,14 @@ export const OnRamp_Send = {
 
 /**
  > struct (0x9c2ccc7e) OnRamp_GetValidatedFee {
+ >     queryId: uint64
  >     ccipSend: Cell<Router_CCIPSend>
  >     context: cell?
  > }
  */
 export interface OnRamp_GetValidatedFee {
     readonly $: 'OnRamp_GetValidatedFee'
+    queryId: uint64
     ccipSend: Router_CCIPSend
     context: c.Cell | null /* = null */
 }
@@ -2592,25 +2594,29 @@ export const OnRamp_GetValidatedFee = {
     PREFIX: 0x9c2ccc7e,
 
     create(args: {
+        queryId?: uint64
         ccipSend: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }): OnRamp_GetValidatedFee {
         return {
             $: 'OnRamp_GetValidatedFee',
             context: null,
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OnRamp_GetValidatedFee {
         loadAndCheckPrefix32(s, 0x9c2ccc7e, 'OnRamp_GetValidatedFee');
         return {
             $: 'OnRamp_GetValidatedFee',
+            queryId: s.loadUintBig(64),
             ccipSend: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: OnRamp_GetValidatedFee, b: c.Builder): void {
         b.storeUint(0x9c2ccc7e, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -2627,7 +2633,7 @@ export const OnRamp_GetValidatedFee = {
  >     tokenAmount: Cell<TokenAmount>
  >     tokenPool: address
  >     destChainSelector: uint64
- >     executorID: CCIPSendExecutor_ID
+ >     executorId: CCIPSendExecutorId
  >     receiver: Cell<CrossChainAddress>
  >     originalSender: address
  > }
@@ -2638,7 +2644,7 @@ export interface OnRamp_ExecutorRequestsLockOrBurn {
     tokenAmount: TokenAmount
     tokenPool: c.Address
     destChainSelector: uint64
-    executorID: CCIPSendExecutor_ID
+    executorId: CCIPSendExecutorId
     receiver: CrossChainAddress
     originalSender: c.Address
 }
@@ -2651,7 +2657,7 @@ export const OnRamp_ExecutorRequestsLockOrBurn = {
         tokenAmount: TokenAmount
         tokenPool: c.Address
         destChainSelector: uint64
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
         receiver: CrossChainAddress
         originalSender: c.Address
     }): OnRamp_ExecutorRequestsLockOrBurn {
@@ -2669,7 +2675,7 @@ export const OnRamp_ExecutorRequestsLockOrBurn = {
             tokenAmount: loadCellRef<TokenAmount>(s, TokenAmount.fromSlice),
             tokenPool: s.loadAddress(),
             destChainSelector: s.loadUintBig(64),
-            executorID: CCIPSendExecutor_ID.fromSlice(s),
+            executorId: CCIPSendExecutorId.fromSlice(s),
             receiver: loadCellRef<CrossChainAddress>(s, CrossChainAddress.fromSlice),
             originalSender: s.loadAddress(),
         }
@@ -2680,7 +2686,7 @@ export const OnRamp_ExecutorRequestsLockOrBurn = {
         storeCellRef<TokenAmount>(self.tokenAmount, b, TokenAmount.store);
         b.storeAddress(self.tokenPool);
         b.storeUint(self.destChainSelector, 64);
-        CCIPSendExecutor_ID.store(self.executorID, b);
+        CCIPSendExecutorId.store(self.executorId, b);
         storeCellRef<CrossChainAddress>(self.receiver, b, CrossChainAddress.store);
         b.storeAddress(self.originalSender);
     },
@@ -2692,7 +2698,7 @@ export const OnRamp_ExecutorRequestsLockOrBurn = {
 /**
  > struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {
  >     queryId: uint64
- >     executorID: CCIPSendExecutor_ID
+ >     executorId: CCIPSendExecutorId
  >     destChainSelector: uint64
  >     chainFamilySelector: uint32
  >     destBytesOverhead: uint32
@@ -2702,7 +2708,7 @@ export const OnRamp_ExecutorRequestsLockOrBurn = {
 export interface OnRamp_ExecutorRequestsWithdraw {
     readonly $: 'OnRamp_ExecutorRequestsWithdraw'
     queryId: uint64
-    executorID: CCIPSendExecutor_ID
+    executorId: CCIPSendExecutorId
     destChainSelector: uint64
     chainFamilySelector: uint32
     destBytesOverhead: uint32
@@ -2714,7 +2720,7 @@ export const OnRamp_ExecutorRequestsWithdraw = {
 
     create(args: {
         queryId?: uint64
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
         destChainSelector: uint64
         chainFamilySelector: uint32
         destBytesOverhead: uint32
@@ -2731,7 +2737,7 @@ export const OnRamp_ExecutorRequestsWithdraw = {
         return {
             $: 'OnRamp_ExecutorRequestsWithdraw',
             queryId: s.loadUintBig(64),
-            executorID: CCIPSendExecutor_ID.fromSlice(s),
+            executorId: CCIPSendExecutorId.fromSlice(s),
             destChainSelector: s.loadUintBig(64),
             chainFamilySelector: s.loadUintBig(32),
             destBytesOverhead: s.loadUintBig(32),
@@ -2741,7 +2747,7 @@ export const OnRamp_ExecutorRequestsWithdraw = {
     store(self: OnRamp_ExecutorRequestsWithdraw, b: c.Builder): void {
         b.storeUint(0x05e47a89, 32);
         b.storeUint(self.queryId, 64);
-        CCIPSendExecutor_ID.store(self.executorID, b);
+        CCIPSendExecutorId.store(self.executorId, b);
         b.storeUint(self.destChainSelector, 64);
         b.storeUint(self.chainFamilySelector, 32);
         b.storeUint(self.destBytesOverhead, 32);
@@ -2754,13 +2760,13 @@ export const OnRamp_ExecutorRequestsWithdraw = {
 
 /**
  > struct (0xb6bbebdb) OnRamp_ExecutorReserveFee {
- >     executorID: CCIPSendExecutor_ID
+ >     executorId: CCIPSendExecutorId
  >     fee: coins
  > }
  */
 export interface OnRamp_ExecutorReserveFee {
     readonly $: 'OnRamp_ExecutorReserveFee'
-    executorID: CCIPSendExecutor_ID
+    executorId: CCIPSendExecutorId
     fee: coins
 }
 
@@ -2768,7 +2774,7 @@ export const OnRamp_ExecutorReserveFee = {
     PREFIX: 0xb6bbebdb,
 
     create(args: {
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
         fee: coins
     }): OnRamp_ExecutorReserveFee {
         return {
@@ -2780,13 +2786,13 @@ export const OnRamp_ExecutorReserveFee = {
         loadAndCheckPrefix32(s, 0xb6bbebdb, 'OnRamp_ExecutorReserveFee');
         return {
             $: 'OnRamp_ExecutorReserveFee',
-            executorID: CCIPSendExecutor_ID.fromSlice(s),
+            executorId: CCIPSendExecutorId.fromSlice(s),
             fee: s.loadCoins(),
         }
     },
     store(self: OnRamp_ExecutorReserveFee, b: c.Builder): void {
         b.storeUint(0xb6bbebdb, 32);
-        CCIPSendExecutor_ID.store(self.executorID, b);
+        CCIPSendExecutorId.store(self.executorId, b);
         b.storeCoins(self.fee);
     },
     toCell(self: OnRamp_ExecutorReserveFee): c.Cell {
@@ -2796,19 +2802,19 @@ export const OnRamp_ExecutorReserveFee = {
 
 /**
  > struct (0x540a6d81) OnRamp_ExecutorFeeReserved {
- >     executorID: CCIPSendExecutor_ID
+ >     executorId: CCIPSendExecutorId
  > }
  */
 export interface OnRamp_ExecutorFeeReserved {
     readonly $: 'OnRamp_ExecutorFeeReserved'
-    executorID: CCIPSendExecutor_ID
+    executorId: CCIPSendExecutorId
 }
 
 export const OnRamp_ExecutorFeeReserved = {
     PREFIX: 0x540a6d81,
 
     create(args: {
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
     }): OnRamp_ExecutorFeeReserved {
         return {
             $: 'OnRamp_ExecutorFeeReserved',
@@ -2819,12 +2825,12 @@ export const OnRamp_ExecutorFeeReserved = {
         loadAndCheckPrefix32(s, 0x540a6d81, 'OnRamp_ExecutorFeeReserved');
         return {
             $: 'OnRamp_ExecutorFeeReserved',
-            executorID: CCIPSendExecutor_ID.fromSlice(s),
+            executorId: CCIPSendExecutorId.fromSlice(s),
         }
     },
     store(self: OnRamp_ExecutorFeeReserved, b: c.Builder): void {
         b.storeUint(0x540a6d81, 32);
-        CCIPSendExecutor_ID.store(self.executorID, b);
+        CCIPSendExecutorId.store(self.executorId, b);
     },
     toCell(self: OnRamp_ExecutorFeeReserved): c.Cell {
         return makeCellFrom<OnRamp_ExecutorFeeReserved>(self, OnRamp_ExecutorFeeReserved.store);
@@ -2947,7 +2953,7 @@ export const OnRamp_SetTokenAdminRegistry = {
 
 /**
  > struct (0xcfa6b336) OnRamp_ExecutorFinishedSuccessfully {
- >     executorID: CCIPSendExecutor_ID
+ >     executorId: CCIPSendExecutorId
  >     fee: Fee
  >     msg: Cell<Router_CCIPSend>
  >     metadata: Metadata
@@ -2956,7 +2962,7 @@ export const OnRamp_SetTokenAdminRegistry = {
  */
 export interface OnRamp_ExecutorFinishedSuccessfully {
     readonly $: 'OnRamp_ExecutorFinishedSuccessfully'
-    executorID: CCIPSendExecutor_ID
+    executorId: CCIPSendExecutorId
     fee: Fee
     msg: Router_CCIPSend
     metadata: Metadata
@@ -2967,7 +2973,7 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
     PREFIX: 0xcfa6b336,
 
     create(args: {
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
         fee: Fee
         msg: Router_CCIPSend
         metadata: Metadata
@@ -2982,7 +2988,7 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
         loadAndCheckPrefix32(s, 0xcfa6b336, 'OnRamp_ExecutorFinishedSuccessfully');
         return {
             $: 'OnRamp_ExecutorFinishedSuccessfully',
-            executorID: CCIPSendExecutor_ID.fromSlice(s),
+            executorId: CCIPSendExecutorId.fromSlice(s),
             fee: Fee.fromSlice(s),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             metadata: Metadata.fromSlice(s),
@@ -2991,7 +2997,7 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
     },
     store(self: OnRamp_ExecutorFinishedSuccessfully, b: c.Builder): void {
         b.storeUint(0xcfa6b336, 32);
-        CCIPSendExecutor_ID.store(self.executorID, b);
+        CCIPSendExecutorId.store(self.executorId, b);
         Fee.store(self.fee, b);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         Metadata.store(self.metadata, b);
@@ -3007,7 +3013,7 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
 /**
  > struct (0xc4068e21) OnRamp_ExecutorFinishedWithError {
  >     queryId: uint64
- >     executorID: CCIPSendExecutor_ID
+ >     executorId: CCIPSendExecutorId
  >     destChainSelector: uint64
  >     sender: address
  >     errorCode: int32
@@ -3017,7 +3023,7 @@ export const OnRamp_ExecutorFinishedSuccessfully = {
 export interface OnRamp_ExecutorFinishedWithError {
     readonly $: 'OnRamp_ExecutorFinishedWithError'
     queryId: uint64
-    executorID: CCIPSendExecutor_ID
+    executorId: CCIPSendExecutorId
     destChainSelector: uint64
     sender: c.Address
     errorCode: int32
@@ -3029,7 +3035,7 @@ export const OnRamp_ExecutorFinishedWithError = {
 
     create(args: {
         queryId?: uint64
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
         destChainSelector: uint64
         sender: c.Address
         errorCode: int32
@@ -3046,7 +3052,7 @@ export const OnRamp_ExecutorFinishedWithError = {
         return {
             $: 'OnRamp_ExecutorFinishedWithError',
             queryId: s.loadUintBig(64),
-            executorID: CCIPSendExecutor_ID.fromSlice(s),
+            executorId: CCIPSendExecutorId.fromSlice(s),
             destChainSelector: s.loadUintBig(64),
             sender: s.loadAddress(),
             errorCode: s.loadIntBig(32),
@@ -3058,7 +3064,7 @@ export const OnRamp_ExecutorFinishedWithError = {
     store(self: OnRamp_ExecutorFinishedWithError, b: c.Builder): void {
         b.storeUint(0xc4068e21, 32);
         b.storeUint(self.queryId, 64);
-        CCIPSendExecutor_ID.store(self.executorID, b);
+        CCIPSendExecutorId.store(self.executorId, b);
         b.storeUint(self.destChainSelector, 64);
         b.storeAddress(self.sender);
         b.storeInt(self.errorCode, 32);
@@ -3883,6 +3889,7 @@ export class OnRamp implements c.Contract {
     }
 
     static createCellOfOnRampGetValidatedFee(body: {
+        queryId?: uint64
         ccipSend: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }) {
@@ -3912,7 +3919,7 @@ export class OnRamp implements c.Contract {
         tokenAmount: TokenAmount
         tokenPool: c.Address
         destChainSelector: uint64
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
         receiver: CrossChainAddress
         originalSender: c.Address
     }) {
@@ -3921,7 +3928,7 @@ export class OnRamp implements c.Contract {
 
     static createCellOfOnRampExecutorRequestsWithdraw(body: {
         queryId?: uint64
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
         destChainSelector: uint64
         chainFamilySelector: uint32
         destBytesOverhead: uint32
@@ -3931,14 +3938,14 @@ export class OnRamp implements c.Contract {
     }
 
     static createCellOfOnRampExecutorReserveFee(body: {
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
         fee: coins
     }) {
         return OnRamp_ExecutorReserveFee.toCell(OnRamp_ExecutorReserveFee.create(body));
     }
 
     static createCellOfOnRampExecutorFinishedSuccessfully(body: {
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
         fee: Fee
         msg: Router_CCIPSend
         metadata: Metadata
@@ -3949,7 +3956,7 @@ export class OnRamp implements c.Contract {
 
     static createCellOfOnRampExecutorFinishedWithError(body: {
         queryId?: uint64
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
         destChainSelector: uint64
         sender: c.Address
         errorCode: int32
@@ -4036,6 +4043,7 @@ export class OnRamp implements c.Contract {
     }
 
     async sendOnRampGetValidatedFee(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         ccipSend: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }, extraOptions?: ExtraSendOptions) {
@@ -4077,7 +4085,7 @@ export class OnRamp implements c.Contract {
         tokenAmount: TokenAmount
         tokenPool: c.Address
         destChainSelector: uint64
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
         receiver: CrossChainAddress
         originalSender: c.Address
     }, extraOptions?: ExtraSendOptions) {
@@ -4090,7 +4098,7 @@ export class OnRamp implements c.Contract {
 
     async sendOnRampExecutorRequestsWithdraw(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
         destChainSelector: uint64
         chainFamilySelector: uint32
         destBytesOverhead: uint32
@@ -4104,7 +4112,7 @@ export class OnRamp implements c.Contract {
     }
 
     async sendOnRampExecutorReserveFee(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
         fee: coins
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
@@ -4115,7 +4123,7 @@ export class OnRamp implements c.Contract {
     }
 
     async sendOnRampExecutorFinishedSuccessfully(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
         fee: Fee
         msg: Router_CCIPSend
         metadata: Metadata
@@ -4130,7 +4138,7 @@ export class OnRamp implements c.Contract {
 
     async sendOnRampExecutorFinishedWithError(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        executorID: CCIPSendExecutor_ID
+        executorId: CCIPSendExecutorId
         destChainSelector: uint64
         sender: c.Address
         errorCode: int32

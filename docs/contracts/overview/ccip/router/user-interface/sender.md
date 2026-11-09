@@ -15,18 +15,18 @@ sequenceDiagram
     participant U as Sender
     participant R as Router        
     
-    U ->> R: Router_GetValidatedFee{msg, ctx}
+    U ->> R: Router_GetValidatedFee{queryId, msg, ctx}
     
     Note over R: [...]
 
-    R ->> U: Router_MessageValidated{fee, msg, ctx}
+    R ->> U: Router_MessageValidated{queryId, fee, msg, ctx}
     
     alt Reject
-    R ->> U: Router_MessageValidationFailed
+    R ->> U: Router_MessageValidationFailed{queryId, error, msg, ctx}
     end
 ```
  
-The `context` field allows the user to correlate the response with the request. It can be used to store any information the user wants, and it will be passed back in the callback.
+`queryId` and `context` are echoed back unchanged in the callback, so the user can correlate the response with the request. `context` can hold any information the user wants.
 
 The fee can also be requested off-chain.
 

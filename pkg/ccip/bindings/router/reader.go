@@ -123,8 +123,8 @@ func makeAccountAddressGetter(name string) tvm.Getter[AccountAddressArgs, *addre
 	}
 }
 
-// GetOnRampAccountAddress returns the deposit account escrowing Token sent by User for on-ramp transfers.
-var GetOnRampAccountAddress = makeAccountAddressGetter("onRampAccountAddress")
+// GetSenderAccountAddress returns the deposit account escrowing Token sent by User for on-ramp transfers.
+var GetSenderAccountAddress = makeAccountAddressGetter("senderAccountAddress")
 
-// GetOffRampAccountAddress returns the deposit account where off-ramped Token for User (the receiver) is delivered.
-var GetOffRampAccountAddress = makeAccountAddressGetter("offRampAccountAddress")
+// GetReceiverAccountAddress returns the deposit account where off-ramped Token for User (the receiver) is delivered.
+var GetReceiverAccountAddress = makeAccountAddressGetter("receiverAccountAddress")

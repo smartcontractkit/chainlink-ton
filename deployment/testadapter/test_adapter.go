@@ -509,12 +509,12 @@ func (a *TONAdapter) AllowRouterToWithdrawTokens(ctx context.Context, tokenAddre
 		return err
 	}
 
-	onRampAccount, err := a.deployOnRampAccount(ctx, &routerAddr, tokenAddr)
+	senderAccount, err := a.deploySenderAccount(ctx, &routerAddr, tokenAddr)
 	if err != nil {
-		return fmt.Errorf("failed to deploy on-ramp account: %w", err)
+		return fmt.Errorf("failed to deploy sender account: %w", err)
 	}
-	if err := a.depositToOnRampAccount(ctx, tokenAddr, onRampAccount, amount); err != nil {
-		return fmt.Errorf("failed to deposit into on-ramp account %s: %w", onRampAccount.String(), err)
+	if err := a.depositToSenderAccount(ctx, tokenAddr, senderAccount, amount); err != nil {
+		return fmt.Errorf("failed to deposit into sender account %s: %w", senderAccount.String(), err)
 	}
 
 	if err := a.fundPoolLiquidity(ctx, tokenAddress); err != nil {
@@ -523,20 +523,20 @@ func (a *TONAdapter) AllowRouterToWithdrawTokens(ctx context.Context, tokenAddre
 	return nil
 }
 
-func (a *TONAdapter) deployOnRampAccount(ctx context.Context, routerAddr, tokenAddr *address.Address) (*address.Address, error) {
-	expected, err := tvm.CallGetterLatest(ctx, a.Client, routerAddr, router.GetOnRampAccountAddress,
+func (a *TONAdapter) deploySenderAccount(ctx context.Context, routerAddr, tokenAddr *address.Address) (*address.Address, error) {
+	expected, err := tvm.CallGetterLatest(ctx, a.Client, routerAddr, router.GetSenderAccountAddress,
 		router.AccountAddressArgs{User: a.WalletAddress, Token: tokenAddr})
 	if err != nil {
-		return nil, fmt.Errorf("failed to derive on-ramp account address: %w", err)
+		return nil, fmt.Errorf("failed to derive sender account address: %w", err)
 	}
 
 	queryID, err := tvm.RandomQueryID()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate query id: %w", err)
 	}
-	body, err := tlb.ToCell(router.GetOnRampAccount{QueryID: queryID, Token: tokenAddr})
+	body, err := tlb.ToCell(router.GetSenderAccount{QueryID: queryID, Token: tokenAddr})
 	if err != nil {
-		return nil, fmt.Errorf("failed to build GetOnRampAccount message: %w", err)
+		return nil, fmt.Errorf("failed to build GetSenderAccount message: %w", err)
 	}
 	ttConn := tracetracking.NewSignedAPIClient(a.Client, *a.Wallet)
 	msg, err := ttConn.SendAndWaitForTrace(ctx, *routerAddr, &wallet.Message{
@@ -550,38 +550,38 @@ func (a *TONAdapter) deployOnRampAccount(ctx context.Context, routerAddr, tokenA
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to send GetOnRampAccount: %w", err)
+		return nil, fmt.Errorf("failed to send GetSenderAccount: %w", err)
 	}
 	if !msg.TraceSucceeded() {
-		return nil, errors.New("GetOnRampAccount trace failed")
+		return nil, errors.New("GetSenderAccount trace failed")
 	}
 
 	reply := msg.FindMessageTo(a.WalletAddress)
 	if reply == nil || reply.InternalMsg == nil {
-		return nil, errors.New("router did not reply to GetOnRampAccount")
+		return nil, errors.New("router did not reply to GetSenderAccount")
 	}
-	var use router.UseOnRampAccount
+	var use router.UseSenderAccount
 	if err := tlb.LoadFromCell(&use, reply.InternalMsg.Body.MustBeginParse()); err != nil {
-		var failed router.OnRampAccountFailed
+		var failed router.SenderAccountFailed
 		if failErr := tlb.LoadFromCell(&failed, reply.InternalMsg.Body.MustBeginParse()); failErr == nil {
-			return nil, fmt.Errorf("router rejected GetOnRampAccount with error %d", failed.Error)
+			return nil, fmt.Errorf("router rejected GetSenderAccount with error %d", failed.Error)
 		}
-		return nil, fmt.Errorf("failed to parse GetOnRampAccount reply: %w", err)
+		return nil, fmt.Errorf("failed to parse GetSenderAccount reply: %w", err)
 	}
 	if !use.Account.Equals(expected) {
-		return nil, fmt.Errorf("router returned on-ramp account %s, expected %s", use.Account.String(), expected.String())
+		return nil, fmt.Errorf("router returned sender account %s, expected %s", use.Account.String(), expected.String())
 	}
 	return use.Account, nil
 }
 
-func (a *TONAdapter) depositToOnRampAccount(ctx context.Context, tokenAddr, onRampAccount *address.Address, amount *big.Int) error {
+func (a *TONAdapter) depositToSenderAccount(ctx context.Context, tokenAddr, senderAccount *address.Address, amount *big.Int) error {
 	ownedWallet, err := tvm.CallGetterLatest(ctx, a.Client, tokenAddr, minter.GetWalletAddress, a.WalletAddress)
 	if err != nil {
 		return fmt.Errorf("failed to derive owned jetton wallet address: %w", err)
 	}
-	accountWallet, err := tvm.CallGetterLatest(ctx, a.Client, tokenAddr, minter.GetWalletAddress, onRampAccount)
+	accountWallet, err := tvm.CallGetterLatest(ctx, a.Client, tokenAddr, minter.GetWalletAddress, senderAccount)
 	if err != nil {
-		return fmt.Errorf("failed to derive on-ramp account jetton wallet address: %w", err)
+		return fmt.Errorf("failed to derive sender account jetton wallet address: %w", err)
 	}
 
 	queryID, err := tvm.RandomQueryID()
@@ -591,7 +591,7 @@ func (a *TONAdapter) depositToOnRampAccount(ctx context.Context, tokenAddr, onRa
 	body, err := tlb.ToCell(jettonwallet.AskToTransfer{
 		QueryID:           queryID,
 		JettonAmount:      tlb.MustFromNano(amount, 9),
-		TransferRecipient: onRampAccount,
+		TransferRecipient: senderAccount,
 		SendExcessesTo:    a.WalletAddress,
 		ForwardTonAmount:  tlb.ZeroCoins,
 	})
@@ -618,10 +618,10 @@ func (a *TONAdapter) depositToOnRampAccount(ctx context.Context, tokenAddr, onRa
 
 	balance, err := tvm.CallGetterLatest(ctx, a.Client, accountWallet, jettonwallet.GetWalletData)
 	if err != nil {
-		return fmt.Errorf("failed to read on-ramp account jetton balance: %w", err)
+		return fmt.Errorf("failed to read sender account jetton balance: %w", err)
 	}
 	if balance.Cmp(amount) < 0 {
-		return fmt.Errorf("on-ramp account jetton balance %s is lower than deposited amount %s", balance.String(), amount.String())
+		return fmt.Errorf("sender account jetton balance %s is lower than deposited amount %s", balance.String(), amount.String())
 	}
 	return nil
 }
@@ -649,10 +649,10 @@ func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, o
 		return nil, err
 	}
 
-	depositAccountAddr, err := tvm.CallGetterLatest(ctx, a.Client, &routerAddr, router.GetOffRampAccountAddress,
+	depositAccountAddr, err := tvm.CallGetterLatest(ctx, a.Client, &routerAddr, router.GetReceiverAccountAddress,
 		router.AccountAddressArgs{User: ownerAddr, Token: minterAddr})
 	if err != nil {
-		return nil, fmt.Errorf("failed to derive off-ramp account for receiver %q: %w", ownerAddrStr, err)
+		return nil, fmt.Errorf("failed to derive receiver account for receiver %q: %w", ownerAddrStr, err)
 	}
 
 	walletAddr, err := tvm.CallGetterLatest(ctx, a.Client, minterAddr, minter.GetWalletAddress, depositAccountAddr)

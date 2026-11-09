@@ -27,7 +27,7 @@ describe('OnRamp - ExecutorRequestsLockOrBurn', () => {
   let mockTokenPool: SandboxContract<TreasuryContract>
   let executorAddress: Address
   let executorSender: Sender
-  let executorID: bigint
+  let executorId: bigint
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -106,7 +106,7 @@ describe('OnRamp - ExecutorRequestsLockOrBurn', () => {
     const deployMessage = dep.builder.messages.in.initializeAndSend.load(
       deployTX.inMessage.body.beginParse(),
     )
-    executorID = ex.CCIPSendExecutor_InitialData.fromSlice(
+    executorId = ex.CCIPSendExecutor_InitialData.fromSlice(
       deployMessage.stateInit.data.beginParse(),
     ).id
     executorAddress = dest
@@ -120,7 +120,7 @@ describe('OnRamp - ExecutorRequestsLockOrBurn', () => {
       tokenAmount: or.TokenAmount.create({ amount: 1n, token: deployer.address }),
       tokenPool: mockTokenPool.address,
       destChainSelector: DEST_CHAIN_SELECTOR,
-      executorID,
+      executorId,
       receiver: FromBuffer(EVM_ADDRESS),
       originalSender: deployer.address,
     })

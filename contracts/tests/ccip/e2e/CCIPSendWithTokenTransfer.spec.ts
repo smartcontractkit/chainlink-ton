@@ -177,7 +177,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
                 rateLimitAdmin: deployer.address,
                 feeAdmin: deployer.address,
               }),
-              // Tokens are withdrawn from the Router-owned OnRampAccount. The pool's cache is
+              // Tokens are withdrawn from the Router-owned SenderAccount. The pool's cache is
               // refreshed from the Router on every LockOrBurn, but seed it too so the pool is
               // usable before the first relay.
               allowedDepositNamespaces: new Set([]),
@@ -342,17 +342,17 @@ describe('CCIPSend with token transfer (e2e)', () => {
       jw.JettonWallet.createFromAddress(await minter.getWalletAddress(sender.address)),
     )
     const onRampAcccount = await (async () => {
-      const addr = await router.getOnRampAccountAddress(sender.address, minter.address)
+      const addr = await router.getSenderAccountAddress(sender.address, minter.address)
       return dep.DepositAccount.fromAddress(addr)
     })()
     console.log('onRampAcccount.address', onRampAcccount.address)
-    const onRampAccountWallet = blockchain.openContract(
+    const senderAccountWallet = blockchain.openContract(
       jw.JettonWallet.createFromAddress(await minter.getWalletAddress(onRampAcccount.address)),
     )
 
-    // Deploy OnRamp account
+    // Deploy Sender account
     {
-      const result = await router.sendRouterGetOnRampAccount(sender.getSender(), toNano('0.5'), {
+      const result = await router.sendRouterGetSenderAccount(sender.getSender(), toNano('0.5'), {
         token: minter.address,
       })
       expect(result.transactions).toHaveTransaction({
@@ -364,9 +364,9 @@ describe('CCIPSend with token transfer (e2e)', () => {
       expect(result.transactions).toHaveTransaction({
         from: router.address,
         to: sender.address,
-        op: rt.Router_UseOnRampAccount.PREFIX,
+        op: rt.Router_UseSenderAccount.PREFIX,
         body(x) {
-          const use = rt.Router_UseOnRampAccount.fromSlice(x!.beginParse())
+          const use = rt.Router_UseSenderAccount.fromSlice(x!.beginParse())
           return use.account.equals(onRampAcccount.address)
         },
       })
@@ -396,7 +396,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       // user wallet -> router wallet (deploys it)
       expect(result.transactions).toHaveTransaction({
         from: senderWallet.address,
-        to: onRampAccountWallet.address,
+        to: senderAccountWallet.address,
         op: jw.opcodes.in.INTERNAL_TRANSFER,
         deploy: true,
         success: true,

@@ -52,9 +52,9 @@ const (
 	DefaultOffRampMinGasLimitNanoTON uint32 = 25_000_000
 
 	// DefaultOffRampMinTTGasLimit is the default minimum gas limit (in TON) for
-	// token transfers on the OffRamp. It must be >= LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE
+	// token transfers on the OffRamp. It must be >= LockReleaseTokenPool_RECEIVER_ACCOUNT_DEPLOY_VALUE
 	// (ton("0.2") = 200_000_000 nanoTON), which is the value the LockRelease_LockBox
-	// pool needs to deploy its off-ramp account. It is seeded into the OffRamp dynamic
+	// pool needs to deploy its receiver account. It is seeded into the OffRamp dynamic
 	// config at deployment / migration time.
 	// DefaultTokenDestGasOverheadTON must be >= this.
 	DefaultOffRampMinTTGasLimit = "0.2"

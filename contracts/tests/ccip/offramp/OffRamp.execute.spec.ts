@@ -914,7 +914,7 @@ describe('OffRamp - Execute', () => {
       await setup.setupAndCommitMessage(message)
       await setup.executeReport(setup.createExecuteReport([message]))
 
-      // The OffRamp's ReceiveExecutorId: the source chain, then the message ID's top 128 bits.
+      // The OffRamp's ReceiveExecutionID: the source chain, then the message ID's top 128 bits.
       const messageId = generateMessageID(
         message,
         s.getDefaultMetadataHash(message.header.sourceChainSelector),

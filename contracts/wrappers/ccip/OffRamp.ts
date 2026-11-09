@@ -16,7 +16,7 @@ export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export const DEFAULT_MIN_GASLIMIT = toNano('0.025')
-// LockRelease_LockBox needs LockReleaseTokenPool_OFF_RAMP_ACCOUNT_DEPLOY_VALUE
+// LockRelease_LockBox needs LockReleaseTokenPool_RECEIVER_ACCOUNT_DEPLOY_VALUE
 export const DEFAULT_MIN_TT_GASLIMIT = toNano('0.2')
 
 /** Mirrors the receive-path cost functions in Tolk (OffRamp_Costs, MerkleRoot_Costs,

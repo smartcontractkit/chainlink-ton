@@ -63,10 +63,10 @@ const (
 	ErrorForwardPayloadIsNotCCIPSend
 	ErrorSourceChainSelectorMismatch
 	ErrorSenderIsNotDepositAccount
-	ErrorSenderIsNotOnRampAccount
+	ErrorSenderIsNotSenderAccount
 	ErrorDepositAccountWalletUnavailable
 	ErrorWithdrawExecutorMismatch
-	ErrorOnRampAccountWithdrawFailed
+	ErrorSenderAccountWithdrawFailed
 	ErrorFeePaymentsWithJettonsNotSupported
 )
 
@@ -140,23 +140,42 @@ type CCIPSend struct {
 	ExtraArgs         *cell.Cell                     `tlb:"^"`
 }
 
-type GetOnRampAccount struct {
-	_       tlb.Magic        `tlb:"#0e24d5ba" json:"-"` //nolint:revive // Ignore opcode tag
+type GetSenderAccount struct {
+	_       tlb.Magic        `tlb:"#6cafd96f" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID uint64           `tlb:"## 64"`
 	Token   *address.Address `tlb:"addr"`
+	Context *cell.Cell       `tlb:"maybe ^"`
 }
 
-type UseOnRampAccount struct {
-	_       tlb.Magic        `tlb:"#f28658e0" json:"-"` //nolint:revive // Ignore opcode tag
+type UseSenderAccount struct {
+	_       tlb.Magic        `tlb:"#900d5435" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID uint64           `tlb:"## 64"`
 	Account *address.Address `tlb:"addr"`
 	Token   *address.Address `tlb:"addr"`
+	Context *cell.Cell       `tlb:"maybe ^"`
 }
 
-type OnRampAccountFailed struct {
-	_       tlb.Magic `tlb:"#2c734db9" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID uint64    `tlb:"## 64"`
-	Error   int32     `tlb:"## 32"`
+type SenderAccountFailed struct {
+	_       tlb.Magic  `tlb:"#da7b0350" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64     `tlb:"## 64"`
+	Error   int32      `tlb:"## 32"`
+	Context *cell.Cell `tlb:"maybe ^"`
+}
+
+// GetReceiverAccountAddressMessage is Router_GetReceiverAccountAddress (the getter of the same name is in reader.go).
+type GetReceiverAccountAddressMessage struct {
+	_       tlb.Magic        `tlb:"#0d5421b4" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64           `tlb:"## 64"`
+	Token   *address.Address `tlb:"addr"`
+	Context *cell.Cell       `tlb:"maybe ^"`
+}
+
+type ReceiverAccountAddress struct {
+	_       tlb.Magic        `tlb:"#f540f227" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64           `tlb:"## 64"`
+	Account *address.Address `tlb:"addr"`
+	Token   *address.Address `tlb:"addr"`
+	Context *cell.Cell       `tlb:"maybe ^"`
 }
 
 type RouteMessage struct {
@@ -240,9 +259,11 @@ type RMNAccessControlMessage[T rbac.InMessage | any] struct {
 var TLBs = tvm.MustNewTLBMap([]any{
 	ApplyRampUpdates{},
 	CCIPSend{},
-	GetOnRampAccount{},
-	UseOnRampAccount{},
-	OnRampAccountFailed{},
+	GetSenderAccount{},
+	UseSenderAccount{},
+	SenderAccountFailed{},
+	GetReceiverAccountAddressMessage{},
+	ReceiverAccountAddress{},
 	RouteMessage{},
 	CCIPReceiveConfirm{},
 	CCIPSendACK{},

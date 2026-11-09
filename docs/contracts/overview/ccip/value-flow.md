@@ -42,11 +42,11 @@ Rules the tuning phase applies:
 | `OnRamp.ExecutorFinishedSuccessfully` | none                                        | emit `CCIPMessageSent`, `R0`, `Router_MessageSent` `m128`                                                 | event plus one message                                                                  |
 | `Router.MessageSent`                  | none                                        | `Router_CCIPSendACK` `m64`                                                                                | the user gets the leftover here                                                         |
 | `SendExecutor` error exit             | none                                        | `OnRamp_ExecutorFinishedWithError` `m128`                                                                 | OnRamp refunds the reserved fee with `m64`                                              |
-| `Router.GetOnRampAccount`             | `GetOnRampAccount()` 0.03                   | `Deployable_Initialize` 0.01 `m1`, `R0`, `DepositAccount_Init` `m128`                                     | two messages                                                                            |
+| `Router.GetSenderAccount`             | `GetSenderAccount()` 0.03                   | `Deployable_Initialize` 0.01 `m1`, `R0`, `DepositAccount_Init` `m128`                                     | two messages                                                                            |
 
 Measured failure paths (`tests/gas-report/ccip`, the "rejected" flows) all cost less than the success
 path of the same entrypoint: FeeQuoter rejection, pool rejection of the LockOrBurn relay and a failed
-on-ramp account withdraw on the send side; pool rejection of the ReleaseOrMint relay and a receiver
+sender account withdraw on the send side; pool rejection of the ReleaseOrMint relay and a receiver
 bounce on the receive side. The failure constants in the cost functions stay equal to the success ones.
 
 ## Receive

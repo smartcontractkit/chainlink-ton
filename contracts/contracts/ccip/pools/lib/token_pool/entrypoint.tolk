@@ -446,8 +446,7 @@ fun TokenPool<T>.onGetConfig(self, sender: address, queryId: uint64) {
 }
 
 /// @param feeAdmin An additional address that can withdraw fees from this contract.
-/// @dev FeeTokenHandler will revert if feeAdmin is zero when withdrawing fees.
-/// @dev If only the owner can withdraw fees, set feeAdmin to address(0).
+/// @dev `null` means owner-only; the zero address is not allowed.
 fun TokenPool<T>.setDynamicConfig(
     mutate self,
     sender: address,
@@ -1732,7 +1731,7 @@ fun TokenPool<T>.processLockOrBurnTransfer(
 /// @param originalSender The original CCIP sender on the source chain, used to derive its
 ///        Router-owned account.
 ///
-/// @dev Accepts an OnRampAccount deposit account in an allowed namespace for (originalSender,
+/// @dev Accepts an SenderAccount deposit account in an allowed namespace for (originalSender,
 ///        the pool's jetton master), so an account holding a different jetton never authenticates here.
 ///
 ///      The `withdrawalInitiator == Router` check is what makes the forward payload trustworthy:

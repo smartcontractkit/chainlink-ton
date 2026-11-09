@@ -19,7 +19,7 @@ import {
 import { setTokenPoolSafetyFloor } from '../../utils/minValue'
 import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 import * as da from '../../../wrappers/gen/ccip/DepositAccount'
-import { deriveOnRampAccountAddress } from '../../../wrappers/ccip/OnRampAccount'
+import { deriveSenderAccountAddress } from '../../../wrappers/ccip/SenderAccount'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { deliveryTo, releaseRequest, TokenPoolBehaviorContext } from './TokenPool.behavior'
 
@@ -140,7 +140,7 @@ export function runTokenPoolContinuationBehaviorTests(
           tokenArgs: null,
           replyTo: ctx.deployer.address,
           finalizationValue: toNano('0.01'),
-          onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+          onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
         },
       )
       const withdraw = findTransactionRequired(admitted.transactions, {
@@ -157,9 +157,9 @@ export function runTokenPoolContinuationBehaviorTests(
       )
       const tokensBefore = await wallet.getJettonBalance()
 
-      // Fund the derived OnRamp account, then let it make the authenticated transfer.
+      // Fund the derived Sender account, then let it make the authenticated transfer.
       const deployableCode = await contractCode.ccip.local('Deployable')
-      const accountAddress = deriveOnRampAccountAddress({
+      const accountAddress = deriveSenderAccountAddress({
         router: ctx.onRampAddress,
         user: ctx.deployer.address,
         token: ctx.localToken,

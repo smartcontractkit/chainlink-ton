@@ -290,7 +290,7 @@ describe('SendExecutor - Unit tests', () => {
       onRampMock.getSender(),
       toNano('0.05'),
       {
-        executorID: 0n,
+        executorId: 0n,
       },
     )
 
@@ -481,7 +481,7 @@ describe('SendExecutor - Unit tests', () => {
       onRampMock.getSender(),
       toNano('0.05'),
       {
-        executorID: 0n,
+        executorId: 0n,
       },
     )
 
@@ -577,7 +577,7 @@ describe('SendExecutor - Unit tests', () => {
           x.beginParse(),
         )
         return (
-          executorFinishedSuccessfully.executorID === 0n &&
+          executorFinishedSuccessfully.executorId === 0n &&
           executorFinishedSuccessfully.fee.feeTokenAmount === toNano('0.1') &&
           executorFinishedSuccessfully.fee.feeValueJuels === toNano('0.1')
         )
@@ -693,7 +693,7 @@ describe('SendExecutor - Unit tests', () => {
           x.beginParse(),
         )
         return (
-          executorFinishedWithError.executorID === 0n && executorFinishedWithError.errorCode === 42n
+          executorFinishedWithError.executorId === 0n && executorFinishedWithError.errorCode === 42n
         )
       },
     })
@@ -839,7 +839,7 @@ describe('SendExecutor - Unit tests', () => {
           x.beginParse(),
         )
         return (
-          executorFinishedWithError.executorID === 0n &&
+          executorFinishedWithError.executorId === 0n &&
           executorFinishedWithError.errorCode ===
             BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.FeeQuoterBounce'])
         )
@@ -878,7 +878,7 @@ describe('SendExecutor - Unit tests', () => {
       body(x) {
         if (!x) return false
         const reserveFee = or.OnRamp_ExecutorReserveFee.fromSlice(x.beginParse())
-        return reserveFee.executorID === 0n && reserveFee.fee === FeeTokenAmount
+        return reserveFee.executorId === 0n && reserveFee.fee === FeeTokenAmount
       },
     })
 
@@ -912,7 +912,7 @@ describe('SendExecutor - Unit tests', () => {
       deployer.getSender(), // not the onramp
       toNano('0.05'),
       {
-        executorID: 0n,
+        executorId: 0n,
       },
     )
 
@@ -924,7 +924,7 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
-  it('should throw on fee reserved with incorrect executorID', async () => {
+  it('should throw on fee reserved with incorrect executorId', async () => {
     const { sendExecutor } = await afterExecute({ send: tokenOnrampSend })
 
     // First move the executor into the OnGoingFeeReservation state.
@@ -946,7 +946,7 @@ describe('SendExecutor - Unit tests', () => {
       onRampMock.getSender(),
       toNano('0.05'),
       {
-        executorID: 1n, // incorrect ID
+        executorId: 1n, // incorrect ID
       },
     )
 
@@ -967,7 +967,7 @@ describe('SendExecutor - Unit tests', () => {
       onRampMock.getSender(),
       toNano('0.05'),
       {
-        executorID: 0n,
+        executorId: 0n,
       },
     )
 
@@ -1048,7 +1048,7 @@ describe('SendExecutor - Unit tests', () => {
           x.beginParse(),
         )
         return (
-          executorFinishedWithError.executorID === 0n &&
+          executorFinishedWithError.executorId === 0n &&
           executorFinishedWithError.errorCode ===
             BigInt(
               sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.OnRampFeeReservationBounce'],
@@ -1094,7 +1094,7 @@ describe('SendExecutor - Unit tests', () => {
           x.beginParse(),
         )
         return (
-          executorFinishedWithError.executorID === 0n &&
+          executorFinishedWithError.executorId === 0n &&
           executorFinishedWithError.errorCode ===
             BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenRegistryBounce']) &&
           executorFinishedWithError.refund === FeeTokenAmount
@@ -1133,7 +1133,7 @@ describe('SendExecutor - Unit tests', () => {
           x.beginParse(),
         )
         return (
-          executorFinishedWithError.executorID === 0n &&
+          executorFinishedWithError.executorId === 0n &&
           executorFinishedWithError.errorCode ===
             BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenNotEnabled']) &&
           executorFinishedWithError.refund === FeeTokenAmount
@@ -1191,7 +1191,7 @@ describe('SendExecutor - Unit tests', () => {
         if (!x) return false
         const finished = or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse())
         return (
-          finished.executorID === 0n &&
+          finished.executorId === 0n &&
           finished.errorCode === 0xffffn &&
           finished.refund === FeeTokenAmount
         )
@@ -1219,7 +1219,7 @@ describe('SendExecutor - Unit tests', () => {
         if (!x) return false
         const finished = or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse())
         return (
-          finished.executorID === 0n &&
+          finished.executorId === 0n &&
           finished.errorCode === -14n &&
           finished.refund === FeeTokenAmount
         )
@@ -1283,7 +1283,7 @@ describe('SendExecutor - Unit tests', () => {
           if (!x) return false
           const finished = or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse())
           return (
-            finished.executorID === 0n &&
+            finished.executorId === 0n &&
             finished.errorCode === 0xffffn && // the Bouncer throws 0xFFFF
             finished.refund === FeeTokenAmount
           )

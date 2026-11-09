@@ -57,24 +57,24 @@ describe('Router.withdrawToTokenPool', () => {
 
   const destChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 
-  // The sender's deposit account for `jetton`, derived exactly like Router.onRampAccountAddress
-  // (Deployable namespace OnRampAccount, owner = Router, id = (user, token)).
+  // The sender's deposit account for `jetton`, derived exactly like Router.senderAccountAddress
+  // (Deployable namespace SenderAccount, owner = Router, id = (user, token)).
   const accountAddressFor = (user: Address, jetton: Address = token): Address =>
     NameSpace.deriveAddress(
       router.address,
-      NameSpace.CCIPNamespace.OnRampAccount,
+      NameSpace.CCIPNamespace.SenderAccount,
       beginCell().storeAddress(user).storeAddress(jetton),
       deployableCode,
     )
 
-  // Requests the on-ramp account and, on its first init, answers the account's TEP-89 wallet
+  // Requests the sender account and, on its first init, answers the account's TEP-89 wallet
   // query on behalf of the token.
-  const requestOnRampAccount = async (
+  const requestSenderAccount = async (
     via: SandboxContract<TreasuryContract>,
     jetton: Address = token,
     value: bigint = toNano('1'),
   ) => {
-    const request = await router.sendRouterGetOnRampAccount(via.getSender(), value, {
+    const request = await router.sendRouterGetSenderAccount(via.getSender(), value, {
       token: jetton,
     })
     const account = accountAddressFor(via.address, jetton)
@@ -98,13 +98,13 @@ describe('Router.withdrawToTokenPool', () => {
   }
 
   // Deploys the sender's deposit account through the Router's permissionless
-  // Router_GetOnRampAccount entrypoint, so the account exists with the Router as owner.
+  // Router_GetSenderAccount entrypoint, so the account exists with the Router as owner.
   const deployDepositAccount = async (user: SandboxContract<TreasuryContract>) => {
-    const res = await requestOnRampAccount(user)
+    const res = await requestSenderAccount(user)
     expect(res.transactions).toHaveTransaction({
       from: router.address,
       to: user.address,
-      op: rt.Router_UseOnRampAccount.PREFIX,
+      op: rt.Router_UseSenderAccount.PREFIX,
       success: true,
     })
     return accountAddressFor(user.address)
@@ -117,7 +117,7 @@ describe('Router.withdrawToTokenPool', () => {
     replyTo?: Address
   }): rt.Router_WithdrawRequest =>
     rt.Router_WithdrawRequest.create({
-      onRampAccount: rt.Router_DepositAccountID.create({ user: opts.user, token }),
+      senderAccount: rt.Router_DepositAccountID.create({ user: opts.user, token }),
       amount: opts.amount,
       tokenPool: opts.tokenPool,
       forwardTonAmount: toNano('0.05'),
@@ -152,7 +152,7 @@ describe('Router.withdrawToTokenPool', () => {
         tokenArgs: null,
         replyTo,
         finalizationValue: toNano('0.01'),
-        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
       }),
       prepared: rt.TokenPool_LockOrBurnPrepared.create({
         feeAmount: 0n,
@@ -306,7 +306,7 @@ describe('Router.withdrawToTokenPool', () => {
       tokenPool: tokenPool.address,
       exitCode: 0n,
     })
-    expectCCIPSendFailed(result, tokenPool.address, 'Router_Error.OnRampAccountWithdrawFailed')
+    expectCCIPSendFailed(result, tokenPool.address, 'Router_Error.SenderAccountWithdrawFailed')
   })
 
   it('fails the CCIPSend when the account transfer to the pool bounces', async () => {
@@ -330,12 +330,12 @@ describe('Router.withdrawToTokenPool', () => {
       op: deposit.DepositAccount_WithdrawFailed.PREFIX,
       success: true,
     })
-    expectCCIPSendFailed(result, tokenPool.address, 'Router_Error.OnRampAccountWithdrawFailed')
+    expectCCIPSendFailed(result, tokenPool.address, 'Router_Error.SenderAccountWithdrawFailed')
   })
 
   it('fails the CCIPSend when the account rejects the withdraw', async () => {
     const tokenPool = await blockchain.treasury('tokenPool')
-    // The sender never requested an on-ramp account, so the withdraw bounces off its address.
+    // The sender never requested an sender account, so the withdraw bounces off its address.
     const accountAddress = accountAddressFor(sender.address)
 
     const result = await router.sendRouterWithdrawToTokenPool(onRamp.getSender(), withdrawValue, {
@@ -405,7 +405,7 @@ describe('Router.withdrawToTokenPool', () => {
       from: attacker.address,
       to: router.address,
       success: false,
-      exitCode: rt.Router.Errors['Router_Error.SenderIsNotOnRampAccount'],
+      exitCode: rt.Router.Errors['Router_Error.SenderIsNotSenderAccount'],
     })
   })
 
@@ -431,7 +431,7 @@ describe('Router.withdrawToTokenPool', () => {
       from: accountAddress,
       to: router.address,
       success: false,
-      exitCode: rt.Router.Errors['Router_Error.SenderIsNotOnRampAccount'],
+      exitCode: rt.Router.Errors['Router_Error.SenderIsNotSenderAccount'],
     })
   })
 

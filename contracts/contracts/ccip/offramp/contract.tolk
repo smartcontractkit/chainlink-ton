@@ -545,7 +545,7 @@ fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: ad
 //     OffRamp         ->> Router:    Router_TokenTransferDelivered
 //     Router          ->> TokenPool: TokenPool_ReleaseOrMintDelivered
 //     TokenPool       ->> ReceiveExecutor: TokenPool_ReleaseOrMintFinalized
-fun relayTokenTransferDelivered(st: Storage, queryId: uint64, execId: ReceiveExecutorId, receiveExecutor: address, deliveredCell: Cell<OffRamp_DeliveredTransfer>, carryValue: bool) {
+fun relayTokenTransferDelivered(st: Storage, queryId: uint64, execId: ReceiveExecutionID, receiveExecutor: address, deliveredCell: Cell<OffRamp_DeliveredTransfer>, carryValue: bool) {
     val delivered = lazy deliveredCell.load();
     val relay = createMessage({
         bounce: BounceMode.NoBounce,
@@ -1234,7 +1234,7 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
 
     // Released/minted tokens are delivered to the receiver's Router-owned deposit account for
     // this token, so a pool can only ever credit the account of the token it is registered for.
-    val receiverAccount = Router.offRampAccount(
+    val receiverAccount = Router.receiverAccount(
         getRouterFromSelector(st, sourceChainSelector),
         receiver,
         tokenTransfer.token,
@@ -1259,11 +1259,11 @@ fun getRouterFromSelector(st: Storage, sourceChainSelector: uint64): address {
 }
 
 /*
-Generates a unique ReceiveExecutorId by combining the sourceChainSelector
+Generates a unique ReceiveExecutionID by combining the sourceChainSelector
 and the lower 160 bits of the internal messageId. Used to derive the
 ReceiveExecutor contract identifier for message execution tracking
 */
-fun getOwnedReceiveExecutorContractId(messageId: uint256, sourceChainSelector: uint64): ReceiveExecutorId {
+fun getOwnedReceiveExecutorContractId(messageId: uint256, sourceChainSelector: uint64): ReceiveExecutionID {
     var cs = beginCell().storeUint(messageId, 256)
         .endCell().beginParse();
 
@@ -1278,7 +1278,7 @@ fun getOwnedReceiveExecutorContractId(messageId: uint256, sourceChainSelector: u
 /*
 Derives the receiver executor contract address from the execId
 */
-fun getReceiverExecutorDeployAddress(st: Storage, execId: ReceiveExecutorId): AutoDeployAddress {
+fun getReceiverExecutorDeployAddress(st: Storage, execId: ReceiveExecutionID): AutoDeployAddress {
     return {
         stateInit: {
             code: deployerCode(),
@@ -1294,7 +1294,7 @@ fun getReceiverExecutorDeployAddress(st: Storage, execId: ReceiveExecutorId): Au
 /*
 Verifies that the caller corresponds to a receiver executor contract
 */
-fun assertSenderIsReceiverExecutor(st: Storage, execId: ReceiveExecutorId, sender: address) {
+fun assertSenderIsReceiverExecutor(st: Storage, execId: ReceiveExecutionID, sender: address) {
     val expectedAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execId);
     assert(expectedAddress.calculateAddress() == sender) throw (OffRamp_Error.MessageNotFromOwnedContract);
 }
@@ -1350,14 +1350,11 @@ fun assertSenderIsTheRouter(st: Storage, sourceChainSelector: uint64, sender: ad
 }
 
 /*
-Updates the dynamic configuration parameters for the OffRamp contract.
-Validates that the feeQuoter address is non-zero, updates the stored
-configuration and emits a DYNAMIC_CONFIG_SET_TOPIC event.
+Updates the dynamic configuration parameters for the OffRamp contract,
+stores the configuration and emits a DYNAMIC_CONFIG_SET_TOPIC event.
 */
 fun onSetDynamicConfig(msg: OffRamp_SetDynamicConfig) {
     var st = Storage.load();
-
-    // NOTE: address now is guaranteed to be non-zero, address? allows zero
 
     var config = st.config.load();
     config.dynamicConfig = msg.config.toCell();

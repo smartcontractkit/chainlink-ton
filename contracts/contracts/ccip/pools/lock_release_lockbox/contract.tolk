@@ -320,7 +320,7 @@ fun onReleaseOrMintContinue(
 ): Storage? {
     assert (ctx != null) throw (TokenPool_Error.UnsupportedOperation);
     var st = ctx;
-    assert (st.lockbox != createAddressNone()) throw (LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
+    assert(!isZeroAddress(st.lockbox)) throw (LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
 
     // Caller-selected excess recipient; default to the request sender.
     val sendExcessesTo = msg.sendExcessesTo != null ? msg.sendExcessesTo! : sender;
@@ -437,7 +437,7 @@ fun defaultBudget(_ctx: Storage?): TokenPool_Budget {
 
 /// Releases are transferred out of the lockbox's wallet.
 fun transferInitiator(ctx: Storage?): address? {
-    assert (ctx != null && ctx!.lockbox != createAddressNone()) throw (LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
+    assert(ctx != null && !isZeroAddress(ctx!.lockbox)) throw (LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
     return ctx.lockbox;
 }
 

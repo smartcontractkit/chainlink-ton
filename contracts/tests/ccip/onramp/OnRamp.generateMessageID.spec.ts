@@ -26,7 +26,7 @@ describe('OnRamp - generate message id', () => {
   let mockRouter: SandboxContract<TreasuryContract>
   let mockFeeQuoter: SandboxContract<TreasuryContract>
   let executorSender: Sender
-  let executorID: bigint
+  let executorId: bigint
 
   const ccipSend = or.Router_CCIPSend.create({
     queryId: 1n,
@@ -146,7 +146,7 @@ describe('OnRamp - generate message id', () => {
     const storage = ex.CCIPSendExecutor_InitialData.fromSlice(
       deployMessage.stateInit.data.beginParse(),
     )
-    executorID = storage.id
+    executorId = storage.id
   })
 
   it('should generate same message id with same message', async () => {
@@ -155,7 +155,7 @@ describe('OnRamp - generate message id', () => {
     // otherwise the report is rejected with PendingFeeReservationsUnderflow.
     const fee = 1n
     await onramp.sendOnRampExecutorReserveFee(executorSender, fee + toNano('0.05'), {
-      executorID: executorID,
+      executorId: executorId,
       fee,
     })
 
@@ -163,7 +163,7 @@ describe('OnRamp - generate message id', () => {
       executorSender,
       toNano('0.5'),
       {
-        executorID: executorID,
+        executorId: executorId,
         fee: or.Fee.create({
           feeTokenAmount: 1n,
           feeValueJuels: 1n,

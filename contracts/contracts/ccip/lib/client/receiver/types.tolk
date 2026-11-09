@@ -14,4 +14,4 @@ struct Any2TVMMessage {
     tokenAmounts: SnakedCell<TokenAmount>?;
 }
 
-type ReceiveExecutorId = uint192;
+type ReceiveExecutionID = uint192;

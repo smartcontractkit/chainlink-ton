@@ -5,7 +5,7 @@ import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
-import { setup, contractsCoverageConfig, genExecID } from './Router.Setup'
+import { setup, contractsCoverageConfig, genexecId } from './Router.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
 
 describe('Router', () => {
@@ -43,12 +43,12 @@ describe('Router', () => {
   })
 
   it('should handle ccipReceiveConfirm', async () => {
-    const execID = genExecID({
+    const execId = genexecId({
       sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       messageID: 1n,
     })
     const result = await router.sendRouterCCIPReceiveConfirm(receiver.getSender(), toNano('1'), {
-      execId: execID,
+      execId: execId,
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -65,18 +65,18 @@ describe('Router', () => {
       body(x) {
         if (!x) return false
         const decoded = of.OffRamp_CCIPReceiveConfirm.fromSlice(x.beginParse())
-        return decoded.execId === execID
+        return decoded.execId === execId
       },
     })
   })
 
-  it('should throw on ccipReceiveConfirm with execID with invalid source chain', async () => {
-    const execID = genExecID({
+  it('should throw on ccipReceiveConfirm with execId with invalid source chain', async () => {
+    const execId = genexecId({
       sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 + 1n,
       messageID: 1n,
     })
     const result = await router.sendRouterCCIPReceiveConfirm(receiver.getSender(), toNano('1'), {
-      execId: execID,
+      execId: execId,
     })
 
     expect(result.transactions).toHaveTransaction({

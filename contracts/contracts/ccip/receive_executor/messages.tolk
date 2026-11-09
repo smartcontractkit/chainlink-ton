@@ -70,7 +70,7 @@ struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
     receiver: address
     /// Unused by the executor; it lets the OffRamp relay a rejection to the Router. Last, so
     /// executors deployed before it was added still accept the message.
-    execId: ReceiveExecutorId;
+    execId: ReceiveExecutionID;
 }
 
 struct (0x8854993b) ReceiveExecutor_CCIPReceiveFailed {

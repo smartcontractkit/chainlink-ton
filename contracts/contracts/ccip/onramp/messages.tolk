@@ -44,6 +44,7 @@ struct (0xdcf993c2) OnRamp_Send {
 }
 
 struct (0x9c2ccc7e) OnRamp_GetValidatedFee {
+    queryId: uint64;
     ccipSend: Cell<Router_CCIPSend>;
     context: cell? = null;
 }
@@ -53,7 +54,7 @@ struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
     tokenAmount: Cell<TokenAmount>, // Cell<> otherwise they don't fit
     tokenPool: address,
     destChainSelector: uint64,
-    executorID: CCIPSendExecutor_ID,
+    executorId: CCIPSendExecutorId,
     receiver: Cell<CrossChainAddress>, // Cell<> otherwise they don't fit
     originalSender: address,
 }
@@ -65,7 +66,7 @@ const TOKEN_POOL_DEFAULT_LOCK_OR_BURN_ADMISSION: coins = grams("0.105");
 
 struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {
     queryId: uint64,
-    executorID: CCIPSendExecutor_ID,
+    executorId: CCIPSendExecutorId,
     destChainSelector: uint64,
     // Destination chain family echoed from the FeeQuoter's validation reply.
     chainFamilySelector: uint32,
@@ -76,13 +77,13 @@ struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {
 // Sent by the executor immediately after fee validation. The attached value
 // includes `fee` plus enough TON for this request and its confirmation.
 struct (0xb6bbebdb) OnRamp_ExecutorReserveFee {
-    executorID: CCIPSendExecutor_ID,
+    executorId: CCIPSendExecutorId,
     fee: coins,
 }
 
 // The OnRamp sends this only after it has reserved the requested fee.
 struct (0x540a6d81) OnRamp_ExecutorFeeReserved {
-    executorID: CCIPSendExecutor_ID,
+    executorId: CCIPSendExecutorId,
 }
 
 struct OnRamp_GetValidatedFeeContext {
@@ -100,7 +101,7 @@ struct (0x1c3f167d) OnRamp_SetTokenAdminRegistry {
 }
 
 struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
-    executorID: CCIPSendExecutor_ID,
+    executorId: CCIPSendExecutorId,
     fee: Fee
     msg: Cell<Router_CCIPSend>
     metadata: Metadata
@@ -112,7 +113,7 @@ struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
 
 struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
     queryId: uint64
-    executorID: CCIPSendExecutor_ID
+    executorId: CCIPSendExecutorId
     destChainSelector: uint64
     sender: address
     errorCode: int32

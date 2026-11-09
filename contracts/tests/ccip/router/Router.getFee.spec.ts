@@ -99,6 +99,8 @@ describe.each(cases)(
       }),
     })
 
+    const QUERY_ID = 42n
+
     describe(`context: ${description}`, () => {
       describe('new version', () => {
         it('should reject a request below Router_Costs.GetValidatedFee', async () => {
@@ -123,6 +125,7 @@ describe.each(cases)(
             sender.getSender(),
             Costs.getValidatedFee,
             {
+              queryId: QUERY_ID,
               ccipSend: msg,
               context,
             },
@@ -146,6 +149,7 @@ describe.each(cases)(
                 decoded.context!.beginParse(),
               )
               return (
+                decodedContext.queryId === QUERY_ID &&
                 decodedContext.routerContext.equals(sender.address) &&
                 decodedContext.oldContextVersion === false &&
                 contextsEqual(decodedContext.userContext, context) &&
@@ -179,6 +183,7 @@ describe.each(cases)(
             sender.getSender(),
             Costs.getValidatedFee,
             {
+              queryId: QUERY_ID,
               ccipSend: jettonMsg,
               context,
             },
@@ -198,8 +203,9 @@ describe.each(cases)(
               if (!x) return false
               const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
               return (
+                decoded.queryId === QUERY_ID &&
                 decoded.errorCode ===
-                BigInt(rt.Router.Errors['Router_Error.FeePaymentsWithJettonsNotSupported'])
+                  BigInt(rt.Router.Errors['Router_Error.FeePaymentsWithJettonsNotSupported'])
               )
             },
           })
@@ -230,6 +236,7 @@ describe.each(cases)(
             sender.getSender(),
             Costs.getValidatedFee,
             {
+              queryId: QUERY_ID,
               ccipSend: badMsg,
               context,
             },
@@ -249,6 +256,7 @@ describe.each(cases)(
               if (!x) return false
               const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
               return (
+                decoded.queryId === QUERY_ID &&
                 decoded.errorCode === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
               )
             },
@@ -391,6 +399,7 @@ describe.each(cases)(
             msg,
             context: rt.Router_GetValidatedFeeContext.toCell(
               rt.Router_GetValidatedFeeContext.create({
+                queryId: QUERY_ID,
                 routerContext: sender.address,
                 oldContextVersion: false,
                 userContext: context,
@@ -412,6 +421,7 @@ describe.each(cases)(
               if (!x) return false
               const decoded = rt.Router_MessageValidated.fromSlice(x.beginParse())
               return (
+                decoded.queryId === QUERY_ID &&
                 contextsEqual(decoded.context, context) &&
                 decoded.fee === toNano('0.5') &&
                 decoded.msg.queryId === 1n &&
@@ -456,6 +466,7 @@ describe.each(cases)(
               msg,
               context: rt.Router_GetValidatedFeeContext.toCell(
                 rt.Router_GetValidatedFeeContext.create({
+                  queryId: QUERY_ID,
                   routerContext: sender.address,
                   oldContextVersion: false,
                   userContext: context,
@@ -478,6 +489,7 @@ describe.each(cases)(
               if (!x) return false
               const decoded = rt.Router_MessageValidationFailed.fromSlice(x.beginParse())
               return (
+                decoded.queryId === QUERY_ID &&
                 contextsEqual(decoded.context, context) &&
                 decoded.errorCode === 12345n &&
                 decoded.msg.queryId === 1n &&

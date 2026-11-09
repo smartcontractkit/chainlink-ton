@@ -52,7 +52,7 @@ function buildWithdrawRequest(opts: {
     tokenArgs: null,
     replyTo: opts.originalSender,
     finalizationValue: toNano('0.01'),
-    onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+    onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
   })
 
   const prepared = tp.TokenPool_LockOrBurnPrepared.create({
@@ -65,7 +65,7 @@ function buildWithdrawRequest(opts: {
   })
 
   return rt.Router_WithdrawRequest.create({
-    onRampAccount: rt.Router_DepositAccountID.create({
+    senderAccount: rt.Router_DepositAccountID.create({
       user: opts.originalSender,
       token: opts.token,
     }),
@@ -88,7 +88,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
   let mockTokenPool: SandboxContract<TreasuryContract>
   let mockToken: SandboxContract<TreasuryContract>
   let executorSender: Sender
-  let executorID: bigint
+  let executorId: bigint
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -106,7 +106,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
     mockRouter = await blockchain.treasury('mockRouter')
     mockTokenPool = await blockchain.treasury('mockTokenPool')
     mockToken = await blockchain.treasury('mockToken')
-    executorID = BigInt(generateRandomContractId())
+    executorId = BigInt(generateRandomContractId())
     ;({ deployer, onramp } = await setup(blockchain, {
       config: {
         feeQuoter: (await blockchain.treasury('mockFeeQuoter')).address,
@@ -177,7 +177,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
     const deployMessage = dep.builder.messages.in.initializeAndSend.load(
       deployTX.inMessage.body.beginParse(),
     )
-    executorID = ex.CCIPSendExecutor_InitialData.fromSlice(
+    executorId = ex.CCIPSendExecutor_InitialData.fromSlice(
       deployMessage.stateInit.data.beginParse(),
     ).id
 
@@ -193,7 +193,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
   ) =>
     onramp.sendOnRampExecutorRequestsWithdraw(executorSender, toNano('1'), {
       queryId: 1n,
-      executorID,
+      executorId,
       destChainSelector: DEST_CHAIN_SELECTOR,
       chainFamilySelector,
       destBytesOverhead,
