@@ -404,7 +404,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     }
 
     const ccipSend = rt.Router_CCIPSend.create({
-      queryID: 1n,
+      queryId: 1n,
       destChainSelector: DestChainSelector,
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
@@ -647,7 +647,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       body(x) {
         if (!x) return false
         return (
-          or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse()).error ===
+          or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse()).errorCode ===
           BigInt(exe.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenNotEnabled'])
         )
       },

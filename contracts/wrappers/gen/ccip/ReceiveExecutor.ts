@@ -1723,19 +1723,19 @@ export const ReleaseOrMint_ReleaseOrMintFailedReason = {
 
 /**
  > struct (0xb70c2a9a) ReleaseOrMintBounced {
- >     exitCode: int32
+ >     errorCode: int32
  > }
  */
 export interface ReleaseOrMintBounced {
     readonly $: 'ReleaseOrMintBounced'
-    exitCode: int32
+    errorCode: int32
 }
 
 export const ReleaseOrMintBounced = {
     PREFIX: 0xb70c2a9a,
 
     create(args: {
-        exitCode: int32
+        errorCode: int32
     }): ReleaseOrMintBounced {
         return {
             $: 'ReleaseOrMintBounced',
@@ -1746,12 +1746,12 @@ export const ReleaseOrMintBounced = {
         loadAndCheckPrefix32(s, 0xb70c2a9a, 'ReleaseOrMintBounced');
         return {
             $: 'ReleaseOrMintBounced',
-            exitCode: s.loadIntBig(32),
+            errorCode: s.loadIntBig(32),
         }
     },
     store(self: ReleaseOrMintBounced, b: c.Builder): void {
         b.storeUint(0xb70c2a9a, 32);
-        b.storeInt(self.exitCode, 32);
+        b.storeInt(self.errorCode, 32);
     },
     toCell(self: ReleaseOrMintBounced): c.Cell {
         return makeCellFrom<ReleaseOrMintBounced>(self, ReleaseOrMintBounced.store);
@@ -1792,12 +1792,14 @@ export const NotEnoughDestGasAmountForTokenTransfer = {
  > struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
  >     queryId: uint64
  >     receiver: address
+ >     execId: ReceiveExecutionID
  > }
  */
 export interface ReceiveExecutor_CCIPReceiveConfirm {
     readonly $: 'ReceiveExecutor_CCIPReceiveConfirm'
     queryId: uint64
     receiver: c.Address
+    execId: ReceiveExecutionID
 }
 
 export const ReceiveExecutor_CCIPReceiveConfirm = {
@@ -1806,6 +1808,7 @@ export const ReceiveExecutor_CCIPReceiveConfirm = {
     create(args: {
         queryId?: uint64
         receiver: c.Address
+        execId: ReceiveExecutionID
     }): ReceiveExecutor_CCIPReceiveConfirm {
         return {
             $: 'ReceiveExecutor_CCIPReceiveConfirm',
@@ -1819,12 +1822,14 @@ export const ReceiveExecutor_CCIPReceiveConfirm = {
             $: 'ReceiveExecutor_CCIPReceiveConfirm',
             queryId: s.loadUintBig(64),
             receiver: s.loadAddress(),
+            execId: ReceiveExecutionID.fromSlice(s),
         }
     },
     store(self: ReceiveExecutor_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0xf0af71c5, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.receiver);
+        ReceiveExecutionID.store(self.execId, b);
     },
     toCell(self: ReceiveExecutor_CCIPReceiveConfirm): c.Cell {
         return makeCellFrom<ReceiveExecutor_CCIPReceiveConfirm>(self, ReceiveExecutor_CCIPReceiveConfirm.store);
@@ -2329,7 +2334,7 @@ export const ReceiveExecutor_MessageExecutionState = {
 }
 
 /**
- > enum ReceiveExecutor_Error { 10 variants }
+ > enum ReceiveExecutor_Error { 11 variants }
  */
 export type ReceiveExecutor_Error = bigint
 
@@ -2344,6 +2349,7 @@ export const ReceiveExecutor_Error = {
     TokenPoolUnexpectedResponse: 37607n,
     TokenNotEnabledInTokenRegistry: 37608n,
     TokenAdmissionNotMet: 37609n,
+    UnhandledLegacyBounce: 37610n,
 
     fromSlice(s: c.Slice): ReceiveExecutor_Error {
         return s.loadUintBig(16);
@@ -2480,6 +2486,7 @@ export class ReceiveExecutor implements c.Contract {
         'ReceiveExecutor_Error.TokenPoolUnexpectedResponse': 37607,
         'ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry': 37608,
         'ReceiveExecutor_Error.TokenAdmissionNotMet': 37609,
+        'ReceiveExecutor_Error.UnhandledLegacyBounce': 37610,
     }
 
     readonly address: c.Address
@@ -2591,6 +2598,7 @@ export class ReceiveExecutor implements c.Contract {
     static createCellOfReceiveExecutorCCIPReceiveConfirm(body: {
         queryId?: uint64
         receiver: c.Address
+        execId: ReceiveExecutionID
     }) {
         return ReceiveExecutor_CCIPReceiveConfirm.toCell(ReceiveExecutor_CCIPReceiveConfirm.create(body));
     }
@@ -2723,6 +2731,7 @@ export class ReceiveExecutor implements c.Contract {
     async sendReceiveExecutorCCIPReceiveConfirm(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         receiver: c.Address
+        execId: ReceiveExecutionID
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

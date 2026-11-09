@@ -1,5 +1,11 @@
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Cell, toNano } from '@ton/core'
+import {
+  Blockchain,
+  createShardAccount,
+  internal,
+  SandboxContract,
+  TreasuryContract,
+} from '@ton/sandbox'
+import { beginCell, Cell, toNano } from '@ton/core'
 import { crc32 } from 'zlib'
 
 import { errorCode, facilityId } from '../../../wrappers/utils'
@@ -202,6 +208,112 @@ describe('MerkleRoot - Message Handling', () => {
 
       const storage = await loadStorage(merkleRoot.address)
       expect(storage.messageStates).toBe(encodeState(1n, mr.ExecutionState.InProgress, 1n))
+    })
+
+    describe('when the OffRamp bounces OffRamp_ExecuteValidated', () => {
+      let merkleRoot: SandboxContract<mr.MerkleRoot>
+      let bounce: Awaited<ReturnType<Blockchain['sendMessage']>>['transactions'][number]
+
+      beforeEach(async () => {
+        merkleRoot = await deployMerkleRootContract(blockchain, owner, {
+          root: ROOT,
+          timestamp: NOW,
+          minMsgNr: 1n,
+          maxMsgNr: 3n,
+        })
+
+        // The owner (the OffRamp) rejects every message while the request is in flight.
+        const ownerAccount = (await blockchain.getContract(owner.address)).account
+        await blockchain.setShardAccount(
+          owner.address,
+          createShardAccount({
+            address: owner.address,
+            code: await contractCode.ccip.local('tests.mock.Bouncer'),
+            data: Cell.EMPTY,
+            balance: toNano('10'),
+          }),
+        )
+        const result = await merkleRoot.sendMerkleRootValidate(
+          blockchain.sender(owner.address),
+          toNano('0.5'),
+          {
+            message: buildMessage(1n),
+            permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
+            metadataHash: METADATA_HASH,
+            offchainTokenData: [[]],
+            gasOverride: null,
+            excessesTo: owner.address,
+          },
+        )
+        await blockchain.setShardAccount(owner.address, ownerAccount)
+
+        expect(result.transactions).toHaveTransaction({
+          from: merkleRoot.address,
+          to: owner.address,
+          op: mr.OffRamp_ExecuteValidated.PREFIX,
+          success: false,
+        })
+        const found = findTransaction(result.transactions, {
+          from: owner.address,
+          to: merkleRoot.address,
+          op: 0xfffffffe,
+          success: true,
+        })
+        if (!found) throw new Error('Rich bounce of OffRamp_ExecuteValidated not found')
+        bounce = found
+      })
+
+      it('should mark the message Failure, so it can be manually executed', async () => {
+        const storage = await loadStorage(merkleRoot.address)
+        expect(storage.messageStates).toBe(encodeState(1n, mr.ExecutionState.Failure, 1n))
+
+        // Failure allows manual execution even though the commit is fresh.
+        const retry = await merkleRoot.sendMerkleRootValidate(owner.getSender(), toNano('0.5'), {
+          message: buildMessage(1n),
+          permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
+          metadataHash: METADATA_HASH,
+          offchainTokenData: [[]],
+          gasOverride: buildGasOverride(),
+          excessesTo: owner.address,
+        })
+        expect(retry.transactions).toHaveTransaction({
+          from: merkleRoot.address,
+          to: owner.address,
+          op: mr.OffRamp_ExecuteValidated.PREFIX,
+        })
+      })
+
+      it('should reject the bounce once the message is no longer InProgress', async () => {
+        const result = await blockchain.sendMessage(bounce.inMessage!)
+        expect(result.transactions).toHaveTransaction({
+          from: owner.address,
+          to: merkleRoot.address,
+          success: false,
+          exitCode: mr.MerkleRoot.Errors['MerkleRoot_Error.InvalidState'],
+        })
+      })
+    })
+
+    it('should throw on a legacy bounce', async () => {
+      const merkleRoot = await deployMerkleRootContract(blockchain, owner)
+      const result = await blockchain.sendMessage(
+        internal({
+          from: owner.address,
+          to: merkleRoot.address,
+          value: toNano('0.1'),
+          bounced: true,
+          body: beginCell()
+            .storeUint(0xffffffff, 32)
+            .storeUint(mr.OffRamp_ExecuteValidated.PREFIX, 32)
+            .endCell(),
+        }),
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: owner.address,
+        to: merkleRoot.address,
+        success: false,
+        exitCode: mr.MerkleRoot.Errors['MerkleRoot_Error.UnhandledLegacyBounce'],
+      })
     })
 
     it('should reject MerkleRoot_Validate from non-owner (NotOwner)', async () => {
@@ -568,10 +680,11 @@ describe('MerkleRoot - Message Handling', () => {
       expect(excessValue).toBeLessThan(toNano('0.1'))
       expect(excessValue).toBeGreaterThan(toNano('0.09'))
 
-      // Freeze-return: merkleRoot then sends the rest of its own balance (CARRY_ALL_BALANCE) to owner.
+      // Final report, sent NoBounce: merkleRoot then sends the rest of its own balance (CARRY_ALL_BALANCE) to owner.
       const freezeTX = findTransaction(transactions, {
         from: merkleRoot.address,
         to: owner.address,
+        inMessageBounceable: false,
         body: (b) => b !== undefined && b.bits.length === 0 && b.refs.length === 0,
       })
       if (!freezeTX) throw new Error('Freeze return transaction not found')

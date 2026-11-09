@@ -29,7 +29,7 @@ describe('OnRamp - executor exit', () => {
   let executorId: bigint
 
   const ccipSend = or.Router_CCIPSend.create({
-    queryID: 1n,
+    queryId: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
@@ -189,7 +189,7 @@ describe('OnRamp - executor exit', () => {
         if (!x) return false
         const msgSent = rt.Router_MessageSent.fromSlice(x.beginParse())
         return (
-          msgSent.sender.equals(senderAddress) && msgSent.queryID === BigInt(ccipSend.queryID ?? 0)
+          msgSent.sender.equals(senderAddress) && msgSent.queryId === BigInt(ccipSend.queryId ?? 0)
         )
       },
     })
@@ -212,10 +212,10 @@ describe('OnRamp - executor exit', () => {
     const refund = toNano('0.2')
     const result = await onramp.sendOnRampExecutorFinishedWithError(executorSender, toNano('0.5'), {
       executorId: executorId,
-      queryID: ccipSend.queryID,
+      queryId: ccipSend.queryId,
       destChainSelector: ccipSend.destChainSelector,
       sender: senderAddress,
-      error: 42n,
+      errorCode: 42n,
       refund,
     })
 
@@ -234,8 +234,8 @@ describe('OnRamp - executor exit', () => {
         const msgSent = rt.Router_MessageRejected.fromSlice(x.beginParse())
         return (
           msgSent.sender.equals(senderAddress) &&
-          msgSent.queryID === BigInt(ccipSend.queryID ?? 0) &&
-          msgSent.error === 42n
+          msgSent.queryId === BigInt(ccipSend.queryId ?? 0) &&
+          msgSent.errorCode === 42n
         )
       },
     })
@@ -260,10 +260,10 @@ describe('OnRamp - executor exit', () => {
 
     const result = await onramp.sendOnRampExecutorFinishedWithError(executorSender, toNano('0.5'), {
       executorId: executorId,
-      queryID: ccipSend.queryID,
+      queryId: ccipSend.queryId,
       destChainSelector: ccipSend.destChainSelector,
       sender: senderAddress,
-      error: 42n,
+      errorCode: 42n,
       refund: fee,
     })
     expect(result.transactions).toHaveTransaction({
@@ -320,6 +320,7 @@ describe('OnRamp - executor exit', () => {
         to: executorAddress,
         success: true,
         op: or.OnRamp_ExecutorFeeReserved.PREFIX,
+        inMessageBounceable: false,
         body(x) {
           if (!x) return false
           const confirmed = or.OnRamp_ExecutorFeeReserved.fromSlice(x.beginParse())
@@ -540,10 +541,10 @@ describe('OnRamp - executor exit', () => {
   it('should fail to send message rejected if executorId is incorrect', async () => {
     const result = await onramp.sendOnRampExecutorFinishedWithError(executorSender, toNano('3'), {
       executorId: executorId + 1n, // incorrect ID
-      queryID: ccipSend.queryID,
+      queryId: ccipSend.queryId,
       destChainSelector: ccipSend.destChainSelector,
       sender: senderAddress,
-      error: 42n,
+      errorCode: 42n,
       refund: null,
     })
 
@@ -561,10 +562,10 @@ describe('OnRamp - executor exit', () => {
       toNano('0.5'),
       {
         executorId: executorId,
-        queryID: ccipSend.queryID,
+        queryId: ccipSend.queryId,
         destChainSelector: ccipSend.destChainSelector,
         sender: senderAddress,
-        error: 42n,
+        errorCode: 42n,
         refund: null,
       },
     )

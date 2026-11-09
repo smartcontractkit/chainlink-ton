@@ -11,6 +11,8 @@ import { ChainSelectors } from '../../utils/Selectors'
 import { ccipSendCost, Costs } from '../../../wrappers/ccip/Router'
 import { NATIVE_GRAM } from '../../../src/utils'
 import { FeeQuoterSetup } from '../feequoter/FeeQuoterSetup'
+import * as bouncer from '../../../wrappers/test/mock/Bouncer'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 describe('Router.ccipSend', () => {
   let blockchain: Blockchain
@@ -42,7 +44,7 @@ describe('Router.ccipSend', () => {
   })
 
   const msg = rt.Router_CCIPSend.create({
-    queryID: 1n,
+    queryId: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
@@ -65,6 +67,54 @@ describe('Router.ccipSend', () => {
       to: onRamp.address,
       success: true,
       op: or.OnRamp_Send.PREFIX,
+    })
+  })
+
+  it('should NACK the user with the OnRamp exit code when the OnRamp bounces the send', async () => {
+    // The lane's OnRamp rejects everything.
+    const onRampBouncer = blockchain.openContract(
+      bouncer.ContractClient.createFromConfig(await contractCode.ccip.local('tests.mock.Bouncer')),
+    )
+    await onRampBouncer.sendDeploy(deployer.getSender(), toNano('0.05'))
+    const update = await router.sendRouterApplyRampUpdates(deployer.getSender(), toNano('1'), {
+      queryId: 0n,
+      onRampUpdates: rt.OnRamps.create({
+        destChainSelectors: [msg.destChainSelector],
+        onRamp: onRampBouncer.address,
+      }),
+      offRampAdds: null,
+    })
+    expect(update.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: router.address,
+      success: true,
+    })
+
+    const result = await router.sendRouterCCIPSend(sender.getSender(), ccipSendCost, msg)
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: onRampBouncer.address,
+      success: false,
+      op: or.OnRamp_Send.PREFIX,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: onRampBouncer.address,
+      to: router.address,
+      success: true,
+      op: 0xfffffffe,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      success: true,
+      op: rt.Router_CCIPSendNACK.PREFIX,
+      inMessageBounceable: false,
+      body(x) {
+        if (!x) return false
+        const nack = rt.Router_CCIPSendNACK.fromSlice(x.beginParse())
+        return nack.queryId === msg.queryId && nack.errorCode === 0xffffn // the Bouncer throws 0xFFFF
+      },
     })
   })
 
@@ -144,7 +194,7 @@ describe('Router.ccipSend', () => {
         if (!x) return false
         const decoded = rt.Router_CCIPSendNACK.fromSlice(x.beginParse())
         return (
-          decoded.error ===
+          decoded.errorCode ===
           BigInt(rt.Router.Errors['Router_Error.FeePaymentsWithJettonsNotSupported'])
         )
       },
@@ -175,7 +225,7 @@ describe('Router.ccipSend', () => {
       body(x) {
         if (!x) return false
         const decoded = rt.Router_CCIPSendNACK.fromSlice(x.beginParse())
-        return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
+        return decoded.errorCode === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
       },
     })
   })
@@ -212,7 +262,7 @@ describe('Router.ccipSend', () => {
       body(x) {
         if (!x) return false
         const decoded = rt.Router_CCIPSendNACK.fromSlice(x.beginParse())
-        return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
+        return decoded.errorCode === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
       },
     })
   })

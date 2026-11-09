@@ -18,7 +18,8 @@ type CCIPSendExecutor_InMessage =
     | TokenPool_LockOrBurnWithdraw
     | TokenPool_LockOrBurnFinished
     | TokenPool_LockOrBurnFailure
-    | Router_TokenPoolLockOrBurnFailed;
+    | Router_TokenPoolLockOrBurnFailed
+    | OnRamp_LockOrBurnFailed;
 
 // crc32('CCIPSendExecutor_Execute')
 struct (0xaf3c62b3) CCIPSendExecutor_Execute {
@@ -93,4 +94,5 @@ type CCIPSendExecutor_BouncedMessage =
     | FeeQuoter_GetValidatedFee
     | OnRamp_ExecutorReserveFee
     | TokenAdminRegistry_GetTokenInfo
+    | OnRamp_ExecutorRequestsLockOrBurn
     ;

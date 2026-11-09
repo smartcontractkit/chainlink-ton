@@ -325,7 +325,7 @@ describe('Router.getSenderAccount', () => {
         const failed = rt.Router_SenderAccountFailed.fromSlice(body.beginParse())
         return (
           failed.queryId === queryId &&
-          failed.error === BigInt(error) &&
+          failed.errorCode === BigInt(error) &&
           (context === null ? failed.context === null : failed.context?.equals(context) === true)
         )
       },

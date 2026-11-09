@@ -51,22 +51,22 @@ fun onInternalMessage(in: InMessage) {
         },
         else => {
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF
-        }        
-     }
+            assert (in.body.isEmpty()) throw (0xFFFF);
+        }
+    }
 }
 
 get fun ocr3ConfigInfo(ocrPluginType: uint16): ConfigInfo {
     val s = lazy OCR3BaseExampleContract.load();
     val config = s.ocr3Base.getConfig(ocrPluginType);
-    assert(config != null, MultiOCR3Base_Error.NonExistentOcrPluginType);
+    assert (config != null) throw (MultiOCR3Base_Error.NonExistentOcrPluginType);
     return config!.configInfo;
 }
 
 get fun ocr3Signers(ocrPluginType: uint16): lisp_list<uint256> {
     val s = lazy OCR3BaseExampleContract.load();
     val config = s.ocr3Base.getConfig(ocrPluginType);
-    assert(config != null, MultiOCR3Base_Error.NonExistentOcrPluginType);
+    assert (config != null) throw (MultiOCR3Base_Error.NonExistentOcrPluginType);
     var d = config!.signers;
 
     return keysLispList(d);
@@ -75,7 +75,7 @@ get fun ocr3Signers(ocrPluginType: uint16): lisp_list<uint256> {
 get fun ocr3Transmitters(ocrPluginType: uint16): lisp_list<address> {
     val s = lazy OCR3BaseExampleContract.load();
     val config = s.ocr3Base.getConfig(ocrPluginType);
-    assert(config != null, MultiOCR3Base_Error.NonExistentOcrPluginType);
+    assert (config != null) throw (MultiOCR3Base_Error.NonExistentOcrPluginType);
     var d  = config!.transmitters;
 
     return keysLispList(d);

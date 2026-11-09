@@ -564,7 +564,7 @@ func (a *TONAdapter) deploySenderAccount(ctx context.Context, routerAddr, tokenA
 	if err := tlb.LoadFromCell(&use, reply.InternalMsg.Body.MustBeginParse()); err != nil {
 		var failed router.SenderAccountFailed
 		if failErr := tlb.LoadFromCell(&failed, reply.InternalMsg.Body.MustBeginParse()); failErr == nil {
-			return nil, fmt.Errorf("router rejected GetSenderAccount with error %s", failed.Error.String())
+			return nil, fmt.Errorf("router rejected GetSenderAccount with error %d", failed.Error)
 		}
 		return nil, fmt.Errorf("failed to parse GetSenderAccount reply: %w", err)
 	}

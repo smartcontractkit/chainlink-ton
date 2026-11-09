@@ -123,7 +123,7 @@ enum TokenPool_MessageDirection: uint8 {
 /// - `R`: The type of the recipient's address on the destination chain
 /// - `C`: The type of the amount of tokens, denominated in the source token's decimals
 struct TokenPool_Transfer<S, R, C> {
-    // TODO[REFACTOR]: [NONEVM-5336] is this the same as queryID?
+    // TODO[REFACTOR]: [NONEVM-5336] is this the same as queryId?
     id : uint256;                                   // Unique transfer ID for this TP operation.
     details: Cell<TokenPool_TransferDetails<S, R, C>>; // Details of the transfer.
 }

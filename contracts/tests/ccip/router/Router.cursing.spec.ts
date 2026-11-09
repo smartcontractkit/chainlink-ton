@@ -45,7 +45,7 @@ describe('Router.cursing', () => {
 
   it('router respects cursing', async () => {
     const msg = {
-      queryID: 1n,
+      queryId: 1n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
@@ -136,7 +136,7 @@ describe('Router.cursing', () => {
     })
 
     const result = await router.sendRouterLockOrBurn(onRamp.getSender(), toNano('1'), {
-      queryID: 11n,
+      queryId: 11n,
       tokenPool: deployer.address,
       request: rt.TokenPool_LockOrBurnInV1.create({
         transfer: rt.TokenPool_Transfer.create({
@@ -179,7 +179,7 @@ describe('Router.cursing', () => {
     })
 
     const result = await router.sendRouterRelayReleaseOrMint(offRamp.getSender(), toNano('1'), {
-      queryID: 21n,
+      queryId: 21n,
       sourceChainSelector,
       tokenPool: deployer.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
@@ -223,7 +223,7 @@ describe('Router.cursing', () => {
     const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 
     const result = await router.sendRouterRelayReleaseOrMint(sender.getSender(), toNano('1'), {
-      queryID: 30n,
+      queryId: 30n,
       sourceChainSelector,
       tokenPool: deployer.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
@@ -258,7 +258,7 @@ describe('Router.cursing', () => {
     const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 
     const result = await router.sendRouterRelayReleaseOrMint(offRamp.getSender(), toNano('1'), {
-      queryID: 31n,
+      queryId: 31n,
       sourceChainSelector,
       tokenPool: deployer.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({

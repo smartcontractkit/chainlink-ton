@@ -7,6 +7,7 @@ import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import { setup } from './OnRamp.Setup'
+import * as bouncer from '../../../wrappers/test/mock/Bouncer'
 import { generateRandomContractId, NATIVE_GRAM } from '../../../src/utils'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
@@ -67,6 +68,39 @@ describe('OnRamp - WithdrawFeeTokens', () => {
 
     const balanceAfter = (await blockchain.getContract(onramp.address)).balance
     expect(balanceAfter).toBe(reserve)
+  })
+
+  it('should keep the fees when a misconfigured fee aggregator bounces the withdrawal', async () => {
+    const aggregatorBouncer = blockchain.openContract(
+      bouncer.ContractClient.createFromConfig(await contractCode.ccip.local('tests.mock.Bouncer')),
+    )
+    await aggregatorBouncer.sendDeploy(deployer.getSender(), toNano('0.05'))
+    ;({ deployer, onramp, config } = await setup(blockchain, {
+      tokenAdminRegistry: (await blockchain.treasury('mockTokenRegistry')).address,
+      config: { feeAggregator: aggregatorBouncer.address },
+    }))
+    const reserve = await onramp.getReserve()
+    const balanceBefore = (await blockchain.getContract(onramp.address)).balance
+    expect(balanceBefore).toBeGreaterThan(reserve)
+
+    const result = await onramp.sendOnRampWithdrawFeeTokens(deployer.getSender(), toNano('0.5'), {
+      feeTokens: [],
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: aggregatorBouncer.address,
+      success: false,
+    })
+    // The empty-body legacy bounce is accepted: the fees are back in the OnRamp.
+    expect(result.transactions).toHaveTransaction({
+      from: aggregatorBouncer.address,
+      to: onramp.address,
+      inMessageBounced: true,
+      success: true,
+    })
+    const balanceAfter = (await blockchain.getContract(onramp.address)).balance
+    expect(balanceAfter).toBeGreaterThan(balanceBefore)
   })
 
   it('should fail to withdraw non empty fee tokens', async () => {
@@ -206,7 +240,7 @@ describe('OnRamp - WithdrawFeeTokens', () => {
     }
 
     const ccipSend = or.Router_CCIPSend.create({
-      queryID: 1n,
+      queryId: 1n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,

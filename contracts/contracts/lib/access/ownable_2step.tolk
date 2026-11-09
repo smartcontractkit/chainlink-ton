@@ -67,7 +67,7 @@ fun Ownable2Step.onInternalMessage(mutate self, sender: address, body: slice): b
                     newOwner: msg.newOwner
                 }
             });
-            emitMsg.send(SEND_MODE_REGULAR);
+            emitMsg.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         },
 
         Ownable2Step_AcceptOwnership => {
@@ -81,7 +81,7 @@ fun Ownable2Step.onInternalMessage(mutate self, sender: address, body: slice): b
                     newOwner: sender
                 }
             });
-            emitMsg.send(SEND_MODE_REGULAR);
+            emitMsg.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
         else => {
             return false; // Not an Ownable2Step message
@@ -99,7 +99,7 @@ fun Ownable2Step.onInternalMessage(mutate self, sender: address, body: slice): b
 /// #### Exit codes
 /// * 132: ERROR_ONLY_CALLABLE_BY_OWNER
 fun Ownable2Step.requireOwner(self, sender: address) {
-    assert(sender == self.owner, Ownable2Step_Error.OnlyCallableByOwner);
+    assert (sender == self.owner) throw (Ownable2Step_Error.OnlyCallableByOwner);
 }
 
 /// Initiates ownership transfer to a new address.
@@ -109,7 +109,7 @@ fun Ownable2Step.requireOwner(self, sender: address) {
 /// * 1001: ERROR_CANNOT_TRANSFER_TO_SELF
 fun Ownable2Step.transferOwnership(mutate self, sender: address, to: address) {
     self.requireOwner(sender);
-    assert(to != self.owner, Ownable2Step_Error.CannotTransferToSelf);
+    assert (to != self.owner) throw (Ownable2Step_Error.CannotTransferToSelf);
 
     self.pendingOwner = to;
 }
@@ -119,8 +119,8 @@ fun Ownable2Step.transferOwnership(mutate self, sender: address, to: address) {
 /// #### Exit codes
 /// * 1002: ERROR_MUST_BE_PROPOSED_OWNER
 fun Ownable2Step.acceptOwnership(mutate self, sender: address) {
-    assert(self.pendingOwner != null, Ownable2Step_Error.MustBeProposedOwner);
-    assert(sender == self.pendingOwner, Ownable2Step_Error.MustBeProposedOwner);
+    assert (self.pendingOwner != null) throw (Ownable2Step_Error.MustBeProposedOwner);
+    assert (sender == self.pendingOwner) throw (Ownable2Step_Error.MustBeProposedOwner);
 
     self.owner = sender;
     self.pendingOwner = null;

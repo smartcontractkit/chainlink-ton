@@ -8,6 +8,7 @@ import { ChainSelectors } from '../../utils/Selectors'
 import generateMessageID from '../../../src/offramp/generateMessageID'
 
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
+import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 
 import * as CCIPLogs from '../../../wrappers/ccip/Logs'
 
@@ -156,6 +157,49 @@ describe('OffRamp - Commit and Execute', () => {
     // OffRamp_UpdateDeployables. That message no longer exists: receiveExecutorCode is now
     // the real, inlined ReceiveExecutor bytecode, fixed at compile time (see gen/ReceiveExecutor.code.tolk),
     // so there's no runtime way to make the deployed executor's own code bounce anymore.
+
+    it('should handle a FeeQuoter_UpdatePrices bounce and emit UpdatePricesBounced', async () => {
+      await setup.setupOCRConfig()
+
+      // Remove the OffRamp as a price updater, so the FeeQuoter rejects the update.
+      const removeResult = await setup.feeQuoter.sendFeeQuoterRemovePriceUpdater(
+        setup.deployer.getSender(),
+        toNano('0.01'),
+        { priceUpdater: setup.offRamp.address },
+      )
+      expect(removeResult.transactions).toHaveTransaction({
+        from: setup.deployer.address,
+        to: setup.feeQuoter.address,
+        success: true,
+      })
+
+      // Commit a report with price updates. The FeeQuoter throws UnauthorizedPriceUpdater.
+      const sourceToken = generateMockTonAddress()
+      const priceUpdates = of.PriceUpdates.create({
+        tokenPriceUpdates: [of.TokenPriceUpdate.create({ sourceToken, usdPerToken: 1n })],
+        gasPriceUpdates: [],
+      })
+      const result = await setup.commitReport([], toNano('0.5'), 0x01, priceUpdates)
+
+      // The FeeQuoter rejected the update.
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.feeQuoter.address,
+        success: false,
+        exitCode: fq.FeeQuoter.Errors['FeeQuoter_Error.UnauthorizedPriceUpdater'],
+      })
+
+      // The OffRamp handled the rich bounce and emitted UpdatePricesBounced.
+      expect(result.transactions).toHaveTransaction({
+        to: setup.offRamp.address,
+        op: 0xfffffffe,
+        success: true,
+      })
+      assertLog(result.transactions, setup.offRamp.address, CCIPLogs.LogTypes.UpdatePricesBounced, {
+        feeQuoter: setup.feeQuoter.address,
+        errorCode: BigInt(fq.FeeQuoter.Errors['FeeQuoter_Error.UnauthorizedPriceUpdater']),
+      })
+    })
   })
 
   afterAll(async () => {

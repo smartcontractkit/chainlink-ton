@@ -87,6 +87,49 @@ describe('Router', () => {
     })
   })
 
+  it('should relay a rejected confirmation to its sender with the value', async () => {
+    const result = await router.sendRouterCCIPReceiveConfirmRejectedByExecutor(
+      offRamp.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 7n,
+        sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+        receiver: receiver.address,
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      op: rt.Router_CCIPReceiveConfirmRejected.PREFIX,
+      inMessageBounceable: false,
+      value: (v) => v !== undefined && v > 0n,
+      body(x) {
+        if (!x) return false
+        return rt.Router_CCIPReceiveConfirmRejected.fromSlice(x.beginParse()).queryId === 7n
+      },
+    })
+  })
+
+  it('should reject a confirmation rejection that does not come from the OffRamp', async () => {
+    const result = await router.sendRouterCCIPReceiveConfirmRejectedByExecutor(
+      receiver.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 7n,
+        sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+        receiver: receiver.address,
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: receiver.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.SenderIsNotOffRamp'],
+    })
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(

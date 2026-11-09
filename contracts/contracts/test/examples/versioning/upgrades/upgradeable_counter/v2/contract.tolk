@@ -73,7 +73,7 @@ const COUNTER_V1_CONTRACT_VERSION = "1.0.0".literalSlice();
 
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
-    assert (version.bitsEqual(COUNTER_V1_CONTRACT_VERSION)) throw Upgradeable_Error.VersionMismatch;
+    assert (version.bitsEqual(COUNTER_V1_CONTRACT_VERSION)) throw (Upgradeable_Error.VersionMismatch);
     
     // Parse it as StorageV1
     var oldStorage = StorageV1.fromCell(storage);
