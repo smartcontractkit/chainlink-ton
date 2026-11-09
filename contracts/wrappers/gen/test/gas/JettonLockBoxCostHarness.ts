@@ -9,6 +9,8 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 //   predefined types and functions
 //
 
+type RemainingBitsAndRefs = c.Slice
+
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
@@ -43,6 +45,19 @@ function storeCellRef<T>(value: T, b: c.Builder, storeFn_T: StoreCallback<T>): v
 function loadCellRef<T>(s: c.Slice, loadFn_T: LoadCallback<T>): T {
     let s_ref = s.loadRef().beginParse();
     return loadFn_T(s_ref);
+}
+
+function storeTolkRemaining(v: RemainingBitsAndRefs, b: c.Builder): void {
+    b.storeSlice(v);
+}
+
+function loadTolkRemaining(s: c.Slice): RemainingBitsAndRefs {
+    let rest = s.clone();
+    s.loadBits(s.remainingBits);
+    while (s.remainingRefs) {
+        s.loadRef();
+    }
+    return rest;
 }
 
 function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallback<T>): void {
@@ -174,6 +189,93 @@ export const JettonLockBox_Deposited = {
     }
 }
 
+/**
+ > type ForwardPayloadRemainder = RemainingBitsAndRefs
+ */
+export type ForwardPayloadRemainder = RemainingBitsAndRefs
+
+export const ForwardPayloadRemainder = {
+    fromSlice(s: c.Slice): ForwardPayloadRemainder {
+        return loadTolkRemaining(s);
+    },
+    store(self: ForwardPayloadRemainder, b: c.Builder): void {
+        storeTolkRemaining(self, b);
+    },
+    toCell(self: ForwardPayloadRemainder): c.Cell {
+        return makeCellFrom<ForwardPayloadRemainder>(self, ForwardPayloadRemainder.store);
+    }
+}
+
+/**
+ > struct (0x0f8a7ea5) AskToTransfer {
+ >     queryId: uint64
+ >     jettonAmount: coins
+ >     transferRecipient: address
+ >     sendExcessesTo: address?
+ >     customPayload: cell?
+ >     forwardTonAmount: coins
+ >     forwardPayload: ForwardPayloadRemainder
+ > }
+ */
+export interface AskToTransfer {
+    readonly $: 'AskToTransfer'
+    queryId: uint64
+    jettonAmount: coins
+    transferRecipient: c.Address
+    sendExcessesTo: c.Address | null
+    customPayload: c.Cell | null
+    forwardTonAmount: coins
+    forwardPayload: ForwardPayloadRemainder
+}
+
+export const AskToTransfer = {
+    PREFIX: 0x0f8a7ea5,
+
+    create(args: {
+        queryId?: uint64
+        jettonAmount: coins
+        transferRecipient: c.Address
+        sendExcessesTo: c.Address | null
+        customPayload: c.Cell | null
+        forwardTonAmount: coins
+        forwardPayload: ForwardPayloadRemainder
+    }): AskToTransfer {
+        return {
+            $: 'AskToTransfer',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): AskToTransfer {
+        loadAndCheckPrefix32(s, 0x0f8a7ea5, 'AskToTransfer');
+        return {
+            $: 'AskToTransfer',
+            queryId: s.loadUintBig(64),
+            jettonAmount: s.loadCoins(),
+            transferRecipient: s.loadAddress(),
+            sendExcessesTo: s.loadMaybeAddress(),
+            customPayload: s.loadBoolean() ? s.loadRef() : null,
+            forwardTonAmount: s.loadCoins(),
+            forwardPayload: ForwardPayloadRemainder.fromSlice(s),
+        }
+    },
+    store(self: AskToTransfer, b: c.Builder): void {
+        b.storeUint(0x0f8a7ea5, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeCoins(self.jettonAmount);
+        b.storeAddress(self.transferRecipient);
+        b.storeAddress(self.sendExcessesTo);
+        storeTolkNullable<c.Cell>(self.customPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+        b.storeCoins(self.forwardTonAmount);
+        ForwardPayloadRemainder.store(self.forwardPayload, b);
+    },
+    toCell(self: AskToTransfer): c.Cell {
+        return makeCellFrom<AskToTransfer>(self, AskToTransfer.store);
+    }
+}
+
 // ————————————————————————————————————————————
 //    class JettonLockBoxCostHarness
 //
@@ -213,7 +315,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 }
 
 export class JettonLockBoxCostHarness implements c.Contract {
-    static CodeCell = c.Cell.fromBase64('te6ccgEBDgEA8AABFP8A9KQT9LzyyAsBAgFiAgMAGND4kfJAhA8BxwDy9AIBIAQFAgEgBgcCASAKCwAduoTIIA6mD4KPpEMPg2oIAgEgCAkAE7dkXwUfSIYfBtAAC7W+kC6mEAIBIAwNAA265QggDqYIAGO2RN8FHwUfBRkZ8jaDv5dC2Wf/SkKfSksfQF6AGTkZ8KECX0pOOeFt2ZkwYNBhNj9hEACltX0ELi4cYI5OPGCNpA3QIwTEXGCELdAjpysAfGCKBHUOcCB0bh8HlAAuHwbUAC4fBtQOcCCBMEIBLMAwDh8G9A41ECB9FBQQLqYfBR9Ihh8G1BA=');
+    static CodeCell = c.Cell.fromBase64('te6ccgECEgEAAdUAART/APSkE/S88sgLAQIBYgIDABjQ+JHyQIQPAccA8vQCASAEBQIBIAYHAgEgCgsAHbqEyCAOpg+Cj6RDD4NqCAIBIAgJABO3ZF8FH0iGHwbQAAu1vpAuphACASAMDQIBWA4PAGO2RN8FHwUfBRkZ8jaDv5dC2Wf/SkKfSksfQF6AGTkZ8KECX0pOOeFt2ZkwYNBhNj9hEACntX0ORE4uHGCELjxgjaQN0CMExFxghC3QI6crAHxgigSVDnAgdG4fB5QALh8G1ABOHwbCVA5wIIEwQgEswDAOHwb0FRAgfRQUEC6mHwUfSIYfBtQQAA2zlCCAOpggAaOwogj0NcsJoMuGDTyv9M/+kgx0z8x+gD6SPQE0SBus5vQ+lD6APQE0YEAiJUwbW1tcOIgwwCVI26zwwCRcOJASOMEIsMAknAy3wLDAFAGbeMEgEAH+IG6SMG2OLSDQghAtYWAMIddJwSCSW3+XAdcLH73DAOLc0NcsIWsLAGTyv/pIMfQEMfQE0eJtyM+QtYWAMhn6Uhn0ABj0AMnI9ADPUIEAkMjPkD4p+pYVyz9QA/oC+lIW+lQU9AAB+gITzsnIz4WIE/pSz4QQc/oCcc8LZRLMyREADAGDCbH7CA==');
 
     static Errors = {
     }
@@ -276,6 +378,22 @@ export class JettonLockBoxCostHarness implements c.Contract {
         const r = StackReader.fromGetMethod(1, await provider.get('get_withdrawMinValue', [
             { type: 'int', value: forwardTonAmount },
             { type: 'int', value: fwdFee },
+        ]));
+        return r.readBigInt();
+    }
+
+    async getWithdrawFwdFee(provider: ContractProvider, withdraw: c.Cell, sender: c.Address, walletAddress: c.Address, lockboxAddress: c.Address): Promise<coins> {
+        const r = StackReader.fromGetMethod(1, await provider.get('get_withdrawFwdFee', [
+            { type: 'cell', cell: withdraw },
+            { type: 'slice', cell: makeCellFrom<c.Address>(sender,
+                (v,b) => b.storeAddress(v)
+            ) },
+            { type: 'slice', cell: makeCellFrom<c.Address>(walletAddress,
+                (v,b) => b.storeAddress(v)
+            ) },
+            { type: 'slice', cell: makeCellFrom<c.Address>(lockboxAddress,
+                (v,b) => b.storeAddress(v)
+            ) },
         ]));
         return r.readBigInt();
     }

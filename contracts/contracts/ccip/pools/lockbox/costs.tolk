@@ -24,7 +24,9 @@ fun JettonLockBox_minDepositValue(replyFee: coins): coins {
 }
 
 /// Minimum value a withdraw message must carry: the wallet transfer plus the lockbox's own work.
+/// Uses the generic fee model because the recipient wallet may be non-CCT or undeployed; the
+/// reference model would underfund those transfers.
 fun JettonLockBox_minWithdrawValue(forwardTonAmount: coins, fwdFee: coins): coins {
-    return JettonFees.Reference.transferValue(forwardTonAmount, fwdFee)
+    return JettonFees.Generic.transferValue(forwardTonAmount, fwdFee)
         + calculateGasFee(contract.getAddress().getWorkchain(), JettonLockBox_WITHDRAW_GAS_UNITS);
 }
