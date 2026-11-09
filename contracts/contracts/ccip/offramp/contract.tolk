@@ -68,13 +68,13 @@ fun onInternalMessage(in:InMessage) {
         // Sender must be ReceiveExecutor
         OffRamp_DispatchValidated => {
             val st = lazy Storage.load();
-            assertSenderIsReceiverExecutor(st, msg.execID, in.senderAddress);
+            assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
             onDispatchValidated(st, msg)
         }
         // Sender must be ReceiveExecutor
         OffRamp_ReleaseOrMint => {
             val st = lazy Storage.load();
-            assertSenderIsReceiverExecutor(st, msg.execID, in.senderAddress);
+            assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
             onReleaseOrMint(st, in.senderAddress, msg)
         }
         // Permissionless
@@ -102,13 +102,13 @@ fun onInternalMessage(in:InMessage) {
         // Sender must be router
         OffRamp_CCIPReceiveConfirm => {
             val st = lazy Storage.load();
-            assertSenderIsTheRouter(st, msg.execID.getSourceChainSelector(), in.senderAddress);
+            assertSenderIsTheRouter(st, msg.execId.getSourceChainSelector(), in.senderAddress);
             onCCIPReceiveConfirm(st, msg);
         }
         // Sender must be router
         OffRamp_CCIPReceiveBounced => {
             val st = lazy Storage.load();
-            assertSenderIsTheRouter(st, msg.execID.getSourceChainSelector(), in.senderAddress);
+            assertSenderIsTheRouter(st, msg.execId.getSourceChainSelector(), in.senderAddress);
             onBouncedCCIPReceive(msg);
         }
         // Sender must be router
@@ -120,19 +120,19 @@ fun onInternalMessage(in:InMessage) {
         // Sender must be ReceiveExecutor
         OffRamp_NotifySuccess => {
             val st = lazy Storage.load();
-            assertSenderIsReceiverExecutor(st, msg.execID, in.senderAddress);
+            assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
             onNotifySuccess(st, msg, in.senderAddress);
         }
         // Sender must be ReceiveExecutor
         OffRamp_TokenTransferDelivered => {
             val st = lazy Storage.load();
-            assertSenderIsReceiverExecutor(st, msg.execID, in.senderAddress);
-            relayTokenTransferDelivered(st, msg.queryId, msg.execID, in.senderAddress, msg.delivered, true);
+            assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
+            relayTokenTransferDelivered(st, msg.queryId, msg.execId, in.senderAddress, msg.delivered, true);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifyFailure => {
             val st = lazy Storage.load();
-            assertSenderIsReceiverExecutor(st, msg.execID, in.senderAddress);
+            assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
             onNotifyFailure(msg);
         }
         // Passive excess return from a release/mint jetton transfer; retain it in the off-ramp.
@@ -172,8 +172,8 @@ fun onInternalMessage(in:InMessage) {
         // Sender must be the Router
         OffRamp_ReturnExcessToExecutor => {
             val st = lazy Storage.load();
-            assertSenderIsTheRouter(st, msg.execID.getSourceChainSelector(), in.senderAddress);
-            forwardValueToExecutor(getReceiverExecutorDeployAddress(st, msg.execID));
+            assertSenderIsTheRouter(st, msg.execId.getSourceChainSelector(), in.senderAddress);
+            forwardValueToExecutor(getReceiverExecutorDeployAddress(st, msg.execId));
         }
         else => {
             // attempt to handle Ownable messages
@@ -281,11 +281,11 @@ fun onBouncedRouterRouteMessage(msg: Router_RouteMessage, senderAddress: address
     val st = lazy Storage.load();
     emit(ROUTE_MESSAGE_BOUNCED_TOPIC, OffRamp_RouteMessageBounced{
         router: senderAddress,
-        execID: msg.execID,
+        execId: msg.execId,
     });
 
     // Send ReceiveBounced to initiate the failure notification trace 
-    ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execID).calculateAddress(), msg.queryId, msg.receiver, ReceiveExecutor_FailedReason.BouncedFromRouter)
+    ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, msg.receiver, ReceiveExecutor_FailedReason.BouncedFromRouter)
 }
 
 // Handles contract upgrade requests using the Upgradeable pattern. Invokes the
@@ -376,7 +376,7 @@ fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
     val receiveBounced = createMessage({
         bounce: false,
         value: 0,
-        dest: getReceiverExecutorDeployAddress(st, msg.execID),
+        dest: getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_CCIPReceiveFailed{ 
             queryId: 0,
             receiver: msg.receiver,
@@ -456,7 +456,7 @@ fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState, excess
 fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: address) {
     if (msg.delivered != null) {
         // Fixed value; the executor's leftover stays on the OffRamp.
-        relayTokenTransferDelivered(st, msg.queryId, msg.execID, receiveExecutor, msg.delivered!, false);
+        relayTokenTransferDelivered(st, msg.queryId, msg.execId, receiveExecutor, msg.delivered!, false);
     }
 
     val messageHeader = lazy msg.header.load();
@@ -485,12 +485,12 @@ fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: ad
 //     OffRamp         ->> Router:    Router_TokenTransferDelivered
 //     Router          ->> TokenPool: TokenPool_ReleaseOrMintDelivered
 //     TokenPool       ->> ReceiveExecutor: TokenPool_ReleaseOrMintFinalized
-fun relayTokenTransferDelivered(st: Storage, queryId: uint64, execID: ReceiveExecutionID, receiveExecutor: address, deliveredCell: Cell<OffRamp_DeliveredTransfer>, carryValue: bool) {
+fun relayTokenTransferDelivered(st: Storage, queryId: uint64, execId: ReceiveExecutionID, receiveExecutor: address, deliveredCell: Cell<OffRamp_DeliveredTransfer>, carryValue: bool) {
     val delivered = lazy deliveredCell.load();
     val relay = createMessage({
         bounce: BounceMode.NoBounce,
         value: carryValue ? 0 : OffRamp_Costs.tokenTransferDelivered(),
-        dest: getRouterFromSelector(st, execID.getSourceChainSelector()),
+        dest: getRouterFromSelector(st, execId.getSourceChainSelector()),
         body: Router_TokenTransferDelivered {
             queryId,
             tokenPool: delivered.tokenPool,
@@ -543,7 +543,7 @@ fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
     val receiveConfirm = createMessage({
         bounce: true,
         value: 0,
-        dest:  getReceiverExecutorDeployAddress(st, msg.execID),
+        dest:  getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_CCIPReceiveConfirm {
             queryId: msg.queryId,
             receiver: msg.receiver,
@@ -556,7 +556,7 @@ fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
 // resolves the Router from the source selector, and applies a gas override only
 // if it exceeds the original gasLimit.
 //
-// Includes routing cost in value and forwards execID and receiver details.
+// Includes routing cost in value and forwards execId and receiver details.
 //
 // sequenceDiagram
 //     participant ReceiveExecutor
@@ -571,7 +571,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
 
     if (msg.effectiveGasLimit < st.config.load().dynamicConfig.load().minGasLimit) {
-        return ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execID).calculateAddress(), msg.queryId, message.receiver, ReceiveExecutor_FailedReason.NotEnoughGas);
+        return ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, message.receiver, ReceiveExecutor_FailedReason.NotEnoughGas);
     }
     val routeMessage = createMessage({
         bounce: BounceMode.RichBounce,
@@ -586,7 +586,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
                 data: message.data,
                 tokenAmounts: msg.tokenAmounts,
             }.toCell(),
-            execID: msg.execID,
+            execId: msg.execId,
             receiver: message.receiver,
             gasLimit: msg.effectiveGasLimit,
         }
@@ -634,17 +634,17 @@ fun onTokenPoolReleaseOrMintFailed(msg: Router_TokenPoolReleaseOrMintFailed) {
 // Router_TokenPoolReleaseOrMintFailed.
 fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMint) {
     if (msg.destGasAmount < st.config.load().dynamicConfig.load().minTTGasLimit) {
-        val receiveExecutor = getReceiverExecutorDeployAddress(st, msg.execID).calculateAddress();
+        val receiveExecutor = getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress();
         return mintOrReleaseFailed(receiveExecutor, msg.queryId, NotEnoughDestGasAmountForTokenTransfer {});
     }
 
     val relayMsg = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
-        dest: getRouterFromSelector(st, msg.execID.getSourceChainSelector()),
+        dest: getRouterFromSelector(st, msg.execId.getSourceChainSelector()),
         body: Router_RelayReleaseOrMint {
             queryID: msg.queryId,
-            sourceChainSelector: msg.execID.getSourceChainSelector(),
+            sourceChainSelector: msg.execId.getSourceChainSelector(),
             tokenPool: msg.tokenPool,
             request: msg.request,
             requestedFinalityConfig: msg.requestedFinalityConfig,
@@ -1066,9 +1066,9 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
     });
 
     val messageId = message.generateMessageId(msg.metadataHash);
-    val execID = getOwnedReceiveExecutorContractId(messageId, message.header.sourceChainSelector);
+    val execId = getOwnedReceiveExecutorContractId(messageId, message.header.sourceChainSelector);
 
-    val executorAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execID);
+    val executorAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execId);
 
     val excesses = ReceiveExecutor_Excesses {
         to: msg.excessesTo,
@@ -1090,7 +1090,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
                         owner: contract.getAddress(),
                         message: message.toCell(),
                         root: sender,
-                        execID,
+                        execId,
                         // Set at deploy so a bounced deploy can still refund the caller.
                         state: ReceiveExecutor_State {
                             tokenTransfer: null,
@@ -1214,16 +1214,16 @@ fun getOwnedReceiveExecutorContractId(messageId: uint256, sourceChainSelector: u
 }
 
 /*
-Derives the receiver executor contract address from the execID
+Derives the receiver executor contract address from the execId
 */
-fun getReceiverExecutorDeployAddress(st: Storage, execID: ReceiveExecutionID): AutoDeployAddress {
+fun getReceiverExecutorDeployAddress(st: Storage, execId: ReceiveExecutionID): AutoDeployAddress {
     return {
         stateInit: {
             code: deployerCode(),
             data: NamespacedDeployableData({
                 namespace: DeployableNamespace_ReceiveExecutor,
                 owner: contract.getAddress(),
-                id: execID,
+                id: execId,
             }),
         }
     }
@@ -1232,8 +1232,8 @@ fun getReceiverExecutorDeployAddress(st: Storage, execID: ReceiveExecutionID): A
 /*
 Verifies that the caller corresponds to a receiver executor contract
 */
-fun assertSenderIsReceiverExecutor(st: Storage, execID: ReceiveExecutionID, sender: address) {
-    val expectedAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execID);
+fun assertSenderIsReceiverExecutor(st: Storage, execId: ReceiveExecutionID, sender: address) {
+    val expectedAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execId);
     assert(expectedAddress.calculateAddress() == sender) throw OffRamp_Error.MessageNotFromOwnedContract;
 }
 

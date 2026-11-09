@@ -22,7 +22,7 @@ struct OffRampRemoved {
 const MESSAGE_TO_OFF_RAMP_BOUNCED_TOPIC = "MessageToOffRampBounced".crc32();
 struct MessageToOffRampBounced {
     offRamp: address,
-    execID: uint192,
+    execId: uint192,
 }
 
 /// Emitted when a `Router_WithdrawToTokenPool` jetton transfer bounces back. The send cannot

@@ -82,33 +82,33 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be Send Executor
         OnRamp_ExecutorRequestsLockOrBurn => {
             var st = lazy OnRamp_Storage.load();
-            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert(executorAutoDeployAddress(msg.executorId).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
             onExecutorRequestsLockOrBurn(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorRequestsWithdraw =>  {
             var st = lazy OnRamp_Storage.load();
-            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert(executorAutoDeployAddress(msg.executorId).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
             onExecutorRequestsWithdraw(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorReserveFee => {
             var st = lazy OnRamp_Storage.load();
-            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert(executorAutoDeployAddress(msg.executorId).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
             onExecutorReserveFee(mutate st, msg, in.senderAddress);
             st.store();
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
             var st = lazy OnRamp_Storage.load();
-            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert(executorAutoDeployAddress(msg.executorId).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
             onExecutorFinishedSuccessfully(mutate st, msg);
             st.store();
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedWithError => {
             var st = lazy OnRamp_Storage.load();
-            assert(executorAutoDeployAddress(msg.executorID).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
+            assert(executorAutoDeployAddress(msg.executorId).calculateAddress() == in.senderAddress, OnRamp_Error.Unauthorized);
             onExecutorFinishedWithError(mutate st, msg);
             st.store();
         }
@@ -262,9 +262,9 @@ fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed) {
     rejection.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun generateRandomSendExecutorId(): CCIPSendExecutor_ID {
+fun generateRandomSendExecutorId(): CCIPSendExecutorId {
     random.initialize();
-    return (random.uint256() >> 32) as CCIPSendExecutor_ID;
+    return (random.uint256() >> 32) as CCIPSendExecutorId;
 }
 
 import "../../../gen/Deployable.code"
@@ -278,14 +278,14 @@ fun executorCode(): cell {
     return ccipSendExecutorCompiledCode();
 }
 
-fun executorAutoDeployAddress(executorID: CCIPSendExecutor_ID): AutoDeployAddress {
+fun executorAutoDeployAddress(executorId: CCIPSendExecutorId): AutoDeployAddress {
     return AutoDeployAddress {
         stateInit: ContractState {
             code: deployableCode(),
             data: NamespacedDeployableData({
                 namespace: DeployableNamespace_CCIPSendExecutor,
                 owner: contract.getAddress(),
-                id: executorID,
+                id: executorId,
             }),
         }
     }
@@ -441,7 +441,7 @@ fun onExecutorReserveFee(mutate st: OnRamp_Storage, msg: OnRamp_ExecutorReserveF
         value: 0,
         dest: sendExecutor,
         body: OnRamp_ExecutorFeeReserved {
-            executorID: msg.executorID,
+            executorId: msg.executorId,
         },
     });
     // SAFETY: reserveGramsOnBalance ensures that the necessary funds are reserved before sending the confirmation message.

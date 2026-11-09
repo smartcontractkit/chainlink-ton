@@ -95,7 +95,7 @@ describe('OffRamp - Commit and Execute', () => {
       // Should emit RouteMessageBounced event
       assertLog(result.transactions, setup.offRamp.address, CCIPLogs.LogTypes.RouteMessageBounced, {
         router: wrongRouterAddress,
-        execID: expect.any(BigInt),
+        execId: expect.any(BigInt),
       })
 
       assertLog(

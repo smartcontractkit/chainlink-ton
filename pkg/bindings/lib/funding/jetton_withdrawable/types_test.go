@@ -8,7 +8,6 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
 func newTestAddress(seed byte) *address.Address {
@@ -35,7 +34,7 @@ func newTestTransfer(queryID byte, amount uint64) WithdrawFeeTransfer {
 func TestWithdraw_EncodingAndDecoding(t *testing.T) {
 	msg := Withdraw{
 		QueryID: 42,
-		Transfers: tlbe.Array[WithdrawFeeTransfer]{
+		Transfers: []WithdrawFeeTransfer{
 			newTestTransfer(1, 1_000_000_000),
 			newTestTransfer(2, 2_000_000_000),
 			newTestTransfer(3, 3_000_000_000),
@@ -66,7 +65,7 @@ func TestWithdraw_EncodingAndDecoding(t *testing.T) {
 func TestWithdraw_EmptyTransfers(t *testing.T) {
 	msg := Withdraw{
 		QueryID:   9,
-		Transfers: tlbe.Array[WithdrawFeeTransfer]{},
+		Transfers: []WithdrawFeeTransfer{},
 	}
 
 	c, err := tlb.ToCell(msg)

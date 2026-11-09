@@ -6,7 +6,7 @@ import * as coverage from '../../coverage/coverage'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as rec from '../../../wrappers/gen/ccip/Receiver'
 import { Costs as OffRampCosts } from '../../../wrappers/ccip/OffRamp'
-import { setup, contractsCoverageConfig, genExecID } from './Router.Setup'
+import { setup, contractsCoverageConfig, genexecId } from './Router.Setup'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 
@@ -57,7 +57,7 @@ describe('Router', () => {
   it('should route message from OffRamp to receiver', async () => {
     const result = await router.sendRouterRouteMessage(offRamp.getSender(), toNano('1'), {
       message: any2tvmMessage,
-      execID: genExecID({
+      execId: genexecId({
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         messageID: 1n,
       }),
@@ -97,7 +97,7 @@ describe('Router', () => {
         ...any2tvmMessage,
         tokenAmounts: [rt.TokenAmount.create({ amount: 1000n, token })],
       },
-      execID: genExecID({
+      execId: genexecId({
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         messageID: 5n,
       }),
@@ -130,7 +130,7 @@ describe('Router', () => {
         ...any2tvmMessage,
         sourceChainSelector: any2tvmMessage.sourceChainSelector + 1n,
       },
-      execID: genExecID({
+      execId: genexecId({
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         messageID: 2n,
       }),
@@ -149,7 +149,7 @@ describe('Router', () => {
   it('should throw on routeMessage from non OffRamp', async () => {
     const result = await router.sendRouterRouteMessage(deployer.getSender(), toNano('1'), {
       message: any2tvmMessage,
-      execID: genExecID({
+      execId: genexecId({
         sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         messageID: 3n,
       }),
@@ -173,7 +173,7 @@ describe('Router', () => {
 
     const result = await router.sendRouterRouteMessage(offRamp.getSender(), toNano('1'), {
       message: any2tvmMessage,
-      execID: genExecID({
+      execId: genexecId({
         sourceChainSelector: any2tvmMessage.sourceChainSelector,
         messageID: 4n,
       }),
