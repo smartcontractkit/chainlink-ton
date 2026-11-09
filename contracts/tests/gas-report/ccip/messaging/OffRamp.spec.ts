@@ -18,7 +18,7 @@ import { MerkleHelper } from '../../../lib/merkle_proof/helpers/MerkleMultiProof
 import { generateMockTonAddress } from '../../../../src/utils'
 import { ChainSelectors } from '../../../utils/Selectors'
 import { AddressBook, GasReport, gasReportConfig } from '../../utils'
-import { createPayload, LANE_MAX_DATA_BYTES } from './config'
+import { createPayloadBytes, LANE_MAX_DATA_BYTES } from './config'
 
 const jestConsole = console
 
@@ -68,7 +68,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
       1n,
       1n,
       setup.receiver.address,
-      createPayload(LANE_MAX_DATA_BYTES),
+      createPayloadBytes(LANE_MAX_DATA_BYTES),
     )
     const root = setup.createMerkleRoot(
       1n,
@@ -117,7 +117,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
         first + BigInt(i),
         first + BigInt(i),
         setup.receiver.address,
-        createPayload(LANE_MAX_DATA_BYTES),
+        createPayloadBytes(LANE_MAX_DATA_BYTES),
       ),
     )
     const metadataHash = getDefaultMetadataHash(setup.SOURCE_CHAIN_SELECTOR)
@@ -262,7 +262,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
       seq,
       seq,
       setup.receiver.address,
-      createPayload(LANE_MAX_DATA_BYTES),
+      createPayloadBytes(LANE_MAX_DATA_BYTES),
     )
     const root = setup.createMerkleRoot(
       seq,

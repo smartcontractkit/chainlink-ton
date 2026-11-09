@@ -83,7 +83,7 @@ describe('OnRamp - ExecutorRequestsLockOrBurn', () => {
         queryId: 1n,
         destChainSelector: DEST_CHAIN_SELECTOR,
         receiver: FromBuffer(EVM_ADDRESS),
-        data: beginCell().endCell(),
+        data: [],
         tokenAmounts: [],
         feeToken: null,
         extraArgs: or.GenericExtraArgsV2.create({

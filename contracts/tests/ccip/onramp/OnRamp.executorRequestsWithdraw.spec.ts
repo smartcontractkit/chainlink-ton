@@ -146,7 +146,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
       queryId: 1n,
       destChainSelector: DEST_CHAIN_SELECTOR,
       receiver: FromBuffer(VALID_EVM_TOKEN_ADDRESS),
-      data: beginCell().endCell(),
+      data: [],
       tokenAmounts: [],
       feeToken: null,
       extraArgs: or.GenericExtraArgsV2.create({

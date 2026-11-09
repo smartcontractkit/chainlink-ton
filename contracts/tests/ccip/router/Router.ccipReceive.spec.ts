@@ -50,7 +50,7 @@ describe('Router', () => {
     messageId: 42n,
     sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     sender: EVM_ADDRESS,
-    data: beginCell().storeUint(0x1234, 32).endCell(),
+    data: [0x00n, 0x00n, 0x12n, 0x34n],
     tokenAmounts: null,
   }
 

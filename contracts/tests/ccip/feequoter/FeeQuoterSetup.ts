@@ -492,7 +492,7 @@ export class FeeQuoterSetup {
     return rt.Router_CCIPSend.create({
       destChainSelector: ChainSelectors.testnet.evm,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
-      data: Cell.EMPTY,
+      data: [],
       tokenAmounts,
       feeToken,
       extraArgs: this.generateExtraArgs(FeeQuoterSetup.GAS_LIMIT),

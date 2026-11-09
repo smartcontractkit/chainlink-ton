@@ -90,7 +90,7 @@ describe.each(cases)(
       queryId: 1n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_CC_ADDRESS,
-      data: Cell.EMPTY,
+      data: [],
       tokenAmounts: [],
       feeToken: NATIVE_GRAM,
       extraArgs: rt.GenericExtraArgsV2.create({
@@ -154,7 +154,7 @@ describe.each(cases)(
                 decodedContext.oldContextVersion === false &&
                 contextsEqual(decodedContext.userContext, context) &&
                 decoded.ccipSend.queryId === 1n &&
-                decoded.ccipSend.data.equals(Cell.EMPTY) &&
+                decoded.ccipSend.data.length === 0 &&
                 decoded.ccipSend.destChainSelector ===
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.ccipSend.receiver.asCell().equals(EVM_ADDRESS.asCell()) &&
@@ -171,7 +171,7 @@ describe.each(cases)(
             queryId: 1n,
             destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             receiver: EVM_ADDRESS,
-            data: Cell.EMPTY,
+            data: [],
             tokenAmounts: [],
             feeToken: FeeQuoterSetup.CUSTOM_TOKEN.token,
             extraArgs: rt.GenericExtraArgsV2.create({
@@ -224,7 +224,7 @@ describe.each(cases)(
             queryId: 1n,
             destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 + 1n,
             receiver: EVM_ADDRESS,
-            data: Cell.EMPTY,
+            data: [],
             tokenAmounts: [],
             feeToken: NATIVE_GRAM,
             extraArgs: rt.GenericExtraArgsV2.create({
@@ -293,7 +293,7 @@ describe.each(cases)(
             queryId: 1n,
             destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
             receiver: EVM_CC_ADDRESS,
-            data: Cell.EMPTY,
+            data: [],
             tokenAmounts: [],
             feeToken: NATIVE_GRAM,
             extraArgs: rt.GenericExtraArgsV2.create({
@@ -425,7 +425,7 @@ describe.each(cases)(
                 contextsEqual(decoded.context, context) &&
                 decoded.fee === toNano('0.5') &&
                 decoded.msg.queryId === 1n &&
-                decoded.msg.data.equals(Cell.EMPTY) &&
+                decoded.msg.data.length === 0 &&
                 decoded.msg.destChainSelector ===
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
@@ -493,7 +493,7 @@ describe.each(cases)(
                 contextsEqual(decoded.context, context) &&
                 decoded.errorCode === 12345n &&
                 decoded.msg.queryId === 1n &&
-                decoded.msg.data.equals(Cell.EMPTY) &&
+                decoded.msg.data.length === 0 &&
                 decoded.msg.destChainSelector ===
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
@@ -563,7 +563,7 @@ describe.each(cases)(
                 decodedContext.oldContextVersion === true &&
                 contextsEqual(decodedContext.userContext, context ?? Cell.EMPTY) &&
                 decoded.ccipSend.queryId === 1n &&
-                decoded.ccipSend.data.equals(Cell.EMPTY) &&
+                decoded.ccipSend.data.length === 0 &&
                 decoded.ccipSend.destChainSelector ===
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.ccipSend.receiver.asCell().equals(EVM_ADDRESS.asCell()) &&
@@ -614,7 +614,7 @@ describe.each(cases)(
                 decoded.context.asCell().equals(context ?? Cell.EMPTY) &&
                 decoded.fee === toNano('0.5') &&
                 decoded.msg.queryId === 1n &&
-                decoded.msg.data.equals(Cell.EMPTY) &&
+                decoded.msg.data.length === 0 &&
                 decoded.msg.destChainSelector ===
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&
@@ -669,7 +669,7 @@ describe.each(cases)(
                 decoded.context.asCell().equals(context ?? Cell.EMPTY) &&
                 decoded.errorCode === 12345n &&
                 decoded.msg.queryId === 1n &&
-                decoded.msg.data.equals(Cell.EMPTY) &&
+                decoded.msg.data.length === 0 &&
                 decoded.msg.destChainSelector ===
                   ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 &&
                 decoded.msg.receiver.asCell().equals(EVM_CC_ADDRESS.asCell()) &&

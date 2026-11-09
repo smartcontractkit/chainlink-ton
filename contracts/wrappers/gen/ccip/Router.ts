@@ -296,6 +296,7 @@ type coins = bigint
 
 type int32 = bigint
 
+type uint8 = bigint
 type uint16 = bigint
 type uint32 = bigint
 type uint64 = bigint
@@ -436,8 +437,9 @@ function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCa
 function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
     let outArr = [] as T[];
     let head = s.loadRef().beginParse();
-    while (head.remainingBits > 0 || head.remainingRefs > 0) {
-        if (head.remainingBits > 0) {
+    while (true) {
+        // Drain every item packed into the current cell before following the chain ref.
+        while (head.remainingBits > 0) {
             outArr.push(loadFn_T(head));
         }
         if (head.remainingRefs > 0) {
@@ -449,6 +451,23 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
     return outArr;
 }
 
+
+/**
+ > type byte = uint8
+ */
+export type byte = uint8
+
+export const byte = {
+    fromSlice(s: c.Slice): byte {
+        return s.loadUintBig(8);
+    },
+    store(self: byte, b: c.Builder): void {
+        b.storeUint(self, 8);
+    },
+    toCell(self: byte): c.Cell {
+        return makeCellFrom<byte>(self, byte.store);
+    }
+}
 
 /**
  > struct (0xf343fc1b) Withdrawable_Withdraw {
@@ -1382,7 +1401,7 @@ export const Deployable_Initialize = {
  >     queryId: uint64
  >     destChainSelector: uint64
  >     receiver: CrossChainAddress
- >     data: cell
+ >     data: SnakedCell<byte>
  >     tokenAmounts: SnakedCell<TokenAmount>
  >     feeToken: address?
  >     extraArgs: Cell<ExtraArgs>
@@ -1393,7 +1412,7 @@ export interface Router_CCIPSend {
     queryId: uint64
     destChainSelector: uint64
     receiver: CrossChainAddress
-    data: c.Cell
+    data: SnakedCell<byte>
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address | null
     extraArgs: ExtraArgs
@@ -1406,7 +1425,7 @@ export const Router_CCIPSend = {
         queryId?: uint64
         destChainSelector: uint64
         receiver: CrossChainAddress
-        data: c.Cell
+        data: SnakedCell<byte>
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
         extraArgs: ExtraArgs
@@ -1424,7 +1443,7 @@ export const Router_CCIPSend = {
             queryId: s.loadUintBig(64),
             destChainSelector: s.loadUintBig(64),
             receiver: CrossChainAddress.fromSlice(s),
-            data: s.loadRef(),
+            data: loadSnakedCellOf(s, (s) => s.loadUintBig(8)),
             tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadMaybeAddress(),
             extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
@@ -1435,7 +1454,7 @@ export const Router_CCIPSend = {
         b.storeUint(self.queryId, 64);
         b.storeUint(self.destChainSelector, 64);
         CrossChainAddress.store(self.receiver, b);
-        b.storeRef(self.data);
+        storeSnakedCellOf(self.data, b, (v, b) => b.storeUint(v, 8));
         storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
         storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
@@ -1641,7 +1660,7 @@ export const Router_CCIPReceiveConfirm = {
  >     messageId: uint256
  >     sourceChainSelector: uint64
  >     sender: CrossChainAddress
- >     data: cell
+ >     data: SnakedCell<byte>
  >     tokenAmounts: SnakedCell<TokenAmount>?
  > }
  */
@@ -1650,7 +1669,7 @@ export interface Any2TVMMessage {
     messageId: uint256
     sourceChainSelector: uint64
     sender: CrossChainAddress
-    data: c.Cell
+    data: SnakedCell<byte>
     tokenAmounts: SnakedCell<TokenAmount> | null
 }
 
@@ -1659,7 +1678,7 @@ export const Any2TVMMessage = {
         messageId: uint256
         sourceChainSelector: uint64
         sender: CrossChainAddress
-        data: c.Cell
+        data: SnakedCell<byte>
         tokenAmounts: SnakedCell<TokenAmount> | null
     }): Any2TVMMessage {
         return {
@@ -1673,7 +1692,7 @@ export const Any2TVMMessage = {
             messageId: s.loadUintBig(256),
             sourceChainSelector: s.loadUintBig(64),
             sender: CrossChainAddress.fromSlice(s),
-            data: s.loadRef(),
+            data: loadSnakedCellOf(s, (s) => s.loadUintBig(8)),
             tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, TokenAmount.fromSlice) : null,
         }
     },
@@ -1681,7 +1700,7 @@ export const Any2TVMMessage = {
         b.storeUint(self.messageId, 256);
         b.storeUint(self.sourceChainSelector, 64);
         CrossChainAddress.store(self.sender, b);
-        b.storeRef(self.data);
+        storeSnakedCellOf(self.data, b, (v, b) => b.storeUint(v, 8));
         storeTolkNullable<SnakedCell<TokenAmount>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, TokenAmount.store));
     },
     toCell(self: Any2TVMMessage): c.Cell {
@@ -5683,7 +5702,7 @@ export class Router implements c.Contract {
         queryId?: uint64
         destChainSelector: uint64
         receiver: CrossChainAddress
-        data: c.Cell
+        data: SnakedCell<byte>
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
         extraArgs: ExtraArgs
@@ -5967,7 +5986,7 @@ export class Router implements c.Contract {
         queryId?: uint64
         destChainSelector: uint64
         receiver: CrossChainAddress
-        data: c.Cell
+        data: SnakedCell<byte>
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
         extraArgs: ExtraArgs

@@ -9,7 +9,7 @@ struct Any2TVMMessage {
     messageId: uint256;
     sourceChainSelector: uint64;
     sender: CrossChainAddress;
-    data: cell;
+    data: SnakedCell<byte>;
     /// Tokens delivered to the receiver, with amounts in local token decimals.
     tokenAmounts: SnakedCell<TokenAmount>?;
 }

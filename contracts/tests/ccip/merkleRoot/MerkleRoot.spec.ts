@@ -127,7 +127,7 @@ describe('MerkleRoot - Message Handling', () => {
         nonce: 0n,
       }),
       sender: EVM_ADDRESS,
-      data: Cell.EMPTY,
+      data: [],
       receiver,
       gasLimit: toNano('0.03'),
       tokenAmounts: null,
