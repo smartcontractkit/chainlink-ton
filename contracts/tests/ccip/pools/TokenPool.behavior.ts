@@ -15,6 +15,7 @@ import {
   TokenPool_LockOrBurnInV1,
   TokenPool_ReleaseOrMint,
   TokenPool_ReleaseOrMintDelivery,
+  TokenPool_LockOrBurnFailure,
   TokenPool_ReleaseOrMintFailure,
   TransferNotificationForRecipient,
   TokenPool_ReleaseOrMintForwardPayload,
@@ -496,6 +497,16 @@ export function runTokenPoolBehaviorTests(
 
     describe('fast finality refund routing', () => {
       const finalityConfig = 1n
+      const topics = {
+        outboundStandardConsumed: 'TokenPool_OutboundRateLimitConsumed',
+        outboundFastConsumed: 'TokenPool_FastFinalityOutboundRateLimitConsumed',
+        inboundStandardConsumed: 'TokenPool_InboundRateLimitConsumed',
+        inboundFastConsumed: 'TokenPool_FastFinalityInboundRateLimitConsumed',
+        outboundStandardRefunded: 'TokenPool_OutboundRateLimitRefunded',
+        outboundFastRefunded: 'TokenPool_FastFinalityOutboundRateLimitRefunded',
+        inboundStandardRefunded: 'TokenPool_InboundRateLimitRefunded',
+        inboundFastRefunded: 'TokenPool_FastFinalityInboundRateLimitRefunded',
+      } as const
 
       function lockOrBurnRequest(ctx: TokenPoolBehaviorContext): TokenPool_LockOrBurnInV1 {
         return TokenPool_LockOrBurnInV1.create({
@@ -512,10 +523,12 @@ export function runTokenPoolBehaviorTests(
         })
       }
 
-      async function deployRefundHooks(ctx: TokenPoolBehaviorContext) {
+      // `id = 255` throws on PreflightCheck/PostflightCheck, so the hook callback bounces
+      // back to the pool after admission and the pool must refund the consumed capacity.
+      async function deployBounceHooks(ctx: TokenPoolBehaviorContext) {
         const hooks = ctx.blockchain.openContract(
           MockAdvancedPoolHooks.fromStorage(
-            { id: 0n },
+            { id: 255n },
             {
               overrideContractCode: await contractCode.ccip.local(
                 'ccip.test.mockAdvancedPoolHooks',
@@ -541,48 +554,54 @@ export function runTokenPoolBehaviorTests(
           updates: [
             TokenPool_RateLimitConfigArgs.create({
               remoteChainSelector: ctx.remoteChainSelector,
-              fastFinality: fastEnabled,
+              fastFinality: true,
               outboundRateLimiterConfig: RateLimiter_Config.create({
-                isEnabled: true,
-                capacity: toNano('100'),
-                rate: 0n,
+                isEnabled: fastEnabled,
+                capacity: fastEnabled ? toNano('100') : 0n,
+                rate: fastEnabled ? 1n : 0n,
               }),
               inboundRateLimiterConfig: RateLimiter_Config.create({
-                isEnabled: true,
-                capacity: toNano('100'),
-                rate: 0n,
+                isEnabled: fastEnabled,
+                capacity: fastEnabled ? toNano('100') : 0n,
+                rate: fastEnabled ? 1n : 0n,
               }),
             }),
           ],
         })
       }
 
-      function refundTopicCount(
-        result: { transactions: any[] },
+      function eventCount(
+        transactions: Parameters<typeof getExternals>[0],
         poolAddress: Address,
         topic: string,
-      ) {
-        return getExternals(result.transactions).filter((event) =>
-          testLog(event, poolAddress, topic),
-        ).length
+      ): number {
+        return getExternals(transactions).filter((event) => testLog(event, poolAddress, topic))
+          .length
       }
 
-      it.each([false, true])(
-        'routes outbound fast-finality refunds to the correct topic (fastEnabled=%s)',
-        async (fastEnabled) => {
+      it.each([
+        { fastEnabled: false, label: 'disabled' },
+        { fastEnabled: true, label: 'enabled' },
+      ])(
+        'refunds outbound capacity with the $label fast-finality bucket',
+        async ({ fastEnabled }) => {
           const ctx = await setup()
-          await deployRefundHooks(ctx)
+          await deployBounceHooks(ctx)
           await configureRefundCase(ctx, fastEnabled)
-          const before = await ctx.pool.getCurrentRateLimiterState(
+          const standardBefore = await ctx.pool.getCurrentRateLimiterState(
             ctx.remoteChainSelector,
-            fastEnabled,
+            false,
+          )
+          const fastBefore = await ctx.pool.getCurrentRateLimiterState(
+            ctx.remoteChainSelector,
+            true,
           )
 
-          const result = await ctx.pool.sendTokenPoolLockOrBurn(
+          const { transactions } = await ctx.pool.sendTokenPoolLockOrBurn(
             ctx.deployer.getSender(),
             toNano('1'),
             {
-              queryId: 1n, // Odd query IDs fail the async preflight.
+              queryId: 2n,
               request: lockOrBurnRequest(ctx),
               requestedFinalityConfig: finalityConfig,
               tokenArgs: null,
@@ -592,64 +611,117 @@ export function runTokenPoolBehaviorTests(
             },
           )
 
-          expect(
-            refundTopicCount(result, ctx.pool.address, 'TokenPool_OutboundRateLimitRefunded'),
-          ).toBe(fastEnabled ? 0 : 1)
-          expect(
-            refundTopicCount(
-              result,
-              ctx.pool.address,
-              'TokenPool_FastFinalityOutboundRateLimitRefunded',
-            ),
-          ).toBe(fastEnabled ? 1 : 0)
+          expect(transactions).toHaveTransaction({
+            from: ctx.pool.address,
+            to: ctx.deployer.address,
+            op: TokenPool_LockOrBurnFailure.PREFIX,
+            success: true,
+          })
 
-          const after = await ctx.pool.getCurrentRateLimiterState(
+          const standardAfter = await ctx.pool.getCurrentRateLimiterState(
             ctx.remoteChainSelector,
-            fastEnabled,
+            false,
           )
-          expect(after.outbound.tokens).toEqual(before.outbound.tokens)
+          const fastAfter = await ctx.pool.getCurrentRateLimiterState(
+            ctx.remoteChainSelector,
+            true,
+          )
+
+          if (fastEnabled) {
+            expect(eventCount(transactions, ctx.pool.address, topics.outboundFastConsumed)).toBe(1)
+            expect(
+              eventCount(transactions, ctx.pool.address, topics.outboundStandardConsumed),
+            ).toBe(0)
+            expect(eventCount(transactions, ctx.pool.address, topics.outboundFastRefunded)).toBe(1)
+            expect(
+              eventCount(transactions, ctx.pool.address, topics.outboundStandardRefunded),
+            ).toBe(0)
+            expect(fastAfter.outbound.tokens).toEqual(fastBefore.outbound.tokens)
+            expect(standardAfter.outbound.tokens).toEqual(standardBefore.outbound.tokens)
+          } else {
+            expect(
+              eventCount(transactions, ctx.pool.address, topics.outboundStandardConsumed),
+            ).toBe(1)
+            expect(eventCount(transactions, ctx.pool.address, topics.outboundFastConsumed)).toBe(0)
+            expect(
+              eventCount(transactions, ctx.pool.address, topics.outboundStandardRefunded),
+            ).toBe(1)
+            expect(eventCount(transactions, ctx.pool.address, topics.outboundFastRefunded)).toBe(0)
+            expect(standardAfter.outbound.tokens).toEqual(standardBefore.outbound.tokens)
+            expect(fastAfter.outbound.tokens).toEqual(fastBefore.outbound.tokens)
+          }
         },
       )
 
-      it.each([false, true])(
-        'routes inbound fast-finality refunds to the correct topic (fastEnabled=%s)',
-        async (fastEnabled) => {
+      it.each([
+        { fastEnabled: false, label: 'disabled' },
+        { fastEnabled: true, label: 'enabled' },
+      ])(
+        'refunds inbound capacity with the $label fast-finality bucket',
+        async ({ fastEnabled }) => {
           const ctx = await setup()
-          await deployRefundHooks(ctx)
+          await deployBounceHooks(ctx)
           await configureRefundCase(ctx, fastEnabled)
-          const before = await ctx.pool.getCurrentRateLimiterState(
+          const standardBefore = await ctx.pool.getCurrentRateLimiterState(
             ctx.remoteChainSelector,
-            fastEnabled,
+            false,
+          )
+          const fastBefore = await ctx.pool.getCurrentRateLimiterState(
+            ctx.remoteChainSelector,
+            true,
           )
 
-          const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+          const { transactions } = await ctx.pool.sendTokenPoolReleaseOrMint(
             ctx.deployer.getSender(),
             toNano('1'),
             {
-              queryId: 1n, // Odd query IDs fail the async postflight.
+              queryId: 2n,
               request: releaseRequest(ctx),
               requestedFinalityConfig: finalityConfig,
-              replyTo: ctx.deployer.address,
-              delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
+              replyTo: ctx.offRamp.address,
+              delivery: deliveryTo(ctx.recipient.address, ctx.offRamp.address),
             },
           )
 
-          expect(
-            refundTopicCount(result, ctx.pool.address, 'TokenPool_InboundRateLimitRefunded'),
-          ).toBe(fastEnabled ? 0 : 1)
-          expect(
-            refundTopicCount(
-              result,
-              ctx.pool.address,
-              'TokenPool_FastFinalityInboundRateLimitRefunded',
-            ),
-          ).toBe(fastEnabled ? 1 : 0)
+          expect(transactions).toHaveTransaction({
+            from: ctx.pool.address,
+            to: ctx.offRamp.address,
+            op: TokenPool_ReleaseOrMintFailure.PREFIX,
+            success: true,
+          })
 
-          const after = await ctx.pool.getCurrentRateLimiterState(
+          const standardAfter = await ctx.pool.getCurrentRateLimiterState(
             ctx.remoteChainSelector,
-            fastEnabled,
+            false,
           )
-          expect(after.inbound.tokens).toEqual(before.inbound.tokens)
+          const fastAfter = await ctx.pool.getCurrentRateLimiterState(
+            ctx.remoteChainSelector,
+            true,
+          )
+
+          if (fastEnabled) {
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundFastConsumed)).toBe(1)
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundStandardConsumed)).toBe(
+              0,
+            )
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundFastRefunded)).toBe(1)
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundStandardRefunded)).toBe(
+              0,
+            )
+            expect(fastAfter.inbound.tokens).toEqual(fastBefore.inbound.tokens)
+            expect(standardAfter.inbound.tokens).toEqual(standardBefore.inbound.tokens)
+          } else {
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundStandardConsumed)).toBe(
+              1,
+            )
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundFastConsumed)).toBe(0)
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundStandardRefunded)).toBe(
+              1,
+            )
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundFastRefunded)).toBe(0)
+            expect(standardAfter.inbound.tokens).toEqual(standardBefore.inbound.tokens)
+            expect(fastAfter.inbound.tokens).toEqual(fastBefore.inbound.tokens)
+          }
         },
       )
     })
