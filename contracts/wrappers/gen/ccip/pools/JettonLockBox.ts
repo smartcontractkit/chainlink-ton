@@ -1065,6 +1065,7 @@ export const JettonLockBox_DepositFailed = {
  >     minterAddress: address
  >     walletAddress: address
  >     admin: address?
+ >     returnExcess: bool
  > }
  */
 export interface JettonLockBox_Init {
@@ -1073,6 +1074,7 @@ export interface JettonLockBox_Init {
     minterAddress: c.Address
     walletAddress: c.Address
     admin: c.Address | null
+    returnExcess: boolean /* = false */
 }
 
 export const JettonLockBox_Init = {
@@ -1083,9 +1085,11 @@ export const JettonLockBox_Init = {
         minterAddress: c.Address
         walletAddress: c.Address
         admin: c.Address | null
+        returnExcess?: boolean /* = false */
     }): JettonLockBox_Init {
         return {
             $: 'JettonLockBox_Init',
+            returnExcess: false,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -1098,6 +1102,7 @@ export const JettonLockBox_Init = {
             minterAddress: s.loadAddress(),
             walletAddress: s.loadAddress(),
             admin: s.loadMaybeAddress(),
+            returnExcess: s.loadBoolean(),
         }
     },
     store(self: JettonLockBox_Init, b: c.Builder): void {
@@ -1106,6 +1111,7 @@ export const JettonLockBox_Init = {
         b.storeAddress(self.minterAddress);
         b.storeAddress(self.walletAddress);
         b.storeAddress(self.admin);
+        b.storeBit(self.returnExcess);
     },
     toCell(self: JettonLockBox_Init): c.Cell {
         return makeCellFrom<JettonLockBox_Init>(self, JettonLockBox_Init.store);
@@ -1308,6 +1314,7 @@ export class JettonLockBox implements c.Contract {
         minterAddress: c.Address
         walletAddress: c.Address
         admin: c.Address | null
+        returnExcess?: boolean /* = false */
     }) {
         return JettonLockBox_Init.toCell(JettonLockBox_Init.create(body));
     }
@@ -1369,6 +1376,7 @@ export class JettonLockBox implements c.Contract {
         minterAddress: c.Address
         walletAddress: c.Address
         admin: c.Address | null
+        returnExcess?: boolean /* = false */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

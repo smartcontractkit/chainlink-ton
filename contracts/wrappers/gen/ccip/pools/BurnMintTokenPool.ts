@@ -2694,21 +2694,21 @@ export const TokenPool_LockOrBurnExtra = {
 
 /**
  > struct TokenPool_LockOrBurnForwardPayload {
- >     originalSender: address
+ >     initiator: address
  >     requestMsg: Cell<TokenPool_LockOrBurn>
  >     prepared: Cell<TokenPool_LockOrBurnPrepared>
  > }
  */
 export interface TokenPool_LockOrBurnForwardPayload {
     readonly $: 'TokenPool_LockOrBurnForwardPayload'
-    originalSender: c.Address
+    initiator: c.Address
     requestMsg: TokenPool_LockOrBurn
     prepared: TokenPool_LockOrBurnPrepared
 }
 
 export const TokenPool_LockOrBurnForwardPayload = {
     create(args: {
-        originalSender: c.Address
+        initiator: c.Address
         requestMsg: TokenPool_LockOrBurn
         prepared: TokenPool_LockOrBurnPrepared
     }): TokenPool_LockOrBurnForwardPayload {
@@ -2720,13 +2720,13 @@ export const TokenPool_LockOrBurnForwardPayload = {
     fromSlice(s: c.Slice): TokenPool_LockOrBurnForwardPayload {
         return {
             $: 'TokenPool_LockOrBurnForwardPayload',
-            originalSender: s.loadAddress(),
+            initiator: s.loadAddress(),
             requestMsg: loadCellRef<TokenPool_LockOrBurn>(s, TokenPool_LockOrBurn.fromSlice),
             prepared: loadCellRef<TokenPool_LockOrBurnPrepared>(s, TokenPool_LockOrBurnPrepared.fromSlice),
         }
     },
     store(self: TokenPool_LockOrBurnForwardPayload, b: c.Builder): void {
-        b.storeAddress(self.originalSender);
+        b.storeAddress(self.initiator);
         storeCellRef<TokenPool_LockOrBurn>(self.requestMsg, b, TokenPool_LockOrBurn.store);
         storeCellRef<TokenPool_LockOrBurnPrepared>(self.prepared, b, TokenPool_LockOrBurnPrepared.store);
     },
@@ -3028,21 +3028,21 @@ export const TokenPool_PreflightCheckFailed = {
 
 /**
  > struct TokenPool_ReleaseOrMintForwardPayload {
- >     originalSender: address
+ >     initiator: address
  >     requestMsg: Cell<TokenPool_ReleaseOrMint>
  >     prepared: Cell<TokenPool_ReleaseOrMintPrepared>
  > }
  */
 export interface TokenPool_ReleaseOrMintForwardPayload {
     readonly $: 'TokenPool_ReleaseOrMintForwardPayload'
-    originalSender: c.Address
+    initiator: c.Address
     requestMsg: TokenPool_ReleaseOrMint
     prepared: TokenPool_ReleaseOrMintPrepared
 }
 
 export const TokenPool_ReleaseOrMintForwardPayload = {
     create(args: {
-        originalSender: c.Address
+        initiator: c.Address
         requestMsg: TokenPool_ReleaseOrMint
         prepared: TokenPool_ReleaseOrMintPrepared
     }): TokenPool_ReleaseOrMintForwardPayload {
@@ -3054,13 +3054,13 @@ export const TokenPool_ReleaseOrMintForwardPayload = {
     fromSlice(s: c.Slice): TokenPool_ReleaseOrMintForwardPayload {
         return {
             $: 'TokenPool_ReleaseOrMintForwardPayload',
-            originalSender: s.loadAddress(),
+            initiator: s.loadAddress(),
             requestMsg: loadCellRef<TokenPool_ReleaseOrMint>(s, TokenPool_ReleaseOrMint.fromSlice),
             prepared: loadCellRef<TokenPool_ReleaseOrMintPrepared>(s, TokenPool_ReleaseOrMintPrepared.fromSlice),
         }
     },
     store(self: TokenPool_ReleaseOrMintForwardPayload, b: c.Builder): void {
-        b.storeAddress(self.originalSender);
+        b.storeAddress(self.initiator);
         storeCellRef<TokenPool_ReleaseOrMint>(self.requestMsg, b, TokenPool_ReleaseOrMint.store);
         storeCellRef<TokenPool_ReleaseOrMintPrepared>(self.prepared, b, TokenPool_ReleaseOrMintPrepared.store);
     },

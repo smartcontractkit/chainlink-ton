@@ -438,7 +438,6 @@ describe('LockReleaseLockboxTokenPool', () => {
       queryId: 950n,
       request: TokenPool_ReleaseOrMintInV1.create({
         transfer: TokenPool_Transfer.create({
-          id: 950n,
           details: TokenPool_TransferDetails.create({
             originalSender: sourcePoolAddress,
             remoteChainSelector,

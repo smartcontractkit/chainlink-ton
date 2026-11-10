@@ -367,7 +367,6 @@ export function runTokenPoolBehaviorTests(
           queryId: 904n,
           request: TokenPool_LockOrBurnInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: 904n,
               details: TokenPool_TransferDetails.create({
                 receiver: ctx.destTokenAddress,
                 remoteChainSelector: ctx.remoteChainSelector,
@@ -381,7 +380,7 @@ export function runTokenPoolBehaviorTests(
           tokenArgs: null,
           replyTo: ctx.deployer.address,
           finalizationValue: toNano('0.01'),
-          onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+          onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
         },
       )
 
@@ -511,7 +510,6 @@ export function runTokenPoolBehaviorTests(
       function lockOrBurnRequest(ctx: TokenPoolBehaviorContext): TokenPool_LockOrBurnInV1 {
         return TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: 1n,
             details: TokenPool_TransferDetails.create({
               receiver: ctx.destTokenAddress,
               remoteChainSelector: ctx.remoteChainSelector,
@@ -607,7 +605,7 @@ export function runTokenPoolBehaviorTests(
               tokenArgs: null,
               replyTo: ctx.deployer.address,
               finalizationValue: toNano('0.01'),
-              onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+              onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
             },
           )
 
