@@ -1742,19 +1742,16 @@ export const TokenPool_MessageDirection = {
 
 /**
  > struct TokenPool_Transfer<S, R, C> {
- >     id: uint256
  >     details: Cell<TokenPool_TransferDetails<S, R, C>>
  > }
  */
 export interface TokenPool_Transfer<S, R, C> {
     readonly $: 'TokenPool_Transfer'
-    id: uint256
     details: TokenPool_TransferDetails<S, R, C>
 }
 
 export const TokenPool_Transfer = {
     create<S, R, C>(args: {
-        id: uint256
         details: TokenPool_TransferDetails<S, R, C>
     }): TokenPool_Transfer<S, R, C> {
         return {
@@ -1807,7 +1804,6 @@ export const TokenPool_LockOrBurnTransfer = {
         return (() => {
             return {
                 $: 'TokenPool_Transfer',
-                id: s.loadUintBig(256),
                 details: loadCellRef<TokenPool_TransferDetails<c.Address, CrossChainAddress, coins>>(s,
                     (s) => (() => {
                         return {
@@ -1824,7 +1820,6 @@ export const TokenPool_LockOrBurnTransfer = {
         })();
     },
     store(self: TokenPool_LockOrBurnTransfer, b: c.Builder): void {
-        b.storeUint(self.id, 256);
         storeCellRef<TokenPool_TransferDetails<c.Address, CrossChainAddress, coins>>(self.details, b,
             (v,b) => { storeCellRef<CrossChainAddress>(v.receiver, b, CrossChainAddress.store);
             b.storeUint(v.remoteChainSelector, 64);
@@ -1848,7 +1843,6 @@ export const TokenPool_ReleaseOrMintTransfer = {
         return (() => {
             return {
                 $: 'TokenPool_Transfer',
-                id: s.loadUintBig(256),
                 details: loadCellRef<TokenPool_TransferDetails<CrossChainAddress, c.Address, uint256>>(s,
                     (s) => (() => {
                         return {
@@ -1865,7 +1859,6 @@ export const TokenPool_ReleaseOrMintTransfer = {
         })();
     },
     store(self: TokenPool_ReleaseOrMintTransfer, b: c.Builder): void {
-        b.storeUint(self.id, 256);
         storeCellRef<TokenPool_TransferDetails<CrossChainAddress, c.Address, uint256>>(self.details, b,
             (v,b) => { b.storeAddress(v.receiver);
             b.storeUint(v.remoteChainSelector, 64);
@@ -3957,98 +3950,98 @@ export const TokenPool_RemotePoolRemovedNotification = {
 }
 
 /**
- > struct (0x426a713b) TokenPool_FinalityConfigSet {
+ > struct (0xcbd30d33) TokenPool_FinalityConfigSetNotification {
  >     queryId: uint64
  >     allowedFinalityConfig: uint32
  > }
  */
-export interface TokenPool_FinalityConfigSet {
-    readonly $: 'TokenPool_FinalityConfigSet'
+export interface TokenPool_FinalityConfigSetNotification {
+    readonly $: 'TokenPool_FinalityConfigSetNotification'
     queryId: uint64
     allowedFinalityConfig: uint32
 }
 
-export const TokenPool_FinalityConfigSet = {
-    PREFIX: 0x426a713b,
+export const TokenPool_FinalityConfigSetNotification = {
+    PREFIX: 0xcbd30d33,
 
     create(args: {
         queryId?: uint64
         allowedFinalityConfig: uint32
-    }): TokenPool_FinalityConfigSet {
+    }): TokenPool_FinalityConfigSetNotification {
         return {
-            $: 'TokenPool_FinalityConfigSet',
+            $: 'TokenPool_FinalityConfigSetNotification',
             ...args,
             queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): TokenPool_FinalityConfigSet {
-        loadAndCheckPrefix32(s, 0x426a713b, 'TokenPool_FinalityConfigSet');
+    fromSlice(s: c.Slice): TokenPool_FinalityConfigSetNotification {
+        loadAndCheckPrefix32(s, 0xcbd30d33, 'TokenPool_FinalityConfigSetNotification');
         return {
-            $: 'TokenPool_FinalityConfigSet',
+            $: 'TokenPool_FinalityConfigSetNotification',
             queryId: s.loadUintBig(64),
             allowedFinalityConfig: s.loadUintBig(32),
         }
     },
-    store(self: TokenPool_FinalityConfigSet, b: c.Builder): void {
-        b.storeUint(0x426a713b, 32);
+    store(self: TokenPool_FinalityConfigSetNotification, b: c.Builder): void {
+        b.storeUint(0xcbd30d33, 32);
         b.storeUint(self.queryId, 64);
         b.storeUint(self.allowedFinalityConfig, 32);
     },
-    toCell(self: TokenPool_FinalityConfigSet): c.Cell {
-        return makeCellFrom<TokenPool_FinalityConfigSet>(self, TokenPool_FinalityConfigSet.store);
+    toCell(self: TokenPool_FinalityConfigSetNotification): c.Cell {
+        return makeCellFrom<TokenPool_FinalityConfigSetNotification>(self, TokenPool_FinalityConfigSetNotification.store);
     }
 }
 
 /**
- > struct (0xb735e30c) TokenPool_DynamicConfigSet {
+ > struct (0xbe67c13d) TokenPool_DynamicConfigSetNotification {
  >     queryId: uint64
  >     router: address
  >     rateLimitAdmin: address?
  >     feeAdmin: address?
  > }
  */
-export interface TokenPool_DynamicConfigSet {
-    readonly $: 'TokenPool_DynamicConfigSet'
+export interface TokenPool_DynamicConfigSetNotification {
+    readonly $: 'TokenPool_DynamicConfigSetNotification'
     queryId: uint64
     router: c.Address
     rateLimitAdmin: c.Address | null
     feeAdmin: c.Address | null
 }
 
-export const TokenPool_DynamicConfigSet = {
-    PREFIX: 0xb735e30c,
+export const TokenPool_DynamicConfigSetNotification = {
+    PREFIX: 0xbe67c13d,
 
     create(args: {
         queryId?: uint64
         router: c.Address
         rateLimitAdmin: c.Address | null
         feeAdmin: c.Address | null
-    }): TokenPool_DynamicConfigSet {
+    }): TokenPool_DynamicConfigSetNotification {
         return {
-            $: 'TokenPool_DynamicConfigSet',
+            $: 'TokenPool_DynamicConfigSetNotification',
             ...args,
             queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): TokenPool_DynamicConfigSet {
-        loadAndCheckPrefix32(s, 0xb735e30c, 'TokenPool_DynamicConfigSet');
+    fromSlice(s: c.Slice): TokenPool_DynamicConfigSetNotification {
+        loadAndCheckPrefix32(s, 0xbe67c13d, 'TokenPool_DynamicConfigSetNotification');
         return {
-            $: 'TokenPool_DynamicConfigSet',
+            $: 'TokenPool_DynamicConfigSetNotification',
             queryId: s.loadUintBig(64),
             router: s.loadAddress(),
             rateLimitAdmin: s.loadMaybeAddress(),
             feeAdmin: s.loadMaybeAddress(),
         }
     },
-    store(self: TokenPool_DynamicConfigSet, b: c.Builder): void {
-        b.storeUint(0xb735e30c, 32);
+    store(self: TokenPool_DynamicConfigSetNotification, b: c.Builder): void {
+        b.storeUint(0xbe67c13d, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.router);
         b.storeAddress(self.rateLimitAdmin);
         b.storeAddress(self.feeAdmin);
     },
-    toCell(self: TokenPool_DynamicConfigSet): c.Cell {
-        return makeCellFrom<TokenPool_DynamicConfigSet>(self, TokenPool_DynamicConfigSet.store);
+    toCell(self: TokenPool_DynamicConfigSetNotification): c.Cell {
+        return makeCellFrom<TokenPool_DynamicConfigSetNotification>(self, TokenPool_DynamicConfigSetNotification.store);
     }
 }
 
@@ -4167,45 +4160,45 @@ export const TokenPool_FeeConfigApplied = {
 }
 
 /**
- > struct (0x3c869d80) TokenPool_AdvancedPoolHooksSet {
+ > struct (0xf63f3401) TokenPool_AdvancedPoolHooksSetNotification {
  >     queryId: uint64
  >     advancedPoolHooks: address?
  > }
  */
-export interface TokenPool_AdvancedPoolHooksSet {
-    readonly $: 'TokenPool_AdvancedPoolHooksSet'
+export interface TokenPool_AdvancedPoolHooksSetNotification {
+    readonly $: 'TokenPool_AdvancedPoolHooksSetNotification'
     queryId: uint64
     advancedPoolHooks: c.Address | null
 }
 
-export const TokenPool_AdvancedPoolHooksSet = {
-    PREFIX: 0x3c869d80,
+export const TokenPool_AdvancedPoolHooksSetNotification = {
+    PREFIX: 0xf63f3401,
 
     create(args: {
         queryId?: uint64
         advancedPoolHooks: c.Address | null
-    }): TokenPool_AdvancedPoolHooksSet {
+    }): TokenPool_AdvancedPoolHooksSetNotification {
         return {
-            $: 'TokenPool_AdvancedPoolHooksSet',
+            $: 'TokenPool_AdvancedPoolHooksSetNotification',
             ...args,
             queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): TokenPool_AdvancedPoolHooksSet {
-        loadAndCheckPrefix32(s, 0x3c869d80, 'TokenPool_AdvancedPoolHooksSet');
+    fromSlice(s: c.Slice): TokenPool_AdvancedPoolHooksSetNotification {
+        loadAndCheckPrefix32(s, 0xf63f3401, 'TokenPool_AdvancedPoolHooksSetNotification');
         return {
-            $: 'TokenPool_AdvancedPoolHooksSet',
+            $: 'TokenPool_AdvancedPoolHooksSetNotification',
             queryId: s.loadUintBig(64),
             advancedPoolHooks: s.loadMaybeAddress(),
         }
     },
-    store(self: TokenPool_AdvancedPoolHooksSet, b: c.Builder): void {
-        b.storeUint(0x3c869d80, 32);
+    store(self: TokenPool_AdvancedPoolHooksSetNotification, b: c.Builder): void {
+        b.storeUint(0xf63f3401, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.advancedPoolHooks);
     },
-    toCell(self: TokenPool_AdvancedPoolHooksSet): c.Cell {
-        return makeCellFrom<TokenPool_AdvancedPoolHooksSet>(self, TokenPool_AdvancedPoolHooksSet.store);
+    toCell(self: TokenPool_AdvancedPoolHooksSetNotification): c.Cell {
+        return makeCellFrom<TokenPool_AdvancedPoolHooksSetNotification>(self, TokenPool_AdvancedPoolHooksSetNotification.store);
     }
 }
 
@@ -5488,6 +5481,120 @@ export const TokenPool_RateLimitConfigured = {
     },
     toCell(self: TokenPool_RateLimitConfigured): c.Cell {
         return makeCellFrom<TokenPool_RateLimitConfigured>(self, TokenPool_RateLimitConfigured.store);
+    }
+}
+
+/**
+ > struct TokenPool_DynamicConfigSet {
+ >     router: address
+ >     rateLimitAdmin: address?
+ >     feeAdmin: address?
+ > }
+ */
+export interface TokenPool_DynamicConfigSet {
+    readonly $: 'TokenPool_DynamicConfigSet'
+    router: c.Address
+    rateLimitAdmin: c.Address | null
+    feeAdmin: c.Address | null
+}
+
+export const TokenPool_DynamicConfigSet = {
+    create(args: {
+        router: c.Address
+        rateLimitAdmin: c.Address | null
+        feeAdmin: c.Address | null
+    }): TokenPool_DynamicConfigSet {
+        return {
+            $: 'TokenPool_DynamicConfigSet',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_DynamicConfigSet {
+        return {
+            $: 'TokenPool_DynamicConfigSet',
+            router: s.loadAddress(),
+            rateLimitAdmin: s.loadMaybeAddress(),
+            feeAdmin: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenPool_DynamicConfigSet, b: c.Builder): void {
+        b.storeAddress(self.router);
+        b.storeAddress(self.rateLimitAdmin);
+        b.storeAddress(self.feeAdmin);
+    },
+    toCell(self: TokenPool_DynamicConfigSet): c.Cell {
+        return makeCellFrom<TokenPool_DynamicConfigSet>(self, TokenPool_DynamicConfigSet.store);
+    }
+}
+
+/**
+ > struct TokenPool_FinalityConfigSet {
+ >     allowedFinalityConfig: uint32
+ > }
+ */
+export interface TokenPool_FinalityConfigSet {
+    readonly $: 'TokenPool_FinalityConfigSet'
+    allowedFinalityConfig: uint32
+}
+
+export const TokenPool_FinalityConfigSet = {
+    create(args: {
+        allowedFinalityConfig: uint32
+    }): TokenPool_FinalityConfigSet {
+        return {
+            $: 'TokenPool_FinalityConfigSet',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_FinalityConfigSet {
+        return {
+            $: 'TokenPool_FinalityConfigSet',
+            allowedFinalityConfig: s.loadUintBig(32),
+        }
+    },
+    store(self: TokenPool_FinalityConfigSet, b: c.Builder): void {
+        b.storeUint(self.allowedFinalityConfig, 32);
+    },
+    toCell(self: TokenPool_FinalityConfigSet): c.Cell {
+        return makeCellFrom<TokenPool_FinalityConfigSet>(self, TokenPool_FinalityConfigSet.store);
+    }
+}
+
+/**
+ > struct TokenPool_AdvancedPoolHooksUpdated {
+ >     oldHook: address?
+ >     newHook: address?
+ > }
+ */
+export interface TokenPool_AdvancedPoolHooksUpdated {
+    readonly $: 'TokenPool_AdvancedPoolHooksUpdated'
+    oldHook: c.Address | null
+    newHook: c.Address | null
+}
+
+export const TokenPool_AdvancedPoolHooksUpdated = {
+    create(args: {
+        oldHook: c.Address | null
+        newHook: c.Address | null
+    }): TokenPool_AdvancedPoolHooksUpdated {
+        return {
+            $: 'TokenPool_AdvancedPoolHooksUpdated',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_AdvancedPoolHooksUpdated {
+        return {
+            $: 'TokenPool_AdvancedPoolHooksUpdated',
+            oldHook: s.loadMaybeAddress(),
+            newHook: s.loadMaybeAddress(),
+        }
+    },
+    store(self: TokenPool_AdvancedPoolHooksUpdated, b: c.Builder): void {
+        b.storeAddress(self.oldHook);
+        b.storeAddress(self.newHook);
+    },
+    toCell(self: TokenPool_AdvancedPoolHooksUpdated): c.Cell {
+        return makeCellFrom<TokenPool_AdvancedPoolHooksUpdated>(self, TokenPool_AdvancedPoolHooksUpdated.store);
     }
 }
 
@@ -6950,7 +7057,6 @@ export class BurnMintTokenPool implements c.Contract {
 
     async getFeeAmount(provider: ContractProvider, transfer: TokenPool_LockOrBurnTransfer, requestedFinalityConfig: uint32): Promise<coins> {
         const r = StackReader.fromGetMethod(1, await provider.get('getFeeAmount', [
-            { type: 'int', value: transfer.id },
             { type: 'cell', cell: makeCellFrom<TokenPool_TransferDetails<c.Address, CrossChainAddress, coins>>(transfer.details,
                 (v,b) => { storeCellRef<CrossChainAddress>(v.receiver, b, CrossChainAddress.store);
                 b.storeUint(v.remoteChainSelector, 64);

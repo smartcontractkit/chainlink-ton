@@ -360,7 +360,6 @@ fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequest
             tokenPool: msg.tokenPool,
             request: TokenPool_LockOrBurnInV1{
                 transfer: TokenPool_Transfer {
-                    id: 0,
                     details: TokenPool_TransferDetails {
                         receiver: msg.receiver,
                         remoteChainSelector: msg.destChainSelector,

@@ -181,7 +181,6 @@ export function runTokenPoolAsyncHookBehaviorTests(
     ): TokenPool_LockOrBurnInV1 {
       const transfer: TokenPool_LockOrBurnTransfer = {
         $: 'TokenPool_Transfer',
-        id: 1n,
         details: TokenPool_TransferDetails.create({
           receiver: ctx.destTokenAddress,
           remoteChainSelector: ctx.remoteChainSelector,

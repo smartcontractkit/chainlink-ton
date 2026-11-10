@@ -112,14 +112,13 @@ enum TokenPool_MessageDirection: uint8 {
     Inbound = 1
 }
 
-/// Struct representing a token transfer operation, including the unique transfer ID and the details of the transfer.
+/// Struct representing a token transfer operation and the details of the transfer.
 /// 
 /// Type parameters:
 /// - `S`: The type of the original sender's address on the source chain
 /// - `R`: The type of the recipient's address on the destination chain
 /// - `C`: The type of the amount of tokens, denominated in the source token's decimals
 struct TokenPool_Transfer<S, R, C> {
-    id : uint256;                                      // Unique transfer ID for this TP operation.
     details: Cell<TokenPool_TransferDetails<S, R, C>>; // Details of the transfer.
 }
 
@@ -145,7 +144,7 @@ type TokenPool_ReleaseOrMintTransfer = TokenPool_Transfer<
 >;
 
 struct TokenPool_LockOrBurnInV1 {
-    transfer: TokenPool_LockOrBurnTransfer; // The transfer id/details for the lock or burn operation.
+    transfer: TokenPool_LockOrBurnTransfer; // The transfer details for the lock or burn operation.
 }
 
 struct TokenPool_LockOrBurnOutV1 {

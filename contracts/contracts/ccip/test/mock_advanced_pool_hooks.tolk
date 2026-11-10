@@ -70,6 +70,9 @@ const MOCK_HOOKS_BOUNCE_ID = 255;
 const MOCK_HOOKS_OOG_ID = 254;
 /// `id == 253`: a costly hook. Its postflight reply carries half of the request's value.
 const MOCK_HOOKS_COSTLY_ID = 253;
+/// `id == 252`: a costly hook whose reply carries a third of the request's value. Lets tests
+/// land between the pool entry check and the concrete pool's stricter continuation check.
+const MOCK_HOOKS_THIRD_ID = 252;
 
 fun replyGetCCVs(msg: TokenPool_GetCCVs, sender: address) {
     val data = MockAdvancedPoolHooks_Data.load();
@@ -124,8 +127,14 @@ fun replyPreflight(msg: TokenPool_PreflightCheck, msgValue: coins, sender: addre
         }.toCell();
     }
 
-    if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_COSTLY_ID) {
+    val id = MockAdvancedPoolHooks_Data.load().id;
+    if (id == MOCK_HOOKS_COSTLY_ID) {
         createMessage({ bounce: false, value: msgValue / 2, dest: sender, body: body })
+            .send(SEND_MODE_PAY_FEES_SEPARATELY);
+        return;
+    }
+    if (id == MOCK_HOOKS_THIRD_ID) {
+        createMessage({ bounce: false, value: msgValue / 3, dest: sender, body: body })
             .send(SEND_MODE_PAY_FEES_SEPARATELY);
         return;
     }
@@ -161,8 +170,14 @@ fun replyPostflight(msg: TokenPool_PostflightCheck, msgValue: coins, sender: add
         }.toCell();
     }
 
-    if (MockAdvancedPoolHooks_Data.load().id == MOCK_HOOKS_COSTLY_ID) {
+    val id = MockAdvancedPoolHooks_Data.load().id;
+    if (id == MOCK_HOOKS_COSTLY_ID) {
         createMessage({ bounce: false, value: msgValue / 2, dest: sender, body: body })
+            .send(SEND_MODE_PAY_FEES_SEPARATELY);
+        return;
+    }
+    if (id == MOCK_HOOKS_THIRD_ID) {
+        createMessage({ bounce: false, value: msgValue / 3, dest: sender, body: body })
             .send(SEND_MODE_PAY_FEES_SEPARATELY);
         return;
     }

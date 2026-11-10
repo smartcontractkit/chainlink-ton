@@ -35,7 +35,6 @@ function buildWithdrawRequest(opts: {
     request: tp.TokenPool_LockOrBurnInV1.create({
       transfer: {
         $: 'TokenPool_Transfer',
-        id: 1n,
         details: {
           $: 'TokenPool_TransferDetails',
           receiver: FromBuffer(VALID_EVM_TOKEN_ADDRESS),

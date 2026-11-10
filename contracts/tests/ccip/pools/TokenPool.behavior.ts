@@ -27,6 +27,8 @@ import {
   TokenPool_Config,
   TokenPool_LockOrBurnBudget,
   TokenPool_ReleaseOrMintBudget,
+  TokenPool_TokenTransferFeeConfig,
+  TokenPool_TokenTransferFeeConfigArgs,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 import { CURSE_ROLE } from '../../../wrappers/ccip/Router'
@@ -65,7 +67,6 @@ export function releaseRequest(
 ): TokenPool_ReleaseOrMintInV1 {
   return TokenPool_ReleaseOrMintInV1.create({
     transfer: TokenPool_Transfer.create({
-      id: 1n,
       details: TokenPool_TransferDetails.create({
         originalSender: ctx.sourcePoolAddress,
         remoteChainSelector: ctx.remoteChainSelector,
@@ -84,11 +85,9 @@ export function releaseRequest(
 function releaseRequestWithAmount(
   ctx: TokenPoolBehaviorContext,
   amount: bigint,
-  id = 1n,
 ): TokenPool_ReleaseOrMintInV1 {
   return releaseRequest(ctx, {
     transfer: TokenPool_Transfer.create({
-      id,
       details: TokenPool_TransferDetails.create({
         originalSender: ctx.sourcePoolAddress,
         remoteChainSelector: ctx.remoteChainSelector,
@@ -198,7 +197,6 @@ export function runTokenPoolBehaviorTests(
               queryId: 903n,
               request: TokenPool_LockOrBurnInV1.create({
                 transfer: TokenPool_Transfer.create({
-                  id: 903n,
                   details: TokenPool_TransferDetails.create({
                     receiver: ctx.destTokenAddress,
                     remoteChainSelector: ctx.remoteChainSelector,
@@ -311,7 +309,6 @@ export function runTokenPoolBehaviorTests(
           ? TokenPool_LockOrBurnInV1.toCell(
               TokenPool_LockOrBurnInV1.create({
                 transfer: TokenPool_Transfer.create({
-                  id: 902n,
                   details: TokenPool_TransferDetails.create({
                     receiver: ctx.destTokenAddress,
                     remoteChainSelector: ctx.remoteChainSelector,
@@ -546,7 +543,7 @@ export function runTokenPoolBehaviorTests(
         toNano('0.3'),
         {
           queryId: 945n,
-          request: releaseRequestWithAmount(ctx, 8n, 945n),
+          request: releaseRequestWithAmount(ctx, 8n),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
           delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
@@ -594,7 +591,7 @@ export function runTokenPoolBehaviorTests(
         toNano('0.3'),
         {
           queryId: 947n,
-          request: releaseRequestWithAmount(ctx, 60n, 947n),
+          request: releaseRequestWithAmount(ctx, 60n),
           requestedFinalityConfig: 0n,
           replyTo: ctx.deployer.address,
           delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
@@ -1054,7 +1051,6 @@ export function runTokenPoolBehaviorTests(
           queryId: 913n,
           request: releaseRequest(ctx, {
             transfer: TokenPool_Transfer.create({
-              id: 1n,
               details: TokenPool_TransferDetails.create({
                 originalSender: ctx.sourcePoolAddress,
                 remoteChainSelector: ctx.remoteChainSelector,
@@ -1131,7 +1127,6 @@ export function runTokenPoolBehaviorTests(
         queryId,
         request: releaseRequest(ctx, {
           transfer: TokenPool_Transfer.create({
-            id: queryId,
             details: TokenPool_TransferDetails.create({
               originalSender: ctx.sourcePoolAddress,
               remoteChainSelector: ctx.remoteChainSelector,
@@ -1384,6 +1379,54 @@ export function runTokenPoolBehaviorTests(
         to: ctx.pool.address,
         success: false,
         exitCode: TokenPoolErrors['TokenPool_Error.InvalidToken'],
+      })
+    })
+
+    describe('fee arithmetic', () => {
+      it('computes the fee at max amount and max BPS without overflowing', async () => {
+        const ctx = await setup()
+        const maxBps = 9999n
+
+        await ctx.pool.sendTokenPoolApplyTokenTransferFeeConfigUpdates(
+          ctx.deployer.getSender(),
+          toNano('0.2'),
+          {
+            queryId: 980n,
+            updates: [
+              TokenPool_TokenTransferFeeConfigArgs.create({
+                destChainSelector: ctx.remoteChainSelector,
+                tokenTransferFeeConfig: TokenPool_TokenTransferFeeConfig.create({
+                  destGasOverhead: 1n,
+                  destBytesOverhead: 0n,
+                  finalityFeeUSDCents: 0n,
+                  fastFinalityFeeUSDCents: 0n,
+                  finalityTransferFeeBps: maxBps,
+                  fastFinalityTransferFeeBps: maxBps,
+                  isEnabled: true,
+                }),
+              }),
+            ],
+            disableChainSelectors: [],
+          },
+        )
+
+        // `coins` in the Tolk struct is a uint120. The fee product is at most 136 bits,
+        // which must not overflow TVM's signed 257-bit intermediate.
+        const maxAmount = (1n << 120n) - 1n
+        const expectedFee = (maxAmount * maxBps) / 10000n
+        const transfer = TokenPool_Transfer.create({
+          details: TokenPool_TransferDetails.create({
+            receiver: ctx.destTokenAddress,
+            remoteChainSelector: ctx.remoteChainSelector,
+            originalSender: ctx.deployer.address,
+            amount: maxAmount,
+            localToken: ctx.localToken,
+          }),
+        })
+
+        // Default and fast finality paths use the corresponding configured BPS.
+        expect(await ctx.pool.getFeeAmount(transfer, 0n)).toBe(expectedFee)
+        expect(await ctx.pool.getFeeAmount(transfer, 1n)).toBe(expectedFee)
       })
     })
   })

@@ -4646,19 +4646,16 @@ export const TokenPool_DeliveredTransfer = {
 
 /**
  > struct TokenPool_Transfer<S, R, C> {
- >     id: uint256
  >     details: Cell<TokenPool_TransferDetails<S, R, C>>
  > }
  */
 export interface TokenPool_Transfer<S, R, C> {
     readonly $: 'TokenPool_Transfer'
-    id: uint256
     details: TokenPool_TransferDetails<S, R, C>
 }
 
 export const TokenPool_Transfer = {
     create<S, R, C>(args: {
-        id: uint256
         details: TokenPool_TransferDetails<S, R, C>
     }): TokenPool_Transfer<S, R, C> {
         return {
@@ -4711,7 +4708,6 @@ export const TokenPool_ReleaseOrMintTransfer = {
         return (() => {
             return {
                 $: 'TokenPool_Transfer',
-                id: s.loadUintBig(256),
                 details: loadCellRef<TokenPool_TransferDetails<CrossChainAddress, c.Address, uint256>>(s,
                     (s) => (() => {
                         return {
@@ -4728,7 +4724,6 @@ export const TokenPool_ReleaseOrMintTransfer = {
         })();
     },
     store(self: TokenPool_ReleaseOrMintTransfer, b: c.Builder): void {
-        b.storeUint(self.id, 256);
         storeCellRef<TokenPool_TransferDetails<CrossChainAddress, c.Address, uint256>>(self.details, b,
             (v,b) => { b.storeAddress(v.receiver);
             b.storeUint(v.remoteChainSelector, 64);

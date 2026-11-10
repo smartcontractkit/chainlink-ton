@@ -126,7 +126,6 @@ export function runTokenPoolContinuationBehaviorTests(
           queryId: 1n,
           request: TokenPool_LockOrBurnInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: 1n,
               details: TokenPool_TransferDetails.create({
                 receiver: ctx.destTokenAddress,
                 remoteChainSelector: ctx.remoteChainSelector,

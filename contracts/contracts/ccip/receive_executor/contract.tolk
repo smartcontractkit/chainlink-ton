@@ -253,7 +253,6 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
                 requestedFinalityConfig: TOKEN_POOL_WAIT_FOR_FINALITY_FLAG,
                 request: TokenPool_ReleaseOrMintInV1 {
                     transfer: TokenPool_Transfer {
-                        id: rampMsg.header.messageId,
                         details: TokenPool_TransferDetails {
                             receiver: rampMsg.receiver,
                             remoteChainSelector: rampMsg.header.sourceChainSelector,

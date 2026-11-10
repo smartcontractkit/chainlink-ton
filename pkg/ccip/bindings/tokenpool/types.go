@@ -187,13 +187,11 @@ type ReleaseOrMintTransferDetails struct {
 
 // LockOrBurnTransfer represents a lock/burn transfer.
 type LockOrBurnTransfer struct {
-	ID      *big.Int                   `tlb:"## 256"`
 	Details *LockOrBurnTransferDetails `tlb:"^"`
 }
 
 // ReleaseOrMintTransfer represents a release/mint transfer.
 type ReleaseOrMintTransfer struct {
-	ID      *big.Int                      `tlb:"## 256"`
 	Details *ReleaseOrMintTransferDetails `tlb:"^"`
 }
 

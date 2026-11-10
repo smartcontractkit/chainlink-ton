@@ -981,19 +981,16 @@ export const TokenPool_MessageDirection = {
 
 /**
  > struct TokenPool_Transfer<S, R, C> {
- >     id: uint256
  >     details: Cell<TokenPool_TransferDetails<S, R, C>>
  > }
  */
 export interface TokenPool_Transfer<S, R, C> {
     readonly $: 'TokenPool_Transfer'
-    id: uint256
     details: TokenPool_TransferDetails<S, R, C>
 }
 
 export const TokenPool_Transfer = {
     create<S, R, C>(args: {
-        id: uint256
         details: TokenPool_TransferDetails<S, R, C>
     }): TokenPool_Transfer<S, R, C> {
         return {
@@ -1046,7 +1043,6 @@ export const TokenPool_LockOrBurnTransfer = {
         return (() => {
             return {
                 $: 'TokenPool_Transfer',
-                id: s.loadUintBig(256),
                 details: loadCellRef<TokenPool_TransferDetails<c.Address, CrossChainAddress, coins>>(s,
                     (s) => (() => {
                         return {
@@ -1063,7 +1059,6 @@ export const TokenPool_LockOrBurnTransfer = {
         })();
     },
     store(self: TokenPool_LockOrBurnTransfer, b: c.Builder): void {
-        b.storeUint(self.id, 256);
         storeCellRef<TokenPool_TransferDetails<c.Address, CrossChainAddress, coins>>(self.details, b,
             (v,b) => { storeCellRef<CrossChainAddress>(v.receiver, b, CrossChainAddress.store);
             b.storeUint(v.remoteChainSelector, 64);
@@ -1087,7 +1082,6 @@ export const TokenPool_ReleaseOrMintTransfer = {
         return (() => {
             return {
                 $: 'TokenPool_Transfer',
-                id: s.loadUintBig(256),
                 details: loadCellRef<TokenPool_TransferDetails<CrossChainAddress, c.Address, uint256>>(s,
                     (s) => (() => {
                         return {
@@ -1104,7 +1098,6 @@ export const TokenPool_ReleaseOrMintTransfer = {
         })();
     },
     store(self: TokenPool_ReleaseOrMintTransfer, b: c.Builder): void {
-        b.storeUint(self.id, 256);
         storeCellRef<TokenPool_TransferDetails<CrossChainAddress, c.Address, uint256>>(self.details, b,
             (v,b) => { b.storeAddress(v.receiver);
             b.storeUint(v.remoteChainSelector, 64);
@@ -6726,7 +6719,6 @@ export class TokenPool implements c.Contract {
 
     async getFeeAmount(provider: ContractProvider, transfer: TokenPool_LockOrBurnTransfer, requestedFinalityConfig: uint32): Promise<coins> {
         const r = StackReader.fromGetMethod(1, await provider.get('getFeeAmount', [
-            { type: 'int', value: transfer.id },
             { type: 'cell', cell: makeCellFrom<TokenPool_TransferDetails<c.Address, CrossChainAddress, coins>>(transfer.details,
                 (v,b) => { storeCellRef<CrossChainAddress>(v.receiver, b, CrossChainAddress.store);
                 b.storeUint(v.remoteChainSelector, 64);

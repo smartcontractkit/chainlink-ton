@@ -73,7 +73,6 @@ describe('Router.relayReleaseOrMint', () => {
       tokenPool: tokenPool.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
         transfer: rt.TokenPool_Transfer.create({
-          id: queryID,
           details: rt.TokenPool_TransferDetails.create({
             originalSender: EVM_ADDRESS,
             remoteChainSelector: sourceChainSelector,
