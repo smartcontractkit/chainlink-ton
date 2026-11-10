@@ -211,7 +211,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         }),
       })
       const fwdp = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: ctx.deployer.address,
+        initiator: ctx.deployer.address,
         requestMsg: TokenPool_LockOrBurn.create({
           queryId: 0n,
           request,
@@ -241,7 +241,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         }),
       })
       const fwdp = TokenPool_ReleaseOrMintForwardPayload.create({
-        originalSender: ctx.deployer.address,
+        initiator: ctx.deployer.address,
         requestMsg: TokenPool_ReleaseOrMint.create({
           queryId: 0n,
           request,
@@ -743,7 +743,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         }),
       })
       const fwdp = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: ctx.deployer.address,
+        initiator: ctx.deployer.address,
         requestMsg,
         prepared,
       })
@@ -798,7 +798,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
 
       const request = lockOrBurnIn(ctx)
       const fwdp = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: ctx.deployer.address,
+        initiator: ctx.deployer.address,
         requestMsg: TokenPool_LockOrBurn.create({
           queryId: 10n,
           request,

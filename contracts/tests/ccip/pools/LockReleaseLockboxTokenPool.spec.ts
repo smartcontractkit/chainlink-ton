@@ -62,6 +62,7 @@ import {
   runTokenPoolBehaviorTests,
 } from './TokenPool.behavior'
 import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
+import { runTokenPoolMinValueBehaviorTests } from './TokenPool.minValue.behavior'
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
 import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
 import { deriveSenderAccountAddress } from '../../../wrappers/ccip/SenderAccount'
@@ -324,7 +325,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       finalizationValue: toNano('0.01'),
     })
     const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
-      originalSender: deployer.address,
+      initiator: deployer.address,
       requestMsg: lockOrBurn,
       prepared: TokenPool_LockOrBurnPrepared.create({
         feeAmount: 0n,
@@ -391,6 +392,21 @@ describe('LockReleaseLockboxTokenPool', () => {
     // Fund the lockbox so release completions can actually be observed in behavior tests.
     await fundLockboxViaLock(toNano('10'))
   }
+
+  runTokenPoolMinValueBehaviorTests('LockReleaseLockboxTokenPool', async () => ({
+    pool,
+    blockchain,
+    deployer,
+    offRamp,
+    unauthorized: recipient,
+    recipient,
+    remoteChainSelector,
+    onRampAddress: deployer.address,
+    destTokenAddress,
+    sourcePoolAddress,
+    localToken: jettonMinter.address,
+    releaseOrMintInitiator: jettonLockBox.address,
+  }))
 
   runTokenPoolBehaviorTests(
     'LockReleaseLockboxTokenPool',
@@ -552,7 +568,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         finalizationValue: toNano('0.01'),
       })
       const transferPayload = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: deployer.address,
+        initiator: deployer.address,
         requestMsg: lockOrBurn,
         prepared: TokenPool_LockOrBurnPrepared.create({
           feeAmount,
@@ -711,7 +727,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       })
 
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: deployer.address,
+        initiator: deployer.address,
         requestMsg: lockOrBurn,
         prepared: TokenPool_LockOrBurnPrepared.create({
           feeAmount: 0n,
@@ -1402,7 +1418,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         finalizationValue: toNano('0.01'),
       })
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: attacker.address,
+        initiator: attacker.address,
         requestMsg: request,
         prepared: TokenPool_LockOrBurnPrepared.create({
           feeAmount: 0n,
@@ -1641,7 +1657,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         })
 
         const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
-          originalSender: deployer.address,
+          initiator: deployer.address,
           requestMsg: lockOrBurn,
           prepared: TokenPool_LockOrBurnPrepared.create({
             feeAmount: 0n,

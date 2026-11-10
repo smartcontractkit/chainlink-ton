@@ -234,16 +234,16 @@ type ReleaseOrMintPrepared struct {
 
 // LockOrBurnForwardPayload holds the forward payload for lock/burn operations.
 type LockOrBurnForwardPayload struct {
-	OriginalSender *address.Address   `tlb:"addr required"`
-	RequestMsg     LockOrBurn         `tlb:"^"`
-	Prepared       LockOrBurnPrepared `tlb:"^"`
+	Initiator  *address.Address   `tlb:"addr required"`
+	RequestMsg LockOrBurn         `tlb:"^"`
+	Prepared   LockOrBurnPrepared `tlb:"^"`
 }
 
 // ReleaseOrMintForwardPayload holds the forward payload for release/mint operations.
 type ReleaseOrMintForwardPayload struct {
-	OriginalSender *address.Address      `tlb:"addr required"`
-	RequestMsg     ReleaseOrMint         `tlb:"^"`
-	Prepared       ReleaseOrMintPrepared `tlb:"^"`
+	Initiator  *address.Address      `tlb:"addr required"`
+	RequestMsg ReleaseOrMint         `tlb:"^"`
+	Prepared   ReleaseOrMintPrepared `tlb:"^"`
 }
 
 // JettonClient holds the pool's Jetton identity (master + wallet code). Single
