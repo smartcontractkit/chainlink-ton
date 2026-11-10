@@ -123,7 +123,8 @@ struct TokenPool_LockOrBurnExtra {
 }
 
 struct TokenPool_LockOrBurnForwardPayload {
-    originalSender: address,
+    /// The flow initiator (the Router on the normal entrypoint path).
+    initiator: address,
     requestMsg: Cell<TokenPool_LockOrBurn>,
     prepared: Cell<TokenPool_LockOrBurnPrepared>,
 }
@@ -191,7 +192,8 @@ struct (0xa6dfa623) TokenPool_PreflightCheckFailed {
 
 /// Forward payload for ReleaseOrMint operations used during async postflight checks.
 struct TokenPool_ReleaseOrMintForwardPayload {
-    originalSender: address,
+    /// The flow initiator (the Router on both entrypoint and async callback paths).
+    initiator: address,
     requestMsg: Cell<TokenPool_ReleaseOrMint>,
     prepared: Cell<TokenPool_ReleaseOrMintPrepared>,
 }

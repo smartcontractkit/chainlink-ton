@@ -98,7 +98,7 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
     st.walletAddress = msg.walletAddress;
 
     // Require enough value to cover the rent reserve plus the init cost.
-    val rentReserve = reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
+    val (_, rentReserve) = reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
     assert(
         contract.getOriginalBalance() >= rentReserve + MIN_GRAM_TO_INIT,
         JettonLockBox_Error.NotEnoughValue
@@ -156,6 +156,9 @@ fun onDepositWithTransferNotification(
     // lockbox wallet). It cannot be attributed or returned so we accept and error.
     assert (msg.transferInitiator != null) throw (AccessControl_Error.UnauthorizedAccount);
 
+    // Custody is already here. Preserve the pre-message balance before decoding or validation.
+    val (continuationValue, _) = reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
+
     // Decode outside the validation try so its catch retains the deposit's correlation context.
     var deposit: JettonLockBox_Deposit? = null;
     try {
@@ -192,16 +195,12 @@ fun onDepositWithTransferNotification(
         // optional failure return is not required here, so a viable success is never rejected.
         val replyFee = reply.estimateFeeWithoutSending(SEND_MODE_CARRY_ALL_BALANCE);
         assert(
-            msgValue >= JettonLockBox_minDepositValue(replyFee),
+            continuationValue >= JettonLockBox_minDepositValue(replyFee),
             JettonLockBox_Error.NotEnoughValue
         );
 
         // Custody has arrived; finalize optimistically without rejecting.
         // The operator funds the confirmation when it sends the deposit.
-
-        // The log and transfer are separate actions. Protect the pre-message balance, then carry
-        // only the unreserved remainder after paying for the log and this transaction.
-        reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
         emit<JettonLockBox_Deposit>(TOPIC_DEPOSIT, deposit);
         reply.send(SEND_MODE_CARRY_ALL_BALANCE);
     } catch (errorCode) {
@@ -276,7 +275,6 @@ fun onDepositReturn(
     // failureValue. If not enough funds are provided, the failure message will not be sent.
     val failureCost = failureValue + failure.estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
     if (failureValue > 0 && msgValue > failureCost) {
-        reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
         failure.send(SEND_MODE_PAY_FEES_SEPARATELY);
         transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
 
@@ -301,8 +299,8 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     assert (!isZeroAddress(msg.recipient)) throw (JettonLockBox_Error.RecipientCannotBeZeroAddress);
     assert (st.walletAddress != null) throw (JettonLockBox_Error.UnsupportedToken);
 
-    // Enforce a balance reserve before processing the withdrawal
-    reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
+    // Enforce the rent target and use the remainder for the withdrawal.
+    val (continuationValue, _) = reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
     emit<JettonLockBox_Withdraw>(TOPIC_WITHDRAWAL, msg);
 
     // Resolve the optional withdraw extras once.
@@ -351,7 +349,7 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     // This check is an early guard; the actual jetton wallet checks its own transfer cost and
     // bounces back if not enough value is provided.
     val minValue = JettonLockBox_minWithdrawValue(forwardTonAmount, fwdFee);
-    assert(msgValue >= minValue, JettonLockBox_Error.NotEnoughValue);
+    assert(continuationValue >= minValue, JettonLockBox_Error.NotEnoughValue);
 
     val transfer = createMessage(transferOpts);
     transfer.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
