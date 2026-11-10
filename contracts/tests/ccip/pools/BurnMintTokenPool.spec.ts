@@ -27,6 +27,8 @@ import {
   AskToTransfer,
   TokenPool_ReleaseOrMintInV1,
   TokenPool_ReleaseOrMintFinalized,
+  TokenPool_ReleaseOrMintFailure,
+  TokenPool_PostflightCheckFinished,
   TokenPool_LocalPolicy,
   TokenPool_DynamicConfig,
   TokenPool_Transfer,
@@ -350,6 +352,78 @@ describe('BurnMintTokenPool', () => {
     }
   })
 
+  it('does not double-reserve when a postflight callback passes the entry check but fails the mint funding check', async () => {
+    const costlyHooks = blockchain.openContract(
+      MockAdvancedPoolHooks.fromStorage(
+        { id: 252n },
+        { overrideContractCode: await contractCode.ccip.local('ccip.test.mockAdvancedPoolHooks') },
+      ),
+    )
+    await costlyHooks.sendDeploy(deployer.getSender(), toNano('0.1'))
+    const setHooks = await pool.sendTokenPoolSetAdvancedPoolHooks(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
+        queryId: 9993n,
+        advancedPoolHooks: costlyHooks.address,
+      },
+    )
+    expect(setHooks.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: pool.address,
+      success: true,
+    })
+
+    const before = await pool.getCurrentRateLimiterState(remoteChainSelector, false)
+    const admission = (await pool.getBudget()).releaseOrMint.admission
+    const queryId = 2n // The mock hook approves even query IDs.
+    const request = TokenPool_ReleaseOrMintInV1.create({
+      transfer: TokenPool_Transfer.create({
+        details: TokenPool_TransferDetails.create({
+          originalSender: sourcePoolAddress,
+          remoteChainSelector,
+          receiver: recipient.address,
+          amount: 1n,
+          localToken: cctMinter.address,
+        }),
+      }),
+      sourcePoolAddress,
+      sourcePoolData: null,
+      offchainTokenData: null,
+    })
+
+    const { transactions } = await pool.sendTokenPoolReleaseOrMint(
+      deployer.getSender(),
+      admission + toNano('0.0101'),
+      {
+        queryId,
+        request,
+        requestedFinalityConfig: 0n,
+        replyTo: offRamp.address,
+        delivery: deliveryTo(recipient.address, offRamp.address),
+      },
+    )
+
+    // The costly hook returns a third of the callback value. It passes the base entry check but
+    // is below BurnMint's stricter mint-funding check, so the continuation must unwind normally.
+    expect(transactions).toHaveTransaction({
+      from: costlyHooks.address,
+      to: pool.address,
+      op: TokenPool_PostflightCheckFinished.PREFIX,
+      success: true,
+    })
+    expect(transactions).toHaveTransaction({
+      from: pool.address,
+      to: offRamp.address,
+      op: TokenPool_ReleaseOrMintFailure.PREFIX,
+      success: true,
+    })
+
+    // The inbound capacity consumed at admission is refunded.
+    const after = await pool.getCurrentRateLimiterState(remoteChainSelector, false)
+    expect(after.inbound.tokens).toEqual(before.inbound.tokens)
+  })
+
   // WithdrawFeeTokens behavior tests (fee accrual + withdrawal). burn/mint burns only the
   // post-fee amount, leaving the fee jettons behind in the pool's own wallet. Withdrawals are
   // bounded by the pool's `accruedFees` ledger.
@@ -390,7 +464,6 @@ describe('BurnMintTokenPool', () => {
         queryId,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: queryId,
             details: TokenPool_TransferDetails.create({
               receiver: receiverAddress,
               remoteChainSelector,
@@ -537,7 +610,6 @@ describe('BurnMintTokenPool', () => {
             queryId: 303n,
             request: TokenPool_LockOrBurnInV1.create({
               transfer: TokenPool_Transfer.create({
-                id: 303n,
                 details: TokenPool_TransferDetails.create({
                   receiver: receiverAddress,
                   remoteChainSelector,
@@ -576,7 +648,6 @@ describe('BurnMintTokenPool', () => {
         queryId: 666n,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: 666n,
             details: TokenPool_TransferDetails.create({
               receiver: receiverAddress,
               remoteChainSelector,
@@ -598,7 +669,6 @@ describe('BurnMintTokenPool', () => {
         replyTo: deployer.address,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: 1n,
             details: TokenPool_TransferDetails.create({
               ...request.request.transfer.details,
               originalSender: deployer.address,
@@ -684,7 +754,6 @@ describe('BurnMintTokenPool', () => {
       queryId: 667n,
       request: TokenPool_LockOrBurnInV1.create({
         transfer: TokenPool_Transfer.create({
-          id: 667n,
           details: TokenPool_TransferDetails.create({
             receiver: receiverAddress,
             remoteChainSelector,
@@ -864,7 +933,6 @@ describe('BurnMintTokenPool', () => {
         queryId: 304n,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: 304n,
             details: TokenPool_TransferDetails.create({
               receiver: receiverAddress,
               remoteChainSelector,
@@ -1032,7 +1100,6 @@ describe('BurnMintTokenPool', () => {
       queryId,
       request: TokenPool_LockOrBurnInV1.create({
         transfer: TokenPool_Transfer.create({
-          id: queryId,
           details: TokenPool_TransferDetails.create({
             receiver: receiverAddress,
             remoteChainSelector,
@@ -1184,7 +1251,6 @@ describe('BurnMintTokenPool', () => {
       queryId,
       request: TokenPool_LockOrBurnInV1.create({
         transfer: TokenPool_Transfer.create({
-          id: queryId,
           details: TokenPool_TransferDetails.create({
             receiver: receiverAddress,
             remoteChainSelector,
@@ -1308,7 +1374,6 @@ describe('BurnMintTokenPool', () => {
         }),
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: 34n,
             details: TokenPool_TransferDetails.create({
               receiver: receiverAddress,
               remoteChainSelector,
@@ -1430,7 +1495,6 @@ describe('BurnMintTokenPool', () => {
   const mintRequest = (queryId: bigint, amount: bigint) =>
     TokenPool_ReleaseOrMintInV1.create({
       transfer: TokenPool_Transfer.create({
-        id: queryId,
         details: TokenPool_TransferDetails.create({
           originalSender: sourcePoolAddress,
           remoteChainSelector,
@@ -1499,7 +1563,6 @@ describe('BurnMintTokenPool', () => {
       queryId,
       request: TokenPool_ReleaseOrMintInV1.create({
         transfer: TokenPool_Transfer.create({
-          id: queryId,
           details: TokenPool_TransferDetails.create({
             originalSender: sourcePoolAddress,
             remoteChainSelector,

@@ -73,7 +73,6 @@ describe('Router.relayReleaseOrMint', () => {
       tokenPool: tokenPool.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
         transfer: rt.TokenPool_Transfer.create({
-          id: queryId,
           details: rt.TokenPool_TransferDetails.create({
             originalSender: EVM_ADDRESS,
             remoteChainSelector: sourceChainSelector,
@@ -121,7 +120,7 @@ describe('Router.relayReleaseOrMint', () => {
 
   const expectRelayedToPool = (
     result: Awaited<ReturnType<typeof relay>>,
-    queryId: bigint,
+    queryID: bigint,
     account: Address,
   ) =>
     expect(result.transactions).toHaveTransaction({
@@ -132,7 +131,7 @@ describe('Router.relayReleaseOrMint', () => {
         if (!body) return false
         const msg = rt.TokenPool_ReleaseOrMint.fromSlice(body.beginParse())
         return (
-          msg.queryId === queryId &&
+          msg.queryId === queryID &&
           msg.delivery?.recipient.equals(account) === true &&
           msg.replyTo?.equals(executor.address) === true &&
           msg.sendExcessesTo?.equals(offRamp.address) === true

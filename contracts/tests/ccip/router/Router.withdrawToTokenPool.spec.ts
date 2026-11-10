@@ -138,7 +138,6 @@ describe('Router.withdrawToTokenPool', () => {
         request: rt.TokenPool_LockOrBurnInV1.create({
           transfer: {
             $: 'TokenPool_Transfer',
-            id: 0n,
             details: rt.TokenPool_TransferDetails.create({
               receiver: CrossChainAddressCodec.FromBuffer(Buffer.from('receiver')),
               remoteChainSelector: destChainSelector,

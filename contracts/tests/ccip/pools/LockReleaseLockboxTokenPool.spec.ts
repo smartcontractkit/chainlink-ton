@@ -307,7 +307,6 @@ describe('LockReleaseLockboxTokenPool', () => {
       queryId: BigInt(queryId),
       request: TokenPool_LockOrBurnInV1.create({
         transfer: TokenPool_Transfer.create({
-          id: BigInt(queryId),
           details: TokenPool_TransferDetails.create({
             receiver: receiverAddress,
             remoteChainSelector,
@@ -498,7 +497,6 @@ describe('LockReleaseLockboxTokenPool', () => {
         queryId,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: queryId,
             details: TokenPool_TransferDetails.create({
               receiver: receiverAddress,
               remoteChainSelector,
@@ -657,7 +655,6 @@ describe('LockReleaseLockboxTokenPool', () => {
         queryId,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: queryId,
             details: TokenPool_TransferDetails.create({
               receiver: receiverAddress,
               remoteChainSelector,
@@ -821,7 +818,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId: 200n,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: 200n,
               details: TokenPool_TransferDetails.create({
                 originalSender: sourcePoolAddress,
                 remoteChainSelector,
@@ -864,7 +860,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId: 201n,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: 201n,
               details: TokenPool_TransferDetails.create({
                 originalSender: sourcePoolAddress,
                 remoteChainSelector,
@@ -903,7 +898,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: queryId,
               details: TokenPool_TransferDetails.create({
                 originalSender: sourcePoolAddress,
                 remoteChainSelector,
@@ -1006,7 +1000,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: queryId,
               details: TokenPool_TransferDetails.create({
                 originalSender: sourcePoolAddress,
                 remoteChainSelector,
@@ -1151,7 +1144,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId,
           request: TokenPool_LockOrBurnInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: queryId,
               details: TokenPool_TransferDetails.create({
                 receiver: receiverAddress,
                 remoteChainSelector,
@@ -1195,7 +1187,6 @@ describe('LockReleaseLockboxTokenPool', () => {
             queryId: 303n,
             request: TokenPool_LockOrBurnInV1.create({
               transfer: TokenPool_Transfer.create({
-                id: 303n,
                 details: TokenPool_TransferDetails.create({
                   receiver: receiverAddress,
                   remoteChainSelector,
@@ -1356,7 +1347,6 @@ describe('LockReleaseLockboxTokenPool', () => {
         queryId: 305n,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: 305n,
             details: TokenPool_TransferDetails.create({
               receiver: receiverAddress,
               remoteChainSelector,
@@ -1592,7 +1582,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId: 300n,
           request: TokenPool_LockOrBurnInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: 300n,
               details: TokenPool_TransferDetails.create({
                 receiver: receiverAddress,
                 remoteChainSelector,
@@ -1740,7 +1729,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId: 400n,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: 400n,
               details: TokenPool_TransferDetails.create({
                 originalSender: sourcePoolAddress,
                 remoteChainSelector,
@@ -1824,7 +1812,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId: 401n,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: 401n,
               details: TokenPool_TransferDetails.create({
                 originalSender: sourcePoolAddress,
                 remoteChainSelector,

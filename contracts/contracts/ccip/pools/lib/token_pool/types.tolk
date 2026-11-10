@@ -63,7 +63,6 @@ struct TokenPool_ChainUpdate {
 
 struct TokenPool_RemoteChainConfig {
     remoteTokenAddress: Cell<CrossChainAddress>;               // Address of the remote token, ABI encoded in the case of a remote EVM chain.
-    // TODO[REFACTOR]: [NONEVM-5336] EnumerableSet.Bytes32Set remotePools;
     remotePools: map<uint256, Cell<CrossChainAddress>> = [];   // Set of remote pool hashes, ABI encoded in the case of a remote EVM chain.
     rateLimiters: Cell<TokenPool_RateLimiterPair>;             // Rate limiter configs.
     fastFinalityRateLimiters: Cell<TokenPool_RateLimiterPair>; // Rate limiter configs for fast finality transfers.
@@ -82,12 +81,9 @@ struct TokenPool_TokenTransferFeeConfigArgs {
     tokenTransferFeeConfig: TokenPool_TokenTransferFeeConfig; // Token transfer fee configuration.
 }
 
-// TODO[REFACTOR]: [NONEVM-5336] triage new types below
-
 struct TokenPool_LockOrBurnPrepared {
     feeAmount: coins;
     /// Token amount in local token decimals after deducting the fee.
-    // TODO[REFACTOR]: [NONEVM-5336] rename to just amount?
     destTokenAmount: coins; 
     out: TokenPool_LockOrBurnOutV1;
 }
@@ -116,15 +112,13 @@ enum TokenPool_MessageDirection: uint8 {
     Inbound = 1
 }
 
-/// Struct representing a token transfer operation, including the unique transfer ID and the details of the transfer.
+/// Struct representing a token transfer operation and the details of the transfer.
 /// 
 /// Type parameters:
 /// - `S`: The type of the original sender's address on the source chain
 /// - `R`: The type of the recipient's address on the destination chain
 /// - `C`: The type of the amount of tokens, denominated in the source token's decimals
 struct TokenPool_Transfer<S, R, C> {
-    // TODO[REFACTOR]: [NONEVM-5336] is this the same as queryId?
-    id : uint256;                                   // Unique transfer ID for this TP operation.
     details: Cell<TokenPool_TransferDetails<S, R, C>>; // Details of the transfer.
 }
 
@@ -150,7 +144,7 @@ type TokenPool_ReleaseOrMintTransfer = TokenPool_Transfer<
 >;
 
 struct TokenPool_LockOrBurnInV1 {
-    transfer: TokenPool_LockOrBurnTransfer; // The transfer id/details for the lock or burn operation.
+    transfer: TokenPool_LockOrBurnTransfer; // The transfer details for the lock or burn operation.
 }
 
 struct TokenPool_LockOrBurnOutV1 {

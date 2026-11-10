@@ -27,6 +27,8 @@ import {
   TokenPool_Config,
   TokenPool_LockOrBurnBudget,
   TokenPool_ReleaseOrMintBudget,
+  TokenPool_TokenTransferFeeConfig,
+  TokenPool_TokenTransferFeeConfigArgs,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
 import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 import { CURSE_ROLE } from '../../../wrappers/ccip/Router'
@@ -65,7 +67,6 @@ export function releaseRequest(
 ): TokenPool_ReleaseOrMintInV1 {
   return TokenPool_ReleaseOrMintInV1.create({
     transfer: TokenPool_Transfer.create({
-      id: 1n,
       details: TokenPool_TransferDetails.create({
         originalSender: ctx.sourcePoolAddress,
         remoteChainSelector: ctx.remoteChainSelector,
@@ -78,6 +79,23 @@ export function releaseRequest(
     sourcePoolData: null,
     offchainTokenData: null,
     ...overrides,
+  })
+}
+
+function releaseRequestWithAmount(
+  ctx: TokenPoolBehaviorContext,
+  amount: bigint,
+): TokenPool_ReleaseOrMintInV1 {
+  return releaseRequest(ctx, {
+    transfer: TokenPool_Transfer.create({
+      details: TokenPool_TransferDetails.create({
+        originalSender: ctx.sourcePoolAddress,
+        remoteChainSelector: ctx.remoteChainSelector,
+        receiver: ctx.recipient.address,
+        amount,
+        localToken: ctx.localToken,
+      }),
+    }),
   })
 }
 
@@ -179,7 +197,6 @@ export function runTokenPoolBehaviorTests(
               queryId: 903n,
               request: TokenPool_LockOrBurnInV1.create({
                 transfer: TokenPool_Transfer.create({
-                  id: 903n,
                   details: TokenPool_TransferDetails.create({
                     receiver: ctx.destTokenAddress,
                     remoteChainSelector: ctx.remoteChainSelector,
@@ -292,7 +309,6 @@ export function runTokenPoolBehaviorTests(
           ? TokenPool_LockOrBurnInV1.toCell(
               TokenPool_LockOrBurnInV1.create({
                 transfer: TokenPool_Transfer.create({
-                  id: 902n,
                   details: TokenPool_TransferDetails.create({
                     receiver: ctx.destTokenAddress,
                     remoteChainSelector: ctx.remoteChainSelector,
@@ -497,6 +513,264 @@ export function runTokenPoolBehaviorTests(
         to: ctx.pool.address,
         success: false,
       })
+    })
+
+    it('refills elapsed capacity and caps at capacity (EVM 2.0)', async () => {
+      const ctx = await setup()
+
+      await ctx.pool.sendTokenPoolSetRateLimitConfig(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 944n,
+        updates: [
+          TokenPool_RateLimitConfigArgs.create({
+            remoteChainSelector: ctx.remoteChainSelector,
+            fastFinality: false,
+            outboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 10n,
+              rate: 2n,
+            }),
+            inboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 10n,
+              rate: 2n,
+            }),
+          }),
+        ],
+      })
+
+      const release = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.deployer.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 945n,
+          request: releaseRequestWithAmount(ctx, 8n),
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
+        },
+      )
+      expect(release.transactions).toHaveTransaction({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+
+      const drained = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+      expect(drained.inbound.tokens).toEqual(2n)
+
+      ctx.blockchain.now = (ctx.blockchain.now ?? 0) + 5
+      const refilled = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+      expect(refilled.inbound.tokens).toEqual(10n)
+    })
+
+    it('applies EVM 2.0 rate-limit config semantics (tokens = capacity)', async () => {
+      const ctx = await setup()
+
+      await ctx.pool.sendTokenPoolSetRateLimitConfig(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 946n,
+        updates: [
+          TokenPool_RateLimitConfigArgs.create({
+            remoteChainSelector: ctx.remoteChainSelector,
+            fastFinality: false,
+            outboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 100n,
+              rate: 0n,
+            }),
+            inboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 100n,
+              rate: 0n,
+            }),
+          }),
+        ],
+      })
+
+      const release = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.deployer.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 947n,
+          request: releaseRequestWithAmount(ctx, 60n),
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
+        },
+      )
+      expect(release.transactions).toHaveTransaction({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+
+      const drained = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+      expect(drained.inbound.tokens).toEqual(40n)
+
+      await ctx.pool.sendTokenPoolSetRateLimitConfig(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 948n,
+        updates: [
+          TokenPool_RateLimitConfigArgs.create({
+            remoteChainSelector: ctx.remoteChainSelector,
+            fastFinality: false,
+            outboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 50n,
+              rate: 0n,
+            }),
+            inboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 50n,
+              rate: 0n,
+            }),
+          }),
+        ],
+      })
+
+      const afterTighten = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
+      expect(afterTighten.inbound.capacity).toEqual(50n)
+      expect(afterTighten.inbound.tokens).toEqual(50n)
+    })
+
+    it('rejects invalid rate-limit configs (EVM 2.0 validation)', async () => {
+      const ctx = await setup()
+      const invalid = [
+        { isEnabled: true, capacity: 10n, rate: 11n },
+        { isEnabled: false, capacity: 1n, rate: 0n },
+        { isEnabled: false, capacity: 0n, rate: 1n },
+      ]
+
+      for (const [index, config] of invalid.entries()) {
+        const result = await ctx.pool.sendTokenPoolSetRateLimitConfig(
+          ctx.deployer.getSender(),
+          toNano('0.2'),
+          {
+            queryId: 960n + BigInt(index),
+            updates: [
+              TokenPool_RateLimitConfigArgs.create({
+                remoteChainSelector: ctx.remoteChainSelector,
+                fastFinality: false,
+                outboundRateLimiterConfig: RateLimiter_Config.create(config),
+                inboundRateLimiterConfig: RateLimiter_Config.create(config),
+              }),
+            ],
+          },
+        )
+
+        expect(result.transactions).toHaveTransaction({
+          from: ctx.deployer.address,
+          to: ctx.pool.address,
+          success: false,
+        })
+      }
+    })
+
+    it('emits DynamicConfigSet when the dynamic config changes (C-8)', async () => {
+      const ctx = await setup()
+      const router = ctx.onRampAddress
+      const rateLimitAdmin = ctx.unauthorized.address
+      const feeAdmin = ctx.recipient.address
+
+      const poolBefore = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+      const result = await ctx.pool.sendTokenPoolSetDynamicConfig(
+        ctx.deployer.getSender(),
+        toNano('0.2'),
+        { queryId: 950n, router, rateLimitAdmin, feeAdmin },
+      )
+      const poolAfter = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+
+      // The emit is funded from the inbound value, not the pool balance, and the remainder
+      // is still returned to the caller.
+      expect(poolAfter).toBeGreaterThanOrEqual(poolBefore)
+      const reply = result.transactions.find(
+        (tx) =>
+          tx.inMessage?.info.type === 'internal' &&
+          tx.inMessage.info.dest?.equals(ctx.deployer.address) &&
+          tx.inMessage.info.value.coins > 0n,
+      )
+      expect(reply?.inMessage?.info.type).toBe('internal')
+      if (reply?.inMessage?.info.type === 'internal') {
+        expect(reply.inMessage.info.value.coins).toBeGreaterThan(toNano('0.15'))
+      }
+
+      const events = getExternals(result.transactions).filter((ext) =>
+        testLog(ext, ctx.pool.address, 'TokenPool_DynamicConfigSet'),
+      )
+      expect(events).toHaveLength(1)
+      const body = events[0].body!.beginParse()
+      expect(body.loadAddress().equals(router)).toBe(true)
+      expect(body.loadMaybeAddress()?.equals(rateLimitAdmin)).toBe(true)
+      expect(body.loadMaybeAddress()?.equals(feeAdmin)).toBe(true)
+    })
+
+    it('emits FinalityConfigSet when the allowed finality config changes (C-8)', async () => {
+      const ctx = await setup()
+      const poolBefore = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+
+      const result = await ctx.pool.sendTokenPoolSetAllowedFinalityConfig(
+        ctx.deployer.getSender(),
+        toNano('0.2'),
+        { queryId: 951n, allowedFinalityConfig: 1n },
+      )
+      const poolAfter = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+
+      expect(poolAfter).toBeGreaterThanOrEqual(poolBefore)
+
+      const events = getExternals(result.transactions).filter((ext) =>
+        testLog(ext, ctx.pool.address, 'TokenPool_FinalityConfigSet'),
+      )
+      expect(events).toHaveLength(1)
+      expect(events[0].body!.beginParse().loadUint(32)).toBe(1)
+    })
+
+    it('emits AdvancedPoolHooksUpdated with the old and new hooks (C-8)', async () => {
+      const ctx = await setup()
+      const hooks = ctx.unauthorized.address
+      const poolBefore = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+
+      const result = await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(
+        ctx.deployer.getSender(),
+        toNano('0.2'),
+        { queryId: 952n, advancedPoolHooks: hooks },
+      )
+      const poolAfter = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+
+      expect(poolAfter).toBeGreaterThanOrEqual(poolBefore)
+
+      const events = getExternals(result.transactions).filter((ext) =>
+        testLog(ext, ctx.pool.address, 'TokenPool_AdvancedPoolHooksUpdated'),
+      )
+      expect(events).toHaveLength(1)
+      const body = events[0].body!.beginParse()
+      expect(body.loadMaybeAddress()).toBeNull()
+      expect(body.loadMaybeAddress()?.equals(hooks)).toBe(true)
+    })
+
+    it('funds rate-limit config events from the inbound value (C-8)', async () => {
+      const ctx = await setup()
+      const poolBefore = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+
+      await ctx.pool.sendTokenPoolSetRateLimitConfig(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 953n,
+        updates: [
+          TokenPool_RateLimitConfigArgs.create({
+            remoteChainSelector: ctx.remoteChainSelector,
+            fastFinality: false,
+            outboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 10n,
+              rate: 0n,
+            }),
+            inboundRateLimiterConfig: RateLimiter_Config.create({
+              isEnabled: true,
+              capacity: 10n,
+              rate: 0n,
+            }),
+          }),
+        ],
+      })
+
+      const poolAfter = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+      expect(poolAfter).toBeGreaterThanOrEqual(poolBefore)
     })
 
     it('returns unsupported for unknown chain', async () => {
@@ -777,7 +1051,6 @@ export function runTokenPoolBehaviorTests(
           queryId: 913n,
           request: releaseRequest(ctx, {
             transfer: TokenPool_Transfer.create({
-              id: 1n,
               details: TokenPool_TransferDetails.create({
                 originalSender: ctx.sourcePoolAddress,
                 remoteChainSelector: ctx.remoteChainSelector,
@@ -854,7 +1127,6 @@ export function runTokenPoolBehaviorTests(
         queryId,
         request: releaseRequest(ctx, {
           transfer: TokenPool_Transfer.create({
-            id: queryId,
             details: TokenPool_TransferDetails.create({
               originalSender: ctx.sourcePoolAddress,
               remoteChainSelector: ctx.remoteChainSelector,
@@ -1107,6 +1379,54 @@ export function runTokenPoolBehaviorTests(
         to: ctx.pool.address,
         success: false,
         exitCode: TokenPoolErrors['TokenPool_Error.InvalidToken'],
+      })
+    })
+
+    describe('fee arithmetic', () => {
+      it('computes the fee at max amount and max BPS without overflowing', async () => {
+        const ctx = await setup()
+        const maxBps = 9999n
+
+        await ctx.pool.sendTokenPoolApplyTokenTransferFeeConfigUpdates(
+          ctx.deployer.getSender(),
+          toNano('0.2'),
+          {
+            queryId: 980n,
+            updates: [
+              TokenPool_TokenTransferFeeConfigArgs.create({
+                destChainSelector: ctx.remoteChainSelector,
+                tokenTransferFeeConfig: TokenPool_TokenTransferFeeConfig.create({
+                  destGasOverhead: 1n,
+                  destBytesOverhead: 0n,
+                  finalityFeeUSDCents: 0n,
+                  fastFinalityFeeUSDCents: 0n,
+                  finalityTransferFeeBps: maxBps,
+                  fastFinalityTransferFeeBps: maxBps,
+                  isEnabled: true,
+                }),
+              }),
+            ],
+            disableChainSelectors: [],
+          },
+        )
+
+        // `coins` in the Tolk struct is a uint120. The fee product is at most 136 bits,
+        // which must not overflow TVM's signed 257-bit intermediate.
+        const maxAmount = (1n << 120n) - 1n
+        const expectedFee = (maxAmount * maxBps) / 10000n
+        const transfer = TokenPool_Transfer.create({
+          details: TokenPool_TransferDetails.create({
+            receiver: ctx.destTokenAddress,
+            remoteChainSelector: ctx.remoteChainSelector,
+            originalSender: ctx.deployer.address,
+            amount: maxAmount,
+            localToken: ctx.localToken,
+          }),
+        })
+
+        // Default and fast finality paths use the corresponding configured BPS.
+        expect(await ctx.pool.getFeeAmount(transfer, 0n)).toBe(expectedFee)
+        expect(await ctx.pool.getFeeAmount(transfer, 1n)).toBe(expectedFee)
       })
     })
   })

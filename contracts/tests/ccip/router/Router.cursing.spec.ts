@@ -140,7 +140,6 @@ describe('Router.cursing', () => {
       tokenPool: deployer.address,
       request: rt.TokenPool_LockOrBurnInV1.create({
         transfer: rt.TokenPool_Transfer.create({
-          id: 11n,
           details: rt.TokenPool_TransferDetails.create({
             originalSender: sender.address,
             remoteChainSelector,
@@ -184,7 +183,6 @@ describe('Router.cursing', () => {
       tokenPool: deployer.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
         transfer: rt.TokenPool_Transfer.create({
-          id: 21n,
           details: rt.TokenPool_TransferDetails.create({
             originalSender: EVM_ADDRESS,
             remoteChainSelector: sourceChainSelector,
@@ -228,7 +226,6 @@ describe('Router.cursing', () => {
       tokenPool: deployer.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
         transfer: rt.TokenPool_Transfer.create({
-          id: 30n,
           details: rt.TokenPool_TransferDetails.create({
             originalSender: EVM_ADDRESS,
             remoteChainSelector: sourceChainSelector,
@@ -263,7 +260,6 @@ describe('Router.cursing', () => {
       tokenPool: deployer.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
         transfer: rt.TokenPool_Transfer.create({
-          id: 31n,
           details: rt.TokenPool_TransferDetails.create({
             // Mismatched remote chain selector.
             originalSender: EVM_ADDRESS,

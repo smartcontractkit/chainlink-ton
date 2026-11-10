@@ -12,6 +12,7 @@ const TOPIC_TOKEN_POOL_REMOTE_POOL_ADDED = "TokenPool_RemotePoolAdded".crc32();
 const TOPIC_TOKEN_POOL_REMOTE_POOL_REMOVED = "TokenPool_RemotePoolRemoved".crc32();
 const TOPIC_TOKEN_POOL_DYNAMIC_CONFIG_SET = "TokenPool_DynamicConfigSet".crc32();
 const TOPIC_TOKEN_POOL_FINALITY_CONFIG_SET = "TokenPool_FinalityConfigSet".crc32();
+const TOPIC_TOKEN_POOL_ADVANCED_POOL_HOOKS_UPDATED = "TokenPool_AdvancedPoolHooksUpdated".crc32();
 const TOPIC_TOKEN_POOL_RATE_LIMIT_CONFIGURED = "TokenPool_RateLimitConfigured".crc32();
 const TOPIC_TOKEN_POOL_FEE_CONFIG_UPDATED = "TokenPool_TokenTransferFeeConfigUpdated".crc32();
 const TOPIC_TOKEN_POOL_FEE_CONFIG_DELETED = "TokenPool_TokenTransferFeeConfigDeleted".crc32();
@@ -147,13 +148,23 @@ struct TokenPool_RateLimitConfigured {
     args: TokenPool_RateLimitConfigArgs;
 }
 
-//   event RateLimitConfigured(
-//     uint64 indexed remoteChainSelector,
-//     bool fastFinality,
-//     RateLimiter.Config outboundRateLimiterConfig,
-//     RateLimiter.Config inboundRateLimiterConfig
-//   );
-//   event AdvancedPoolHooksUpdated(IAdvancedPoolHooks oldHook, IAdvancedPoolHooks newHook);
+/// Emitted when the pool's dynamic config is updated.
+struct TokenPool_DynamicConfigSet {
+    router: address;
+    rateLimitAdmin: address?;
+    feeAdmin: address?;
+}
+
+/// Emitted when the pool's allowed finality config is updated.
+struct TokenPool_FinalityConfigSet {
+    allowedFinalityConfig: uint32;
+}
+
+/// Emitted when the advanced pool hooks contract is updated.
+struct TokenPool_AdvancedPoolHooksUpdated {
+    oldHook: address?;
+    newHook: address?;
+}
 
 type TokenPool_Events = 
     | TokenPool_LockedOrBurned
@@ -163,6 +174,9 @@ type TokenPool_Events =
     | TokenPool_RemotePoolAdded
     | TokenPool_RemotePoolRemoved
     | TokenPool_RateLimitConfigured
+    | TokenPool_DynamicConfigSet
+    | TokenPool_FinalityConfigSet
+    | TokenPool_AdvancedPoolHooksUpdated
     | TokenPool_TokenTransferFeeConfigUpdated
     | TokenPool_TokenTransferFeeConfigDeleted
     | TokenPool_OutboundRateLimitConsumed

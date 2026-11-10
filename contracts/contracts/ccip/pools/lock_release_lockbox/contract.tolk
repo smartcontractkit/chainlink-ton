@@ -271,10 +271,6 @@ fun onDepositFailed(
         return;
     }
 
-    // TODO[VALUE]: [NONEVM-5766] the lockbox returns only the post-fee `destTokenAmount` to `returnTo`, so the CCIP
-    //       fee is retained by the pool on rejection. Refund the fee (details.amount - destTokenAmount)
-    //       to the original sender to make the sender whole.
-
     val operation = validateRejectedDeposit(st, msg);
     var pool = st.TokenPool();
     pool.recoverLockOrBurnFailure(operation, msg.errorCode, msgValue);
@@ -378,9 +374,8 @@ fun onReleaseOrMintContinue(
         + TokenPool_Costs.finalization(); // T + max(F0, F1) = T + F
     assert (safety >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
 
-    // The ReleaseOrMint entry emitted an inbound-rate-limit event. Reserve the pre-message balance
-    // so the event and this hop are paid from the inbound admission, not the pool balance.
-    reserveBalanceBeforeInMessage(msgValue);
+    // The base ReleaseOrMint entry points reserve the pre-message balance before this
+    // continuation, so the inbound-rate-limit event and this hop are funded by the inbound admission.
     val withdraw = createMessage(withdrawOpts);
     withdraw.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 

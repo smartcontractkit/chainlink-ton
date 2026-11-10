@@ -89,7 +89,7 @@ struct (0x2e7a1790) TokenPool_RMNAccessControlMessage {
 ///        request so the pool can refresh its deposit-auth cache.
 struct (0xfa7da444) TokenPool_LockOrBurn {
     queryId: uint64;
-    request: Cell<TokenPool_LockOrBurnInV1>; // TODO[REFACTOR]: [NONEVM-5336] consider renaming
+    request: Cell<TokenPool_LockOrBurnInV1>;
     requestedFinalityConfig: uint32;
     tokenArgs: cell?;
 
@@ -353,11 +353,8 @@ struct (0x9643c08d) TokenPool_LockOrBurnWithdrawFailed {
 
 struct (0xf432a4e3) TokenPool_LockOrBurnFinished {
     queryId: uint64;
-    // TODO[REFACTOR]: [NONEVM-5336] can we remove this if executor is not going to use it anyway?
-    // TODO[REFACTOR]: [NONEVM-5336] unwrap and inline this type
     out: Cell<TokenPool_LockOrBurnOutV1>;
     /// Token amount in local token decimals after deducting the fee.
-    // TODO[REFACTOR]: [NONEVM-5336] rename to just amount?
     destTokenAmount: coins;
 }
 
@@ -391,13 +388,13 @@ struct (0xe17bf3cc) TokenPool_RemotePoolRemovedNotification {
     remotePoolAddress: Cell<CrossChainAddress>;
 }
 
-struct (0x426a713b) TokenPool_FinalityConfigSet {
+struct (0xcbd30d33) TokenPool_FinalityConfigSetNotification {
     queryId: uint64;
     allowedFinalityConfig: uint32;
 }
 
 /// Replied on `TokenPool_SetDynamicConfig` to confirm tx and return excess to sender.
-struct (0xb735e30c) TokenPool_DynamicConfigSet {
+struct (0xbe67c13d) TokenPool_DynamicConfigSetNotification {
     queryId: uint64;
     router: address;
     rateLimitAdmin: address?;
@@ -419,7 +416,7 @@ struct (0x28cbcc64) TokenPool_FeeConfigApplied {
     queryId: uint64;
 }
 
-struct (0x3c869d80) TokenPool_AdvancedPoolHooksSet {
+struct (0xf63f3401) TokenPool_AdvancedPoolHooksSetNotification {
     queryId: uint64;
     advancedPoolHooks: address?;
 }
@@ -436,10 +433,10 @@ type TokenPool_OutMessage =
     | TokenPool_GetCCVs
     | TokenPool_RemotePoolAddedNotification
     | TokenPool_RemotePoolRemovedNotification
-    | TokenPool_FinalityConfigSet
-    | TokenPool_DynamicConfigSet
+    | TokenPool_FinalityConfigSetNotification
+    | TokenPool_DynamicConfigSetNotification
     | TokenPool_RateLimitConfiguredNotification
-    | TokenPool_AdvancedPoolHooksSet
+    | TokenPool_AdvancedPoolHooksSetNotification
     | TokenPool_ChainUpdatesApplied
     | TokenPool_FeeConfigApplied
     | TokenPool_BudgetSet
