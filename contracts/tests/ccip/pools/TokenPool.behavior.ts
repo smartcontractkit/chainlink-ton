@@ -33,6 +33,8 @@ import {
 import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 import { CURSE_ROLE } from '../../../wrappers/ccip/Router'
 import { BurnMintTokenPool } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
+import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
+import { contractCode } from '../../../wrappers/codeLoader'
 import { getExternals, testLog } from '../../Logs'
 import {
   Ownable2Step_AcceptOwnership,
@@ -490,6 +492,166 @@ export function runTokenPoolBehaviorTests(
         to: ctx.pool.address,
         success: false,
       })
+    })
+
+    describe('fast finality refund routing', () => {
+      const finalityConfig = 1n
+
+      function lockOrBurnRequest(ctx: TokenPoolBehaviorContext): TokenPool_LockOrBurnInV1 {
+        return TokenPool_LockOrBurnInV1.create({
+          transfer: TokenPool_Transfer.create({
+            id: 1n,
+            details: TokenPool_TransferDetails.create({
+              receiver: ctx.destTokenAddress,
+              remoteChainSelector: ctx.remoteChainSelector,
+              originalSender: ctx.deployer.address,
+              amount: 1n,
+              localToken: ctx.localToken,
+            }),
+          }),
+        })
+      }
+
+      async function deployRefundHooks(ctx: TokenPoolBehaviorContext) {
+        const hooks = ctx.blockchain.openContract(
+          MockAdvancedPoolHooks.fromStorage(
+            { id: 0n },
+            {
+              overrideContractCode: await contractCode.ccip.local(
+                'ccip.test.mockAdvancedPoolHooks',
+              ),
+            },
+          ),
+        )
+        await hooks.sendDeploy(ctx.deployer.getSender(), toNano('0.1'))
+        await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
+          queryId: 9952n,
+          advancedPoolHooks: hooks.address,
+        })
+      }
+
+      async function configureRefundCase(ctx: TokenPoolBehaviorContext, fastEnabled: boolean) {
+        await ctx.pool.sendTokenPoolSetAllowedFinalityConfig(
+          ctx.deployer.getSender(),
+          toNano('0.2'),
+          { queryId: 9950n, allowedFinalityConfig: finalityConfig },
+        )
+        await ctx.pool.sendTokenPoolSetRateLimitConfig(ctx.deployer.getSender(), toNano('0.2'), {
+          queryId: 9951n,
+          updates: [
+            TokenPool_RateLimitConfigArgs.create({
+              remoteChainSelector: ctx.remoteChainSelector,
+              fastFinality: fastEnabled,
+              outboundRateLimiterConfig: RateLimiter_Config.create({
+                isEnabled: true,
+                capacity: toNano('100'),
+                rate: 0n,
+              }),
+              inboundRateLimiterConfig: RateLimiter_Config.create({
+                isEnabled: true,
+                capacity: toNano('100'),
+                rate: 0n,
+              }),
+            }),
+          ],
+        })
+      }
+
+      function refundTopicCount(
+        result: { transactions: any[] },
+        poolAddress: Address,
+        topic: string,
+      ) {
+        return getExternals(result.transactions).filter((event) =>
+          testLog(event, poolAddress, topic),
+        ).length
+      }
+
+      it.each([false, true])(
+        'routes outbound fast-finality refunds to the correct topic (fastEnabled=%s)',
+        async (fastEnabled) => {
+          const ctx = await setup()
+          await deployRefundHooks(ctx)
+          await configureRefundCase(ctx, fastEnabled)
+          const before = await ctx.pool.getCurrentRateLimiterState(
+            ctx.remoteChainSelector,
+            fastEnabled,
+          )
+
+          const result = await ctx.pool.sendTokenPoolLockOrBurn(
+            ctx.deployer.getSender(),
+            toNano('1'),
+            {
+              queryId: 1n, // Odd query IDs fail the async preflight.
+              request: lockOrBurnRequest(ctx),
+              requestedFinalityConfig: finalityConfig,
+              tokenArgs: null,
+              replyTo: ctx.deployer.address,
+              finalizationValue: toNano('0.01'),
+              onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+            },
+          )
+
+          expect(
+            refundTopicCount(result, ctx.pool.address, 'TokenPool_OutboundRateLimitRefunded'),
+          ).toBe(fastEnabled ? 0 : 1)
+          expect(
+            refundTopicCount(
+              result,
+              ctx.pool.address,
+              'TokenPool_FastFinalityOutboundRateLimitRefunded',
+            ),
+          ).toBe(fastEnabled ? 1 : 0)
+
+          const after = await ctx.pool.getCurrentRateLimiterState(
+            ctx.remoteChainSelector,
+            fastEnabled,
+          )
+          expect(after.outbound.tokens).toEqual(before.outbound.tokens)
+        },
+      )
+
+      it.each([false, true])(
+        'routes inbound fast-finality refunds to the correct topic (fastEnabled=%s)',
+        async (fastEnabled) => {
+          const ctx = await setup()
+          await deployRefundHooks(ctx)
+          await configureRefundCase(ctx, fastEnabled)
+          const before = await ctx.pool.getCurrentRateLimiterState(
+            ctx.remoteChainSelector,
+            fastEnabled,
+          )
+
+          const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+            ctx.deployer.getSender(),
+            toNano('1'),
+            {
+              queryId: 1n, // Odd query IDs fail the async postflight.
+              request: releaseRequest(ctx),
+              requestedFinalityConfig: finalityConfig,
+              replyTo: ctx.deployer.address,
+              delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
+            },
+          )
+
+          expect(
+            refundTopicCount(result, ctx.pool.address, 'TokenPool_InboundRateLimitRefunded'),
+          ).toBe(fastEnabled ? 0 : 1)
+          expect(
+            refundTopicCount(
+              result,
+              ctx.pool.address,
+              'TokenPool_FastFinalityInboundRateLimitRefunded',
+            ),
+          ).toBe(fastEnabled ? 1 : 0)
+
+          const after = await ctx.pool.getCurrentRateLimiterState(
+            ctx.remoteChainSelector,
+            fastEnabled,
+          )
+          expect(after.inbound.tokens).toEqual(before.inbound.tokens)
+        },
+      )
     })
 
     it('starts with chain not cursed', async () => {
