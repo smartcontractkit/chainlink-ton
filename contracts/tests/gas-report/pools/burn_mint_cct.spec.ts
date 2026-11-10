@@ -16,6 +16,7 @@ import {
 import { JettonClient, BurnMintTokenPool } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { deployCctHarness } from '../harness'
+import { initTokenPool } from '../../ccip/helpers/tokenPool'
 import {
   assertWalletFeeCoversHop,
   internalTxTo,
@@ -81,6 +82,7 @@ runTokenPoolGasCalibration({
       ),
     )
     await burnMintPool.sendDeploy(deployer.getSender(), toNano('2'))
+    await initTokenPool({ pool: burnMintPool, sender: deployer })
 
     // Seed deployer balance before handing minter admin to the pool.
     await cctMinterRuntime.sendMint(deployer.getSender(), {

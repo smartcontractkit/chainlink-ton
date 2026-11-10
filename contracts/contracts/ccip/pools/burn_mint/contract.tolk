@@ -344,6 +344,10 @@ get fun getAccruedFees(): coins {
     return Storage.load().TokenPool().getAccruedFees();
 }
 
+get fun isInitialized(): bool {
+    return Storage.load().TokenPool().isInitialized();
+}
+
 get fun typeAndVersion(): (slice, slice) {
     return (BurnMintTokenPool_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }

@@ -935,6 +935,83 @@ export const JettonLockBox_WithdrawRescue = {
 }
 
 /**
+ > struct (0xc6ac6ade) JettonLockBox_GetInfo {
+ > }
+ */
+export interface JettonLockBox_GetInfo {
+    readonly $: 'JettonLockBox_GetInfo'
+}
+
+export const JettonLockBox_GetInfo = {
+    PREFIX: 0xc6ac6ade,
+
+    create(): JettonLockBox_GetInfo {
+        return {
+            $: 'JettonLockBox_GetInfo',
+        }
+    },
+    fromSlice(s: c.Slice): JettonLockBox_GetInfo {
+        loadAndCheckPrefix32(s, 0xc6ac6ade, 'JettonLockBox_GetInfo');
+        return {
+            $: 'JettonLockBox_GetInfo',
+        }
+    },
+    store(self: JettonLockBox_GetInfo, b: c.Builder): void {
+        b.storeUint(0xc6ac6ade, 32);
+    },
+    toCell(self: JettonLockBox_GetInfo): c.Cell {
+        return makeCellFrom<JettonLockBox_GetInfo>(self, JettonLockBox_GetInfo.store);
+    }
+}
+
+/**
+ > struct (0xf25b3b9a) JettonLockBox_Info {
+ >     token: address
+ >     wallet: address?
+ >     isOperator: bool
+ > }
+ */
+export interface JettonLockBox_Info {
+    readonly $: 'JettonLockBox_Info'
+    token: c.Address
+    wallet: c.Address | null
+    isOperator: boolean
+}
+
+export const JettonLockBox_Info = {
+    PREFIX: 0xf25b3b9a,
+
+    create(args: {
+        token: c.Address
+        wallet: c.Address | null
+        isOperator: boolean
+    }): JettonLockBox_Info {
+        return {
+            $: 'JettonLockBox_Info',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): JettonLockBox_Info {
+        loadAndCheckPrefix32(s, 0xf25b3b9a, 'JettonLockBox_Info');
+        return {
+            $: 'JettonLockBox_Info',
+            token: s.loadAddress(),
+            wallet: s.loadMaybeAddress(),
+            isOperator: s.loadBoolean(),
+        }
+    },
+    store(self: JettonLockBox_Info, b: c.Builder): void {
+        b.storeUint(0xf25b3b9a, 32);
+        b.storeAddress(self.token);
+        b.storeAddress(self.wallet);
+        b.storeBit(self.isOperator);
+    },
+    toCell(self: JettonLockBox_Info): c.Cell {
+        return makeCellFrom<JettonLockBox_Info>(self, JettonLockBox_Info.store);
+    }
+}
+
+/**
  > struct (0x6d077f2e) JettonLockBox_Deposited {
  >     queryId: uint64
  >     token: address
@@ -1336,6 +1413,11 @@ export class JettonLockBox implements c.Contract {
         return JettonLockBox_WithdrawRescue.toCell(JettonLockBox_WithdrawRescue.create(body));
     }
 
+    static createCellOfJettonLockBoxGetInfo(body: {
+    }) {
+        return JettonLockBox_GetInfo.toCell(JettonLockBox_GetInfo.create());
+    }
+
     static createCellOfWithdrawableWithdraw(body: {
         queryId?: uint64
         destination: c.Address
@@ -1406,6 +1488,15 @@ export class JettonLockBox implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: JettonLockBox_WithdrawRescue.toCell(JettonLockBox_WithdrawRescue.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendJettonLockBoxGetInfo(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: JettonLockBox_GetInfo.toCell(JettonLockBox_GetInfo.create()),
             ...extraOptions
         });
     }

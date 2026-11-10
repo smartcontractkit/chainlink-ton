@@ -199,3 +199,8 @@ get fun getBudget(): TokenPool_Budget {
 get fun getAccruedFees(): coins {
     throw 0xFFFF;
 }
+
+/// Whether the pool completed its one-time initialization.
+get fun isInitialized(): bool {
+    throw 0xFFFF;
+}

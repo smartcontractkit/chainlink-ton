@@ -4204,6 +4204,45 @@ export const TokenPool_AdvancedPoolHooksSetNotification = {
 }
 
 /**
+ > struct (0xf5e23895) TokenPool_Init {
+ >     extra: cell?
+ > }
+ */
+export interface TokenPool_Init {
+    readonly $: 'TokenPool_Init'
+    extra: c.Cell | null
+}
+
+export const TokenPool_Init = {
+    PREFIX: 0xf5e23895,
+
+    create(args: {
+        extra: c.Cell | null
+    }): TokenPool_Init {
+        return {
+            $: 'TokenPool_Init',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_Init {
+        loadAndCheckPrefix32(s, 0xf5e23895, 'TokenPool_Init');
+        return {
+            $: 'TokenPool_Init',
+            extra: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_Init, b: c.Builder): void {
+        b.storeUint(0xf5e23895, 32);
+        storeTolkNullable<c.Cell>(self.extra, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_Init): c.Cell {
+        return makeCellFrom<TokenPool_Init>(self, TokenPool_Init.store);
+    }
+}
+
+/**
  > struct (0x480060f1) TokenPool_GetConfig {
  >     queryId: uint64
  > }
@@ -4495,6 +4534,7 @@ export const TokenPool_AdminConfig = {
  >     tokenTransferFeeConfigs: map<uint64, TokenPool_TokenTransferFeeConfig>
  >     budget: TokenPool_Budget
  >     accruedFees: coins
+ >     initialized: bool
  > }
  */
 export interface TokenPool_Data {
@@ -4506,6 +4546,7 @@ export interface TokenPool_Data {
     tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
     budget: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins, 0 as coins } as TokenPool_ReleaseOrMintBudget } */
     accruedFees: coins /* = 0 */
+    initialized: boolean /* = false */
 }
 
 export const TokenPool_Data = {
@@ -4517,11 +4558,13 @@ export const TokenPool_Data = {
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
         budget?: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins, 0 as coins } as TokenPool_ReleaseOrMintBudget } */
         accruedFees?: coins /* = 0 */
+        initialized?: boolean /* = false */
     }): TokenPool_Data {
         return {
             $: 'TokenPool_Data',
             budget: { $: 'TokenPool_Budget', lockOrBurn: { $: 'TokenPool_LockOrBurnBudget', admission: 0n, safety: 0n }, releaseOrMint: { $: 'TokenPool_ReleaseOrMintBudget', admission: 0n, safety: 0n } },
             accruedFees: 0n,
+            initialized: false,
             ...args
         }
     },
@@ -4535,6 +4578,7 @@ export const TokenPool_Data = {
             tokenTransferFeeConfigs: dictToMap(c.Dictionary.load<uint64, TokenPool_TokenTransferFeeConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store), s)),
             budget: TokenPool_Budget.fromSlice(s),
             accruedFees: s.loadCoins(),
+            initialized: s.loadBoolean(),
         }
     },
     store(self: TokenPool_Data, b: c.Builder): void {
@@ -4545,6 +4589,7 @@ export const TokenPool_Data = {
         b.storeDict<uint64, TokenPool_TokenTransferFeeConfig>(mapToDict(self.tokenTransferFeeConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store));
         TokenPool_Budget.store(self.budget, b);
         b.storeCoins(self.accruedFees);
+        b.storeBit(self.initialized);
     },
     toCell(self: TokenPool_Data): c.Cell {
         return makeCellFrom<TokenPool_Data>(self, TokenPool_Data.store);
@@ -6070,6 +6115,8 @@ export class BurnMintTokenPool implements c.Contract {
         'TokenPool_Error.AmountMismatch': 51720,
         'TokenPool_Error.InvalidRequestedFinality': 51721,
         'TokenPool_Error.InsufficientMessageValue': 51725,
+        'TokenPool_Error.ContractNotInitialized': 51726,
+        'TokenPool_Error.AlreadyInitialized': 51727,
         'JettonWithdrawable_Error.ZeroAddressNotAllowed': 55700,
         'JettonWithdrawable_Error.UnallowedRecipient': 55701,
         'JettonWithdrawable_Error.MaxAmountExceeded': 55702,
@@ -6295,6 +6342,12 @@ export class BurnMintTokenPool implements c.Contract {
         budget: TokenPool_Budget
     }) {
         return TokenPool_SetBudget.toCell(TokenPool_SetBudget.create(body));
+    }
+
+    static createCellOfTokenPoolInit(body: {
+        extra: c.Cell | null
+    }) {
+        return TokenPool_Init.toCell(TokenPool_Init.create(body));
     }
 
     static createCellOfTokenPoolGetConfig(body: {
@@ -6648,6 +6701,16 @@ export class BurnMintTokenPool implements c.Contract {
         });
     }
 
+    async sendTokenPoolInit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        extra: c.Cell | null
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_Init.toCell(TokenPool_Init.create(body)),
+            ...extraOptions
+        });
+    }
+
     async sendTokenPoolGetConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
     }, extraOptions?: ExtraSendOptions) {
@@ -6760,6 +6823,11 @@ export class BurnMintTokenPool implements c.Contract {
     async getAccruedFees(provider: ContractProvider): Promise<coins> {
         const r = StackReader.fromGetMethod(1, await provider.get('getAccruedFees', []));
         return r.readBigInt();
+    }
+
+    async getIsInitialized(provider: ContractProvider): Promise<boolean> {
+        const r = StackReader.fromGetMethod(1, await provider.get('isInitialized', []));
+        return r.readBoolean();
     }
 
     async getTypeAndVersion(provider: ContractProvider): Promise<[

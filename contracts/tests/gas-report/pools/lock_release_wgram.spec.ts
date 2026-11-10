@@ -21,6 +21,7 @@ import { JettonLockBox, AccessControl_Data } from '../../../wrappers/gen/ccip/po
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { deployCctHarness } from '../harness'
+import { initTokenPool } from '../../ccip/helpers/tokenPool'
 import {
   assertWalletFeeCoversHop,
   runTokenPoolGasCalibration,
@@ -125,6 +126,7 @@ runTokenPoolGasCalibration({
       role: OPERATOR_ROLE,
       account: lockReleasePool.address,
     })
+    await initTokenPool({ pool: lockReleasePool, sender: deployer })
 
     // wGRAM is GRAM-backed: the mint value must cover the hosted backing plus transfer budget.
     const mintWgram = (destination: Address, jettonAmount: bigint) =>

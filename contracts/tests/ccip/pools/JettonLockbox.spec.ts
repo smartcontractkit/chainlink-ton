@@ -16,6 +16,7 @@ import {
   JettonLockBox_Deposited,
   JettonLockBox_DepositFailed,
   JettonLockBox_Initialized,
+  JettonLockBox_Info,
   JettonWithdrawable_Withdraw,
   JettonWithdrawable_WithdrawFeeTransfer,
   AccessControl_RoleData,
@@ -216,6 +217,46 @@ describe('JettonLockBox', () => {
     it('should have operator with OPERATOR_ROLE after grant', async () => {
       const hasRole = await lockbox.getHasRole(OPERATOR_ROLE_VALUE, operator.address)
       expect(hasRole).toBe(true)
+    })
+  })
+
+  describe('init probe', () => {
+    it('answers GetInfo with token, wallet, and operator status', async () => {
+      const walletAddress = await jettonMinter.getWalletAddress(lockbox.address)
+
+      const asOperator = await lockbox.sendJettonLockBoxGetInfo(
+        operator.getSender(),
+        toNano('0.05'),
+        {},
+      )
+      const operatorInfoTx = asOperator.transactions.find(
+        (tx) =>
+          tx.inMessage?.info.type === 'internal' &&
+          tx.inMessage.info.src.equals(lockbox.address) &&
+          tx.inMessage.info.dest.equals(operator.address),
+      )
+      expect(operatorInfoTx).toBeDefined()
+      const operatorInfo = JettonLockBox_Info.fromSlice(
+        operatorInfoTx!.inMessage!.body.beginParse(),
+      )
+      expect(operatorInfo.token).toEqualAddress(jettonMinter.address)
+      expect(operatorInfo.wallet).toEqualAddress(walletAddress)
+      expect(operatorInfo.isOperator).toBe(true)
+
+      const asOther = await lockbox.sendJettonLockBoxGetInfo(
+        unauthorized.getSender(),
+        toNano('0.05'),
+        {},
+      )
+      const otherInfoTx = asOther.transactions.find(
+        (tx) =>
+          tx.inMessage?.info.type === 'internal' &&
+          tx.inMessage.info.src.equals(lockbox.address) &&
+          tx.inMessage.info.dest.equals(unauthorized.address),
+      )
+      expect(otherInfoTx).toBeDefined()
+      const otherInfo = JettonLockBox_Info.fromSlice(otherInfoTx!.inMessage!.body.beginParse())
+      expect(otherInfo.isOperator).toBe(false)
     })
   })
 
@@ -940,6 +981,40 @@ describe('JettonLockBox', () => {
       // Verify storage unchanged (wallet still points to original)
       const wallet = await lockbox.getWallet()
       expect(wallet).toEqualAddress(lockboxWallet.address)
+    })
+
+    it('rejects init whose minter differs from the stateInit commitment', async () => {
+      const otherMinter = await deployMinter('other-lockbox-token')
+      const mismatchedLockbox = blockchain.openContract(
+        JettonLockBox.fromStorage(
+          {
+            minterAddress: jettonMinter.address,
+            walletAddress: null,
+            id: 42n,
+            initializer: deployer.address,
+            rbac: emptyAccessControlData(),
+          },
+          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+        ),
+      )
+      await mismatchedLockbox.sendDeploy(deployer.getSender(), toNano('3'))
+
+      const result = await mismatchedLockbox.sendJettonLockBoxInit(
+        deployer.getSender(),
+        toNano('0.2'),
+        {
+          queryId: 4242n,
+          minterAddress: otherMinter.address,
+          walletAddress: await jettonMinter.getWalletAddress(mismatchedLockbox.address),
+          admin: deployer.address,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: mismatchedLockbox.address,
+        success: false,
+        exitCode: JettonLockBox.Errors['JettonLockBox_Error.UnsupportedToken'],
+      })
     })
 
     it('should reject init from an address other than the bound initializer (224853f4)', async () => {

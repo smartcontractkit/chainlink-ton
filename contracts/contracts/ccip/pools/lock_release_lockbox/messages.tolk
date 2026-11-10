@@ -9,11 +9,14 @@ type LockReleaseLockboxTokenPool_InMessage =
     | ReturnExcessesBack
     | JettonLockBox_Deposited
     | JettonLockBox_DepositFailed
-    | JettonLockBox_WithdrawFailed;
+    | JettonLockBox_WithdrawFailed
+    | JettonLockBox_Info;
 
 type LockReleaseLockboxTokenPool_OutMessage =
-    | AskToTransfer;
+    | AskToTransfer
+    | JettonLockBox_GetInfo;
 
 type LockReleaseLockboxTokenPool_BouncedMessage =
     | AskToTransfer
-    | JettonLockBox_Withdraw;
+    | JettonLockBox_Withdraw
+    | JettonLockBox_GetInfo;

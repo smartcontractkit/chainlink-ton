@@ -13,6 +13,25 @@ The pool retains transfer fees in its own jetton wallet and deposits the destina
 amount into a separate `JettonLockBox`. The lockbox authenticates its wallet,
 requires the pool's `OPERATOR_ROLE`, and validates the deposit token and amount.
 
+## Pool Initialization
+
+Pools start uninitialized and reject `LockOrBurn`, `ReleaseOrMint`, registry config
+probes, and CCV queries until `TokenPool_Init` succeeds. Init is owner-only and uses
+the same generic `TokenPool_Init` message as the other pool types.
+
+The lock-release pool defers initialization: it sends a read-only
+`JettonLockBox_GetInfo` probe to its configured lockbox and only marks itself
+initialized when the reply confirms all of:
+
+- the lockbox holds the pool's token;
+- the lockbox wallet is `calcAddressOfJettonWallet(lockbox, token, walletCode)`;
+- the pool holds `OPERATOR_ROLE` on the lockbox.
+
+A mismatch or a bounced probe leaves the pool uninitialized; the owner can retry
+`TokenPool_Init` after fixing the lockbox state. Init is synchronous for pool types
+with no handshake. The init value funds the probe/response and any remainder stays
+on the pool; the owner can recover excess TON with the standard TON withdraw.
+
 ## Rent Reserve and Init Funding
 
 The pool and lockbox keep a `0.05 GRAM` rent target. Before custody moves, the rent

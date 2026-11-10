@@ -15,6 +15,7 @@ import {
   grantLockBoxOperatorRole,
   initJettonLockBox,
 } from '../../../ccip/helpers/lockbox'
+import { initTokenPool } from '../../../ccip/helpers/tokenPool'
 
 export type PoolKind = 'LockRelease' | 'BurnMint'
 export const POOL_KINDS: PoolKind[] = ['LockRelease', 'BurnMint']
@@ -143,6 +144,7 @@ export async function deployTokenWithPool(opts: {
     deploy: true,
     success: true,
   })
+  await initTokenPool({ pool, sender: deployer })
 
   if (kind === 'BurnMint') {
     await minter.sendChangeMinterAdmin(deployer.getSender(), toNano('0.2'), {
