@@ -334,7 +334,8 @@ describe('Router.relayReleaseOrMint', () => {
           if (!body) return false
           const failed = rt.Router_TokenPoolReleaseOrMintFailed.fromSlice(body.beginParse())
           return (
-            failed.queryId === 15n && failed.errorCode === BigInt(DEPOSIT_ACCOUNT_WALLET_UNAVAILABLE)
+            failed.queryId === 15n &&
+            failed.errorCode === BigInt(DEPOSIT_ACCOUNT_WALLET_UNAVAILABLE)
           )
         },
       })
