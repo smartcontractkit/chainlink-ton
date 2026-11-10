@@ -329,6 +329,7 @@ type TokenPool_InMessage =
     | TokenPool_SetRateLimitConfig
     | TokenPool_ApplyTokenTransferFeeConfigUpdates
     | TokenPool_SetBudget
+    | TokenPool_Init
     | TokenPool_GetConfig
     | TokenPool_Curse
     | TokenPool_Uncurse
@@ -450,6 +451,12 @@ type TokenPool_BouncedMessage =
     | TokenPool_PreflightCheck
     | TokenPool_PostflightCheck
     | AskToTransfer;
+
+/// One-time owner-only initialization. Concrete pools may decode `extra` in their `onInit` hook
+/// and defer success until an async handshake completes.
+struct (0xf5e23895) TokenPool_Init {
+    extra: cell?;
+}
 
 /// Asks a pool for the configuration the token admin registry caches: the initiator of its
 /// release/mint deliveries and its admission budgets. Sent when a pool is set or refreshed, e.g.

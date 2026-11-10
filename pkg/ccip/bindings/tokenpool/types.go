@@ -302,6 +302,7 @@ type Storage struct {
 	TokenTransferFeeConfigs *cell.Dictionary `tlb:"dict 64"`
 	Budget                  Budget           `tlb:"."`
 	AccruedFees             tlb.Coins        `tlb:"."`
+	Initialized             bool             `tlb:"bool"`
 }
 
 // --- Messages - incoming ---
@@ -433,6 +434,12 @@ type ReleaseOrMint struct {
 	Delivery                *ReleaseOrMintDelivery `tlb:"maybe ^"`
 	// SendExcessesTo is where jetton wallets return unused TON; nil keeps the pool default.
 	SendExcessesTo *address.Address `tlb:"addr"`
+}
+
+// Init is the one-time owner-only pool initialization.
+type Init struct {
+	_     tlb.Magic  `tlb:"#f5e23895" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	Extra *cell.Cell `tlb:"maybe ^"`            // Optional pool-specific payload.
 }
 
 // GetConfig asks a pool for the configuration CCIP caches in the token admin registry.
@@ -912,6 +919,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	// Config + budget
 	GetConfig{},
 	SetBudget{},
+	// Init
+	Init{},
 	// Outgoing
 	LockOrBurnWithdraw{},
 	LockOrBurnFinished{},

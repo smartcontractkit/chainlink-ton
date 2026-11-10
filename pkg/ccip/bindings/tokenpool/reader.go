@@ -545,6 +545,20 @@ var GetAccruedFees = tvm.NewNoArgsGetter(tvm.NoArgsOpts[tlb.Coins]{
 	}),
 })
 
+// GetIsInitialized reports whether the pool completed its one-time initialization.
+//
+// On-chain: get fun isInitialized(): bool
+var GetIsInitialized = tvm.NewNoArgsGetter(tvm.NoArgsOpts[bool]{
+	Name: "isInitialized",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
+		v, err := r.Int(0)
+		if err != nil {
+			return false, fmt.Errorf("error getting Int(0) - isInitialized: %w", err)
+		}
+		return v.Cmp(big.NewInt(0)) != 0, nil
+	}),
+})
+
 // --- GetCCVAmount getter ---
 
 // GetCCVAmountArgs holds the arguments for the getCCVAmount getter.

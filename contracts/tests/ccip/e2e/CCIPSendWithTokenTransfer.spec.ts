@@ -26,6 +26,7 @@ import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
 import { setup } from '../router/Router.Setup'
 import { getValidatedFee } from '../../../src/ccipSend/fee'
 import { buildJettonLockBox, grantLockBoxOperatorRole, initJettonLockBox } from '../helpers/lockbox'
+import { initTokenPool } from '../helpers/tokenPool'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 import { contractCode } from '../../../wrappers/codeLoader'
@@ -222,6 +223,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
       success: true,
       deploy: true,
     })
+    await initTokenPool({ pool: tokenPool, sender: deployer })
 
     // Register chain config
     const chainUpdateResult = await tokenPool.sendTokenPoolApplyChainUpdates(

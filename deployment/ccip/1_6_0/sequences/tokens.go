@@ -561,17 +561,34 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to grant lockbox OPERATOR_ROLE to pool: %w", err)
 			}
 
+			poolInitBody, err := tlb.ToCell(tokenpool.Init{})
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to pack token pool init body: %w", err)
+			}
 			addrRef, err := operation.InvokeDeployContractOperation(
 				b,
 				dp,
 				input.ChainSelector,
 				compiled,
 				storage,
-				nil,
+				poolInitBody,
 				defaultJettonDeployCoin,
 			)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy lock-release token pool: %w", err)
+			}
+
+			// The pool defers initialization until the lockbox confirms the token, wallet, and
+			// OPERATOR role. Fail the deployment if that handshake did not complete.
+			initialized, err := ton_tvm.CallGetterLatest(b.GetContext(), chain.Client, poolAddr, tokenpool.GetIsInitialized)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to read token pool init state: %w", err)
+			}
+			if !initialized {
+				return sequences.OnChainOutput{}, fmt.Errorf(
+					"token pool %s did not initialize: lockbox %s handshake failed",
+					poolAddr.String(), lockBoxAddr.String(),
+				)
 			}
 
 			// Surface the lockbox alongside the pool so callers can fund/upgrade it.

@@ -61,6 +61,19 @@ struct (0x0440d11a) JettonLockBox_WithdrawRescue {
     withdrawMsg: JettonWithdrawable_Withdraw;
 }
 
+/// Read-only probe used by a pool at init to bind itself to this lockbox.
+struct (0xc6ac6ade) JettonLockBox_GetInfo {}
+
+/// Answer to `JettonLockBox_GetInfo`.
+struct (0xf25b3b9a) JettonLockBox_Info {
+    /// Jetton minter held by this lockbox.
+    token: address;
+    /// Jetton wallet used by this lockbox.
+    wallet: address?;
+    /// Whether the probe sender holds OPERATOR_ROLE on this lockbox.
+    isOperator: bool;
+}
+
 /// Bounced message types handled by `onBouncedMessage`.
 type JettonLockBox_BouncedMessage =
     | AskToTransfer;
@@ -122,6 +135,7 @@ type JettonLockBox_InMessage =
     | JettonLockBox_Init
     | JettonLockBox_Withdraw
     | JettonLockBox_WithdrawRescue
+    | JettonLockBox_GetInfo
     | Withdrawable_Withdraw
     | TransferNotificationForRecipient;
 
@@ -130,4 +144,5 @@ type JettonLockBox_OutMessage =
     | JettonLockBox_Deposited
     | JettonLockBox_DepositFailed
     | JettonLockBox_Initialized
-    | JettonLockBox_WithdrawFailed;
+    | JettonLockBox_WithdrawFailed
+    | JettonLockBox_Info;
