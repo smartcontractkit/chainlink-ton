@@ -620,10 +620,7 @@ export function runTokenPoolBehaviorTests(
             ctx.remoteChainSelector,
             false,
           )
-          const fastAfter = await ctx.pool.getCurrentRateLimiterState(
-            ctx.remoteChainSelector,
-            true,
-          )
+          const fastAfter = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, true)
 
           if (fastEnabled) {
             expect(eventCount(transactions, ctx.pool.address, topics.outboundFastConsumed)).toBe(1)
@@ -692,10 +689,7 @@ export function runTokenPoolBehaviorTests(
             ctx.remoteChainSelector,
             false,
           )
-          const fastAfter = await ctx.pool.getCurrentRateLimiterState(
-            ctx.remoteChainSelector,
-            true,
-          )
+          const fastAfter = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, true)
 
           if (fastEnabled) {
             expect(eventCount(transactions, ctx.pool.address, topics.inboundFastConsumed)).toBe(1)
