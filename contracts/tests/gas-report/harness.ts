@@ -23,11 +23,7 @@ class WgramHarness extends WgramCostHarness {
 }
 
 class JettonLockBoxHarness extends JettonLockBoxCostHarness {
-  static create(
-    code: Cell = JettonLockBoxCostHarness.CodeCell,
-    data: Cell = Cell.EMPTY,
-    workchain = 0,
-  ) {
+  static create(code: Cell, data: Cell = Cell.EMPTY, workchain = 0) {
     const init = { code, data }
     return new JettonLockBoxHarness(contractAddress(workchain, init), init)
   }
@@ -61,7 +57,8 @@ export async function deployJettonLockBoxHarness(
   blockchain: Blockchain,
   deployer: SandboxContract<TreasuryContract>,
 ): Promise<JettonLockBoxHarnessContract> {
-  const harness = blockchain.openContract(JettonLockBoxHarness.create())
+  const code = await contractCode.ccip.local('JettonLockBoxCostHarness')
+  const harness = blockchain.openContract(JettonLockBoxHarness.create(code))
   await harness.sendDeploy(deployer.getSender(), toNano('0.1'))
   return harness
 }

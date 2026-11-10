@@ -168,7 +168,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           tokenArgs: null,
           replyTo: ctx.deployer.address,
           finalizationValue,
-          onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+          onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
         },
       )
 
