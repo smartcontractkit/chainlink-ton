@@ -32,4 +32,6 @@ enum TokenPool_Error {
     PreflightCheckFailed // 51723
     PostflightCheckFailed // 51724
     InsufficientMessageValue // 51725
+    ContractNotInitialized // 51726
+    AlreadyInitialized // 51727
 }

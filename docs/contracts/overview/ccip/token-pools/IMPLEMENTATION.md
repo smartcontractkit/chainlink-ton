@@ -118,6 +118,18 @@ OnRamp?) and "what is `replyTo`" (the Executor, verified by address derivation) 
 ramp-side contract decisions. The inbound jetton-notification auth (TON-TP/2) is
 independently well-defined and can proceed now.
 
+### 3.3 Pool initialization
+
+Every pool starts with `TokenPool_Data.initialized = false` and rejects custody,
+registry-config, and CCV flows until `TokenPool_Init` succeeds. Init is owner-only
+and one-time. Concrete pools can replace the default synchronous init with an
+`onInit` hook returning `deferred = true`; LockReleaseLockboxTokenPool uses it to
+probe its lockbox (`JettonLockBox_GetInfo`) and only marks the pool initialized when
+the reply confirms the token, the derived wallet, and the pool's `OPERATOR_ROLE`.
+A failed or mismatched probe leaves the pool uninitialized; the owner retries
+`TokenPool_Init`. There is no success/failure reply message: `isInitialized()` is
+authoritative.
+
 ### 3.4 Per-pool state machines
 
 | Pool                   | Pending state (keyed by queryId)  | Lock/Burn                                                                | Release/Mint                                                             | Bounce handling                                                        |

@@ -58,6 +58,7 @@ import {
 } from './TokenPool.behavior'
 import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
+import { initTokenPool } from '../helpers/tokenPool'
 import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
 import { runTokenPoolContinuationBehaviorTests } from './TokenPool.continuation.behavior'
 import { runTokenPoolMinValueBehaviorTests } from './TokenPool.minValue.behavior'
@@ -165,6 +166,7 @@ describe('BurnMintTokenPool', () => {
       ),
     )
     await burnMintPool.sendDeploy(deployer.getSender(), toNano('2'))
+    await initTokenPool({ pool: burnMintPool, sender: deployer })
 
     // Standard TokenPool interface
     pool = blockchain.openContract(TokenPool.fromAddress(burnMintPool.address))
