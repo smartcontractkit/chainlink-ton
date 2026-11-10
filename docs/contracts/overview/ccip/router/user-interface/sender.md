@@ -59,16 +59,16 @@ sequenceDiagram
     participant U as Sender
     participant R as Router        
 
-    U ->> R: CCIPSend{queryID, msg}
+    U ->> R: CCIPSend{queryId, msg}
     
     Note over R: [...]
     alt Reject (Refund TON)
     Note over R: Low fee/Rate limit/other
-    R ->> U: CCIPSendNACK{queryID, reason}
+    R ->> U: CCIPSendNACK{queryId, reason}
   
     else Accept msg
     Note over R: emit{CCIPSend}
-    R ->> U: CCIPSendACK{queryID, messageId}
+    R ->> U: CCIPSendACK{queryId, messageId}
     end
 ```
 
@@ -84,11 +84,11 @@ sequenceDiagram
     Note over R: [...]
     alt Reject (Refund TON and tokens)
     Note over R: Low fee/Rate limit/other
-    R -->> U: Transfer T { amount,<br>fwdPayload: CCIPSendNACK{queryID, reason} }
+    R -->> U: Transfer T { amount,<br>fwdPayload: CCIPSendNACK{queryId, reason} }
   
     else Accept msg
     Note over R: emit{CCIPSend}
-    R ->> U: CCIPSendACK{queryID, messageId}
+    R ->> U: CCIPSendACK{queryId, messageId}
     end
 ```
 

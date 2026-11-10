@@ -1,4 +1,10 @@
-import { Blockchain, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox'
+import {
+  Blockchain,
+  createShardAccount,
+  SandboxContract,
+  SendMessageResult,
+  TreasuryContract,
+} from '@ton/sandbox'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
 import { crc32 } from 'zlib'
@@ -100,10 +106,10 @@ describe('SendExecutor - Unit tests', () => {
 
     onrampSend = or.OnRamp_Send.create({
       msg: or.Router_CCIPSend.create({
-        queryID: 1n,
+        queryId: 1n,
         destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
         receiver: EVM_ADDRESS,
-        data: Cell.EMPTY,
+        data: [],
         tokenAmounts: [],
         feeToken: NATIVE_GRAM,
         extraArgs: or.GenericExtraArgsV2.create({
@@ -284,7 +290,7 @@ describe('SendExecutor - Unit tests', () => {
       onRampMock.getSender(),
       toNano('0.05'),
       {
-        executorID: 0n,
+        executorId: 0n,
       },
     )
 
@@ -475,7 +481,7 @@ describe('SendExecutor - Unit tests', () => {
       onRampMock.getSender(),
       toNano('0.05'),
       {
-        executorID: 0n,
+        executorId: 0n,
       },
     )
 
@@ -510,7 +516,7 @@ describe('SendExecutor - Unit tests', () => {
         if (!x) return false
         const finished = or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse())
         return (
-          finished.error ===
+          finished.errorCode ===
           BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.InvalidValidatedFee'])
         )
       },
@@ -548,6 +554,7 @@ describe('SendExecutor - Unit tests', () => {
       to: onRampMock.address,
       success: true,
       op: or.OnRamp_ExecutorFinishedSuccessfully.PREFIX,
+      inMessageBounceable: false,
       body(x) {
         if (!x) return false
         const finished = or.OnRamp_ExecutorFinishedSuccessfully.fromSlice(x.beginParse())
@@ -570,7 +577,7 @@ describe('SendExecutor - Unit tests', () => {
           x.beginParse(),
         )
         return (
-          executorFinishedSuccessfully.executorID === 0n &&
+          executorFinishedSuccessfully.executorId === 0n &&
           executorFinishedSuccessfully.fee.feeTokenAmount === toNano('0.1') &&
           executorFinishedSuccessfully.fee.feeValueJuels === toNano('0.1')
         )
@@ -606,7 +613,7 @@ describe('SendExecutor - Unit tests', () => {
           x.beginParse(),
         )
         return (
-          executorFinishedWithError.error ===
+          executorFinishedWithError.errorCode ===
           BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.InsufficientFunds'])
         )
       },
@@ -670,7 +677,7 @@ describe('SendExecutor - Unit tests', () => {
       feeQuoterMock.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidationFailed.create({
-        error: 42n,
+        errorCode: 42n,
         msg: onrampSend.msg,
       }),
     )
@@ -686,7 +693,7 @@ describe('SendExecutor - Unit tests', () => {
           x.beginParse(),
         )
         return (
-          executorFinishedWithError.executorID === 0n && executorFinishedWithError.error === 42n
+          executorFinishedWithError.executorId === 0n && executorFinishedWithError.errorCode === 42n
         )
       },
     })
@@ -741,7 +748,7 @@ describe('SendExecutor - Unit tests', () => {
         feeQuoterMock.getSender(),
         toNano('0.3'),
         sx.FeeQuoter_MessageValidationFailed.create({
-          error: 42n,
+          errorCode: 42n,
           msg: onrampSend.msg,
         }),
       ),
@@ -790,7 +797,7 @@ describe('SendExecutor - Unit tests', () => {
         feeQuoterMock.getSender(),
         toNano('0.3'),
         sx.FeeQuoter_MessageValidationFailed.create({
-          error: 42n,
+          errorCode: 42n,
           msg: onrampSend.msg,
         }),
       ),
@@ -818,7 +825,7 @@ describe('SendExecutor - Unit tests', () => {
       from: feeQuoterBouncer.address,
       to: sendExecutor.address,
       success: true,
-      op: 0xffffffff,
+      op: 0xfffffffe,
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -832,8 +839,8 @@ describe('SendExecutor - Unit tests', () => {
           x.beginParse(),
         )
         return (
-          executorFinishedWithError.executorID === 0n &&
-          executorFinishedWithError.error ===
+          executorFinishedWithError.executorId === 0n &&
+          executorFinishedWithError.errorCode ===
             BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.FeeQuoterBounce'])
         )
       },
@@ -871,7 +878,7 @@ describe('SendExecutor - Unit tests', () => {
       body(x) {
         if (!x) return false
         const reserveFee = or.OnRamp_ExecutorReserveFee.fromSlice(x.beginParse())
-        return reserveFee.executorID === 0n && reserveFee.fee === FeeTokenAmount
+        return reserveFee.executorId === 0n && reserveFee.fee === FeeTokenAmount
       },
     })
 
@@ -905,7 +912,7 @@ describe('SendExecutor - Unit tests', () => {
       deployer.getSender(), // not the onramp
       toNano('0.05'),
       {
-        executorID: 0n,
+        executorId: 0n,
       },
     )
 
@@ -917,7 +924,7 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
-  it('should throw on fee reserved with incorrect executorID', async () => {
+  it('should throw on fee reserved with incorrect executorId', async () => {
     const { sendExecutor } = await afterExecute({ send: tokenOnrampSend })
 
     // First move the executor into the OnGoingFeeReservation state.
@@ -939,7 +946,7 @@ describe('SendExecutor - Unit tests', () => {
       onRampMock.getSender(),
       toNano('0.05'),
       {
-        executorID: 1n, // incorrect ID
+        executorId: 1n, // incorrect ID
       },
     )
 
@@ -960,7 +967,7 @@ describe('SendExecutor - Unit tests', () => {
       onRampMock.getSender(),
       toNano('0.05'),
       {
-        executorID: 0n,
+        executorId: 0n,
       },
     )
 
@@ -1024,7 +1031,7 @@ describe('SendExecutor - Unit tests', () => {
       from: onrampBouncer.address,
       to: bouncerExecutor.address,
       success: true,
-      op: 0xffffffff,
+      op: 0xfffffffe,
     })
 
     // The executor exits with the reservation bounce error and no refund: the
@@ -1041,8 +1048,8 @@ describe('SendExecutor - Unit tests', () => {
           x.beginParse(),
         )
         return (
-          executorFinishedWithError.executorID === 0n &&
-          executorFinishedWithError.error ===
+          executorFinishedWithError.executorId === 0n &&
+          executorFinishedWithError.errorCode ===
             BigInt(
               sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.OnRampFeeReservationBounce'],
             ) &&
@@ -1073,7 +1080,7 @@ describe('SendExecutor - Unit tests', () => {
       from: registryBouncer.address,
       to: sendExecutor.address,
       success: true,
-      op: 0xffffffff,
+      op: 0xfffffffe,
     })
 
     // The executor finalizes with the registry bounce error and refunds the fee.
@@ -1087,8 +1094,8 @@ describe('SendExecutor - Unit tests', () => {
           x.beginParse(),
         )
         return (
-          executorFinishedWithError.executorID === 0n &&
-          executorFinishedWithError.error ===
+          executorFinishedWithError.executorId === 0n &&
+          executorFinishedWithError.errorCode ===
             BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenRegistryBounce']) &&
           executorFinishedWithError.refund === FeeTokenAmount
         )
@@ -1126,12 +1133,181 @@ describe('SendExecutor - Unit tests', () => {
           x.beginParse(),
         )
         return (
-          executorFinishedWithError.executorID === 0n &&
-          executorFinishedWithError.error ===
+          executorFinishedWithError.executorId === 0n &&
+          executorFinishedWithError.errorCode ===
             BigInt(sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenNotEnabled']) &&
           executorFinishedWithError.refund === FeeTokenAmount
         )
       },
+    })
+  })
+
+  // Drives a token transfer to the lock-or-burn request: the registry reports a pool, so the
+  // executor asks the OnRamp to lock or burn and waits in the TokenPool_LockOrBurn state.
+  async function afterLockOrBurnRequested(): Promise<SandboxContract<sx.CCIPSendExecutor>> {
+    const { sendExecutor } = await afterFeeReserved({
+      send: tokenOnrampSend,
+      tokenRegistry: tokenRegistryMock.address,
+    })
+    const tokenPool = (await blockchain.treasury('tokenPoolMock')).address
+    const result = await sendExecutor.sendTokenAdminRegistryTokenInfo(
+      tokenRegistryMock.getSender(),
+      toNano('0.3'),
+      {
+        queryId: 0n,
+        token: NATIVE_GRAM,
+        version: 0n,
+        poolInfo: sx.TokenAdminRegistry_PoolInfo.create({
+          tokenPool,
+          transferInitiator: tokenPool,
+          admission: TEST_ADMISSION,
+        }),
+      },
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.OnRamp_ExecutorRequestsLockOrBurn.PREFIX,
+    })
+    return sendExecutor
+  }
+
+  it('should exit with the relayed error and refund the charged fee when the OnRamp reports a Router bounce', async () => {
+    const sendExecutor = await afterLockOrBurnRequested()
+
+    const result = await sendExecutor.sendOnRampLockOrBurnFailed(
+      onRampMock.getSender(),
+      toNano('0.1'),
+      { queryId: 1n, errorCode: 0xffffn },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+      body(x) {
+        if (!x) return false
+        const finished = or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse())
+        return (
+          finished.executorId === 0n &&
+          finished.errorCode === 0xffffn &&
+          finished.refund === FeeTokenAmount
+        )
+      },
+    })
+  })
+
+  it('should exit with the Router error and refund the charged fee when the Router reports a lock-or-burn failure', async () => {
+    const sendExecutor = await afterLockOrBurnRequested()
+    const tokenPool = (await blockchain.treasury('tokenPoolMock')).address
+
+    const result = await sendExecutor.sendRouterTokenPoolLockOrBurnFailed(
+      routerMock.getSender(),
+      toNano('0.1'),
+      { queryId: 1n, tokenPool, errorCode: -14n },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+      inMessageBounceable: false,
+      body(x) {
+        if (!x) return false
+        const finished = or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse())
+        return (
+          finished.executorId === 0n &&
+          finished.errorCode === -14n &&
+          finished.refund === FeeTokenAmount
+        )
+      },
+    })
+  })
+
+  it('should exit with the OnRamp error and refund the charged fee when the OnRamp bounces the lock-or-burn request', async () => {
+    const { sendExecutor } = await afterFeeReserved({
+      send: tokenOnrampSend,
+      tokenRegistry: tokenRegistryMock.address,
+    })
+    // The OnRamp rejects everything from here on; restored at the end for the following tests.
+    const snapshot = blockchain.snapshot()
+    try {
+      const onRampBalance = (await blockchain.getContract(onRampMock.address)).balance
+      await blockchain.setShardAccount(
+        onRampMock.address,
+        createShardAccount({
+          address: onRampMock.address,
+          code: await contractCode.ccip.local('tests.mock.Bouncer'),
+          data: Cell.EMPTY,
+          balance: onRampBalance,
+        }),
+      )
+      const tokenPool = (await blockchain.treasury('tokenPoolMock')).address
+
+      const result = await sendExecutor.sendTokenAdminRegistryTokenInfo(
+        tokenRegistryMock.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 0n,
+          token: NATIVE_GRAM,
+          version: 0n,
+          poolInfo: sx.TokenAdminRegistry_PoolInfo.create({
+            tokenPool,
+            transferInitiator: tokenPool,
+            admission: TEST_ADMISSION,
+          }),
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: sendExecutor.address,
+        to: onRampMock.address,
+        success: false,
+        op: or.OnRamp_ExecutorRequestsLockOrBurn.PREFIX,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: onRampMock.address,
+        to: sendExecutor.address,
+        success: true,
+        op: 0xfffffffe,
+      })
+      // The report itself also reaches the Bouncer; what matters is what the executor sent.
+      expect(result.transactions).toHaveTransaction({
+        from: sendExecutor.address,
+        to: onRampMock.address,
+        op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+        body(x) {
+          if (!x) return false
+          const finished = or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse())
+          return (
+            finished.executorId === 0n &&
+            finished.errorCode === 0xffffn && // the Bouncer throws 0xFFFF
+            finished.refund === FeeTokenAmount
+          )
+        },
+      })
+    } finally {
+      await blockchain.loadFrom(snapshot)
+    }
+  })
+
+  it('should throw on OnRamp_LockOrBurnFailed from non-onramp', async () => {
+    const sendExecutor = await afterLockOrBurnRequested()
+
+    const result = await sendExecutor.sendOnRampLockOrBurnFailed(
+      routerMock.getSender(),
+      toNano('0.1'),
+      { queryId: 1n, errorCode: 0xffffn },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: routerMock.address,
+      to: sendExecutor.address,
+      success: false,
+      exitCode: sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.Unauthorized'],
     })
   })
 
@@ -1142,7 +1318,7 @@ describe('SendExecutor - Unit tests', () => {
       deployer.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidationFailed.create({
-        error: 42n,
+        errorCode: 42n,
         msg: onrampSend.msg,
       }),
     )
@@ -1162,7 +1338,7 @@ describe('SendExecutor - Unit tests', () => {
       deployer.getSender(),
       toNano('0.3'),
       sx.FeeQuoter_MessageValidationFailed.create({
-        error: 42n,
+        errorCode: 42n,
         msg: onrampSend.msg,
       }),
     )

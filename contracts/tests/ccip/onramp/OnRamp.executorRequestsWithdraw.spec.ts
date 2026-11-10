@@ -8,6 +8,8 @@ import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
+import * as bouncer from '../../../wrappers/test/mock/Bouncer'
+import { contractCode } from '../../../wrappers/codeLoader'
 import { FromBuffer } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 import { ChainFamilySelectors, ChainSelectors } from '../../utils/Selectors'
@@ -85,7 +87,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
   let mockTokenPool: SandboxContract<TreasuryContract>
   let mockToken: SandboxContract<TreasuryContract>
   let executorSender: Sender
-  let executorID: bigint
+  let executorId: bigint
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -103,13 +105,19 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
     mockRouter = await blockchain.treasury('mockRouter')
     mockTokenPool = await blockchain.treasury('mockTokenPool')
     mockToken = await blockchain.treasury('mockToken')
-    executorID = BigInt(generateRandomContractId())
+    executorId = BigInt(generateRandomContractId())
     ;({ deployer, onramp } = await setup(blockchain, {
       config: {
         feeQuoter: (await blockchain.treasury('mockFeeQuoter')).address,
       },
     }))
 
+    await setRouter(mockRouter.address)
+
+    executorSender = await deployRealExecutor()
+  })
+
+  const setRouter = async (router: Address) => {
     const result = await onramp.sendOnRampUpdateDestChainConfigs(
       deployer.getSender(),
       toNano('0.5'),
@@ -117,7 +125,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
         updates: [
           or.OnRampUpdateDestChainConfig.create({
             destChainSelector: DEST_CHAIN_SELECTOR,
-            router: mockRouter.address,
+            router,
             allowlistEnabled: false,
           }),
         ],
@@ -128,18 +136,16 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
       to: onramp.address,
       success: true,
     })
-
-    executorSender = await deployRealExecutor()
-  })
+  }
 
   // Deploys a real executor through OnRamp_Send and returns a sender bound to its address,
   // so the OnRamp's executor-address authorization passes.
   async function deployRealExecutor(): Promise<Sender> {
     const ccipSend = or.Router_CCIPSend.create({
-      queryID: 1n,
+      queryId: 1n,
       destChainSelector: DEST_CHAIN_SELECTOR,
       receiver: FromBuffer(VALID_EVM_TOKEN_ADDRESS),
-      data: beginCell().endCell(),
+      data: [],
       tokenAmounts: [],
       feeToken: null,
       extraArgs: or.GenericExtraArgsV2.create({
@@ -170,7 +176,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
     const deployMessage = dep.builder.messages.in.initializeAndSend.load(
       deployTX.inMessage.body.beginParse(),
     )
-    executorID = ex.CCIPSendExecutor_InitialData.fromSlice(
+    executorId = ex.CCIPSendExecutor_InitialData.fromSlice(
       deployMessage.stateInit.data.beginParse(),
     ).id
 
@@ -185,8 +191,8 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
     destBytesOverhead: bigint = 32n,
   ) =>
     onramp.sendOnRampExecutorRequestsWithdraw(executorSender, toNano('1'), {
-      queryID: 1n,
-      executorID,
+      queryId: 1n,
+      executorId,
       destChainSelector: DEST_CHAIN_SELECTOR,
       chainFamilySelector,
       destBytesOverhead,
@@ -252,8 +258,8 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
         if (!x) return false
         const failure = rt.Router_WithdrawToTokenPoolFailed.fromSlice(x.beginParse())
         return (
-          failure.queryID === 1n &&
-          failure.error === BigInt(or.OnRamp.Errors['OnRamp_Error.SourceTokenDataTooLarge'])
+          failure.queryId === 1n &&
+          failure.errorCode === BigInt(or.OnRamp.Errors['OnRamp_Error.SourceTokenDataTooLarge'])
         )
       },
     })
@@ -282,8 +288,8 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
         if (!x) return false
         const failure = rt.Router_WithdrawToTokenPoolFailed.fromSlice(x.beginParse())
         return (
-          failure.queryID === 1n &&
-          failure.error === BigInt(or.OnRamp.Errors['OnRamp_Error.InvalidDestTokenAddress'])
+          failure.queryId === 1n &&
+          failure.errorCode === BigInt(or.OnRamp.Errors['OnRamp_Error.InvalidDestTokenAddress'])
         )
       },
     })
@@ -340,6 +346,37 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
       to: mockRouter.address,
       success: true,
       op: rt.Router_WithdrawToTokenPoolFailed.PREFIX,
+    })
+  })
+
+  // TODO: the bounced withdraw is not reported yet; the OnRamp's bounce arm throws 0xFFFF until
+  // its failure path lands.
+  it('throws when the router bounces the withdrawal', async () => {
+    // The executor was deployed through the mock Router; now the lane's Router rejects everything.
+    const routerBouncer = blockchain.openContract(
+      bouncer.ContractClient.createFromConfig(await contractCode.ccip.local('tests.mock.Bouncer')),
+    )
+    await routerBouncer.sendDeploy(deployer.getSender(), toNano('0.05'))
+    await setRouter(routerBouncer.address)
+
+    const result = await sendWithdraw(VALID_EVM_TOKEN_ADDRESS)
+
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: routerBouncer.address,
+      success: false,
+      op: rt.Router_WithdrawToTokenPool.PREFIX,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: routerBouncer.address,
+      to: onramp.address,
+      success: false,
+      exitCode: 0xffff,
+      op: 0xfffffffe,
+    })
+    expect(result.transactions).not.toHaveTransaction({
+      from: onramp.address,
+      op: or.OnRamp_LockOrBurnFailed.PREFIX,
     })
   })
 })

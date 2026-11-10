@@ -5,7 +5,7 @@ import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
-import { setup, contractsCoverageConfig, genExecID } from './Router.Setup'
+import { setup, contractsCoverageConfig, genexecId } from './Router.Setup'
 import { ChainSelectors } from '../../utils/Selectors'
 
 describe('Router', () => {
@@ -43,12 +43,12 @@ describe('Router', () => {
   })
 
   it('should handle ccipReceiveConfirm', async () => {
-    const execID = genExecID({
+    const execId = genexecId({
       sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       messageID: 1n,
     })
     const result = await router.sendRouterCCIPReceiveConfirm(receiver.getSender(), toNano('1'), {
-      execID: execID,
+      execId: execId,
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -65,18 +65,18 @@ describe('Router', () => {
       body(x) {
         if (!x) return false
         const decoded = of.OffRamp_CCIPReceiveConfirm.fromSlice(x.beginParse())
-        return decoded.execID === execID
+        return decoded.execId === execId
       },
     })
   })
 
-  it('should throw on ccipReceiveConfirm with execID with invalid source chain', async () => {
-    const execID = genExecID({
+  it('should throw on ccipReceiveConfirm with execId with invalid source chain', async () => {
+    const execId = genexecId({
       sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001 + 1n,
       messageID: 1n,
     })
     const result = await router.sendRouterCCIPReceiveConfirm(receiver.getSender(), toNano('1'), {
-      execID: execID,
+      execId: execId,
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -84,6 +84,49 @@ describe('Router', () => {
       to: router.address,
       success: false,
       exitCode: rt.Router.Errors['Router_Error.SourceChainNotEnabled'],
+    })
+  })
+
+  it('should relay a rejected confirmation to its sender with the value', async () => {
+    const result = await router.sendRouterCCIPReceiveConfirmRejectedByExecutor(
+      offRamp.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 7n,
+        sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+        receiver: receiver.address,
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      op: rt.Router_CCIPReceiveConfirmRejected.PREFIX,
+      inMessageBounceable: false,
+      value: (v) => v !== undefined && v > 0n,
+      body(x) {
+        if (!x) return false
+        return rt.Router_CCIPReceiveConfirmRejected.fromSlice(x.beginParse()).queryId === 7n
+      },
+    })
+  })
+
+  it('should reject a confirmation rejection that does not come from the OffRamp', async () => {
+    const result = await router.sendRouterCCIPReceiveConfirmRejectedByExecutor(
+      receiver.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 7n,
+        sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+        receiver: receiver.address,
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: receiver.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.SenderIsNotOffRamp'],
     })
   })
 

@@ -12,7 +12,7 @@ import {
   OffRampWithTokenPoolTestSetup,
 } from '../../../ccip/offramp/OffRamp.Setup'
 import { AddressBook, GasReport, gasReportConfig } from '../../utils'
-import { createPayload, LANE_MAX_DATA_BYTES } from '../messaging/config'
+import { createPayloadBytes, LANE_MAX_DATA_BYTES } from '../messaging/config'
 import { deployTokenWithPool, POOL_KINDS, TokenWithPool } from './pools'
 
 const jestConsole = console
@@ -88,7 +88,7 @@ describe('CCIP OffRamp Token Transfer Gas Estimation', () => {
     label: string,
     token: TokenWithPool,
     book: AddressBook,
-    opts: { data?: Cell; gasLimit?: bigint; aborts?: string[]; poolRejects?: boolean } = {},
+    opts: { data?: bigint[]; gasLimit?: bigint; aborts?: string[]; poolRejects?: boolean } = {},
   ) {
     const message = setup.createTestMessageWithToken({
       token: token.minter.address,
@@ -211,7 +211,7 @@ describe('CCIP OffRamp Token Transfer Gas Estimation', () => {
         `${kind}: Execute Token Transfer + Max Payload`,
         token,
         book,
-        { data: createPayload(LANE_MAX_DATA_BYTES), ...existingAccount },
+        { data: createPayloadBytes(LANE_MAX_DATA_BYTES), ...existingAccount },
       )
       expect(result.transactions).toHaveTransaction({
         from: setup.router.address,
@@ -229,7 +229,7 @@ describe('CCIP OffRamp Token Transfer Gas Estimation', () => {
         token,
         book,
         {
-          data: createPayload(LANE_MAX_DATA_BYTES),
+          data: createPayloadBytes(LANE_MAX_DATA_BYTES),
           aborts: [...existingAccount.aborts, `Router->${kind}Pool`],
           poolRejects: true,
         },

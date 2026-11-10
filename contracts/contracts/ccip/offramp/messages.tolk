@@ -50,7 +50,10 @@ type OffRamp_InMessageBounced =
     | ReceiveExecutor_InitExecute
     | Deployable_Initialize
     | Router_RelayReleaseOrMint
-    | Router_RouteMessage;
+    | Router_RouteMessage
+    | ReceiveExecutor_CCIPReceiveConfirm
+    | MerkleRoot_Validate
+    | FeeQuoter_UpdatePrices;
 
 struct (0x9d431905) OffRamp_Commit {
     queryId: uint64;
@@ -83,6 +86,14 @@ struct (0xa00785cf) OffRamp_ManuallyExecute {
     gasOverride: GasOverride;
 }
 
+/// Sent by the OffRamp to the caller of Execute/ManuallyExecute when the MerkleRoot rejected
+/// MerkleRoot_Validate (root not committed, already executed, or manual execution not yet
+/// enabled). Carries only the queryId plus the remaining value; the cause is in the MerkleRoot's
+/// failed transaction. NoBounce: a refund, so a bounce could not unwind anything.
+struct (0x0d518f57) OffRamp_MerkleRootValidateRejected {
+    queryId: uint64;
+}
+
 //Must be sent by owner
 struct (0x22b4f05c) OffRamp_UpdateSourceChainConfigs {
     queryId: uint64;
@@ -98,7 +109,7 @@ struct SourceChainConfigUpdate {
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
     queryId: uint64;
     message: Cell<Any2TVMRampMessage>;
-    execID: uint192;
+    execId: uint192;
     // Gas limit to use for the message execution
     effectiveGasLimit: coins;
     // Token amounts delivered to the receiver, denominated in local token decimals.
@@ -107,19 +118,19 @@ struct (0x58cfcb02) OffRamp_DispatchValidated {
 
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
     queryId: uint64;
-    execID: ReceiveExecutionID;
+    execId: ReceiveExecutionID;
     receiver: address;
 }
 
 struct (0x2dcf2a43) OffRamp_CCIPReceiveBounced {
-    execID: ReceiveExecutionID;
+    execId: ReceiveExecutionID;
     receiver: address;
 }
 
 struct (0x59e56170) OffRamp_NotifySuccess {
     queryId: uint64;
     header: Cell<RampMessageHeader>;
-    execID: ReceiveExecutionID;
+    execId: ReceiveExecutionID;
     root: address;
     /// Set for token-only messages: the token transfer delivery to relay to the pool.
     delivered: Cell<OffRamp_DeliveredTransfer>? = null;
@@ -131,7 +142,7 @@ struct (0x59e56170) OffRamp_NotifySuccess {
 /// (messages without data carry this in `OffRamp_NotifySuccess` instead).
 struct (0xb4b39784) OffRamp_TokenTransferDelivered {
     queryId: uint64;
-    execID: ReceiveExecutionID;
+    execId: ReceiveExecutionID;
     delivered: Cell<OffRamp_DeliveredTransfer>;
 }
 
@@ -143,7 +154,7 @@ struct OffRamp_DeliveredTransfer {
 struct (0x177ebd03) OffRamp_NotifyFailure {
     queryId: uint64;
     header: Cell<RampMessageHeader>;
-    execID: ReceiveExecutionID;
+    execId: ReceiveExecutionID;
     root: address;
     /// Caller of the execution attempt and whether it funded the executor's init value.
     excesses: Cell<ReceiveExecutor_Excesses>;
@@ -166,7 +177,7 @@ struct (0x453736a5) OffRamp_SetTokenAdminRegistry {
 
 struct (0x7deaf076) OffRamp_ReleaseOrMint {
     queryId: uint64
-    execID: ReceiveExecutionID
+    execId: ReceiveExecutionID
     tokenPool: address
     destGasAmount: coins
     requestedFinalityConfig: uint32
@@ -175,7 +186,7 @@ struct (0x7deaf076) OffRamp_ReleaseOrMint {
 
 struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
     queryId: uint64;
-    execID: ReceiveExecutionID;
+    execId: ReceiveExecutionID;
 }
 
 /// Relays between the executor and the pool, on top of `destGasAmount`: the OffRamp and Router

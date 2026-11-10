@@ -415,7 +415,7 @@ export class OffRampTestSetup {
     sequenceNumber = 1n,
     messageId = 1n,
     receiverAddress = generateMockTonAddress(),
-    data: Cell = Cell.EMPTY,
+    data: bigint[] = [],
   ): of.Any2TVMRampMessage {
     const header = of.RampMessageHeader.create({
       messageId,
@@ -809,7 +809,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
   receiveExecutorAddress(message: of.Any2TVMRampMessage, metadataHash?: bigint): Address {
     const messageId = generateMessageID(message, metadataHash ?? this.getDefaultMetadataHash())
     const messageIdSlice = beginCell().storeUint(messageId, 256).asSlice()
-    const execID = beginCell()
+    const execId = beginCell()
       .storeUint(message.header.sourceChainSelector, 64)
       .storeUint(messageIdSlice.loadUintBig(192 - 64), 192 - 64)
       .endCell()
@@ -821,7 +821,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         owner: this.offRamp.address,
         id: deployable.builder.data.namespaced.encode({
           namespace: NameSpace.CCIPNamespace.ReceiveExecutor,
-          id: beginCell().storeUint(execID, 192),
+          id: beginCell().storeUint(execId, 192),
         }),
       })
       .endCell()
@@ -1077,7 +1077,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
       sequenceNumber?: bigint
       messageId?: bigint
       receiverAddress?: Address
-      data?: Cell
+      data?: bigint[]
       sourcePoolAddress?: of.CrossChainAddress
       extraData?: Cell
       destGasAmount?: bigint
@@ -1087,7 +1087,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
       opts.sequenceNumber ?? 1n,
       opts.messageId ?? 1n,
       opts.receiverAddress ?? this.receiver.address,
-      opts.data ?? Cell.EMPTY,
+      opts.data ?? [],
     )
 
     message.tokenAmounts = [

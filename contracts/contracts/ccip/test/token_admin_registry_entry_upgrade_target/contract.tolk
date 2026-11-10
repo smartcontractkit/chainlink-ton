@@ -26,14 +26,14 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistryEntry_Resume.fromSlice(in.body);
     var st = UpgradeTarget_Storage.fromCell(contract.getData());
     val previous = TokenRegistry_Storage.fromCell(st.previousStorage);
-    assert(in.senderAddress == previous.adminConfig.load().tokenAdminRegistry) throw 0xFFFF;
+    assert(in.senderAddress == previous.adminConfig.load().tokenAdminRegistry) throw (0xFFFF);
     st.resumed = msg.request;
     contract.setData(st.toCell());
 }
 
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
-    assert (version.bitsEqual("1.6.0".literalSlice())) throw Upgradeable_Error.VersionMismatch;
+    assert (version.bitsEqual("1.7.0".literalSlice())) throw Upgradeable_Error.VersionMismatch;
     return UpgradeTarget_Storage { previousStorage: storage, resumed: null }.toCell();
 }
 

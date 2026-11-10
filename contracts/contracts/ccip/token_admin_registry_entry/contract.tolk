@@ -14,7 +14,7 @@ tolk 1.4.2
 // The state-bearing shard of TokenAdminRegistry.
 contract TokenAdminRegistryEntry {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.6.0"
+    version: "1.7.0"
     description: "link.chain.ton.ccip.TokenAdminRegistryEntry"
 
     storage: TokenRegistry_Storage
@@ -23,7 +23,7 @@ contract TokenAdminRegistryEntry {
     thrownErrors: TokenAdminRegistryEntry_Error | Upgradeable_Error
 }
 
-const CONTRACT_VERSION = "1.6.0";
+const CONTRACT_VERSION = "1.7.0";
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistryEntry_InMessage.fromSlice(in.body);
@@ -50,7 +50,7 @@ fun onInternalMessage(in: InMessage) {
             onPoolConfig(msg, in.senderAddress);
         }
         else => {
-            assert (in.body.isEmpty()) throw 0xFFFF;
+            assert (in.body.isEmpty()) throw (0xFFFF);
         }
     }
 }
@@ -61,7 +61,7 @@ fun onInternalMessage(in: InMessage) {
 /// its own requested version does not cause a loop.
 fun onMessageFromRoot(msg: TokenAdminRegistryEntry_MessageFromRoot, replay: bool) {
     if (msg.minEntryVersion > TokenAdminRegistryEntry_VERSION) {
-        assert(!replay) throw TokenAdminRegistryEntry_Error.VersionUnavailable;
+        assert(!replay) throw (TokenAdminRegistryEntry_Error.VersionUnavailable);
         return deferToRoot(msg);
     }
     val content = lazy msg.content.load();
@@ -93,8 +93,9 @@ fun onMessageFromRoot(msg: TokenAdminRegistryEntry_MessageFromRoot, replay: bool
 /// A pool update whose probe bounces delists the token until the administrator sets a pool again.
 /// A bounced TEP-89 query leaves the token disabled.
 fun onBouncedMessage(in: InMessageBounced) {
-    in.bouncedBody.skipBouncedPrefix();
-    val bounced = lazy TokenAdminRegistryEntry_BouncedMessage.fromSlice(in.bouncedBody);
+    assert (in.bouncedBody.preloadUint(32) == 0xfffffffe) throw (TokenAdminRegistryEntry_Error.UnhandledLegacyBounce);
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val bounced = lazy TokenAdminRegistryEntry_BouncedMessage.fromCell(rich.originalBody);
     match (bounced) {
         TokenPool_GetConfig => {
             val st = lazy TokenRegistry_Storage.load();
@@ -109,7 +110,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 
 fun requireRoot(sender: address) {
     val st = lazy TokenRegistry_Storage.load();
-    assert(sender == st.adminConfig.load().tokenAdminRegistry) throw TokenAdminRegistryEntry_Error.Unauthorized;
+    assert(sender == st.adminConfig.load().tokenAdminRegistry) throw (TokenAdminRegistryEntry_Error.Unauthorized);
 }
 
 /// Sends the request to the root, which answers with its entry code and the
@@ -117,7 +118,7 @@ fun requireRoot(sender: address) {
 fun deferToRoot(msg: TokenAdminRegistryEntry_MessageFromRoot) {
     val st = lazy TokenRegistry_Storage.load();
     createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: st.adminConfig.load().tokenAdminRegistry,
         body: TokenAdminRegistry_EntryUpgradeRequest {
@@ -125,7 +126,7 @@ fun deferToRoot(msg: TokenAdminRegistryEntry_MessageFromRoot) {
             token: st.tokenAddress,
             request: msg.toCell(),
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Several requests may be deferred concurrently, each funding an upgrade from the root's balance.
@@ -134,11 +135,11 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
     if (contract.getCode().hashEqual(msg.code)) {
         val st = lazy TokenRegistry_Storage.load();
         createMessage({
-            bounce: false,
+            bounce: BounceMode.NoBounce,
             value: 0,
             dest: st.adminConfig.load().tokenAdminRegistry,
             body: TokenAdminRegistry_UpgradeRefund { queryId: msg.queryId },
-        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
     Upgradeable { migrate, version }.upgrade(msg);
@@ -153,7 +154,7 @@ fun onGetTokenInfo(queryId: uint64, msg: TokenAdminRegistryEntry_GetTokenInfo) {
         tokenInfo = disabled.toCell();
     }
     createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: st.adminConfig.load().tokenAdminRegistry,
         body: TokenAdminRegistryEntry_TokenInfo {
@@ -162,7 +163,7 @@ fun onGetTokenInfo(queryId: uint64, msg: TokenAdminRegistryEntry_GetTokenInfo) {
             requester: msg.requester,
             tokenInfo,
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Emits the initial proposal after Deployable has atomically installed this
@@ -171,9 +172,9 @@ fun onGetTokenInfo(queryId: uint64, msg: TokenAdminRegistryEntry_GetTokenInfo) {
 fun onRegistrationInitialized(msg: TokenAdminRegistryEntry_RegistrationInitialized, sender: address) {
     var st = TokenRegistry_Storage.load();
     val adminConfig = st.adminConfig.load();
-    assert(sender == contract.getAddress()) throw TokenAdminRegistryEntry_Error.Unauthorized;
+    assert(sender == contract.getAddress()) throw (TokenAdminRegistryEntry_Error.Unauthorized);
     assert(adminConfig.administrator == null && adminConfig.pendingAdministrator != null)
-        throw TokenAdminRegistryEntry_Error.InvalidAdministrator;
+        throw (TokenAdminRegistryEntry_Error.InvalidAdministrator);
     notifyAdministratorTransferRequested(msg.queryId, st.tokenAddress, null, adminConfig.pendingAdministrator);
 
     var tokenInfo = st.tokenInfo.load();
@@ -211,7 +212,7 @@ fun onVerifyToken(queryId: uint64) {
 /// A bounced query or a response without a wallet leaves the token unverified.
 fun queryWallet(token: address, queryId: uint64) {
     createMessage({
-        bounce: true,
+        bounce: BounceMode.RichBounce,
         value: TokenAdminRegistryEntry_WALLET_QUERY_VALUE,
         dest: token,
         body: RequestWalletAddress {
@@ -219,7 +220,7 @@ fun queryWallet(token: address, queryId: uint64) {
             ownerAddress: contract.getAddress(),
             includeOwnerAddress: false,
         },
-    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+    }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun onResponseWalletAddress(msg: ResponseWalletAddress, sender: address) {
@@ -234,7 +235,7 @@ fun onResponseWalletAddress(msg: ResponseWalletAddress, sender: address) {
 fun onProposeAdministrator(queryId: uint64, msg: TokenAdminRegistryEntry_ProposeAdministrator) {
     var st = lazy TokenRegistry_Storage.load();
     var adminConfig = st.adminConfig.load();
-    assert(adminConfig.administrator == null) throw TokenAdminRegistryEntry_Error.AlreadyRegistered;
+    assert(adminConfig.administrator == null) throw (TokenAdminRegistryEntry_Error.AlreadyRegistered);
     adminConfig.pendingAdministrator = msg.administrator;
     st.adminConfig = adminConfig.toCell();
     st.store();
@@ -244,7 +245,7 @@ fun onProposeAdministrator(queryId: uint64, msg: TokenAdminRegistryEntry_Propose
 fun onTransferAdminRole(queryId: uint64, msg: TokenAdminRegistryEntry_TransferAdminRole) {
     var st = lazy TokenRegistry_Storage.load();
     var adminConfig = st.adminConfig.load();
-    assert(adminConfig.administrator != null && msg.actor == adminConfig.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
+    assert(adminConfig.administrator != null && msg.actor == adminConfig.administrator) throw (TokenAdminRegistryEntry_Error.Unauthorized);
     val currentAdministrator = adminConfig.administrator;
     adminConfig.pendingAdministrator = msg.newAdministrator;
     st.adminConfig = adminConfig.toCell();
@@ -255,7 +256,7 @@ fun onTransferAdminRole(queryId: uint64, msg: TokenAdminRegistryEntry_TransferAd
 fun onAcceptAdminRole(queryId: uint64, msg: TokenAdminRegistryEntry_AcceptAdminRole) {
     var st = lazy TokenRegistry_Storage.load();
     var adminConfig = st.adminConfig.load();
-    assert(adminConfig.pendingAdministrator != null && msg.actor == adminConfig.pendingAdministrator) throw TokenAdminRegistryEntry_Error.OnlyPendingAdministrator;
+    assert(adminConfig.pendingAdministrator != null && msg.actor == adminConfig.pendingAdministrator) throw (TokenAdminRegistryEntry_Error.OnlyPendingAdministrator);
     adminConfig.administrator = msg.actor;
     adminConfig.pendingAdministrator = null;
     st.adminConfig = adminConfig.toCell();
@@ -268,7 +269,7 @@ fun onAcceptAdminRole(queryId: uint64, msg: TokenAdminRegistryEntry_AcceptAdminR
 fun onSetPool(queryId: uint64, msg: TokenAdminRegistryEntry_SetPool) {
     var st = lazy TokenRegistry_Storage.load();
     val adminConfig = st.adminConfig.load();
-    assert(adminConfig.administrator != null && msg.actor == adminConfig.administrator) throw TokenAdminRegistryEntry_Error.Unauthorized;
+    assert(adminConfig.administrator != null && msg.actor == adminConfig.administrator) throw (TokenAdminRegistryEntry_Error.Unauthorized);
 
     if (msg.tokenPool != null) {
         st.pendingPool = msg.tokenPool;
@@ -308,11 +309,11 @@ fun onRefreshPoolConfig(queryId: uint64) {
 
 fun probePoolConfig(pool: address, queryId: uint64) {
     createMessage({
-        bounce: true,
+        bounce: BounceMode.RichBounce,
         value: TokenAdminRegistryEntry_POOL_PROBE_VALUE,
         dest: pool,
         body: TokenPool_GetConfig { queryId },
-    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+    }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Accepts the answer of the pending pool (setting it) or of the current pool (refreshing it).
@@ -388,11 +389,11 @@ fun notifyPoolSet(queryId: uint64, token: address, previousPool: address?, newPo
 fun notifyRoot(body: cell) {
     val st = TokenRegistry_Storage.load();
     createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: TokenAdminRegistryEntry_relayEventCost(),
         dest: st.adminConfig.load().tokenAdminRegistry,
         body,
-    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+    }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Implement when upgrading the contract

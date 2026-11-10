@@ -2,13 +2,14 @@ import { Address, Cell, toNano, beginCell } from '@ton/core'
 import { Blockchain } from '@ton/sandbox'
 import { findTransaction } from '@ton/test-utils'
 
-import { generateMockTonAddress, asSnakedCell } from '../../../src/utils'
+import { generateMockTonAddress } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { assertLog, expectFailedTransaction } from '../../Logs'
 import { ChainSelectors } from '../../utils/Selectors'
-import generateMessageID from '../../../src/offramp/generateMessageID'
+import { snakeData, testSnakeData } from '../../utils/snakeData'
 import { sendMessageAsync, captureAccountChanges } from '../../utils/sendInternalMessage'
+import generateMessageID from '../../../src/offramp/generateMessageID'
 
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as ocr from '../../../wrappers/libraries/ocr/MultiOCR3Base'
@@ -34,12 +35,6 @@ import {
 } from './OffRamp.Setup'
 import { DEFAULT_MIN_TT_GASLIMIT, executeValue } from '../../../wrappers/ccip/OffRamp'
 
-// Snake of 127-byte cells, the encoding the OffRamp measures with snakedBytesLen.
-function snakeData(size: number): Cell {
-  const chunks: Buffer[] = []
-  for (let i = 0; i < size; i += 127) chunks.push(Buffer.alloc(Math.min(127, size - i), 0xff))
-  return asSnakedCell(chunks, (chunk: Buffer) => beginCell().storeBuffer(chunk))
-}
 import { codec } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
 describe('OffRamp - Execute', () => {
@@ -256,6 +251,131 @@ describe('OffRamp - Execute', () => {
         from: setup.offRamp.address,
         exitCode: mr.MerkleRoot.Errors['MerkleRoot_Error.SkippedAlreadyExecutedMessage'],
         success: false,
+      })
+    })
+
+    // R5: when the MerkleRoot rejects MerkleRoot_Validate, the OffRamp refunds the caller
+    // (excessesTo) with OffRamp_MerkleRootValidateRejected { queryId }, NoBounce.
+    describe('MerkleRoot_Validate rejection refunds the caller', () => {
+      // Asserts the MerkleRoot rejected the validate, the OffRamp handled the rich bounce, and
+      // the caller got a non-bounceable OffRamp_MerkleRootValidateRejected carrying the queryId
+      // and the remaining value.
+      const expectValidateRejectedRefund = (
+        transactions: any[],
+        caller: Address,
+        queryId: bigint,
+        merkleRootExitCode: number,
+      ) => {
+        // The MerkleRoot rejected the validate.
+        expect(transactions).toHaveTransaction({
+          from: setup.offRamp.address,
+          exitCode: merkleRootExitCode,
+          success: false,
+        })
+        // The OffRamp handled the rich bounce.
+        expect(transactions).toHaveTransaction({
+          to: setup.offRamp.address,
+          op: 0xfffffffe,
+          success: true,
+        })
+        // The caller got the rejection with the queryId and the remaining value, non-bounceable.
+        expect(transactions).toHaveTransaction({
+          from: setup.offRamp.address,
+          to: caller,
+          op: of.OffRamp_MerkleRootValidateRejected.PREFIX,
+          inMessageBounceable: false,
+          success: true,
+          value: (v) => v !== undefined && v > 0n,
+          body(x) {
+            if (!x) return false
+            return (
+              of.OffRamp_MerkleRootValidateRejected.fromSlice(x.beginParse()).queryId === queryId
+            )
+          },
+        })
+      }
+
+      it('uncommitted root: no MerkleRoot contract, the validate bounces', async () => {
+        const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
+        // Set up the lane and OCR configs but do NOT commit the root, so no MerkleRoot is deployed.
+        await setup.setupOCRConfigs()
+        const report = setup.createExecuteReport([message])
+
+        const caller = setup.transmitters[0]
+        const queryId = 0n
+        const result = await setup.offRamp.sendOffRampExecute(caller.getSender(), toNano('0.5'), {
+          reportContext: of.ReportContext.create({
+            configDigest: setup.configDigest,
+            sequenceBytes: 0x02n,
+          }),
+          report,
+        })
+
+        // No contract at the MerkleRoot address: the message bounces without an exit code.
+        expect(result.transactions).toHaveTransaction({
+          to: setup.offRamp.address,
+          op: 0xfffffffe,
+          success: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: setup.offRamp.address,
+          to: caller.address,
+          op: of.OffRamp_MerkleRootValidateRejected.PREFIX,
+          inMessageBounceable: false,
+          success: true,
+          value: (v) => v !== undefined && v > 0n,
+          body(x) {
+            if (!x) return false
+            return (
+              of.OffRamp_MerkleRootValidateRejected.fromSlice(x.beginParse()).queryId === queryId
+            )
+          },
+        })
+      })
+
+      it('already executed: MerkleRoot throws SkippedAlreadyExecutedMessage', async () => {
+        const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
+        await setup.setupAndCommitMessage(message)
+        const report = setup.createExecuteReport([message])
+
+        // First execution succeeds.
+        await setup.executeReport(report)
+
+        // Second execution of the same report: the MerkleRoot rejects it.
+        const caller = setup.transmitters[0]
+        const queryId = 0n
+        const result = await setup.offRamp.sendOffRampExecute(caller.getSender(), toNano('0.5'), {
+          reportContext: of.ReportContext.create({
+            configDigest: setup.configDigest,
+            sequenceBytes: 0x02n,
+          }),
+          report,
+        })
+
+        expectValidateRejectedRefund(
+          result.transactions,
+          caller.address,
+          queryId,
+          mr.MerkleRoot.Errors['MerkleRoot_Error.SkippedAlreadyExecutedMessage'],
+        )
+      })
+
+      it('manual execution too early: MerkleRoot throws ManualExecutionNotYetEnabled', async () => {
+        const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
+        await setup.setupAndCommitMessage(message)
+        const report = setup.createExecuteReport([message])
+
+        // Manual execution before the permissionless threshold: the MerkleRoot rejects it.
+        const caller = setup.transmitters[0]
+        const queryId = 0n
+        const result = await setup.manualExecuteReport(report, undefined, false)
+
+        expectValidateRejectedRefund(
+          result.transactions,
+          caller.address,
+          queryId,
+          mr.MerkleRoot.Errors['MerkleRoot_Error.ManualExecutionNotYetEnabled'],
+        )
       })
     })
 
@@ -605,7 +725,7 @@ describe('OffRamp - Execute', () => {
     })
 
     it('should emit ExecutionStateChanged: Success when receiver notifies success with non-empty data', async () => {
-      const data = beginCell().storeUint(1, 8).endCell() // receiver now accepts data
+      const data = [1n] // receiver now accepts data
       const message = setup.createTestMessage(1n, 1n, setup.receiver.address, data)
 
       await setup.setupAndCommitMessage(message)
@@ -784,6 +904,55 @@ describe('OffRamp - Execute', () => {
       })
     })
 
+    it('should return the value of a confirmation the executor rejects to its sender', async () => {
+      const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
+      await setup.setupAndCommitMessage(message)
+      await setup.executeReport(setup.createExecuteReport([message]))
+
+      // The OffRamp's ReceiveExecutionID: the source chain, then the message ID's top 128 bits.
+      const messageId = generateMessageID(
+        message,
+        s.getDefaultMetadataHash(message.header.sourceChainSelector),
+      )
+      const execId = (message.header.sourceChainSelector << 128n) | (messageId >> (256n - 128n))
+
+      // A stranger confirms the executed message: the executor rejects it.
+      const stranger = await blockchain.treasury('stranger')
+      const result = await setup.router.sendRouterCCIPReceiveConfirm(
+        stranger.getSender(),
+        toNano('0.1'),
+        { queryId: 9n, execId },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        op: rx.ReceiveExecutor_CCIPReceiveConfirm.PREFIX,
+        success: false,
+      })
+      expect(result.transactions).toHaveTransaction({
+        to: setup.offRamp.address,
+        op: 0xfffffffe,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.offRamp.address,
+        to: setup.router.address,
+        op: rt.Router_CCIPReceiveConfirmRejectedByExecutor.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: stranger.address,
+        op: rt.Router_CCIPReceiveConfirmRejected.PREFIX,
+        inMessageBounceable: false,
+        value: (v) => v !== undefined && v > 0n,
+        body(x) {
+          if (!x) return false
+          return rt.Router_CCIPReceiveConfirmRejected.fromSlice(x.beginParse()).queryId === 9n
+        },
+      })
+    })
+
     it('should reject DispatchValidated from non-offramp address', async () => {
       const message = setup.createTestMessage(1n, 1n, setup.receiver.address)
       const metadataHash = s.getDefaultMetadataHash(
@@ -793,14 +962,14 @@ describe('OffRamp - Execute', () => {
       const messageIdSlice = beginCell()
         .storeUint(generateMessageID(message, metadataHash), 256)
         .asSlice()
-      const execID = messageIdSlice.loadUintBig(192)
+      const execId = messageIdSlice.loadUintBig(192)
 
       const result = await setup.offRamp.sendOffRampDispatchValidated(
         setup.deployer.getSender(),
         toNano('0.5'),
         {
           message,
-          execID: execID,
+          execId: execId,
           effectiveGasLimit: setup.DEFAULT_GAS_LIMIT,
           tokenAmounts: null,
         },
@@ -2073,7 +2242,7 @@ describe('OffRamp - Execute', () => {
     })
 
     it('fails a PTT with gasLimit 0 because the OffRamp rejects the low-gas dispatch', async () => {
-      const data = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const data = snakeData('0xdeadbeef')
       const message = setup.createTestMessageWithToken({ data })
       message.gasLimit = 0n
 
@@ -2147,11 +2316,11 @@ describe('OffRamp - Execute', () => {
         setup.deployer.getSender(),
         toNano('0.5'),
         {
-          queryID: 1n,
+          queryId: 1n,
           sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
           replyTo: setup.deployer.address,
           tokenPool: setup.tokenPool.address,
-          exitCode: 0n,
+          errorCode: 0n,
         },
       )
 
@@ -2178,7 +2347,7 @@ describe('OffRamp - Execute', () => {
     })
 
     it('rejects a report whose data exceeds OFFRAMP_MAX_DATA_BYTES', async () => {
-      const message = setup.createTestMessageWithToken({ data: snakeData(2001) })
+      const message = setup.createTestMessageWithToken({ data: testSnakeData(2001) })
       await setup.setupAndCommitMessage(message)
       await setup.executeReportExpectingFailure(
         setup.createExecuteReport([message]),
@@ -2187,7 +2356,7 @@ describe('OffRamp - Execute', () => {
     })
 
     it('accepts a report whose data is exactly OFFRAMP_MAX_DATA_BYTES', async () => {
-      const message = setup.createTestMessageWithToken({ data: snakeData(2000) })
+      const message = setup.createTestMessageWithToken({ data: testSnakeData(2000) })
       await setup.setupAndCommitMessage(message)
       const result = await setup.executeReport(setup.createExecuteReport([message]))
       expect(result.transactions).toHaveTransaction({
@@ -2638,7 +2807,7 @@ describe('OffRamp - Execute', () => {
     })
 
     it('executes a PTT (token transfer + data) end to end', async () => {
-      const data = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const data = snakeData('0xdeadbeef')
       const message = setup.createTestMessageWithToken({ data })
 
       await setup.setupAndCommitMessage(message)
@@ -2793,7 +2962,7 @@ describe('OffRamp - Execute', () => {
     it('fails a PTT when the token is not enabled in the TokenRegistry', async () => {
       await setup.disableToken()
 
-      const data = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const data = snakeData('0xdeadbeef')
       const message = setup.createTestMessageWithToken({ data })
 
       await setup.setupAndCommitMessage(message)
@@ -2826,7 +2995,7 @@ describe('OffRamp - Execute', () => {
       // Rate limit capacity is 0, so the releaseOrMint will be rejected.
       await setup.updateRateLimit(0n, 0n)
 
-      const data = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const data = snakeData('0xdeadbeef')
       const message = setup.createTestMessageWithToken({ data })
 
       await setup.setupAndCommitMessage(message)
@@ -2873,7 +3042,7 @@ describe('OffRamp - Execute', () => {
       // initial rate limit of 0 so the first releaseOrMint fails
       await setup.updateRateLimit(0n, 0n)
 
-      const data = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const data = snakeData('0xdeadbeef')
       const message = setup.createTestMessageWithToken({ data })
 
       await setup.setupAndCommitMessage(message)
@@ -3022,7 +3191,7 @@ describe('OffRamp - Execute', () => {
     // --- gasOverride validation ---
 
     it('fails manual execute when token gas override count does not match token transfers', async () => {
-      const data = beginCell().storeUint(0xdeadbeef, 32).endCell()
+      const data = snakeData('0xdeadbeef')
       const message = setup.createTestMessageWithToken({ data })
 
       await setup.setupAndCommitMessage(message)

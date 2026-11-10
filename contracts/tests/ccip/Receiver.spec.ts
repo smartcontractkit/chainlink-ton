@@ -1,11 +1,11 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, toNano } from '@ton/core'
+import { Address, Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
 
-import { generateRandomContractId } from '../../src/utils'
-import { asSnakeBytes } from '../../src/utils/types'
-import { facilityId } from '../../wrappers/utils'
 import { crc32 } from 'zlib'
+import { generateRandomContractId } from '../../src/utils'
+import { facilityId } from '../../wrappers/utils'
+import { testSnakeData } from '../utils/snakeData'
 import { contractCode } from '../../wrappers/codeLoader'
 
 import * as r from '../../wrappers/gen/ccip/Receiver'
@@ -43,13 +43,13 @@ async function deployReceiverContract(
 }
 
 const ccipReceiveSampleMessage = r.Receiver_CCIPReceiveV2.create({
-  execID: 1n,
+  execId: 1n,
   confirmValue: toNano('0.015'),
   message: rt.Any2TVMMessage.create({
     messageId: 1n,
     sourceChainSelector: 2n,
     sender: EVM_ADDRESS,
-    data: beginCell().storeBuffer(Buffer.from('cross chain data')).endCell(),
+    data: Array.from(Buffer.from('cross chain data'), BigInt),
     tokenAmounts: null,
   }),
   receiverAccounts: [],
@@ -176,7 +176,7 @@ describe('Receiver', () => {
       success: true,
       deploy: false,
       body: rt.Router_CCIPReceiveConfirm.toCell(
-        rt.Router_CCIPReceiveConfirm.create({ execID: ccipReceiveSampleMessage.execID }),
+        rt.Router_CCIPReceiveConfirm.create({ execId: ccipReceiveSampleMessage.execId }),
       ),
     })
 
@@ -324,7 +324,7 @@ describe('Receiver', () => {
       ...ccipReceiveSampleMessage,
       message: rt.Any2TVMMessage.create({
         ...ccipReceiveSampleMessage.message,
-        data: asSnakeBytes(Buffer.alloc(2000, 0xab)),
+        data: testSnakeData(2000, 0xab),
       }),
     })
     const result = await receiver.sendReceiverCCIPReceiveV2(

@@ -3,9 +3,9 @@ import "errors"
 import "types"
 
 struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
-    // execID lets us calculate where to send CCIPReceiveConfirm and CCIPReceiveFailed
+    // execId lets us calculate where to send CCIPReceiveConfirm and CCIPReceiveFailed
     // it fits in the body of a bounced message
-    execID: uint192;
+    execId: uint192;
     queryId: uint64;
     /// Value to attach to Router_CCIPReceiveConfirm, set by the Router.
     confirmValue: coins;
@@ -41,7 +41,7 @@ struct Receiver_ConfirmOpts {
 
 /// Call before any other action so the confirmation's value is set aside first. A rejected
 /// confirmation leaves the message in progress; the receiver can claim it later by resending
-/// Router_CCIPReceiveConfirm with the same `queryId` and `execID`.
+/// Router_CCIPReceiveConfirm with the same `queryId` and `execId`.
 fun Receiver_CCIPReceiveV2.validateAndConfirm(self, opts: Receiver_ValidateOptions) {
     // Standard for every receiver to implement:
 
@@ -53,19 +53,19 @@ fun Receiver_CCIPReceiveV2.validateAndConfirm(self, opts: Receiver_ValidateOptio
 
     // 3. Enqueue CCIPReceiveConfirm to msg.callback
     val receiveConfirm = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: opts.confirmationMsg.value ?? self.confirmValue,
         dest: opts.inMsg.senderAddress,
         body: Router_CCIPReceiveConfirm {
             queryId: self.queryId,
-            execID: self.execID,
+            execId: self.execId,
         }
     });
-    receiveConfirm.send(opts.confirmationMsg.sendMode);
+    receiveConfirm.send(opts.confirmationMsg.sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Confirmation message sent back to the router after accepting a CCIP message
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
     queryId: uint64;
-    execID: ReceiveExecutionID;
+    execId: ReceiveExecutionID;
 }

@@ -196,7 +196,7 @@ describe('Router.withdrawToTokenPool', () => {
         if (!body) return false
         const failed = rt.Router_TokenPoolLockOrBurnFailed.fromSlice(body.beginParse())
         return (
-          failed.tokenPool.equals(tokenPool) && failed.exitCode === BigInt(rt.Router.Errors[error])
+          failed.tokenPool.equals(tokenPool) && failed.errorCode === BigInt(rt.Router.Errors[error])
         )
       },
     })
@@ -250,7 +250,7 @@ describe('Router.withdrawToTokenPool', () => {
     const accountAddress = await deployDepositAccount(sender)
 
     const result = await router.sendRouterWithdrawToTokenPool(onRamp.getSender(), withdrawValue, {
-      queryID: 7n,
+      queryId: 7n,
       destChainSelector: destChainSelector + 1n, // never registered
       executor: executor.address,
       withdrawRequest: buildWithdrawRequest({

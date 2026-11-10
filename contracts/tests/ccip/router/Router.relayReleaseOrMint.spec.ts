@@ -66,9 +66,9 @@ describe('Router.relayReleaseOrMint', () => {
       deployableCode,
     )
 
-  const relayOf = (queryID: bigint, jetton: Address = token) =>
+  const relayOf = (queryId: bigint, jetton: Address = token) =>
     rt.Router_RelayReleaseOrMint.create({
-      queryID,
+      queryId,
       sourceChainSelector,
       tokenPool: tokenPool.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
@@ -306,10 +306,10 @@ describe('Router.relayReleaseOrMint', () => {
           if (!body) return false
           const failed = rt.Router_TokenPoolReleaseOrMintFailed.fromSlice(body.beginParse())
           return (
-            failed.queryID === 14n &&
+            failed.queryId === 14n &&
             failed.tokenPool.equals(tokenPool.address) &&
             failed.replyTo.equals(executor.address) &&
-            failed.exitCode ===
+            failed.errorCode ===
               BigInt(deposit.DepositAccount.Errors['DepositAccount_Error.InitPending'])
           )
         },
@@ -334,7 +334,7 @@ describe('Router.relayReleaseOrMint', () => {
           if (!body) return false
           const failed = rt.Router_TokenPoolReleaseOrMintFailed.fromSlice(body.beginParse())
           return (
-            failed.queryID === 15n && failed.exitCode === BigInt(DEPOSIT_ACCOUNT_WALLET_UNAVAILABLE)
+            failed.queryId === 15n && failed.errorCode === BigInt(DEPOSIT_ACCOUNT_WALLET_UNAVAILABLE)
           )
         },
       })

@@ -296,6 +296,7 @@ type coins = bigint
 
 type int32 = bigint
 
+type uint8 = bigint
 type uint16 = bigint
 type uint32 = bigint
 type uint64 = bigint
@@ -436,8 +437,9 @@ function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCa
 function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
     let outArr = [] as T[];
     let head = s.loadRef().beginParse();
-    while (head.remainingBits > 0 || head.remainingRefs > 0) {
-        if (head.remainingBits > 0) {
+    while (true) {
+        // Drain every item packed into the current cell before following the chain ref.
+        while (head.remainingBits > 0) {
             outArr.push(loadFn_T(head));
         }
         if (head.remainingRefs > 0) {
@@ -449,6 +451,23 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
     return outArr;
 }
 
+
+/**
+ > type byte = uint8
+ */
+export type byte = uint8
+
+export const byte = {
+    fromSlice(s: c.Slice): byte {
+        return s.loadUintBig(8);
+    },
+    store(self: byte, b: c.Builder): void {
+        b.storeUint(self, 8);
+    },
+    toCell(self: byte): c.Cell {
+        return makeCellFrom<byte>(self, byte.store);
+    }
+}
 
 /**
  > struct (0xf343fc1b) Withdrawable_Withdraw {
@@ -1379,10 +1398,10 @@ export const Deployable_Initialize = {
 
 /**
  > struct (0x31768d95) Router_CCIPSend {
- >     queryID: uint64
+ >     queryId: uint64
  >     destChainSelector: uint64
  >     receiver: CrossChainAddress
- >     data: cell
+ >     data: SnakedCell<byte>
  >     tokenAmounts: SnakedCell<TokenAmount>
  >     feeToken: address?
  >     extraArgs: Cell<ExtraArgs>
@@ -1390,10 +1409,10 @@ export const Deployable_Initialize = {
  */
 export interface Router_CCIPSend {
     readonly $: 'Router_CCIPSend'
-    queryID: uint64
+    queryId: uint64
     destChainSelector: uint64
     receiver: CrossChainAddress
-    data: c.Cell
+    data: SnakedCell<byte>
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address | null
     extraArgs: ExtraArgs
@@ -1403,10 +1422,10 @@ export const Router_CCIPSend = {
     PREFIX: 0x31768d95,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         receiver: CrossChainAddress
-        data: c.Cell
+        data: SnakedCell<byte>
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
         extraArgs: ExtraArgs
@@ -1414,17 +1433,17 @@ export const Router_CCIPSend = {
         return {
             $: 'Router_CCIPSend',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_CCIPSend {
         loadAndCheckPrefix32(s, 0x31768d95, 'Router_CCIPSend');
         return {
             $: 'Router_CCIPSend',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             destChainSelector: s.loadUintBig(64),
             receiver: CrossChainAddress.fromSlice(s),
-            data: s.loadRef(),
+            data: loadSnakedCellOf(s, (s) => s.loadUintBig(8)),
             tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadMaybeAddress(),
             extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
@@ -1432,10 +1451,10 @@ export const Router_CCIPSend = {
     },
     store(self: Router_CCIPSend, b: c.Builder): void {
         b.storeUint(0x31768d95, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeUint(self.destChainSelector, 64);
         CrossChainAddress.store(self.receiver, b);
-        b.storeRef(self.data);
+        storeSnakedCellOf(self.data, b, (v, b) => b.storeUint(v, 8));
         storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
         storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
@@ -1446,8 +1465,94 @@ export const Router_CCIPSend = {
 }
 
 /**
+ > struct (0x78d0f21e) Router_CCIPSendACK {
+ >     queryId: uint64
+ >     messageId: uint256
+ > }
+ */
+export interface Router_CCIPSendACK {
+    readonly $: 'Router_CCIPSendACK'
+    queryId: uint64
+    messageId: uint256
+}
+
+export const Router_CCIPSendACK = {
+    PREFIX: 0x78d0f21e,
+
+    create(args: {
+        queryId?: uint64
+        messageId: uint256
+    }): Router_CCIPSendACK {
+        return {
+            $: 'Router_CCIPSendACK',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_CCIPSendACK {
+        loadAndCheckPrefix32(s, 0x78d0f21e, 'Router_CCIPSendACK');
+        return {
+            $: 'Router_CCIPSendACK',
+            queryId: s.loadUintBig(64),
+            messageId: s.loadUintBig(256),
+        }
+    },
+    store(self: Router_CCIPSendACK, b: c.Builder): void {
+        b.storeUint(0x78d0f21e, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.messageId, 256);
+    },
+    toCell(self: Router_CCIPSendACK): c.Cell {
+        return makeCellFrom<Router_CCIPSendACK>(self, Router_CCIPSendACK.store);
+    }
+}
+
+/**
+ > struct (0x7c17e3df) Router_CCIPSendNACK {
+ >     queryId: uint64
+ >     errorCode: int32
+ > }
+ */
+export interface Router_CCIPSendNACK {
+    readonly $: 'Router_CCIPSendNACK'
+    queryId: uint64
+    errorCode: int32
+}
+
+export const Router_CCIPSendNACK = {
+    PREFIX: 0x7c17e3df,
+
+    create(args: {
+        queryId?: uint64
+        errorCode: int32
+    }): Router_CCIPSendNACK {
+        return {
+            $: 'Router_CCIPSendNACK',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_CCIPSendNACK {
+        loadAndCheckPrefix32(s, 0x7c17e3df, 'Router_CCIPSendNACK');
+        return {
+            $: 'Router_CCIPSendNACK',
+            queryId: s.loadUintBig(64),
+            errorCode: s.loadIntBig(32),
+        }
+    },
+    store(self: Router_CCIPSendNACK, b: c.Builder): void {
+        b.storeUint(0x7c17e3df, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeInt(self.errorCode, 32);
+    },
+    toCell(self: Router_CCIPSendNACK): c.Cell {
+        return makeCellFrom<Router_CCIPSendNACK>(self, Router_CCIPSendNACK.store);
+    }
+}
+
+/**
  > struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
- >     execID: uint192
+ >     execId: uint192
  >     queryId: uint64
  >     confirmValue: coins
  >     message: Cell<Any2TVMMessage>
@@ -1456,7 +1561,7 @@ export const Router_CCIPSend = {
  */
 export interface Receiver_CCIPReceiveV2 {
     readonly $: 'Receiver_CCIPReceiveV2'
-    execID: uint192
+    execId: uint192
     queryId: uint64
     confirmValue: coins
     message: Any2TVMMessage
@@ -1467,7 +1572,7 @@ export const Receiver_CCIPReceiveV2 = {
     PREFIX: 0x5b4bc7a6,
 
     create(args: {
-        execID: uint192
+        execId: uint192
         queryId?: uint64
         confirmValue: coins
         message: Any2TVMMessage
@@ -1483,7 +1588,7 @@ export const Receiver_CCIPReceiveV2 = {
         loadAndCheckPrefix32(s, 0x5b4bc7a6, 'Receiver_CCIPReceiveV2');
         return {
             $: 'Receiver_CCIPReceiveV2',
-            execID: s.loadUintBig(192),
+            execId: s.loadUintBig(192),
             queryId: s.loadUintBig(64),
             confirmValue: s.loadCoins(),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
@@ -1494,7 +1599,7 @@ export const Receiver_CCIPReceiveV2 = {
     },
     store(self: Receiver_CCIPReceiveV2, b: c.Builder): void {
         b.storeUint(0x5b4bc7a6, 32);
-        b.storeUint(self.execID, 192);
+        b.storeUint(self.execId, 192);
         b.storeUint(self.queryId, 64);
         b.storeCoins(self.confirmValue);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
@@ -1510,13 +1615,13 @@ export const Receiver_CCIPReceiveV2 = {
 /**
  > struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
  >     queryId: uint64
- >     execID: ReceiveExecutionID
+ >     execId: ReceiveExecutionID
  > }
  */
 export interface Router_CCIPReceiveConfirm {
     readonly $: 'Router_CCIPReceiveConfirm'
     queryId: uint64
-    execID: ReceiveExecutionID
+    execId: ReceiveExecutionID
 }
 
 export const Router_CCIPReceiveConfirm = {
@@ -1524,7 +1629,7 @@ export const Router_CCIPReceiveConfirm = {
 
     create(args: {
         queryId?: uint64
-        execID: ReceiveExecutionID
+        execId: ReceiveExecutionID
     }): Router_CCIPReceiveConfirm {
         return {
             $: 'Router_CCIPReceiveConfirm',
@@ -1537,13 +1642,13 @@ export const Router_CCIPReceiveConfirm = {
         return {
             $: 'Router_CCIPReceiveConfirm',
             queryId: s.loadUintBig(64),
-            execID: ReceiveExecutionID.fromSlice(s),
+            execId: ReceiveExecutionID.fromSlice(s),
         }
     },
     store(self: Router_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0x1e55bbf6, 32);
         b.storeUint(self.queryId, 64);
-        ReceiveExecutionID.store(self.execID, b);
+        ReceiveExecutionID.store(self.execId, b);
     },
     toCell(self: Router_CCIPReceiveConfirm): c.Cell {
         return makeCellFrom<Router_CCIPReceiveConfirm>(self, Router_CCIPReceiveConfirm.store);
@@ -1555,7 +1660,7 @@ export const Router_CCIPReceiveConfirm = {
  >     messageId: uint256
  >     sourceChainSelector: uint64
  >     sender: CrossChainAddress
- >     data: cell
+ >     data: SnakedCell<byte>
  >     tokenAmounts: SnakedCell<TokenAmount>?
  > }
  */
@@ -1564,7 +1669,7 @@ export interface Any2TVMMessage {
     messageId: uint256
     sourceChainSelector: uint64
     sender: CrossChainAddress
-    data: c.Cell
+    data: SnakedCell<byte>
     tokenAmounts: SnakedCell<TokenAmount> | null
 }
 
@@ -1573,7 +1678,7 @@ export const Any2TVMMessage = {
         messageId: uint256
         sourceChainSelector: uint64
         sender: CrossChainAddress
-        data: c.Cell
+        data: SnakedCell<byte>
         tokenAmounts: SnakedCell<TokenAmount> | null
     }): Any2TVMMessage {
         return {
@@ -1587,7 +1692,7 @@ export const Any2TVMMessage = {
             messageId: s.loadUintBig(256),
             sourceChainSelector: s.loadUintBig(64),
             sender: CrossChainAddress.fromSlice(s),
-            data: s.loadRef(),
+            data: loadSnakedCellOf(s, (s) => s.loadUintBig(8)),
             tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, TokenAmount.fromSlice) : null,
         }
     },
@@ -1595,7 +1700,7 @@ export const Any2TVMMessage = {
         b.storeUint(self.messageId, 256);
         b.storeUint(self.sourceChainSelector, 64);
         CrossChainAddress.store(self.sender, b);
-        b.storeRef(self.data);
+        storeSnakedCellOf(self.data, b, (v, b) => b.storeUint(v, 8));
         storeTolkNullable<SnakedCell<TokenAmount>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, TokenAmount.store));
     },
     toCell(self: Any2TVMMessage): c.Cell {
@@ -1900,12 +2005,14 @@ export const OnRamp_Send = {
 
 /**
  > struct (0x9c2ccc7e) OnRamp_GetValidatedFee {
+ >     queryId: uint64
  >     ccipSend: Cell<Router_CCIPSend>
  >     context: cell?
  > }
  */
 export interface OnRamp_GetValidatedFee {
     readonly $: 'OnRamp_GetValidatedFee'
+    queryId: uint64
     ccipSend: Router_CCIPSend
     context: c.Cell | null /* = null */
 }
@@ -1914,25 +2021,29 @@ export const OnRamp_GetValidatedFee = {
     PREFIX: 0x9c2ccc7e,
 
     create(args: {
+        queryId?: uint64
         ccipSend: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }): OnRamp_GetValidatedFee {
         return {
             $: 'OnRamp_GetValidatedFee',
             context: null,
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): OnRamp_GetValidatedFee {
         loadAndCheckPrefix32(s, 0x9c2ccc7e, 'OnRamp_GetValidatedFee');
         return {
             $: 'OnRamp_GetValidatedFee',
+            queryId: s.loadUintBig(64),
             ccipSend: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: OnRamp_GetValidatedFee, b: c.Builder): void {
         b.storeUint(0x9c2ccc7e, 32);
+        b.storeUint(self.queryId, 64);
         storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -1994,14 +2105,14 @@ export const OnRamp_MessageValidated = {
 
 /**
  > struct (0xac1dd12e) OnRamp_MessageValidationFailed {
- >     error: uint256
+ >     errorCode: int32
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
  > }
  */
 export interface OnRamp_MessageValidationFailed {
     readonly $: 'OnRamp_MessageValidationFailed'
-    error: uint256
+    errorCode: int32
     msg: Router_CCIPSend
     context: c.Cell | null
 }
@@ -2010,7 +2121,7 @@ export const OnRamp_MessageValidationFailed = {
     PREFIX: 0xac1dd12e,
 
     create(args: {
-        error: uint256
+        errorCode: int32
         msg: Router_CCIPSend
         context: c.Cell | null
     }): OnRamp_MessageValidationFailed {
@@ -2023,14 +2134,14 @@ export const OnRamp_MessageValidationFailed = {
         loadAndCheckPrefix32(s, 0xac1dd12e, 'OnRamp_MessageValidationFailed');
         return {
             $: 'OnRamp_MessageValidationFailed',
-            error: s.loadUintBig(256),
+            errorCode: s.loadIntBig(32),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: OnRamp_MessageValidationFailed, b: c.Builder): void {
         b.storeUint(0xac1dd12e, 32);
-        b.storeUint(self.error, 256);
+        b.storeInt(self.errorCode, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -2082,14 +2193,14 @@ export const Metadata = {
 /**
  > struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
  >     queryId: uint64
- >     execID: ReceiveExecutionID
+ >     execId: ReceiveExecutionID
  >     receiver: address
  > }
  */
 export interface OffRamp_CCIPReceiveConfirm {
     readonly $: 'OffRamp_CCIPReceiveConfirm'
     queryId: uint64
-    execID: ReceiveExecutionID
+    execId: ReceiveExecutionID
     receiver: c.Address
 }
 
@@ -2098,7 +2209,7 @@ export const OffRamp_CCIPReceiveConfirm = {
 
     create(args: {
         queryId?: uint64
-        execID: ReceiveExecutionID
+        execId: ReceiveExecutionID
         receiver: c.Address
     }): OffRamp_CCIPReceiveConfirm {
         return {
@@ -2112,14 +2223,14 @@ export const OffRamp_CCIPReceiveConfirm = {
         return {
             $: 'OffRamp_CCIPReceiveConfirm',
             queryId: s.loadUintBig(64),
-            execID: ReceiveExecutionID.fromSlice(s),
+            execId: ReceiveExecutionID.fromSlice(s),
             receiver: s.loadAddress(),
         }
     },
     store(self: OffRamp_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0x28f4166f, 32);
         b.storeUint(self.queryId, 64);
-        ReceiveExecutionID.store(self.execID, b);
+        ReceiveExecutionID.store(self.execId, b);
         b.storeAddress(self.receiver);
     },
     toCell(self: OffRamp_CCIPReceiveConfirm): c.Cell {
@@ -2129,13 +2240,13 @@ export const OffRamp_CCIPReceiveConfirm = {
 
 /**
  > struct (0x2dcf2a43) OffRamp_CCIPReceiveBounced {
- >     execID: ReceiveExecutionID
+ >     execId: ReceiveExecutionID
  >     receiver: address
  > }
  */
 export interface OffRamp_CCIPReceiveBounced {
     readonly $: 'OffRamp_CCIPReceiveBounced'
-    execID: ReceiveExecutionID
+    execId: ReceiveExecutionID
     receiver: c.Address
 }
 
@@ -2143,7 +2254,7 @@ export const OffRamp_CCIPReceiveBounced = {
     PREFIX: 0x2dcf2a43,
 
     create(args: {
-        execID: ReceiveExecutionID
+        execId: ReceiveExecutionID
         receiver: c.Address
     }): OffRamp_CCIPReceiveBounced {
         return {
@@ -2155,13 +2266,13 @@ export const OffRamp_CCIPReceiveBounced = {
         loadAndCheckPrefix32(s, 0x2dcf2a43, 'OffRamp_CCIPReceiveBounced');
         return {
             $: 'OffRamp_CCIPReceiveBounced',
-            execID: ReceiveExecutionID.fromSlice(s),
+            execId: ReceiveExecutionID.fromSlice(s),
             receiver: s.loadAddress(),
         }
     },
     store(self: OffRamp_CCIPReceiveBounced, b: c.Builder): void {
         b.storeUint(0x2dcf2a43, 32);
-        ReceiveExecutionID.store(self.execID, b);
+        ReceiveExecutionID.store(self.execId, b);
         b.storeAddress(self.receiver);
     },
     toCell(self: OffRamp_CCIPReceiveBounced): c.Cell {
@@ -2209,13 +2320,13 @@ export const OffRamp_UpdateCursedSubjects = {
 /**
  > struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
  >     queryId: uint64
- >     execID: ReceiveExecutionID
+ >     execId: ReceiveExecutionID
  > }
  */
 export interface OffRamp_ReturnExcessToExecutor {
     readonly $: 'OffRamp_ReturnExcessToExecutor'
     queryId: uint64
-    execID: ReceiveExecutionID
+    execId: ReceiveExecutionID
 }
 
 export const OffRamp_ReturnExcessToExecutor = {
@@ -2223,7 +2334,7 @@ export const OffRamp_ReturnExcessToExecutor = {
 
     create(args: {
         queryId?: uint64
-        execID: ReceiveExecutionID
+        execId: ReceiveExecutionID
     }): OffRamp_ReturnExcessToExecutor {
         return {
             $: 'OffRamp_ReturnExcessToExecutor',
@@ -2236,13 +2347,13 @@ export const OffRamp_ReturnExcessToExecutor = {
         return {
             $: 'OffRamp_ReturnExcessToExecutor',
             queryId: s.loadUintBig(64),
-            execID: ReceiveExecutionID.fromSlice(s),
+            execId: ReceiveExecutionID.fromSlice(s),
         }
     },
     store(self: OffRamp_ReturnExcessToExecutor, b: c.Builder): void {
         b.storeUint(0x5397c75e, 32);
         b.storeUint(self.queryId, 64);
-        ReceiveExecutionID.store(self.execID, b);
+        ReceiveExecutionID.store(self.execId, b);
     },
     toCell(self: OffRamp_ReturnExcessToExecutor): c.Cell {
         return makeCellFrom<OffRamp_ReturnExcessToExecutor>(self, OffRamp_ReturnExcessToExecutor.store);
@@ -3292,10 +3403,96 @@ export const Router_ApplyRampUpdates = {
 }
 
 /**
+ > struct (0xfe1f013c) Router_CCIPReceiveConfirmRejectedByExecutor {
+ >     queryId: uint64
+ >     sourceChainSelector: uint64
+ >     receiver: address
+ > }
+ */
+export interface Router_CCIPReceiveConfirmRejectedByExecutor {
+    readonly $: 'Router_CCIPReceiveConfirmRejectedByExecutor'
+    queryId: uint64
+    sourceChainSelector: uint64
+    receiver: c.Address
+}
+
+export const Router_CCIPReceiveConfirmRejectedByExecutor = {
+    PREFIX: 0xfe1f013c,
+
+    create(args: {
+        queryId?: uint64
+        sourceChainSelector: uint64
+        receiver: c.Address
+    }): Router_CCIPReceiveConfirmRejectedByExecutor {
+        return {
+            $: 'Router_CCIPReceiveConfirmRejectedByExecutor',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_CCIPReceiveConfirmRejectedByExecutor {
+        loadAndCheckPrefix32(s, 0xfe1f013c, 'Router_CCIPReceiveConfirmRejectedByExecutor');
+        return {
+            $: 'Router_CCIPReceiveConfirmRejectedByExecutor',
+            queryId: s.loadUintBig(64),
+            sourceChainSelector: s.loadUintBig(64),
+            receiver: s.loadAddress(),
+        }
+    },
+    store(self: Router_CCIPReceiveConfirmRejectedByExecutor, b: c.Builder): void {
+        b.storeUint(0xfe1f013c, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.sourceChainSelector, 64);
+        b.storeAddress(self.receiver);
+    },
+    toCell(self: Router_CCIPReceiveConfirmRejectedByExecutor): c.Cell {
+        return makeCellFrom<Router_CCIPReceiveConfirmRejectedByExecutor>(self, Router_CCIPReceiveConfirmRejectedByExecutor.store);
+    }
+}
+
+/**
+ > struct (0xe3c98863) Router_CCIPReceiveConfirmRejected {
+ >     queryId: uint64
+ > }
+ */
+export interface Router_CCIPReceiveConfirmRejected {
+    readonly $: 'Router_CCIPReceiveConfirmRejected'
+    queryId: uint64
+}
+
+export const Router_CCIPReceiveConfirmRejected = {
+    PREFIX: 0xe3c98863,
+
+    create(args: {
+        queryId?: uint64
+    }): Router_CCIPReceiveConfirmRejected {
+        return {
+            $: 'Router_CCIPReceiveConfirmRejected',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_CCIPReceiveConfirmRejected {
+        loadAndCheckPrefix32(s, 0xe3c98863, 'Router_CCIPReceiveConfirmRejected');
+        return {
+            $: 'Router_CCIPReceiveConfirmRejected',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: Router_CCIPReceiveConfirmRejected, b: c.Builder): void {
+        b.storeUint(0xe3c98863, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: Router_CCIPReceiveConfirmRejected): c.Cell {
+        return makeCellFrom<Router_CCIPReceiveConfirmRejected>(self, Router_CCIPReceiveConfirmRejected.store);
+    }
+}
+
+/**
  > struct (0xfc69c50b) Router_RouteMessage {
  >     queryId: uint64
  >     message: Cell<Any2TVMMessage>
- >     execID: ReceiveExecutionID
+ >     execId: ReceiveExecutionID
  >     receiver: address
  >     gasLimit: coins
  > }
@@ -3304,7 +3501,7 @@ export interface Router_RouteMessage {
     readonly $: 'Router_RouteMessage'
     queryId: uint64
     message: Any2TVMMessage
-    execID: ReceiveExecutionID
+    execId: ReceiveExecutionID
     receiver: c.Address
     gasLimit: coins
 }
@@ -3315,7 +3512,7 @@ export const Router_RouteMessage = {
     create(args: {
         queryId?: uint64
         message: Any2TVMMessage
-        execID: ReceiveExecutionID
+        execId: ReceiveExecutionID
         receiver: c.Address
         gasLimit: coins
     }): Router_RouteMessage {
@@ -3331,7 +3528,7 @@ export const Router_RouteMessage = {
             $: 'Router_RouteMessage',
             queryId: s.loadUintBig(64),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
-            execID: ReceiveExecutionID.fromSlice(s),
+            execId: ReceiveExecutionID.fromSlice(s),
             receiver: s.loadAddress(),
             gasLimit: s.loadCoins(),
         }
@@ -3340,7 +3537,7 @@ export const Router_RouteMessage = {
         b.storeUint(0xfc69c50b, 32);
         b.storeUint(self.queryId, 64);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
-        ReceiveExecutionID.store(self.execID, b);
+        ReceiveExecutionID.store(self.execId, b);
         b.storeAddress(self.receiver);
         b.storeCoins(self.gasLimit);
     },
@@ -3351,7 +3548,7 @@ export const Router_RouteMessage = {
 
 /**
  > struct (0x19f0098f) Router_WithdrawToTokenPool {
- >     queryID: uint64
+ >     queryId: uint64
  >     destChainSelector: uint64
  >     executor: address
  >     withdrawRequest: Cell<Router_WithdrawRequest>
@@ -3359,7 +3556,7 @@ export const Router_RouteMessage = {
  */
 export interface Router_WithdrawToTokenPool {
     readonly $: 'Router_WithdrawToTokenPool'
-    queryID: uint64
+    queryId: uint64
     destChainSelector: uint64
     executor: c.Address
     withdrawRequest: Router_WithdrawRequest
@@ -3369,7 +3566,7 @@ export const Router_WithdrawToTokenPool = {
     PREFIX: 0x19f0098f,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         executor: c.Address
         withdrawRequest: Router_WithdrawRequest
@@ -3377,14 +3574,14 @@ export const Router_WithdrawToTokenPool = {
         return {
             $: 'Router_WithdrawToTokenPool',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_WithdrawToTokenPool {
         loadAndCheckPrefix32(s, 0x19f0098f, 'Router_WithdrawToTokenPool');
         return {
             $: 'Router_WithdrawToTokenPool',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             destChainSelector: s.loadUintBig(64),
             executor: s.loadAddress(),
             withdrawRequest: loadCellRef<Router_WithdrawRequest>(s, Router_WithdrawRequest.fromSlice),
@@ -3392,7 +3589,7 @@ export const Router_WithdrawToTokenPool = {
     },
     store(self: Router_WithdrawToTokenPool, b: c.Builder): void {
         b.storeUint(0x19f0098f, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeUint(self.destChainSelector, 64);
         b.storeAddress(self.executor);
         storeCellRef<Router_WithdrawRequest>(self.withdrawRequest, b, Router_WithdrawRequest.store);
@@ -3564,14 +3761,14 @@ export const Router_UseSenderAccount = {
 /**
  > struct (0xda7b0350) Router_SenderAccountFailed {
  >     queryId: uint64
- >     error: uint256
+ >     errorCode: int32
  >     context: cell?
  > }
  */
 export interface Router_SenderAccountFailed {
     readonly $: 'Router_SenderAccountFailed'
     queryId: uint64
-    error: uint256
+    errorCode: int32
     context: c.Cell | null
 }
 
@@ -3580,7 +3777,7 @@ export const Router_SenderAccountFailed = {
 
     create(args: {
         queryId?: uint64
-        error: uint256
+        errorCode: int32
         context: c.Cell | null
     }): Router_SenderAccountFailed {
         return {
@@ -3594,14 +3791,14 @@ export const Router_SenderAccountFailed = {
         return {
             $: 'Router_SenderAccountFailed',
             queryId: s.loadUintBig(64),
-            error: s.loadUintBig(256),
+            errorCode: s.loadIntBig(32),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: Router_SenderAccountFailed, b: c.Builder): void {
         b.storeUint(0xda7b0350, 32);
         b.storeUint(self.queryId, 64);
-        b.storeUint(self.error, 256);
+        b.storeInt(self.errorCode, 32);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
         );
@@ -3719,51 +3916,51 @@ export const Router_ReceiverAccountAddress = {
 
 /**
  > struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
- >     queryID: uint64
+ >     queryId: uint64
  >     destChainSelector: uint64
  >     withdrawRequest: Cell<Router_WithdrawRequest>
- >     error: int32
+ >     errorCode: int32
  > }
  */
 export interface Router_WithdrawToTokenPoolFailed {
     readonly $: 'Router_WithdrawToTokenPoolFailed'
-    queryID: uint64
+    queryId: uint64
     destChainSelector: uint64
     withdrawRequest: Router_WithdrawRequest
-    error: int32
+    errorCode: int32
 }
 
 export const Router_WithdrawToTokenPoolFailed = {
     PREFIX: 0xee40ec65,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         withdrawRequest: Router_WithdrawRequest
-        error: int32
+        errorCode: int32
     }): Router_WithdrawToTokenPoolFailed {
         return {
             $: 'Router_WithdrawToTokenPoolFailed',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_WithdrawToTokenPoolFailed {
         loadAndCheckPrefix32(s, 0xee40ec65, 'Router_WithdrawToTokenPoolFailed');
         return {
             $: 'Router_WithdrawToTokenPoolFailed',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             destChainSelector: s.loadUintBig(64),
             withdrawRequest: loadCellRef<Router_WithdrawRequest>(s, Router_WithdrawRequest.fromSlice),
-            error: s.loadIntBig(32),
+            errorCode: s.loadIntBig(32),
         }
     },
     store(self: Router_WithdrawToTokenPoolFailed, b: c.Builder): void {
         b.storeUint(0xee40ec65, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeUint(self.destChainSelector, 64);
         storeCellRef<Router_WithdrawRequest>(self.withdrawRequest, b, Router_WithdrawRequest.store);
-        b.storeInt(self.error, 32);
+        b.storeInt(self.errorCode, 32);
     },
     toCell(self: Router_WithdrawToTokenPoolFailed): c.Cell {
         return makeCellFrom<Router_WithdrawToTokenPoolFailed>(self, Router_WithdrawToTokenPoolFailed.store);
@@ -3982,7 +4179,7 @@ export const Router_RMNRemoteSyncOffRamps = {
 
 /**
  > struct (0x6513f8e1) Router_MessageSent {
- >     queryID: uint64
+ >     queryId: uint64
  >     messageId: uint256
  >     destChainSelector: uint64
  >     sender: address
@@ -3990,7 +4187,7 @@ export const Router_RMNRemoteSyncOffRamps = {
  */
 export interface Router_MessageSent {
     readonly $: 'Router_MessageSent'
-    queryID: uint64
+    queryId: uint64
     messageId: uint256
     destChainSelector: uint64
     sender: c.Address
@@ -4000,7 +4197,7 @@ export const Router_MessageSent = {
     PREFIX: 0x6513f8e1,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         messageId: uint256
         destChainSelector: uint64
         sender: c.Address
@@ -4008,14 +4205,14 @@ export const Router_MessageSent = {
         return {
             $: 'Router_MessageSent',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_MessageSent {
         loadAndCheckPrefix32(s, 0x6513f8e1, 'Router_MessageSent');
         return {
             $: 'Router_MessageSent',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             messageId: s.loadUintBig(256),
             destChainSelector: s.loadUintBig(64),
             sender: s.loadAddress(),
@@ -4023,7 +4220,7 @@ export const Router_MessageSent = {
     },
     store(self: Router_MessageSent, b: c.Builder): void {
         b.storeUint(0x6513f8e1, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeUint(self.messageId, 256);
         b.storeUint(self.destChainSelector, 64);
         b.storeAddress(self.sender);
@@ -4035,51 +4232,51 @@ export const Router_MessageSent = {
 
 /**
  > struct (0x8ae25114) Router_MessageRejected {
- >     queryID: uint64
+ >     queryId: uint64
  >     destChainSelector: uint64
  >     sender: address
- >     error: uint256
+ >     errorCode: int32
  > }
  */
 export interface Router_MessageRejected {
     readonly $: 'Router_MessageRejected'
-    queryID: uint64
+    queryId: uint64
     destChainSelector: uint64
     sender: c.Address
-    error: uint256
+    errorCode: int32
 }
 
 export const Router_MessageRejected = {
     PREFIX: 0x8ae25114,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         sender: c.Address
-        error: uint256
+        errorCode: int32
     }): Router_MessageRejected {
         return {
             $: 'Router_MessageRejected',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_MessageRejected {
         loadAndCheckPrefix32(s, 0x8ae25114, 'Router_MessageRejected');
         return {
             $: 'Router_MessageRejected',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             destChainSelector: s.loadUintBig(64),
             sender: s.loadAddress(),
-            error: s.loadUintBig(256),
+            errorCode: s.loadIntBig(32),
         }
     },
     store(self: Router_MessageRejected, b: c.Builder): void {
         b.storeUint(0x8ae25114, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeUint(self.destChainSelector, 64);
         b.storeAddress(self.sender);
-        b.storeUint(self.error, 256);
+        b.storeInt(self.errorCode, 32);
     },
     toCell(self: Router_MessageRejected): c.Cell {
         return makeCellFrom<Router_MessageRejected>(self, Router_MessageRejected.store);
@@ -4157,92 +4354,6 @@ export const Router_RMNAccessControlMessage = {
     },
     toCell(self: Router_RMNAccessControlMessage): c.Cell {
         return makeCellFrom<Router_RMNAccessControlMessage>(self, Router_RMNAccessControlMessage.store);
-    }
-}
-
-/**
- > struct (0x78d0f21e) Router_CCIPSendACK {
- >     queryID: uint64
- >     messageId: uint256
- > }
- */
-export interface Router_CCIPSendACK {
-    readonly $: 'Router_CCIPSendACK'
-    queryID: uint64
-    messageId: uint256
-}
-
-export const Router_CCIPSendACK = {
-    PREFIX: 0x78d0f21e,
-
-    create(args: {
-        queryID?: uint64
-        messageId: uint256
-    }): Router_CCIPSendACK {
-        return {
-            $: 'Router_CCIPSendACK',
-            ...args,
-            queryID: args.queryID ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Router_CCIPSendACK {
-        loadAndCheckPrefix32(s, 0x78d0f21e, 'Router_CCIPSendACK');
-        return {
-            $: 'Router_CCIPSendACK',
-            queryID: s.loadUintBig(64),
-            messageId: s.loadUintBig(256),
-        }
-    },
-    store(self: Router_CCIPSendACK, b: c.Builder): void {
-        b.storeUint(0x78d0f21e, 32);
-        b.storeUint(self.queryID, 64);
-        b.storeUint(self.messageId, 256);
-    },
-    toCell(self: Router_CCIPSendACK): c.Cell {
-        return makeCellFrom<Router_CCIPSendACK>(self, Router_CCIPSendACK.store);
-    }
-}
-
-/**
- > struct (0x5a45d434) Router_CCIPSendNACK {
- >     queryID: uint64
- >     error: uint256
- > }
- */
-export interface Router_CCIPSendNACK {
-    readonly $: 'Router_CCIPSendNACK'
-    queryID: uint64
-    error: uint256
-}
-
-export const Router_CCIPSendNACK = {
-    PREFIX: 0x5a45d434,
-
-    create(args: {
-        queryID?: uint64
-        error: uint256
-    }): Router_CCIPSendNACK {
-        return {
-            $: 'Router_CCIPSendNACK',
-            ...args,
-            queryID: args.queryID ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Router_CCIPSendNACK {
-        loadAndCheckPrefix32(s, 0x5a45d434, 'Router_CCIPSendNACK');
-        return {
-            $: 'Router_CCIPSendNACK',
-            queryID: s.loadUintBig(64),
-            error: s.loadUintBig(256),
-        }
-    },
-    store(self: Router_CCIPSendNACK, b: c.Builder): void {
-        b.storeUint(0x5a45d434, 32);
-        b.storeUint(self.queryID, 64);
-        b.storeUint(self.error, 256);
-    },
-    toCell(self: Router_CCIPSendNACK): c.Cell {
-        return makeCellFrom<Router_CCIPSendNACK>(self, Router_CCIPSendNACK.store);
     }
 }
 
@@ -4341,7 +4452,7 @@ export const Router_GetValidatedFee = {
 
 /**
  > struct (0x6f2d00df) Router_LockOrBurn {
- >     queryID: uint64
+ >     queryId: uint64
  >     tokenPool: address
  >     request: Cell<TokenPool_LockOrBurnInV1>
  >     executorAddress: address
@@ -4350,7 +4461,7 @@ export const Router_GetValidatedFee = {
  */
 export interface Router_LockOrBurn {
     readonly $: 'Router_LockOrBurn'
-    queryID: uint64
+    queryId: uint64
     tokenPool: c.Address
     request: TokenPool_LockOrBurnInV1
     executorAddress: c.Address
@@ -4361,7 +4472,7 @@ export const Router_LockOrBurn = {
     PREFIX: 0x6f2d00df,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         tokenPool: c.Address
         request: TokenPool_LockOrBurnInV1
         executorAddress: c.Address
@@ -4370,14 +4481,14 @@ export const Router_LockOrBurn = {
         return {
             $: 'Router_LockOrBurn',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_LockOrBurn {
         loadAndCheckPrefix32(s, 0x6f2d00df, 'Router_LockOrBurn');
         return {
             $: 'Router_LockOrBurn',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             tokenPool: s.loadAddress(),
             request: loadCellRef<TokenPool_LockOrBurnInV1>(s, TokenPool_LockOrBurnInV1.fromSlice),
             executorAddress: s.loadAddress(),
@@ -4386,7 +4497,7 @@ export const Router_LockOrBurn = {
     },
     store(self: Router_LockOrBurn, b: c.Builder): void {
         b.storeUint(0x6f2d00df, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeAddress(self.tokenPool);
         storeCellRef<TokenPool_LockOrBurnInV1>(self.request, b, TokenPool_LockOrBurnInV1.store);
         b.storeAddress(self.executorAddress);
@@ -4399,7 +4510,7 @@ export const Router_LockOrBurn = {
 
 /**
  > struct (0xb19862a3) Router_RelayReleaseOrMint {
- >     queryID: uint64
+ >     queryId: uint64
  >     sourceChainSelector: uint64
  >     tokenPool: address
  >     request: Cell<TokenPool_ReleaseOrMintInV1>
@@ -4410,7 +4521,7 @@ export const Router_LockOrBurn = {
  */
 export interface Router_RelayReleaseOrMint {
     readonly $: 'Router_RelayReleaseOrMint'
-    queryID: uint64
+    queryId: uint64
     sourceChainSelector: uint64
     tokenPool: c.Address
     request: TokenPool_ReleaseOrMintInV1
@@ -4423,7 +4534,7 @@ export const Router_RelayReleaseOrMint = {
     PREFIX: 0xb19862a3,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         sourceChainSelector: uint64
         tokenPool: c.Address
         request: TokenPool_ReleaseOrMintInV1
@@ -4434,14 +4545,14 @@ export const Router_RelayReleaseOrMint = {
         return {
             $: 'Router_RelayReleaseOrMint',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_RelayReleaseOrMint {
         loadAndCheckPrefix32(s, 0xb19862a3, 'Router_RelayReleaseOrMint');
         return {
             $: 'Router_RelayReleaseOrMint',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             sourceChainSelector: s.loadUintBig(64),
             tokenPool: s.loadAddress(),
             request: loadCellRef<TokenPool_ReleaseOrMintInV1>(s, TokenPool_ReleaseOrMintInV1.fromSlice),
@@ -4452,7 +4563,7 @@ export const Router_RelayReleaseOrMint = {
     },
     store(self: Router_RelayReleaseOrMint, b: c.Builder): void {
         b.storeUint(0xb19862a3, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeUint(self.sourceChainSelector, 64);
         b.storeAddress(self.tokenPool);
         storeCellRef<TokenPool_ReleaseOrMintInV1>(self.request, b, TokenPool_ReleaseOrMintInV1.store);
@@ -4618,14 +4729,14 @@ export const Router_MessageValidated_V1 = {
 
 /**
  > struct (0xec23c562) Router_MessageValidationFailed_V1 {
- >     error: uint256
+ >     errorCode: uint256
  >     msg: Cell<Router_CCIPSend>
  >     context: RemainingBitsAndRefs
  > }
  */
 export interface Router_MessageValidationFailed_V1 {
     readonly $: 'Router_MessageValidationFailed_V1'
-    error: uint256
+    errorCode: uint256
     msg: Router_CCIPSend
     context: RemainingBitsAndRefs
 }
@@ -4634,7 +4745,7 @@ export const Router_MessageValidationFailed_V1 = {
     PREFIX: 0xec23c562,
 
     create(args: {
-        error: uint256
+        errorCode: uint256
         msg: Router_CCIPSend
         context: RemainingBitsAndRefs
     }): Router_MessageValidationFailed_V1 {
@@ -4647,14 +4758,14 @@ export const Router_MessageValidationFailed_V1 = {
         loadAndCheckPrefix32(s, 0xec23c562, 'Router_MessageValidationFailed_V1');
         return {
             $: 'Router_MessageValidationFailed_V1',
-            error: s.loadUintBig(256),
+            errorCode: s.loadUintBig(256),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: loadTolkRemaining(s),
         }
     },
     store(self: Router_MessageValidationFailed_V1, b: c.Builder): void {
         b.storeUint(0xec23c562, 32);
-        b.storeUint(self.error, 256);
+        b.storeUint(self.errorCode, 256);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
@@ -4721,7 +4832,7 @@ export const Router_MessageValidated = {
 /**
  > struct (0xe32e5616) Router_MessageValidationFailed {
  >     queryId: uint64
- >     error: uint256
+ >     errorCode: int32
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
  > }
@@ -4729,7 +4840,7 @@ export const Router_MessageValidated = {
 export interface Router_MessageValidationFailed {
     readonly $: 'Router_MessageValidationFailed'
     queryId: uint64
-    error: uint256
+    errorCode: int32
     msg: Router_CCIPSend
     context: c.Cell | null
 }
@@ -4739,7 +4850,7 @@ export const Router_MessageValidationFailed = {
 
     create(args: {
         queryId?: uint64
-        error: uint256
+        errorCode: int32
         msg: Router_CCIPSend
         context: c.Cell | null
     }): Router_MessageValidationFailed {
@@ -4754,7 +4865,7 @@ export const Router_MessageValidationFailed = {
         return {
             $: 'Router_MessageValidationFailed',
             queryId: s.loadUintBig(64),
-            error: s.loadUintBig(256),
+            errorCode: s.loadIntBig(32),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
@@ -4762,7 +4873,7 @@ export const Router_MessageValidationFailed = {
     store(self: Router_MessageValidationFailed, b: c.Builder): void {
         b.storeUint(0xe32e5616, 32);
         b.storeUint(self.queryId, 64);
-        b.storeUint(self.error, 256);
+        b.storeInt(self.errorCode, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -4775,46 +4886,46 @@ export const Router_MessageValidationFailed = {
 
 /**
  > struct (0xb76e3a84) Router_TokenPoolLockOrBurnFailed {
- >     queryID: uint64
+ >     queryId: uint64
  >     tokenPool: address
- >     exitCode: int32
+ >     errorCode: int32
  > }
  */
 export interface Router_TokenPoolLockOrBurnFailed {
     readonly $: 'Router_TokenPoolLockOrBurnFailed'
-    queryID: uint64
+    queryId: uint64
     tokenPool: c.Address
-    exitCode: int32
+    errorCode: int32
 }
 
 export const Router_TokenPoolLockOrBurnFailed = {
     PREFIX: 0xb76e3a84,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         tokenPool: c.Address
-        exitCode: int32
+        errorCode: int32
     }): Router_TokenPoolLockOrBurnFailed {
         return {
             $: 'Router_TokenPoolLockOrBurnFailed',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_TokenPoolLockOrBurnFailed {
         loadAndCheckPrefix32(s, 0xb76e3a84, 'Router_TokenPoolLockOrBurnFailed');
         return {
             $: 'Router_TokenPoolLockOrBurnFailed',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             tokenPool: s.loadAddress(),
-            exitCode: s.loadIntBig(32),
+            errorCode: s.loadIntBig(32),
         }
     },
     store(self: Router_TokenPoolLockOrBurnFailed, b: c.Builder): void {
         b.storeUint(0xb76e3a84, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeAddress(self.tokenPool);
-        b.storeInt(self.exitCode, 32);
+        b.storeInt(self.errorCode, 32);
     },
     toCell(self: Router_TokenPoolLockOrBurnFailed): c.Cell {
         return makeCellFrom<Router_TokenPoolLockOrBurnFailed>(self, Router_TokenPoolLockOrBurnFailed.store);
@@ -4823,56 +4934,56 @@ export const Router_TokenPoolLockOrBurnFailed = {
 
 /**
  > struct (0xb980cb4e) Router_TokenPoolReleaseOrMintFailed {
- >     queryID: uint64
+ >     queryId: uint64
  >     sourceChainSelector: uint64
  >     replyTo: address
  >     tokenPool: address
- >     exitCode: int32
+ >     errorCode: int32
  > }
  */
 export interface Router_TokenPoolReleaseOrMintFailed {
     readonly $: 'Router_TokenPoolReleaseOrMintFailed'
-    queryID: uint64
+    queryId: uint64
     sourceChainSelector: uint64
     replyTo: c.Address
     tokenPool: c.Address
-    exitCode: int32
+    errorCode: int32
 }
 
 export const Router_TokenPoolReleaseOrMintFailed = {
     PREFIX: 0xb980cb4e,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         sourceChainSelector: uint64
         replyTo: c.Address
         tokenPool: c.Address
-        exitCode: int32
+        errorCode: int32
     }): Router_TokenPoolReleaseOrMintFailed {
         return {
             $: 'Router_TokenPoolReleaseOrMintFailed',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_TokenPoolReleaseOrMintFailed {
         loadAndCheckPrefix32(s, 0xb980cb4e, 'Router_TokenPoolReleaseOrMintFailed');
         return {
             $: 'Router_TokenPoolReleaseOrMintFailed',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             sourceChainSelector: s.loadUintBig(64),
             replyTo: s.loadAddress(),
             tokenPool: s.loadAddress(),
-            exitCode: s.loadIntBig(32),
+            errorCode: s.loadIntBig(32),
         }
     },
     store(self: Router_TokenPoolReleaseOrMintFailed, b: c.Builder): void {
         b.storeUint(0xb980cb4e, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeUint(self.sourceChainSelector, 64);
         b.storeAddress(self.replyTo);
         b.storeAddress(self.tokenPool);
-        b.storeInt(self.exitCode, 32);
+        b.storeInt(self.errorCode, 32);
     },
     toCell(self: Router_TokenPoolReleaseOrMintFailed): c.Cell {
         return makeCellFrom<Router_TokenPoolReleaseOrMintFailed>(self, Router_TokenPoolReleaseOrMintFailed.store);
@@ -4998,7 +5109,7 @@ export const Storage = {
 }
 
 /**
- > enum Router_Error { 19 variants }
+ > enum Router_Error { 20 variants }
  */
 export type Router_Error = bigint
 
@@ -5022,6 +5133,7 @@ export const Router_Error = {
     WithdrawExecutorMismatch: 57116n,
     SenderAccountWithdrawFailed: 57117n,
     FeePaymentsWithJettonsNotSupported: 57118n,
+    UnhandledLegacyBounce: 57119n,
 
     fromSlice(s: c.Slice): Router_Error {
         return s.loadUintBig(16);
@@ -5151,19 +5263,19 @@ export const OffRampRemoved = {
 /**
  > struct MessageToOffRampBounced {
  >     offRamp: address
- >     execID: uint192
+ >     execId: uint192
  > }
  */
 export interface MessageToOffRampBounced {
     readonly $: 'MessageToOffRampBounced'
     offRamp: c.Address
-    execID: uint192
+    execId: uint192
 }
 
 export const MessageToOffRampBounced = {
     create(args: {
         offRamp: c.Address
-        execID: uint192
+        execId: uint192
     }): MessageToOffRampBounced {
         return {
             $: 'MessageToOffRampBounced',
@@ -5174,12 +5286,12 @@ export const MessageToOffRampBounced = {
         return {
             $: 'MessageToOffRampBounced',
             offRamp: s.loadAddress(),
-            execID: s.loadUintBig(192),
+            execId: s.loadUintBig(192),
         }
     },
     store(self: MessageToOffRampBounced, b: c.Builder): void {
         b.storeAddress(self.offRamp);
-        b.storeUint(self.execID, 192);
+        b.storeUint(self.execId, 192);
     },
     toCell(self: MessageToOffRampBounced): c.Cell {
         return makeCellFrom<MessageToOffRampBounced>(self, MessageToOffRampBounced.store);
@@ -5535,6 +5647,7 @@ export class Router implements c.Contract {
         'Router_Error.WithdrawExecutorMismatch': 57116,
         'Router_Error.SenderAccountWithdrawFailed': 57117,
         'Router_Error.FeePaymentsWithJettonsNotSupported': 57118,
+        'Router_Error.UnhandledLegacyBounce': 57119,
     }
 
     readonly address: c.Address
@@ -5579,10 +5692,10 @@ export class Router implements c.Contract {
     }
 
     static createCellOfRouterCCIPSend(body: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         receiver: CrossChainAddress
-        data: c.Cell
+        data: SnakedCell<byte>
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
         extraArgs: ExtraArgs
@@ -5623,7 +5736,7 @@ export class Router implements c.Contract {
     }
 
     static createCellOfOnRampMessageValidationFailed(body: {
-        error: uint256
+        errorCode: int32
         msg: Router_CCIPSend
         context: c.Cell | null
     }) {
@@ -5633,7 +5746,7 @@ export class Router implements c.Contract {
     static createCellOfRouterRouteMessage(body: {
         queryId?: uint64
         message: Any2TVMMessage
-        execID: ReceiveExecutionID
+        execId: ReceiveExecutionID
         receiver: c.Address
         gasLimit: coins
     }) {
@@ -5641,7 +5754,7 @@ export class Router implements c.Contract {
     }
 
     static createCellOfRouterWithdrawToTokenPool(body: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         executor: c.Address
         withdrawRequest: Router_WithdrawRequest
@@ -5650,19 +5763,27 @@ export class Router implements c.Contract {
     }
 
     static createCellOfRouterWithdrawToTokenPoolFailed(body: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         withdrawRequest: Router_WithdrawRequest
-        error: int32
+        errorCode: int32
     }) {
         return Router_WithdrawToTokenPoolFailed.toCell(Router_WithdrawToTokenPoolFailed.create(body));
     }
 
     static createCellOfRouterCCIPReceiveConfirm(body: {
         queryId?: uint64
-        execID: ReceiveExecutionID
+        execId: ReceiveExecutionID
     }) {
         return Router_CCIPReceiveConfirm.toCell(Router_CCIPReceiveConfirm.create(body));
+    }
+
+    static createCellOfRouterCCIPReceiveConfirmRejectedByExecutor(body: {
+        queryId?: uint64
+        sourceChainSelector: uint64
+        receiver: c.Address
+    }) {
+        return Router_CCIPReceiveConfirmRejectedByExecutor.toCell(Router_CCIPReceiveConfirmRejectedByExecutor.create(body));
     }
 
     static createCellOfUpgradeableUpgrade(body: {
@@ -5716,7 +5837,7 @@ export class Router implements c.Contract {
     }
 
     static createCellOfRouterMessageSent(body: {
-        queryID?: uint64
+        queryId?: uint64
         messageId: uint256
         destChainSelector: uint64
         sender: c.Address
@@ -5725,16 +5846,16 @@ export class Router implements c.Contract {
     }
 
     static createCellOfRouterMessageRejected(body: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         sender: c.Address
-        error: uint256
+        errorCode: int32
     }) {
         return Router_MessageRejected.toCell(Router_MessageRejected.create(body));
     }
 
     static createCellOfRouterLockOrBurn(body: {
-        queryID?: uint64
+        queryId?: uint64
         tokenPool: c.Address
         request: TokenPool_LockOrBurnInV1
         executorAddress: c.Address
@@ -5744,7 +5865,7 @@ export class Router implements c.Contract {
     }
 
     static createCellOfRouterRelayReleaseOrMint(body: {
-        queryID?: uint64
+        queryId?: uint64
         sourceChainSelector: uint64
         tokenPool: c.Address
         request: TokenPool_ReleaseOrMintInV1
@@ -5855,10 +5976,10 @@ export class Router implements c.Contract {
     }
 
     async sendRouterCCIPSend(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         receiver: CrossChainAddress
-        data: c.Cell
+        data: SnakedCell<byte>
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
         extraArgs: ExtraArgs
@@ -5919,7 +6040,7 @@ export class Router implements c.Contract {
     }
 
     async sendOnRampMessageValidationFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        error: uint256
+        errorCode: int32
         msg: Router_CCIPSend
         context: c.Cell | null
     }, extraOptions?: ExtraSendOptions) {
@@ -5933,7 +6054,7 @@ export class Router implements c.Contract {
     async sendRouterRouteMessage(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         message: Any2TVMMessage
-        execID: ReceiveExecutionID
+        execId: ReceiveExecutionID
         receiver: c.Address
         gasLimit: coins
     }, extraOptions?: ExtraSendOptions) {
@@ -5945,7 +6066,7 @@ export class Router implements c.Contract {
     }
 
     async sendRouterWithdrawToTokenPool(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         executor: c.Address
         withdrawRequest: Router_WithdrawRequest
@@ -5958,10 +6079,10 @@ export class Router implements c.Contract {
     }
 
     async sendRouterWithdrawToTokenPoolFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         withdrawRequest: Router_WithdrawRequest
-        error: int32
+        errorCode: int32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -5972,11 +6093,23 @@ export class Router implements c.Contract {
 
     async sendRouterCCIPReceiveConfirm(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        execID: ReceiveExecutionID
+        execId: ReceiveExecutionID
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
             body: Router_CCIPReceiveConfirm.toCell(Router_CCIPReceiveConfirm.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendRouterCCIPReceiveConfirmRejectedByExecutor(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        sourceChainSelector: uint64
+        receiver: c.Address
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Router_CCIPReceiveConfirmRejectedByExecutor.toCell(Router_CCIPReceiveConfirmRejectedByExecutor.create(body)),
             ...extraOptions
         });
     }
@@ -6060,7 +6193,7 @@ export class Router implements c.Contract {
     }
 
     async sendRouterMessageSent(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         messageId: uint256
         destChainSelector: uint64
         sender: c.Address
@@ -6073,10 +6206,10 @@ export class Router implements c.Contract {
     }
 
     async sendRouterMessageRejected(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         sender: c.Address
-        error: uint256
+        errorCode: int32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -6086,7 +6219,7 @@ export class Router implements c.Contract {
     }
 
     async sendRouterLockOrBurn(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         tokenPool: c.Address
         request: TokenPool_LockOrBurnInV1
         executorAddress: c.Address
@@ -6100,7 +6233,7 @@ export class Router implements c.Contract {
     }
 
     async sendRouterRelayReleaseOrMint(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryID?: uint64
+        queryId?: uint64
         sourceChainSelector: uint64
         tokenPool: c.Address
         request: TokenPool_ReleaseOrMintInV1

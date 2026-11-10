@@ -6,7 +6,7 @@ struct ReceiveExecutor_Storage {
     owner: address; // OffRamp
     message: Cell<Any2TVMRampMessage>;
     root: address;
-    execID: uint192;
+    execId: uint192;
     state: ReceiveExecutor_State = ReceiveExecutor_State {
         // tokenTransfer is initialized in the handler `onInitExecute` if it is null.
         tokenTransfer: null,

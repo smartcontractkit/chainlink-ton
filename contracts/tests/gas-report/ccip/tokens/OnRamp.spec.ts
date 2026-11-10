@@ -22,7 +22,7 @@ import EVM_ADDRESS from '../../../utils/evmAddress'
 import { AddressBook, GasReport, gasReportConfig } from '../../utils'
 import {
   createExtraArgs,
-  createPayload,
+  createPayloadBytes,
   HARD_MAX_DATA_BYTES,
   SEND_DATA_SIZE_SWEEP,
 } from '../messaging/config'
@@ -217,9 +217,9 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
     return result
   }
 
-  async function ccipSend(token: TokenWithPool, data: Cell, amount = TOKEN_AMOUNT) {
+  async function ccipSend(token: TokenWithPool, data: bigint[], amount = TOKEN_AMOUNT) {
     const msg = rt.Router_CCIPSend.create({
-      queryID: 1n,
+      queryId: 1n,
       destChainSelector: DEST_CHAIN_SELECTOR,
       receiver: EVM_ADDRESS,
       data,
@@ -299,7 +299,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       RegistryCosts.getTokenInfo -
       Costs.poolLockOrBurnAdmission -
       Costs.tokenPoolFinalization
-    const sendFlow = (data: Cell) => ({
+    const sendFlow = (data: bigint[]) => ({
       run: () => ccipSend(token, data),
       book,
       discover: nameExecutor,
@@ -331,10 +331,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
     })
 
     it('should measure token transfer without data', async () => {
-      const { result } = await report.measure(
-        `${kind}: CCIPSend Token Transfer`,
-        sendFlow(Cell.EMPTY),
-      )
+      const { result } = await report.measure(`${kind}: CCIPSend Token Transfer`, sendFlow([]))
       expectACK(result)
     })
 
@@ -342,7 +339,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       await deposit(token, senderAccount)
       const { result } = await report.measure(
         `${kind}: CCIPSend Token Transfer + Max Payload`,
-        sendFlow(createPayload(HARD_MAX_DATA_BYTES)),
+        sendFlow(createPayloadBytes(HARD_MAX_DATA_BYTES)),
       )
       expectACK(result)
     })
@@ -352,7 +349,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
         await deposit(token, senderAccount)
         const { result } = await report.measure(
           `sweep: ${kind}: CCIPSend Token Transfer + ${size} bytes`,
-          sendFlow(createPayload(size)),
+          sendFlow(createPayloadBytes(size)),
         )
         expectACK(result)
       }
@@ -365,7 +362,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       const { result } = await report.measure(
         `${kind}: CCIPSend Token Transfer + Max Payload rejected by pool`,
         {
-          ...sendFlow(createPayload(HARD_MAX_DATA_BYTES)),
+          ...sendFlow(createPayloadBytes(HARD_MAX_DATA_BYTES)),
           aborts: [`Router->${kind}Pool`],
         },
       )
@@ -383,8 +380,8 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       const { result } = await report.measure(
         `${kind}: CCIPSend Token Transfer + Max Payload withdraw failed`,
         {
-          ...sendFlow(createPayload(HARD_MAX_DATA_BYTES)),
-          run: () => ccipSend(token, createPayload(HARD_MAX_DATA_BYTES), TOKEN_AMOUNT * 1000n),
+          ...sendFlow(createPayloadBytes(HARD_MAX_DATA_BYTES)),
+          run: () => ccipSend(token, createPayloadBytes(HARD_MAX_DATA_BYTES), TOKEN_AMOUNT * 1000n),
           aborts: ['SenderAccount->SenderAccountWallet'],
         },
       )

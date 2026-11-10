@@ -7,7 +7,7 @@ import * as fq from '../../../../wrappers/gen/ccip/FeeQuoter'
 import '@ton/test-utils'
 import { NATIVE_GRAM } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
-import { createExtraArgs, createPayload, HARD_MAX_DATA_BYTES } from './config'
+import { createExtraArgs, createPayloadBytes, HARD_MAX_DATA_BYTES } from './config'
 import { AddressBook, formatRow, GasReport, gasReportConfig } from '../../utils'
 import { contractCode } from '../../../../wrappers/codeLoader'
 import { ChainFamilySelectors, ChainSelectors } from '../../../utils/Selectors'
@@ -146,7 +146,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
         measureGetValidatedFee(
           router,
           sender,
-          createPayload(HARD_MAX_DATA_BYTES),
+          createPayloadBytes(HARD_MAX_DATA_BYTES),
           onRamp,
           feeQuoter,
         ),
@@ -169,7 +169,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
 
     const gasUsages: { size: number; gasUsed: bigint; computeFee: bigint }[] = []
     for (const size of payloadSizes) {
-      const payload = createPayload(size)
+      const payload = createPayloadBytes(size)
       const result = await measureGetValidatedFee(router, sender, payload, onRamp, feeQuoter)
       const tx: BlockchainTransaction = result.transactions.find(
         (tx) =>
@@ -209,7 +209,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
 async function measureGetValidatedFee(
   router: SandboxContract<rt.Router>,
   sender: SandboxContract<TreasuryContract>,
-  payload: Cell,
+  payload: bigint[],
   onRamp: SandboxContract<or.OnRamp>,
   feeQuoter: SandboxContract<fq.FeeQuoter>,
 ) {
@@ -218,7 +218,7 @@ async function measureGetValidatedFee(
     Costs.getValidatedFee,
     rt.Router_GetValidatedFee.create({
       ccipSend: rt.Router_CCIPSend.create({
-        queryID: 1n,
+        queryId: 1n,
         destChainSelector: ChainSelectors.testnet.evm,
         receiver: EVM_ADDRESS,
         data: payload,

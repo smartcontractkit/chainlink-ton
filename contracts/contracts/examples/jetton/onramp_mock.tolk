@@ -47,7 +47,7 @@ fun OnrampMock.handleJettonTransferNotification(
     sender: address,
 ) {
     // Check if the sender is our jetton wallet
-    assert(sender == self.JettonClient.walletAddress(), INCORRECT_SENDER_ERROR);
+    assert (sender == self.JettonClient.walletAddress()) throw (INCORRECT_SENDER_ERROR);
 
     var forwardPayloadCell = loadForwardPayloadAsCell(msg.forwardPayload);
 
@@ -80,7 +80,7 @@ fun onInternalMessage(in: InMessage) {
         }
         else => {
             // ignore empty messages, "wrong opcode" for others  
-            assert (in.body.isEmpty()) throw 0xFFFF;
+            assert (in.body.isEmpty()) throw (0xFFFF);
         }
     }
 }

@@ -25,7 +25,7 @@ tolk 1.4.2
 /// stale entry round-trips the request through the root to get the new code.
 contract TokenAdminRegistry {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.6.0"
+    version: "1.7.0"
     description: "link.chain.ton.ccip.TokenAdminRegistry"
 
     storage: TokenAdminRegistry_Storage
@@ -33,7 +33,7 @@ contract TokenAdminRegistry {
     thrownErrors: Ownable2Step_Error | TokenAdminRegistry_Error | Upgradeable_Error | Withdrawable_Error
 }
 
-const CONTRACT_VERSION = "1.6.0".literalSlice();
+const CONTRACT_VERSION = "1.7.0".literalSlice();
 const RICH_BOUNCE_PREFIX = 0xfffffffe;
 const WITHDRAW_RESERVE = ton("0.1");
 
@@ -43,29 +43,29 @@ fun onInternalMessage(in: InMessage) {
         TokenAdminRegistry_RegisterToken => {
             var st = lazy TokenAdminRegistry_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            assert(in.valueCoins >= TokenAdminRegistry_RegisterToken.cost()) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_RegisterToken.cost()) throw (TokenAdminRegistry_Error.InsufficientValue);
             registerToken(st, msg);
         }
         TokenAdminRegistry_OverridePendingAdministrator => {
             var st = lazy TokenAdminRegistry_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw (TokenAdminRegistry_Error.InsufficientValue);
             overridePendingAdministrator(msg);
         }
         TokenAdminRegistry_TransferAdminRole => {
-            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw (TokenAdminRegistry_Error.InsufficientValue);
             transferAdminRole(msg, in.senderAddress);
         }
         TokenAdminRegistry_AcceptAdminRole => {
-            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw (TokenAdminRegistry_Error.InsufficientValue);
             acceptAdminRole(msg, in.senderAddress);
         }
         TokenAdminRegistry_SetPool => {
-            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_POOL_PROBE_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_POOL_PROBE_VALUE) throw (TokenAdminRegistry_Error.InsufficientValue);
             setPool(msg, in.senderAddress);
         }
         TokenAdminRegistry_GetTokenInfo => {
-            assert(in.valueCoins >= TokenAdminRegistry_GetTokenInfo.cost()) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_GetTokenInfo.cost()) throw (TokenAdminRegistry_Error.InsufficientValue);
             forwardToEntry(msg.token, msg.queryId, TokenAdminRegistryEntry_GetTokenInfo {
                 token: msg.token,
                 requester: in.senderAddress,
@@ -83,7 +83,7 @@ fun onInternalMessage(in: InMessage) {
         }
         TokenAdminRegistry_UpgradeRefund => {}
         TokenAdminRegistry_UpgradeEntry => {
-            assert(in.valueCoins >= TokenAdminRegistryEntry_upgradeCost(entryCode())) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistryEntry_upgradeCost(entryCode())) throw (TokenAdminRegistry_Error.InsufficientValue);
             sendUpgrade(entryAddress(msg.tokenAddress).calculateAddress(), msg.queryId, 0, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         Upgradeable_Upgrade => {
@@ -112,11 +112,11 @@ fun onInternalMessage(in: InMessage) {
             emitPoolSet(msg);
         }
         TokenAdminRegistry_VerifyToken => {
-            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_WALLET_QUERY_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_WALLET_QUERY_VALUE) throw (TokenAdminRegistry_Error.InsufficientValue);
             forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_VerifyToken { requester: in.senderAddress });
         }
         TokenAdminRegistry_RefreshPoolConfig => {
-            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_POOL_PROBE_VALUE) throw TokenAdminRegistry_Error.InsufficientValue;
+            assert(in.valueCoins >= TokenAdminRegistry_forwardCost() + TokenAdminRegistryEntry_POOL_PROBE_VALUE) throw (TokenAdminRegistry_Error.InsufficientValue);
             forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_RefreshPoolConfig { requester: in.senderAddress });
         }
         else => {
@@ -126,7 +126,7 @@ fun onInternalMessage(in: InMessage) {
                 st.store();
                 return;
             }
-            assert (in.body.isEmpty()) throw 0xFFFF;
+            assert (in.body.isEmpty()) throw (0xFFFF);
         }
     }
 }
@@ -151,14 +151,14 @@ fun onBouncedMessage(in: InMessageBounced) {
     val content = request.content.load();
     if (content is TokenAdminRegistryEntry_GetTokenInfo) {
         createMessage({
-            bounce: false,
+            bounce: BounceMode.NoBounce,
             value: 0,
             dest: content.requester,
             body: TokenAdminRegistry_GetTokenInfoFailed {
                 queryId: request.queryId,
                 token: content.token,
             },
-        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
     createMessage({
@@ -167,10 +167,10 @@ fun onBouncedMessage(in: InMessageBounced) {
         dest: requestSender(content),
         body: TokenAdminRegistry_RequestFailed {
             queryId: request.queryId,
-            exitCode: rich.exitCode,
+            errorCode: rich.exitCode,
             request: requestCell,
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun requestSender(content: TokenAdminRegistryEntry_RootMessage): address {
@@ -189,7 +189,7 @@ fun requestSender(content: TokenAdminRegistryEntry_RootMessage): address {
 /// sufficient to recompute the only entry address that may send that event.
 fun requireEntrySender(st: TokenAdminRegistry_Storage, token: address, sender: address) {
     val expectedEntry = entryAddress(token).calculateAddress();
-    assert(sender == expectedEntry) throw TokenAdminRegistry_Error.UnauthorizedEntry;
+    assert(sender == expectedEntry) throw (TokenAdminRegistry_Error.UnauthorizedEntry);
 }
 
 fun entryAddress(token: address): AutoDeployAddress {
@@ -208,7 +208,7 @@ fun forwardToEntry(token: address, queryId: uint64, content: TokenAdminRegistryE
             minEntryVersion: TokenAdminRegistryEntry_VERSION,
             content: content.toCell(),
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Answers a stale entry with an Upgradeable_Upgrade followed by the deferred request as a
@@ -232,19 +232,19 @@ fun upgradeAndResume(entry: address, queryId: uint64, request: Cell<TokenAdminRe
         value: 0,
         dest: entry,
         body: TokenAdminRegistryEntry_Resume { request },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun sendUpgrade(dest: address, queryId: uint64, value: coins, mode: int) {
     createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value,
         dest,
         body: Upgradeable_Upgrade {
             queryId,
             code: entryCode(),
         },
-    }).send(mode);
+    }).send(mode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
@@ -263,7 +263,7 @@ fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
     }
 
     createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: msg.requester,
         body: TokenAdminRegistry_TokenInfo {
@@ -272,7 +272,7 @@ fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
             version: tokenInfo.version,
             poolInfo,
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun emitAdministratorTransferRequested(event: TokenAdminRegistry_AdministratorTransferRequested) {
@@ -297,7 +297,7 @@ fun emitPoolSet(event: TokenAdminRegistry_PoolSet) {
 /// answers with a wallet. See TokenAdminRegistry_VerifyToken to query again.
 fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_RegisterToken) {
     val deployMsg = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: TokenAdminRegistryEntry_deployCost(),
         dest: entryAddress(msg.tokenAddress),
         body: Deployable_InitializeAndSend {
@@ -323,7 +323,7 @@ fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_Regist
             },
         },
     });
-    deployMsg.send(SEND_MODE_REGULAR);
+    deployMsg.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Replaces an unaccepted administrator proposal. The shard enforces that no
