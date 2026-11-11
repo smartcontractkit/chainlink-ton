@@ -1356,6 +1356,64 @@ describe('OffRamp - Execute', () => {
       )
     })
 
+    it('should retry a message whose first (Untouched) execution failed OffRamp validation', async () => {
+      // Regression: when the very first execution attempt (root state Untouched) fails validation
+      // in onExecuteValidated, the root marks the message Failure. A retry arrives with
+      // executionState=Failure and therefore does not deploy the ReceiveExecutor, so the executor
+      // must already exist from the first attempt or the message can never be executed.
+      const message = setup.createTestMessage(1n, 1n, setup.receiver.address) // empty data (Cell.EMPTY)
+      await setup.setupAndCommitMessage(message)
+      const report = setup.createExecuteReport([message])
+
+      // Manual execution is the first attempt, so the root still holds the message as Untouched.
+      warpTime(Number(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS) + 1)
+
+      // 1. First attempt with a token gas override on a message without token transfers: the
+      //    OffRamp rejects it with ManualExecutionGasAmountCountMismatch.
+      const first = await setup.offRamp.sendOffRampManuallyExecute(
+        setup.transmitters[0].getSender(),
+        toNano('0.5'),
+        {
+          report,
+          gasOverride: of.GasOverride.create({
+            receiverExecutionGasLimit: 0n,
+            tokenGasOverrides: [toNano('0.01')], // mismatch: message has 0 token transfers
+          }),
+        },
+      )
+      assertLog(
+        first.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Failure,
+        },
+      )
+
+      // 2. Retry without an override: the message must reach the receiver and succeed.
+      const retry = await setup.manualExecuteReport(report)
+      expect(retry.transactions).toHaveTransaction({
+        from: setup.router.address,
+        to: setup.receiver.address,
+        value: message.gasLimit,
+        success: true,
+      })
+      assertLog(
+        retry.transactions,
+        setup.offRamp.address,
+        CCIPLogs.LogTypes.ExecutionStateChanged,
+        {
+          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+          sequenceNumber: 1n,
+          messageId: 1n,
+          state: of.ExecutionState.Success,
+        },
+      )
+    })
+
     it('should ignore gasOverride when 0', async () => {
       const message = setup.createTestMessage(1n, 1n, setup.receiver.address) // empty data (Cell.EMPTY)
       await setup.setupAndCommitMessage(message)
