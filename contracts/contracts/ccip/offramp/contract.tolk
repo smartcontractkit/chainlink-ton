@@ -486,9 +486,12 @@ fun onExecutionStateChanged(msg: MerkleRoot_ExecutionStateChanged) {
         body: createEmptyCell(),
     });
 
-    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
+    // Send the excesses to the caller, carrying all remaining balance and ignoring errors.
+    // Uses `RESERVE_MODE_AT_MOST` to prevent a failure in the reserve from reverting the event emission.
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_AT_MOST);
+    // Uses `SEND_MODE_IGNORE_ERRORS` to prevent a failure in the refund from reverting the event emission.
     // SAFETY: reserveGramsOnBalance keeps the original balance, so only the value exceeding it is sent.
-    excesses.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    excesses.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
 }
 
 // Sends a MerkleRoot_MarkState message to update the execution state of a
