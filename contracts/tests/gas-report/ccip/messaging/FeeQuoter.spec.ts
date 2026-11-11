@@ -34,6 +34,8 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create({ config: await gasReportConfig() })
+    // Frozen time: no storage fees, so per-transaction balance deltas are exact.
+    blockchain.now = 1
     report = new GasReport('messaging-feequoter', blockchain)
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')

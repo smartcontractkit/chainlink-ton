@@ -19,7 +19,7 @@ import { JettonWallet } from '../../../../wrappers/gen/ccip/cct/JettonWallet'
 import { setup } from '../../../ccip/router/Router.Setup'
 import { ChainFamilySelectors, ChainSelectors } from '../../../utils/Selectors'
 import EVM_ADDRESS from '../../../utils/evmAddress'
-import { AddressBook, GasReport, gasReportConfig } from '../../utils'
+import { AddressBook, BalanceRule, GasReport, gasReportConfig } from '../../utils'
 import {
   createExtraArgs,
   createPayloadBytes,
@@ -27,6 +27,7 @@ import {
   SEND_DATA_SIZE_SWEEP,
 } from '../messaging/config'
 import { deployTokenWithPool, POOL_KINDS, TokenWithPool } from './pools'
+import { onRampRetains } from '../onRampRetains'
 
 const DEST_CHAIN_SELECTOR = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 const TOKEN_AMOUNT = toNano('5')
@@ -54,6 +55,8 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create({ config: await gasReportConfig() })
+    // Frozen time: no storage fees, so per-transaction balance deltas are exact.
+    blockchain.now = 1
     report = new GasReport('tokens-onramp', blockchain)
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
@@ -291,18 +294,21 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       ;({ book, senderAccount } = await addressBook(token))
     })
 
-    // The pool's jetton wallet returns the jetton excesses to the Router, which has no handler for
-    // them (exit 65535, non-bounceable), so the Router keeps that TON on every token send.
     // The registry query and the pool value are budgeted by their own contracts.
     const ccipSendBudget =
       Costs.ccipSendWithTokens -
       RegistryCosts.getTokenInfo -
       Costs.poolLockOrBurnAdmission -
       Costs.tokenPoolFinalization
+
+    const sendRetains: BalanceRule[] = onRampRetains.tokenSend.successful(kind)
+    const poolRejectedRetains = onRampRetains.tokenSend.poolRejected
+    const withdrawFailedRetains = onRampRetains.tokenSend.withdrawFailed
     const sendFlow = (data: bigint[]) => ({
       run: () => ccipSend(token, data),
       book,
       discover: nameExecutor,
+      retains: sendRetains,
       budget: ccipSendBudget,
     })
 
@@ -313,6 +319,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
             token: token.minter.address,
           }),
         book,
+        retains: onRampRetains.getAccount,
         budget: Costs.getSenderAccount - Costs.depositAccountReserve,
       })
       expect(result.transactions).toHaveTransaction({
@@ -327,6 +334,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       await report.measure(`${kind}: Token Deposit`, {
         run: () => deposit(token, senderAccount),
         book,
+        retains: onRampRetains.deposit,
       })
     })
 
@@ -355,7 +363,8 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       }
     })
 
-    // The rate limit makes the pool throw, so the relay bounces back to the Router.
+    // The rate limit makes the pool throw, so the relay bounces back to the Router. The pool
+    // abort happens before the withdraw, so the OnRamp account is never reached in this flow.
     it(`should measure a token transfer with ${HARD_MAX_DATA_BYTES} bytes of data rejected by the pool`, async () => {
       await deposit(token, senderAccount)
       await setOutboundCapacity(token, 1n)
@@ -363,6 +372,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
         `${kind}: CCIPSend Token Transfer + Max Payload rejected by pool`,
         {
           ...sendFlow(createPayloadBytes(HARD_MAX_DATA_BYTES)),
+          retains: poolRejectedRetains,
           aborts: [`Router->${kind}Pool`],
         },
       )
@@ -382,6 +392,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
         {
           ...sendFlow(createPayloadBytes(HARD_MAX_DATA_BYTES)),
           run: () => ccipSend(token, createPayloadBytes(HARD_MAX_DATA_BYTES), TOKEN_AMOUNT * 1000n),
+          retains: withdrawFailedRetains,
           aborts: ['SenderAccount->SenderAccountWallet'],
         },
       )
