@@ -35,7 +35,6 @@ struct BurnMintTokenPool_Costs{}
 fun BurnMintTokenPool_Costs.lockOrBurnAdmission(): coins {
     val w = contract.getAddress().getWorkchain();
     return calculateGasFee(w, BurnMintTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS)
-        + MIN_GRAM_TO_RESERVE_RUNTIME;
 }
 
 fun BurnMintTokenPool_Costs.lockOrBurnSafety(): coins {
@@ -46,7 +45,6 @@ fun BurnMintTokenPool_Costs.lockOrBurnSafety(): coins {
 fun BurnMintTokenPool_Costs.releaseOrMintAdmission(): coins {
     val w = contract.getAddress().getWorkchain();
     return calculateGasFee(w, BurnMintTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS)
-        + MIN_GRAM_TO_RESERVE_RUNTIME;
 }
 
 fun BurnMintTokenPool_Costs.releaseOrMintSafety(): coins {

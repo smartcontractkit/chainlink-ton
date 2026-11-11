@@ -740,9 +740,8 @@ fun Timelock<T>.init(
 ): void {
     assert(!self.isInitialized()) throw (Timelock_Error.ContractAlreadyInitialized);
 
-    val (continuationValue, _)
-        = reserveBalanceBeforeInMessage(value, MIN_GRAM_TO_RESERVE);
-    assert (continuationValue >= Timelock_Costs.init()) throw (Timelock_Error.InsufficientFee);
+    val (msgValueAfterRent, _) = reserveBalanceBeforeInMessage(value, MIN_GRAM_TO_RESERVE);
+    assert (msgValueAfterRent >= Timelock_Costs.init()) throw (Timelock_Error.InsufficientFee);
 
     var rbac = self.hookTrait__AccessControl();
 

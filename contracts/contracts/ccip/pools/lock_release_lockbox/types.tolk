@@ -28,7 +28,6 @@ struct LockReleaseLockboxTokenPool_Costs{}
 fun LockReleaseLockboxTokenPool_Costs.lockOrBurnAdmission(): coins {
     val w = contract.getAddress().getWorkchain();
     return calculateGasFee(w, LockReleaseLockboxTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS)
-        + MIN_GRAM_TO_RESERVE_RUNTIME;
 }
 
 fun LockReleaseLockboxTokenPool_Costs.lockOrBurnSafety(): coins {
@@ -39,7 +38,6 @@ fun LockReleaseLockboxTokenPool_Costs.lockOrBurnSafety(): coins {
 fun LockReleaseLockboxTokenPool_Costs.releaseOrMintAdmission(): coins {
     val w = contract.getAddress().getWorkchain();
     return calculateGasFee(w, LockReleaseLockboxTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS)
-        + MIN_GRAM_TO_RESERVE_RUNTIME;
 }
 
 fun LockReleaseLockboxTokenPool_Costs.releaseOrMintSafety(): coins {

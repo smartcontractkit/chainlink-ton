@@ -97,11 +97,10 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
     st.minterAddress = msg.minterAddress;
     st.walletAddress = msg.walletAddress;
 
-    // Reserve rent, then require the remaining init value to fund the role replies and the
-    // initialization notification.
-    val (continuationValue, _) = reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
+    // Reserve the init rent target; the remaining value must fund the role replies and reply.
+    val (msgValueAfterRent, _) = reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
     assert(
-        continuationValue >= JettonLockBox_Costs.init(),
+        msgValueAfterRent >= JettonLockBox_Costs.init(),
         JettonLockBox_Error.NotEnoughValue
     );
 
@@ -192,15 +191,13 @@ fun onDepositWithTransferNotification(
         // The happy path needs the event log and reply; use the larger reply fee for both. The
         // optional failure return is not required here, so a viable success is never rejected.
         val replyFee = reply.estimateFeeWithoutSending(SEND_MODE_CARRY_ALL_BALANCE);
-        val depositCost = JettonLockBox_Costs.deposit(replyFee, false);
+        val depositCost = JettonLockBox_Costs.deposit(replyFee);
 
-        // Check funding before queuing the exact reserve. A failed check must reach the return
-        // path below; an unfunded reserve action would abort the transaction instead.
-        assert(
-            msgValue >= calculateReserveTopUpBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE_RUNTIME) + depositCost,
-            JettonLockBox_Error.NotEnoughValue
-        );
-        reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE_RUNTIME);
+        // Check storage due before queueing the exact reserve; otherwise an unfunded reserve
+        // action can abort before the custody-return path runs.
+        val (msgValueAfterRent, _) = calculateBalanceBeforeInMessage(msgValue, 0);
+        assert(msgValueAfterRent >= depositCost, JettonLockBox_Error.NotEnoughValue);
+        reserveBalanceBeforeInMessage(msgValue, 0);
 
         // The operator funds the confirmation when it sends the deposit.
         emit<JettonLockBox_Deposit>(TOPIC_DEPOSIT, deposit);
@@ -344,14 +341,9 @@ fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: Jetton
     val sendMode = SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
     val fwdFee = createMessage(transferOpts).estimateFeeWithoutSending(sendMode);
 
-    val (continuationValue, _) = reserveBalanceBeforeInMessage(
-        msgValue,
-        MIN_GRAM_TO_RESERVE_RUNTIME,
-    );
-    assert(
-        continuationValue >= JettonLockBox_Costs.withdraw(forwardTonAmount, fwdFee, false),
-        JettonLockBox_Error.NotEnoughValue
-    );
+    val (msgValueAfterRent, _) = reserveBalanceBeforeInMessage(msgValue, 0);
+    val withdrawCost = JettonLockBox_Costs.withdraw(forwardTonAmount, fwdFee);
+    assert(msgValueAfterRent >= withdrawCost, JettonLockBox_Error.NotEnoughValue);
 
     emit<JettonLockBox_Withdraw>(TOPIC_WITHDRAWAL, msg);
 

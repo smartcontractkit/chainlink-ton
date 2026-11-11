@@ -266,14 +266,14 @@ fun TokenPool<T>.budget(self): TokenPool_Budget {
         lockOrBurn: {
             admission: max(
                 effective.lockOrBurn.admission,
-                effective.lockOrBurn.safety * LB_CUSTODY_MOVES_BEFORE_WITHDRAW + MIN_GRAM_TO_RESERVE_RUNTIME,
+                effective.lockOrBurn.safety * LB_CUSTODY_MOVES_BEFORE_WITHDRAW,
             ),
             safety: effective.lockOrBurn.safety,
         },
         releaseOrMint: {
             admission: max(
                 effective.releaseOrMint.admission,
-                effective.releaseOrMint.safety * RM_CUSTODY_MOVES_BEFORE_RELEASE_MINT + MIN_GRAM_TO_RESERVE_RUNTIME,
+                effective.releaseOrMint.safety * RM_CUSTODY_MOVES_BEFORE_RELEASE_MINT,
             ),
             safety: effective.releaseOrMint.safety,
         },
@@ -1583,7 +1583,7 @@ fun TokenPool<T>.onLockOrBurn(
 ): void {
     // The inbound value must cover admission plus the caller-provided finalization.
     // @dev `budget()` clamps `A >= 3S`, so this is also the pre-withdraw `3S + F` gate.
-    // Admission includes the runtime rent buffer; only the flow budget must remain after it.
+    // Reserve rent; the remaining inbound value must still cover the flow budget.
     val admissionMinValue = self.budget().lockOrBurn.admission + msg.finalizationValue;
     assert (msgValue >= admissionMinValue) throw (TokenPool_Error.InsufficientMessageValue);
 
@@ -1601,9 +1601,8 @@ fun TokenPool<T>.onLockOrBurn(
 
     // The validation step emits events (RL) so we reserve the inbound value and the rent
     // target; any continuation should finally carry all (remaining) balance.
-    val (continuationValue, _) = reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE_RUNTIME);
-    val flowMinValue = admissionMinValue - MIN_GRAM_TO_RESERVE_RUNTIME;
-    assert (continuationValue >= flowMinValue) throw (TokenPool_Error.InsufficientMessageValue);
+    val (msgValueAfterRent, _) = reserveBalanceBeforeInMessage(msgValue, 0);
+    assert (msgValueAfterRent >= admissionMinValue) throw (TokenPool_Error.InsufficientMessageValue);
 
     // Validate and call preflightCheck with full message.
     val (wait, prepared) = self.validateLockOrBurn(sender, msg);
@@ -1982,7 +1981,7 @@ fun TokenPool<T>.onReleaseOrMint(
 ): void {
     // The message value is checked for admission plus the caller's finalization.
     // @dev `budget()` clamps `A >= 2S`, so this is also the pre-withdraw `2S + F` gate.
-    // Admission includes the runtime rent buffer; only the flow budget must remain after it.
+    // Reserve rent; the remaining inbound value must still cover the flow budget.
     val admissionMinValue = self.budget().releaseOrMint.admission + msg.finalizationValue();
     assert (msgValue >= admissionMinValue) throw (TokenPool_Error.InsufficientMessageValue);
 
@@ -1998,9 +1997,8 @@ fun TokenPool<T>.onReleaseOrMint(
 
     // The validation step emits events (RL) so we reserve the inbound value and the rent
     // target; any continuation should finally carry all (remaining) balance.
-    val (continuationValue, _) = reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE_RUNTIME);
-    val flowMinValue = admissionMinValue - MIN_GRAM_TO_RESERVE_RUNTIME;
-    assert (continuationValue >= flowMinValue) throw (TokenPool_Error.InsufficientMessageValue);
+    val (msgValueAfterRent, _) = reserveBalanceBeforeInMessage(msgValue, 0);
+    assert (msgValueAfterRent >= admissionMinValue) throw (TokenPool_Error.InsufficientMessageValue);
 
     // Validate and call postflightCheck with full message.
     val (wait, prepared) = self.validateReleaseOrMint(sender, msg);
@@ -2010,7 +2008,7 @@ fun TokenPool<T>.onReleaseOrMint(
     }
 
     val initiator = sender;
-    self.onReleaseOrMintContinue(sender, initiator, continuationValue, msg, prepared);
+    self.onReleaseOrMintContinue(sender, initiator, msgValueAfterRent, msg, prepared);
 }
 
 fun TokenPool<T>.onReleaseOrMintContinue(

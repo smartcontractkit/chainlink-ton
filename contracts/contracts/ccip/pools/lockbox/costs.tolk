@@ -23,24 +23,16 @@ fun JettonLockBox_Costs.init(): coins {
     return grams("0.05");
 }
 
-/// Deposit value: handler gas plus both outbound fees, including the runtime rent reserve.
-/// Pass `false` for the post-reserve check.
-fun JettonLockBox_Costs.deposit(fwdFee: coins, includeRent: bool = true): coins {
+/// Deposit value: handler gas plus both outbound fees.
+fun JettonLockBox_Costs.deposit(fwdFee: coins): coins {
     val w = contract.getAddress().getWorkchain();
-    val cost = calculateGasFee(w, JettonLockBox_DEPOSIT_GAS_UNITS)
+    return calculateGasFee(w, JettonLockBox_DEPOSIT_GAS_UNITS)
         + JettonLockBox_DEPOSIT_FWD_COUNT * fwdFee;
-    return includeRent ? cost + MIN_GRAM_TO_RESERVE_RUNTIME : cost;
 }
 
-/// Withdraw value: the generic wallet transfer plus the lockbox's own work, including the runtime
-/// rent reserve. Pass `false` for the post-reserve check.
-fun JettonLockBox_Costs.withdraw(
-    forwardTonAmount: coins,
-    fwdFee: coins,
-    includeRent: bool = true,
-): coins {
+/// Withdraw value: the generic wallet transfer plus the lockbox's own work.
+fun JettonLockBox_Costs.withdraw(forwardTonAmount: coins, fwdFee: coins): coins {
     val w = contract.getAddress().getWorkchain();
-    val cost = JettonFees.Generic.transferValue(forwardTonAmount, fwdFee)
+    return JettonFees.Generic.transferValue(forwardTonAmount, fwdFee)
         + calculateGasFee(w, JettonLockBox_WITHDRAW_GAS_UNITS);
-    return includeRent ? cost + MIN_GRAM_TO_RESERVE_RUNTIME : cost;
 }

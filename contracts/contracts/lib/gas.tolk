@@ -42,17 +42,14 @@ fun calculateGasFeeFor(size: int): coins {
 }
 
 /// Minimum GRAM balance a long-lived contract should retain for storage rent.
+/// This target is owner-funded; custody flows do not charge a rent top-up.
 const MIN_GRAM_TO_RESERVE: coins = grams("0.05");
-
-/// Minimum GRAM balance a long-lived contract should retain for storage rent,
-/// specifically for runtime operations and per-message custody flows (charged to users).
-const MIN_GRAM_TO_RESERVE_RUNTIME: coins = grams("0.01");
 
 /// Default hard rent-reserve mode: fail the transaction if the target cannot be left.
 const RESERVE_MODE_RENT = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
 
-/// Computes the reserve target and the part that must come from the inbound value.
-fun calculateReserveBeforeInMessage(
+/// Computes the value left after the rent reserve and the reserve target without queueing an action.
+fun calculateBalanceBeforeInMessage(
     msgValue: coins,
     minBalance: coins = 0,
 ): (coins, coins) {
@@ -62,21 +59,19 @@ fun calculateReserveBeforeInMessage(
         ? originalBalance - msgValue
         : 0 as coins;
     val reserve = max(balanceBeforeMessage, minBalance) + rentDue;
-    val topUp = reserve > balanceBeforeMessage ? reserve - balanceBeforeMessage : 0;
 
-    return (reserve, topUp);
-}
+    val topUp = reserve > balanceBeforeMessage
+        ? reserve - balanceBeforeMessage
+        : 0;
+    val msgValueAfterRent = msgValue > topUp
+        ? msgValue - topUp
+        : 0 as coins;
 
-/// Gas needed from the inbound value to install the rent reserve without queueing an action that
-/// cannot be funded. Callers that must recover after a failed value check use this before reserving.
-fun calculateReserveTopUpBeforeInMessage(msgValue: coins, minBalance: coins = 0): coins {
-    val (_, topUp) = calculateReserveBeforeInMessage(msgValue, minBalance);
-
-    return topUp;
+    return (msgValueAfterRent, reserve);
 }
 
 /// Reserves `max(preMessageBalance, minBalance) + storageDue` and returns
-/// `(continuationValue, reserve)`.
+/// `(msgValueAfterRent, reserve)`.
 ///
 /// `EXACT` leaves the transaction to fail if the reserve cannot be installed. `AT_MOST` caps the
 /// reserve at the available balance, so it never fails; the continuation value may be zero.
@@ -89,14 +84,9 @@ fun reserveBalanceBeforeInMessage(
     minBalance: coins = 0,
     reserveMode: int = RESERVE_MODE_RENT,
 ): (coins, coins) {
-    val (reserve, topUp) = calculateReserveBeforeInMessage(msgValue, minBalance);
+    val (msgValueAfterRent, reserve)
+        = calculateBalanceBeforeInMessage(msgValue, minBalance);
     reserveGramsOnBalance(reserve, reserveMode);
 
-    // Calculate the continuation value after reserving the required balance.
-    var continuationValue: coins = 0;
-    if (msgValue > topUp) {
-        continuationValue = msgValue - topUp;
-    }
-
-    return (continuationValue, reserve);
+    return (msgValueAfterRent, reserve);
 }

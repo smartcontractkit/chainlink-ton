@@ -11,7 +11,6 @@ import { TokenPoolBehaviorContext, deliveryTo, releaseRequest } from './TokenPoo
 import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 
 const MIN_RENT = toNano('0.05')
-const MIN_RUNTIME_RENT = toNano('0.01')
 const INSUFFICIENT_MESSAGE_VALUE = TokenPool.Errors['TokenPool_Error.InsufficientMessageValue']
 
 function lockOrBurnRequest(ctx: TokenPoolBehaviorContext): TokenPool_LockOrBurnInV1 {
@@ -89,123 +88,7 @@ export function runTokenPoolMinValueBehaviorTests(
       expect((await ctx.blockchain.getContract(ctx.pool.address)).balance).toEqual(toNano('0.01'))
     })
 
-    it('restores the runtime rent target on lock/burn at admission', async () => {
-      const ctx = await setup()
-      await setPoolBalance(ctx, toNano('0.005'))
-
-      const finalizationValue = toNano('0.01')
-      const admission = (await ctx.pool.getBudget()).lockOrBurn.admission
-      const result = await ctx.pool.sendTokenPoolLockOrBurn(
-        ctx.deployer.getSender(),
-        admission + finalizationValue,
-        {
-          queryId: 973n,
-          request: lockOrBurnRequest(ctx),
-          requestedFinalityConfig: 0n,
-          tokenArgs: null,
-          replyTo: ctx.deployer.address,
-          finalizationValue,
-          onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
-        },
-      )
-
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.deployer.address,
-        to: ctx.pool.address,
-        success: true,
-      })
-      expect((await ctx.blockchain.getContract(ctx.pool.address)).balance).toBeGreaterThanOrEqual(
-        MIN_RUNTIME_RENT,
-      )
-    })
-
-    it('restores the runtime rent target on release at admission', async () => {
-      const ctx = await setup()
-      await setPoolBalance(ctx, toNano('0.005'))
-
-      const delivery = deliveryTo(ctx.recipient.address, ctx.deployer.address)
-      const admission = (await ctx.pool.getBudget()).releaseOrMint.admission
-      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
-        ctx.deployer.getSender(),
-        admission + delivery.forwardTonAmount,
-        {
-          queryId: 974n,
-          request: releaseRequest(ctx),
-          requestedFinalityConfig: 0n,
-          replyTo: ctx.deployer.address,
-          delivery,
-        },
-      )
-
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.deployer.address,
-        to: ctx.pool.address,
-        success: true,
-      })
-      expect((await ctx.blockchain.getContract(ctx.pool.address)).balance).toBeGreaterThanOrEqual(
-        MIN_RUNTIME_RENT,
-      )
-    })
-
-    it('covers storage due at the runtime rent boundary on lock/burn', async () => {
-      const ctx = await setup()
-      await setPoolBalance(ctx, MIN_RUNTIME_RENT, MIN_RUNTIME_RENT)
-
-      const finalizationValue = toNano('0.01')
-      const admission = (await ctx.pool.getBudget()).lockOrBurn.admission
-      const result = await ctx.pool.sendTokenPoolLockOrBurn(
-        ctx.deployer.getSender(),
-        admission + finalizationValue,
-        {
-          queryId: 975n,
-          request: lockOrBurnRequest(ctx),
-          requestedFinalityConfig: 0n,
-          tokenArgs: null,
-          replyTo: ctx.deployer.address,
-          finalizationValue,
-          onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
-        },
-      )
-
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.deployer.address,
-        to: ctx.pool.address,
-        success: true,
-      })
-      expect((await ctx.blockchain.getContract(ctx.pool.address)).balance).toBeGreaterThanOrEqual(
-        MIN_RUNTIME_RENT,
-      )
-    })
-
-    it('covers storage due at the runtime rent boundary on release', async () => {
-      const ctx = await setup()
-      await setPoolBalance(ctx, MIN_RUNTIME_RENT, MIN_RUNTIME_RENT)
-
-      const delivery = deliveryTo(ctx.recipient.address, ctx.deployer.address)
-      const admission = (await ctx.pool.getBudget()).releaseOrMint.admission
-      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
-        ctx.deployer.getSender(),
-        admission + delivery.forwardTonAmount,
-        {
-          queryId: 976n,
-          request: releaseRequest(ctx),
-          requestedFinalityConfig: 0n,
-          replyTo: ctx.deployer.address,
-          delivery,
-        },
-      )
-
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.deployer.address,
-        to: ctx.pool.address,
-        success: true,
-      })
-      expect((await ctx.blockchain.getContract(ctx.pool.address)).balance).toBeGreaterThanOrEqual(
-        MIN_RUNTIME_RENT,
-      )
-    })
-
-    it('rejects lock/burn when storage due exceeds the runtime rent buffer', async () => {
+    it('rejects lock/burn when storage due cannot be covered at admission', async () => {
       const ctx = await setup()
       const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
       const poolAccount = await ctx.blockchain.getContract(ctx.pool.address)
@@ -240,7 +123,7 @@ export function runTokenPoolMinValueBehaviorTests(
       expect(after.outbound.tokens).toEqual(before.outbound.tokens)
     })
 
-    it('rejects release when storage due exceeds the runtime rent buffer', async () => {
+    it('rejects release when storage due cannot be covered at admission', async () => {
       const ctx = await setup()
       const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
       const poolAccount = await ctx.blockchain.getContract(ctx.pool.address)

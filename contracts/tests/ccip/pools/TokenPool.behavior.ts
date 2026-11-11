@@ -156,7 +156,6 @@ export function runTokenPoolBehaviorTests(
 
   describe(`${name} TokenPool behavior`, () => {
     describe('flow admission', () => {
-      const runtimeRent = toNano('0.01')
       const lockOrBurnFinalization = toNano('0.01')
       const policies = [
         { name: 'default', budget: { safety: 0n, admission: 0n } },
@@ -184,16 +183,14 @@ export function runTokenPoolBehaviorTests(
             deliveryTo(ctx.recipient.address, ctx.deployer.address).forwardTonAmount
         })
 
-        it('reports at least the configured values, with admission covering custody and rent', async () => {
+        it('reports at least the configured values, with admission covering custody', async () => {
           const { lockOrBurn, releaseOrMint } = await ctx.pool.getBudget()
           expect(lockOrBurn.safety).toBeGreaterThanOrEqual(budget.safety)
           expect(lockOrBurn.admission).toBeGreaterThanOrEqual(budget.admission)
-          expect(lockOrBurn.admission).toBeGreaterThanOrEqual(lockOrBurn.safety * 3n + runtimeRent)
+          expect(lockOrBurn.admission).toBeGreaterThanOrEqual(lockOrBurn.safety * 3n)
           expect(releaseOrMint.safety).toBeGreaterThanOrEqual(budget.safety)
           expect(releaseOrMint.admission).toBeGreaterThanOrEqual(budget.admission)
-          expect(releaseOrMint.admission).toBeGreaterThanOrEqual(
-            releaseOrMint.safety * 2n + runtimeRent,
-          )
+          expect(releaseOrMint.admission).toBeGreaterThanOrEqual(releaseOrMint.safety * 2n)
         })
 
         describe('LockOrBurn', () => {
@@ -1479,11 +1476,11 @@ export function runTokenPoolBehaviorTests(
         const effective = await ctx.pool.getBudget()
         // Admission covers the withdraw relay and both custody phases.
         expect(effective.lockOrBurn).toMatchObject({
-          admission: toNano('3.01'),
+          admission: toNano('3'),
           safety: toNano('1'),
         })
         expect(effective.releaseOrMint).toMatchObject({
-          admission: toNano('2.01'),
+          admission: toNano('2'),
           safety: toNano('1'),
         })
         expect(result.transactions).toHaveTransaction({

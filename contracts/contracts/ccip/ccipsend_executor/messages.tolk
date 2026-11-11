@@ -68,9 +68,9 @@ fun SendExecutor_Costs.TokenTransfer(): int {
         + TokenAdminRegistry_GetTokenInfo.cost()
         + grams("0.003") // TokenAdminRegistry_TokenInfo computeFee + ExecutorRequestsLockOrBurn fwdFee
 
-        // Pool-type default LockOrBurn admission (1_575_000 gas at mainnet price plus the 0.01 GRAM
-        // runtime rent reserve). The registry reports the real value per pool; this bounds the Router's
-        // entry check, and the executor re-checks against the reported admission once it has it.
+        // Pool-type default LockOrBurn admission (1_575_000 gas at mainnet price). The registry
+        // reports the real value per pool; this bounds the Router's entry check, and the executor
+        // re-checks against the reported admission once it has it.
         + OnRamp_Costs.ExecutorRequestsLockOrBurn(
             LockReleaseLockboxTokenPool_Costs.lockOrBurnAdmission()
         )
