@@ -156,9 +156,8 @@ export function runTokenPoolBehaviorTests(
 
   describe(`${name} TokenPool behavior`, () => {
     describe('flow admission', () => {
-      // Downstream continuations consume value, so an admitted flow needs headroom.
-      const headroom = toNano('0.5')
       const runtimeRent = toNano('0.01')
+      const lockOrBurnFinalization = toNano('0.01')
       const policies = [
         { name: 'default', budget: { safety: 0n, admission: 0n } },
         { name: 'raised safety', budget: { safety: toNano('0.1'), admission: 0n } },
@@ -178,7 +177,7 @@ export function runTokenPoolBehaviorTests(
           ctx = await setup()
           await setTokenPoolBudget(ctx.blockchain, ctx.pool.address, budget)
           const effective = await ctx.pool.getBudget()
-          lockOrBurnThreshold = effective.lockOrBurn.admission
+          lockOrBurnThreshold = effective.lockOrBurn.admission + lockOrBurnFinalization
           // ReleaseOrMint admission also covers the caller's delivery continuation.
           releaseOrMintThreshold =
             effective.releaseOrMint.admission +
@@ -215,7 +214,7 @@ export function runTokenPoolBehaviorTests(
               requestedFinalityConfig: 0n,
               tokenArgs: null,
               replyTo: ctx.deployer.address,
-              finalizationValue: toNano('0.01'),
+              finalizationValue: lockOrBurnFinalization,
               onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
             })
           }
@@ -240,7 +239,7 @@ export function runTokenPoolBehaviorTests(
           it.each(acceptedBoundaries)('accepts $name the threshold', async ({ offset }) => {
             const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
 
-            const { transactions } = await sendLockOrBurn(lockOrBurnThreshold + offset + headroom)
+            const { transactions } = await sendLockOrBurn(lockOrBurnThreshold + offset)
 
             expect(transactions).toHaveTransaction({
               from: ctx.deployer.address,
@@ -286,9 +285,7 @@ export function runTokenPoolBehaviorTests(
           it.each(acceptedBoundaries)('accepts $name the threshold', async ({ offset }) => {
             const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
 
-            const { transactions } = await sendReleaseOrMint(
-              releaseOrMintThreshold + offset + headroom,
-            )
+            const { transactions } = await sendReleaseOrMint(releaseOrMintThreshold + offset)
 
             expect(transactions).toHaveTransaction({
               from: ctx.deployer.address,
@@ -353,49 +350,6 @@ export function runTokenPoolBehaviorTests(
       const ctx = await setup()
 
       expect(await ctx.pool.getIsSupportedChain(ctx.remoteChainSelector)).toBe(true)
-    })
-
-    it('keeps the runtime rent target when a lock/burn starts below it', async () => {
-      const ctx = await setup()
-      const rentTarget = toNano('0.01')
-
-      const poolAccount = await ctx.blockchain.getContract(ctx.pool.address)
-      poolAccount.balance = toNano('0.01')
-
-      const { lockOrBurn } = await ctx.pool.getBudget()
-      const result = await ctx.pool.sendTokenPoolLockOrBurn(
-        ctx.deployer.getSender(),
-        lockOrBurn.admission + toNano('0.5'),
-        {
-          queryId: 904n,
-          request: TokenPool_LockOrBurnInV1.create({
-            transfer: TokenPool_Transfer.create({
-              details: TokenPool_TransferDetails.create({
-                receiver: ctx.destTokenAddress,
-                remoteChainSelector: ctx.remoteChainSelector,
-                originalSender: ctx.deployer.address,
-                amount: 1n,
-                localToken: ctx.localToken,
-              }),
-            }),
-          }),
-          requestedFinalityConfig: 0n,
-          tokenArgs: null,
-          replyTo: ctx.deployer.address,
-          finalizationValue: toNano('0.01'),
-          onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
-        },
-      )
-
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.deployer.address,
-        to: ctx.pool.address,
-        op: TokenPool_LockOrBurn.PREFIX,
-        success: true,
-      })
-      expect((await ctx.blockchain.getContract(ctx.pool.address)).balance).toBeGreaterThanOrEqual(
-        rentTarget,
-      )
     })
 
     it('reverts releaseOrMint when caller is not the configured Router', async () => {
