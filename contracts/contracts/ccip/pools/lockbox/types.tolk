@@ -15,9 +15,6 @@ const OPERATOR_ROLE = "OPERATOR_ROLE".crc32();
 const TOPIC_DEPOSIT = "JettonLockBox_Deposit".crc32();
 const TOPIC_WITHDRAWAL = "JettonLockBox_Withdrawal".crc32();
 
-/// Minimum value the init message must carry on top of the rent reserve
-const MIN_GRAM_TO_INIT: coins = grams("0.05");
-
 /// Error codes for JettonLockBox. FACILITY_ID = 567, so codes start at 56700.
 enum JettonLockBox_Error {
     /// Thrown when a deposit or withdraw amount is zero.

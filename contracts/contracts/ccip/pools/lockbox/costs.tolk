@@ -17,6 +17,12 @@ const JettonLockBox_WITHDRAW_GAS_UNITS = BUDGET_UNITS_LVL0_MIN;
 
 struct JettonLockBox_Costs{}
 
+/// Execution budget above the rent reserve for initialization: role replies/notifications and
+/// the init reply. This is spent on init messages, not retained as reserve.
+fun JettonLockBox_Costs.init(): coins {
+    return grams("0.05");
+}
+
 /// Deposit value: handler gas plus both outbound fees, including the runtime rent reserve.
 /// Pass `false` for the post-reserve check.
 fun JettonLockBox_Costs.deposit(fwdFee: coins, includeRent: bool = true): coins {

@@ -1125,8 +1125,8 @@ describe('JettonLockBox', () => {
       )
       const poorWalletAddress = await jettonMinter.getWalletAddress(poorLockbox.address)
 
-      // Deploy with a small balance and init with a value below MIN_GRAM_TO_RESERVE + MIN_GRAM_TO_INIT
-      // (0.05 + 0.05 = 0.1 TON), so the combined original balance is under the minimum.
+      // Deploy with a small balance and init with a value below the rent reserve plus the init
+      // execution budget (0.05 + 0.05 = 0.1 TON), so the combined original balance is below it.
       await poorLockbox.sendDeploy(deployer.getSender(), toNano('0.05'))
       const result = await poorLockbox.sendJettonLockBoxInit(deployer.getSender(), toNano('0.04'), {
         queryId: 700n,

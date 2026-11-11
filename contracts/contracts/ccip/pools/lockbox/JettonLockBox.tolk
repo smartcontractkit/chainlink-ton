@@ -97,10 +97,10 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
     st.minterAddress = msg.minterAddress;
     st.walletAddress = msg.walletAddress;
 
-    // Require enough value to cover the rent reserve plus the init cost.
+    // Require enough value to cover the rent reserve plus the init execution budget.
     val (_, rentReserve) = reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
     assert(
-        contract.getOriginalBalance() >= rentReserve + MIN_GRAM_TO_INIT,
+        contract.getOriginalBalance() >= rentReserve + JettonLockBox_Costs.init(),
         JettonLockBox_Error.NotEnoughValue
     );
 
