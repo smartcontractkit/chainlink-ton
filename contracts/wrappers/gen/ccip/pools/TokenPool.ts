@@ -2686,6 +2686,133 @@ export const TokenPool_PostflightCheckFailed = {
 }
 
 /**
+ > struct (0x4129d109) TokenPool_PreflightCheck {
+ >     queryId: uint64
+ >     request: Cell<TokenPool_LockOrBurnInV1>
+ >     requestedFinalityConfig: uint32
+ >     tokenArgs: cell?
+ >     amountPostFee: coins
+ >     forwardPayload: cell?
+ > }
+ */
+export interface TokenPool_PreflightCheck {
+    readonly $: 'TokenPool_PreflightCheck'
+    queryId: uint64
+    request: TokenPool_LockOrBurnInV1
+    requestedFinalityConfig: uint32
+    tokenArgs: c.Cell | null
+    amountPostFee: coins
+    forwardPayload: c.Cell | null
+}
+
+export const TokenPool_PreflightCheck = {
+    PREFIX: 0x4129d109,
+
+    create(args: {
+        queryId?: uint64
+        request: TokenPool_LockOrBurnInV1
+        requestedFinalityConfig: uint32
+        tokenArgs: c.Cell | null
+        amountPostFee: coins
+        forwardPayload: c.Cell | null
+    }): TokenPool_PreflightCheck {
+        return {
+            $: 'TokenPool_PreflightCheck',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_PreflightCheck {
+        loadAndCheckPrefix32(s, 0x4129d109, 'TokenPool_PreflightCheck');
+        return {
+            $: 'TokenPool_PreflightCheck',
+            queryId: s.loadUintBig(64),
+            request: loadCellRef<TokenPool_LockOrBurnInV1>(s, TokenPool_LockOrBurnInV1.fromSlice),
+            requestedFinalityConfig: s.loadUintBig(32),
+            tokenArgs: s.loadBoolean() ? s.loadRef() : null,
+            amountPostFee: s.loadCoins(),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_PreflightCheck, b: c.Builder): void {
+        b.storeUint(0x4129d109, 32);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<TokenPool_LockOrBurnInV1>(self.request, b, TokenPool_LockOrBurnInV1.store);
+        b.storeUint(self.requestedFinalityConfig, 32);
+        storeTolkNullable<c.Cell>(self.tokenArgs, b,
+            (v,b) => b.storeRef(v)
+        );
+        b.storeCoins(self.amountPostFee);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_PreflightCheck): c.Cell {
+        return makeCellFrom<TokenPool_PreflightCheck>(self, TokenPool_PreflightCheck.store);
+    }
+}
+
+/**
+ > struct (0x703c2b58) TokenPool_PostflightCheck {
+ >     queryId: uint64
+ >     request: Cell<TokenPool_ReleaseOrMintInV1>
+ >     localAmount: coins
+ >     requestedFinalityConfig: uint32
+ >     forwardPayload: cell?
+ > }
+ */
+export interface TokenPool_PostflightCheck {
+    readonly $: 'TokenPool_PostflightCheck'
+    queryId: uint64
+    request: TokenPool_ReleaseOrMintInV1
+    localAmount: coins
+    requestedFinalityConfig: uint32
+    forwardPayload: c.Cell | null
+}
+
+export const TokenPool_PostflightCheck = {
+    PREFIX: 0x703c2b58,
+
+    create(args: {
+        queryId?: uint64
+        request: TokenPool_ReleaseOrMintInV1
+        localAmount: coins
+        requestedFinalityConfig: uint32
+        forwardPayload: c.Cell | null
+    }): TokenPool_PostflightCheck {
+        return {
+            $: 'TokenPool_PostflightCheck',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_PostflightCheck {
+        loadAndCheckPrefix32(s, 0x703c2b58, 'TokenPool_PostflightCheck');
+        return {
+            $: 'TokenPool_PostflightCheck',
+            queryId: s.loadUintBig(64),
+            request: loadCellRef<TokenPool_ReleaseOrMintInV1>(s, TokenPool_ReleaseOrMintInV1.fromSlice),
+            localAmount: s.loadCoins(),
+            requestedFinalityConfig: s.loadUintBig(32),
+            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
+        }
+    },
+    store(self: TokenPool_PostflightCheck, b: c.Builder): void {
+        b.storeUint(0x703c2b58, 32);
+        b.storeUint(self.queryId, 64);
+        storeCellRef<TokenPool_ReleaseOrMintInV1>(self.request, b, TokenPool_ReleaseOrMintInV1.store);
+        b.storeCoins(self.localAmount);
+        b.storeUint(self.requestedFinalityConfig, 32);
+        storeTolkNullable<c.Cell>(self.forwardPayload, b,
+            (v,b) => b.storeRef(v)
+        );
+    },
+    toCell(self: TokenPool_PostflightCheck): c.Cell {
+        return makeCellFrom<TokenPool_PostflightCheck>(self, TokenPool_PostflightCheck.store);
+    }
+}
+
+/**
  > struct TokenPool_FeeContext {
  >     feeConfig: TokenPool_TokenTransferFeeConfig
  >     amountPostFee: coins

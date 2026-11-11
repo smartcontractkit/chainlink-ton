@@ -10,6 +10,7 @@ import {
   TokenPool_LockOrBurnPrepared,
   TokenPool_LockOrBurnTransfer,
   TokenPool_LockOrBurnWithdraw,
+  TokenPool_PreflightCheck,
   TokenPool_PreflightCheckFinished,
   TokenPool_PostflightCheckFinished,
   TokenPool_ReleaseOrMint,
@@ -179,21 +180,14 @@ export function runTokenPoolAsyncHookBehaviorTests(
           (message: any) =>
             message.info.type === 'internal' &&
             message.info.dest?.equals(hook.address) &&
-            message.body.beginParse().preloadUint(32) === 0x4129d109, // TokenPool_PreflightCheck
+            message.body.beginParse().preloadUint(32) === TokenPool_PreflightCheck.PREFIX,
         )
       expect(preflightMessage).toBeDefined()
 
-      const preflightSlice = preflightMessage!.body.beginParse()
-      preflightSlice.skip(32)
-      const queryId = preflightSlice.loadUintBig(64)
-      preflightSlice.loadRef() // request
-      preflightSlice.loadUint(32) // requestedFinalityConfig
-      preflightSlice.loadMaybeRef() // tokenArgs
-      preflightSlice.loadCoins() // amountPostFee
-      const forwardPayloadCell = preflightSlice.loadMaybeRef()
-      expect(forwardPayloadCell).not.toBeNull()
+      const preflight = TokenPool_PreflightCheck.fromSlice(preflightMessage!.body.beginParse())
+      expect(preflight.forwardPayload).not.toBeNull()
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.fromSlice(
-        forwardPayloadCell!.beginParse(),
+        preflight.forwardPayload!.beginParse(),
       )
 
       const safety = (await ctx.pool.getBudget()).lockOrBurn.safety
@@ -204,7 +198,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
           to: ctx.pool.address,
           value: callbackValue,
           body: TokenPool_PreflightCheckFinished.toCell(
-            TokenPool_PreflightCheckFinished.create({ queryId, forwardPayload }),
+            TokenPool_PreflightCheckFinished.create({ queryId: preflight.queryId, forwardPayload }),
           ),
         }),
       )

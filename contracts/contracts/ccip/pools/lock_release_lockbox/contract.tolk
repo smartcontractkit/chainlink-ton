@@ -202,7 +202,6 @@ fun createLockboxTransfer(
         forwardPayload: fwdPayload.toCell(),
         transferInitiator,
     };
-    val contextCell = context.toCell();
 
     // Budget amount to return to the pool to cover failure finalization costs.
     val failureValue =
@@ -213,7 +212,7 @@ fun createLockboxTransfer(
         token: jc.masterAddress,
         remoteChainSelector: requestDetails.remoteChainSelector,
         amount: prepared.destTokenAmount,
-        context: contextCell,
+        context: context.toCell(),
         extra: JettonLockBox_DepositExtra { returnTo, failureValue, sendExcessesTo }.toCell(),
     };
 
@@ -222,7 +221,7 @@ fun createLockboxTransfer(
         jettonAmount: prepared.destTokenAmount,
         transferRecipient: st.lockbox,
         sendExcessesTo, // Return any excess
-        customPayload: contextCell,
+        customPayload: null, // not supported atm
         forwardTonAmount,
         forwardPayload: beginCell()
             .storeMaybeRef(depositMsg.toCell())
@@ -319,7 +318,7 @@ fun onReleaseOrMintContinue(
     ctx: Storage?,
     sender: address,
     initiator: address,
-    msgValue: coins,
+    _msgValue: coins,
     msg: TokenPool_ReleaseOrMint,
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {

@@ -425,6 +425,8 @@ struct (0xf63f3401) TokenPool_AdvancedPoolHooksSetNotification {
 
 type TokenPool_OutMessage = 
     | TokenPool_LockOrBurnWithdraw
+    | TokenPool_PreflightCheck
+    | TokenPool_PostflightCheck
     | TokenPool_LockOrBurnFinished
     | TokenPool_LockOrBurnFailure
     | TokenPool_ReleaseOrMintFinalized

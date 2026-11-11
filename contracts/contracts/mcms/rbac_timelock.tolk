@@ -738,16 +738,10 @@ fun Timelock<T>.init(
     executorRoleCheckEnabled: bool = true,
     opFinalizationTimeout: uint32 = DEFAULT_FINALIZATION_TIMEOUT,
 ): void {
-    // @dev: anyone can call init, but only once. The deployer should send init message with stateInit (deployment).
-    // Check that the contract is not already initialized
     assert(!self.isInitialized()) throw (Timelock_Error.ContractAlreadyInitialized);
 
-    assert (value >= Timelock_Costs.init()) throw (Timelock_Error.InsufficientFee);
-
-    // Keep the rent target even if the reply costs drift from `Timelock_Costs.init()`.
-    // Role notifications are funded from the value above the reserve, so the continuation
-    // must still cover the init cost.
-    val (continuationValue, _) = reserveBalanceBeforeInMessage(value, MIN_GRAM_TO_RESERVE);
+    val (continuationValue, _)
+        = reserveBalanceBeforeInMessage(value, MIN_GRAM_TO_RESERVE);
     assert (continuationValue >= Timelock_Costs.init()) throw (Timelock_Error.InsufficientFee);
 
     var rbac = self.hookTrait__AccessControl();

@@ -278,8 +278,6 @@ fun onDepositReturn(
     // custody return is best-effort; otherwise the return bounces on action failure.
     val failureCost = failureValue + failure.estimateFeeWithoutSending(SEND_MODE_PAY_FEES_SEPARATELY);
     if (failureValue > 0 && msgValue > failureCost) {
-        // `CARRY_ALL_BALANCE` would otherwise sweep the pre-message lockbox balance. Preserve it
-        // so only the failed deposit's value funds the return.
         reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
         failure.send(SEND_MODE_PAY_FEES_SEPARATELY);
         transfer.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
