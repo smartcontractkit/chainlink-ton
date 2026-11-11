@@ -262,8 +262,10 @@ describe('JettonLockBox', () => {
     })
 
     it('returns instead of confirming a deposit below the minimum value', async () => {
-      // 0.004 TON is below the on-chain deposit minimum (handler gas + reply fee), so the
-      // valid deposit must take the failure path instead of emitting JettonLockBox_Deposited.
+      // 0.004 TON is below the deposit budget plus the rent top-up from a 0.005 TON balance,
+      // so the valid deposit must take the failure path instead of queuing an unfunded reserve.
+      const lockboxAccount = await blockchain.getContract(lockbox.address)
+      lockboxAccount.balance = toNano('0.005')
       const payload = JettonLockBox_Deposit.toCell(
         JettonLockBox_Deposit.create({
           queryId: 225n,

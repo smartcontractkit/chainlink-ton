@@ -192,17 +192,15 @@ fun onDepositWithTransferNotification(
         // The happy path needs the event log and reply; use the larger reply fee for both. The
         // optional failure return is not required here, so a viable success is never rejected.
         val replyFee = reply.estimateFeeWithoutSending(SEND_MODE_CARRY_ALL_BALANCE);
+        val depositCost = JettonLockBox_Costs.deposit(replyFee, false);
 
-        // Custody has arrived; reserve the runtime rent target before the first emit/reply. The
-        // post-reserve continuation must still cover the deposit cost without the rent reserve.
-        val (continuationValue, _) = reserveBalanceBeforeInMessage(
-            msgValue,
-            MIN_GRAM_TO_RESERVE_RUNTIME,
-        );
+        // Check funding before queuing the exact reserve. A failed check must reach the return
+        // path below; an unfunded reserve action would abort the transaction instead.
         assert(
-            continuationValue >= JettonLockBox_Costs.deposit(replyFee, false),
+            msgValue >= calculateReserveTopUp(msgValue, MIN_GRAM_TO_RESERVE_RUNTIME) + depositCost,
             JettonLockBox_Error.NotEnoughValue
         );
+        reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE_RUNTIME);
 
         // The operator funds the confirmation when it sends the deposit.
         emit<JettonLockBox_Deposit>(TOPIC_DEPOSIT, deposit);

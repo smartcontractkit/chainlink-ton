@@ -51,6 +51,18 @@ const MIN_GRAM_TO_RESERVE_RUNTIME: coins = grams("0.01");
 /// Default hard rent-reserve mode: fail the transaction if the target cannot be left.
 const RESERVE_MODE_RENT = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
 
+/// Gas needed from the inbound value to install the rent reserve without queueing an action that
+/// cannot be funded. Callers that must recover after a failed value check use this before reserving.
+fun calculateReserveTopUp(msgValue: coins, minBalance: coins = 0): coins {
+    val rentDue = contract.getStorageDuePayment();
+    val originalBalance = contract.getOriginalBalance();
+    val balanceBeforeMessage = originalBalance > msgValue
+        ? originalBalance - msgValue
+        : 0 as coins;
+    val reserve = max(balanceBeforeMessage, minBalance) + rentDue;
+    return reserve > balanceBeforeMessage ? reserve - balanceBeforeMessage : 0;
+}
+
 /// Reserves `max(preMessageBalance, minBalance) + storageDue` and returns
 /// `(continuationValue, reserve)`.
 ///
