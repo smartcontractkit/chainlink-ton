@@ -47,9 +47,7 @@ describe('ReceiveExecutor - Execution', () => {
   let nonOwner: SandboxContract<TreasuryContract>
   let receiveExecutorCode: Cell
   let defaultInitExecute: {
-    sequenceNumber: bigint
-    sourceChainSelector: bigint
-    messageId: bigint
+    header: rx.RampMessageHeader
     effectiveGasLimit: bigint
     excesses: rx.ReceiveExecutor_Excesses
   }
@@ -117,9 +115,7 @@ describe('ReceiveExecutor - Execution', () => {
       )
 
       defaultInitExecute = {
-        sequenceNumber: arbMessage.header.sequenceNumber,
-        sourceChainSelector: arbMessage.header.sourceChainSelector,
-        messageId: arbMessage.header.messageId,
+        header: arbMessage.header,
         effectiveGasLimit: arbMessage.gasLimit,
         excesses: rx.ReceiveExecutor_Excesses.create({
           to: deployer.address,
@@ -547,9 +543,7 @@ describe('ReceiveExecutor - Execution', () => {
           messageWithTT,
         )
         defaultInitExecute = {
-          sequenceNumber: messageWithTT.header.sequenceNumber,
-          sourceChainSelector: messageWithTT.header.sourceChainSelector,
-          messageId: messageWithTT.header.messageId,
+          header: messageWithTT.header,
           effectiveGasLimit: messageWithTT.gasLimit,
           excesses: rx.ReceiveExecutor_Excesses.create({
             to: deployer.address,
@@ -918,9 +912,7 @@ describe('ReceiveExecutor - Execution', () => {
           messageWithTT,
         )
         defaultInitExecute = {
-          sequenceNumber: messageWithTT.header.sequenceNumber,
-          sourceChainSelector: messageWithTT.header.sourceChainSelector,
-          messageId: messageWithTT.header.messageId,
+          header: messageWithTT.header,
           effectiveGasLimit: messageWithTT.gasLimit,
           excesses: rx.ReceiveExecutor_Excesses.create({
             to: deployer.address,
@@ -1336,9 +1328,7 @@ describe('ReceiveExecutor - Execution', () => {
         )
 
         defaultInitExecute = {
-          sequenceNumber: messageWithTT.header.sequenceNumber,
-          sourceChainSelector: messageWithTT.header.sourceChainSelector,
-          messageId: messageWithTT.header.messageId,
+          header: messageWithTT.header,
           effectiveGasLimit: messageWithTT.gasLimit,
           excesses: rx.ReceiveExecutor_Excesses.create({
             to: deployer.address,
@@ -1410,9 +1400,7 @@ describe('ReceiveExecutor - Execution', () => {
           messageWithTT,
         )
         defaultInitExecute = {
-          sequenceNumber: messageWithTT.header.sequenceNumber,
-          sourceChainSelector: messageWithTT.header.sourceChainSelector,
-          messageId: messageWithTT.header.messageId,
+          header: messageWithTT.header,
           effectiveGasLimit: messageWithTT.gasLimit,
           excesses: rx.ReceiveExecutor_Excesses.create({
             to: deployer.address,
@@ -1454,7 +1442,7 @@ describe('ReceiveExecutor - Execution', () => {
           receiveExecutorCode,
           messageWithTT,
         )
-        defaultInitExecute = { ...defaultInitExecute, messageId: messageWithTT.header.messageId }
+        defaultInitExecute = { ...defaultInitExecute, header: messageWithTT.header }
 
         await transitionToReleaseOrMint(receiveExecutorPtt)
         const result = await forwardNotification(receiveExecutorPtt, destinationAmount)

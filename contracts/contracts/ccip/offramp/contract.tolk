@@ -14,6 +14,7 @@ import "../../lib/utils"
 import "../../lib/jetton/messages"
 import "../lib/client/receiver/types"
 
+import "../common/types"
 import "../fee_quoter/messages"
 import "../merkle_root/messages"
 import "../merkle_root/storage"
@@ -164,10 +165,10 @@ fun onInternalMessage(in:InMessage) {
             onUpgrade(msg);
         }
         // Sender must be MerkleRoot
-        MerkleRoot_StateMarked => {
+        MerkleRoot_ExecutionStateChanged => {
             val st = lazy Storage.load();
             assertSenderIsMerkleRoot(st, msg.root, in.senderAddress);
-            onReturnExecuteExcess(msg);
+            onExecutionStateChanged(msg);
         }
         // Sender must be the Router
         OffRamp_ReturnExcessToExecutor => {
@@ -273,28 +274,25 @@ fun onBouncedCCIPReceiveConfirm(msg: ReceiveExecutor_CCIPReceiveConfirm) {
 // happen; if InitExecute bounced, it's probably a misconfiguration in the
 // ReceiveExecutor code. Marks the execution state as failed and emits events.
 fun onBouncedReceiveExecutorInitExecute(msg: ReceiveExecutor_InitExecute, senderAddress: address) {
+    val header = lazy msg.header.load();
     emit(RECEIVE_EXECUTOR_INIT_EXECUTE_BOUNCED, OffRamp_ReceiveExecutorInitExecuteBounced{
         receiveExecutor: senderAddress,
         root: msg.root,
-        sequenceNumber: msg.sequenceNumber,
+        sequenceNumber: header.sequenceNumber,
     });
-    messageExecutionFailed(msg);
+    messageExecutionFailed(msg, header);
 }
 
-fun messageExecutionFailed(msg: ReceiveExecutor_InitExecute) {
-    emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
-        sourceChainSelector: msg.sourceChainSelector,
-        sequenceNumber: msg.sequenceNumber,
-        messageId: msg.messageId,
-        state: ExecutionState.Failure
-    });
+fun messageExecutionFailed(msg: ReceiveExecutor_InitExecute, header: RampMessageHeader) {
     // The executor's init value (if deployed) stays in the executor for retries, so the caller is
-    // refunded everything else.
+    // refunded everything else. The root emits the ExecutionStateChanged event on
+    // MerkleRoot_ExecutionStateChanged once the state is committed.
     markStateOnRoot(
         msg.root,
-        msg.sequenceNumber,
+        header.sequenceNumber,
         ExecutionState.Failure,
         msg.excesses.load().to,
+        msg.header,
     );
 }
 
@@ -312,18 +310,15 @@ fun onBouncedDeployableInitialize(msg: Deployable_Initialize, senderAddress: add
     // If the deploy that failed is for a MerkleRoot contract this will fail and only the previously committed emit action will take place
     val storageData = ReceiveExecutor_Storage.fromCell(stateInit.data);
     val message = Any2TVMRampMessage.fromCell(storageData.message);
-    emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
-        sourceChainSelector: message.header.sourceChainSelector,
-        sequenceNumber: message.header.sequenceNumber,
-        messageId: message.header.messageId,
-        state: ExecutionState.Failure
-    });
     // The executor's initial storage carries the caller of the execution that deployed it.
+    // The root emits the ExecutionStateChanged event on MerkleRoot_ExecutionStateChanged once the state is
+    // committed.
     markStateOnRoot(
         storageData.root,
         message.header.sequenceNumber,
         ExecutionState.Failure,
         storageData.state.excesses!.load().to,
+        message.header.toCell(),
     );
 }
 
@@ -457,8 +452,10 @@ fun forwardValueToExecutor(executorAddress: AutoDeployAddress) {
     excess.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
-// Refunds the execution caller with the excesses returned by the MerkleRoot after marking the
-// message state.
+// The MerkleRoot changed a message's execution state: emits the ExecutionStateChanged event for
+// the state the root committed and, on the MarkState flow (excessesTo set), refunds the
+// execution caller with the excesses carried by the message. Emitting only here (never before
+// the root answers) keeps the event consistent with the on-chain state.
 //
 // sequenceDiagram
 //     participant OffRamp
@@ -466,38 +463,52 @@ fun forwardValueToExecutor(executorAddress: AutoDeployAddress) {
 //     participant Caller
 //
 //     OffRamp    ->> MerkleRoot: MerkleRoot_MarkState
-//     MerkleRoot ->> OffRamp:    MerkleRoot_StateMarked
+//     MerkleRoot ->> OffRamp:    MerkleRoot_ExecutionStateChanged
 //     OffRamp    ->> Caller:     excesses
-fun onReturnExecuteExcess(msg: MerkleRoot_StateMarked) {
+fun onExecutionStateChanged(msg: MerkleRoot_ExecutionStateChanged) {
+    val header = lazy msg.header.load();
+    emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
+        sourceChainSelector: header.sourceChainSelector,
+        sequenceNumber: header.sequenceNumber,
+        messageId: header.messageId,
+        state: msg.state,
+    });
+
     val excesses = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: msg.excessesTo,
         body: createEmptyCell(),
     });
-    excesses.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
+    // SAFETY: reserveGramsOnBalance keeps the original balance, so only the value exceeding it is sent.
+    excesses.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Sends a MerkleRoot_MarkState message to update the execution state of a
 // specific sequence number in a MerkleRoot contract. The message carries all the excesses of
 // the flow; once the state is marked, the root returns them to the OffRamp
-// (MerkleRoot_StateMarked), which refunds them to `excessesTo`.
+// (MerkleRoot_ExecutionStateChanged), which emits the ExecutionStateChanged event and refunds them to
+// `excessesTo`.
 //
-// MUST be the last action of the handler (after every emit and other send): it reserves the
+// MUST be the last action of the handler (after every other send): it reserves the
 // original balance (plus `keep`) and carries everything above it, so the contract's balance only
 // grows by `keep`.
 //
+// @param header: header of the message being marked, relayed by the root on
+// MerkleRoot_ExecutionStateChanged so the OffRamp can emit the event.
 // @param excessesTo: caller of the execution, refunded with the excesses.
 // @param keep: value retained by the OffRamp on top of its original balance (at most what is
 // available).
-fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState, excessesTo: address, keep: coins = 0) {
+fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState, excessesTo: address, header: Cell<RampMessageHeader>, keep: coins = 0) {
     reserveGramsOnBalance(keep, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
     val markState = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: root,
-        body: MerkleRoot_MarkState { seqNum, state, excessesTo },
+        body: MerkleRoot_MarkState { seqNum, state, excessesTo, header },
     });
     // SAFETY: reserveGramsOnBalance keeps the original balance (plus `keep`), so only the value
     // exceeding it is sent.
@@ -520,12 +531,6 @@ fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: ad
     }
 
     val messageHeader = lazy msg.header.load();
-    emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
-        sourceChainSelector: messageHeader.sourceChainSelector,
-        sequenceNumber: messageHeader.sequenceNumber,
-        messageId: messageHeader.messageId,
-        state: ExecutionState.Success
-    });
 
     // The executor drained its whole balance, init value included. On a retry that init value
     // was funded by an earlier caller (the node that first executed the message), so the OffRamp
@@ -533,8 +538,10 @@ fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: ad
     val excesses = msg.excesses.load();
     val keep: coins = excesses.includesInitValue ? 0 as coins : RECEIVE_EXECUTOR_INIT_VALUE;
 
-    // propagate state change to root and refund the caller (must be last: carries the remaining balance)
-    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Success, excesses.to, keep);
+    // propagate state change to root and refund the caller (must be last: carries the remaining
+    // balance). The root emits the ExecutionStateChanged event on MerkleRoot_ExecutionStateChanged once the
+    // state is committed.
+    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Success, excesses.to, msg.header, keep);
 }
 
 // Relays a ReceiveExecutor-confirmed token transfer delivery to the Router, which forwards it to
@@ -572,17 +579,13 @@ fun relayTokenTransferDelivered(st: Storage, queryId: uint64, execId: ReceiveExe
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifyFailure
 fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
     val messageHeader = lazy msg.header.load();
-    emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
-        sourceChainSelector: messageHeader.sourceChainSelector,
-        sequenceNumber: messageHeader.sequenceNumber,
-        messageId: messageHeader.messageId,
-        state: ExecutionState.Failure
-    });
 
     // The executor retains its init value on failure (for retries), so the caller is refunded
     // everything it sent back.
-    // propagate state change to root and refund the caller (must be last: carries the remaining balance)
-    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Failure, msg.excesses.load().to);
+    // propagate state change to root and refund the caller (must be last: carries the remaining
+    // balance). The root emits the ExecutionStateChanged event on MerkleRoot_ExecutionStateChanged once the
+    // state is committed.
+    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Failure, msg.excesses.load().to, msg.header);
 }
 
 // Sent by the Receiver via the Router to confirm successful message receipt.
@@ -1106,8 +1109,11 @@ fun onUpdateCursedSubjects(msg: OffRamp_UpdateCursedSubjects) {
 }
 
 // Executes a validated OffRamp message after MerkleRoot verification.
-// Ensures the sender is an owned MerkleRoot, emits execution state change,
-// deploys the ReceiveExecutor if needed, and triggers execution flow.
+// Ensures the sender is an owned MerkleRoot, emits the InProgress state change (the root
+// committed it before sending OffRamp_ExecuteValidated, so the event reflects on-chain state),
+// deploys the ReceiveExecutor if needed, and triggers the execution flow. If this handler
+// throws, the message bounces back to the root, which marks the message Failure and notifies
+// the OffRamp (MerkleRoot_ExecutionStateChanged).
 //
 // sequenceDiagram
 //     participant OffRamp
@@ -1172,29 +1178,24 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         queryId: msg.queryId,
         effectiveGasLimit: message.gasLimit,
         root: sender,
-        sequenceNumber: message.header.sequenceNumber,
-        sourceChainSelector: message.header.sourceChainSelector,
-        messageId: message.header.messageId,
+        header: message.header.toCell(),
         excesses,
     };
 
-    // TODO[ERROR]: [NONEVM-5463] this hides the validation error that caused the message to fail.
-    try {
-        val hasTokens = message.tokenAmounts != null && !message.tokenAmounts.empty();
-        // A tokenless report may have offchainTokenData as `[]` (empty outer
-        // list) or `[[]]` (one empty inner list). Only extract the per-message
-        // list when there are tokens or the outer list is non-empty; when
-        // tokenless with an empty outer list, getTokenTransfer returns null
-        // without inspecting offchainTokenData.
-        var offchainTokenDataForTTOfMessage = [] as lisp_list<cell>;
-        if (hasTokens || !msg.offchainTokenData.isEmpty()) {
-            offchainTokenDataForTTOfMessage = msg.offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
-        }
-        initExecuteMsg.effectiveGasLimit = msg.gasOverride.getEffectiveGasLimit(message.gasLimit);
-        initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, message.receiver, msg.gasOverride, offchainTokenDataForTTOfMessage);
-    } catch {
-        return messageExecutionFailed(initExecuteMsg);
+    // Validation errors (bad token data, gas override mismatch) throw and bounce back to the
+    // MerkleRoot, which marks the message Failure and notifies the OffRamp.
+    val hasTokens = message.tokenAmounts != null && !message.tokenAmounts.empty();
+    // A tokenless report may have offchainTokenData as `[]` (empty outer
+    // list) or `[[]]` (one empty inner list). Only extract the per-message
+    // list when there are tokens or the outer list is non-empty; when
+    // tokenless with an empty outer list, getTokenTransfer returns null
+    // without inspecting offchainTokenData.
+    var offchainTokenDataForTTOfMessage = [] as lisp_list<cell>;
+    if (hasTokens || !msg.offchainTokenData.isEmpty()) {
+        offchainTokenDataForTTOfMessage = msg.offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
     }
+    initExecuteMsg.effectiveGasLimit = msg.gasOverride.getEffectiveGasLimit(message.gasLimit);
+    initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, message.receiver, msg.gasOverride, offchainTokenDataForTTOfMessage);
 
     reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 

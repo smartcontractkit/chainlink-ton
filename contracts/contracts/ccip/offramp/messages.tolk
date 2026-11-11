@@ -44,7 +44,7 @@ type OffRamp_InMessage =
     | ReturnExcessesBack
     | Withdrawable_Withdraw
     | OffRamp_ReturnExcessToExecutor
-    | MerkleRoot_StateMarked;
+    | MerkleRoot_ExecutionStateChanged;
 
 type OffRamp_InMessageBounced = 
     | ReceiveExecutor_InitExecute

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+import "../common/types"
 import "../offramp/types"
 import "../offramp/messages"
 
@@ -27,14 +28,25 @@ struct (0x019f4cd2) MerkleRoot_MarkState {
     /// Caller of the execution. Once the state is marked, the excesses carried by this message
     /// are returned to the OffRamp, which refunds them to this address.
     excessesTo: address,
+    /// Header of the message being marked: the root relays its fields on MerkleRoot_ExecutionStateChanged
+    /// so the OffRamp can emit the ExecutionStateChanged event.
+    header: Cell<RampMessageHeader>,
 }
 
 // -- Outgoing messages --
 
-/// Sent by a MerkleRoot after marking a message state: carries the execution excesses back to
-/// the OffRamp, which refunds them to the execution caller.
-struct (0x150acf6c) MerkleRoot_StateMarked {
+/// Sent by a MerkleRoot to the OffRamp whenever a message's execution state changes
+/// (Success/Failure on MarkState, Failure when OffRamp_ExecuteValidated bounces). The OffRamp
+/// emits the ExecutionStateChanged event only on receipt of this message, so the event always
+/// reflects state already committed on the root, and refunds `excessesTo` with the value the
+/// message carries (the execution excesses on the MarkState flow, nothing on the bounce flow).
+struct (0x347ea073) MerkleRoot_ExecutionStateChanged {
     root: MerkleRootId;
+    /// Header of the message whose state changed: the OffRamp emits its fields on the
+    /// ExecutionStateChanged event.
+    header: Cell<RampMessageHeader>;
+    state: ExecutionState;
+    /// Caller of the execution, refunded with the excesses carried by this message.
     excessesTo: address;
 }
 
@@ -45,7 +57,7 @@ fun MerkleRoot_Costs.validate(hasTokens: bool): int {
     return baseFee + OffRamp_Costs.executeValidated(hasTokens);
 }
 
-/// State update, the MerkleRoot_StateMarked relay of the excesses to the caller and, on the
+/// State update, the MerkleRoot_ExecutionStateChanged relay of the excesses to the caller and, on the
 /// last message of the root, the empty reply that returns the root balance.
 fun MerkleRoot_Costs.markState(): int {
     return MERKLE_ROOT_COSTS_MARK_STATE_FEE;

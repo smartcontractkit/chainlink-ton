@@ -64,11 +64,26 @@ fun onBouncedMessage(in: InMessageBounced) {
 /// The OffRamp rejected the validated message, so no ReceiveExecutor was started. Marks it
 /// Failure instead of leaving it InProgress, so it can be manually executed again. Nothing else
 /// moves the message off InProgress before the OffRamp answers, so any other state is a bug.
+/// Notifies the OffRamp so it emits the ExecutionStateChanged event and refunds the caller with
+/// the bounced value (retries are re-funded by the new executor, so nothing stays on the root).
 fun onExecuteValidatedBounced(mutate st: MerkleRoot_Storage, msg: OffRamp_ExecuteValidated) {
     val message = lazy msg.message.load();
     val seqNum = message.header.sequenceNumber;
     assert (st.getMessageState(seqNum) == ExecutionState.InProgress) throw (MerkleRoot_Error.InvalidState);
     st.setMessageState(seqNum, ExecutionState.Failure);
+
+    val stateChanged = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: st.owner,
+        body: MerkleRoot_ExecutionStateChanged {
+            root: st.root,
+            header: message.header.toCell(),
+            state: ExecutionState.Failure,
+            excessesTo: msg.excessesTo,
+        },
+    });
+    stateChanged.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /*
@@ -91,13 +106,16 @@ fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
     }
 
     // Return the excesses carried by this message (inbound value minus this transaction's fees)
-    // to the OffRamp, which refunds them to the execution caller.
+    // to the OffRamp, which refunds them to the execution caller and emits the
+    // ExecutionStateChanged event for the state committed above.
     val excesses = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: st.owner,
-        body: MerkleRoot_StateMarked {
+        body: MerkleRoot_ExecutionStateChanged {
             root: st.root,
+            header: msg.header,
+            state: msg.state,
             excessesTo: msg.excessesTo,
         },
     });

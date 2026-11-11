@@ -598,6 +598,7 @@ export const MerkleRoot_Validate = {
  >     seqNum: uint64
  >     state: ExecutionState
  >     excessesTo: address
+ >     header: Cell<RampMessageHeader>
  > }
  */
 export interface MerkleRoot_MarkState {
@@ -605,6 +606,7 @@ export interface MerkleRoot_MarkState {
     seqNum: uint64
     state: ExecutionState
     excessesTo: c.Address
+    header: RampMessageHeader
 }
 
 export const MerkleRoot_MarkState = {
@@ -614,6 +616,7 @@ export const MerkleRoot_MarkState = {
         seqNum: uint64
         state: ExecutionState
         excessesTo: c.Address
+        header: RampMessageHeader
     }): MerkleRoot_MarkState {
         return {
             $: 'MerkleRoot_MarkState',
@@ -627,6 +630,7 @@ export const MerkleRoot_MarkState = {
             seqNum: s.loadUintBig(64),
             state: ExecutionState.fromSlice(s),
             excessesTo: s.loadAddress(),
+            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
         }
     },
     store(self: MerkleRoot_MarkState, b: c.Builder): void {
@@ -634,6 +638,7 @@ export const MerkleRoot_MarkState = {
         b.storeUint(self.seqNum, 64);
         ExecutionState.store(self.state, b);
         b.storeAddress(self.excessesTo);
+        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
     },
     toCell(self: MerkleRoot_MarkState): c.Cell {
         return makeCellFrom<MerkleRoot_MarkState>(self, MerkleRoot_MarkState.store);
@@ -641,44 +646,54 @@ export const MerkleRoot_MarkState = {
 }
 
 /**
- > struct (0x150acf6c) MerkleRoot_StateMarked {
+ > struct (0x347ea073) MerkleRoot_ExecutionStateChanged {
  >     root: MerkleRootId
+ >     header: Cell<RampMessageHeader>
+ >     state: ExecutionState
  >     excessesTo: address
  > }
  */
-export interface MerkleRoot_StateMarked {
-    readonly $: 'MerkleRoot_StateMarked'
+export interface MerkleRoot_ExecutionStateChanged {
+    readonly $: 'MerkleRoot_ExecutionStateChanged'
     root: MerkleRootId
+    header: RampMessageHeader
+    state: ExecutionState
     excessesTo: c.Address
 }
 
-export const MerkleRoot_StateMarked = {
-    PREFIX: 0x150acf6c,
+export const MerkleRoot_ExecutionStateChanged = {
+    PREFIX: 0x347ea073,
 
     create(args: {
         root: MerkleRootId
+        header: RampMessageHeader
+        state: ExecutionState
         excessesTo: c.Address
-    }): MerkleRoot_StateMarked {
+    }): MerkleRoot_ExecutionStateChanged {
         return {
-            $: 'MerkleRoot_StateMarked',
+            $: 'MerkleRoot_ExecutionStateChanged',
             ...args
         }
     },
-    fromSlice(s: c.Slice): MerkleRoot_StateMarked {
-        loadAndCheckPrefix32(s, 0x150acf6c, 'MerkleRoot_StateMarked');
+    fromSlice(s: c.Slice): MerkleRoot_ExecutionStateChanged {
+        loadAndCheckPrefix32(s, 0x347ea073, 'MerkleRoot_ExecutionStateChanged');
         return {
-            $: 'MerkleRoot_StateMarked',
+            $: 'MerkleRoot_ExecutionStateChanged',
             root: MerkleRootId.fromSlice(s),
+            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
+            state: ExecutionState.fromSlice(s),
             excessesTo: s.loadAddress(),
         }
     },
-    store(self: MerkleRoot_StateMarked, b: c.Builder): void {
-        b.storeUint(0x150acf6c, 32);
+    store(self: MerkleRoot_ExecutionStateChanged, b: c.Builder): void {
+        b.storeUint(0x347ea073, 32);
         MerkleRootId.store(self.root, b);
+        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
+        ExecutionState.store(self.state, b);
         b.storeAddress(self.excessesTo);
     },
-    toCell(self: MerkleRoot_StateMarked): c.Cell {
-        return makeCellFrom<MerkleRoot_StateMarked>(self, MerkleRoot_StateMarked.store);
+    toCell(self: MerkleRoot_ExecutionStateChanged): c.Cell {
+        return makeCellFrom<MerkleRoot_ExecutionStateChanged>(self, MerkleRoot_ExecutionStateChanged.store);
     }
 }
 
@@ -924,6 +939,7 @@ export class MerkleRoot implements c.Contract {
         seqNum: uint64
         state: ExecutionState
         excessesTo: c.Address
+        header: RampMessageHeader
     }) {
         return MerkleRoot_MarkState.toCell(MerkleRoot_MarkState.create(body));
     }
@@ -964,6 +980,7 @@ export class MerkleRoot implements c.Contract {
         seqNum: uint64
         state: ExecutionState
         excessesTo: c.Address
+        header: RampMessageHeader
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

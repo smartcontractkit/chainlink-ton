@@ -1433,6 +1433,59 @@ export const ReceiveExecutionID = {
 }
 
 /**
+ > struct RampMessageHeader {
+ >     messageId: uint256
+ >     sourceChainSelector: uint64
+ >     destChainSelector: uint64
+ >     sequenceNumber: uint64
+ >     nonce: uint64
+ > }
+ */
+export interface RampMessageHeader {
+    readonly $: 'RampMessageHeader'
+    messageId: uint256
+    sourceChainSelector: uint64
+    destChainSelector: uint64
+    sequenceNumber: uint64
+    nonce: uint64
+}
+
+export const RampMessageHeader = {
+    create(args: {
+        messageId: uint256
+        sourceChainSelector: uint64
+        destChainSelector: uint64
+        sequenceNumber: uint64
+        nonce: uint64
+    }): RampMessageHeader {
+        return {
+            $: 'RampMessageHeader',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): RampMessageHeader {
+        return {
+            $: 'RampMessageHeader',
+            messageId: s.loadUintBig(256),
+            sourceChainSelector: s.loadUintBig(64),
+            destChainSelector: s.loadUintBig(64),
+            sequenceNumber: s.loadUintBig(64),
+            nonce: s.loadUintBig(64),
+        }
+    },
+    store(self: RampMessageHeader, b: c.Builder): void {
+        b.storeUint(self.messageId, 256);
+        b.storeUint(self.sourceChainSelector, 64);
+        b.storeUint(self.destChainSelector, 64);
+        b.storeUint(self.sequenceNumber, 64);
+        b.storeUint(self.nonce, 64);
+    },
+    toCell(self: RampMessageHeader): c.Cell {
+        return makeCellFrom<RampMessageHeader>(self, RampMessageHeader.store);
+    }
+}
+
+/**
  > struct (0xde852b1b) FeeQuoter_UpdatePrices {
  >     updates: PriceUpdates
  >     sendExcessesTo: address?
@@ -1556,6 +1609,7 @@ export const MerkleRoot_Validate = {
  >     seqNum: uint64
  >     state: ExecutionState
  >     excessesTo: address
+ >     header: Cell<RampMessageHeader>
  > }
  */
 export interface MerkleRoot_MarkState {
@@ -1563,6 +1617,7 @@ export interface MerkleRoot_MarkState {
     seqNum: uint64
     state: ExecutionState
     excessesTo: c.Address
+    header: RampMessageHeader
 }
 
 export const MerkleRoot_MarkState = {
@@ -1572,6 +1627,7 @@ export const MerkleRoot_MarkState = {
         seqNum: uint64
         state: ExecutionState
         excessesTo: c.Address
+        header: RampMessageHeader
     }): MerkleRoot_MarkState {
         return {
             $: 'MerkleRoot_MarkState',
@@ -1585,6 +1641,7 @@ export const MerkleRoot_MarkState = {
             seqNum: s.loadUintBig(64),
             state: ExecutionState.fromSlice(s),
             excessesTo: s.loadAddress(),
+            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
         }
     },
     store(self: MerkleRoot_MarkState, b: c.Builder): void {
@@ -1592,6 +1649,7 @@ export const MerkleRoot_MarkState = {
         b.storeUint(self.seqNum, 64);
         ExecutionState.store(self.state, b);
         b.storeAddress(self.excessesTo);
+        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
     },
     toCell(self: MerkleRoot_MarkState): c.Cell {
         return makeCellFrom<MerkleRoot_MarkState>(self, MerkleRoot_MarkState.store);
@@ -1599,44 +1657,54 @@ export const MerkleRoot_MarkState = {
 }
 
 /**
- > struct (0x150acf6c) MerkleRoot_StateMarked {
+ > struct (0x347ea073) MerkleRoot_ExecutionStateChanged {
  >     root: MerkleRootId
+ >     header: Cell<RampMessageHeader>
+ >     state: ExecutionState
  >     excessesTo: address
  > }
  */
-export interface MerkleRoot_StateMarked {
-    readonly $: 'MerkleRoot_StateMarked'
+export interface MerkleRoot_ExecutionStateChanged {
+    readonly $: 'MerkleRoot_ExecutionStateChanged'
     root: MerkleRootId
+    header: RampMessageHeader
+    state: ExecutionState
     excessesTo: c.Address
 }
 
-export const MerkleRoot_StateMarked = {
-    PREFIX: 0x150acf6c,
+export const MerkleRoot_ExecutionStateChanged = {
+    PREFIX: 0x347ea073,
 
     create(args: {
         root: MerkleRootId
+        header: RampMessageHeader
+        state: ExecutionState
         excessesTo: c.Address
-    }): MerkleRoot_StateMarked {
+    }): MerkleRoot_ExecutionStateChanged {
         return {
-            $: 'MerkleRoot_StateMarked',
+            $: 'MerkleRoot_ExecutionStateChanged',
             ...args
         }
     },
-    fromSlice(s: c.Slice): MerkleRoot_StateMarked {
-        loadAndCheckPrefix32(s, 0x150acf6c, 'MerkleRoot_StateMarked');
+    fromSlice(s: c.Slice): MerkleRoot_ExecutionStateChanged {
+        loadAndCheckPrefix32(s, 0x347ea073, 'MerkleRoot_ExecutionStateChanged');
         return {
-            $: 'MerkleRoot_StateMarked',
+            $: 'MerkleRoot_ExecutionStateChanged',
             root: MerkleRootId.fromSlice(s),
+            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
+            state: ExecutionState.fromSlice(s),
             excessesTo: s.loadAddress(),
         }
     },
-    store(self: MerkleRoot_StateMarked, b: c.Builder): void {
-        b.storeUint(0x150acf6c, 32);
+    store(self: MerkleRoot_ExecutionStateChanged, b: c.Builder): void {
+        b.storeUint(0x347ea073, 32);
         MerkleRootId.store(self.root, b);
+        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
+        ExecutionState.store(self.state, b);
         b.storeAddress(self.excessesTo);
     },
-    toCell(self: MerkleRoot_StateMarked): c.Cell {
-        return makeCellFrom<MerkleRoot_StateMarked>(self, MerkleRoot_StateMarked.store);
+    toCell(self: MerkleRoot_ExecutionStateChanged): c.Cell {
+        return makeCellFrom<MerkleRoot_ExecutionStateChanged>(self, MerkleRoot_ExecutionStateChanged.store);
     }
 }
 
@@ -1645,9 +1713,7 @@ export const MerkleRoot_StateMarked = {
  >     queryId: uint64
  >     effectiveGasLimit: coins
  >     root: address
- >     sequenceNumber: uint64
- >     sourceChainSelector: uint64
- >     messageId: uint256
+ >     header: Cell<RampMessageHeader>
  >     tokenTransfer: Cell<ReceiveExecutor_TokenTransfer>?
  >     excesses: Cell<ReceiveExecutor_Excesses>
  > }
@@ -1657,9 +1723,7 @@ export interface ReceiveExecutor_InitExecute {
     queryId: uint64
     effectiveGasLimit: coins
     root: c.Address
-    sequenceNumber: uint64
-    sourceChainSelector: uint64
-    messageId: uint256
+    header: RampMessageHeader
     tokenTransfer: ReceiveExecutor_TokenTransfer | null /* = null */
     excesses: ReceiveExecutor_Excesses
 }
@@ -1671,9 +1735,7 @@ export const ReceiveExecutor_InitExecute = {
         queryId?: uint64
         effectiveGasLimit: coins
         root: c.Address
-        sequenceNumber: uint64
-        sourceChainSelector: uint64
-        messageId: uint256
+        header: RampMessageHeader
         tokenTransfer?: ReceiveExecutor_TokenTransfer | null /* = null */
         excesses: ReceiveExecutor_Excesses
     }): ReceiveExecutor_InitExecute {
@@ -1691,9 +1753,7 @@ export const ReceiveExecutor_InitExecute = {
             queryId: s.loadUintBig(64),
             effectiveGasLimit: s.loadCoins(),
             root: s.loadAddress(),
-            sequenceNumber: s.loadUintBig(64),
-            sourceChainSelector: s.loadUintBig(64),
-            messageId: s.loadUintBig(256),
+            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
             tokenTransfer: s.loadBoolean() ? loadCellRef<ReceiveExecutor_TokenTransfer>(s, ReceiveExecutor_TokenTransfer.fromSlice) : null,
             excesses: loadCellRef<ReceiveExecutor_Excesses>(s, ReceiveExecutor_Excesses.fromSlice),
         }
@@ -1703,9 +1763,7 @@ export const ReceiveExecutor_InitExecute = {
         b.storeUint(self.queryId, 64);
         b.storeCoins(self.effectiveGasLimit);
         b.storeAddress(self.root);
-        b.storeUint(self.sequenceNumber, 64);
-        b.storeUint(self.sourceChainSelector, 64);
-        b.storeUint(self.messageId, 256);
+        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
         storeTolkNullable<ReceiveExecutor_TokenTransfer>(self.tokenTransfer, b,
             (v,b) => storeCellRef<ReceiveExecutor_TokenTransfer>(v, b, ReceiveExecutor_TokenTransfer.store)
         );
@@ -4937,59 +4995,6 @@ export const TokenPool_ReleaseOrMintInV1 = {
     }
 }
 
-/**
- > struct RampMessageHeader {
- >     messageId: uint256
- >     sourceChainSelector: uint64
- >     destChainSelector: uint64
- >     sequenceNumber: uint64
- >     nonce: uint64
- > }
- */
-export interface RampMessageHeader {
-    readonly $: 'RampMessageHeader'
-    messageId: uint256
-    sourceChainSelector: uint64
-    destChainSelector: uint64
-    sequenceNumber: uint64
-    nonce: uint64
-}
-
-export const RampMessageHeader = {
-    create(args: {
-        messageId: uint256
-        sourceChainSelector: uint64
-        destChainSelector: uint64
-        sequenceNumber: uint64
-        nonce: uint64
-    }): RampMessageHeader {
-        return {
-            $: 'RampMessageHeader',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): RampMessageHeader {
-        return {
-            $: 'RampMessageHeader',
-            messageId: s.loadUintBig(256),
-            sourceChainSelector: s.loadUintBig(64),
-            destChainSelector: s.loadUintBig(64),
-            sequenceNumber: s.loadUintBig(64),
-            nonce: s.loadUintBig(64),
-        }
-    },
-    store(self: RampMessageHeader, b: c.Builder): void {
-        b.storeUint(self.messageId, 256);
-        b.storeUint(self.sourceChainSelector, 64);
-        b.storeUint(self.destChainSelector, 64);
-        b.storeUint(self.sequenceNumber, 64);
-        b.storeUint(self.nonce, 64);
-    },
-    toCell(self: RampMessageHeader): c.Cell {
-        return makeCellFrom<RampMessageHeader>(self, RampMessageHeader.store);
-    }
-}
-
 // ————————————————————————————————————————————
 //    class OffRamp
 //
@@ -5314,11 +5319,13 @@ export class OffRamp implements c.Contract {
         return OffRamp_ReturnExcessToExecutor.toCell(OffRamp_ReturnExcessToExecutor.create(body));
     }
 
-    static createCellOfMerkleRootStateMarked(body: {
+    static createCellOfMerkleRootExecutionStateChanged(body: {
         root: MerkleRootId
+        header: RampMessageHeader
+        state: ExecutionState
         excessesTo: c.Address
     }) {
-        return MerkleRoot_StateMarked.toCell(MerkleRoot_StateMarked.create(body));
+        return MerkleRoot_ExecutionStateChanged.toCell(MerkleRoot_ExecutionStateChanged.create(body));
     }
 
     static createCellOfOwnable2StepTransferOwnership(body: {
@@ -5616,13 +5623,15 @@ export class OffRamp implements c.Contract {
         });
     }
 
-    async sendMerkleRootStateMarked(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendMerkleRootExecutionStateChanged(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         root: MerkleRootId
+        header: RampMessageHeader
+        state: ExecutionState
         excessesTo: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: MerkleRoot_StateMarked.toCell(MerkleRoot_StateMarked.create(body)),
+            body: MerkleRoot_ExecutionStateChanged.toCell(MerkleRoot_ExecutionStateChanged.create(body)),
             ...extraOptions
         });
     }

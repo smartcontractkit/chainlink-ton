@@ -503,6 +503,7 @@ describe('MerkleRoot - Message Handling', () => {
         seqNum: 1n,
         state: mr.ExecutionState.Success,
         excessesTo: owner.address,
+        header: buildMessage(1n).header,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -527,6 +528,7 @@ describe('MerkleRoot - Message Handling', () => {
         seqNum: 1n,
         state: mr.ExecutionState.Failure,
         excessesTo: owner.address,
+        header: buildMessage(1n).header,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -551,6 +553,7 @@ describe('MerkleRoot - Message Handling', () => {
         seqNum: 1n,
         state: mr.ExecutionState.Success,
         excessesTo: owner.address,
+        header: buildMessage(1n).header,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -572,6 +575,7 @@ describe('MerkleRoot - Message Handling', () => {
         seqNum: 1n,
         state: mr.ExecutionState.Failure,
         excessesTo: owner.address,
+        header: buildMessage(1n).header,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -592,6 +596,7 @@ describe('MerkleRoot - Message Handling', () => {
         seqNum: 1n,
         state: mr.ExecutionState.InProgress,
         excessesTo: owner.address,
+        header: buildMessage(1n).header,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -612,6 +617,7 @@ describe('MerkleRoot - Message Handling', () => {
         seqNum: 42n,
         state: mr.ExecutionState.Success,
         excessesTo: owner.address,
+        header: buildMessage(42n).header,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -635,6 +641,7 @@ describe('MerkleRoot - Message Handling', () => {
         seqNum: 1n,
         state: mr.ExecutionState.Success,
         excessesTo: owner.address,
+        header: buildMessage(1n).header,
       })
 
       const txs = await sendMessageAsync(blockchain, owner.address, {
@@ -668,12 +675,12 @@ describe('MerkleRoot - Message Handling', () => {
       const excessTX = findTransaction(transactions, {
         from: merkleRoot.address,
         to: owner.address,
-        op: mr.MerkleRoot_StateMarked.PREFIX,
+        op: mr.MerkleRoot_ExecutionStateChanged.PREFIX,
       })
       if (!excessTX) throw new Error('ReturnExecuteExcess transaction not found')
       const excessValue = flattenTransaction(excessTX).value
       if (excessValue == undefined) throw new Error('Value not found in excess transaction')
-      const excess = mr.MerkleRoot_StateMarked.fromSlice(excessTX.inMessage!.body.beginParse())
+      const excess = mr.MerkleRoot_ExecutionStateChanged.fromSlice(excessTX.inMessage!.body.beginParse())
       expect(excess.root).toEqual(ROOT)
       expect(excess.excessesTo.equals(owner.address)).toBe(true)
       // Trigger value minus the MarkState fees.
