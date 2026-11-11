@@ -158,6 +158,7 @@ export function runTokenPoolBehaviorTests(
     describe('flow admission', () => {
       // Downstream continuations consume value, so an admitted flow needs headroom.
       const headroom = toNano('0.5')
+      const runtimeRent = toNano('0.01')
       const policies = [
         { name: 'default', budget: { safety: 0n, admission: 0n } },
         { name: 'raised safety', budget: { safety: toNano('0.1'), admission: 0n } },
@@ -184,14 +185,16 @@ export function runTokenPoolBehaviorTests(
             deliveryTo(ctx.recipient.address, ctx.deployer.address).forwardTonAmount
         })
 
-        it('reports at least the configured values, with admission covering both custody phases', async () => {
+        it('reports at least the configured values, with admission covering custody and rent', async () => {
           const { lockOrBurn, releaseOrMint } = await ctx.pool.getBudget()
           expect(lockOrBurn.safety).toBeGreaterThanOrEqual(budget.safety)
           expect(lockOrBurn.admission).toBeGreaterThanOrEqual(budget.admission)
-          expect(lockOrBurn.admission).toBeGreaterThanOrEqual(lockOrBurn.safety * 3n)
+          expect(lockOrBurn.admission).toBeGreaterThanOrEqual(lockOrBurn.safety * 3n + runtimeRent)
           expect(releaseOrMint.safety).toBeGreaterThanOrEqual(budget.safety)
           expect(releaseOrMint.admission).toBeGreaterThanOrEqual(budget.admission)
-          expect(releaseOrMint.admission).toBeGreaterThanOrEqual(releaseOrMint.safety)
+          expect(releaseOrMint.admission).toBeGreaterThanOrEqual(
+            releaseOrMint.safety * 2n + runtimeRent,
+          )
         })
 
         describe('LockOrBurn', () => {

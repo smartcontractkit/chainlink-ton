@@ -1,7 +1,7 @@
 [
   {
     "label": "current",
-    "createdAt": "2026-11-11T14:59:26.154Z",
+    "createdAt": "2026-11-11T16:02:06.696Z",
     "result": {
       "JettonLockBox": {
         "sendDeploy": {
@@ -15,7 +15,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "send": {
@@ -29,7 +29,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "sendJettonLockBoxInit": {
@@ -43,13 +43,13 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "0xffa6eeb9": {
           "gasUsed": {
             "kind": "init",
-            "value": "28548"
+            "value": "28460"
           },
           "cells": {
             "kind": "init",
@@ -57,7 +57,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "0xbd7e8bce": {
@@ -71,7 +71,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "0xcf3ca837": {
@@ -85,7 +85,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "36387"
+            "value": "36339"
           }
         },
         "0xe9f4e311": {
@@ -99,7 +99,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "sendJettonLockBoxWithdraw": {
@@ -113,7 +113,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "0xd065c306": {
@@ -127,7 +127,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "0xf8a7ea5": {
@@ -141,7 +141,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "0x178d4519": {
@@ -155,7 +155,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "0x7362d09c": {
@@ -169,7 +169,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "0xd53276db": {
@@ -183,7 +183,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         }
       }

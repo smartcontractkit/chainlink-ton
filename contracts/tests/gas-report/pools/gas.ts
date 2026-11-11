@@ -93,6 +93,7 @@ async function configureChain(
 const FINALIZATION_VALUE = toNano('0.02')
 /// The delivery continuation; the release entrypoint requires `release admission + this`.
 const DELIVERY_FORWARD = toNano('0.01')
+const RUNTIME_RENT = toNano('0.01')
 /// Covers the sender wallet's own transfer cost; the excess returns to the sender.
 const WALLET_SEND_BUFFER = toNano('0.05')
 
@@ -420,7 +421,9 @@ export function runTokenPoolGasCalibration(fixture: TokenPoolGasFixture) {
         },
       ])
 
-      expect(totalFee * BUDGET_MARGIN).toBeLessThanOrEqual(budget.lockOrBurn.admission)
+      expect(totalFee * BUDGET_MARGIN + RUNTIME_RENT).toBeLessThanOrEqual(
+        budget.lockOrBurn.admission,
+      )
       expect(custodyFee * BUDGET_MARGIN).toBeLessThanOrEqual(budget.lockOrBurn.safety)
       expectPreservedBalances(before, await balancesOf(blockchain, handle.trackedAccounts))
       await handle.assertTokenBudget('lock', custody)
@@ -453,7 +456,9 @@ export function runTokenPoolGasCalibration(fixture: TokenPoolGasFixture) {
         },
       ])
 
-      expect(flowFee * BUDGET_MARGIN).toBeLessThanOrEqual(budget.releaseOrMint.admission)
+      expect(flowFee * BUDGET_MARGIN + RUNTIME_RENT).toBeLessThanOrEqual(
+        budget.releaseOrMint.admission,
+      )
       expectPreservedBalances(before, await balancesOf(blockchain, handle.trackedAccounts))
       await handle.assertTokenBudget('release', result)
     })

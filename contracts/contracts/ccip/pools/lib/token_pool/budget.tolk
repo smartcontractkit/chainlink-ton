@@ -14,11 +14,11 @@ fun TokenPool_Costs.admin(): coins {
     return calculateGasFee(w, BUDGET_UNITS_LVL3_HIGH);
 }
 
-/// Default flow-admission threshold for a token pool (≈0.042 TON at mainnet gas). The effective
-/// admission adds `MIN_GRAM_TO_RESERVE_RUNTIME` for the per-flow rent buffer.
+/// Default flow-admission threshold for a token pool (≈0.052 TON at mainnet gas, including the
+/// runtime rent reserve). Configured admissions are total values.
 fun TokenPool_Costs.admission(): coins {
     val w = contract.getAddress().getWorkchain();
-    return calculateGasFee(w, BUDGET_UNITS_LVL4_XHIGH);
+    return calculateGasFee(w, BUDGET_UNITS_LVL4_XHIGH) + MIN_GRAM_TO_RESERVE_RUNTIME;
 }
 
 fun TokenPool_Costs.safety(): coins {
@@ -41,8 +41,8 @@ fun TokenPool_Costs.callerFinalization(): coins {
 /// See docs/contracts/overview/ccip/budget/TP-VALUE-BUDGET-AUDIT.md.
 
 /// - `admission`: checked at the entrypoint and published to CCIP. Covers the pre-custody path,
-///   `lockOrBurnCustodyMoves * safety`, and `MIN_GRAM_TO_RESERVE_RUNTIME`. The separate failure
-///   continuation `F` is not included.
+///   `lockOrBurnCustodyMoves * safety`, and `MIN_GRAM_TO_RESERVE_RUNTIME`. The separate
+///   caller continuation `F` is not included.
 /// - `safety`: one custody phase's budget. The first custody transfer carries
 ///   `lockOrBurnCustodyMoves * safety + F`; pays finalization or the best-effort return.
 struct TokenPool_LockOrBurnBudget {

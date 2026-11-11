@@ -3127,7 +3127,7 @@ describe('OffRamp - Execute', () => {
         { queryId: 901n, tokenAddress: setup.token },
       )
       expect((await setup.tokenRegistry.getTokenInfo()).admission?.releaseOrMint).toEqual(
-        toNano('0.51'),
+        toNano('0.5'),
       )
 
       // 1. Normal execution: 0.2 TON destGasAmount is below the 0.5 TON pool admission. The
@@ -3161,7 +3161,7 @@ describe('OffRamp - Execute', () => {
       // 2. Manual execution raises the token gas override to the admission. The OffRamp applies
       // it to the transfer before InitExecute, and the same executor retries and releases.
       const manual = await setup.manualExecuteReport(report, {
-        tokenGasOverrides: [toNano('0.51')],
+        tokenGasOverrides: [toNano('0.5')],
       })
       expect(manual.transactions).toHaveTransaction({
         to: executorAddress,

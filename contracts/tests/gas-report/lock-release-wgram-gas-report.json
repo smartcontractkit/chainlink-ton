@@ -1,7 +1,7 @@
 [
   {
     "label": "current",
-    "createdAt": "2026-11-11T14:59:30.405Z",
+    "createdAt": "2026-11-11T16:02:11.059Z",
     "result": {
       "JettonMinter": {
         "sendTopUpTons": {
@@ -101,7 +101,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "send": {
@@ -115,7 +115,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "sendJettonLockBoxInit": {
@@ -129,13 +129,13 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "0xffa6eeb9": {
           "gasUsed": {
             "kind": "init",
-            "value": "28548"
+            "value": "28460"
           },
           "cells": {
             "kind": "init",
@@ -143,7 +143,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "0xbd7e8bce": {
@@ -157,7 +157,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "0xcf3ca837": {
@@ -171,7 +171,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         },
         "0xe9f4e311": {
@@ -185,7 +185,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "34864"
+            "value": "34816"
           }
         }
       },
@@ -197,11 +197,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "440"
+            "value": "441"
           },
           "bits": {
             "kind": "init",
-            "value": "204286"
+            "value": "204870"
           }
         },
         "send": {
@@ -211,11 +211,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "440"
+            "value": "441"
           },
           "bits": {
             "kind": "init",
-            "value": "204286"
+            "value": "204870"
           }
         }
       },
@@ -227,11 +227,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "448"
+            "value": "449"
           },
           "bits": {
             "kind": "init",
-            "value": "205645"
+            "value": "206229"
           }
         },
         "0x56f73d37": {
@@ -241,11 +241,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "448"
+            "value": "449"
           },
           "bits": {
             "kind": "init",
-            "value": "205645"
+            "value": "206229"
           }
         },
         "0xad7833d7": {
@@ -255,11 +255,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "448"
+            "value": "449"
           },
           "bits": {
             "kind": "init",
-            "value": "205645"
+            "value": "206229"
           }
         },
         "sendTokenPoolLockOrBurn": {
@@ -269,25 +269,25 @@
           },
           "cells": {
             "kind": "init",
-            "value": "450"
+            "value": "451"
           },
           "bits": {
             "kind": "init",
-            "value": "206102"
+            "value": "206686"
           }
         },
         "0xfa7da444": {
           "gasUsed": {
             "kind": "init",
-            "value": "48009"
+            "value": "48551"
           },
           "cells": {
             "kind": "init",
-            "value": "450"
+            "value": "451"
           },
           "bits": {
             "kind": "init",
-            "value": "206102"
+            "value": "206686"
           }
         },
         "0xe7a35041": {
@@ -297,11 +297,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "450"
+            "value": "451"
           },
           "bits": {
             "kind": "init",
-            "value": "206102"
+            "value": "206686"
           }
         },
         "sendTokenPoolReleaseOrMint": {
@@ -311,25 +311,25 @@
           },
           "cells": {
             "kind": "init",
-            "value": "449"
+            "value": "450"
           },
           "bits": {
             "kind": "init",
-            "value": "206062"
+            "value": "206646"
           }
         },
         "0x351f77e3": {
           "gasUsed": {
             "kind": "init",
-            "value": "61159"
+            "value": "61833"
           },
           "cells": {
             "kind": "init",
-            "value": "449"
+            "value": "450"
           },
           "bits": {
             "kind": "init",
-            "value": "206062"
+            "value": "206646"
           }
         },
         "0xd065c306": {
@@ -339,11 +339,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "449"
+            "value": "450"
           },
           "bits": {
             "kind": "init",
-            "value": "206062"
+            "value": "206646"
           }
         },
         "0xf8a7ea5": {
@@ -353,11 +353,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "449"
+            "value": "450"
           },
           "bits": {
             "kind": "init",
-            "value": "206062"
+            "value": "206646"
           }
         },
         "0x178d4519": {
@@ -367,11 +367,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "449"
+            "value": "450"
           },
           "bits": {
             "kind": "init",
-            "value": "206062"
+            "value": "206646"
           }
         },
         "0x7362d09c": {
@@ -381,11 +381,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "449"
+            "value": "450"
           },
           "bits": {
             "kind": "init",
-            "value": "206062"
+            "value": "206646"
           }
         },
         "0xd53276db": {
@@ -395,11 +395,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "449"
+            "value": "450"
           },
           "bits": {
             "kind": "init",
-            "value": "206062"
+            "value": "206646"
           }
         }
       },

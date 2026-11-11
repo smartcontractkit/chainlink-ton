@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/gas-payments"
 
+import "../../../lib/gas"
+
 import "../lib/token_pool/messages"
 import "../lib/token_pool/budget"
 
@@ -13,8 +15,7 @@ const LockReleaseLockboxTokenPool_FACILITY_ID = LockReleaseLockboxTokenPool_FACI
 /// LockOrBurn safety: one custody phase. Covers success finalization or the best-effort return.
 /// The first transfer carries `2S + F`; the lockbox deposit forwards `S + F`.
 const LockReleaseLockboxTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS = 525_000; // ~0.035 TON
-/// LockOrBurn admission: the entry, the withdraw relay and the custody transfer, which carries three
-/// custody phases' safety (`3 * S`, ~0.105 TON).
+/// LockOrBurn admission: entry, withdraw relay, and three custody phases (`3 * S`).
 const LockReleaseLockboxTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 1_575_000; // ~0.105 TON base
 /// ReleaseOrMint safety: the lockbox transfer plus the pool's post-delivery finalization.
 const LockReleaseLockboxTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS = 375_000; // ~0.025 TON
@@ -22,16 +23,39 @@ const LockReleaseLockboxTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS = 375_000; //
 /// finalization safety; the caller's delivery forward is added on top.
 const LockReleaseLockboxTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS = 875_000; // ~0.058 TON
 
-fun LockReleaseLockboxTokenPool_defaultBudget(): TokenPool_Budget {
+struct LockReleaseLockboxTokenPool_Costs{}
+
+fun LockReleaseLockboxTokenPool_Costs.lockOrBurnAdmission(): coins {
     val w = contract.getAddress().getWorkchain();
+    return calculateGasFee(w, LockReleaseLockboxTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS)
+        + MIN_GRAM_TO_RESERVE_RUNTIME;
+}
+
+fun LockReleaseLockboxTokenPool_Costs.lockOrBurnSafety(): coins {
+    val w = contract.getAddress().getWorkchain();
+    return calculateGasFee(w, LockReleaseLockboxTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS);
+}
+
+fun LockReleaseLockboxTokenPool_Costs.releaseOrMintAdmission(): coins {
+    val w = contract.getAddress().getWorkchain();
+    return calculateGasFee(w, LockReleaseLockboxTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS)
+        + MIN_GRAM_TO_RESERVE_RUNTIME;
+}
+
+fun LockReleaseLockboxTokenPool_Costs.releaseOrMintSafety(): coins {
+    val w = contract.getAddress().getWorkchain();
+    return calculateGasFee(w, LockReleaseLockboxTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS);
+}
+
+fun LockReleaseLockboxTokenPool_defaultBudget(): TokenPool_Budget {
     return {
         lockOrBurn: {
-            admission: calculateGasFee(w, LockReleaseLockboxTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS),
-            safety: calculateGasFee(w, LockReleaseLockboxTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS),
+            admission: LockReleaseLockboxTokenPool_Costs.lockOrBurnAdmission(),
+            safety: LockReleaseLockboxTokenPool_Costs.lockOrBurnSafety(),
         },
         releaseOrMint: {
-            admission: calculateGasFee(w, LockReleaseLockboxTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS),
-            safety: calculateGasFee(w, LockReleaseLockboxTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS),
+            admission: LockReleaseLockboxTokenPool_Costs.releaseOrMintAdmission(),
+            safety: LockReleaseLockboxTokenPool_Costs.releaseOrMintSafety(),
         },
     };
 }

@@ -176,8 +176,8 @@ export const Costs = (() => {
   const executorReserveFee = toNano('0.0015')
   const executorDeploy = toNano('0.0395')
   const executorExecute = toNano('0.04') + feeQuoterGetValidatedFee + toNano('0.0025')
-  /** Pool-type default LockOrBurn admission (TOKEN_POOL_DEFAULT_LOCK_OR_BURN_ADMISSION). */
-  const poolLockOrBurnAdmission = toNano('0.115')
+  // Ceil of the on-chain default LockOrBurn admission (0.115000012).
+  const poolLockOrBurnAdmission = toNano('0.116')
   /** OnRamp_Costs.TokenPoolFinalization(): forwarded back to the executor by the pool. */
   const tokenPoolFinalization = toNano('0.02')
   const lockOrBurnRelay =

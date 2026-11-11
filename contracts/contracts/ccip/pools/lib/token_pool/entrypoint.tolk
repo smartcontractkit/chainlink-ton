@@ -266,15 +266,15 @@ fun TokenPool<T>.budget(self): TokenPool_Budget {
         lockOrBurn: {
             admission: max(
                 effective.lockOrBurn.admission,
-                effective.lockOrBurn.safety * LB_CUSTODY_MOVES_BEFORE_WITHDRAW
-            ) + MIN_GRAM_TO_RESERVE_RUNTIME,
+                effective.lockOrBurn.safety * LB_CUSTODY_MOVES_BEFORE_WITHDRAW + MIN_GRAM_TO_RESERVE_RUNTIME,
+            ),
             safety: effective.lockOrBurn.safety,
         },
         releaseOrMint: {
             admission: max(
                 effective.releaseOrMint.admission,
-                effective.releaseOrMint.safety * RM_CUSTODY_MOVES_BEFORE_RELEASE_MINT
-            ) + MIN_GRAM_TO_RESERVE_RUNTIME,
+                effective.releaseOrMint.safety * RM_CUSTODY_MOVES_BEFORE_RELEASE_MINT + MIN_GRAM_TO_RESERVE_RUNTIME,
+            ),
             safety: effective.releaseOrMint.safety,
         },
     };
