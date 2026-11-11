@@ -1486,6 +1486,49 @@ export const RampMessageHeader = {
 }
 
 /**
+ > struct RampMessageRef {
+ >     messageId: uint256
+ >     sourceChainSelector: uint64
+ >     sequenceNumber: uint64
+ > }
+ */
+export interface RampMessageRef {
+    readonly $: 'RampMessageRef'
+    messageId: uint256
+    sourceChainSelector: uint64
+    sequenceNumber: uint64
+}
+
+export const RampMessageRef = {
+    create(args: {
+        messageId: uint256
+        sourceChainSelector: uint64
+        sequenceNumber: uint64
+    }): RampMessageRef {
+        return {
+            $: 'RampMessageRef',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): RampMessageRef {
+        return {
+            $: 'RampMessageRef',
+            messageId: s.loadUintBig(256),
+            sourceChainSelector: s.loadUintBig(64),
+            sequenceNumber: s.loadUintBig(64),
+        }
+    },
+    store(self: RampMessageRef, b: c.Builder): void {
+        b.storeUint(self.messageId, 256);
+        b.storeUint(self.sourceChainSelector, 64);
+        b.storeUint(self.sequenceNumber, 64);
+    },
+    toCell(self: RampMessageRef): c.Cell {
+        return makeCellFrom<RampMessageRef>(self, RampMessageRef.store);
+    }
+}
+
+/**
  > struct (0xde852b1b) FeeQuoter_UpdatePrices {
  >     updates: PriceUpdates
  >     sendExcessesTo: address?
@@ -1598,19 +1641,17 @@ export const MerkleRoot_Validate = {
 
 /**
  > struct (0x019f4cd2) MerkleRoot_MarkState {
- >     seqNum: uint64
+ >     messageRef: RampMessageRef
  >     state: ExecutionState
  >     excessesTo: address
- >     header: Cell<RampMessageHeader>
  >     executorDeployFailed: bool
  > }
  */
 export interface MerkleRoot_MarkState {
     readonly $: 'MerkleRoot_MarkState'
-    seqNum: uint64
+    messageRef: RampMessageRef
     state: ExecutionState
     excessesTo: c.Address
-    header: RampMessageHeader
     executorDeployFailed: boolean
 }
 
@@ -1618,10 +1659,9 @@ export const MerkleRoot_MarkState = {
     PREFIX: 0x019f4cd2,
 
     create(args: {
-        seqNum: uint64
+        messageRef: RampMessageRef
         state: ExecutionState
         excessesTo: c.Address
-        header: RampMessageHeader
         executorDeployFailed: boolean
     }): MerkleRoot_MarkState {
         return {
@@ -1633,19 +1673,17 @@ export const MerkleRoot_MarkState = {
         loadAndCheckPrefix32(s, 0x019f4cd2, 'MerkleRoot_MarkState');
         return {
             $: 'MerkleRoot_MarkState',
-            seqNum: s.loadUintBig(64),
+            messageRef: RampMessageRef.fromSlice(s),
             state: ExecutionState.fromSlice(s),
             excessesTo: s.loadAddress(),
-            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
             executorDeployFailed: s.loadBoolean(),
         }
     },
     store(self: MerkleRoot_MarkState, b: c.Builder): void {
         b.storeUint(0x019f4cd2, 32);
-        b.storeUint(self.seqNum, 64);
+        RampMessageRef.store(self.messageRef, b);
         ExecutionState.store(self.state, b);
         b.storeAddress(self.excessesTo);
-        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
         b.storeBit(self.executorDeployFailed);
     },
     toCell(self: MerkleRoot_MarkState): c.Cell {
@@ -1656,7 +1694,7 @@ export const MerkleRoot_MarkState = {
 /**
  > struct (0x347ea073) MerkleRoot_ExecutionStateChanged {
  >     root: MerkleRootId
- >     header: Cell<RampMessageHeader>
+ >     messageRef: RampMessageRef
  >     state: ExecutionState
  >     excessesTo: address
  > }
@@ -1664,7 +1702,7 @@ export const MerkleRoot_MarkState = {
 export interface MerkleRoot_ExecutionStateChanged {
     readonly $: 'MerkleRoot_ExecutionStateChanged'
     root: MerkleRootId
-    header: RampMessageHeader
+    messageRef: RampMessageRef
     state: ExecutionState
     excessesTo: c.Address
 }
@@ -1674,7 +1712,7 @@ export const MerkleRoot_ExecutionStateChanged = {
 
     create(args: {
         root: MerkleRootId
-        header: RampMessageHeader
+        messageRef: RampMessageRef
         state: ExecutionState
         excessesTo: c.Address
     }): MerkleRoot_ExecutionStateChanged {
@@ -1688,7 +1726,7 @@ export const MerkleRoot_ExecutionStateChanged = {
         return {
             $: 'MerkleRoot_ExecutionStateChanged',
             root: MerkleRootId.fromSlice(s),
-            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
+            messageRef: RampMessageRef.fromSlice(s),
             state: ExecutionState.fromSlice(s),
             excessesTo: s.loadAddress(),
         }
@@ -1696,7 +1734,7 @@ export const MerkleRoot_ExecutionStateChanged = {
     store(self: MerkleRoot_ExecutionStateChanged, b: c.Builder): void {
         b.storeUint(0x347ea073, 32);
         MerkleRootId.store(self.root, b);
-        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
+        RampMessageRef.store(self.messageRef, b);
         ExecutionState.store(self.state, b);
         b.storeAddress(self.excessesTo);
     },
@@ -1710,7 +1748,7 @@ export const MerkleRoot_ExecutionStateChanged = {
  >     queryId: uint64
  >     effectiveGasLimit: coins
  >     root: address
- >     header: Cell<RampMessageHeader>
+ >     messageRef: RampMessageRef
  >     tokenTransfer: Cell<ReceiveExecutor_TokenTransfer>?
  >     excesses: Cell<ReceiveExecutor_Excesses>
  > }
@@ -1720,7 +1758,7 @@ export interface ReceiveExecutor_InitExecute {
     queryId: uint64
     effectiveGasLimit: coins
     root: c.Address
-    header: RampMessageHeader
+    messageRef: RampMessageRef
     tokenTransfer: ReceiveExecutor_TokenTransfer | null /* = null */
     excesses: ReceiveExecutor_Excesses
 }
@@ -1732,7 +1770,7 @@ export const ReceiveExecutor_InitExecute = {
         queryId?: uint64
         effectiveGasLimit: coins
         root: c.Address
-        header: RampMessageHeader
+        messageRef: RampMessageRef
         tokenTransfer?: ReceiveExecutor_TokenTransfer | null /* = null */
         excesses: ReceiveExecutor_Excesses
     }): ReceiveExecutor_InitExecute {
@@ -1750,7 +1788,7 @@ export const ReceiveExecutor_InitExecute = {
             queryId: s.loadUintBig(64),
             effectiveGasLimit: s.loadCoins(),
             root: s.loadAddress(),
-            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
+            messageRef: RampMessageRef.fromSlice(s),
             tokenTransfer: s.loadBoolean() ? loadCellRef<ReceiveExecutor_TokenTransfer>(s, ReceiveExecutor_TokenTransfer.fromSlice) : null,
             excesses: loadCellRef<ReceiveExecutor_Excesses>(s, ReceiveExecutor_Excesses.fromSlice),
         }
@@ -1760,7 +1798,7 @@ export const ReceiveExecutor_InitExecute = {
         b.storeUint(self.queryId, 64);
         b.storeCoins(self.effectiveGasLimit);
         b.storeAddress(self.root);
-        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
+        RampMessageRef.store(self.messageRef, b);
         storeTolkNullable<ReceiveExecutor_TokenTransfer>(self.tokenTransfer, b,
             (v,b) => storeCellRef<ReceiveExecutor_TokenTransfer>(v, b, ReceiveExecutor_TokenTransfer.store)
         );
@@ -2891,7 +2929,7 @@ export const OffRamp_CCIPReceiveBounced = {
 /**
  > struct (0x59e56170) OffRamp_NotifySuccess {
  >     queryId: uint64
- >     header: Cell<RampMessageHeader>
+ >     messageRef: RampMessageRef
  >     execId: ReceiveExecutionID
  >     root: address
  >     delivered: Cell<OffRamp_DeliveredTransfer>?
@@ -2901,7 +2939,7 @@ export const OffRamp_CCIPReceiveBounced = {
 export interface OffRamp_NotifySuccess {
     readonly $: 'OffRamp_NotifySuccess'
     queryId: uint64
-    header: RampMessageHeader
+    messageRef: RampMessageRef
     execId: ReceiveExecutionID
     root: c.Address
     delivered: OffRamp_DeliveredTransfer | null /* = null */
@@ -2913,7 +2951,7 @@ export const OffRamp_NotifySuccess = {
 
     create(args: {
         queryId?: uint64
-        header: RampMessageHeader
+        messageRef: RampMessageRef
         execId: ReceiveExecutionID
         root: c.Address
         delivered?: OffRamp_DeliveredTransfer | null /* = null */
@@ -2931,7 +2969,7 @@ export const OffRamp_NotifySuccess = {
         return {
             $: 'OffRamp_NotifySuccess',
             queryId: s.loadUintBig(64),
-            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
+            messageRef: RampMessageRef.fromSlice(s),
             execId: ReceiveExecutionID.fromSlice(s),
             root: s.loadAddress(),
             delivered: s.loadBoolean() ? loadCellRef<OffRamp_DeliveredTransfer>(s, OffRamp_DeliveredTransfer.fromSlice) : null,
@@ -2941,7 +2979,7 @@ export const OffRamp_NotifySuccess = {
     store(self: OffRamp_NotifySuccess, b: c.Builder): void {
         b.storeUint(0x59e56170, 32);
         b.storeUint(self.queryId, 64);
-        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
+        RampMessageRef.store(self.messageRef, b);
         ReceiveExecutionID.store(self.execId, b);
         b.storeAddress(self.root);
         storeTolkNullable<OffRamp_DeliveredTransfer>(self.delivered, b,
@@ -3043,7 +3081,7 @@ export const OffRamp_DeliveredTransfer = {
 /**
  > struct (0x177ebd03) OffRamp_NotifyFailure {
  >     queryId: uint64
- >     header: Cell<RampMessageHeader>
+ >     messageRef: RampMessageRef
  >     execId: ReceiveExecutionID
  >     root: address
  >     excesses: Cell<ReceiveExecutor_Excesses>
@@ -3052,7 +3090,7 @@ export const OffRamp_DeliveredTransfer = {
 export interface OffRamp_NotifyFailure {
     readonly $: 'OffRamp_NotifyFailure'
     queryId: uint64
-    header: RampMessageHeader
+    messageRef: RampMessageRef
     execId: ReceiveExecutionID
     root: c.Address
     excesses: ReceiveExecutor_Excesses
@@ -3063,7 +3101,7 @@ export const OffRamp_NotifyFailure = {
 
     create(args: {
         queryId?: uint64
-        header: RampMessageHeader
+        messageRef: RampMessageRef
         execId: ReceiveExecutionID
         root: c.Address
         excesses: ReceiveExecutor_Excesses
@@ -3079,7 +3117,7 @@ export const OffRamp_NotifyFailure = {
         return {
             $: 'OffRamp_NotifyFailure',
             queryId: s.loadUintBig(64),
-            header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
+            messageRef: RampMessageRef.fromSlice(s),
             execId: ReceiveExecutionID.fromSlice(s),
             root: s.loadAddress(),
             excesses: loadCellRef<ReceiveExecutor_Excesses>(s, ReceiveExecutor_Excesses.fromSlice),
@@ -3088,7 +3126,7 @@ export const OffRamp_NotifyFailure = {
     store(self: OffRamp_NotifyFailure, b: c.Builder): void {
         b.storeUint(0x177ebd03, 32);
         b.storeUint(self.queryId, 64);
-        storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
+        RampMessageRef.store(self.messageRef, b);
         ReceiveExecutionID.store(self.execId, b);
         b.storeAddress(self.root);
         storeCellRef<ReceiveExecutor_Excesses>(self.excesses, b, ReceiveExecutor_Excesses.store);
@@ -5212,7 +5250,7 @@ export class OffRamp implements c.Contract {
 
     static createCellOfOffRampNotifyFailure(body: {
         queryId?: uint64
-        header: RampMessageHeader
+        messageRef: RampMessageRef
         execId: ReceiveExecutionID
         root: c.Address
         excesses: ReceiveExecutor_Excesses
@@ -5222,7 +5260,7 @@ export class OffRamp implements c.Contract {
 
     static createCellOfOffRampNotifySuccess(body: {
         queryId?: uint64
-        header: RampMessageHeader
+        messageRef: RampMessageRef
         execId: ReceiveExecutionID
         root: c.Address
         delivered?: OffRamp_DeliveredTransfer | null /* = null */
@@ -5303,7 +5341,7 @@ export class OffRamp implements c.Contract {
 
     static createCellOfMerkleRootExecutionStateChanged(body: {
         root: MerkleRootId
-        header: RampMessageHeader
+        messageRef: RampMessageRef
         state: ExecutionState
         excessesTo: c.Address
     }) {
@@ -5471,7 +5509,7 @@ export class OffRamp implements c.Contract {
 
     async sendOffRampNotifyFailure(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        header: RampMessageHeader
+        messageRef: RampMessageRef
         execId: ReceiveExecutionID
         root: c.Address
         excesses: ReceiveExecutor_Excesses
@@ -5485,7 +5523,7 @@ export class OffRamp implements c.Contract {
 
     async sendOffRampNotifySuccess(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
-        header: RampMessageHeader
+        messageRef: RampMessageRef
         execId: ReceiveExecutionID
         root: c.Address
         delivered?: OffRamp_DeliveredTransfer | null /* = null */
@@ -5606,7 +5644,7 @@ export class OffRamp implements c.Contract {
 
     async sendMerkleRootExecutionStateChanged(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         root: MerkleRootId
-        header: RampMessageHeader
+        messageRef: RampMessageRef
         state: ExecutionState
         excessesTo: c.Address
     }, extraOptions?: ExtraSendOptions) {

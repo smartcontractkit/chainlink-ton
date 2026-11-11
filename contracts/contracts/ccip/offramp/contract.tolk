@@ -274,25 +274,19 @@ fun onBouncedCCIPReceiveConfirm(msg: ReceiveExecutor_CCIPReceiveConfirm) {
 // happen; if InitExecute bounced, it's probably a misconfiguration in the
 // ReceiveExecutor code. Marks the execution state as failed and emits events.
 fun onBouncedReceiveExecutorInitExecute(msg: ReceiveExecutor_InitExecute, senderAddress: address) {
-    val header = lazy msg.header.load();
     emit(RECEIVE_EXECUTOR_INIT_EXECUTE_BOUNCED, OffRamp_ReceiveExecutorInitExecuteBounced{
         receiveExecutor: senderAddress,
         root: msg.root,
-        sequenceNumber: header.sequenceNumber,
+        sequenceNumber: msg.messageRef.sequenceNumber,
     });
-    messageExecutionFailed(msg, header);
-}
-
-fun messageExecutionFailed(msg: ReceiveExecutor_InitExecute, header: RampMessageHeader) {
     // The executor's init value (if deployed) stays in the executor for retries, so the caller is
     // refunded everything else. The root emits the ExecutionStateChanged event on
     // MerkleRoot_ExecutionStateChanged once the state is committed.
     markStateOnRoot(
         msg.root,
-        header.sequenceNumber,
+        msg.messageRef,
         ExecutionState.Failure,
         msg.excesses.load().to,
-        msg.header,
         // If the deploy that preceded this InitExecute bounced, its MarkState (sent first) already
         // made the root deploy the executor again; this one must not change that.
         false,
@@ -318,10 +312,9 @@ fun onBouncedDeployableInitialize(msg: Deployable_Initialize, senderAddress: add
     // committed.
     markStateOnRoot(
         storageData.root,
-        message.header.sequenceNumber,
+        message.header.toRef(),
         ExecutionState.Failure,
         storageData.state.excesses!.load().to,
-        message.header.toCell(),
         // The executor was not deployed: the next execution attempt must deploy it.
         true,
     );
@@ -471,11 +464,10 @@ fun forwardValueToExecutor(executorAddress: AutoDeployAddress) {
 //     MerkleRoot ->> OffRamp:    MerkleRoot_ExecutionStateChanged
 //     OffRamp    ->> Caller:     excesses
 fun onExecutionStateChanged(msg: MerkleRoot_ExecutionStateChanged) {
-    val header = lazy msg.header.load();
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
-        sourceChainSelector: header.sourceChainSelector,
-        sequenceNumber: header.sequenceNumber,
-        messageId: header.messageId,
+        sourceChainSelector: msg.messageRef.sourceChainSelector,
+        sequenceNumber: msg.messageRef.sequenceNumber,
+        messageId: msg.messageRef.messageId,
         state: msg.state,
     });
 
@@ -504,21 +496,21 @@ fun onExecutionStateChanged(msg: MerkleRoot_ExecutionStateChanged) {
 // original balance (plus `keep`) and carries everything above it, so the contract's balance only
 // grows by `keep`.
 //
-// @param header: header of the message being marked, relayed by the root on
+// @param messageRef: message being marked, relayed by the root on
 // MerkleRoot_ExecutionStateChanged so the OffRamp can emit the event.
 // @param excessesTo: caller of the execution, refunded with the excesses.
 // @param executorDeployFailed: the ReceiveExecutor deploy bounced, so the root makes the next
 // execution attempt deploy it again.
 // @param keep: value retained by the OffRamp on top of its original balance (at most what is
 // available).
-fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState, excessesTo: address, header: Cell<RampMessageHeader>, executorDeployFailed: bool, keep: coins = 0) {
+fun markStateOnRoot(root: address, messageRef: RampMessageRef, state: ExecutionState, excessesTo: address, executorDeployFailed: bool, keep: coins = 0) {
     reserveGramsOnBalance(keep, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
     val markState = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: root,
-        body: MerkleRoot_MarkState { seqNum, state, excessesTo, header, executorDeployFailed },
+        body: MerkleRoot_MarkState { messageRef, state, excessesTo, executorDeployFailed },
     });
     // SAFETY: reserveGramsOnBalance keeps the original balance (plus `keep`), so only the value
     // exceeding it is sent.
@@ -540,8 +532,6 @@ fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: ad
         relayTokenTransferDelivered(st, msg.queryId, msg.execId, receiveExecutor, msg.delivered!, false);
     }
 
-    val messageHeader = lazy msg.header.load();
-
     // The executor drained its whole balance, init value included. On a retry that init value
     // was funded by an earlier caller (the node that first executed the message), so the OffRamp
     // keeps it instead of handing it to this caller.
@@ -551,7 +541,7 @@ fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: ad
     // propagate state change to root and refund the caller (must be last: carries the remaining
     // balance). The root emits the ExecutionStateChanged event on MerkleRoot_ExecutionStateChanged once the
     // state is committed.
-    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Success, excesses.to, msg.header, false, keep);
+    markStateOnRoot(msg.root, msg.messageRef, ExecutionState.Success, excesses.to, false, keep);
 }
 
 // Relays a ReceiveExecutor-confirmed token transfer delivery to the Router, which forwards it to
@@ -588,14 +578,12 @@ fun relayTokenTransferDelivered(st: Storage, queryId: uint64, execId: ReceiveExe
 //     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_CCIPReceiveFailed
 //     ReceiveExecutor ->> OffRamp:         OffRamp_NotifyFailure
 fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
-    val messageHeader = lazy msg.header.load();
-
     // The executor retains its init value on failure (for retries), so the caller is refunded
     // everything it sent back.
     // propagate state change to root and refund the caller (must be last: carries the remaining
     // balance). The root emits the ExecutionStateChanged event on MerkleRoot_ExecutionStateChanged once the
     // state is committed.
-    markStateOnRoot(msg.root, messageHeader.sequenceNumber, ExecutionState.Failure, msg.excesses.load().to, msg.header, false);
+    markStateOnRoot(msg.root, msg.messageRef, ExecutionState.Failure, msg.excesses.load().to, false);
 }
 
 // Sent by the Receiver via the Router to confirm successful message receipt.
@@ -1180,7 +1168,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         queryId: msg.queryId,
         effectiveGasLimit: message.gasLimit,
         root: sender,
-        header: message.header.toCell(),
+        messageRef: message.header.toRef(),
         excesses,
     };
 

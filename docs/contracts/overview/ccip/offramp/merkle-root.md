@@ -85,15 +85,17 @@ sequenceDiagram
     alt OffRamp rejects ExecuteValidated
     OFR -x MR: ExecuteValidated bounces
     Note over MR: Set Failure, and set deploy pending if deployExecutor
-    MR ->> OFR: ExecutionStateChanged { header, Failure, excessesTo }
+    MR ->> OFR: ExecutionStateChanged { messageRef, Failure, excessesTo }
     else Executor flow completes
-    OFR ->> MR: MarkState { seqNum, Success | Failure, excessesTo, header, executorDeployFailed }
+    OFR ->> MR: MarkState { messageRef, Success | Failure, excessesTo, executorDeployFailed }
     Note over MR: Increment delivered count on Success
-    MR ->> OFR: ExecutionStateChanged { header, state, excessesTo }
+    MR ->> OFR: ExecutionStateChanged { messageRef, state, excessesTo }
     Note over MR: Freeze and return balance once all messages are successful
     end
 ```
 
 The `context` is opaque to the root: it is the `OffRamp_ExecutionContext` the OffRamp parsed from the report and the manual gas overrides, relayed unchanged so the OffRamp does not validate it again.
+
+The `messageRef` (`messageId`, `sourceChainSelector`, `sequenceNumber`) is carried inline: the root marks the message by its `sequenceNumber` and relays the whole reference so the OffRamp can emit the event.
 
 The root only freezes when every message in its interval has eventually reached `Success`. Failed messages keep the root alive so they can be retried.

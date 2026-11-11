@@ -131,7 +131,7 @@ struct (0x2dcf2a43) OffRamp_CCIPReceiveBounced {
 
 struct (0x59e56170) OffRamp_NotifySuccess {
     queryId: uint64;
-    header: Cell<RampMessageHeader>;
+    messageRef: RampMessageRef;
     execId: ReceiveExecutionID;
     root: address;
     /// Set for token-only messages: the token transfer delivery to relay to the pool.
@@ -155,7 +155,7 @@ struct OffRamp_DeliveredTransfer {
 
 struct (0x177ebd03) OffRamp_NotifyFailure {
     queryId: uint64;
-    header: Cell<RampMessageHeader>;
+    messageRef: RampMessageRef;
     execId: ReceiveExecutionID;
     root: address;
     /// Caller of the execution attempt and whether it funded the executor's init value.

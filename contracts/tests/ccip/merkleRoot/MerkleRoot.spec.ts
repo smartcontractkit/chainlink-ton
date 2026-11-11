@@ -135,6 +135,11 @@ describe('MerkleRoot - Message Handling', () => {
       tokenAmounts: null,
     })
 
+  const buildMessageRef = (sequenceNumber: bigint): mr.RampMessageRef => {
+    const { messageId, sourceChainSelector } = buildMessage(sequenceNumber).header
+    return mr.RampMessageRef.create({ messageId, sourceChainSelector, sequenceNumber })
+  }
+
   // Opaque to the MerkleRoot: relayed unchanged on OffRamp_ExecuteValidated.
   const CONTEXT = beginCell().storeUint(0xc0ffee, 24).endCell()
 
@@ -575,10 +580,9 @@ describe('MerkleRoot - Message Handling', () => {
       })
       const markFailure = (executorDeployFailed: boolean) =>
         merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
-          seqNum: 1n,
+          messageRef: buildMessageRef(1n),
           state: mr.ExecutionState.Failure,
           excessesTo: owner.address,
-          header: buildMessage(1n).header,
           executorDeployFailed,
         })
 
@@ -617,10 +621,9 @@ describe('MerkleRoot - Message Handling', () => {
       })
 
       const result = await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
-        seqNum: 1n,
+        messageRef: buildMessageRef(1n),
         state: mr.ExecutionState.Success,
         excessesTo: owner.address,
-        header: buildMessage(1n).header,
         executorDeployFailed: false,
       })
 
@@ -643,10 +646,9 @@ describe('MerkleRoot - Message Handling', () => {
       })
 
       const result = await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
-        seqNum: 1n,
+        messageRef: buildMessageRef(1n),
         state: mr.ExecutionState.Failure,
         excessesTo: owner.address,
-        header: buildMessage(1n).header,
         executorDeployFailed: false,
       })
 
@@ -669,10 +671,9 @@ describe('MerkleRoot - Message Handling', () => {
       })
 
       const result = await merkleRoot.sendMerkleRootMarkState(nonOwner.getSender(), toNano('0.1'), {
-        seqNum: 1n,
+        messageRef: buildMessageRef(1n),
         state: mr.ExecutionState.Success,
         excessesTo: owner.address,
-        header: buildMessage(1n).header,
         executorDeployFailed: false,
       })
 
@@ -692,10 +693,9 @@ describe('MerkleRoot - Message Handling', () => {
       })
 
       const result = await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
-        seqNum: 1n,
+        messageRef: buildMessageRef(1n),
         state: mr.ExecutionState.Failure,
         excessesTo: owner.address,
-        header: buildMessage(1n).header,
         executorDeployFailed: false,
       })
 
@@ -714,10 +714,9 @@ describe('MerkleRoot - Message Handling', () => {
       })
 
       const result = await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
-        seqNum: 1n,
+        messageRef: buildMessageRef(1n),
         state: mr.ExecutionState.InProgress,
         excessesTo: owner.address,
-        header: buildMessage(1n).header,
         executorDeployFailed: false,
       })
 
@@ -736,10 +735,9 @@ describe('MerkleRoot - Message Handling', () => {
       })
 
       const result = await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
-        seqNum: 42n,
+        messageRef: buildMessageRef(42n),
         state: mr.ExecutionState.Success,
         excessesTo: owner.address,
-        header: buildMessage(42n).header,
         executorDeployFailed: false,
       })
 
@@ -761,10 +759,9 @@ describe('MerkleRoot - Message Handling', () => {
       })
 
       const body = mr.MerkleRoot.createCellOfMerkleRootMarkState({
-        seqNum: 1n,
+        messageRef: buildMessageRef(1n),
         state: mr.ExecutionState.Success,
         excessesTo: owner.address,
-        header: buildMessage(1n).header,
         executorDeployFailed: false,
       })
 

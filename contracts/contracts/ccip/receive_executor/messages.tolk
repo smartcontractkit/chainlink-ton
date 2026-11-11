@@ -34,7 +34,8 @@ struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
     queryId: uint64;
     effectiveGasLimit: coins;
     root: address;
-    header: Cell<RampMessageHeader>;
+    /// Unused by the executor: lets the OffRamp mark the message Failure if this bounces.
+    messageRef: RampMessageRef;
     tokenTransfer: Cell<ReceiveExecutor_TokenTransfer>? = null;
     excesses: Cell<ReceiveExecutor_Excesses>;
 }

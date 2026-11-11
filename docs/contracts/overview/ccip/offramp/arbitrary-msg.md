@@ -77,7 +77,7 @@ sequenceDiagram
 
     create participant RE as ReceiveExecutor{id}
     OR ->> RE: Only when deployExecutor:<br>stateInit: Deployable {owner: OffRamp, id: execId}<br>Init: {owner: OffRamp, message, root,<br>execId, state: Untouched}
-    OR ->> RE: InitExecute { root, header, effectiveGasLimit,<br>tokenTransfer, excesses }
+    OR ->> RE: InitExecute { root, messageRef, effectiveGasLimit,<br>tokenTransfer, excesses }
     deactivate OR
 
 
@@ -142,7 +142,7 @@ sequenceDiagram
     activate MR
     Note over MR: Sets state: Failure
     Note over MR: deployExecutor: sets executor deploy pending
-    MR ->> OR: ExecutionStateChanged { header, state: Failure, excessesTo }
+    MR ->> OR: ExecutionStateChanged { messageRef, state: Failure, excessesTo }
     deactivate MR
 
     activate OR
@@ -204,7 +204,7 @@ sequenceDiagram
     Note over RE: Verifies sender is OffRamp
     Note over RE: Verifies receiver is the message's receiver
     Note over RE: Set state: Success
-    RE ->> OR: NotifySuccess { header, execID, root, excesses }
+    RE ->> OR: NotifySuccess { messageRef, execID, root, excesses }
     deactivate RE
 
 
@@ -212,14 +212,14 @@ sequenceDiagram
     activate OR
     Note over OR: Verifies sender is ReceiveExecutor
     Note over OR: On a retry, keeps the executor's init value<br>(funded by the first caller)
-    OR ->> MR: MarkState { seqNum, state: Success, excessesTo, header }
+    OR ->> MR: MarkState { messageRef, state: Success, excessesTo }
     deactivate OR
 
 
     activate MR
     Note over MR: Verifies sender is OffRamp
     Note over MR: Sets state: Success
-    MR ->> OR: ExecutionStateChanged { header, state: Success, excessesTo }
+    MR ->> OR: ExecutionStateChanged { messageRef, state: Success, excessesTo }
     alt Last message of the root
     Note over MR: Returns its balance to the OffRamp and freezes
     end
@@ -280,21 +280,21 @@ sequenceDiagram
     Note over RE: Verifies sender is OffRamp
     Note over RE: Verifies receiver is the message's receiver
     Note over RE: Set state: ExecuteFailed<br>(keeps its init value for retries)
-    RE ->> OR: NotifyFailure { header, execID, root, excesses }
+    RE ->> OR: NotifyFailure { messageRef, execID, root, excesses }
     deactivate RE
 
 
 
     activate OR
     Note over OR: Verifies sender is ReceiveExecutor
-    OR ->> MR: MarkState { seqNum, state: Failure, excessesTo, header }
+    OR ->> MR: MarkState { messageRef, state: Failure, excessesTo }
     deactivate OR
 
 
     activate MR
     Note over MR: Verifies sender is OffRamp
     Note over MR: Sets state: Failure
-    MR ->> OR: ExecutionStateChanged { header, state: Failure, excessesTo }
+    MR ->> OR: ExecutionStateChanged { messageRef, state: Failure, excessesTo }
     deactivate MR
 
 

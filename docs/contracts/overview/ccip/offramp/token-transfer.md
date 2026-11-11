@@ -115,7 +115,7 @@ sequenceDiagram
     Note over RE: Verifies sender is the receiver's deposit account<br>and the transfer initiator is the pool's
     Note over RE: Token transfer state: Success
     alt No data and gasLimit == 0 (pure token transfer)
-    RE ->> OR: NotifySuccess { header, execId, root,<br>delivered, excesses }
+    RE ->> OR: NotifySuccess { messageRef, execId, root,<br>delivered, excesses }
     else Message has data or gasLimit
     RE ->> OR: TokenTransferDelivered { execId, delivered }
     RE ->> OR: DispatchValidated { message, execId,<br>effectiveGasLimit, tokenAmounts }

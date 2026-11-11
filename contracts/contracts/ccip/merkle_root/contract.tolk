@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../lib/utils"
+import "../common/types"
 import "../offramp/messages"
 import "../offramp/types"
 import "messages"
@@ -84,7 +85,7 @@ fun onExecuteValidatedBounced(mutate st: MerkleRoot_Storage, msg: OffRamp_Execut
         dest: st.owner,
         body: MerkleRoot_ExecutionStateChanged {
             root: st.root,
-            header: message.header.toCell(),
+            messageRef: message.header.toRef(),
             state: ExecutionState.Failure,
             excessesTo: msg.excessesTo,
         },
@@ -102,16 +103,17 @@ sending remaining balance back to the OffRamp owner.
 */
 fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
     // validate we're transitioning states correctly: success is final
-    val previousState= st.getMessageState(msg.seqNum);
+    val seqNum = msg.messageRef.sequenceNumber;
+    val previousState = st.getMessageState(seqNum);
 
     assert (previousState != ExecutionState.Success) throw (MerkleRoot_Error.InvalidState);
     assert (msg.state == ExecutionState.Success || msg.state == ExecutionState.Failure) throw (MerkleRoot_Error.InvalidState);
 
-    st.setMessageState(msg.seqNum, msg.state);
+    st.setMessageState(seqNum, msg.state);
     // Only set here, never cleared: a later MarkState of the same failed flow (e.g. the bounced
     // InitExecute that follows a bounced deploy) must not undo it. Validate clears it.
     if (msg.executorDeployFailed) {
-        st.setExecutorDeployPending(msg.seqNum, true);
+        st.setExecutorDeployPending(seqNum, true);
     }
 
     if (msg.state == ExecutionState.Success) {
@@ -127,7 +129,7 @@ fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
         dest: st.owner,
         body: MerkleRoot_ExecutionStateChanged {
             root: st.root,
-            header: msg.header,
+            messageRef: msg.messageRef,
             state: msg.state,
             excessesTo: msg.excessesTo,
         },

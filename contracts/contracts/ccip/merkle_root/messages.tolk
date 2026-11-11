@@ -28,14 +28,13 @@ struct (0x038ede91) MerkleRoot_Validate {
 }
 
 struct (0x019f4cd2) MerkleRoot_MarkState {
-    seqNum: uint64,
+    /// Message being marked (by `sequenceNumber`). The root relays it on
+    /// MerkleRoot_ExecutionStateChanged so the OffRamp can emit the ExecutionStateChanged event.
+    messageRef: RampMessageRef,
     state: ExecutionState,
     /// Caller of the execution. Once the state is marked, the excesses carried by this message
     /// are returned to the OffRamp, which refunds them to this address.
     excessesTo: address,
-    /// Header of the message being marked: the root relays its fields on MerkleRoot_ExecutionStateChanged
-    /// so the OffRamp can emit the ExecutionStateChanged event.
-    header: Cell<RampMessageHeader>,
     /// The ReceiveExecutor deploy bounced, so the next execution attempt must deploy it again.
     executorDeployFailed: bool,
 }
@@ -49,9 +48,8 @@ struct (0x019f4cd2) MerkleRoot_MarkState {
 /// message carries (the execution excesses on the MarkState flow, nothing on the bounce flow).
 struct (0x347ea073) MerkleRoot_ExecutionStateChanged {
     root: MerkleRootId;
-    /// Header of the message whose state changed: the OffRamp emits its fields on the
-    /// ExecutionStateChanged event.
-    header: Cell<RampMessageHeader>;
+    /// Message whose state changed: the OffRamp emits it on the ExecutionStateChanged event.
+    messageRef: RampMessageRef;
     state: ExecutionState;
     /// Caller of the execution, refunded with the excesses carried by this message.
     excessesTo: address;
