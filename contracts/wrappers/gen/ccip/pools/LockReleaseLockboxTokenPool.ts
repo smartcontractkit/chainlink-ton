@@ -6186,7 +6186,8 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 export class LockReleaseLockboxTokenPool implements c.Contract {
     static Errors = {
         'TVMError.IntegerOverflow': 4,
-        'TVMError.CellOverflow': 8,
+        'CrossChainAddress_Error.InvalidBitLength': 298,
+        'CrossChainAddress_Error.TooManyBytes': 299,
         'Utils_Error.InvalidData': 13500,
         'RateLimiter_Error.BucketOverfilled': 16300,
         'RateLimiter_Error.TokenMaxCapacityExceeded': 16301,
