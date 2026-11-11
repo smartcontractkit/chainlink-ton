@@ -953,24 +953,18 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     val message = report.messages.asSingle().unwrap(OffRamp_Error.TooManyMessagesInReport);
 
     // Validate offchainTokenData shape: it must have one entry per message.
-    // TON currently supports one message with at most one token transfer.
-    // A tokenless report may be encoded as either:
+    // TON currently supports one message per report. Offchain token data is not supported yet, so
+    // a message with token transfers must have one per-message list with exactly one empty cell
+    // per token transfer. A tokenless report may be encoded as either:
     //   - `[]` (empty outer list), or
     //   - `[[]]` (one empty per-message list, the legacy shape).
     // Both are accepted for backwards compatibility with older encoders.
+    // A valid offchainTokenData carries no information, so it is not relayed to onExecuteValidated.
     var offchainTokenData = report.offchainTokenData;
     val hasTokens = message.tokenAmounts != null && !message.tokenAmounts.empty();
-    // The token count and the gas overrides are validated later, where a bad message is marked
-    // Failure instead of rejecting the report; here only the shape the cost functions assume.
-    var destGasAmount: coins = 0;
     if (hasTokens) {
         assert(!isZeroAddress(st.config.load().staticConfig.tokenAdminRegistry), OffRamp_Error.TokenAdminRegistryNotSet);
         var offchainTokenDataForTTOfMessage = offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
-        assert (!offchainTokenDataForTTOfMessage.isEmpty()) throw (OffRamp_Error.UnexpectedTokenData);
-        // Offchain token data is not supported yet: every entry must be an empty cell.
-        while (!offchainTokenDataForTTOfMessage.isEmpty()) {
-            assert (offchainTokenDataForTTOfMessage.popHead() == createEmptyCell()) throw (OffRamp_Error.UnexpectedTokenData);
-        }
         var transfers = message.tokenAmounts!.iter();
         while (!transfers.empty()) {
             val tokenTransfer = transfers.next();
@@ -979,14 +973,10 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
                 val extraData = tokenTransfer.extraData!.beginParse();
                 assert (extraData.remainingRefsCount() == 0 && extraData.remainingBitsCount() <= OFFRAMP_MAX_EXTRA_DATA_BITS) throw (OffRamp_Error.UnexpectedExtraData);
             }
-            destGasAmount += tokenTransfer.destGasAmount;
+            assert (!offchainTokenDataForTTOfMessage.isEmpty()) throw (OffRamp_Error.UnexpectedTokenData);
+            assert (offchainTokenDataForTTOfMessage.popHead() == createEmptyCell()) throw (OffRamp_Error.UnexpectedTokenData);
         }
-        if (gasOverride != null && gasOverride.tokenGasOverrides != null) {
-            var overrides = gasOverride.tokenGasOverrides!.iter();
-            if (!overrides.empty()) {
-                destGasAmount = max(destGasAmount, overrides.next());
-            }
-        }
+        assert (offchainTokenDataForTTOfMessage.isEmpty()) throw (OffRamp_Error.UnexpectedTokenData);
     } else {
         // Tokenless: accept `[]` (empty outer list) and `[[]]` (one empty inner list).
         // Reject any non-empty inner list or more than one outer entry.
@@ -997,11 +987,12 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     }
 
     assert (snakedBytesLen(message.data) <= OFFRAMP_MAX_DATA_BYTES) throw (OffRamp_Error.MsgDataTooLarge);
-    var effectiveGasLimit = message.gasLimit;
-    if (gasOverride != null && gasOverride.receiverExecutionGasLimit != null) {
-        effectiveGasLimit = max(effectiveGasLimit, gasOverride.receiverExecutionGasLimit!);
-    }
-    assert (value >= OffRamp_Costs.execute(hasTokens) + effectiveGasLimit + destGasAmount) throw (OffRamp_Error.InsufficientFee);
+
+    // Gas overrides are validated here, so an invalid manual execution fails this transaction
+    // before the root marks the message InProgress. The number of token transfers is validated in
+    // onExecuteValidated instead, which marks unsupported messages Failure.
+    val context = OffRamp_ExecutionContext.parse(message, gasOverride);
+    assert (value >= OffRamp_Costs.execute(hasTokens) + context.effectiveGasLimit + context.tokenDestGasTotal()) throw (OffRamp_Error.InsufficientFee);
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert (sourceChainConfigResult.isFound) throw (OffRamp_Error.SourceChainNotEnabled);
@@ -1046,8 +1037,8 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
             message: report.messages as Cell<Any2TVMRampMessage>,
             metadataHash,
             permissionlessExecutionThresholdSeconds: st.config.load().dynamicConfig.load().permissionlessExecutionThresholdSeconds,
-            gasOverride,
-            offchainTokenData: report.offchainTokenData,
+            isManualExecution: gasOverride != null,
+            context: context.toCell(),
             excessesTo,
         },
     });
@@ -1182,20 +1173,12 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         excesses,
     };
 
-    // Validation errors (bad token data, gas override mismatch) throw and bounce back to the
-    // MerkleRoot, which marks the message Failure and notifies the OffRamp.
-    val hasTokens = message.tokenAmounts != null && !message.tokenAmounts.empty();
-    // A tokenless report may have offchainTokenData as `[]` (empty outer
-    // list) or `[[]]` (one empty inner list). Only extract the per-message
-    // list when there are tokens or the outer list is non-empty; when
-    // tokenless with an empty outer list, getTokenTransfer returns null
-    // without inspecting offchainTokenData.
-    var offchainTokenDataForTTOfMessage = [] as lisp_list<cell>;
-    if (hasTokens || !msg.offchainTokenData.isEmpty()) {
-        offchainTokenDataForTTOfMessage = msg.offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
-    }
-    initExecuteMsg.effectiveGasLimit = msg.gasOverride.getEffectiveGasLimit(message.gasLimit);
-    initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, message.receiver, msg.gasOverride, offchainTokenDataForTTOfMessage);
+    // The report and the gas overrides were validated and parsed by onExecuteSingleReport. An
+    // unsupported number of token transfers throws and bounces back to the MerkleRoot, which marks
+    // the message Failure and notifies the OffRamp.
+    val context = OffRamp_ExecutionContext.fromCell(msg.context);
+    initExecuteMsg.effectiveGasLimit = context.effectiveGasLimit;
+    initExecuteMsg.tokenTransfer = getTokenTransfer(st, message.tokenAmounts, message.header.sourceChainSelector, message.receiver, context.tokenDestGasAmounts);
 
     reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
@@ -1214,24 +1197,17 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 //
 // @note: We currently only support a single token transfer
 //
+// @param tokenDestGasAmounts: effective gas of each token transfer (OffRamp_ExecutionContext).
+//
 // @throws OffRamp_Error.UnsupportedNumberOfTokens if tokenAmounts is not null and its len != 1.
-// @throws OffRamp_Error.ManualExecutionGasAmountCountMismatch the number of gasOverride.tokenGasOverrides does not match the number of tokenAmounts.
-// @throws OffRamp_Error.UnexpectedTokenData if offchainTokenData does not contain exactly one
-// per-message list with exactly one entry for the single token transfer.
-fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, sourceChainSelector: uint64, receiver: address, gasOverride: GasOverride?, offchainTokenData: lisp_list<cell>): Cell<ReceiveExecutor_TokenTransfer>? {
+fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?, sourceChainSelector: uint64, receiver: address, tokenDestGasAmounts: lisp_list<coins>): Cell<ReceiveExecutor_TokenTransfer>? {
     if (tokenAmounts == null) {
-        assert (gasOverride == null || gasOverride.tokenGasOverrides == null) throw (OffRamp_Error.ManualExecutionGasAmountCountMismatch);
         return null;
     }
     var tokenTransfer = tokenAmounts.asSingle().unwrap(OffRamp_Error.UnsupportedNumberOfTokens);
-    tokenTransfer.destGasAmount = gasOverride.getEffectiveDestGasAmount(tokenTransfer).unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
-
-    // Extract the single per-message list and its single token-data blob.
-    var tokenData: cell? = null;
-    val userTokenData = offchainTokenData.asSingle().unwrap(OffRamp_Error.UnexpectedTokenData);
-    if (userTokenData != createEmptyCell()) {
-        tokenData = userTokenData;
-    }
+    // The context has one entry per token transfer, so it is single too.
+    var destGasAmounts = tokenDestGasAmounts;
+    tokenTransfer.destGasAmount = destGasAmounts.asSingle().unwrap(OffRamp_Error.UnsupportedNumberOfTokens);
 
     // Released/minted tokens are delivered to the receiver's Router-owned deposit account for
     // this token, so a pool can only ever credit the account of the token it is registered for.
@@ -1246,7 +1222,8 @@ fun getTokenTransfer(st: Storage, tokenAmounts: SnakedCell<Any2TVMTokenTransfer>
         tokenAdminRegistry: st.config.load().staticConfig.tokenAdminRegistry,
         receiverAccount,
         transfer: tokenTransfer.toCell(),
-        offchainTokenData: tokenData,
+        // Offchain token data is not supported yet (onExecuteSingleReport only accepts empty entries).
+        offchainTokenData: null,
     }.toCell();
 }
 

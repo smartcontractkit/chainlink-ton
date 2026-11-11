@@ -147,9 +147,7 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
     val state = st.getMessageState(message.header.sequenceNumber);
     assert (state == ExecutionState.Failure || state == ExecutionState.Untouched) throw (MerkleRoot_Error.SkippedAlreadyExecutedMessage);
 
-    val isManualExecute = msg.gasOverride != null;
-
-    if (isManualExecute) {
+    if (msg.isManualExecution) {
         val isOldCommitReport = (blockchain.now() - st.timestamp > msg.permissionlessExecutionThresholdSeconds);
         // Manual execution is fine if we previously failed or if the commit report is just too old.
         // (In that case the report will still be in UNTOUCHED state)
@@ -170,9 +168,8 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
             message: message.toCell(),
             root: st.root,
             metadataHash: msg.metadataHash,
-            gasOverride: msg.gasOverride,
             executionState: state,
-            offchainTokenData: msg.offchainTokenData,
+            context: msg.context,
             excessesTo: msg.excessesTo,
         }
     });

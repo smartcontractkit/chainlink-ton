@@ -15,8 +15,13 @@ struct (0x038ede91) MerkleRoot_Validate {
     message: Cell<Any2TVMRampMessage>,
     permissionlessExecutionThresholdSeconds: uint32,
     metadataHash: uint256,
-    gasOverride: GasOverride?,
-    offchainTokenData: lisp_list<lisp_list<cell>>,
+    // Manual (permissionless) execution: allowed from Failure, or from Untouched once the commit
+    // is older than `permissionlessExecutionThresholdSeconds`. Otherwise only the DON executes,
+    // and only from Untouched.
+    isManualExecution: bool,
+    // Opaque to the MerkleRoot: relayed unchanged to the OffRamp on OffRamp_ExecuteValidated
+    // (an OffRamp_ExecutionContext).
+    context: cell,
     // Caller of the execution: refunded with the excesses when the flow ends, or with the whole
     // value if this message bounces.
     excessesTo: address,

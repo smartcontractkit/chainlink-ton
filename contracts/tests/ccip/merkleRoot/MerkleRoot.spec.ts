@@ -133,11 +133,8 @@ describe('MerkleRoot - Message Handling', () => {
       tokenAmounts: null,
     })
 
-  const buildGasOverride = (): mr.GasOverride =>
-    mr.GasOverride.create({
-      receiverExecutionGasLimit: toNano('0.05'),
-      tokenGasOverrides: [],
-    })
+  // Opaque to the MerkleRoot: relayed unchanged on OffRamp_ExecuteValidated.
+  const CONTEXT = beginCell().storeUint(0xc0ffee, 24).endCell()
 
   const loadStorage = async (address: mr.MerkleRoot['address']): Promise<mr.MerkleRoot_Storage> => {
     const contract = await blockchain.getContract(address)
@@ -177,8 +174,8 @@ describe('MerkleRoot - Message Handling', () => {
         message,
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [[]],
-        gasOverride: null,
+        isManualExecution: false,
+        context: CONTEXT,
         excessesTo: owner.address,
       })
 
@@ -199,7 +196,7 @@ describe('MerkleRoot - Message Handling', () => {
           return (
             decoded.root === ROOT &&
             decoded.metadataHash === METADATA_HASH &&
-            decoded.gasOverride === null &&
+            decoded.context.equals(CONTEXT) &&
             decoded.executionState === mr.ExecutionState.Untouched &&
             decoded.message.header.sequenceNumber === 1n
           )
@@ -240,8 +237,8 @@ describe('MerkleRoot - Message Handling', () => {
             message: buildMessage(1n),
             permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
             metadataHash: METADATA_HASH,
-            offchainTokenData: [[]],
-            gasOverride: null,
+            isManualExecution: false,
+            context: CONTEXT,
             excessesTo: owner.address,
           },
         )
@@ -272,8 +269,8 @@ describe('MerkleRoot - Message Handling', () => {
           message: buildMessage(1n),
           permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
           metadataHash: METADATA_HASH,
-          offchainTokenData: [[]],
-          gasOverride: buildGasOverride(),
+          isManualExecution: true,
+          context: CONTEXT,
           excessesTo: owner.address,
         })
         expect(retry.transactions).toHaveTransaction({
@@ -327,8 +324,8 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [[]],
-        gasOverride: null,
+        isManualExecution: false,
+        context: CONTEXT,
         excessesTo: owner.address,
       })
 
@@ -352,8 +349,8 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [[]],
-        gasOverride: null,
+        isManualExecution: false,
+        context: CONTEXT,
         excessesTo: owner.address,
       })
 
@@ -377,8 +374,8 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [[]],
-        gasOverride: null,
+        isManualExecution: false,
+        context: CONTEXT,
         excessesTo: owner.address,
       })
 
@@ -401,8 +398,8 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [[]],
-        gasOverride: buildGasOverride(),
+        isManualExecution: true,
+        context: CONTEXT,
         excessesTo: owner.address,
       })
 
@@ -427,8 +424,8 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [[]],
-        gasOverride: buildGasOverride(),
+        isManualExecution: true,
+        context: CONTEXT,
         excessesTo: owner.address,
       })
 
@@ -447,7 +444,8 @@ describe('MerkleRoot - Message Handling', () => {
           if (!x) return false
           const decoded = mr.OffRamp_ExecuteValidated.fromSlice(x.beginParse())
           return (
-            decoded.gasOverride !== null && decoded.executionState === mr.ExecutionState.Untouched
+            decoded.context.equals(CONTEXT) &&
+            decoded.executionState === mr.ExecutionState.Untouched
           )
         },
       })
@@ -466,8 +464,8 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [[]],
-        gasOverride: buildGasOverride(),
+        isManualExecution: true,
+        context: CONTEXT,
         excessesTo: owner.address,
       })
 
@@ -680,7 +678,9 @@ describe('MerkleRoot - Message Handling', () => {
       if (!excessTX) throw new Error('ReturnExecuteExcess transaction not found')
       const excessValue = flattenTransaction(excessTX).value
       if (excessValue == undefined) throw new Error('Value not found in excess transaction')
-      const excess = mr.MerkleRoot_ExecutionStateChanged.fromSlice(excessTX.inMessage!.body.beginParse())
+      const excess = mr.MerkleRoot_ExecutionStateChanged.fromSlice(
+        excessTX.inMessage!.body.beginParse(),
+      )
       expect(excess.root).toEqual(ROOT)
       expect(excess.excessesTo.equals(owner.address)).toBe(true)
       // Trigger value minus the MarkState fees.

@@ -73,9 +73,9 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     message: Cell<Any2TVMRampMessage>;
     root: MerkleRootId;
     metadataHash: uint256;
-    gasOverride: GasOverride? = null;
     executionState: ExecutionState;
-    offchainTokenData: lisp_list<lisp_list<cell>>;
+    /// OffRamp_ExecutionContext parsed by onExecuteSingleReport, relayed unchanged by the root.
+    context: cell;
     /// Caller of the execution, refunded with the flow's excesses
     excessesTo: address;
 }

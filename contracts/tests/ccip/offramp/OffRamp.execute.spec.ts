@@ -1274,22 +1274,18 @@ describe('OffRamp - Execute', () => {
 
       const gasOverride = { receiverExecutionGasLimit: message.gasLimit - 100n }
 
-      const result4 = await setup.manualExecuteReport(report, gasOverride, true)
-
-      assertLog(
-        result4.transactions,
+      // Rejected by the OffRamp before the root is asked to validate (and mark) the message.
+      const result4 = await setup.manualExecuteReport(report, gasOverride, false)
+      expectFailedTransaction(
+        result4,
+        setup.transmitters[0].address,
         setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.Failure,
-        },
+        of.OffRamp.Errors['OffRamp_Error.InvalidManualExecutionGasLimit'],
       )
+      expect(result4.transactions).not.toHaveTransaction({ op: mr.MerkleRoot_Validate.PREFIX })
     })
 
-    it('should mark message as Failure when gasOverride is lower than original gasLimit, allowing retry', async () => {
+    it('should reject manual execute when gasOverride is lower than original gasLimit, allowing retry', async () => {
       const message = setup.createTestMessage(1n, 1n, setup.receiver.address) // empty data (Cell.EMPTY)
       await setup.setupAndCommitMessage(message)
       const report = setup.createExecuteReport([message])
@@ -1310,20 +1306,16 @@ describe('OffRamp - Execute', () => {
 
       // 2. Manual execute with a receiverExecutionGasLimit lower than the
       //    message gasLimit.
+      //    The OffRamp rejects it before the root is asked to validate the message.
       const badGasOverride = { receiverExecutionGasLimit: message.gasLimit - 100n }
-      const badResult = await setup.manualExecuteReport(report, badGasOverride, true)
-
-      assertLog(
-        badResult.transactions,
+      const badResult = await setup.manualExecuteReport(report, badGasOverride, false)
+      expectFailedTransaction(
+        badResult,
+        setup.transmitters[0].address,
         setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.Failure,
-        },
+        of.OffRamp.Errors['OffRamp_Error.InvalidManualExecutionGasLimit'],
       )
+      expect(badResult.transactions).not.toHaveTransaction({ op: mr.MerkleRoot_Validate.PREFIX })
 
       await setup.receiver.sendTestReceiverUpdateBehavior(
         setup.deployer.getSender(),
@@ -1357,10 +1349,11 @@ describe('OffRamp - Execute', () => {
     })
 
     it('should retry a message whose first (Untouched) execution failed OffRamp validation', async () => {
-      // Regression: when the very first execution attempt (root state Untouched) fails validation
-      // in onExecuteValidated, the root marks the message Failure. A retry arrives with
-      // executionState=Failure and therefore does not deploy the ReceiveExecutor, so the executor
-      // must already exist from the first attempt or the message can never be executed.
+      // Regression: a failed first attempt (root state Untouched) used to bounce back to the root,
+      // which marked the message Failure while the ReceiveExecutor deploy was reverted. A retry
+      // arrives with executionState=Failure and does not deploy the executor, so the message could
+      // never be executed. Invalid gas overrides are now rejected by the OffRamp before the root is
+      // involved, so the message stays Untouched and the retry deploys the executor.
       const message = setup.createTestMessage(1n, 1n, setup.receiver.address) // empty data (Cell.EMPTY)
       await setup.setupAndCommitMessage(message)
       const report = setup.createExecuteReport([message])
@@ -1381,17 +1374,13 @@ describe('OffRamp - Execute', () => {
           }),
         },
       )
-      assertLog(
-        first.transactions,
+      expectFailedTransaction(
+        first,
+        setup.transmitters[0].address,
         setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.Failure,
-        },
+        of.OffRamp.Errors['OffRamp_Error.ManualExecutionGasAmountCountMismatch'],
       )
+      expect(first.transactions).not.toHaveTransaction({ op: mr.MerkleRoot_Validate.PREFIX })
 
       // 2. Retry without an override: the message must reach the receiver and succeed.
       const retry = await setup.manualExecuteReport(report)
@@ -3269,8 +3258,7 @@ describe('OffRamp - Execute', () => {
       warpTime(Number(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS) + 1)
 
       // Manual execute with a gasOverride that has an empty tokenGasOverrides array
-      // while the message has a token transfer. The OffRamp should mark the
-      // message as failed because the count doesn't match.
+      // while the message has a token transfer.
       const gasOverride = of.GasOverride.create({
         receiverExecutionGasLimit: toNano('0.05'),
         tokenGasOverrides: [], // mismatch: message has 1 token transfer
@@ -3284,17 +3272,14 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      assertLog(
-        result.transactions,
+      // Rejected by the OffRamp before the root is asked to validate (and mark) the message.
+      expectFailedTransaction(
+        result,
+        setup.transmitters[0].address,
         setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.Failure,
-        },
+        of.OffRamp.Errors['OffRamp_Error.ManualExecutionGasAmountCountMismatch'],
       )
+      expect(result.transactions).not.toHaveTransaction({ op: mr.MerkleRoot_Validate.PREFIX })
     })
 
     it('fails manual execute when token gas override is provided but message has no token transfer', async () => {
@@ -3332,17 +3317,14 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      assertLog(
-        result.transactions,
+      // Rejected by the OffRamp before the root is asked to validate (and mark) the message.
+      expectFailedTransaction(
+        result,
+        setup.transmitters[0].address,
         setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.Failure,
-        },
+        of.OffRamp.Errors['OffRamp_Error.ManualExecutionGasAmountCountMismatch'],
       )
+      expect(result.transactions).not.toHaveTransaction({ op: mr.MerkleRoot_Validate.PREFIX })
     })
 
     it('fails manual execute when token gas override is non-zero but lower than destGasAmount', async () => {
@@ -3385,17 +3367,14 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      assertLog(
-        result.transactions,
+      // Rejected by the OffRamp before the root is asked to validate (and mark) the message.
+      expectFailedTransaction(
+        result,
+        setup.transmitters[0].address,
         setup.offRamp.address,
-        CCIPLogs.LogTypes.ExecutionStateChanged,
-        {
-          sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
-          sequenceNumber: 1n,
-          messageId: 1n,
-          state: of.ExecutionState.Failure,
-        },
+        of.OffRamp.Errors['OffRamp_Error.InvalidManualExecutionGasLimit'],
       )
+      expect(result.transactions).not.toHaveTransaction({ op: mr.MerkleRoot_Validate.PREFIX })
     })
 
     it('fails execute when incoming value is not enough to cover totalGas', async () => {

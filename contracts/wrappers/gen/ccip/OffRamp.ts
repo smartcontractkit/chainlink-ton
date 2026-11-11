@@ -1534,8 +1534,8 @@ export const FeeQuoter_UpdatePrices = {
  >     message: Cell<Any2TVMRampMessage>
  >     permissionlessExecutionThresholdSeconds: uint32
  >     metadataHash: uint256
- >     gasOverride: GasOverride?
- >     offchainTokenData: lisp_list<lisp_list<cell>>
+ >     isManualExecution: bool
+ >     context: cell
  >     excessesTo: address
  > }
  */
@@ -1545,8 +1545,8 @@ export interface MerkleRoot_Validate {
     message: Any2TVMRampMessage
     permissionlessExecutionThresholdSeconds: uint32
     metadataHash: uint256
-    gasOverride: GasOverride | null
-    offchainTokenData: lisp_list<lisp_list<c.Cell>>
+    isManualExecution: boolean
+    context: c.Cell
     excessesTo: c.Address
 }
 
@@ -1558,8 +1558,8 @@ export const MerkleRoot_Validate = {
         message: Any2TVMRampMessage
         permissionlessExecutionThresholdSeconds: uint32
         metadataHash: uint256
-        gasOverride: GasOverride | null
-        offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        isManualExecution: boolean
+        context: c.Cell
         excessesTo: c.Address
     }): MerkleRoot_Validate {
         return {
@@ -1576,12 +1576,8 @@ export const MerkleRoot_Validate = {
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             permissionlessExecutionThresholdSeconds: s.loadUintBig(32),
             metadataHash: s.loadUintBig(256),
-            gasOverride: s.loadBoolean() ? GasOverride.fromSlice(s) : null,
-            offchainTokenData: loadLispListOf<lisp_list<c.Cell>>(s,
-                (s) => loadLispListOf<c.Cell>(s,
-                    (s) => s.loadRef()
-                )
-            ),
+            isManualExecution: s.loadBoolean(),
+            context: s.loadRef(),
             excessesTo: s.loadAddress(),
         }
     },
@@ -1591,12 +1587,8 @@ export const MerkleRoot_Validate = {
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         b.storeUint(self.permissionlessExecutionThresholdSeconds, 32);
         b.storeUint(self.metadataHash, 256);
-        storeTolkNullable<GasOverride>(self.gasOverride, b, GasOverride.store);
-        storeLispListOf<lisp_list<c.Cell>>(self.offchainTokenData, b,
-            (v,b) => { storeLispListOf<c.Cell>(v, b,
-                (v,b) => b.storeRef(v)
-            ); }
-        );
+        b.storeBit(self.isManualExecution);
+        b.storeRef(self.context);
         b.storeAddress(self.excessesTo);
     },
     toCell(self: MerkleRoot_Validate): c.Cell {
@@ -2514,9 +2506,8 @@ export const OffRamp_Execute = {
  >     message: Cell<Any2TVMRampMessage>
  >     root: MerkleRootId
  >     metadataHash: uint256
- >     gasOverride: GasOverride?
  >     executionState: ExecutionState
- >     offchainTokenData: lisp_list<lisp_list<cell>>
+ >     context: cell
  >     excessesTo: address
  > }
  */
@@ -2526,9 +2517,8 @@ export interface OffRamp_ExecuteValidated {
     message: Any2TVMRampMessage
     root: MerkleRootId
     metadataHash: uint256
-    gasOverride: GasOverride | null /* = null */
     executionState: ExecutionState
-    offchainTokenData: lisp_list<lisp_list<c.Cell>>
+    context: c.Cell
     excessesTo: c.Address
 }
 
@@ -2540,14 +2530,12 @@ export const OffRamp_ExecuteValidated = {
         message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
-        gasOverride?: GasOverride | null /* = null */
         executionState: ExecutionState
-        offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        context: c.Cell
         excessesTo: c.Address
     }): OffRamp_ExecuteValidated {
         return {
             $: 'OffRamp_ExecuteValidated',
-            gasOverride: null,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -2560,13 +2548,8 @@ export const OffRamp_ExecuteValidated = {
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             root: MerkleRootId.fromSlice(s),
             metadataHash: s.loadUintBig(256),
-            gasOverride: s.loadBoolean() ? GasOverride.fromSlice(s) : null,
             executionState: ExecutionState.fromSlice(s),
-            offchainTokenData: loadLispListOf<lisp_list<c.Cell>>(s,
-                (s) => loadLispListOf<c.Cell>(s,
-                    (s) => s.loadRef()
-                )
-            ),
+            context: s.loadRef(),
             excessesTo: s.loadAddress(),
         }
     },
@@ -2576,13 +2559,8 @@ export const OffRamp_ExecuteValidated = {
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         MerkleRootId.store(self.root, b);
         b.storeUint(self.metadataHash, 256);
-        storeTolkNullable<GasOverride>(self.gasOverride, b, GasOverride.store);
         ExecutionState.store(self.executionState, b);
-        storeLispListOf<lisp_list<c.Cell>>(self.offchainTokenData, b,
-            (v,b) => { storeLispListOf<c.Cell>(v, b,
-                (v,b) => b.storeRef(v)
-            ); }
-        );
+        b.storeRef(self.context);
         b.storeAddress(self.excessesTo);
     },
     toCell(self: OffRamp_ExecuteValidated): c.Cell {
@@ -5159,9 +5137,8 @@ export class OffRamp implements c.Contract {
         message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
-        gasOverride?: GasOverride | null /* = null */
         executionState: ExecutionState
-        offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        context: c.Cell
         excessesTo: c.Address
     }) {
         return OffRamp_ExecuteValidated.toCell(OffRamp_ExecuteValidated.create(body));
@@ -5387,9 +5364,8 @@ export class OffRamp implements c.Contract {
         message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
-        gasOverride?: GasOverride | null /* = null */
         executionState: ExecutionState
-        offchainTokenData: lisp_list<lisp_list<c.Cell>>
+        context: c.Cell
         excessesTo: c.Address
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
