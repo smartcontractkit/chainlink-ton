@@ -61,16 +61,22 @@ fun onBouncedMessage(in: InMessageBounced) {
     st.store();
 }
 
-/// The OffRamp rejected the validated message, so no ReceiveExecutor was started. Marks it
-/// Failure instead of leaving it InProgress, so it can be manually executed again. Nothing else
-/// moves the message off InProgress before the OffRamp answers, so any other state is a bug.
-/// Notifies the OffRamp so it emits the ExecutionStateChanged event and refunds the caller with
-/// the bounced value (retries are re-funded by the new executor, so nothing stays on the root).
+/// The OffRamp rejected the validated message: its whole transaction was reverted, so no
+/// ReceiveExecutor was started and, if this attempt was meant to deploy the executor, the deploy
+/// was reverted too. Marks it Failure instead of leaving it InProgress, so it can be manually
+/// executed again, and records the pending deploy so the next attempt deploys the executor.
+/// Nothing else moves the message off InProgress before the OffRamp answers, so any other state
+/// is a bug. Notifies the OffRamp so it emits the ExecutionStateChanged event and refunds the
+/// caller with the bounced value (retries are re-funded by the new executor, so nothing stays on
+/// the root).
 fun onExecuteValidatedBounced(mutate st: MerkleRoot_Storage, msg: OffRamp_ExecuteValidated) {
     val message = lazy msg.message.load();
     val seqNum = message.header.sequenceNumber;
     assert (st.getMessageState(seqNum) == ExecutionState.InProgress) throw (MerkleRoot_Error.InvalidState);
     st.setMessageState(seqNum, ExecutionState.Failure);
+    if (msg.deployExecutor) {
+        st.setExecutorDeployPending(seqNum, true);
+    }
 
     val stateChanged = createMessage({
         bounce: BounceMode.NoBounce,
@@ -83,7 +89,9 @@ fun onExecuteValidatedBounced(mutate st: MerkleRoot_Storage, msg: OffRamp_Execut
             excessesTo: msg.excessesTo,
         },
     });
-    stateChanged.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    // IGNORE_ERRORS: if the bounced value cannot pay for the notification, the state change above
+    // must still commit; otherwise the message would stay InProgress and could never be retried.
+    stateChanged.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
 }
 
 /*
@@ -100,6 +108,11 @@ fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
     assert (msg.state == ExecutionState.Success || msg.state == ExecutionState.Failure) throw (MerkleRoot_Error.InvalidState);
 
     st.setMessageState(msg.seqNum, msg.state);
+    // Only set here, never cleared: a later MarkState of the same failed flow (e.g. the bounced
+    // InitExecute that follows a bounced deploy) must not undo it. Validate clears it.
+    if (msg.executorDeployFailed) {
+        st.setExecutorDeployPending(msg.seqNum, true);
+    }
 
     if (msg.state == ExecutionState.Success) {
         st.deliveredMessageCount += 1;
@@ -157,6 +170,11 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
         assert (state == ExecutionState.Untouched) throw (MerkleRoot_Error.AlreadyExecuted);
     }
 
+    // The executor is deployed by the first attempt, and again by the attempt after one whose
+    // deploy was reverted or bounced. Cleared optimistically: if this attempt bounces, the bounce
+    // handler sets it again.
+    val deployExecutor = state == ExecutionState.Untouched || st.isExecutorDeployPending(message.header.sequenceNumber);
+    st.setExecutorDeployPending(message.header.sequenceNumber, false);
     st.setMessageState(message.header.sequenceNumber, ExecutionState.InProgress);
 
     val executeValidated = createMessage({
@@ -168,7 +186,7 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
             message: message.toCell(),
             root: st.root,
             metadataHash: msg.metadataHash,
-            executionState: state,
+            deployExecutor,
             context: msg.context,
             excessesTo: msg.excessesTo,
         }

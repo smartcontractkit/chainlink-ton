@@ -36,6 +36,8 @@ struct (0x019f4cd2) MerkleRoot_MarkState {
     /// Header of the message being marked: the root relays its fields on MerkleRoot_ExecutionStateChanged
     /// so the OffRamp can emit the ExecutionStateChanged event.
     header: Cell<RampMessageHeader>,
+    /// The ReceiveExecutor deploy bounced, so the next execution attempt must deploy it again.
+    executorDeployFailed: bool,
 }
 
 // -- Outgoing messages --

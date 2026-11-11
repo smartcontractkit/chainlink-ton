@@ -73,7 +73,9 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     message: Cell<Any2TVMRampMessage>;
     root: MerkleRootId;
     metadataHash: uint256;
-    executionState: ExecutionState;
+    /// The ReceiveExecutor is not deployed yet: this attempt deploys it and funds its init value.
+    /// True on the first attempt, and on any attempt after one whose deploy was reverted or bounced.
+    deployExecutor: bool;
     /// OffRamp_ExecutionContext parsed by onExecuteSingleReport, relayed unchanged by the root.
     context: cell;
     /// Caller of the execution, refunded with the flow's excesses

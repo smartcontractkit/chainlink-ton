@@ -218,7 +218,7 @@ export const byte = {
  >     message: Cell<Any2TVMRampMessage>
  >     root: MerkleRootId
  >     metadataHash: uint256
- >     executionState: ExecutionState
+ >     deployExecutor: bool
  >     context: cell
  >     excessesTo: address
  > }
@@ -229,7 +229,7 @@ export interface OffRamp_ExecuteValidated {
     message: Any2TVMRampMessage
     root: MerkleRootId
     metadataHash: uint256
-    executionState: ExecutionState
+    deployExecutor: boolean
     context: c.Cell
     excessesTo: c.Address
 }
@@ -242,7 +242,7 @@ export const OffRamp_ExecuteValidated = {
         message: Any2TVMRampMessage
         root: MerkleRootId
         metadataHash: uint256
-        executionState: ExecutionState
+        deployExecutor: boolean
         context: c.Cell
         excessesTo: c.Address
     }): OffRamp_ExecuteValidated {
@@ -260,7 +260,7 @@ export const OffRamp_ExecuteValidated = {
             message: loadCellRef<Any2TVMRampMessage>(s, Any2TVMRampMessage.fromSlice),
             root: MerkleRootId.fromSlice(s),
             metadataHash: s.loadUintBig(256),
-            executionState: ExecutionState.fromSlice(s),
+            deployExecutor: s.loadBoolean(),
             context: s.loadRef(),
             excessesTo: s.loadAddress(),
         }
@@ -271,7 +271,7 @@ export const OffRamp_ExecuteValidated = {
         storeCellRef<Any2TVMRampMessage>(self.message, b, Any2TVMRampMessage.store);
         MerkleRootId.store(self.root, b);
         b.storeUint(self.metadataHash, 256);
-        ExecutionState.store(self.executionState, b);
+        b.storeBit(self.deployExecutor);
         b.storeRef(self.context);
         b.storeAddress(self.excessesTo);
     },
@@ -506,6 +506,7 @@ export const MerkleRoot_Validate = {
  >     state: ExecutionState
  >     excessesTo: address
  >     header: Cell<RampMessageHeader>
+ >     executorDeployFailed: bool
  > }
  */
 export interface MerkleRoot_MarkState {
@@ -514,6 +515,7 @@ export interface MerkleRoot_MarkState {
     state: ExecutionState
     excessesTo: c.Address
     header: RampMessageHeader
+    executorDeployFailed: boolean
 }
 
 export const MerkleRoot_MarkState = {
@@ -524,6 +526,7 @@ export const MerkleRoot_MarkState = {
         state: ExecutionState
         excessesTo: c.Address
         header: RampMessageHeader
+        executorDeployFailed: boolean
     }): MerkleRoot_MarkState {
         return {
             $: 'MerkleRoot_MarkState',
@@ -538,6 +541,7 @@ export const MerkleRoot_MarkState = {
             state: ExecutionState.fromSlice(s),
             excessesTo: s.loadAddress(),
             header: loadCellRef<RampMessageHeader>(s, RampMessageHeader.fromSlice),
+            executorDeployFailed: s.loadBoolean(),
         }
     },
     store(self: MerkleRoot_MarkState, b: c.Builder): void {
@@ -546,6 +550,7 @@ export const MerkleRoot_MarkState = {
         ExecutionState.store(self.state, b);
         b.storeAddress(self.excessesTo);
         storeCellRef<RampMessageHeader>(self.header, b, RampMessageHeader.store);
+        b.storeBit(self.executorDeployFailed);
     },
     toCell(self: MerkleRoot_MarkState): c.Cell {
         return makeCellFrom<MerkleRoot_MarkState>(self, MerkleRoot_MarkState.store);
@@ -612,6 +617,7 @@ export const MerkleRoot_ExecutionStateChanged = {
  >     minMsgNr: uint64
  >     maxMsgNr: uint64
  >     messageStates: uint128
+ >     pendingExecutorDeploy: uint64
  >     deliveredMessageCount: uint16
  > }
  */
@@ -623,6 +629,7 @@ export interface MerkleRoot_Storage {
     minMsgNr: uint64
     maxMsgNr: uint64
     messageStates: uint128
+    pendingExecutorDeploy: uint64 /* = 0 */
     deliveredMessageCount: uint16 /* = 0 */
 }
 
@@ -634,10 +641,12 @@ export const MerkleRoot_Storage = {
         minMsgNr: uint64
         maxMsgNr: uint64
         messageStates: uint128
+        pendingExecutorDeploy?: uint64 /* = 0 */
         deliveredMessageCount?: uint16 /* = 0 */
     }): MerkleRoot_Storage {
         return {
             $: 'MerkleRoot_Storage',
+            pendingExecutorDeploy: 0n,
             deliveredMessageCount: 0n,
             ...args
         }
@@ -651,6 +660,7 @@ export const MerkleRoot_Storage = {
             minMsgNr: s.loadUintBig(64),
             maxMsgNr: s.loadUintBig(64),
             messageStates: s.loadUintBig(128),
+            pendingExecutorDeploy: s.loadUintBig(64),
             deliveredMessageCount: s.loadUintBig(16),
         }
     },
@@ -661,6 +671,7 @@ export const MerkleRoot_Storage = {
         b.storeUint(self.minMsgNr, 64);
         b.storeUint(self.maxMsgNr, 64);
         b.storeUint(self.messageStates, 128);
+        b.storeUint(self.pendingExecutorDeploy, 64);
         b.storeUint(self.deliveredMessageCount, 16);
     },
     toCell(self: MerkleRoot_Storage): c.Cell {
@@ -817,6 +828,7 @@ export class MerkleRoot implements c.Contract {
         minMsgNr: uint64
         maxMsgNr: uint64
         messageStates: uint128
+        pendingExecutorDeploy?: uint64 /* = 0 */
         deliveredMessageCount?: uint16 /* = 0 */
     }, deployedOptions?: DeployedAddrOptions) {
         if (!deployedOptions?.overrideContractCode) {
@@ -847,6 +859,7 @@ export class MerkleRoot implements c.Contract {
         state: ExecutionState
         excessesTo: c.Address
         header: RampMessageHeader
+        executorDeployFailed: boolean
     }) {
         return MerkleRoot_MarkState.toCell(MerkleRoot_MarkState.create(body));
     }
@@ -888,6 +901,7 @@ export class MerkleRoot implements c.Contract {
         state: ExecutionState
         excessesTo: c.Address
         header: RampMessageHeader
+        executorDeployFailed: boolean
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

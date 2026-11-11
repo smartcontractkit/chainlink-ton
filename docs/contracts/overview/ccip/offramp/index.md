@@ -22,20 +22,19 @@ graph LR
     USER["User"]
     OWNER["Owner"]
     RMN["RMN Router"]
-    ROUTER["Router"]
 		
         OCR-->|Commit,<br/>Execute| OFR
 		USER -->|ManuallyExecute| OFR
-		MR -->|ExecuteValidated| OFR
-		RE -->|DispatchValidated,<br/>NotifySuccess,<br/>NotifyFailure| OFR
-		R -->|CCIPReceiveConfirm,<br/>CCIPReceiveBounced| OFR
+		MR -->|ExecuteValidated,<br/>ExecutionStateChanged| OFR
+		RE -->|DispatchValidated,<br/>ReleaseOrMint,<br/>TokenTransferDelivered,<br/>NotifySuccess,<br/>NotifyFailure| OFR
+		R -->|CCIPReceiveConfirm,<br/>CCIPReceiveBounced,<br/>TokenPoolReleaseOrMintFailed| OFR
 		RMN -->|UpdateCursedSubjects| OFR
 		OWNER -->|UpdateSourceChainConfigs,<br/>SetDynamicConfig,<br/>UpdateDeployables,<br/>SetOCR3Config,<br/>Upgrade,<br/>Withdraw| OFR
 
 		OFR -->|UpdatePrices| FQ
 		OFR -->|Initialize MerkleRoot,<br/>Validate,<br/>MarkState| MR
-		OFR -->|Initialize ReceiveExecutor,<br/>InitExecute,<br/>Confirm,<br/>Bounced| RE
-		OFR -->|RouteMessage| ROUTER
+		OFR -->|Initialize ReceiveExecutor,<br/>InitExecute,<br/>CCIPReceiveConfirm,<br/>CCIPReceiveFailed,<br/>ReleaseOrMintFailed| RE
+		OFR -->|RouteMessage,<br/>RelayReleaseOrMint,<br/>TokenTransferDelivered| R
 ```
 
 ## Topics
