@@ -626,11 +626,6 @@ enum Timelock_Error {
     InsufficientFee
 }
 
-// --- Constants - storage ---
-
-/// Represents the amount of TON coins we reserve on the balance to pay for storage fees.
-const MIN_TON_TO_RESERVE: coins = grams("0.05");
-
 // --- Methods ---
 
 /// Returns the error code for this facility and the given local code.
@@ -750,7 +745,10 @@ fun Timelock<T>.init(
     assert (value >= Timelock_Costs.init()) throw (Timelock_Error.InsufficientFee);
 
     // Keep the rent target even if the reply costs drift from `Timelock_Costs.init()`.
-    reserveBalanceBeforeInMessage(value, MIN_TON_TO_RESERVE);
+    // Role notifications are funded from the value above the reserve, so the continuation
+    // must still cover the init cost.
+    val (continuationValue, _) = reserveBalanceBeforeInMessage(value, MIN_GRAM_TO_RESERVE);
+    assert (continuationValue >= Timelock_Costs.init()) throw (Timelock_Error.InsufficientFee);
 
     var rbac = self.hookTrait__AccessControl();
 
@@ -937,7 +935,7 @@ fun Timelock<T>.executeBatch(
 
     // We reserve some TON coins on the balance for rent
     val reserveMode = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
-    reserveGramsOnBalance(MIN_TON_TO_RESERVE, reserveMode);
+    reserveGramsOnBalance(MIN_GRAM_TO_RESERVE, reserveMode);
 
     var index = 0;
     var cc = calls.iter();
@@ -1198,7 +1196,7 @@ fun Timelock<T>.bypasserExecuteBatch(
 
     // We reserve some TON coins on the balance for rent
     val reserveMode = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
-    reserveGramsOnBalance(MIN_TON_TO_RESERVE, reserveMode);
+    reserveGramsOnBalance(MIN_GRAM_TO_RESERVE, reserveMode);
 
     var index = 0;
     var cc = calls.iter();
@@ -1537,7 +1535,6 @@ fun Timelock_Costs.init(): int {
         + grams("0.002") // computeFee
         + grams("0.019") // Timelock_MinDelayChange fwdFee (reply)
         + calculateGasFeeFor(FEE_SIZE_SMALL) // reply value
-        + MIN_TON_TO_RESERVE // rent reserve expected on initialization
         ;
 }
 

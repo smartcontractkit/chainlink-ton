@@ -430,9 +430,9 @@ describe('LockReleaseLockboxTokenPool', () => {
   )
 
   it('keeps the rent target when a release starts below it', async () => {
-    const rentTarget = toNano('0.05')
+    const rentTarget = toNano('0.01')
     const poolAccount = await blockchain.getContract(lockReleaseLockboxPool.address)
-    poolAccount.balance = toNano('0.01')
+    poolAccount.balance = toNano('0.005')
 
     const result = await pool.sendTokenPoolReleaseOrMint(deployer.getSender(), toNano('0.5'), {
       queryId: 950n,

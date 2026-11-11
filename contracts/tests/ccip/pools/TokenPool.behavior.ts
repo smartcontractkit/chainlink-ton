@@ -352,9 +352,9 @@ export function runTokenPoolBehaviorTests(
       expect(await ctx.pool.getIsSupportedChain(ctx.remoteChainSelector)).toBe(true)
     })
 
-    it('keeps the rent target when a lock/burn starts below it', async () => {
+    it('keeps the runtime rent target when a lock/burn starts below it', async () => {
       const ctx = await setup()
-      const rentTarget = toNano('0.05')
+      const rentTarget = toNano('0.01')
 
       const poolAccount = await ctx.blockchain.getContract(ctx.pool.address)
       poolAccount.balance = toNano('0.01')
@@ -1521,9 +1521,12 @@ export function runTokenPoolBehaviorTests(
 
         const effective = await ctx.pool.getBudget()
         // Admission covers the withdraw relay and both custody phases.
-        expect(effective.lockOrBurn).toMatchObject({ admission: toNano('3'), safety: toNano('1') })
+        expect(effective.lockOrBurn).toMatchObject({
+          admission: toNano('3.01'),
+          safety: toNano('1'),
+        })
         expect(effective.releaseOrMint).toMatchObject({
-          admission: toNano('2'),
+          admission: toNano('2.01'),
           safety: toNano('1'),
         })
         expect(result.transactions).toHaveTransaction({

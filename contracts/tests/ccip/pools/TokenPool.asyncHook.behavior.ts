@@ -47,6 +47,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         const ctx = await setup()
         const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
         await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
+        const { admission } = (await ctx.pool.getBudget()).lockOrBurn
         const costlyHooks = await deployMockHooks(ctx, MOCK_HOOKS_COSTLY_ID)
         await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
           queryId: 9995n,
@@ -55,7 +56,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
 
         const { transactions } = await ctx.pool.sendTokenPoolLockOrBurn(
           ctx.deployer.getSender(),
-          floor * 3n + toNano('0.01'),
+          admission + toNano('0.01'),
           {
             queryId: 2n, // The mock hook approves even query IDs.
             request: lockOrBurnIn(ctx),

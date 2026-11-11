@@ -417,11 +417,6 @@ const MAX_NUM_SIGNERS = 200;
 
 const TOPIC_BOUNCE_HANDLED = "MCMS_BounceHandled".crc32();
 
-// --- Constants - storage ---
-
-/// Represents the amount of TON coins we reserve on the balance to pay for storage fees.
-const MIN_TON_TO_RESERVE: int = grams("0.05");
-
 /// Error codes used by the Timelock contract.
 enum MCMS_Error {
     /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
@@ -512,8 +507,6 @@ enum MCMS_Error {
     /// Value attached to incoming message is not enough to pay for handler execution
     InsufficientFee
 }
-
-// --- Constants - storage ---
 
 // --- Data structures ---
 
@@ -1040,7 +1033,7 @@ fun MCMS<T>.execute(
 
     // We reserve some TON coins on the balance for rent
     val reserveMode = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
-    reserveGramsOnBalance(MIN_TON_TO_RESERVE, reserveMode);
+    reserveGramsOnBalance(MIN_GRAM_TO_RESERVE, reserveMode);
 
     self._execute(op.to, op.value, op.data);
 

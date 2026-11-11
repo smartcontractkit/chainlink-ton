@@ -42,9 +42,14 @@ fun calculateGasFeeFor(size: int): coins {
 }
 
 /// Minimum GRAM balance a long-lived contract (pool, lockbox, Timelock) should retain for storage
-/// rent. It is a target, not a hard floor: pass it only where retaining it cannot starve a custody
-/// action, a custody confirmation, or the init replies.
+/// rent. It is a target, not a hard floor: use it for admin/init/withdraw paths, not per-message
+/// custody flows (those use `MIN_GRAM_TO_RESERVE_RUNTIME`).
 const MIN_GRAM_TO_RESERVE: coins = grams("0.05");
+
+/// Per-custody-flow rent floor. Custody admission includes this amount, so a flow can restore
+/// this floor without failing its post-reserve flow-budget check. It also covers storage due up
+/// to the same amount when the pool already holds the runtime floor; a larger top-up is rejected.
+const MIN_GRAM_TO_RESERVE_RUNTIME: coins = grams("0.01");
 
 /// Default hard rent-reserve mode: fail the transaction if the target cannot be left.
 const RESERVE_MODE_RENT = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
