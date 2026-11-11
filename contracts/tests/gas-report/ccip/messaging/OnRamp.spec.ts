@@ -19,6 +19,7 @@ import { getValidatedFee } from '../../../../src/ccipSend/fee'
 import { contractCode } from '../../../../wrappers/codeLoader'
 import { ChainFamilySelectors, ChainSelectors } from '../../../utils/Selectors'
 import EVM_ADDRESS from '../../../utils/evmAddress'
+import { onRampRetains } from '../onRampRetains'
 
 const jestConsole = console
 
@@ -42,6 +43,8 @@ describe('CCIP OnRamp Gas Estimation', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create({ config: await gasReportConfig() })
+    // Frozen time: no storage fees, so per-transaction balance deltas are exact.
+    blockchain.now = 1
     report = new GasReport('messaging-onramp', blockchain)
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
@@ -216,6 +219,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
       run: () => ccipSend(createPayloadBytes(HARD_MAX_DATA_BYTES)),
       book,
       discover: nameExecutor,
+      retains: onRampRetains.executor.successful,
       budget: Costs.ccipSend,
     })
     expectACK(result)
@@ -226,6 +230,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
       run: () => ccipSendRejectedByFeeQuoter(createPayloadBytes(HARD_MAX_DATA_BYTES)),
       book,
       discover: nameExecutor,
+      retains: onRampRetains.executor.rejected,
       budget: Costs.ccipSend,
     })
     expect(result.transactions).toHaveTransaction({
@@ -246,6 +251,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
         run: () => ccipSend(createPayloadBytes(size)),
         book,
         discover: nameExecutor,
+        retains: onRampRetains.executor.successful,
         budget: Costs.ccipSend,
       })
       expectACK(result)
