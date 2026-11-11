@@ -778,6 +778,23 @@ describe('LockReleaseLockboxTokenPool', () => {
       })
     }
 
+    function buildRichBounce(originalBody: Cell): Cell {
+      const originalInfo = beginCell()
+        .storeCoins(toNano('0.05'))
+        .storeDict(null)
+        .storeUint(0, 64)
+        .storeUint(0, 32)
+        .endCell()
+      return beginCell()
+        .storeUint(0xfffffffe, 32)
+        .storeRef(originalBody)
+        .storeRef(originalInfo)
+        .storeUint(1, 8)
+        .storeInt(47, 32)
+        .storeBit(false)
+        .endCell()
+    }
+
     // The lockbox wallet is lazily deployed on first funding, so tolerate it not being active yet.
     const lockboxBalance = async (): Promise<bigint> => {
       try {
@@ -827,6 +844,83 @@ describe('LockReleaseLockboxTokenPool', () => {
       })
       // The jettons ended up in the lockbox's wallet.
       expect(await lockboxBalance()).toEqual(lockboxBalanceBefore + toNano('10'))
+    })
+
+    it('recovers the lock context from the deposit forward payload on a bounced lock transfer', async () => {
+      const queryId = 150n
+      const request = TokenPool_LockOrBurn.create({
+        queryId,
+        request: TokenPool_LockOrBurnInV1.create({
+          transfer: TokenPool_Transfer.create({
+            details: TokenPool_TransferDetails.create({
+              receiver: receiverAddress,
+              remoteChainSelector,
+              originalSender: deployer.address,
+              amount: 1n,
+              localToken: jettonMinter.address,
+            }),
+          }),
+        }),
+        requestedFinalityConfig: 0n,
+        tokenArgs: null,
+        replyTo: deployer.address,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
+        finalizationValue: toNano('0.01'),
+      })
+      const operation = TokenPool_LockOrBurnForwardPayload.create({
+        initiator: deployer.address,
+        requestMsg: request,
+        prepared: TokenPool_LockOrBurnPrepared.create({
+          feeAmount: 0n,
+          destTokenAmount: 1n,
+          out: TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress,
+            destPoolData: Cell.EMPTY,
+          }),
+        }),
+      })
+      const lockContext = LockReleaseLockboxTokenPool_LockContext.create({
+        forwardPayload: operation,
+        transferInitiator: deployer.address,
+      })
+      const deposit = JettonLockBox_Deposit.create({
+        queryId,
+        token: jettonMinter.address,
+        remoteChainSelector,
+        amount: 1n,
+        context: LockReleaseLockboxTokenPool_LockContext.toCell(lockContext),
+        extra: null,
+      })
+      const ask = AskToTransfer.create({
+        queryId,
+        jettonAmount: 1n,
+        transferRecipient: lockReleaseLockboxPool.address,
+        sendExcessesTo: deployer.address,
+        customPayload: null,
+        forwardTonAmount: 0n,
+        forwardPayload: beginCell()
+          .storeMaybeRef(JettonLockBox_Deposit.toCell(deposit))
+          .endCell()
+          .beginParse(),
+      })
+
+      const poolWallet = await userWallet(lockReleaseLockboxPool.address)
+      const result = await blockchain.sendMessage(
+        internal({
+          from: poolWallet.address,
+          to: lockReleaseLockboxPool.address,
+          value: toNano('0.2'),
+          bounced: true,
+          body: buildRichBounce(AskToTransfer.toCell(ask)),
+        }),
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: lockReleaseLockboxPool.address,
+        to: deployer.address,
+        op: TokenPool_LockOrBurnFailure.PREFIX,
+        success: true,
+      })
     })
 
     it('should store pending lock when forwarded amount matches transfer amount', async () => {

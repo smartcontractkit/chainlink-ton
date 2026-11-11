@@ -292,8 +292,12 @@ fun onLockboxTransferBounced(
 ) {
     val jc = st.poolData.load().jettonClient();
     assert(jc.isWallet(sender)) throw (LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce);
-    assert(msg.customPayload != null) throw (LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce);
-    val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.customPayload);
+
+    val depositSlice = loadForwardPayloadAsSlice(msg.forwardPayload);
+    assert(depositSlice != null) throw (LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce);
+    val deposit = JettonLockBox_Deposit.fromSlice(depositSlice!);
+    assert(deposit.context != null) throw (LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce);
+    val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(deposit.context!);
     val operation = lazy context.forwardPayload.load();
 
     var pool = st.TokenPool();
@@ -391,8 +395,6 @@ fun onReleaseOrMintContinue(
     // continuation, so the inbound-rate-limit event and this hop are funded by the inbound admission.
     val withdraw = createMessage(withdrawOpts);
     withdraw.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-
-    // minval = withdraw.fwdFee + withdraw + transfer + forwardTonAmount
 
     return st;
 }
