@@ -14,7 +14,6 @@ import * as counter from '../../wrappers/examples/Counter'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { merkleProof } from '../../src/mcms'
-import { findTransactionRequired } from '@ton/test-utils'
 
 describe('MCMS - IntegrationTest', () => {
   let blockchain: Blockchain
