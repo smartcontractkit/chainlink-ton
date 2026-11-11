@@ -248,11 +248,13 @@ fun OffRamp_Costs.execute(hasTokens: bool): int {
     return baseFee + MerkleRoot_Costs.validate(hasTokens);
 }
 
-// OffRamp_Execute: hashing a 2000-byte message, a 6-sibling proof (64-message commit) and the
-// Validate fwdFee.
-const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.0145");
+// OffRamp_Execute: hashing a 2000-byte message, a 6-sibling proof (64-message commit), the report
+// checks and OffRamp_ExecutionContext parsing, and the Validate fwdFee.
+const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.015");
 // OffRamp_ExecuteValidated: event and InitExecute fwdFee carrying the message, executor deploy.
-const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = grams("0.0155");
+// If it throws, the bounce returns this message's value minus the compute spent, which pays for
+// the root's bounce handler and the OffRamp's ExecutionStateChanged.
+const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = grams("0.0145");
 const OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE = grams("0.005");
 const OFFRAMP_COSTS_RELEASE_OR_MINT_FEE = grams("0.0025");
 const ROUTER_COSTS_RELAY_RELEASE_OR_MINT_FEE = grams("0.006");
@@ -262,5 +264,5 @@ const OFFRAMP_COSTS_TOKEN_TRANSFER_DELIVERED_FEE = grams("0.008");
 const OFFRAMP_COSTS_NOTIFY_FEE = grams("0.003");
 const OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE = grams("0.002");
 // OffRamp_Commit with a root and price updates, signature verification included, and the excesses refund to the transmitter.
-const OFFRAMP_COSTS_COMMIT_FEE = grams("0.0105");
+const OFFRAMP_COSTS_COMMIT_FEE = grams("0.011");
 const OFFRAMP_COSTS_MERKLE_ROOT_INIT_FEE = grams("0.0005");
