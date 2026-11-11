@@ -26,7 +26,7 @@ get fun get_depositGasUnits(): int { return JettonLockBox_DEPOSIT_GAS_UNITS; }
 get fun get_withdrawGasUnits(): int { return JettonLockBox_WITHDRAW_GAS_UNITS; }
 
 get fun get_depositMinValue(fwdFee: coins): coins {
-    return JettonLockBox_minDepositValue(fwdFee);
+    return JettonLockBox_Costs.deposit(fwdFee);
 }
 
 /// Test-only estimate of the `JettonLockBox_Deposited` reply fee for the deposit shape.
@@ -47,7 +47,7 @@ get fun get_depositReplyFee(queryId: uint64, amount: coins, depositContext: cell
 }
 
 get fun get_withdrawMinValue(forwardTonAmount: coins, fwdFee: coins): coins {
-    return JettonLockBox_minWithdrawValue(forwardTonAmount, fwdFee);
+    return JettonLockBox_Costs.withdraw(forwardTonAmount, fwdFee);
 }
 
 /// Test-only estimate of the `AskToTransfer` forward fee for the exact withdraw shape.

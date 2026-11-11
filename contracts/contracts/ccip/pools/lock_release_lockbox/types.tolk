@@ -15,7 +15,7 @@ const LockReleaseLockboxTokenPool_FACILITY_ID = LockReleaseLockboxTokenPool_FACI
 const LockReleaseLockboxTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS = 525_000; // ~0.035 TON
 /// LockOrBurn admission: the entry, the withdraw relay and the custody transfer, which carries three
 /// custody phases' safety (`3 * S`, ~0.105 TON).
-const LockReleaseLockboxTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 1_575_000; // ~0.105 TON
+const LockReleaseLockboxTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 1_575_000; // ~0.105 TON base
 /// ReleaseOrMint safety: the lockbox transfer plus the pool's post-delivery finalization.
 const LockReleaseLockboxTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS = 375_000; // ~0.025 TON
 /// ReleaseOrMint admission: pool -> lockbox -> recipient wallet (~0.015 TON); ~3.9x. Includes the

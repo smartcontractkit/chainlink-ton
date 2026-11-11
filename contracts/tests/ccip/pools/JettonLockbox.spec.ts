@@ -1379,10 +1379,10 @@ describe('JettonLockBox', () => {
   })
 
   describe('rent reserve', () => {
-    const rentTarget = toNano('0.05')
-    const belowTarget = toNano('0.01')
+    const rentTarget = toNano('0.01')
+    const belowTarget = toNano('0.005')
 
-    it('does not consume the deposit confirmation value when below the rent target', async () => {
+    it('restores the runtime rent target from deposit value', async () => {
       const contract = await blockchain.getContract(lockbox.address)
       contract.balance = belowTarget
 
@@ -1410,20 +1410,20 @@ describe('JettonLockBox', () => {
         },
       })
 
-      // The confirmation remains funded by the deposit value; the lockbox does not top up rent
-      // from custody traffic.
+      // The confirmation remains funded by the deposit value, and the runtime rent target is
+      // restored from the same value.
       expect(result.transactions).toHaveTransaction({
         from: lockbox.address,
         to: operator.address,
         op: JettonLockBox_Deposited.PREFIX,
         value: (value) => value !== undefined && value >= rentTarget,
       })
-      const balance = (await blockchain.getContract(lockbox.address)).balance
-      expect(balance).toBeGreaterThanOrEqual(belowTarget)
-      expect(balance).toBeLessThan(rentTarget)
+      expect((await blockchain.getContract(lockbox.address)).balance).toBeGreaterThanOrEqual(
+        rentTarget,
+      )
     })
 
-    it('restores the rent target on a successful withdraw', async () => {
+    it('restores the runtime rent target on a successful withdraw', async () => {
       const depositAmount = toNano('10')
       await operatorWallet.sendTransfer(operator.getSender(), {
         value: toNano('0.3'),

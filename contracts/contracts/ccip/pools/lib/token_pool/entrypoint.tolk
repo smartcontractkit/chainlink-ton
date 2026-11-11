@@ -1702,7 +1702,7 @@ fun TokenPool<T>.onLockOrBurnTransfer(
             body: returnTransfer,
         });
 
-        transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+        transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     }
 }
 

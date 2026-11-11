@@ -15,19 +15,26 @@ const JettonLockBox_DEPOSIT_FWD_COUNT = 2;
 /// same gas report.
 const JettonLockBox_WITHDRAW_GAS_UNITS = BUDGET_UNITS_LVL0_MIN;
 
-/// Minimum deposit value: handler gas plus both outbound fees. `fwdFee` is a per-message proxy:
-/// the lockbox passes the reply fee; the pool passes the larger deposit-transfer fee.
-fun JettonLockBox_minDepositValue(fwdFee: coins): coins {
+struct JettonLockBox_Costs{}
+
+/// Deposit value: handler gas plus both outbound fees, including the runtime rent reserve.
+/// Pass `false` for the post-reserve check.
+fun JettonLockBox_Costs.deposit(fwdFee: coins, includeRent: bool = true): coins {
     val w = contract.getAddress().getWorkchain();
-    return calculateGasFee(w, JettonLockBox_DEPOSIT_GAS_UNITS)
+    val cost = calculateGasFee(w, JettonLockBox_DEPOSIT_GAS_UNITS)
         + JettonLockBox_DEPOSIT_FWD_COUNT * fwdFee;
+    return includeRent ? cost + MIN_GRAM_TO_RESERVE_RUNTIME : cost;
 }
 
-/// Minimum value a withdraw message must carry: the wallet transfer plus the lockbox's own work.
-/// Uses the generic fee model because the recipient wallet may be non-CCT or undeployed; the
-/// reference model would underfund those transfers.
-fun JettonLockBox_minWithdrawValue(forwardTonAmount: coins, fwdFee: coins): coins {
+/// Withdraw value: the generic wallet transfer plus the lockbox's own work, including the runtime
+/// rent reserve. Pass `false` for the post-reserve check.
+fun JettonLockBox_Costs.withdraw(
+    forwardTonAmount: coins,
+    fwdFee: coins,
+    includeRent: bool = true,
+): coins {
     val w = contract.getAddress().getWorkchain();
-    return JettonFees.Generic.transferValue(forwardTonAmount, fwdFee)
+    val cost = JettonFees.Generic.transferValue(forwardTonAmount, fwdFee)
         + calculateGasFee(w, JettonLockBox_WITHDRAW_GAS_UNITS);
+    return includeRent ? cost + MIN_GRAM_TO_RESERVE_RUNTIME : cost;
 }

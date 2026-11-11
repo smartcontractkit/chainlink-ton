@@ -160,7 +160,7 @@ fun onLockOrBurnTransferContinue(
 
     // Fund the lockbox log, reply, and our finalization. The deposit transfer fee is a conservative
     // per-message proxy; reject before custody if the configured safety is too low.
-    val lockboxMinValue = JettonLockBox_minDepositValue(fwdFee)
+    val lockboxMinValue = JettonLockBox_Costs.deposit(fwdFee)
         + TokenPool_Costs.finalization();
     assert(forwardTonAmount >= lockboxMinValue, TokenPool_Error.InsufficientMessageValue);
 

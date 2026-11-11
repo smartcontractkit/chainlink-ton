@@ -21,7 +21,7 @@ const BurnMintTokenPool_CLAIM_ADMIN_VALUE = grams("0.05");
 const BurnMintTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS = 525_000; // ~0.035 TON
 /// LockOrBurn admission: the entry, the withdraw relay and the custody transfer carrying two
 /// custody phases' safety (`3 * S`).
-const BurnMintTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 1_575_000; // ~0.105 TON
+const BurnMintTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 1_575_000; // ~0.105 TON base
 /// ReleaseOrMint safety: the pool's post-delivery finalization.
 const BurnMintTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS = 300_000; // ~0.02 TON
 /// ReleaseOrMint admission: pool -> minter -> recipient wallet (~0.014 TON); ~7x. Includes the

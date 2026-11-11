@@ -15,13 +15,12 @@ requires the pool's `OPERATOR_ROLE`, and validates the deposit token and amount.
 
 ## Rent Reserve and Init Funding
 
-The lockbox keeps a `0.05 GRAM` rent target. The pool keeps a `0.01 GRAM` runtime
-target for per-message custody flows and includes it in the published admission; admin,
-init, and withdraw paths retain the larger `0.05 GRAM` target. Before custody moves, the
-target is enforced with an exact reserve; a shortfall fails the operation and bounces
-before tokens leave. Custody, confirmation, and recovery paths only preserve the
-pre-existing balance, so a reserve shortfall cannot roll back a custody return or a
-confirmation.
+The lockbox and the pool keep a `0.01 GRAM` runtime target for per-message custody
+flows and include it in their minimum message values. Admin, init, and withdraw paths
+retain the larger `0.05 GRAM` target. Before custody moves, the target is enforced with
+an exact reserve; a shortfall fails the operation and bounces before tokens leave.
+Custody, confirmation, and recovery paths only preserve the pre-existing balance, so a
+reserve shortfall cannot roll back a custody return or a confirmation.
 
 By default, lockbox init treats the attached value as initial funding and keeps it,
 including any pre-existing deploy balance. The init value must also fund the init
