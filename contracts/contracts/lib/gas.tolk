@@ -51,16 +51,28 @@ const MIN_GRAM_TO_RESERVE_RUNTIME: coins = grams("0.01");
 /// Default hard rent-reserve mode: fail the transaction if the target cannot be left.
 const RESERVE_MODE_RENT = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
 
-/// Gas needed from the inbound value to install the rent reserve without queueing an action that
-/// cannot be funded. Callers that must recover after a failed value check use this before reserving.
-fun calculateReserveTopUp(msgValue: coins, minBalance: coins = 0): coins {
+/// Computes the reserve target and the part that must come from the inbound value.
+fun calculateReserveBeforeInMessage(
+    msgValue: coins,
+    minBalance: coins = 0,
+): (coins, coins) {
     val rentDue = contract.getStorageDuePayment();
     val originalBalance = contract.getOriginalBalance();
     val balanceBeforeMessage = originalBalance > msgValue
         ? originalBalance - msgValue
         : 0 as coins;
     val reserve = max(balanceBeforeMessage, minBalance) + rentDue;
-    return reserve > balanceBeforeMessage ? reserve - balanceBeforeMessage : 0;
+    val topUp = reserve > balanceBeforeMessage ? reserve - balanceBeforeMessage : 0;
+
+    return (reserve, topUp);
+}
+
+/// Gas needed from the inbound value to install the rent reserve without queueing an action that
+/// cannot be funded. Callers that must recover after a failed value check use this before reserving.
+fun calculateReserveTopUpBeforeInMessage(msgValue: coins, minBalance: coins = 0): coins {
+    val (_, topUp) = calculateReserveBeforeInMessage(msgValue, minBalance);
+
+    return topUp;
 }
 
 /// Reserves `max(preMessageBalance, minBalance) + storageDue` and returns
@@ -77,21 +89,10 @@ fun reserveBalanceBeforeInMessage(
     minBalance: coins = 0,
     reserveMode: int = RESERVE_MODE_RENT,
 ): (coins, coins) {
-    val rentDue = contract.getStorageDuePayment();
-    val originalBalance = contract.getOriginalBalance();
-    val balanceBeforeMessage = originalBalance > msgValue
-        ? originalBalance - msgValue
-        : 0 as coins;
-    val reserve = max(balanceBeforeMessage, minBalance) + rentDue;
-
+    val (reserve, topUp) = calculateReserveBeforeInMessage(msgValue, minBalance);
     reserveGramsOnBalance(reserve, reserveMode);
 
     // Calculate the continuation value after reserving the required balance.
-    var topUp: coins = 0;
-    if (reserve > balanceBeforeMessage) {
-        topUp = reserve - balanceBeforeMessage;
-    }
-
     var continuationValue: coins = 0;
     if (msgValue > topUp) {
         continuationValue = msgValue - topUp;

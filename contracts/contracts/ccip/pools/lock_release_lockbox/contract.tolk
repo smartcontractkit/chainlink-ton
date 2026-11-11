@@ -155,14 +155,14 @@ fun onLockOrBurnTransferContinue(
         body: createLockboxTransfer(st, fwdPayload, transferInitiator, extra, forwardTonAmount),
     };
 
-    val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE;
+    val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
     val fwdFee = createMessage(transferOpts).estimateFeeWithoutSending(sendMode);
 
     // Fund the lockbox log, reply, and our finalization. The deposit transfer fee is a conservative
     // per-message proxy; reject before custody if the configured safety is too low.
-    val lockboxMinValue = JettonLockBox_Costs.deposit(fwdFee)
+    val depositMinValue = JettonLockBox_Costs.deposit(fwdFee)
         + TokenPool_Costs.finalization();
-    assert(forwardTonAmount >= lockboxMinValue, TokenPool_Error.InsufficientMessageValue);
+    assert(forwardTonAmount >= depositMinValue, TokenPool_Error.InsufficientMessageValue);
 
     // `S` is the custody phase's budget; it must cover the reference transfer plus the
     // finalization it may have to fund after custody moves.
@@ -171,7 +171,7 @@ fun onLockOrBurnTransferContinue(
     assert (safety >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
 
     val transfer = createMessage(transferOpts);
-    transfer.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    transfer.send(sendMode);
 
     return st;
 }

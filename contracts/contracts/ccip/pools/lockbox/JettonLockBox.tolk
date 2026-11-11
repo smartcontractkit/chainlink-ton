@@ -197,7 +197,7 @@ fun onDepositWithTransferNotification(
         // Check funding before queuing the exact reserve. A failed check must reach the return
         // path below; an unfunded reserve action would abort the transaction instead.
         assert(
-            msgValue >= calculateReserveTopUp(msgValue, MIN_GRAM_TO_RESERVE_RUNTIME) + depositCost,
+            msgValue >= calculateReserveTopUpBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE_RUNTIME) + depositCost,
             JettonLockBox_Error.NotEnoughValue
         );
         reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE_RUNTIME);
