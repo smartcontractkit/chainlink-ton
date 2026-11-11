@@ -81,7 +81,7 @@ Create a `GasReport` once the blockchain exists, run each flow through `measure`
 `ccip-gas-report.json`:
 
 ```typescript
-import { AddressBook, GasReport, gasReportConfig } from '../../utils'
+import { AddressBook, BalanceRule, GasReport, gasReportConfig } from '../../utils'
 
 describe('Your Test Suite', () => {
   let report: GasReport
@@ -89,6 +89,8 @@ describe('Your Test Suite', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create({ config: await gasReportConfig() })
+    // Frozen time: no storage fees, so per-transaction balance deltas are exact.
+    blockchain.now = 1
     report = new GasReport('your-spec', blockchain)
   })
 
@@ -100,6 +102,31 @@ describe('Your Test Suite', () => {
       discover: (result, book) => book.set('Executor', findExecutor(result), 'ccip'),
       // Hops expected to fail, as From->To.
       aborts: [],
+      // Balance changes expected on top of the structural exemptions (see below).
+      retains: [
+        // Exact delta: the executor keeps exactly the deployment value it was seeded with.
+        {
+          contract: 'Executor',
+          op: 'Deployable.initialize',
+          kind: 'deltaExact',
+          delta: 9_910_532n,
+        },
+        // Bounded delta: the Router keeps the route margin, at most 0.05 TON.
+        {
+          contract: 'Router',
+          op: 'Router_RouteMessage',
+          kind: 'deltaRange',
+          min: 0n,
+          max: toNano('0.05'),
+        },
+        // Rules may also be scoped to one `from`, and may read the flow's hops:
+        {
+          contract: 'MerkleRoot',
+          op: 'MerkleRoot_MarkState',
+          kind: 'deltaExact',
+          delta: (ctx) => ctx.hop('MerkleRoot_MarkState').tx.value! - 258_468n,
+        },
+      ],
     })
   })
 })
@@ -109,8 +136,57 @@ Every address in a measured flow must be in the `AddressBook` with an owner: `cc
 executors, deposit accounts, MerkleRoot, FeeQuoter), `registry` (TokenAdminRegistry and entries),
 `token` (pools, lockboxes, minters, jetton wallets) or `external` (users, receivers, transmitters).
 `measure` fails on unknown addresses, on unexpected aborted hops, on a mismatch between the computed
-balance changes and the real ones, and when a `ccip` or `registry` contract ends the flow with less
-balance than it started with (storage fees aside), unless it was drained on purpose.
+balance changes and the real ones, when a `ccip` or `registry` contract ends the flow with less
+balance than it started with (storage fees aside), unless it was drained on purpose, and on any
+transaction whose receiving contract's balance changed without a satisfying `retains` rule (see
+below).
+
+### Per-transaction balance invariant
+
+`measure` steps through the flow one transaction at a time and checks the receiving contract's
+balance before and after each hop. With `blockchain.now` frozen (the spec must set
+`blockchain.now = 1`) no storage fees are charged, so a handler that passes the message value
+forward ends with a delta of exactly 0. Any other outcome fails the flow unless the hop is
+structurally exempt — aborted transactions, deployments (account uninitialized before),
+destructions, or `external`-owned receivers (value sinks by design) — or covered by a `retains`
+rule. Bounces are NOT exempt: how a handler (or the TVM) routes the bounced value must be covered
+by a rule. Most message handlers should pass the value forward — a non-exempt balance change means
+the contract is silently keeping (or funding) value, which is a value sink to fix or refund.
+
+A `retains` rule is `{ contract, op, from?, bounce?, optional? }` plus exactly one amount
+constraint. The selector is precise: `op` is mandatory, so each rule matches exactly the one
+message it names (use `from` to disambiguate repeated (contract, op) pairs). For a bounced message
+the `op` names the ORIGINAL message that bounced — the op is recovered from the bounce body (the
+32 bits after the `0xffffffff` simple-bounce prefix, or the original body cell of a `0xfffffffe`
+rich bounce) — and `bounce: 'simple' | 'rich'` restricts the rule to bounces of that kind (`null`
+matches only non-bounced messages; omitted matches both). An `optional` rule may go unexercised
+without failing the flow (it must still match a hop): use it for hops that only sometimes retain
+value, e.g. a jetton wallet keeping its storage reserve on the transfer that deploys it.
+
+- `kind: 'deltaExact'` / `'deltaRange'` — the hop's balance delta must equal `delta`, or fall
+  within `[min, max]` (either bound may be omitted, but at least one must be given — a range rule
+  without bounds throws).
+- `kind: 'balanceExact'` / `'balanceRange'` — same, but `value`/`[min, max]` are checked against
+  the contract's absolute balance after the hop.
+- Amounts are `bigint` or a `(ctx: BalanceContext) => bigint` function; `ctx` exposes the flow's
+  `hops`, `hop(op, occurrence?)` and `delta(contract, op?)` for rules that depend on other hops.
+  Each hop carries the flattened transaction (`hop.tx` from `@ton/test-utils`), so rules can read
+  the message value (`tx.value`), opcodes (`tx.op`), phases (`tx.exitCode`, `tx.actionResultCode`)
+  and more.
+
+The invariant enforced on every flow:
+
+1. **Every balance-changing hop needs a satisfying rule.** A hop whose balance changed is covered
+   only if a rule's selector (`contract` + `op` + optional `from`/`bounce`) matches it _and_ its
+   amount constraint holds; otherwise the hop is reported in `balanceChanges` and the test fails.
+2. **Every rule must match at least one hop of the flow.** Rules are matched against all hops, not
+   just violations — a rule for an op whose delta is 0, or whose hop is structurally exempt, still
+   counts as matched. A rule that matches nothing is reported in `unmatchedRules` and the test
+   fails (this catches silent drift after op renames).
+3. **External-owned receivers are always exempt** — they are value sinks by design and need no
+   rules.
+4. **`blockchain.now = 1` (frozen time) is required** — otherwise storage fees make per-hop deltas
+   non-deterministic and the exact rules meaningless.
 
 Flows whose label starts with `sweep:` are reported in the data size section only and never count
 towards the worst case of an entrypoint.
@@ -119,20 +195,20 @@ towards the worst case of an entrypoint.
 
 `measure` prints one row per transaction of the flow, in execution order:
 
-| Column      | Description                                                                    |
-| ----------- | ------------------------------------------------------------------------------ |
-| `From`/`To` | Sender and receiver of the incoming message                                    |
-| `Owner`     | Owner of the receiving contract (see above)                                    |
-| `Op`        | Incoming message name (from the generated wrappers), `bounced`, `external`     |
-| `Gas`       | Gas used by the compute phase                                                  |
-| `Compute`   | Compute fee (TON)                                                              |
-| `Storage`   | Storage fee collected (TON)                                                    |
-| `Fwd (out)` | Full forward fees of the outgoing messages (TON)                               |
-| `Cost`      | Storage + compute + forward fees: what the hop costs the value flowing through |
-| `Value in`  | TON carried by the incoming message                                            |
-| `Value out` | TON carried by the outgoing messages                                           |
-| `Retained`  | Balance change of the receiving contract                                       |
-| `Exit`      | Compute exit code, or `FAIL <code>` / `FAIL action <code>` when aborted        |
+| Column      | Description                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| `From`/`To` | Sender and receiver of the incoming message                                                 |
+| `Owner`     | Owner of the receiving contract (see above)                                                 |
+| `Op`        | Incoming message name (from the generated wrappers); for bounces, the original message name |
+| `Gas`       | Gas used by the compute phase                                                               |
+| `Compute`   | Compute fee (TON)                                                                           |
+| `Storage`   | Storage fee collected (TON)                                                                 |
+| `Fwd (out)` | Full forward fees of the outgoing messages (TON)                                            |
+| `Cost`      | Storage + compute + forward fees: what the hop costs the value flowing through              |
+| `Value in`  | TON carried by the incoming message                                                         |
+| `Value out` | TON carried by the outgoing messages                                                        |
+| `Retained`  | Balance change of the receiving contract                                                    |
+| `Exit`      | Compute exit code, or `FAIL <code>` / `FAIL action <code>` when aborted                     |
 
 It is followed by the cost per owner and by the entrypoint table: for every hop into a `ccip`
 contract, the cost of that hop plus everything downstream of it (using the sandbox transaction
