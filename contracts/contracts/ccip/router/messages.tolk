@@ -171,11 +171,13 @@ struct (0xf540f227) Router_ReceiverAccountAddress {
 }
 
 /// Sent by the OnRamp when it rejects a `Router_WithdrawToTokenPool` request before the
-/// Router moves custody. The Router relays the failure to the token pool so it can reinstate
-/// the rate limit consumed at admission and fail the send.
+/// Router moves custody. The Router settles the authenticated executor directly and asks the
+/// token pool to reinstate the rate limit consumed at admission.
 struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
     queryId: uint64;
     destChainSelector: uint64;
+    /// The CCIPSendExecutor that requested the withdraw, authenticated by the OnRamp.
+    executor: address;
     withdrawRequest: Cell<Router_WithdrawRequest>;
     errorCode: int32;                                   // Raw TVM exit code (signed).
 }

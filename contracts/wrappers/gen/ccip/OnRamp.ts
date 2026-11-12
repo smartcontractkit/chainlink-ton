@@ -1264,6 +1264,7 @@ export const Router_WithdrawRequest = {
  > struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
  >     queryId: uint64
  >     destChainSelector: uint64
+ >     executor: address
  >     withdrawRequest: Cell<Router_WithdrawRequest>
  >     errorCode: int32
  > }
@@ -1272,6 +1273,7 @@ export interface Router_WithdrawToTokenPoolFailed {
     readonly $: 'Router_WithdrawToTokenPoolFailed'
     queryId: uint64
     destChainSelector: uint64
+    executor: c.Address
     withdrawRequest: Router_WithdrawRequest
     errorCode: int32
 }
@@ -1282,6 +1284,7 @@ export const Router_WithdrawToTokenPoolFailed = {
     create(args: {
         queryId?: uint64
         destChainSelector: uint64
+        executor: c.Address
         withdrawRequest: Router_WithdrawRequest
         errorCode: int32
     }): Router_WithdrawToTokenPoolFailed {
@@ -1297,6 +1300,7 @@ export const Router_WithdrawToTokenPoolFailed = {
             $: 'Router_WithdrawToTokenPoolFailed',
             queryId: s.loadUintBig(64),
             destChainSelector: s.loadUintBig(64),
+            executor: s.loadAddress(),
             withdrawRequest: loadCellRef<Router_WithdrawRequest>(s, Router_WithdrawRequest.fromSlice),
             errorCode: s.loadIntBig(32),
         }
@@ -1305,6 +1309,7 @@ export const Router_WithdrawToTokenPoolFailed = {
         b.storeUint(0xee40ec65, 32);
         b.storeUint(self.queryId, 64);
         b.storeUint(self.destChainSelector, 64);
+        b.storeAddress(self.executor);
         storeCellRef<Router_WithdrawRequest>(self.withdrawRequest, b, Router_WithdrawRequest.store);
         b.storeInt(self.errorCode, 32);
     },

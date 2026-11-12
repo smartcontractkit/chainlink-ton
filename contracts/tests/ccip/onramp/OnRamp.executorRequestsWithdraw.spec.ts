@@ -87,6 +87,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
   let mockTokenPool: SandboxContract<TreasuryContract>
   let mockToken: SandboxContract<TreasuryContract>
   let executorSender: Sender
+  let executorAddress: Address
   let executorId: bigint
 
   beforeAll(async () => {
@@ -180,6 +181,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
       deployMessage.stateInit.data.beginParse(),
     ).id
 
+    executorAddress = dest
     return blockchain.sender(dest)
   }
 
@@ -259,6 +261,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
         const failure = rt.Router_WithdrawToTokenPoolFailed.fromSlice(x.beginParse())
         return (
           failure.queryId === 1n &&
+          failure.executor.equals(executorAddress) &&
           failure.errorCode === BigInt(or.OnRamp.Errors['OnRamp_Error.SourceTokenDataTooLarge'])
         )
       },
@@ -289,6 +292,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
         const failure = rt.Router_WithdrawToTokenPoolFailed.fromSlice(x.beginParse())
         return (
           failure.queryId === 1n &&
+          failure.executor.equals(executorAddress) &&
           failure.errorCode === BigInt(or.OnRamp.Errors['OnRamp_Error.InvalidDestTokenAddress'])
         )
       },

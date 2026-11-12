@@ -671,14 +671,13 @@ fun senderAccount(user: address, token: address): AutoDeployAddress {
     return Router.senderAccount(contract.getAddress(), user, token, deployableCompiledCode());
 }
 
-/// Relays an OnRamp withdraw rejection: the executor is settled directly (it is the only one
-/// that can release the fee reservation) and the pool is asked separately to refund the bucket.
+/// Relays an OnRamp withdraw rejection: the authenticated executor is settled directly (it is
+/// the only one that can release the fee reservation) and the pool is asked separately to refund
+/// the bucket.
 fun onWithdrawToTokenPoolFailed(msg: Router_WithdrawToTokenPoolFailed) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
     val tokenPool = withdrawRequest.tokenPool;
-    val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromCell(withdrawRequest.forwardPayload);
-    val lockOrBurn = lazy fwdp.requestMsg.load();
-    settleWithdrawFailure(lockOrBurn.replyTo, lockOrBurn.queryId, tokenPool, withdrawRequest.forwardPayload, msg.errorCode);
+    settleWithdrawFailure(msg.executor, msg.queryId, tokenPool, withdrawRequest.forwardPayload, msg.errorCode);
 }
 
 /// Applies OnRamp and OffRamp updates. Restricted to contract owner.
