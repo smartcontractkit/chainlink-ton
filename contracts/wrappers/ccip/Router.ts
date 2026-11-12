@@ -187,7 +187,8 @@ export const Costs = (() => {
     toNano('0.003') +
     toNano('0.0025') +
     toNano('0.0025') +
-    toNano('0.001')
+    toNano('0.001') +
+    toNano('0.005') // Router_Costs.tokenPoolRefund()
   const executorRequestsLockOrBurnWithoutDefaultPoolAdmission =
     lockOrBurnRelay + tokenPoolFinalization
   const executorRequestsLockOrBurn =

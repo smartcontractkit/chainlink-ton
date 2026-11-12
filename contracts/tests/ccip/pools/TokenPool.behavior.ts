@@ -1,4 +1,5 @@
 import '@ton/test-utils'
+import { findTransaction } from '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, Slice, toNano } from '@ton/core'
 import {
@@ -16,6 +17,7 @@ import {
   TokenPool_ReleaseOrMint,
   TokenPool_ReleaseOrMintDelivery,
   TokenPool_LockOrBurnFailure,
+  TokenPool_LockOrBurnWithdraw,
   TokenPool_ReleaseOrMintFailure,
   TransferNotificationForRecipient,
   TokenPool_ReleaseOrMintForwardPayload,
@@ -668,6 +670,91 @@ export function runTokenPoolBehaviorTests(
           }
         },
       )
+
+      it('refunds the bucket consumed at admission after a fast-finality config flip', async () => {
+        const ctx = await setup()
+        await configureRefundCase(ctx, true)
+        const standardBefore = await ctx.pool.getCurrentRateLimiterState(
+          ctx.remoteChainSelector,
+          false,
+        )
+        const fastBefore = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, true)
+
+        const { transactions } = await ctx.pool.sendTokenPoolLockOrBurn(
+          ctx.deployer.getSender(),
+          toNano('1'),
+          {
+            queryId: 3n,
+            request: lockOrBurnRequest(ctx),
+            requestedFinalityConfig: finalityConfig,
+            tokenArgs: null,
+            replyTo: ctx.deployer.address,
+            finalizationValue: toNano('0.01'),
+            onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
+          },
+        )
+
+        const withdrawTx = findTransaction(transactions, {
+          from: ctx.pool.address,
+          to: ctx.deployer.address,
+          op: TokenPool_LockOrBurnWithdraw.PREFIX,
+        })
+        if (!withdrawTx?.inMessage) throw new Error('withdraw message not found')
+        const withdraw = TokenPool_LockOrBurnWithdraw.fromSlice(
+          withdrawTx.inMessage.body.beginParse(),
+        )
+        // Admission must record the bucket it actually consumed.
+        expect(withdraw.forwardPayload.prepared.fastFinalityConsumed).toBe(true)
+
+        // Disable the fast bucket before the failure refund.
+        await ctx.pool.sendTokenPoolSetRateLimitConfig(ctx.deployer.getSender(), toNano('0.2'), {
+          queryId: 9953n,
+          updates: [
+            TokenPool_RateLimitConfigArgs.create({
+              remoteChainSelector: ctx.remoteChainSelector,
+              fastFinality: true,
+              outboundRateLimiterConfig: RateLimiter_Config.create({
+                isEnabled: false,
+                capacity: 0n,
+                rate: 0n,
+              }),
+              inboundRateLimiterConfig: RateLimiter_Config.create({
+                isEnabled: false,
+                capacity: 0n,
+                rate: 0n,
+              }),
+            }),
+          ],
+        })
+        const standardAfterDisable = await ctx.pool.getCurrentRateLimiterState(
+          ctx.remoteChainSelector,
+          false,
+        )
+        const fastAfterDisable = await ctx.pool.getCurrentRateLimiterState(
+          ctx.remoteChainSelector,
+          true,
+        )
+
+        await ctx.pool.sendTokenPoolLockOrBurnWithdrawFailed(
+          ctx.deployer.getSender(),
+          toNano('1'),
+          {
+            queryId: 3n,
+            forwardPayload: withdraw.forwardPayload,
+            errorCode: 1n,
+          },
+        )
+
+        const standardAfter = await ctx.pool.getCurrentRateLimiterState(
+          ctx.remoteChainSelector,
+          false,
+        )
+        const fastAfter = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, true)
+        // A disabled bucket cannot accept refunds, but the refund must not be misrouted to the
+        // standard bucket. The old code did exactly that on the disabled->fallback path.
+        expect(fastAfter.outbound.tokens).toEqual(fastAfterDisable.outbound.tokens)
+        expect(standardAfter.outbound.tokens).toEqual(standardBefore.outbound.tokens)
+      })
     })
 
     it('starts with chain not cursed', async () => {

@@ -385,6 +385,23 @@ describe('Router.withdrawToTokenPool', () => {
     expectExecutorFailed(result, router.address)
   })
 
+  it('settles the executor and refunds the pool with a short failure callback', async () => {
+    const tokenPool = await blockchain.treasury('tokenPool')
+    // No sender account: the withdraw bounces at the Router. The callback carries just enough
+    // for the refund and the executor settlement.
+    const result = await router.sendRouterWithdrawToTokenPool(onRamp.getSender(), toNano('0.03'), {
+      destChainSelector,
+      executor: executor.address,
+      withdrawRequest: buildWithdrawRequest({
+        user: sender.address,
+        amount: toNano('5'),
+        tokenPool: tokenPool.address,
+      }),
+    })
+    expectPoolWithdrawFailed(result, tokenPool.address)
+    expectExecutorFailed(result, tokenPool.address)
+  })
+
   it('fails the CCIPSend without withdrawing when the payload names another executor', async () => {
     const tokenPool = await blockchain.treasury('tokenPool')
     const accountAddress = await deployDepositAccount(sender)
