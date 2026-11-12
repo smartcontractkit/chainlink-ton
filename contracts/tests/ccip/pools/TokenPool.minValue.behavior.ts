@@ -88,13 +88,38 @@ export function runTokenPoolMinValueBehaviorTests(
       expect((await ctx.blockchain.getContract(ctx.pool.address)).balance).toEqual(toNano('0.01'))
     })
 
+    it('uses admission headroom for storage due on release', async () => {
+      const ctx = await setup()
+      await setPoolBalance(ctx, 0n, toNano('0.02'))
+
+      const delivery = deliveryTo(ctx.recipient.address, ctx.deployer.address)
+      const admission = (await ctx.pool.getBudget()).releaseOrMint.admission
+      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.deployer.getSender(),
+        admission + delivery.forwardTonAmount,
+        {
+          queryId: 976n,
+          request: releaseRequest(ctx),
+          requestedFinalityConfig: 0n,
+          replyTo: ctx.deployer.address,
+          delivery,
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+    })
+
     it('rejects lock/burn when storage due cannot be covered at admission', async () => {
       const ctx = await setup()
       const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
       const poolAccount = await ctx.blockchain.getContract(ctx.pool.address)
       poolAccount.balance = toNano('0.005')
       const account = poolAccount.account
-      account.account!.storageStats.duePayment = toNano('0.01')
+      account.account!.storageStats.duePayment = toNano('0.1')
       poolAccount.account = account
 
       const finalizationValue = toNano('0.01')
@@ -129,7 +154,7 @@ export function runTokenPoolMinValueBehaviorTests(
       const poolAccount = await ctx.blockchain.getContract(ctx.pool.address)
       poolAccount.balance = toNano('0.005')
       const account = poolAccount.account
-      account.account!.storageStats.duePayment = toNano('0.01')
+      account.account!.storageStats.duePayment = toNano('0.1')
       poolAccount.account = account
 
       const delivery = deliveryTo(ctx.recipient.address, ctx.deployer.address)

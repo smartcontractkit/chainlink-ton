@@ -1013,7 +1013,7 @@ func (a *TONAdapter) RMNCursed(t *testing.T, chainSelector uint64, cursed bool) 
 // Router_Costs.CCIPSend(false/true) from contracts/contracts/ccip/router/messages.tolk.
 var (
 	CCIPSendMinValue           = tlb.MustFromTON("0.364")
-	CCIPSendWithTokensMinValue = tlb.MustFromTON("0.5175")
+	CCIPSendWithTokensMinValue = tlb.MustFromTON("0.518") // exact calculated value is 0.517500012
 )
 
 // SendCCIPMessage sends a CCIP request from a TON chain using the standard router.CCIPSend message.
