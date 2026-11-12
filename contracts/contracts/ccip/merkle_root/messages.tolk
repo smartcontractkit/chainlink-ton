@@ -35,7 +35,8 @@ struct (0x019f4cd2) MerkleRoot_MarkState {
     /// Caller of the execution. Once the state is marked, the excesses carried by this message
     /// are returned to the OffRamp, which refunds them to this address.
     excessesTo: address,
-    /// The ReceiveExecutor deploy bounced, so the next execution attempt must deploy it again.
+    /// The ReceiveExecutor was not deployed (its InitExecute bounced without reaching it), so the
+    /// next execution attempt must deploy it again.
     executorDeployFailed: bool,
 }
 
@@ -45,7 +46,8 @@ struct (0x019f4cd2) MerkleRoot_MarkState {
 /// (Success/Failure on MarkState, Failure when OffRamp_ExecuteValidated bounces). The OffRamp
 /// emits the ExecutionStateChanged event only on receipt of this message, so the event always
 /// reflects state already committed on the root, and refunds `excessesTo` with the value the
-/// message carries (the execution excesses on the MarkState flow, nothing on the bounce flow).
+/// message carries (the execution excesses on the MarkState flow, the bounced value on the bounce
+/// flow).
 struct (0x347ea073) MerkleRoot_ExecutionStateChanged {
     root: MerkleRootId;
     /// Message whose state changed: the OffRamp emits it on the ExecutionStateChanged event.

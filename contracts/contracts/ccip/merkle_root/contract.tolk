@@ -110,8 +110,8 @@ fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
     assert (msg.state == ExecutionState.Success || msg.state == ExecutionState.Failure) throw (MerkleRoot_Error.InvalidState);
 
     st.setMessageState(seqNum, msg.state);
-    // Only set here, never cleared: a later MarkState of the same failed flow (e.g. the bounced
-    // InitExecute that follows a bounced deploy) must not undo it. Validate clears it.
+    // Validate clears it. Each attempt ends with a single MarkState (or the ExecuteValidated bounce),
+    // so no later message of the same attempt can arrive after a retry started.
     if (msg.executorDeployFailed) {
         st.setExecutorDeployPending(seqNum, true);
     }
@@ -173,7 +173,7 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
     }
 
     // The executor is deployed by the first attempt, and again by the attempt after one whose
-    // deploy was reverted or bounced. Cleared optimistically: if this attempt bounces, the bounce
+    // deploy was reverted or did not take place. Cleared optimistically: if this attempt bounces, the bounce
     // handler sets it again.
     val deployExecutor = state == ExecutionState.Untouched || st.isExecutorDeployPending(message.header.sequenceNumber);
     st.setExecutorDeployPending(message.header.sequenceNumber, false);

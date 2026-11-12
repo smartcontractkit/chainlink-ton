@@ -578,17 +578,13 @@ describe('MerkleRoot - Message Handling', () => {
         maxMsgNr: 3n,
         messageStates: encodeState(1n, mr.ExecutionState.InProgress, 1n),
       })
-      const markFailure = (executorDeployFailed: boolean) =>
-        merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
-          messageRef: buildMessageRef(1n),
-          state: mr.ExecutionState.Failure,
-          excessesTo: owner.address,
-          executorDeployFailed,
-        })
-
-      // The bounced deploy, then the bounced InitExecute that followed it.
-      await markFailure(true)
-      await markFailure(false)
+      // The OffRamp reports an InitExecute that bounced without reaching an executor.
+      await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
+        messageRef: buildMessageRef(1n),
+        state: mr.ExecutionState.Failure,
+        excessesTo: owner.address,
+        executorDeployFailed: true,
+      })
       const storage = await loadStorage(merkleRoot.address)
       expect(storage.messageStates).toBe(encodeState(1n, mr.ExecutionState.Failure, 1n))
       expect(storage.pendingExecutorDeploy).toBe(1n)

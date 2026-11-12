@@ -63,7 +63,8 @@ deployExecutor = state == Untouched || executor deploy pending
 
 - `Validate` sends `deployExecutor` on `ExecuteValidated` and clears the pending bit.
 - A bounced `ExecuteValidated` marks the message `Failure` and sets the pending bit again if the bounced attempt carried `deployExecutor = true`. A retry of a message whose executor already exists bounces back to a plain `Failure`.
-- `MarkState` with `executorDeployFailed = true` (sent by the OffRamp when the executor's `Deployable_Initialize` bounced) sets the pending bit. Only `Validate` clears it, so the plain `Failure` reported right after by the bounced `InitExecute` cannot undo it.
+- `MarkState` with `executorDeployFailed = true` sets the pending bit. The OffRamp sends it when the attempt's `InitExecute` bounced without reaching an executor: the rich bounce shows it reached the `Deployable` stub (compute phase failed with Tolk's opcode mismatch, 63) or found no contract (compute phase skipped, no state). Any other bounce means the executor exists and rejected the message, so the flag stays unset.
+- A bounced `Deployable_Initialize` (the executor already exists) only refunds its value to the caller; the message state is left to the `InitExecute` sent right after it. Each attempt therefore ends with a single message to the root, so a retry can never be overtaken by a late `MarkState` of the previous attempt.
 
 As a result, a message is past `Untouched` without a pending bit only when its executor exists, so any rejected attempt can be retried.
 

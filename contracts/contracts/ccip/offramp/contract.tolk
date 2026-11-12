@@ -12,6 +12,8 @@ import "../../lib/ocr/types"
 import "../../lib/ocr/errors"
 import "../../lib/utils"
 import "../../lib/jetton/messages"
+import "../../lib/tvm/bounce"
+import "../../lib/tvm/errors"
 import "../lib/client/receiver/types"
 
 import "../common/types"
@@ -199,7 +201,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     val originalMessage = lazy OffRamp_InMessageBounced.fromCell(rich.originalBody);
     match(originalMessage) {
         ReceiveExecutor_InitExecute => {
-            onBouncedReceiveExecutorInitExecute(originalMessage, in.senderAddress)
+            onBouncedReceiveExecutorInitExecute(originalMessage, in.senderAddress, RichBounce_Phase.from(rich), rich.exitCode)
         },
         Deployable_Initialize => {
             onBouncedDeployableInitialize(originalMessage, in.senderAddress)
@@ -270,15 +272,25 @@ fun onBouncedCCIPReceiveConfirm(msg: ReceiveExecutor_CCIPReceiveConfirm) {
     rejected.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
-// Handles bounced ReceiveExecutor_InitExecute messages. This should never
-// happen; if InitExecute bounced, it's probably a misconfiguration in the
-// ReceiveExecutor code. Marks the execution state as failed and emits events.
-fun onBouncedReceiveExecutorInitExecute(msg: ReceiveExecutor_InitExecute, senderAddress: address) {
+// Handles bounced ReceiveExecutor_InitExecute messages: marks the message Failure on the root,
+// which emits the ExecutionStateChanged event and refunds the caller. This is the only state change
+// an attempt whose InitExecute bounced sends, so a retry can never be overtaken by a stale one.
+//
+// The bounce tells whether the executor exists. InitExecute carries the Deployable stub's
+// stateInit, so if the executor was never deployed it either reaches the stub, which rejects it,
+// or finds no contract at all. Anything else means the executor exists and rejected it (probably a
+// misconfiguration in the ReceiveExecutor code), so the next attempt must not deploy it again.
+// The stub rejects any message other than its initialization with Tolk's opcode mismatch, and its
+// code is part of every Deployable address, so this cannot change.
+fun onBouncedReceiveExecutorInitExecute(msg: ReceiveExecutor_InitExecute, senderAddress: address, bouncedByPhase: RichBounce_Phase, exitCode: int) {
     emit(RECEIVE_EXECUTOR_INIT_EXECUTE_BOUNCED, OffRamp_ReceiveExecutorInitExecuteBounced{
         receiveExecutor: senderAddress,
         root: msg.root,
         sequenceNumber: msg.messageRef.sequenceNumber,
     });
+    val executorDeployFailed =
+        (bouncedByPhase == RichBounce_Phase.ComputeFailed && exitCode == TolkError.OpcodeMismatch as int) ||
+        (bouncedByPhase == RichBounce_Phase.ComputeSkipped && exitCode == RichBounce_ComputeSkipReason.NoState as int);
     // The executor's init value (if deployed) stays in the executor for retries, so the caller is
     // refunded everything else. The root emits the ExecutionStateChanged event on
     // MerkleRoot_ExecutionStateChanged once the state is committed.
@@ -287,15 +299,15 @@ fun onBouncedReceiveExecutorInitExecute(msg: ReceiveExecutor_InitExecute, sender
         msg.messageRef,
         ExecutionState.Failure,
         msg.excesses.load().to,
-        // If the deploy that preceded this InitExecute bounced, its MarkState (sent first) already
-        // made the root deploy the executor again; this one must not change that.
-        false,
+        executorDeployFailed,
     );
 }
 
-// Handles bounced Deployable_Initialize messages. This should never have
-// bounced, but it could be from a duplicated commit report or message. Emits
-// an event and tries to mark the execution as failed if it's a ReceiveExecutor.
+// Handles bounced Deployable_Initialize messages. This should never have bounced, but it could be
+// from a duplicated commit report or message (the contract already exists). Emits an event and,
+// for a ReceiveExecutor, refunds the bounced init value to the caller of the execution. The
+// message state is left to the InitExecute sent right after it, whose bounce (if any) tells
+// whether the executor exists.
 fun onBouncedDeployableInitialize(msg: Deployable_Initialize, senderAddress: address) {
     val stateInit = msg.stateInit;
     emit(DEPLOYABLE_INITIALIZE_BOUNCED_TOPIC, OffRamp_DeployableInitializeBounced {
@@ -303,21 +315,18 @@ fun onBouncedDeployableInitialize(msg: Deployable_Initialize, senderAddress: add
     });
     commitContractDataAndActions();
 
-    // Try to cast the Deployable data to the ReceiveExecutor_Storage in order to mark the message execution as Failed
-    // If the deploy that failed is for a MerkleRoot contract this will fail and only the previously committed emit action will take place
+    // Try to cast the Deployable data to the ReceiveExecutor_Storage to find the caller. If the
+    // deploy that failed is for a MerkleRoot contract this throws, and only the previously
+    // committed emit action takes place (its init value was the OffRamp's own).
     val storageData = ReceiveExecutor_Storage.fromCell(stateInit.data);
-    val message = Any2TVMRampMessage.fromCell(storageData.message);
     // The executor's initial storage carries the caller of the execution that deployed it.
-    // The root emits the ExecutionStateChanged event on MerkleRoot_ExecutionStateChanged once the state is
-    // committed.
-    markStateOnRoot(
-        storageData.root,
-        message.header.toRef(),
-        ExecutionState.Failure,
-        storageData.state.excesses!.load().to,
-        // The executor was not deployed: the next execution attempt must deploy it.
-        true,
-    );
+    val refund = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: storageData.state.excesses!.load().to,
+        body: createEmptyCell(),
+    });
+    refund.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Handles a bounced Router_RelayReleaseOrMint: the Router rejected the relay
@@ -451,8 +460,8 @@ fun forwardValueToExecutor(executorAddress: AutoDeployAddress) {
 }
 
 // The MerkleRoot changed a message's execution state: emits the ExecutionStateChanged event for
-// the state the root committed and, on the MarkState flow (excessesTo set), refunds the
-// execution caller with the excesses carried by the message. Emitting only here (never before
+// the state the root committed and refunds the execution caller with the value the message
+// carries (the excesses on the MarkState flow, the bounced value on the ExecuteValidated bounce). Emitting only here (never before
 // the root answers) keeps the event consistent with the on-chain state.
 //
 // sequenceDiagram
@@ -499,7 +508,7 @@ fun onExecutionStateChanged(msg: MerkleRoot_ExecutionStateChanged) {
 // @param messageRef: message being marked, relayed by the root on
 // MerkleRoot_ExecutionStateChanged so the OffRamp can emit the event.
 // @param excessesTo: caller of the execution, refunded with the excesses.
-// @param executorDeployFailed: the ReceiveExecutor deploy bounced, so the root makes the next
+// @param executorDeployFailed: the ReceiveExecutor is not deployed, so the root makes the next
 // execution attempt deploy it again.
 // @param keep: value retained by the OffRamp on top of its original balance (at most what is
 // available).
@@ -1135,7 +1144,8 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
     }.toCell();
 
     // The root asks for the deploy on the first attempt, and again after an attempt whose deploy
-    // was reverted (this message bounced) or bounced.
+    // was reverted (this message bounced) or did not take place (its InitExecute bounced without
+    // reaching an executor).
     if (msg.deployExecutor) {
         val deployMsg = createMessage({
             bounce: BounceMode.RichBounce,

@@ -74,7 +74,7 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     root: MerkleRootId;
     metadataHash: uint256;
     /// The ReceiveExecutor is not deployed yet: this attempt deploys it and funds its init value.
-    /// True on the first attempt, and on any attempt after one whose deploy was reverted or bounced.
+    /// True on the first attempt, and on any attempt after one whose deploy was reverted or did not take place.
     deployExecutor: bool;
     /// OffRamp_ExecutionContext parsed by onExecuteSingleReport, relayed unchanged by the root.
     context: cell;
