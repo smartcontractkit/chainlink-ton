@@ -183,6 +183,7 @@ fun OnRamp_Costs.ExecutorRequestsLockOrBurn(poolAdmission: coins): coins {
         + grams("0.0025") // Router_WithdrawToTokenPool relay
         + grams("0.0025") // DepositAccount_Withdraw
         + grams("0.001") // jetton excess returned to the OnRamp
+        + Router_Costs.tokenPoolRefund() // best-effort withdraw-failure pool refund
         + poolAdmission
         + OnRamp_Costs.TokenPoolFinalization()
         ;
