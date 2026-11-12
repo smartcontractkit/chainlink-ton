@@ -29,7 +29,7 @@ type Router_InMsg =
     | OnRamp_MessageValidationFailed
     | Router_RouteMessage
     | Router_WithdrawToTokenPool
-    | Router_WithdrawToTokenPoolFailed
+    | Router_LockOrBurnWithdrawFailedForwardTP
     | Router_CCIPReceiveConfirm
     | Router_CCIPReceiveConfirmRejectedByExecutor
     | Upgradeable_Upgrade
@@ -168,18 +168,6 @@ struct (0xf540f227) Router_ReceiverAccountAddress {
     token: address;
     /// `Router_GetReceiverAccountAddress.context`, echoed back.
     context: cell?;
-}
-
-/// Sent by the OnRamp when it rejects a `Router_WithdrawToTokenPool` request before the
-/// Router moves custody. The Router settles the authenticated executor directly and asks the
-/// token pool to reinstate the rate limit consumed at admission.
-struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
-    queryId: uint64;
-    destChainSelector: uint64;
-    /// The CCIPSendExecutor that requested the withdraw, authenticated by the OnRamp.
-    executor: address;
-    withdrawRequest: Cell<Router_WithdrawRequest>;
-    errorCode: int32;                                   // Raw TVM exit code (signed).
 }
 
 // curse/uncurse/verify uncursed (also as getter)
@@ -345,13 +333,23 @@ struct (0x6b9cf345) Router_LockOrBurnFailed {
     errorCode: int32;
 }
 
-/// Sent by the Router or OnRamp when the pre-custody withdraw phase fails:
+/// Sent by the Router or OnRamp to fail a pre-custody withdraw:
 /// deposit-account withdraw, executor mismatch, OnRamp rejection, or a bounced
 /// `Router_WithdrawToTokenPool`.
 struct (0x7b2c2b80) Router_LockOrBurnWithdrawFailed {
     queryId: uint64;
     tokenPool: address;
     errorCode: int32;
+}
+
+/// Sent by the OnRamp to the Router to relay a refund-only rate-limit notification to the
+/// token pool. Executor settlement is handled by the OnRamp directly; the Router only needs to
+/// authenticate the lane and forward the payload to the pool.
+struct (0x1b2d6c58) Router_LockOrBurnWithdrawFailedForwardTP {
+    queryId: uint64;
+    destChainSelector: uint64;
+    tokenPool: address;
+    forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
 /// Canonical Router failure for an inbound release/mint that the Router could

@@ -1175,11 +1175,12 @@ describe('SendExecutor - Unit tests', () => {
 
   it('should exit with the relayed error and refund the charged fee when the OnRamp reports a Router bounce', async () => {
     const sendExecutor = await afterLockOrBurnRequested()
+    const tokenPool = (await blockchain.treasury('tokenPoolMock')).address
 
-    const result = await sendExecutor.sendOnRampLockOrBurnFailed(
+    const result = await sendExecutor.sendRouterLockOrBurnFailed(
       onRampMock.getSender(),
       toNano('0.1'),
-      { queryId: 1n, errorCode: 0xffffn },
+      { queryId: 1n, tokenPool, errorCode: 0xffffn },
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -1203,7 +1204,7 @@ describe('SendExecutor - Unit tests', () => {
     const sendExecutor = await afterLockOrBurnRequested()
     const tokenPool = (await blockchain.treasury('tokenPoolMock')).address
 
-    const result = await sendExecutor.sendRouterTokenPoolLockOrBurnFailed(
+    const result = await sendExecutor.sendRouterLockOrBurnFailed(
       routerMock.getSender(),
       toNano('0.1'),
       { queryId: 1n, tokenPool, errorCode: -14n },
@@ -1294,17 +1295,18 @@ describe('SendExecutor - Unit tests', () => {
     }
   })
 
-  it('should throw on OnRamp_LockOrBurnFailed from non-onramp', async () => {
+  it('should throw on Router_LockOrBurnFailed from an unauthorized sender', async () => {
     const sendExecutor = await afterLockOrBurnRequested()
+    const tokenPool = (await blockchain.treasury('tokenPoolMock')).address
 
-    const result = await sendExecutor.sendOnRampLockOrBurnFailed(
-      routerMock.getSender(),
+    const result = await sendExecutor.sendRouterLockOrBurnFailed(
+      deployer.getSender(),
       toNano('0.1'),
-      { queryId: 1n, errorCode: 0xffffn },
+      { queryId: 1n, tokenPool, errorCode: 0xffffn },
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: routerMock.address,
+      from: deployer.address,
       to: sendExecutor.address,
       success: false,
       exitCode: sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.Unauthorized'],

@@ -1516,49 +1516,6 @@ export const OnRamp_ExecutorFinishedWithError = {
 }
 
 /**
- > struct (0xdf46b714) OnRamp_LockOrBurnFailed {
- >     queryId: uint64
- >     errorCode: int32
- > }
- */
-export interface OnRamp_LockOrBurnFailed {
-    readonly $: 'OnRamp_LockOrBurnFailed'
-    queryId: uint64
-    errorCode: int32
-}
-
-export const OnRamp_LockOrBurnFailed = {
-    PREFIX: 0xdf46b714,
-
-    create(args: {
-        queryId?: uint64
-        errorCode: int32
-    }): OnRamp_LockOrBurnFailed {
-        return {
-            $: 'OnRamp_LockOrBurnFailed',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): OnRamp_LockOrBurnFailed {
-        loadAndCheckPrefix32(s, 0xdf46b714, 'OnRamp_LockOrBurnFailed');
-        return {
-            $: 'OnRamp_LockOrBurnFailed',
-            queryId: s.loadUintBig(64),
-            errorCode: s.loadIntBig(32),
-        }
-    },
-    store(self: OnRamp_LockOrBurnFailed, b: c.Builder): void {
-        b.storeUint(0xdf46b714, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeInt(self.errorCode, 32);
-    },
-    toCell(self: OnRamp_LockOrBurnFailed): c.Cell {
-        return makeCellFrom<OnRamp_LockOrBurnFailed>(self, OnRamp_LockOrBurnFailed.store);
-    }
-}
-
-/**
  > struct Metadata {
  >     sender: address
  >     value: coins
@@ -3066,13 +3023,6 @@ export class CCIPSendExecutor implements c.Contract {
         return Router_LockOrBurnWithdrawFailed.toCell(Router_LockOrBurnWithdrawFailed.create(body));
     }
 
-    static createCellOfOnRampLockOrBurnFailed(body: {
-        queryId?: uint64
-        errorCode: int32
-    }) {
-        return OnRamp_LockOrBurnFailed.toCell(OnRamp_LockOrBurnFailed.create(body));
-    }
-
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -3215,17 +3165,6 @@ export class CCIPSendExecutor implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: Router_LockOrBurnWithdrawFailed.toCell(Router_LockOrBurnWithdrawFailed.create(body)),
-            ...extraOptions
-        });
-    }
-
-    async sendOnRampLockOrBurnFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        queryId?: uint64
-        errorCode: int32
-    }, extraOptions?: ExtraSendOptions) {
-        return provider.internal(via, {
-            value: msgValue,
-            body: OnRamp_LockOrBurnFailed.toCell(OnRamp_LockOrBurnFailed.create(body)),
             ...extraOptions
         });
     }

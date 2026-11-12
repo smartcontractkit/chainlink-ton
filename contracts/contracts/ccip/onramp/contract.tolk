@@ -393,19 +393,7 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
     try {
         processPoolReturnData(msg);
     } catch (e) {
-        val failure = createMessage({
-            bounce: BounceMode.NoBounce,
-            value: 0,
-            dest: destChainConfig.router,
-            body: Router_WithdrawToTokenPoolFailed {
-                queryId: msg.queryId,
-                destChainSelector: msg.destChainSelector,
-                executor: sender,
-                withdrawRequest: msg.withdrawRequest,
-                errorCode: e,
-            }
-        });
-        failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+        settleWithdrawFailure(sender, destChainConfig.router, msg.queryId, msg.destChainSelector, msg.withdrawRequest, e);
         return;
     }
 
@@ -442,12 +430,10 @@ fun onBouncedMessage(in: InMessageBounced) {
             onExecutorDeployBounced(bounced, rich.exitCode);
         }
         Router_LockOrBurn => {
-            sendLockOrBurnFailed(bounced.executorAddress, bounced.queryId, rich.exitCode);
+            sendLockOrBurnFailed(bounced.executorAddress, bounced.tokenPool, bounced.queryId, rich.exitCode);
         }
         Router_WithdrawToTokenPool => {
-            // TODO: [NONEVM-6725] report the bounced withdraw. The pool has already consumed its outbound rate
-            // limit at this point, so this needs its own failure path (being worked on separately).
-            throw 0xFFFF;
+            settleWithdrawFailure(bounced.executor, in.senderAddress, bounced.queryId, bounced.destChainSelector, bounced.withdrawRequest, rich.exitCode);
         }
         else => {
             return;
@@ -472,14 +458,56 @@ fun onExecutorDeployBounced(msg: Deployable_InitializeAndSend, errorCode: int32)
     rejectMessage(errorCode, config.router, ccipSend.queryId, ccipSend.destChainSelector, execute.onrampSend.metadata.sender);
 }
 
-fun sendLockOrBurnFailed(executor: address, queryId: uint64, errorCode: int32) {
+fun sendLockOrBurnFailed(executor: address, tokenPool: address, queryId: uint64, errorCode: int32) {
     val failed = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: executor,
-        body: OnRamp_LockOrBurnFailed { queryId, errorCode },
+        body: Router_LockOrBurnFailed { queryId, tokenPool, errorCode },
     });
     failed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+}
+
+/// Settles a pre-custody withdraw failure. The executor is notified directly; the pool refund is
+/// a separate best-effort request through the Router, which is the only contract the pool accepts
+/// the refund-only notification from. The inbound message value funds both sends.
+fun settleWithdrawFailure(
+    executor: address,
+    router: address,
+    queryId: uint64,
+    destChainSelector: uint64,
+    withdrawRequestCell: Cell<Router_WithdrawRequest>,
+    errorCode: int32,
+) {
+    val withdrawRequest = lazy withdrawRequestCell.load();
+
+    // Fund both sends from the inbound value; the OnRamp's pre-message balance stays reserved.
+    // The refund is best-effort; the executor receives the remainder.
+    reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
+    val refund = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: Router_Costs.tokenPoolRefund(),
+        dest: router,
+        body: Router_LockOrBurnWithdrawFailedForwardTP {
+            queryId,
+            destChainSelector,
+            tokenPool: withdrawRequest.tokenPool,
+            forwardPayload: withdrawRequest.forwardPayload,
+        },
+    });
+    refund.send(SEND_MODE_REGULAR | SEND_MODE_IGNORE_ERRORS);
+
+    val executorFailure = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: executor,
+        body: Router_LockOrBurnWithdrawFailed {
+            queryId,
+            tokenPool: withdrawRequest.tokenPool,
+            errorCode,
+        },
+    });
+    executorFailure.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun processPoolReturnData(msg: OnRamp_ExecutorRequestsWithdraw) {

@@ -461,6 +461,49 @@ describe('Router.withdrawToTokenPool', () => {
     })
   })
 
+  it('forwards an OnRamp pool refund request to the pool', async () => {
+    const tokenPool = await blockchain.treasury('tokenPool')
+
+    const result = await router.sendRouterLockOrBurnWithdrawFailedForwardTP(
+      onRamp.getSender(),
+      toNano('0.1'),
+      {
+        queryId: 1n,
+        destChainSelector,
+        tokenPool: tokenPool.address,
+        forwardPayload: buildLockOrBurnForwardPayload(),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: tokenPool.address,
+      op: rt.TokenPool_LockOrBurnWithdrawFailed.PREFIX,
+    })
+  })
+
+  it('rejects a refund-only withdraw failure from a non-OnRamp', async () => {
+    const tokenPool = await blockchain.treasury('tokenPool')
+
+    const result = await router.sendRouterLockOrBurnWithdrawFailedForwardTP(
+      sender.getSender(),
+      toNano('0.1'),
+      {
+        queryId: 1n,
+        destChainSelector,
+        tokenPool: tokenPool.address,
+        forwardPayload: buildLockOrBurnForwardPayload(),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: sender.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.NotOnRamp'],
+    })
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(

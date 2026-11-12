@@ -120,12 +120,6 @@ fun onInternalMessage(in: InMessage) {
             assert (state.tokenPool == msg.tokenPool) throw (CCIPSendExecutor_Error.Unauthorized);
             this.onLockOrBurnWithdrawFailed(msg);
         }
-        // The OnRamp's lock-or-burn request bounced off the Router.
-        OnRamp_LockOrBurnFailed => {
-            val this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
-            assert (this.addresses.load().onramp == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
-            this.onOnRampLockOrBurnFailed(msg);
-        }
         else => {
             assert (in.body.isEmpty()) throw (0xFFFF);
         },   
@@ -472,12 +466,6 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onLockOrBurnFa
 
 /// The Router or OnRamp reports a pre-custody withdraw failure.
 fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onLockOrBurnWithdrawFailed(self, msg: Router_LockOrBurnWithdrawFailed) {
-    self.exitWithError(msg.errorCode, self.state.load().chargedFee.feeTokenAmount);
-}
-
-/// The OnRamp's lock-or-burn request bounced off the Router. Forward the Router's exit code and
-/// refund the reserved fee.
-fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onOnRampLockOrBurnFailed(self, msg: OnRamp_LockOrBurnFailed) {
     self.exitWithError(msg.errorCode, self.state.load().chargedFee.feeTokenAmount);
 }
 

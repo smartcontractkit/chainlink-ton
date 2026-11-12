@@ -119,11 +119,12 @@ fun onInternalMessage(in: InMessage) {
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
             onWithdrawToTokenPool(msg);
         }
-        // Sender must be OnRamp
-        Router_WithdrawToTokenPoolFailed => {
+        // Refund-only request from the OnRamp: relay the pool refund. Executor settlement is
+        // done by the OnRamp directly.
+        Router_LockOrBurnWithdrawFailedForwardTP => {
             val st = lazy Storage.load();
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
-            onWithdrawToTokenPoolFailed(msg);
+            sendTokenPoolWithdrawFailure(msg.tokenPool, msg.forwardPayload);
         }
         // Permissionless (authorization is handle at the ReceiverExecutor)
         Router_CCIPReceiveConfirm => {
@@ -568,8 +569,8 @@ fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: a
 
 /// Asks the pool to reinstate the outbound rate limit consumed at admission. This is a refund-only
 /// notification: the Router settles the executor directly, so a pool that ignores or rejects this
-/// message cannot leave the send stuck. The fixed value is funded from the inbound value; a
-/// normal failure callback leaves enough for executor settlement.
+/// message cannot leave the send stuck. The fixed value is funded from the inbound value; the
+/// source-side budget includes its cost, so a normal failure callback never starves settlement.
 fun sendTokenPoolWithdrawFailure(tokenPool: address, forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>) {
     val refund = createMessage({
         bounce: BounceMode.NoBounce,
@@ -582,8 +583,7 @@ fun sendTokenPoolWithdrawFailure(tokenPool: address, forwardPayload: Cell<TokenP
             errorCode: 0,
         },
     });
-    // Best-effort: a pool that rejects the notification, or a short inbound value, must not roll
-    // back the executor settlement below.
+    // Best-effort: a pool that rejects the notification cannot roll back executor settlement.
     refund.send(SEND_MODE_REGULAR | SEND_MODE_IGNORE_ERRORS);
 }
 
@@ -669,15 +669,6 @@ get fun senderAccountAddress(user: address, token: address): address {
 
 fun senderAccount(user: address, token: address): AutoDeployAddress {
     return Router.senderAccount(contract.getAddress(), user, token, deployableCompiledCode());
-}
-
-/// Relays an OnRamp withdraw rejection: the authenticated executor is settled directly (it is
-/// the only one that can release the fee reservation) and the pool is asked separately to refund
-/// the bucket.
-fun onWithdrawToTokenPoolFailed(msg: Router_WithdrawToTokenPoolFailed) {
-    val withdrawRequest = lazy msg.withdrawRequest.load();
-    val tokenPool = withdrawRequest.tokenPool;
-    settleWithdrawFailure(msg.executor, msg.queryId, tokenPool, withdrawRequest.forwardPayload, msg.errorCode);
 }
 
 /// Applies OnRamp and OffRamp updates. Restricted to contract owner.

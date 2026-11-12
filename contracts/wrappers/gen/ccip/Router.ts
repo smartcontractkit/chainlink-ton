@@ -3915,64 +3915,6 @@ export const Router_ReceiverAccountAddress = {
 }
 
 /**
- > struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
- >     queryId: uint64
- >     destChainSelector: uint64
- >     executor: address
- >     withdrawRequest: Cell<Router_WithdrawRequest>
- >     errorCode: int32
- > }
- */
-export interface Router_WithdrawToTokenPoolFailed {
-    readonly $: 'Router_WithdrawToTokenPoolFailed'
-    queryId: uint64
-    destChainSelector: uint64
-    executor: c.Address
-    withdrawRequest: Router_WithdrawRequest
-    errorCode: int32
-}
-
-export const Router_WithdrawToTokenPoolFailed = {
-    PREFIX: 0xee40ec65,
-
-    create(args: {
-        queryId?: uint64
-        destChainSelector: uint64
-        executor: c.Address
-        withdrawRequest: Router_WithdrawRequest
-        errorCode: int32
-    }): Router_WithdrawToTokenPoolFailed {
-        return {
-            $: 'Router_WithdrawToTokenPoolFailed',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): Router_WithdrawToTokenPoolFailed {
-        loadAndCheckPrefix32(s, 0xee40ec65, 'Router_WithdrawToTokenPoolFailed');
-        return {
-            $: 'Router_WithdrawToTokenPoolFailed',
-            queryId: s.loadUintBig(64),
-            destChainSelector: s.loadUintBig(64),
-            executor: s.loadAddress(),
-            withdrawRequest: loadCellRef<Router_WithdrawRequest>(s, Router_WithdrawRequest.fromSlice),
-            errorCode: s.loadIntBig(32),
-        }
-    },
-    store(self: Router_WithdrawToTokenPoolFailed, b: c.Builder): void {
-        b.storeUint(0xee40ec65, 32);
-        b.storeUint(self.queryId, 64);
-        b.storeUint(self.destChainSelector, 64);
-        b.storeAddress(self.executor);
-        storeCellRef<Router_WithdrawRequest>(self.withdrawRequest, b, Router_WithdrawRequest.store);
-        b.storeInt(self.errorCode, 32);
-    },
-    toCell(self: Router_WithdrawToTokenPoolFailed): c.Cell {
-        return makeCellFrom<Router_WithdrawToTokenPoolFailed>(self, Router_WithdrawToTokenPoolFailed.store);
-    }
-}
-
-/**
  > struct (0xf3388046) Router_RMNRemoteCurse {
  >     queryId: uint64
  >     subjects: SnakedCell<uint128>
@@ -4986,6 +4928,59 @@ export const Router_LockOrBurnWithdrawFailed = {
 }
 
 /**
+ > struct (0x1b2d6c58) Router_LockOrBurnWithdrawFailedForwardTP {
+ >     queryId: uint64
+ >     destChainSelector: uint64
+ >     tokenPool: address
+ >     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>
+ > }
+ */
+export interface Router_LockOrBurnWithdrawFailedForwardTP {
+    readonly $: 'Router_LockOrBurnWithdrawFailedForwardTP'
+    queryId: uint64
+    destChainSelector: uint64
+    tokenPool: c.Address
+    forwardPayload: TokenPool_LockOrBurnForwardPayload
+}
+
+export const Router_LockOrBurnWithdrawFailedForwardTP = {
+    PREFIX: 0x1b2d6c58,
+
+    create(args: {
+        queryId?: uint64
+        destChainSelector: uint64
+        tokenPool: c.Address
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
+    }): Router_LockOrBurnWithdrawFailedForwardTP {
+        return {
+            $: 'Router_LockOrBurnWithdrawFailedForwardTP',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Router_LockOrBurnWithdrawFailedForwardTP {
+        loadAndCheckPrefix32(s, 0x1b2d6c58, 'Router_LockOrBurnWithdrawFailedForwardTP');
+        return {
+            $: 'Router_LockOrBurnWithdrawFailedForwardTP',
+            queryId: s.loadUintBig(64),
+            destChainSelector: s.loadUintBig(64),
+            tokenPool: s.loadAddress(),
+            forwardPayload: loadCellRef<TokenPool_LockOrBurnForwardPayload>(s, TokenPool_LockOrBurnForwardPayload.fromSlice),
+        }
+    },
+    store(self: Router_LockOrBurnWithdrawFailedForwardTP, b: c.Builder): void {
+        b.storeUint(0x1b2d6c58, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeUint(self.destChainSelector, 64);
+        b.storeAddress(self.tokenPool);
+        storeCellRef<TokenPool_LockOrBurnForwardPayload>(self.forwardPayload, b, TokenPool_LockOrBurnForwardPayload.store);
+    },
+    toCell(self: Router_LockOrBurnWithdrawFailedForwardTP): c.Cell {
+        return makeCellFrom<Router_LockOrBurnWithdrawFailedForwardTP>(self, Router_LockOrBurnWithdrawFailedForwardTP.store);
+    }
+}
+
+/**
  > struct (0xb980cb4e) Router_TokenPoolReleaseOrMintFailed {
  >     queryId: uint64
  >     sourceChainSelector: uint64
@@ -5815,14 +5810,13 @@ export class Router implements c.Contract {
         return Router_WithdrawToTokenPool.toCell(Router_WithdrawToTokenPool.create(body));
     }
 
-    static createCellOfRouterWithdrawToTokenPoolFailed(body: {
+    static createCellOfRouterLockOrBurnWithdrawFailedForwardTP(body: {
         queryId?: uint64
         destChainSelector: uint64
-        executor: c.Address
-        withdrawRequest: Router_WithdrawRequest
-        errorCode: int32
+        tokenPool: c.Address
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
     }) {
-        return Router_WithdrawToTokenPoolFailed.toCell(Router_WithdrawToTokenPoolFailed.create(body));
+        return Router_LockOrBurnWithdrawFailedForwardTP.toCell(Router_LockOrBurnWithdrawFailedForwardTP.create(body));
     }
 
     static createCellOfRouterCCIPReceiveConfirm(body: {
@@ -6132,16 +6126,15 @@ export class Router implements c.Contract {
         });
     }
 
-    async sendRouterWithdrawToTokenPoolFailed(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendRouterLockOrBurnWithdrawFailedForwardTP(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         destChainSelector: uint64
-        executor: c.Address
-        withdrawRequest: Router_WithdrawRequest
-        errorCode: int32
+        tokenPool: c.Address
+        forwardPayload: TokenPool_LockOrBurnForwardPayload
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: Router_WithdrawToTokenPoolFailed.toCell(Router_WithdrawToTokenPoolFailed.create(body)),
+            body: Router_LockOrBurnWithdrawFailedForwardTP.toCell(Router_LockOrBurnWithdrawFailedForwardTP.create(body)),
             ...extraOptions
         });
     }
