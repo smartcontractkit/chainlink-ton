@@ -289,6 +289,12 @@ src = "contracts/test/gas/wgram_cost_harness.tolk"
 domain = "test/gas"
 depends = []
 
+[contracts.JettonLockBoxCostHarness]
+display-name = "link.chain.ton.test.gas.JettonLockBoxCostHarness"
+src = "contracts/test/gas/jetton_lockbox_cost_harness.tolk"
+domain = "test/gas"
+depends = []
+
 # fmt is not very mature yet
 [fmt]
 width = 100

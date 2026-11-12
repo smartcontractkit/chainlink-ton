@@ -16,9 +16,12 @@ cannot silently drift.
   drives a full `LockOrBurn` + `ReleaseOrMint`, asserts the admission/safety floors cover the pool
   handlers and the on-chain token-hop budget covers the measured wallet hop (in TON).
 - `pools/burn_mint_cct.spec.ts`, `pools/lock_release_wgram.spec.ts` — the two pool fixtures.
-- `harness.ts` — deploys the test-only `CctCostHarness` / `WgramCostHarness` contracts, which expose
-  the on-chain constants/budget functions as getters. Tests read the on-chain values through these
-  instead of duplicating numbers or parsing Tolk source.
+- `pools/lockbox.spec.ts` — calibrates the lockbox deposit success/failure and withdraw value
+  checks against measured gas and fees.
+- `harness.ts` — deploys the test-only `CctCostHarness` / `WgramCostHarness` /
+  `JettonLockBoxCostHarness` contracts, which expose the on-chain constants/budget functions as
+  getters. Tests read the on-chain values through these instead of duplicating numbers or parsing
+  Tolk source.
 
 Each suite writes an isolated report (the reporter groups by ABI name, and CCT/wGRAM share
 `JettonMinter`/`JettonWallet`, so they must run separately):
@@ -28,6 +31,7 @@ yarn gas-report-cct               # -> tests/gas-report/cct-gas-report.json
 yarn gas-report-wgram             # -> tests/gas-report/wgram-gas-report.json
 yarn gas-report-burn-mint-cct     # -> tests/gas-report/burn-mint-cct-gas-report.json
 yarn gas-report-lock-release-wgram
+yarn gas-report-lockbox            # -> tests/gas-report/lockbox-gas-report.json
 ```
 
 The harness smoke test lives in the normal suite: `tests/gas/harness.spec.ts`.

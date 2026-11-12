@@ -19,6 +19,7 @@ import "../lib/token_pool/messages"
 import "../lib/token_pool/errors"
 import "../lib/token_pool/events"
 import "../lib/token_pool/jetton_fees"
+import "../lockbox/costs"
 import "../lockbox/messages"
 
 import "types"
@@ -157,6 +158,12 @@ fun onLockOrBurnTransferContinue(
     val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
     val fwdFee = createMessage(transferOpts).estimateFeeWithoutSending(sendMode);
 
+    // Fund the lockbox log, reply, and our finalization. The deposit transfer fee is a conservative
+    // per-message proxy; reject before custody if the configured safety is too low.
+    val depositMinValue = JettonLockBox_Costs.deposit(fwdFee)
+        + TokenPool_Costs.finalization();
+    assert(forwardTonAmount >= depositMinValue, TokenPool_Error.InsufficientMessageValue);
+
     // `S` is the custody phase's budget; it must cover the reference transfer plus the
     // finalization it may have to fund after custody moves.
     val minValue = JettonFees.Reference.transferValue(0, fwdFee)
@@ -164,7 +171,7 @@ fun onLockOrBurnTransferContinue(
     assert (safety >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
 
     val transfer = createMessage(transferOpts);
-    transfer.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    transfer.send(sendMode);
 
     return st;
 }
@@ -214,7 +221,7 @@ fun createLockboxTransfer(
         jettonAmount: prepared.destTokenAmount,
         transferRecipient: st.lockbox,
         sendExcessesTo, // Return any excess
-        customPayload: context.toCell(),
+        customPayload: null, // not supported atm
         forwardTonAmount,
         forwardPayload: beginCell()
             .storeMaybeRef(depositMsg.toCell())
@@ -285,8 +292,12 @@ fun onLockboxTransferBounced(
 ) {
     val jc = st.poolData.load().jettonClient();
     assert(jc.isWallet(sender)) throw (LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce);
-    assert(msg.customPayload != null) throw (LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce);
-    val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(msg.customPayload);
+
+    val depositSlice = loadForwardPayloadAsSlice(msg.forwardPayload);
+    assert(depositSlice != null) throw (LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce);
+    val deposit = JettonLockBox_Deposit.fromSlice(depositSlice!);
+    assert(deposit.context != null) throw (LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce);
+    val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(deposit.context!);
     val operation = lazy context.forwardPayload.load();
 
     var pool = st.TokenPool();
@@ -310,7 +321,8 @@ fun onLockboxTransferBounced(
 fun onReleaseOrMintContinue(
     ctx: Storage?,
     sender: address,
-    msgValue: coins,
+    initiator: address,
+    _msgValue: coins,
     msg: TokenPool_ReleaseOrMint,
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
@@ -318,14 +330,20 @@ fun onReleaseOrMintContinue(
     var st = ctx;
     assert(!isZeroAddress(st.lockbox)) throw (LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
 
-    // Caller-selected excess recipient; default to the request sender.
-    val sendExcessesTo = msg.sendExcessesTo != null ? msg.sendExcessesTo! : sender;
+    // Caller-selected excess recipient; default to the flow initiator.
+    val sendExcessesTo = msg.sendExcessesTo != null ? msg.sendExcessesTo! : initiator;
     val forwardTonAmount = st.TokenPool().releaseOrMintForward(msg.finalizationValue());
+
+    // Direct hook callbacks carry only their value; entrypoint continuations carry the remaining balance.
+    val hooks = st.poolData.load().adminConfig.load().advancedPoolHooks;
+    val sendMode = hooks != null && sender == hooks!
+        ? SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL
+        : SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
 
     val request = lazy msg.request.load();
     val details = lazy request.transfer.details.load();
     val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
-        originalSender: sender,
+        initiator,
         requestMsg: msg.toCell(),
         prepared: prepared.toCell(),
     };
@@ -337,7 +355,7 @@ fun onReleaseOrMintContinue(
     val delivery = msg.delivery.load();
     // The release context rides along in the wrap only for the lockbox failure path.
     val wrap = Jetton_ForwardPayloadWrap {
-        initiator: sender,
+        initiator,
         context: context.toCell(),
         forwardPayload: delivery.forwardPayload,
     };
@@ -364,7 +382,6 @@ fun onReleaseOrMintContinue(
         },
     };
 
-    val sendMode = SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
     val fwdFee = createMessage(withdrawOpts).estimateFeeWithoutSending(sendMode);
 
     // Size the LR safety: one custody transfer plus the pool's finalization. The hop itself is
@@ -378,8 +395,6 @@ fun onReleaseOrMintContinue(
     // continuation, so the inbound-rate-limit event and this hop are funded by the inbound admission.
     val withdraw = createMessage(withdrawOpts);
     withdraw.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-
-    // minval = withdraw.fwdFee + withdraw + transfer + forwardTonAmount
 
     return st;
 }

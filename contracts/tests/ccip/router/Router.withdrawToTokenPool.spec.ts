@@ -132,7 +132,7 @@ describe('Router.withdrawToTokenPool', () => {
     replyTo: Address = executor.address,
   ): rt.TokenPool_LockOrBurnForwardPayload =>
     rt.TokenPool_LockOrBurnForwardPayload.create({
-      originalSender: sender.address,
+      initiator: sender.address,
       requestMsg: rt.TokenPool_LockOrBurn.create({
         queryId: 0n,
         request: rt.TokenPool_LockOrBurnInV1.create({

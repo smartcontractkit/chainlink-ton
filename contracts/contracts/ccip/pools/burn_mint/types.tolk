@@ -19,29 +19,48 @@ const BurnMintTokenPool_CLAIM_ADMIN_VALUE = grams("0.05");
 /// LockOrBurn safety: one custody phase. Covers success finalization or the best-effort return.
 /// The first transfer carries `2S + F`; the burn and minter path carry the remainder.
 const BurnMintTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS = 525_000; // ~0.035 TON
-/// LockOrBurn admission: the entry, the withdraw relay and the custody transfer carrying two
-/// custody phases' safety (`3 * S`).
-const BurnMintTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 1_575_000; // ~0.105 TON
+/// LockOrBurn admission: entry, withdraw relay, and two custody phases (`3 * S`).
+const BurnMintTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 1_575_000; // ~0.105 TON base
 /// ReleaseOrMint safety: the pool's post-delivery finalization.
 const BurnMintTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS = 300_000; // ~0.02 TON
 /// ReleaseOrMint admission: pool -> minter -> recipient wallet (~0.014 TON); ~7x. Includes the
 /// finalization safety; the caller's delivery forward is added on top.
 const BurnMintTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS = 1_500_000; // ~0.1 TON
 
-/// Upper bound on the gas the mint transaction runs after its funding check: building and sending
-/// the mint.
+/// Upper bound on the gas the mint transaction runs after its funding check: build/send the mint.
 const BurnMintTokenPool_MINT_SEND_GAS_UNITS = BUDGET_UNITS_LVL0_MIN;
 
-fun BurnMintTokenPool_defaultBudget(): TokenPool_Budget {
+struct BurnMintTokenPool_Costs{}
+
+fun BurnMintTokenPool_Costs.lockOrBurnAdmission(): coins {
     val w = contract.getAddress().getWorkchain();
+    return calculateGasFee(w, BurnMintTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS)
+}
+
+fun BurnMintTokenPool_Costs.lockOrBurnSafety(): coins {
+    val w = contract.getAddress().getWorkchain();
+    return calculateGasFee(w, BurnMintTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS);
+}
+
+fun BurnMintTokenPool_Costs.releaseOrMintAdmission(): coins {
+    val w = contract.getAddress().getWorkchain();
+    return calculateGasFee(w, BurnMintTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS)
+}
+
+fun BurnMintTokenPool_Costs.releaseOrMintSafety(): coins {
+    val w = contract.getAddress().getWorkchain();
+    return calculateGasFee(w, BurnMintTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS);
+}
+
+fun BurnMintTokenPool_defaultBudget(): TokenPool_Budget {
     return {
         lockOrBurn: {
-            admission: calculateGasFee(w, BurnMintTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS),
-            safety: calculateGasFee(w, BurnMintTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS),
+            admission: BurnMintTokenPool_Costs.lockOrBurnAdmission(),
+            safety: BurnMintTokenPool_Costs.lockOrBurnSafety(),
         },
         releaseOrMint: {
-            admission: calculateGasFee(w, BurnMintTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS),
-            safety: calculateGasFee(w, BurnMintTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS),
+            admission: BurnMintTokenPool_Costs.releaseOrMintAdmission(),
+            safety: BurnMintTokenPool_Costs.releaseOrMintSafety(),
         },
     };
 }
