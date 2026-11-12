@@ -16,6 +16,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	chainsel "github.com/smartcontractkit/chain-selectors"
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -782,9 +783,7 @@ func waitForTokenAdminRegistryEntryDeployment(client ton.APIClientWrapped, entry
 
 // applyRemoteChainUpdates builds a TokenPool_ApplyChainUpdates message from the
 // resolved remote-chain configs and sends it to the token pool. It is a no-op when
-// no remote chains are provided. The remote token/pool addresses are resolved by the
-// changeset (see convertRemoteChainConfig in chainlink-ccip/deployment/tokens),
-// left-padded to 32 bytes for EVM remotes, before reaching here.
+// no remote chains are provided.
 func applyRemoteChainUpdates(
 	b cldf_ops.Bundle,
 	dp *dep.DependencyProvider,
@@ -795,19 +794,47 @@ func applyRemoteChainUpdates(
 		return nil
 	}
 
+	chainsToAdd, err := buildChainUpdates(remoteChains)
+	if err != nil {
+		return err
+	}
+
+	body := codec.MustWrapMessage[any](bindings.TypeLockReleaseLockboxTokenPool, tokenpool.ApplyChainUpdates{
+		RemoteChainSelectorsToRemove: common.SnakedCell[tokenpool.ChainSelector]{},
+		ChainsToAdd:                  chainsToAdd,
+	})
+
+	_, err = cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
+		Messages: []opston.InternalMessage[any]{
+			{
+				Bounce:  true,
+				DstAddr: poolAddr,
+				Amount:  tlb.MustFromTON("0.1"),
+				Body:    body,
+			},
+		},
+	})
+	return err
+}
+
+func buildChainUpdates(remoteChains map[uint64]tokensapi.RemoteChainConfig[[]byte, string]) (common.SnakedCell[tokenpool.ChainUpdate], error) {
 	chainsToAdd := make(common.SnakedCell[tokenpool.ChainUpdate], 0, len(remoteChains))
 	for remoteSelector, rc := range remoteChains {
 		if len(rc.RemoteToken) == 0 {
-			return fmt.Errorf("remote token address is empty for remote chain %d", remoteSelector)
+			return nil, fmt.Errorf("remote token address is empty for remote chain %d", remoteSelector)
 		}
 		remoteTokenCell, err := tlbe.NewCellFrom(common.CrossChainAddress(rc.RemoteToken))
 		if err != nil {
-			return fmt.Errorf("failed to build remote token address cell for chain %d: %w", remoteSelector, err)
+			return nil, fmt.Errorf("failed to build remote token address cell for chain %d: %w", remoteSelector, err)
 		}
 
 		remotePools := common.SnakedCell[common.CrossChainAddress]{}
 		if len(rc.RemotePool) > 0 {
-			remotePools = append(remotePools, common.CrossChainAddress(rc.RemotePool))
+			remotePool, err := normalizeRemotePoolAddress(remoteSelector, rc.RemotePool)
+			if err != nil {
+				return nil, err
+			}
+			remotePools = append(remotePools, remotePool)
 		}
 
 		chainsToAdd = append(chainsToAdd, tokenpool.ChainUpdate{
@@ -820,22 +847,25 @@ func applyRemoteChainUpdates(
 		})
 	}
 
-	body := codec.MustWrapMessage[any](bindings.TypeLockReleaseLockboxTokenPool, tokenpool.ApplyChainUpdates{
-		RemoteChainSelectorsToRemove: common.SnakedCell[tokenpool.ChainSelector]{},
-		ChainsToAdd:                  chainsToAdd,
-	})
+	return chainsToAdd, nil
+}
 
-	_, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
-		Messages: []opston.InternalMessage[any]{
-			{
-				Bounce:  true,
-				DstAddr: poolAddr,
-				Amount:  tlb.MustFromTON("0.1"),
-				Body:    body,
-			},
-		},
-	})
-	return err
+// normalizeRemotePoolAddress left-pads EVM pool addresses to 32 bytes: the pool matches
+// remote pools by cell hash against the abi.encode(address) sourcePoolAddress EVM OnRamps send.
+func normalizeRemotePoolAddress(remoteSelector uint64, pool []byte) (common.CrossChainAddress, error) {
+	family, err := chainsel.GetSelectorFamily(remoteSelector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get family for remote chain %d: %w", remoteSelector, err)
+	}
+	if family != chainsel.FamilyEVM {
+		return common.CrossChainAddress(pool), nil
+	}
+	if len(pool) > 32 {
+		return nil, fmt.Errorf("remote pool address for EVM chain %d is %d bytes, expected at most 32", remoteSelector, len(pool))
+	}
+	padded := make([]byte, 32)
+	copy(padded[32-len(pool):], pool)
+	return common.CrossChainAddress(padded), nil
 }
 
 // disabledRateLimitConfigPair returns a fully-disabled rate limiter pair.
