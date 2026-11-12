@@ -1017,7 +1017,7 @@ fun TokenPool<T>.onPostflightCheckFailed(
 /// Refunds the outbound (or fast-finality outbound) rate limit capacity that was consumed
 /// before a LockOrBurn operation when it later fails.
 /// @param forwardPayload The forward payload carrying the original request and prepared data.
-/// @dev Picks the correct rate limiter bucket based on the requested finality config.
+/// @dev Refunds the bucket recorded at admission, not the bucket selected by the current config.
 fun TokenPool<T>.refundLockOrBurnRateLimit(
     mutate self,
     forwardPayload: TokenPool_LockOrBurnForwardPayload,
@@ -1026,7 +1026,7 @@ fun TokenPool<T>.refundLockOrBurnRateLimit(
     val details = lazy requestMsg.request.load().transfer.details.load();
     val prepared = lazy forwardPayload.prepared.load();
 
-    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
+    if (prepared.fastFinalityConsumed) {
         self.releaseFastFinalityOutboundRateLimit(details.remoteChainSelector, prepared.destTokenAmount);
     } else {
         self.releaseOutboundRateLimit(details.remoteChainSelector, prepared.destTokenAmount);
@@ -1036,7 +1036,7 @@ fun TokenPool<T>.refundLockOrBurnRateLimit(
 /// Refunds the inbound (or fast-finality inbound) rate limit capacity that was consumed
 /// before a ReleaseOrMint operation when it later fails.
 /// @param forwardPayload The forward payload carrying the original request and prepared data.
-/// @dev Picks the correct rate limiter bucket based on the requested finality config.
+/// @dev Refunds the bucket recorded at admission, not the bucket selected by the current config.
 fun TokenPool<T>.refundReleaseOrMintRateLimit(
     mutate self,
     forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
@@ -1045,7 +1045,7 @@ fun TokenPool<T>.refundReleaseOrMintRateLimit(
     val details = lazy requestMsg.request.load().transfer.details.load();
     val prepared = lazy forwardPayload.prepared.load();
 
-    if (requestMsg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
+    if (prepared.fastFinalityConsumed) {
         self.releaseFastFinalityInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
     } else {
         self.releaseInboundRateLimit(details.remoteChainSelector, prepared.localAmount);
@@ -1543,10 +1543,11 @@ fun TokenPool<T>.validateLockOrBurn(
     val destTokenAmount = details.amount - feeAmount;
     // Consume rate limit BEFORE hook check — _consume throws BucketOverfilled
     // designed to bounce to the original sender, not to the hooks contract.
+    var fastFinalityConsumed = false;
     if (msg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
         val adminConfig = lazy self.data.adminConfig.load();
         TokenPool<T>.ensureRequestedFinalityAllowed(msg.requestedFinalityConfig, adminConfig.allowedFinalityConfig);
-        self.consumeFastFinalityOutboundRateLimit(details.remoteChainSelector, destTokenAmount);
+        fastFinalityConsumed = self.consumeFastFinalityOutboundRateLimit(details.remoteChainSelector, destTokenAmount);
     } else {
         self.consumeOutboundRateLimit(details.remoteChainSelector, destTokenAmount);
     }
@@ -1559,6 +1560,7 @@ fun TokenPool<T>.validateLockOrBurn(
             destTokenAddress: self.getRemoteToken(details.remoteChainSelector),
             destPoolData: self.encodeLocalDecimals(),
         },
+        fastFinalityConsumed,
     };
 
     // Build forward payload using the original message (no reconstruction needed).
@@ -1942,10 +1944,11 @@ fun TokenPool<T>.validateReleaseOrMint(
 
     // Consume rate limit BEFORE hook check — _consume throws BucketOverfilled
     // designed to bounce to the original sender, not to the hooks contract.
+    var fastFinalityConsumed = false;
     if (msg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
         val adminConfig = lazy self.data.adminConfig.load();
         TokenPool<T>.ensureRequestedFinalityAllowed(msg.requestedFinalityConfig, adminConfig.allowedFinalityConfig);
-        self.consumeFastFinalityInboundRateLimit(details.remoteChainSelector, localAmount);
+        fastFinalityConsumed = self.consumeFastFinalityInboundRateLimit(details.remoteChainSelector, localAmount);
     } else {
         self.consumeInboundRateLimit(details.remoteChainSelector, localAmount);
     }
@@ -1957,6 +1960,7 @@ fun TokenPool<T>.validateReleaseOrMint(
         out: TokenPool_ReleaseOrMintOutV1 {
             destinationAmount: localAmount,
         },
+        fastFinalityConsumed,
     };
 
     // Build forward payload using the original message (no reconstruction needed).
@@ -2341,8 +2345,9 @@ fun TokenPool<T>.releaseInboundRateLimit(mutate self, remoteChainSelector: uint6
     }, SEND_MODE_IGNORE_ERRORS);
 }
 
-/// Returns previously consumed fast-finality outbound capacity to the bucket.
-/// Mirrors `consumeFastFinalityOutboundRateLimit` (falls back to default bucket if FTF is disabled).
+/// Returns previously consumed fast-finality outbound capacity to the bucket. The caller must only
+/// use this when admission recorded `fastFinalityConsumed`, so the refund restores the same bucket
+/// even if fast finality was disabled in the meantime.
 fun TokenPool<T>.releaseFastFinalityOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
     val configEntry = self.data.remoteChainConfigs.get(remoteChainSelector);
     if (!configEntry.isFound) {
@@ -2351,12 +2356,6 @@ fun TokenPool<T>.releaseFastFinalityOutboundRateLimit(mutate self, remoteChainSe
     var config = configEntry.loadValue();
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.outbound.load();
-    if (!fastBucket.isEnabled) {
-        self.releaseOutboundRateLimit(remoteChainSelector, amount);
-
-        return;
-    }
-
     fastBucket.refund(amount as uint256);
     fastRateLimiters.outbound = fastBucket.toCell();
     config.fastFinalityRateLimiters = fastRateLimiters.toCell();
@@ -2369,8 +2368,9 @@ fun TokenPool<T>.releaseFastFinalityOutboundRateLimit(mutate self, remoteChainSe
     }, SEND_MODE_IGNORE_ERRORS);
 }
 
-/// Returns previously consumed fast-finality inbound capacity to the bucket.
-/// Mirrors `consumeFastFinalityInboundRateLimit` (falls back to default bucket if FTF is disabled).
+/// Returns previously consumed fast-finality inbound capacity to the bucket. The caller must only
+/// use this when admission recorded `fastFinalityConsumed`, so the refund restores the same bucket
+/// even if fast finality was disabled in the meantime.
 fun TokenPool<T>.releaseFastFinalityInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
     val configEntry = self.data.remoteChainConfigs.get(remoteChainSelector);
     if (!configEntry.isFound) {
@@ -2379,12 +2379,6 @@ fun TokenPool<T>.releaseFastFinalityInboundRateLimit(mutate self, remoteChainSel
     var config = configEntry.loadValue();
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.inbound.load();
-    if (!fastBucket.isEnabled) {
-        self.releaseInboundRateLimit(remoteChainSelector, amount);
-
-        return;
-    }
-
     fastBucket.refund(amount as uint256);
     fastRateLimiters.inbound = fastBucket.toCell();
     config.fastFinalityRateLimiters = fastRateLimiters.toCell();
@@ -2401,13 +2395,13 @@ fun TokenPool<T>.releaseFastFinalityInboundRateLimit(mutate self, remoteChainSel
 /// @dev If FF rate limiter is not enabled for the chain, it will fallback to the default rate limiter.
 /// @param remoteChainSelector The remote chain selector.
 /// @param amount The amount of tokens consumed.
-fun TokenPool<T>.consumeFastFinalityOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
+fun TokenPool<T>.consumeFastFinalityOutboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins): bool {
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.outbound.load();
     if (!fastBucket.isEnabled) {
         self.consumeOutboundRateLimit(remoteChainSelector, amount);
-        return;
+        return false;
     }
 
     fastBucket.consume(amount as uint256, self.data.token());
@@ -2420,6 +2414,7 @@ fun TokenPool<T>.consumeFastFinalityOutboundRateLimit(mutate self, remoteChainSe
         token: self.data.token(),
         amount,
     });
+    return true;
 }
 
 /// Consumes fast finality inbound rate limiting capacity in this pool.
@@ -2427,14 +2422,14 @@ fun TokenPool<T>.consumeFastFinalityOutboundRateLimit(mutate self, remoteChainSe
 /// rate limiter.
 /// @param remoteChainSelector The remote chain selector.
 /// @param amount The amount of tokens consumed.
-fun TokenPool<T>.consumeFastFinalityInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
+fun TokenPool<T>.consumeFastFinalityInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins): bool {
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
     var fastRateLimiters = config.fastFinalityRateLimiters.load();
     var fastBucket = fastRateLimiters.inbound.load();
     if (!fastBucket.isEnabled) {
         self.consumeInboundRateLimit(remoteChainSelector, amount);
 
-        return;
+        return false;
     }
 
     fastBucket.consume(amount as uint256, self.data.token());
@@ -2447,6 +2442,7 @@ fun TokenPool<T>.consumeFastFinalityInboundRateLimit(mutate self, remoteChainSel
         token: self.data.token(),
         amount,
     });
+    return true;
 }
 
 /// Returns the outbound and inbound rate limiter state for the given remote chain at the time of the call.

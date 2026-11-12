@@ -935,6 +935,7 @@ export const RampMessageHeader = {
  >     feeAmount: coins
  >     destTokenAmount: coins
  >     out: TokenPool_LockOrBurnOutV1
+ >     fastFinalityConsumed: bool
  > }
  */
 export interface TokenPool_LockOrBurnPrepared {
@@ -942,6 +943,7 @@ export interface TokenPool_LockOrBurnPrepared {
     feeAmount: coins
     destTokenAmount: coins
     out: TokenPool_LockOrBurnOutV1
+    fastFinalityConsumed: boolean /* = false */
 }
 
 export const TokenPool_LockOrBurnPrepared = {
@@ -949,9 +951,11 @@ export const TokenPool_LockOrBurnPrepared = {
         feeAmount: coins
         destTokenAmount: coins
         out: TokenPool_LockOrBurnOutV1
+        fastFinalityConsumed?: boolean /* = false */
     }): TokenPool_LockOrBurnPrepared {
         return {
             $: 'TokenPool_LockOrBurnPrepared',
+            fastFinalityConsumed: false,
             ...args
         }
     },
@@ -961,12 +965,14 @@ export const TokenPool_LockOrBurnPrepared = {
             feeAmount: s.loadCoins(),
             destTokenAmount: s.loadCoins(),
             out: TokenPool_LockOrBurnOutV1.fromSlice(s),
+            fastFinalityConsumed: s.loadBoolean(),
         }
     },
     store(self: TokenPool_LockOrBurnPrepared, b: c.Builder): void {
         b.storeCoins(self.feeAmount);
         b.storeCoins(self.destTokenAmount);
         TokenPool_LockOrBurnOutV1.store(self.out, b);
+        b.storeBit(self.fastFinalityConsumed);
     },
     toCell(self: TokenPool_LockOrBurnPrepared): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnPrepared>(self, TokenPool_LockOrBurnPrepared.store);

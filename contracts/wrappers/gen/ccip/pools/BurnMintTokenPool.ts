@@ -1620,6 +1620,7 @@ export const TokenPool_TokenTransferFeeConfigArgs = {
  >     feeAmount: coins
  >     destTokenAmount: coins
  >     out: TokenPool_LockOrBurnOutV1
+ >     fastFinalityConsumed: bool
  > }
  */
 export interface TokenPool_LockOrBurnPrepared {
@@ -1627,6 +1628,7 @@ export interface TokenPool_LockOrBurnPrepared {
     feeAmount: coins
     destTokenAmount: coins
     out: TokenPool_LockOrBurnOutV1
+    fastFinalityConsumed: boolean /* = false */
 }
 
 export const TokenPool_LockOrBurnPrepared = {
@@ -1634,9 +1636,11 @@ export const TokenPool_LockOrBurnPrepared = {
         feeAmount: coins
         destTokenAmount: coins
         out: TokenPool_LockOrBurnOutV1
+        fastFinalityConsumed?: boolean /* = false */
     }): TokenPool_LockOrBurnPrepared {
         return {
             $: 'TokenPool_LockOrBurnPrepared',
+            fastFinalityConsumed: false,
             ...args
         }
     },
@@ -1646,12 +1650,14 @@ export const TokenPool_LockOrBurnPrepared = {
             feeAmount: s.loadCoins(),
             destTokenAmount: s.loadCoins(),
             out: TokenPool_LockOrBurnOutV1.fromSlice(s),
+            fastFinalityConsumed: s.loadBoolean(),
         }
     },
     store(self: TokenPool_LockOrBurnPrepared, b: c.Builder): void {
         b.storeCoins(self.feeAmount);
         b.storeCoins(self.destTokenAmount);
         TokenPool_LockOrBurnOutV1.store(self.out, b);
+        b.storeBit(self.fastFinalityConsumed);
     },
     toCell(self: TokenPool_LockOrBurnPrepared): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnPrepared>(self, TokenPool_LockOrBurnPrepared.store);
@@ -1663,6 +1669,7 @@ export const TokenPool_LockOrBurnPrepared = {
  >     requestedFinalityConfig: uint32
  >     localAmount: coins
  >     out: TokenPool_ReleaseOrMintOutV1
+ >     fastFinalityConsumed: bool
  > }
  */
 export interface TokenPool_ReleaseOrMintPrepared {
@@ -1670,6 +1677,7 @@ export interface TokenPool_ReleaseOrMintPrepared {
     requestedFinalityConfig: uint32
     localAmount: coins
     out: TokenPool_ReleaseOrMintOutV1
+    fastFinalityConsumed: boolean /* = false */
 }
 
 export const TokenPool_ReleaseOrMintPrepared = {
@@ -1677,9 +1685,11 @@ export const TokenPool_ReleaseOrMintPrepared = {
         requestedFinalityConfig: uint32
         localAmount: coins
         out: TokenPool_ReleaseOrMintOutV1
+        fastFinalityConsumed?: boolean /* = false */
     }): TokenPool_ReleaseOrMintPrepared {
         return {
             $: 'TokenPool_ReleaseOrMintPrepared',
+            fastFinalityConsumed: false,
             ...args
         }
     },
@@ -1689,12 +1699,14 @@ export const TokenPool_ReleaseOrMintPrepared = {
             requestedFinalityConfig: s.loadUintBig(32),
             localAmount: s.loadCoins(),
             out: TokenPool_ReleaseOrMintOutV1.fromSlice(s),
+            fastFinalityConsumed: s.loadBoolean(),
         }
     },
     store(self: TokenPool_ReleaseOrMintPrepared, b: c.Builder): void {
         b.storeUint(self.requestedFinalityConfig, 32);
         b.storeCoins(self.localAmount);
         TokenPool_ReleaseOrMintOutV1.store(self.out, b);
+        b.storeBit(self.fastFinalityConsumed);
     },
     toCell(self: TokenPool_ReleaseOrMintPrepared): c.Cell {
         return makeCellFrom<TokenPool_ReleaseOrMintPrepared>(self, TokenPool_ReleaseOrMintPrepared.store);
