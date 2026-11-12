@@ -1,5 +1,28 @@
 # @chainlink/contracts-ton
 
+## 1.6.4
+
+### Patch Changes
+
+- [#980](https://github.com/smartcontractkit/chainlink-ton/pull/980) [`4ba4e1f`](https://github.com/smartcontractkit/chainlink-ton/commit/4ba4e1f69034b143c642b84fca8e14a0bf04efa5) Thanks [@duck-types](https://github.com/duck-types)! - Breaking change: `Receiver_CCIPReceiveV2` gains a trailing `receiverAccounts: array<address>` field: the Router-owned receiver accounts the message's tokens were delivered to, index-aligned with `message.tokenAmounts` (empty when the message has no tokens). Receivers must be rebuilt against the updated receiver library. The Go binding `offramp.CCIPReceiveV2` gets `ReceiverAccounts` (new `offramp.AddressArray` TLB type for Tolk `array<address>`).
+
+- [#980](https://github.com/smartcontractkit/chainlink-ton/pull/980) [`4ba4e1f`](https://github.com/smartcontractkit/chainlink-ton/commit/4ba4e1f69034b143c642b84fca8e14a0bf04efa5) Thanks [@duck-types](https://github.com/duck-types)! - New permissionless Router message `Router_GetReceiverAccountAddress { queryId, token, context? }` (`0x0d5421b4`). The Router replies to the caller with `Router_ReceiverAccountAddress { queryId, account, token, context }` (`0xf540f227`), where `account` is the caller's receiver account for `token`. Nothing is deployed.
+
+- [#980](https://github.com/smartcontractkit/chainlink-ton/pull/980) [`4ba4e1f`](https://github.com/smartcontractkit/chainlink-ton/commit/4ba4e1f69034b143c642b84fca8e14a0bf04efa5) Thanks [@duck-types](https://github.com/duck-types)! - Breaking change: `Router_GetValidatedFee` now starts with `queryId: uint64`, which the Router echoes back in `Router_MessageValidated` and `Router_MessageValidationFailed` (also new leading `queryId` field). The deprecated V1 messages are unchanged (V1 requests are processed with `queryId = 0`).
+
+- [#966](https://github.com/smartcontractkit/chainlink-ton/pull/966) [`a87c633`](https://github.com/smartcontractkit/chainlink-ton/commit/a87c633981be7593d3f78eae41ab21fe8feefbc2) Thanks [@krebernisak](https://github.com/krebernisak)! - MCMS: avoid deleting old signers one-by-one during setConfig, enabling larger single-transaction config rotations.
+
+- [#841](https://github.com/smartcontractkit/chainlink-ton/pull/841) [`7ba0c36`](https://github.com/smartcontractkit/chainlink-ton/commit/7ba0c36617e08764508fbd1142577e687f063dd1) Thanks [@duck-types](https://github.com/duck-types)! - Breaking change: `Receiver_CCIPReceive` (opcode `0xb3126df1`) was removed in favour of `Receiver_CCIPReceiveV2` (opcode `0x5b4bc7a6`)
+
+- [#980](https://github.com/smartcontractkit/chainlink-ton/pull/980) [`4ba4e1f`](https://github.com/smartcontractkit/chainlink-ton/commit/4ba4e1f69034b143c642b84fca8e14a0bf04efa5) Thanks [@duck-types](https://github.com/duck-types)! - Breaking change: on the receive side, the `ReceiveExecutionID` type is renamed to `ReceiveExecutionID` and every `execId` field is renamed to `execID` (`Receiver_CCIPReceiveV2`, `Router_CCIPReceiveConfirm`, `Router_RouteMessage`, OffRamp/ReceiveExecutor messages and events). Wire encoding and opcodes are unchanged; generated wrappers and the Go `offramp.CCIPReceiveV2.RootID` field (now `ExecID`) follow the new name.
+
+- [#980](https://github.com/smartcontractkit/chainlink-ton/pull/980) [`4ba4e1f`](https://github.com/smartcontractkit/chainlink-ton/commit/4ba4e1f69034b143c642b84fca8e14a0bf04efa5) Thanks [@duck-types](https://github.com/duck-types)! - Breaking change: Router deposit accounts are renamed from OnRampAccount/OffRampAccount to SenderAccount/ReceiverAccount.
+
+  - Messages (new opcodes): `Router_GetSenderAccount` (`0x6cafd96f`), `Router_UseSenderAccount` (`0x900d5435`), `Router_SenderAccountFailed` (`0xda7b0350`), `Router_SenderAccountContext` (`0x4713c0b5`).
+  - Getters: `onRampAccountAddress` → `senderAccountAddress`, `offRampAccountAddress` → `receiverAccountAddress`.
+  - `Router_WithdrawToTokenPool.onRampAccount` → `senderAccount`; Router errors `SenderIsNotSenderAccount` / `SenderAccountWithdrawFailed` and pool errors `InvalidReceiverAccountReply` / `InvalidReceiverAccountNotification` / `ReceiverAccountDeployFailed` keep their codes.
+  - Deployable namespace values and derived account addresses are unchanged.
+
 ## 1.6.3
 
 ### Patch Changes
