@@ -189,7 +189,7 @@ export class FeeQuoterSetup {
     extraPrices: Map<Address, feeQuoter.TimestampedPrice> = new Map(),
     excludeTokenPrices: Address[] = [],
   ): Promise<void> {
-    const data = feeQuoter.Storage.create({
+    const data = feeQuoter.FeeQuoter_Storage_V1_7_0.create({
       id: generateRandomContractId(),
       ownable: feeQuoter.Ownable2Step.create({
         owner: this.acc.owner.address,

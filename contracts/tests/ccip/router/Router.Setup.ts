@@ -147,7 +147,7 @@ async function deployRouterInstance(
 ) {
   const rmnOwner = rmn?.rmnOwner ?? deployer.address
   const routerCode = await contractCode.ccip.local('Router')
-  const data = rt.Storage.create({
+  const data = rt.Router_Storage_V1_7_0.create({
     id: generateRandomContractId(),
     ownable: rt.Ownable2Step.create({
       owner: deployer.address,
@@ -178,7 +178,7 @@ async function deployFeeQuoterInstance(
   deployer: SandboxContract<TreasuryContract>,
 ) {
   const code = await contractCode.ccip.local('FeeQuoter')
-  const data = fq.Storage.create({
+  const data = fq.FeeQuoter_Storage_V1_7_0.create({
     id: generateRandomContractId(),
     ownable: fq.Ownable2Step.create({
       owner: deployer.address,
@@ -320,7 +320,7 @@ async function deployOnRampInstance(
   feeQuoter: Address,
   tokenAdminRegistry: Address,
 ) {
-  const data = or.OnRamp_Storage.create({
+  const data = or.OnRamp_Storage_V1_7_0.create({
     id: generateRandomContractId(),
     ownable: or.Ownable2Step.create({
       owner: deployer.address,
@@ -399,7 +399,7 @@ async function deployOffRampInstance(
   feeQuoter: Address,
   tokenAdminRegistry: Address,
 ) {
-  const data = of.Storage.create({
+  const data = of.OffRamp_Storage_V1_7_0.create({
     id: generateRandomContractId(),
     ownable: of.Ownable2Step.create({
       owner: deployer.address,
@@ -553,7 +553,7 @@ export async function deployRouterContract(
     return contract
   }
 
-  const data = rt.Storage.create({
+  const data = rt.Router_Storage_V1_7_0.create({
     id: generateRandomContractId(),
     ownable: rt.Ownable2Step.create({
       owner: owner.address,

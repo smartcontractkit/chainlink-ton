@@ -71,6 +71,7 @@ const (
 )
 
 type Storage struct {
+	_         tlb.Magic            `tlb:"#b17ecdf5" json:"-"` //nolint:revive // storage layout prefix
 	ID        uint32               `tlb:"## 32"`
 	Ownable   ownable2step.Storage `tlb:"."`
 	OnRamps   *cell.Dictionary     `tlb:"dict 64"`

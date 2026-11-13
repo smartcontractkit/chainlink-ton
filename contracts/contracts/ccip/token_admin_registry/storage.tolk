@@ -1,14 +1,14 @@
 import "../../lib/access/ownable_2step"
 
-struct TokenAdminRegistry_Storage {
+struct (0xb743059a) TokenAdminRegistry_Storage_V1_7_0 {
     id: uint32;
     ownable: Ownable2Step;
 }
 
-fun TokenAdminRegistry_Storage.load(): TokenAdminRegistry_Storage {
-    return TokenAdminRegistry_Storage.fromCell(contract.getData());
+fun TokenAdminRegistry_Storage_V1_7_0.load(): TokenAdminRegistry_Storage_V1_7_0 {
+    return TokenAdminRegistry_Storage_V1_7_0.fromCell(contract.getData());
 }
 
-fun TokenAdminRegistry_Storage.store(self) {
+fun TokenAdminRegistry_Storage_V1_7_0.store(self) {
     contract.setData(self.toCell());
 }

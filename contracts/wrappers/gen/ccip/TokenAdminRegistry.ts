@@ -1040,40 +1040,44 @@ export const TokenAdminRegistry_PoolSet = {
 }
 
 /**
- > struct TokenAdminRegistry_Storage {
+ > struct (0xb743059a) TokenAdminRegistry_Storage_V1_7_0 {
  >     id: uint32
  >     ownable: Ownable2Step
  > }
  */
-export interface TokenAdminRegistry_Storage {
-    readonly $: 'TokenAdminRegistry_Storage'
+export interface TokenAdminRegistry_Storage_V1_7_0 {
+    readonly $: 'TokenAdminRegistry_Storage_V1_7_0'
     id: uint32
     ownable: Ownable2Step
 }
 
-export const TokenAdminRegistry_Storage = {
+export const TokenAdminRegistry_Storage_V1_7_0 = {
+    PREFIX: 0xb743059a,
+
     create(args: {
         id: uint32
         ownable: Ownable2Step
-    }): TokenAdminRegistry_Storage {
+    }): TokenAdminRegistry_Storage_V1_7_0 {
         return {
-            $: 'TokenAdminRegistry_Storage',
+            $: 'TokenAdminRegistry_Storage_V1_7_0',
             ...args
         }
     },
-    fromSlice(s: c.Slice): TokenAdminRegistry_Storage {
+    fromSlice(s: c.Slice): TokenAdminRegistry_Storage_V1_7_0 {
+        loadAndCheckPrefix32(s, 0xb743059a, 'TokenAdminRegistry_Storage_V1_7_0');
         return {
-            $: 'TokenAdminRegistry_Storage',
+            $: 'TokenAdminRegistry_Storage_V1_7_0',
             id: s.loadUintBig(32),
             ownable: Ownable2Step.fromSlice(s),
         }
     },
-    store(self: TokenAdminRegistry_Storage, b: c.Builder): void {
+    store(self: TokenAdminRegistry_Storage_V1_7_0, b: c.Builder): void {
+        b.storeUint(0xb743059a, 32);
         b.storeUint(self.id, 32);
         Ownable2Step.store(self.ownable, b);
     },
-    toCell(self: TokenAdminRegistry_Storage): c.Cell {
-        return makeCellFrom<TokenAdminRegistry_Storage>(self, TokenAdminRegistry_Storage.store);
+    toCell(self: TokenAdminRegistry_Storage_V1_7_0): c.Cell {
+        return makeCellFrom<TokenAdminRegistry_Storage_V1_7_0>(self, TokenAdminRegistry_Storage_V1_7_0.store);
     }
 }
 
@@ -2210,7 +2214,7 @@ export class TokenAdminRegistry implements c.Contract {
         }
         const initialState = {
             code: deployedOptions.overrideContractCode,
-            data: TokenAdminRegistry_Storage.toCell(TokenAdminRegistry_Storage.create(emptyStorage)),
+            data: TokenAdminRegistry_Storage_V1_7_0.toCell(TokenAdminRegistry_Storage_V1_7_0.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
         return new TokenAdminRegistry(address, initialState);

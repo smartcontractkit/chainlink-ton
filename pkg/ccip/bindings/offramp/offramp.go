@@ -72,6 +72,7 @@ type RouteMessageBounced struct {
 
 // Storage represents the offRamp contract storage state
 type Storage struct {
+	_                         tlb.Magic            `tlb:"#bfbdf63f" json:"-"` //nolint:revive // storage layout prefix
 	ID                        uint32               `tlb:"## 32"`
 	Ownable                   ownable2step.Storage `tlb:"."`
 	Config                    StorageConfig        `tlb:"^"`

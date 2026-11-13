@@ -27,7 +27,7 @@ contract FeeQuoter {
     version: "1.7.0"
     description: "link.chain.ton.ccip.FeeQuoter"
 
-    storage: Storage
+    storage: FeeQuoter_Storage_V1_7_0
     incomingMessages: FeeQuoter_InMessage | Ownable2Step_Messages
     thrownErrors: FeeQuoter_Error | Ownable2Step_Error | Upgradeable_Error | Withdrawable_Error | Utils_Error | DestFamilyAddressValidation_Error
 }
@@ -49,19 +49,19 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy FeeQuoter_InMessage.fromSlice(in.body);
     match (msg) {
         FeeQuoter_AddPriceUpdater => {
-            var st = lazy Storage.load();
+            var st = lazy FeeQuoter_Storage_V1_7_0.load();
             st.ownable.requireOwner(in.senderAddress);
             st.allowedPriceUpdaters.addIfNotExists(msg.priceUpdater, ());
             st.store();
         },
         FeeQuoter_RemovePriceUpdater => {
-            var st = lazy Storage.load();
+            var st = lazy FeeQuoter_Storage_V1_7_0.load();
             st.ownable.requireOwner(in.senderAddress);
             st.allowedPriceUpdaters.delete(msg.priceUpdater);
             st.store();
         },
         FeeQuoter_UpdatePrices => {
-            var st = lazy Storage.load();
+            var st = lazy FeeQuoter_Storage_V1_7_0.load();
 
             // either an allowed price updater or feeQuoter owner
             assert (st.allowedPriceUpdaters.exists(in.senderAddress) || st.ownable.owner == in.senderAddress) throw (FeeQuoter_Error.UnauthorizedPriceUpdater);
@@ -71,20 +71,20 @@ fun onInternalMessage(in: InMessage) {
             sendExcessesTo(msg.sendExcessesTo, in.senderAddress);
         }
         FeeQuoter_UpdateFeeTokens => {
-            var st = lazy Storage.load();
+            var st = lazy FeeQuoter_Storage_V1_7_0.load();
             st.ownable.requireOwner(in.senderAddress);
             updateFeeTokens(mutate st, msg);
 
             st.store();
         }
         FeeQuoter_UpdateTokenTransferFeeConfigs => {
-            var st = lazy Storage.load();
+            var st = lazy FeeQuoter_Storage_V1_7_0.load();
             st.ownable.requireOwner(in.senderAddress);
             updateTokenTransferFeeConfigs(mutate st, msg);
             st.store();
         }
         FeeQuoter_UpdateDestChainConfigs => {
-            var st = lazy Storage.load();
+            var st = lazy FeeQuoter_Storage_V1_7_0.load();
             st.ownable.requireOwner(in.senderAddress);
             updateDestChainConfigs(mutate st, msg.updates);
             st.store();
@@ -94,20 +94,20 @@ fun onInternalMessage(in: InMessage) {
             handleGetValidatedFee(msg, in.senderAddress)
         }
         Withdrawable_Withdraw => {
-            val st = lazy Storage.load();
+            val st = lazy FeeQuoter_Storage_V1_7_0.load();
             st.ownable.requireOwner(in.senderAddress);
             Withdrawable{
                 reserve: RESERVE
             }.withdraw(msg);
         }
         Upgradeable_Upgrade => {
-            val st = lazy Storage.load();
+            val st = lazy FeeQuoter_Storage_V1_7_0.load();
             st.ownable.requireOwner(in.senderAddress);
             Upgradeable{ migrate, version }.upgrade(msg);
         }
         else => {
             // attempt to handle Ownable messages
-            var st = lazy Storage.load();
+            var st = lazy FeeQuoter_Storage_V1_7_0.load();
             val handled = st.ownable.onInternalMessage(in.senderAddress, in.body);
             if (handled) {
                 st.store();
@@ -120,7 +120,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun updateFeeTokens(mutate st: Storage, msg: FeeQuoter_UpdateFeeTokens) {
+fun updateFeeTokens(mutate st: FeeQuoter_Storage_V1_7_0, msg: FeeQuoter_UpdateFeeTokens) {
     var entry = msg.add.findFirst();
     while (entry.isFound) {
         val token = entry.getKey();
@@ -136,7 +136,7 @@ fun updateFeeTokens(mutate st: Storage, msg: FeeQuoter_UpdateFeeTokens) {
     }
 }
 
-fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateTokenTransferFeeConfigs) {
+fun updateTokenTransferFeeConfigs(mutate st: FeeQuoter_Storage_V1_7_0, msg: FeeQuoter_UpdateTokenTransferFeeConfigs) {
     var entry = msg.updates.findFirst();
     while (entry.isFound) {
         val destChainSelector = entry.getKey();
@@ -168,7 +168,7 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateToken
     }
 }
 
-fun updateDestChainConfigs(mutate st: Storage, updates: SnakedCell<FeeQuoter_UpdateDestChainConfig>) {
+fun updateDestChainConfigs(mutate st: FeeQuoter_Storage_V1_7_0, updates: SnakedCell<FeeQuoter_UpdateDestChainConfig>) {
     var iter = updates.iter();
 
     while (!iter.empty()) {
@@ -193,7 +193,7 @@ fun updateDestChainConfigs(mutate st: Storage, updates: SnakedCell<FeeQuoter_Upd
     }
 }
 
-fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
+fun updatePrices(mutate st: FeeQuoter_Storage_V1_7_0, priceUpdates: PriceUpdates) {
     val timestamp = blockchain.now();
 
     var iter = priceUpdates.tokenPriceUpdates.iter();
@@ -261,7 +261,7 @@ get fun validatedFee(msg: Router_CCIPSend): coins {
 
 // @returns (fee, destOverheads, chainFamilySelector)
 fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, ExtraArgs, lisp_list<FeeQuoter_DestOverhead>?, uint32) {
-    var st = lazy Storage.load();
+    var st = lazy FeeQuoter_Storage_V1_7_0.load();
 
     val destChainConfigResult = st.destChainConfigs.get(msg.destChainSelector);
     assert (destChainConfigResult.isFound) throw (FeeQuoter_Error.DestChainNotEnabled);
@@ -356,7 +356,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, ExtraArgs, lisp_list<FeeQ
     );
 }
 
-fun calculateFeeValueJuels(st: Storage, feeToken: address, feeTokenValue: coins, feeTokenAmount: coins): coins {
+fun calculateFeeValueJuels(st: FeeQuoter_Storage_V1_7_0, feeToken: address, feeTokenValue: coins, feeTokenAmount: coins): coins {
     var feeValueJuels = feeTokenAmount;
     if (feeToken != st.linkToken) {
         // getValidatedTokenPrice asserts that the LINK price was set at least once and is non-zero.
@@ -420,7 +420,7 @@ fun validateTokenTransfers(destChainConfig: DestChainConfig, tokenAmounts: Snake
 }
 
 // Returns (premiumFeeUsdWei, destGasOverhead, destBytesOverhead)
-fun _tokenTransferFee(st: Storage, destChainConfig: DestChainConfig, tokenAmount: TokenAmount): (int, uint32, uint32) {
+fun _tokenTransferFee(st: FeeQuoter_Storage_V1_7_0, destChainConfig: DestChainConfig, tokenAmount: TokenAmount): (int, uint32, uint32) {
     val config = getEnabledTokenTransferFeeConfig(destChainConfig, tokenAmount.token);
     if (config == null) {
         val defaultPremiumFeeUsdWei = mustProd(destChainConfig.config.defaultTokenFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
@@ -444,7 +444,7 @@ fun _tokenTransferFee(st: Storage, destChainConfig: DestChainConfig, tokenAmount
 /// @notice Gets the token price for a given token and throws `FeeQuoter_Error.TokenNotSupported` if the token is not registered, or if it was registered but received no price updates.
 /// @param token The address of the token to get the price for.
 /// @return tokenPriceValue The token price.
-fun Storage.getValidatedTokenPrice(self, token: address): uint224 {
+fun FeeQuoter_Storage_V1_7_0.getValidatedTokenPrice(self, token: address): uint224 {
     val priceEntry = self.usdPerToken.get(token);
     assert (priceEntry.isFound)  throw (FeeQuoter_Error.TokenNotSupported);
     val tokenPrice = priceEntry.loadValue();
@@ -456,7 +456,7 @@ fun Storage.getValidatedTokenPrice(self, token: address): uint224 {
 }
 
 get fun validatedTokenPrice(token: address): uint224 {
-    val st = lazy Storage.load();
+    val st = lazy FeeQuoter_Storage_V1_7_0.load();
     return st.getValidatedTokenPrice(token);
 }
 
@@ -672,14 +672,14 @@ fun sendExcessesTo(sendExcessesTo: address?, sender: address) {
 }
 
 get fun tokenPrice(token: address): TimestampedPrice {
-    val st = lazy Storage.load();
+    val st = lazy FeeQuoter_Storage_V1_7_0.load();
     val entry = st.usdPerToken.get(token);
     assert (entry.isFound) throw (FeeQuoter_Error.TokenNotSupported);
     return entry.loadValue();
 }
 
 get fun tokenPrices(tokens: array<address>): array<Cell<TimestampedPrice>?> {
-    val st = lazy Storage.load();
+    val st = lazy FeeQuoter_Storage_V1_7_0.load();
     var prices: array<Cell<TimestampedPrice>?> = [];
     var tokenIterator = ArrayIterator<address>.new(tokens);
 
@@ -697,7 +697,7 @@ get fun tokenPrices(tokens: array<address>): array<Cell<TimestampedPrice>?> {
 }
 
 get fun destinationChainGasPrice(destChainSelector: uint64): Cell<GasPrice> {
-    val st = lazy Storage.load();
+    val st = lazy FeeQuoter_Storage_V1_7_0.load();
     var entry = st.destChainConfigs.get(destChainSelector);
     assert (entry.isFound) throw (FeeQuoter_Error.UnknownDestChainSelector);
     return entry.loadValue().usdPerUnitGas
@@ -708,14 +708,14 @@ get fun tokenAndGasPrices(token: address, destChainSelector: uint64) {
 }
 
 get fun premiumMultiplierWeiPerEth(token: address): uint256 {
-    val st = lazy Storage.load();
+    val st = lazy FeeQuoter_Storage_V1_7_0.load();
     val v = st.premiumMultiplierWeiPerEth.mustGet(token, FeeQuoter_Error.FeeTokenNotSupported);
     return v as uint256;
 }
 
 // vec<address>
 get fun feeTokens(): lisp_list<address> {
-    val st = lazy Storage.load();
+    val st = lazy FeeQuoter_Storage_V1_7_0.load();
     val feeTokens = st.premiumMultiplierWeiPerEth;
     return keysLispList(feeTokens);
 }
@@ -724,30 +724,30 @@ get fun tokenTransferFeeConfig(
     destChainSelector: uint64,
     token: address,
 ): TokenTransferFeeConfig {
-    val st = lazy Storage.load();
+    val st = lazy FeeQuoter_Storage_V1_7_0.load();
     val destChainConfig = st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled);
     return destChainConfig.tokenTransferFeeConfigs.mustGet(token, FeeQuoter_Error.FeeTokenNotSupported);
 }
 
 get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
-    val st = lazy Storage.load();
+    val st = lazy FeeQuoter_Storage_V1_7_0.load();
     return st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled);
 }
 
 get fun staticConfig(): (uint96, address, uint32) {
-    val st = lazy Storage.load();
+    val st = lazy FeeQuoter_Storage_V1_7_0.load();
     return (st.maxFeeJuelsPerMsg, st.linkToken, st.tokenPriceStalenessThreshold);
 }
 
 /// Gets the current owner of the contract.
 get fun owner(): address {
-    val st = lazy Storage.load();
+    val st = lazy FeeQuoter_Storage_V1_7_0.load();
     return st.ownable.get_owner();
 }
 
 /// Gets the pending owner of the contract, if any.
 get fun pendingOwner(): address? {
-    val st = lazy Storage.load();
+    val st = lazy FeeQuoter_Storage_V1_7_0.load();
     return st.ownable.get_pendingOwner();
 }
 
@@ -764,7 +764,7 @@ get fun errorCode(local: uint16): uint16 {
 }
 
 get fun destChainSelectors(): lisp_list<uint64> {
-    val st = lazy Storage.load();
+    val st = lazy FeeQuoter_Storage_V1_7_0.load();
     val d = st.destChainConfigs;
     return keysLispList(d)!;
 }
@@ -777,12 +777,41 @@ get fun reserve(): coins {
 fun migrate(storage: cell, version: slice): cell {
     val NEW_THRESHOLD = 24 * 60 * 60; //  86400 seconds = 24 hours
     requireSupportedVersion(version);
-    var st = Storage.fromCell(storage);
+    val old = FeeQuoter_Storage_V1_6_X.fromCell(storage);
+    var st = FeeQuoter_Storage_V1_7_0 {
+        id: old.id,
+        ownable: old.ownable,
+        allowedPriceUpdaters: old.allowedPriceUpdaters,
+        maxFeeJuelsPerMsg: old.maxFeeJuelsPerMsg,
+        linkToken: old.linkToken,
+        tokenPriceStalenessThreshold: old.tokenPriceStalenessThreshold,
+        usdPerToken: old.usdPerToken,
+        premiumMultiplierWeiPerEth: old.premiumMultiplierWeiPerEth,
+        destChainConfigs: old.destChainConfigs,
+    };
     // 1.6.3 already applied this reset on its own upgrade; keep any value tuned since.
     if (!version.bitsEqual("1.6.3".literalSlice())) {
         st.tokenPriceStalenessThreshold = NEW_THRESHOLD;
     }
     return st.toCell();
+}
+
+// Persisted layout of the 1.6.x FeeQuoter shipped in releases 1.6.0 through 1.6.3.
+// Identical to FeeQuoter_Storage_V1_7_0 but without the storage layout prefix.
+struct FeeQuoter_Storage_V1_6_X {
+    id: uint32;
+    ownable: Ownable2Step;
+    allowedPriceUpdaters: map<address, ()> = [];
+
+    maxFeeJuelsPerMsg: uint96;
+    linkToken: address;
+
+    tokenPriceStalenessThreshold: uint32;
+
+    usdPerToken: map<address, TimestampedPrice> = [];
+    premiumMultiplierWeiPerEth: map<address, uint64> = [];
+
+    destChainConfigs: map<uint64, DestChainConfig> = []
 }
 
 @method_id(1001)

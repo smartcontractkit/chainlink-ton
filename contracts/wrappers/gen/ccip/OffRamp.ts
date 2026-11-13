@@ -4125,7 +4125,7 @@ export const ExecutionState = {
 }
 
 /**
- > struct Storage {
+ > struct (0xbfbdf63f) OffRamp_Storage_V1_7_0 {
  >     id: uint32
  >     ownable: Ownable2Step
  >     config: Cell<OffRamp_StorageConfig>
@@ -4135,8 +4135,8 @@ export const ExecutionState = {
  >     latestPriceSequenceNumber: uint64
  > }
  */
-export interface Storage {
-    readonly $: 'Storage'
+export interface OffRamp_Storage_V1_7_0 {
+    readonly $: 'OffRamp_Storage_V1_7_0'
     id: uint32
     ownable: Ownable2Step
     config: OffRamp_StorageConfig
@@ -4146,7 +4146,9 @@ export interface Storage {
     latestPriceSequenceNumber: uint64 /* = 0 */
 }
 
-export const Storage = {
+export const OffRamp_Storage_V1_7_0 = {
+    PREFIX: 0xbfbdf63f,
+
     create(args: {
         id: uint32
         ownable: Ownable2Step
@@ -4155,16 +4157,17 @@ export const Storage = {
         cursedSubjects: CursedSubjects
         sourceChainConfigs: Map<uint64, SourceChainConfig> /* = [] as map<uint64, SourceChainConfig> */
         latestPriceSequenceNumber?: uint64 /* = 0 */
-    }): Storage {
+    }): OffRamp_Storage_V1_7_0 {
         return {
-            $: 'Storage',
+            $: 'OffRamp_Storage_V1_7_0',
             latestPriceSequenceNumber: 0n,
             ...args
         }
     },
-    fromSlice(s: c.Slice): Storage {
+    fromSlice(s: c.Slice): OffRamp_Storage_V1_7_0 {
+        loadAndCheckPrefix32(s, 0xbfbdf63f, 'OffRamp_Storage_V1_7_0');
         return {
-            $: 'Storage',
+            $: 'OffRamp_Storage_V1_7_0',
             id: s.loadUintBig(32),
             ownable: Ownable2Step.fromSlice(s),
             config: loadCellRef<OffRamp_StorageConfig>(s, OffRamp_StorageConfig.fromSlice),
@@ -4174,7 +4177,8 @@ export const Storage = {
             latestPriceSequenceNumber: s.loadUintBig(64),
         }
     },
-    store(self: Storage, b: c.Builder): void {
+    store(self: OffRamp_Storage_V1_7_0, b: c.Builder): void {
+        b.storeUint(0xbfbdf63f, 32);
         b.storeUint(self.id, 32);
         Ownable2Step.store(self.ownable, b);
         storeCellRef<OffRamp_StorageConfig>(self.config, b, OffRamp_StorageConfig.store);
@@ -4183,8 +4187,8 @@ export const Storage = {
         b.storeDict<uint64, SourceChainConfig>(mapToDict(self.sourceChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<SourceChainConfig>(SourceChainConfig.fromSlice, SourceChainConfig.store));
         b.storeUint(self.latestPriceSequenceNumber, 64);
     },
-    toCell(self: Storage): c.Cell {
-        return makeCellFrom<Storage>(self, Storage.store);
+    toCell(self: OffRamp_Storage_V1_7_0): c.Cell {
+        return makeCellFrom<OffRamp_Storage_V1_7_0>(self, OffRamp_Storage_V1_7_0.store);
     }
 }
 
@@ -5126,7 +5130,7 @@ export class OffRamp implements c.Contract {
         }
         const initialState = {
             code: deployedOptions.overrideContractCode,
-            data: Storage.toCell(Storage.create(emptyStorage)),
+            data: OffRamp_Storage_V1_7_0.toCell(OffRamp_Storage_V1_7_0.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
         return new OffRamp(address, initialState);

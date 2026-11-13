@@ -97,6 +97,7 @@ type SuiExtraArgsV1 struct {
 
 // Storage represents the storage structure for the CCIP onramp contract.
 type Storage struct {
+	_                      tlb.Magic            `tlb:"#f07fc051" json:"-"` //nolint:revive // storage layout prefix
 	ID                     uint32               `tlb:"## 32"`
 	Ownable                ownable2step.Storage `tlb:"."`
 	StaticConfig           StaticConfig         `tlb:"^"`

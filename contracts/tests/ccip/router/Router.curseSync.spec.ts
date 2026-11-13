@@ -25,7 +25,7 @@ describe('Router.curseSync', () => {
 
     router = blockchain.openContract(
       rt.Router.fromStorage(
-        rt.Storage.create({
+        rt.Router_Storage_V1_7_0.create({
           id: generateRandomContractId(),
           ownable: rt.Ownable2Step.create({ owner: deployer.address }),
           onRamps: new Map(),

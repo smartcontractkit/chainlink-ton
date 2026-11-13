@@ -1,7 +1,7 @@
 import "../../lib/access/ownable_2step"
 import "types"
 
-struct Storage {
+struct (0xf298db16) FeeQuoter_Storage_V1_7_0 {
     id: uint32;
     ownable: Ownable2Step;
     allowedPriceUpdaters: map<address, ()> = [];
@@ -20,10 +20,10 @@ struct Storage {
     destChainConfigs: map<uint64, DestChainConfig> = []
 }
 
-fun Storage.load(): Storage {
-    return Storage.fromCell(contract.getData());
+fun FeeQuoter_Storage_V1_7_0.load(): FeeQuoter_Storage_V1_7_0 {
+    return FeeQuoter_Storage_V1_7_0.fromCell(contract.getData());
 }
 
-fun Storage.store(self) {
+fun FeeQuoter_Storage_V1_7_0.store(self) {
     return contract.setData(self.toCell());
 }

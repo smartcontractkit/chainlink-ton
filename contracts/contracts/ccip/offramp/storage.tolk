@@ -4,7 +4,7 @@ import "../../lib/access/ownable_2step"
 import "types"
 import "../rmn_remote/lib"
 
-struct Storage {
+struct (0xbfbdf63f) OffRamp_Storage_V1_7_0 {
     id: uint32;
     ownable: Ownable2Step;
     // Static and dynamic config are combined into a single cell reference to
@@ -19,10 +19,10 @@ struct Storage {
     latestPriceSequenceNumber: uint64 = 0;
 }
 
-fun Storage.load(): Storage {
-    return Storage.fromCell(contract.getData());
+fun OffRamp_Storage_V1_7_0.load(): OffRamp_Storage_V1_7_0 {
+    return OffRamp_Storage_V1_7_0.fromCell(contract.getData());
 }
 
-fun Storage.store(self) {
+fun OffRamp_Storage_V1_7_0.store(self) {
     return contract.setData(self.toCell());
 }
