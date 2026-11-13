@@ -80,7 +80,6 @@ fun globalId(): int {
 const ZERO_ADDRESS = address("0:0000000000000000000000000000000000000000000000000000000000000000");
 
 /// Returns true if the given address is the zero address.
-@pure
 fun isZeroAddress(addr: address): bool {
     return addr == ZERO_ADDRESS;
 }
