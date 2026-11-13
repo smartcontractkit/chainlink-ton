@@ -60,11 +60,10 @@ func buildSVMExtraArgsWithAccountsRef(receiver []byte, accounts *cell.Cell) *cel
 		EndCell()
 }
 
-// The pinned tonutils-go parser panics on the malformed shapes below before
-// any type check can run; fromBOC must convert them to decode errors.
+// The framing-malformed BOCs below must produce a decode error, not a panic.
 
-// TestPanic_zeroRootBOC_error covers roots = 0: violates the BOC grammar
-// ({ roots >= 1 }) but parses, and FromBOC then indexes cells[0] out of range.
+// TestPanic_zeroRootBOC_error covers roots = 0, which violates the BOC grammar
+// ({ roots >= 1 }) while every other header field is valid.
 func TestPanic_zeroRootBOC_error(t *testing.T) {
 	// magic, no index/crc, size=1, off_bytes=1, cells=1, roots=0, absent=0, tot=2
 	boc := []byte{0xB5, 0xEE, 0x9C, 0x72, 0x01, 0x01, 0x01, 0x00, 0x00, 0x02, 0x00, 0x00}
@@ -76,8 +75,8 @@ func TestPanic_zeroRootBOC_error(t *testing.T) {
 }
 
 // TestPanic_truncatedHeaderBOC_error covers a header declaring a wider size
-// descriptor (size = 4) than the bytes present: the parser slices past the
-// end of the buffer while reading the fixed header.
+// descriptor (size = 4) than the bytes present, so reading the fixed header
+// runs past the end of the buffer.
 func TestPanic_truncatedHeaderBOC_error(t *testing.T) {
 	// magic, size=4 with fewer than the declared bytes present
 	boc := []byte{0xB5, 0xEE, 0x9C, 0x72, 0x04, 0x04, 0x00, 0x00, 0x00, 0x01}
