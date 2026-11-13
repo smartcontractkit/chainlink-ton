@@ -1153,16 +1153,16 @@
     arg "^5.0.2"
     fflate "^0.8.2"
 
-"@ton/blueprint@0.44.2":
-  version "0.44.2"
-  resolved "https://registry.yarnpkg.com/@ton/blueprint/-/blueprint-0.44.2.tgz#83d30cc22509db6938b2a587fdfcf936052b752b"
-  integrity sha512-BqT6TlR4eJymYJxa3gXTTlSP/sBnKxJJ2bSa585EdnMaiwLXYDMWLXViYLXl3p3R0qqcdxxHvuwPnNqPE8btsQ==
+"@ton/blueprint@0.47.1":
+  version "0.47.1"
+  resolved "https://registry.npmjs.org/@ton/blueprint/-/blueprint-0.47.1.tgz#469ad46ac960d175d81d4715407883dc3ba5b4a0"
+  integrity sha512-PWY4dBAHzB7l6N7gx+5CXzf5HpSaD2tWebUxjfE2Kss2HsaDmH2PLw3wztNTn8f7wxBWIVCmJ0JyJksgOvIg6Q==
   dependencies:
     "@ton-api/client" "^0.2.0"
     "@ton-api/ton-adapter" "^0.2.0"
     "@tonconnect/sdk" "^2.2.0"
     arg "^5.0.2"
-    axios "1.15.0"
+    axios "^1.15.0"
     chalk "^4.1.0"
     dotenv "^16.1.4"
     inquirer "^8.2.5"
@@ -1238,19 +1238,19 @@
   dependencies:
     node-inspect-extracted "^2.0.0"
 
-"@ton/tolk-js@1.4.2":
-  version "1.4.2"
-  resolved "https://registry.yarnpkg.com/@ton/tolk-js/-/tolk-js-1.4.2.tgz#f415313fba00ea924055142809218972456da8b7"
-  integrity sha512-+F/d0g42DR8KaQvVz9RrtSsJRw1kQAS3zwWy3POaEyxpLM8F4+dHzl8XLsFa2RHq0ADe4oLN/znW0spZBOlf7A==
+"@ton/tolk-js@1.5.0":
+  version "1.5.0"
+  resolved "https://registry.npmjs.org/@ton/tolk-js/-/tolk-js-1.5.0.tgz#08d0742934c3e601059e8aa3fdd5fcf35ff3449d"
+  integrity sha512-oFaOF87G3nr2ENb7Aq/9qUjEAAUVjG1rP8f51Ib4UypSsfwSFDKQqXr5gkkcSys6eW4PIsND8xInnwS9Cu+ijw==
   dependencies:
     arg "^5.0.2"
 
-"@ton/ton@16.2.4":
-  version "16.2.4"
-  resolved "https://registry.yarnpkg.com/@ton/ton/-/ton-16.2.4.tgz#aaace554af2ba876b3f41aa57141d414d63d3d1a"
-  integrity sha512-GWCNKizQm7MM99XNQGr+zWWdSfbFu/WLeQYm7tMIQDNKpAYEpLDKJUKuK/yrz763DBbnTDAFeq1NWAEy8rAOaQ==
+"@ton/ton@16.3.0":
+  version "16.3.0"
+  resolved "https://registry.npmjs.org/@ton/ton/-/ton-16.3.0.tgz#b5cce50ba55da60b07e0085c7ed1f19fb9eed189"
+  integrity sha512-iafYCLYVD2+ZrqbnJA7CvuZ13hUVQSmmOAxx8Ozo2pgl0HHjj004hdoHzrdE0XCHdj7AOZB3zcZaHBVJxQOh9Q==
   dependencies:
-    axios "1.15.0"
+    axios "^1.15.0"
     dataloader "^2.0.0"
     zod "^3.21.4"
 
@@ -1689,7 +1689,7 @@ asynckit@^0.4.0:
   resolved "https://registry.yarnpkg.com/asynckit/-/asynckit-0.4.0.tgz#c79ed97f7f34cb8f2ba1bc9790bcc366474b4b79"
   integrity sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==
 
-axios@1.15.0, axios@^1.18.0:
+axios@^1.15.0, axios@^1.18.0:
   version "1.20.0"
   resolved "https://registry.yarnpkg.com/axios/-/axios-1.20.0.tgz#515513445aa60e71d04b6521ca6210829ccb4786"
   integrity sha512-r8aOh8j9cGKpgQAqpzrUHnSIc6a59Y3Xf/cv8sy1DrHCkZHzQGEuoq1tARk6qSyDdtQGSDgpb9kFlruzPvrgwg==
