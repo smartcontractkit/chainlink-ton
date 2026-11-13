@@ -32,7 +32,7 @@ import "types"
 import "storage"
 import "events"
 
-tolk 1.4.2
+tolk 1.5.0
 
 contract OffRamp {
     author: "SmartContract Chainlink Limited SEZC"

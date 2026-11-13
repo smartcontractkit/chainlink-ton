@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-tolk 1.4.2
+tolk 1.5.0
 
 import "@stdlib/common"
 import "@stdlib/gas-payments"
