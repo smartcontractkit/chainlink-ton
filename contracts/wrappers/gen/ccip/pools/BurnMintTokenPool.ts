@@ -6215,7 +6215,6 @@ export class BurnMintTokenPool implements c.Contract {
         'RateLimiter_Error.TokenRateLimitReached': 16302,
         'RateLimiter_Error.InvalidRateLimitRate': 16303,
         'RateLimiter_Error.DisabledNonZeroRateLimit': 16304,
-        'Upgradeable_Error.VersionMismatch': 19900,
         'BurnMintTokenPool_Error.UnexpectedBurnBounce': 45000,
         'BurnMintTokenPool_Error.UnexpectedMintBounce': 45001,
         'AccessControl_Error.UnauthorizedAccount': 47400,

@@ -1363,7 +1363,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 
 export class JettonLockBox implements c.Contract {
     static Errors = {
-        'Upgradeable_Error.VersionMismatch': 19900,
         'AccessControl_Error.UnauthorizedAccount': 47400,
         'AccessControl_Error.BadConfirmation': 47401,
         'JettonWithdrawable_Error.ZeroAddressNotAllowed': 55700,

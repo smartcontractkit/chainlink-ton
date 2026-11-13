@@ -52,14 +52,9 @@ contract LockReleaseLockboxTokenPool {
 
 const CONTRACT_VERSION = "0.1.0".literalSlice();
 
-/// This code was deployed before the pool became upgradeable.
-fun requireSupportedVersion(version: slice) {
-    assert (version.bitsEqual("0.1.0".literalSlice())) throw (Upgradeable_Error.VersionMismatch);
-}
-
+/// Initial upgradeable version: there is no previous storage layout to migrate.
 @method_id(1000)
-fun migrate(storage: cell, version: slice): cell {
-    requireSupportedVersion(version);
+fun migrate(storage: cell, _version: slice): cell {
     return storage;
 }
 
