@@ -357,10 +357,6 @@ retryLoop:
 					"amount", tx.Amount.Nano().String(),
 				)
 			}
-
-			if *t.config.EnableTraceLogging {
-				t.gatherAndLogTrace(ctx, client, receivedMessage, txID)
-			}
 			break
 		}
 
@@ -434,32 +430,6 @@ retryLoop:
 	}
 
 	return nil
-}
-
-// gatherAndLogTrace waits for transaction trace data and logs it for debugging purposes.
-// This is a non-fatal operation - trace gathering failures are logged but don't affect transaction success.
-func (t *Txm) gatherAndLogTrace(ctx context.Context, client tracetracking.SignedAPIClient, receivedMessage *tracetracking.ReceivedMessage, txID string) {
-	traceCtx, traceCancel := context.WithTimeout(ctx, t.config.TraceTimeout.Duration())
-	traceErr := receivedMessage.WaitForTrace(traceCtx, client.Client)
-	traceCancel()
-
-	if traceErr != nil {
-		if errors.Is(traceErr, context.DeadlineExceeded) {
-			t.logger.Warnw("trace gathering timed out (non-fatal)",
-				"txID", txID,
-				"timeout", t.config.TraceTimeout.Duration())
-		} else {
-			t.logger.Warnw("failed to wait for trace (non-fatal)",
-				"txID", txID,
-				"timeout", t.config.TraceTimeout.Duration(),
-				"error", traceErr,
-			)
-		}
-		return
-	}
-
-	t.logger.Debugf("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(nil).DumpReceived(receivedMessage))
-	t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(nil, sequenceDiagram.OutputFmtURL).DumpReceived(receivedMessage))
 }
 
 // Periodically checks unconfirmed transactions for finality.
