@@ -7,7 +7,7 @@ import "errors"
 import "storage"
 import "types"
 
-tolk 1.4.2
+tolk 1.5.0
 
 // MerkleRoot contract
 // Root is commited on Commit Reports and the existence of this contract is used to validate Execute Reports

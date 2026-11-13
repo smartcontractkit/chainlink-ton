@@ -3,7 +3,7 @@
 
 import "../../ccip/lib/client/receiver/messages";
 
-tolk 1.4.2
+tolk 1.5.0
 
 const CONTRACT_VERSION = "1.6.1".literalSlice();
 
