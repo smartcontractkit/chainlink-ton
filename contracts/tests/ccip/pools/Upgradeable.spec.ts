@@ -157,6 +157,7 @@ describe('Upgradeable token pools and lockbox', () => {
 
       const upgraded = blockchain.openContract(UpgradeTarget.fromAddress(pool.address))
       expect(await upgraded.getPreviousStorage()).toEqualCell(before.data)
+      expect((await upgraded.getPreviousVersion()).beginParse().loadStringTail()).toBe('0.1.0')
     })
   })
 
@@ -219,6 +220,7 @@ describe('Upgradeable token pools and lockbox', () => {
 
       const upgraded = blockchain.openContract(UpgradeTarget.fromAddress(pool.address))
       expect(await upgraded.getPreviousStorage()).toEqualCell(before.data)
+      expect((await upgraded.getPreviousVersion()).beginParse().loadStringTail()).toBe('0.1.0')
     })
   })
 
@@ -287,6 +289,7 @@ describe('Upgradeable token pools and lockbox', () => {
 
       const upgraded = blockchain.openContract(UpgradeTarget.fromAddress(lockbox.address))
       expect(await upgraded.getPreviousStorage()).toEqualCell(before.data)
+      expect((await upgraded.getPreviousVersion()).beginParse().loadStringTail()).toBe('0.1.0')
     })
   })
 })

@@ -104,6 +104,14 @@ class StackReader {
     readSlice(): c.Slice {
         return this.popCellLike().beginParse();
     }
+
+    readNullable<T>(readFn_T: (r: StackReader) => T): T | null {
+        if (this.tuple[0].type === 'null') {
+            this.tuple.shift();
+            return null;
+        }
+        return readFn_T(this);
+    }
 }
 
 // ————————————————————————————————————————————
@@ -115,16 +123,25 @@ type coins = bigint
 /**
  > struct UpgradeTarget_Storage {
  >     previousStorage: cell
+ >     previousVersion: cell
+ >     lastSender: address?
+ >     lastBody: cell?
  > }
  */
 export interface UpgradeTarget_Storage {
     readonly $: 'UpgradeTarget_Storage'
     previousStorage: c.Cell
+    previousVersion: c.Cell
+    lastSender: c.Address | null
+    lastBody: c.Cell | null
 }
 
 export const UpgradeTarget_Storage = {
     create(args: {
         previousStorage: c.Cell
+        previousVersion: c.Cell
+        lastSender: c.Address | null
+        lastBody: c.Cell | null
     }): UpgradeTarget_Storage {
         return {
             $: 'UpgradeTarget_Storage',
@@ -135,10 +152,18 @@ export const UpgradeTarget_Storage = {
         return {
             $: 'UpgradeTarget_Storage',
             previousStorage: s.loadRef(),
+            previousVersion: s.loadRef(),
+            lastSender: s.loadMaybeAddress(),
+            lastBody: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: UpgradeTarget_Storage, b: c.Builder): void {
         b.storeRef(self.previousStorage);
+        b.storeRef(self.previousVersion);
+        b.storeAddress(self.lastSender);
+        storeTolkNullable<c.Cell>(self.lastBody, b,
+            (v,b) => b.storeRef(v)
+        );
     },
     toCell(self: UpgradeTarget_Storage): c.Cell {
         return makeCellFrom<UpgradeTarget_Storage>(self, UpgradeTarget_Storage.store);
@@ -185,7 +210,6 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 
 export class UpgradeTarget implements c.Contract {
     static Errors = {
-        'Upgradeable_Error.VersionMismatch': 19900,
     }
 
     readonly address: c.Address
@@ -202,6 +226,9 @@ export class UpgradeTarget implements c.Contract {
 
     static fromStorage(emptyStorage: {
         previousStorage: c.Cell
+        previousVersion: c.Cell
+        lastSender: c.Address | null
+        lastBody: c.Cell | null
     }, deployedOptions?: DeployedAddrOptions) {
         if (!deployedOptions?.overrideContractCode) {
             throw new Error('UpgradeTarget.fromStorage requires deployedOptions.overrideContractCode');
@@ -233,5 +260,24 @@ export class UpgradeTarget implements c.Contract {
     async getPreviousStorage(provider: ContractProvider): Promise<c.Cell> {
         const r = StackReader.fromGetMethod(1, await provider.get('previousStorage', []));
         return r.readCell();
+    }
+
+    async getPreviousVersion(provider: ContractProvider): Promise<c.Cell> {
+        const r = StackReader.fromGetMethod(1, await provider.get('previousVersion', []));
+        return r.readCell();
+    }
+
+    async getLastSender(provider: ContractProvider): Promise<c.Address | null> {
+        const r = StackReader.fromGetMethod(1, await provider.get('lastSender', []));
+        return r.readNullable<c.Address>(
+            (r) => r.readSlice().loadAddress()
+        );
+    }
+
+    async getLastBody(provider: ContractProvider): Promise<c.Cell | null> {
+        const r = StackReader.fromGetMethod(1, await provider.get('lastBody', []));
+        return r.readNullable<c.Cell>(
+            (r) => r.readCell()
+        );
     }
 }
