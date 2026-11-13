@@ -252,7 +252,7 @@ fun onDepositReturn(
         : beginCell()
             .storeMaybeRef(null)
             .endCell()
-            .beginParse();
+            .beginParse() as ForwardPayloadRemainder;
     // A failed return uses a short bounce; the lockbox accepts the returned TON and never
     // enters the rich-bounce withdraw handler.
     var transfer = createMessage({
