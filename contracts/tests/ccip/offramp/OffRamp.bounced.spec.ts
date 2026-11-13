@@ -1,5 +1,5 @@
-import { toNano, Address, Cell } from '@ton/core'
-import { Blockchain } from '@ton/sandbox'
+import { toNano, Address, Cell, CommonMessageInfoInternal } from '@ton/core'
+import { Blockchain, BlockchainTransaction, internal } from '@ton/sandbox'
 import { findTransactionRequired, flattenTransaction } from '@ton/test-utils'
 
 import { generateMockTonAddress } from '../../../src/utils'
@@ -385,6 +385,111 @@ describe('OffRamp - Commit and Execute', () => {
           to: setup.transmitters[0].address,
           body: Cell.EMPTY,
         })
+      })
+    })
+
+    // The OffRamp emits ExecutionStateChanged, then reserves its original balance and refunds the
+    // rest. Neither the reserve nor the refund may revert the emit when the value runs short.
+    describe('when MerkleRoot_ExecutionStateChanged cannot pay the refund', () => {
+      const excessesTo = generateMockTonAddress()
+
+      const notifyFromRoot = (value: bigint) => {
+        const root = setup.createMerkleRoot(1n, 1n, 0x1234n)
+        return blockchain.sendMessage(
+          internal({
+            from: setup.merkleRootAddress(root),
+            to: setup.offRamp.address,
+            value,
+            body: of.MerkleRoot_ExecutionStateChanged.toCell(
+              of.MerkleRoot_ExecutionStateChanged.create({
+                root: root.merkleRoot,
+                messageRef: of.RampMessageRef.create({
+                  messageId: 1n,
+                  sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+                  sequenceNumber: 1n,
+                }),
+                state: of.ExecutionState.Success,
+                excessesTo,
+              }),
+            ),
+          }),
+        )
+      }
+
+      const handlerTx = (txs: BlockchainTransaction[]) =>
+        findTransactionRequired(txs, {
+          to: setup.offRamp.address,
+          op: of.MerkleRoot_ExecutionStateChanged.PREFIX,
+        })
+
+      const internalOutMessages = (tx: BlockchainTransaction) =>
+        [...tx.outMessages.values()].filter((m) => m.info.type === 'internal')
+
+      // Measures a funded notification: the handler's gas fee and its refund.
+      const measureFunded = async () => {
+        const value = toNano('0.1')
+        const tx = handlerTx((await notifyFromRoot(value)).transactions)
+        if (tx.description.type !== 'generic' || tx.description.computePhase.type !== 'vm') {
+          throw new Error('Expected the handler to run')
+        }
+        const [refund, ...others] = internalOutMessages(tx)
+        expect(others).toHaveLength(0)
+        expect(refund.info.dest).toEqualAddress(excessesTo)
+        const refundInfo = refund.info as CommonMessageInfoInternal
+        return {
+          value,
+          gasFees: tx.description.computePhase.gasFees,
+          refundValue: refundInfo.value.coins,
+          // The part of the refund forward fee left in its header (about 2/3 of the full fee).
+          refundForwardFee: refundInfo.forwardFee,
+        }
+      }
+
+      const expectEmittedWithoutRefund = async (value: bigint) => {
+        const balanceBefore = (await blockchain.getContract(setup.offRamp.address)).balance
+        const result = await notifyFromRoot(value)
+
+        const tx = handlerTx(result.transactions)
+        expect(tx.description.type === 'generic' && tx.description.aborted).toBe(false)
+        expect(flattenTransaction(tx).success).toBe(true)
+        assertLog(
+          result.transactions,
+          setup.offRamp.address,
+          CCIPLogs.LogTypes.ExecutionStateChanged,
+          {
+            sourceChainSelector: setup.SOURCE_CHAIN_SELECTOR,
+            sequenceNumber: 1n,
+            messageId: 1n,
+            state: of.ExecutionState.Success,
+          },
+        )
+        expect(internalOutMessages(tx)).toHaveLength(0)
+        // Only the fees left the balance.
+        const balanceAfter = (await blockchain.getContract(setup.offRamp.address)).balance
+        expect(balanceAfter).toBe(balanceBefore + value - tx.totalFees.coins)
+        return { balanceBefore, balanceAfter }
+      }
+
+      it('should emit without a refund when the fees leave too little to reserve the original balance', async () => {
+        const funded = await measureFunded()
+
+        // Pays for the gas but not for the emit, so the balance ends below the original and the
+        // reserve takes all of it.
+        const { balanceBefore, balanceAfter } = await expectEmittedWithoutRefund(
+          funded.gasFees + funded.refundForwardFee / 2n,
+        )
+        expect(balanceAfter).toBeLessThan(balanceBefore)
+      })
+
+      it('should emit and keep the excess when it cannot pay the refund forward fee', async () => {
+        const funded = await measureFunded()
+
+        // The funded excess was `refundValue` plus the full refund forward fee. Leaves an excess of
+        // the full fee minus its header part: above zero, below the fee.
+        const { balanceBefore, balanceAfter } = await expectEmittedWithoutRefund(
+          funded.value - funded.refundValue - funded.refundForwardFee,
+        )
+        expect(balanceAfter).toBeGreaterThan(balanceBefore)
       })
     })
 
