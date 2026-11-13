@@ -4,7 +4,7 @@ import "../../token_admin_registry_entry/types"
 import "../../token_admin_registry_entry/storage"
 import "../../../lib/versioning/upgradeable"
 
-tolk 1.4.2
+tolk 1.5.0
 
 // Test-only code a TokenAdminRegistryEntry can be upgraded to. It keeps the
 // migrated storage and records the request replayed through Resume.

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-tolk 1.4.2
+tolk 1.5.0
 
 import "@stdlib/gas-payments"
 import "../jetton/forward_payload_wrap"
@@ -182,12 +182,14 @@ fun JettonWithdrawable.onWithdraw(
 @inline
 fun JettonWithdrawable.isAllowedRecipient(recipient: address, allowed: array<address>): bool {
     var iter = ArrayIterator<address>.new(allowed);
+    var found = false;
     while (!iter.empty()) {
         if (iter.next() == recipient) {
-            return true;
+            found = true;
+            break;
         }
     }
-    return false;
+    return found;
 }
 
 /// Default handler for a bounced fee-withdrawal `AskToTransfer`: notifies the wrap's `initiator`

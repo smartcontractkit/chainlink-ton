@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-tolk 1.4.2
+tolk 1.5.0
 
 import "@stdlib/common.tolk"
 import "@stdlib/gas-payments"
@@ -252,7 +252,7 @@ fun onDepositReturn(
         : beginCell()
             .storeMaybeRef(null)
             .endCell()
-            .beginParse();
+            .beginParse() as ForwardPayloadRemainder;
     // A failed return uses a short bounce; the lockbox accepts the returned TON and never
     // enters the rich-bounce withdraw handler.
     var transfer = createMessage({

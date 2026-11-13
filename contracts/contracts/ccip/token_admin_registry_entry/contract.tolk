@@ -9,7 +9,7 @@ import "../token_admin_registry/messages"
 import "../../lib/jetton/messages"
 import "../pools/lib/token_pool/messages"
 
-tolk 1.4.2
+tolk 1.5.0
 
 // The state-bearing shard of TokenAdminRegistry.
 contract TokenAdminRegistryEntry {

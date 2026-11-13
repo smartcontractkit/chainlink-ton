@@ -22,137 +22,79 @@ contract TokenPool {
     thrownErrors: TokenPool_Error
 }
 
-fun onInternalMessage(_: InMessage) {
-    throw 0xFFFF; // template for bindings, should not be deployed
-}
-
 // --- Getters matching Go bindings in pkg/ccip/bindings/tokenpool/reader.go ---
 // This is a stub contract for tooling to generate bindings.
 // All getters throw at runtime — they should never be deployed.
 
-get fun typeAndVersion(): (slice, slice) {
-    throw 0xFFFF;
-}
+get fun typeAndVersion(): (slice, slice)
 
-get fun facilityId(): uint16  {
-    throw 0xFFFF;
-}
+get fun facilityId(): uint16 
 
-get fun errorCode(local: uint16): uint16 {
-    throw 0xFFFF;
-}
+get fun errorCode(local: uint16): uint16
 
-get fun token(): address {
-    throw 0xFFFF;
-}
+get fun token(): address
 
-get fun tokenDecimals(): uint8 {
-    throw 0xFFFF;
-}
+get fun tokenDecimals(): uint8
 
-get fun isSupportedChain(remoteChainSelector: uint64): bool {
-    throw 0xFFFF;
-}
+get fun isSupportedChain(remoteChainSelector: uint64): bool
 
 /// Matches Go binding GetVerifyNotCursed (Name: "verifyNotCursed").
-get fun verifyNotCursed(subject: uint128): bool {
-    throw 0xFFFF;
-}
+get fun verifyNotCursed(subject: uint128): bool
 
-get fun owner(): address {
-    throw 0xFFFF;
-}
+get fun owner(): address
 
-get fun pendingOwner(): address? {
-    throw 0xFFFF;
-}
+get fun pendingOwner(): address?
 
 /// Curse administrator for the pool-local policy, distinct from `owner`.
-get fun rmn_owner(): address {
-    throw 0xFFFF;
-}
+get fun rmn_owner(): address
 
-get fun rmn_pendingOwner(): address? {
-    throw 0xFFFF;
-}
+get fun rmn_pendingOwner(): address?
 
-get fun rmn_hasRole(role: uint256, account: address): bool {
-    throw 0xFFFF;
-}
+get fun rmn_hasRole(role: uint256, account: address): bool
 
-get fun rmn_getRoleAdmin(role: uint256): uint256 {
-    throw 0xFFFF;
-}
+get fun rmn_getRoleAdmin(role: uint256): uint256
 
 /// Effective curse authority. `rmn_hasRole` under-reports: the policy admin is
 /// an implicit role bearer.
-get fun rmn_canCurse(account: address): bool {
-    throw 0xFFFF;
-}
+get fun rmn_canCurse(account: address): bool
 
-get fun rmn_canUncurse(account: address): bool {
-    throw 0xFFFF;
-}
+get fun rmn_canUncurse(account: address): bool
 
 /// Matches Go binding GetSupportedChains (Name: "getSupportedChains").
-get fun getSupportedChains(): lisp_list<uint64> {
-    throw 0xFFFF;
-}
+get fun getSupportedChains(): lisp_list<uint64>
 
 /// Matches Go binding GetDynamicConfig (Name: "getDynamicConfig").
-get fun getDynamicConfig(): TokenPool_DynamicConfig {
-    throw 0xFFFF;
-}
+get fun getDynamicConfig(): TokenPool_DynamicConfig
 
 /// Matches Go binding GetAllowedFinalityConfig (Name: "getAllowedFinalityConfig").
-get fun getAllowedFinalityConfig(): uint32 {
-    throw 0xFFFF;
-}
+get fun getAllowedFinalityConfig(): uint32
 
 /// Matches Go binding GetAdvancedPoolHooks (Name: "getAdvancedPoolHooks").
-get fun getAdvancedPoolHooks(): address? {
-    throw 0xFFFF;
-}
+get fun getAdvancedPoolHooks(): address?
 
 /// Matches Go binding GetIsRemotePool (Name: "isRemotePool").
-get fun isRemotePool(remoteChainSelector: uint64, remotePoolAddress: Cell<CrossChainAddress>): bool {
-    throw 0xFFFF;
-}
+get fun isRemotePool(remoteChainSelector: uint64, remotePoolAddress: Cell<CrossChainAddress>): bool
 
 /// Matches Go binding GetRemoteToken (Name: "getRemoteToken").
-get fun getRemoteToken(remoteChainSelector: uint64): Cell<CrossChainAddress> {
-    throw 0xFFFF;
-}
+get fun getRemoteToken(remoteChainSelector: uint64): Cell<CrossChainAddress>
 
 /// Matches Go binding GetRemotePools (Name: "getRemotePools").
-get fun getRemotePools(remoteChainSelector: uint64): lisp_list<Cell<CrossChainAddress>> {
-    throw 0xFFFF;
-}
+get fun getRemotePools(remoteChainSelector: uint64): lisp_list<Cell<CrossChainAddress>>
 
 /// Matches Go binding GetTokenTransferFeeConfig (Name: "getTokenTransferFeeConfig").
-get fun getTokenTransferFeeConfig(destChainSelector: uint64): TokenPool_TokenTransferFeeConfig? {
-    throw 0xFFFF;
-}
+get fun getTokenTransferFeeConfig(destChainSelector: uint64): TokenPool_TokenTransferFeeConfig?
 
 /// Matches Go binding GetCurrentRateLimiterState (Name: "getCurrentRateLimiterState").
-get fun getCurrentRateLimiterState(remoteChainSelector: uint64, fastFinality: bool): TokenPool_RateLimiterPair {
-    throw 0xFFFF;
-}
+get fun getCurrentRateLimiterState(remoteChainSelector: uint64, fastFinality: bool): TokenPool_RateLimiterPair
 
 /// Matches Go binding GetCursedSubjects (Name: "cursedSubjects").
-get fun cursedSubjects(): lisp_list<uint128> {
-    throw 0xFFFF;
-}
+get fun cursedSubjects(): lisp_list<uint128>
 
 /// Matches Go binding GetAdminConfig (Name: "getAdminConfig").
-get fun getAdminConfig(): TokenPool_AdminConfig {
-    throw 0xFFFF;
-}
+get fun getAdminConfig(): TokenPool_AdminConfig
 
 /// Matches Go binding GetRemoteChainConfig (Name: "getRemoteChainConfig").
-get fun getRemoteChainConfig(remoteChainSelector: uint64): TokenPool_RemoteChainConfig? {
-    throw 0xFFFF;
-}
+get fun getRemoteChainConfig(remoteChainSelector: uint64): TokenPool_RemoteChainConfig?
 
 /// Matches Go binding GetFee (Name: "getFee").
 get fun getFee(
@@ -162,17 +104,13 @@ get fun getFee(
     feeToken: address,
     requestedFinalityConfig: uint32,
     tokenArgs: cell?,
-): (coins, uint32, uint32, uint16, bool) {
-    throw 0xFFFF;
-}
+): (coins, uint32, uint32, uint16, bool)
 
 /// Matches Go binding GetFeeAmount (Name: "getFeeAmount").
 get fun getFeeAmount(
     transfer: TokenPool_LockOrBurnTransfer,
     requestedFinalityConfig: uint32,
-): coins {
-    throw 0xFFFF;
-}
+): coins
 
 /// Matches Go binding GetCCVAmount (Name: "getCCVAmount").
 get fun getCCVAmount(
@@ -181,21 +119,13 @@ get fun getCCVAmount(
     requestedFinalityConfig: uint32,
     direction: TokenPool_MessageDirection,
     extraData: cell?,
-): coins {
-    throw 0xFFFF;
-}
+): coins
 
 /// Matches Go binding GetIsSupportedToken (Name: "isSupportedToken").
-get fun isSupportedToken(token: address): bool {
-    throw 0xFFFF;
-}
+get fun isSupportedToken(token: address): bool
 
 /// Effective per-flow budget (instance config raised to the pool-type default).
-get fun getBudget(): TokenPool_Budget {
-    throw 0xFFFF;
-}
+get fun getBudget(): TokenPool_Budget
 
 /// Fees retained in the pool's own Jetton wallet on successful locks/burns.
-get fun getAccruedFees(): coins {
-    throw 0xFFFF;
-}
+get fun getAccruedFees(): coins
