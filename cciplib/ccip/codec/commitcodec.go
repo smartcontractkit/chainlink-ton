@@ -9,7 +9,6 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
@@ -116,7 +115,7 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 }
 
 func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (cciptypes.CommitPluginReport, error) {
-	c, err := cell.FromBOC(bytes)
+	c, err := fromBOC(bytes)
 	if err != nil {
 		return cciptypes.CommitPluginReport{}, fmt.Errorf("cannot decode BOC: %w", err)
 	}

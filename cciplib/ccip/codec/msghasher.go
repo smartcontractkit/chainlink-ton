@@ -61,6 +61,13 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		return [32]byte{}, fmt.Errorf("parse extra args map to get gas limit: %w", err)
 	}
 
+	// parseExtraArgsMapAndRetrieveGasLimit type-asserts to *big.Int, which a typed
+	// nil satisfies while still being nil, and MustStoreBigCoins below would panic
+	// on it. The codec rejects such a value, but the hasher must not rely on that.
+	if gasLimit == nil {
+		return [32]byte{}, errors.New("extra args gas limit is nil")
+	}
+
 	// use the reference from contracts/contracts/ccip/offramp/types.tolk generateMessageId()
 	/* Top level cell contains:
 	 * - LEAF_DOMAIN_SEPARATOR 256 bits

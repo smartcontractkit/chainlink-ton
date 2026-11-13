@@ -559,6 +559,25 @@ func TestLoadCrossChainAddressWithoutPrefix_Validation(t *testing.T) {
 	}
 }
 
+// makeLibraryRefCell returns a synthetic library-reference cell: 264 bits
+// (8-bit type tag 0x02 + 256-bit library hash) with no refs, marked special.
+// TVM resolves this shape at CTOS; the Go bindings read the descriptor verbatim.
+func makeLibraryRefCell(t *testing.T) *cell.Cell {
+	t.Helper()
+	hash := make([]byte, 32)
+	for i := range hash {
+		hash[i] = byte(i + 1)
+	}
+	c := cell.BeginCell().
+		MustStoreUInt(0x02, 8).
+		MustStoreSlice(hash, 256).
+		EndCell()
+	require.Equal(t, uint(264), c.BitsSize())
+	c.UnsafeModify(cell.LevelMask{}, true)
+	require.Equal(t, cell.LibraryCellType, c.GetType())
+	return c
+}
+
 // Test validation for unloadCellToByteArray
 func TestUnloadCellToByteArray_Validation(t *testing.T) {
 	t.Run("exceeds maximum cell chain depth", func(t *testing.T) {
@@ -627,6 +646,34 @@ func TestUnloadCellToByteArray_Validation(t *testing.T) {
 		_, err := unloadCellToByteArray(malformedCell)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "expected at most 1 ref")
+	})
+
+	t.Run("rejects a library-reference root cell", func(t *testing.T) {
+		// A library reference resolves at CTOS on-chain, but the Go bindings copy
+		// its 264-bit descriptor (type tag + hash) verbatim, which would be read
+		// as payload. The root must be rejected by name, before any bytes are
+		// returned: loadChainRef only ever sees continuations.
+		libRef := makeLibraryRefCell(t)
+
+		result, err := unloadCellToByteArray(libRef)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "library-reference")
+		require.Nil(t, result)
+	})
+
+	t.Run("rejects a library-reference continuation cell", func(t *testing.T) {
+		// Same class one level down: a valid first cell whose continuation is a
+		// library reference. The first cell is byte-aligned and single-ref, so
+		// only the continuation check can catch it.
+		root := cell.BeginCell().
+			MustStoreSlice([]byte("abc"), 24).
+			MustStoreRef(makeLibraryRefCell(t)).
+			EndCell()
+
+		result, err := unloadCellToByteArray(root)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "library-reference")
+		require.Nil(t, result)
 	})
 }
 

@@ -287,6 +287,43 @@ func TestMessageHasherV1_ErrorCases(t *testing.T) {
 	})
 }
 
+// TestMessageHasherV1_typedNilGasLimitIsRejected covers the local (no-gRPC) crash
+// path for an absent optional gas limit.
+//
+// parseExtraArgsMapAndRetrieveGasLimit type-asserts the map value to *big.Int. A
+// typed-nil *big.Int satisfies that assertion, so it is returned with a nil
+// error; the hasher previously passed it straight to MustStoreBigCoins, which
+// dereferences it and panics. The codec now rejects such a value, but the hasher
+// must not depend on that.
+func TestMessageHasherV1_typedNilGasLimitIsRejected(t *testing.T) {
+	ctx := context.Background()
+	mockExtraDataCodec := new(mocks.SourceChainExtraDataCodec)
+	edc := ccipocr3.ExtraDataCodecMap(map[string]ccipocr3.SourceChainExtraDataCodec{
+		chainsel.FamilyEVM: mockExtraDataCodec,
+	})
+
+	mockExtraDataCodec.On("DecodeDestExecDataToMap", mock.Anything).Return(map[string]any{
+		"destgasamount": uint32(1000),
+	}, nil)
+
+	// The exact shape produced by a `maybe ## 256` field decoded as absent.
+	var typedNil *big.Int
+	mockExtraDataCodec.On("DecodeExtraArgsToMap", mock.Anything).Return(map[string]any{
+		"gasLimit": typedNil,
+	}, nil)
+
+	hasher := NewMessageHasherV1(logger.Test(t), edc)
+	msg := randomTONMessage(t, 5009297550715157269)
+
+	var err error
+	require.NotPanics(t, func() {
+		_, err = hasher.Hash(ctx, msg)
+	}, "a nil gas limit must be an error, not a panic in MustStoreBigCoins")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "gas limit is nil")
+}
+
 // TestMessageHasherV1_ExecuteCodecConsistency verifies that TokenAmounts is correctly
 // serialized as nil (Maybe 0) rather than empty slice (Maybe 1) when there are no tokens.
 // This is critical because the hash depends on how TokenAmounts is serialized.
