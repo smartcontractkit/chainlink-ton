@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../../lib/math"
 
-const RateLimiter_FACILITY_NAME = "link.chain.ton.ccip.rateLimiter";
-const RateLimiter_FACILITY_ID = 163;  // (crc32(<facility>) % 640) + 10
+const RateLimiter_FACILITY_NAME = "link.chain.ton.ccip.pool.lib.RateLimiter";
+const RateLimiter_FACILITY_ID = RateLimiter_FACILITY_NAME.crc32() % 640 + 10;  // 297
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
 enum RateLimiter_Error {
     BucketOverfilled = RateLimiter_FACILITY_ID * 100
