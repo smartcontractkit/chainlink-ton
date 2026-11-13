@@ -204,7 +204,7 @@ fun onBouncedMessage(in: InMessageBounced) {
             onBouncedDeployableInitialize(originalMessage, in.senderAddress)
         },
         Router_RouteMessage => {
-            onBouncedRouterRouteMessage(originalMessage, in.senderAddress)
+            onBouncedRouterRouteMessage(originalMessage, in.senderAddress, rich.exitCode)
         },
         Router_RelayReleaseOrMint => {
             onBouncedRouterRelayReleaseOrMint(originalMessage, rich.exitCode)
@@ -331,21 +331,31 @@ fun onBouncedDeployableInitialize(msg: Deployable_Initialize, senderAddress: add
 // (e.g. this OffRamp is no longer registered, or it reverted). Fails the
 // executor through the usual rail.
 fun onBouncedRouterRelayReleaseOrMint(msg: Router_RelayReleaseOrMint, errorCode: int32) {
-    mintOrReleaseFailed(msg.replyTo, msg.queryId, ReleaseOrMintBounced { errorCode });
+    mintOrReleaseFailed(msg.replyTo, msg.queryId, errorCode);
 }
 
 // Handles bounced Router_RouteMessage messages. This should never happen; if
 // RouteMessage bounced, it probably means the Router is misconfigured. Emits
 // an event and sends a ReceiveBounced message to initiate the failure trace.
-fun onBouncedRouterRouteMessage(msg: Router_RouteMessage, senderAddress: address) {
+fun onBouncedRouterRouteMessage(msg: Router_RouteMessage, senderAddress: address, errorCode: int32) {
     val st = lazy Storage.load();
     emit(ROUTE_MESSAGE_BOUNCED_TOPIC, OffRamp_RouteMessageBounced{
         router: senderAddress,
         execId: msg.execId,
     });
 
-    // Send ReceiveBounced to initiate the failure notification trace 
-    ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, msg.receiver, ReceiveExecutor_FailedReason.BouncedFromRouter)
+    // Send CCIPReceiveFailed to initiate the failure notification trace 
+    val receiveBounced = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(),
+        body: ReceiveExecutor_CCIPReceiveFailed{
+            queryId: msg.queryId,
+            receiver: msg.receiver,
+            errorCode,
+        }
+    });
+    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Handles contract upgrade requests using the Upgradeable pattern. Invokes the
@@ -440,7 +450,7 @@ fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
         body: ReceiveExecutor_CCIPReceiveFailed{ 
             queryId: 0,
             receiver: msg.receiver,
-            reason: ReceiveExecutor_FailedReason.BouncedFromReceiver,
+            errorCode: null, // the message bounced from the receiver
         }
     });
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
@@ -631,9 +641,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val message: Any2TVMRampMessage = msg.message.load();
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
 
-    if (msg.effectiveGasLimit < st.config.load().dynamicConfig.load().minGasLimit) {
-        return ccipReceiveFailed(getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress(), msg.queryId, message.receiver, ReceiveExecutor_FailedReason.NotEnoughGas);
-    }
+    assert (msg.effectiveGasLimit >= st.config.load().dynamicConfig.load().minGasLimit) throw (OffRamp_Error.NotEnoughGas);
     val routeMessage = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
@@ -656,29 +664,15 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     routeMessage.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
-fun ccipReceiveFailed(receiveExecutor: address, queryId: uint64, receiver: address, reason: ReceiveExecutor_FailedReason) {
-    val receiveBounced = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: receiveExecutor,
-        body: ReceiveExecutor_CCIPReceiveFailed{
-            queryId,
-            receiver,
-            reason,
-        }
-    });
-    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-}
-
 // Send ReceiveBounced to initiate the failure notification trace
-fun mintOrReleaseFailed(receiveExecutor: address, queryId: uint64, reason: ReleaseOrMint_ReleaseOrMintFailedReason) {
+fun mintOrReleaseFailed(receiveExecutor: address, queryId: uint64, errorCode: int32) {
     val receiveBounced = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: receiveExecutor,
         body: ReceiveExecutor_ReleaseOrMintFailed {
             queryId,
-            reason,
+            errorCode,
         }
     });
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
@@ -687,7 +681,7 @@ fun mintOrReleaseFailed(receiveExecutor: address, queryId: uint64, reason: Relea
 // Fails the executor after the Router reported a release/mint failure (lane
 // cursed, or the pool bounced the relay).
 fun onTokenPoolReleaseOrMintFailed(msg: Router_TokenPoolReleaseOrMintFailed) {
-    mintOrReleaseFailed(msg.replyTo, msg.queryId, ReleaseOrMintBounced { errorCode: msg.errorCode });
+    mintOrReleaseFailed(msg.replyTo, msg.queryId, msg.errorCode);
 }
 
 // Relays a release/mint request through the Router, the single access point of
@@ -695,10 +689,7 @@ fun onTokenPoolReleaseOrMintFailed(msg: Router_TokenPoolReleaseOrMintFailed) {
 // `sendExecutor`; relay rejections and pool bounces come back to us as
 // Router_TokenPoolReleaseOrMintFailed.
 fun onReleaseOrMint(st: Storage, sendExecutor: address, msg: OffRamp_ReleaseOrMint) {
-    if (msg.destGasAmount < st.config.load().dynamicConfig.load().minTTGasLimit) {
-        val receiveExecutor = getReceiverExecutorDeployAddress(st, msg.execId).calculateAddress();
-        return mintOrReleaseFailed(receiveExecutor, msg.queryId, NotEnoughDestGasAmountForTokenTransfer {});
-    }
+    assert (msg.destGasAmount >= st.config.load().dynamicConfig.load().minTTGasLimit) throw (OffRamp_Error.NotEnoughDestGasAmount);
 
     val relayMsg = createMessage({
         bounce: BounceMode.RichBounce,

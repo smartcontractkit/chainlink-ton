@@ -52,18 +52,8 @@ struct ReceiveExecutor_TokenTransfer {
 // Sent by the off-ramp to the receive executor when a release or mint operation has reverted.
 struct (0xdf58530e) ReceiveExecutor_ReleaseOrMintFailed {
     queryId: uint64;
-    reason: ReleaseOrMint_ReleaseOrMintFailedReason;
+    errorCode: int32;
 }
-
-type ReleaseOrMint_ReleaseOrMintFailedReason =
-    | ReleaseOrMintBounced
-    | NotEnoughDestGasAmountForTokenTransfer;
-
-struct (0xb70c2a9a) ReleaseOrMintBounced {
-    errorCode: int32
-}
-
-struct (0xb304ecdf) NotEnoughDestGasAmountForTokenTransfer {}
 
 struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
     queryId: uint64;
@@ -76,14 +66,10 @@ struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
 struct (0x8854993b) ReceiveExecutor_CCIPReceiveFailed {
     queryId: uint64;
     receiver: address
-    reason: ReceiveExecutor_FailedReason;
+    // exitCode of CCIP contract that bounced a message in the receive path.
+    // null if the message bounced from the receiver.
+    errorCode: int32?;
 }
-
-enum ReceiveExecutor_FailedReason: uint8 {
-    NotEnoughGas = 0,
-    BouncedFromReceiver,
-    BouncedFromRouter,
-} 
 
 // Constants are 3x the measured compute and 2x the measured forward fees (tests/gas-report/ccip) for a 2000-byte message.
 const RECEIVE_EXECUTOR_COSTS_CONFIRMED_OR_BOUNCED_FEE = grams("0.002");

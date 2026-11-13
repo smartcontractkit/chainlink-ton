@@ -29,4 +29,8 @@ enum OffRamp_Error {
     TokenAdminRegistryNotSet
     TokenAdminRegistryAlreadySet
     UnhandledLegacyBounce
+    // Not enough gasLimit for CCIPReceive execution
+    NotEnoughGas
+    // Not enough destGasAMount for token transfer
+    NotEnoughDestGasAmount
 }
