@@ -2,7 +2,7 @@
 import "types"
 import "../../lib/access/ownable_2step"
 
-struct OnRamp_Storage {
+struct (0xf07fc051) OnRamp_Storage_V1_7_0 {
     id: uint32;
     ownable: Ownable2Step;
 
@@ -20,10 +20,10 @@ struct OnRamp_Storage {
     pendingFeeReservations: coins = 0;
 }
 
-fun OnRamp_Storage.load(): OnRamp_Storage {
-    return OnRamp_Storage.fromCell(contract.getData());
+fun OnRamp_Storage_V1_7_0.load(): OnRamp_Storage_V1_7_0 {
+    return OnRamp_Storage_V1_7_0.fromCell(contract.getData());
 }
 
-fun OnRamp_Storage.store(self) {
+fun OnRamp_Storage_V1_7_0.store(self) {
     return contract.setData(self.toCell());
 }

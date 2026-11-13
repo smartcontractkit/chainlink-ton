@@ -1,31 +1,30 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Cell, toNano } from '@ton/core'
+import { beginCell, Cell, contractAddress, toNano } from '@ton/core'
 
 import { ChainSelectors } from '../../utils/Selectors'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { generateRandomContractId, LINK_TOKEN, NATIVE_GRAM } from '../../../src/utils'
-import {
-  FeeQuoter,
-  FeeQuoterDestChainConfig,
-  FeeQuoter_UpdateDestChainConfig,
-  FeeToken,
-  GasPriceUpdate,
-  Ownable2Step,
-  PriceUpdates,
-  Storage,
-  TimestampedPrice,
-} from '../../../wrappers/gen/ccip/FeeQuoter'
+import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
+
+// The 1.6.x FeeQuoter stored the same fields without the storage layout prefix.
+// Strip it so the legacy code cell parses the fixture it actually shipped with.
+const legacyStorageCell = (storage: fq.FeeQuoter_Storage_V1_7_0): Cell => {
+  const s = fq.FeeQuoter_Storage_V1_7_0.toCell(storage).beginParse()
+  s.skip(32)
+  return beginCell().storeSlice(s).endCell()
+}
 
 export const setupTestFeeQuoter = async (
   deployer: SandboxContract<TreasuryContract>,
   blockchain: Blockchain,
   code?: Cell,
-): Promise<SandboxContract<FeeQuoter>> => {
+): Promise<SandboxContract<fq.FeeQuoter>> => {
+  const isLegacy = code !== undefined
   code ??= await contractCode.ccip.local('FeeQuoter')
 
-  const data = Storage.create({
+  const storage = fq.FeeQuoter_Storage_V1_7_0.create({
     id: generateRandomContractId(),
-    ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+    ownable: fq.Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
     allowedPriceUpdaters: new Set(),
     maxFeeJuelsPerMsg: 1000000n,
     linkToken: LINK_TOKEN,
@@ -33,21 +32,35 @@ export const setupTestFeeQuoter = async (
     usdPerToken: new Map([
       [
         NATIVE_GRAM,
-        TimestampedPrice.create({ value: 123n, timestamp: BigInt(Math.floor(Date.now() / 1000)) }),
+        fq.TimestampedPrice.create({
+          value: 123n,
+          timestamp: BigInt(Math.floor(Date.now() / 1000)),
+        }),
       ],
       [
         LINK_TOKEN,
-        TimestampedPrice.create({ value: 123n, timestamp: BigInt(Math.floor(Date.now() / 1000)) }),
+        fq.TimestampedPrice.create({
+          value: 123n,
+          timestamp: BigInt(Math.floor(Date.now() / 1000)),
+        }),
       ],
     ]),
     premiumMultiplierWeiPerEth: new Map(),
     destChainConfigs: new Map(),
   })
-  const feeQuoter = blockchain.openContract(
-    FeeQuoter.fromStorage(data, { overrideContractCode: code }),
-  )
 
-  let result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('0.05'))
+  const init = {
+    code,
+    data: isLegacy ? legacyStorageCell(storage) : fq.FeeQuoter_Storage_V1_7_0.toCell(storage),
+  }
+  const feeQuoter = blockchain.openContract(fq.FeeQuoter.fromAddress(contractAddress(0, init)))
+
+  let result = await deployer.send({
+    to: feeQuoter.address,
+    value: toNano('0.05'),
+    init,
+    body: beginCell().endCell(),
+  })
   expect(result.transactions).toHaveTransaction({
     from: deployer.address,
     to: feeQuoter.address,
@@ -57,9 +70,9 @@ export const setupTestFeeQuoter = async (
 
   result = await feeQuoter.sendFeeQuoterUpdateDestChainConfigs(deployer.getSender(), toNano('1'), {
     updates: [
-      FeeQuoter_UpdateDestChainConfig.create({
+      fq.FeeQuoter_UpdateDestChainConfig.create({
         destChainSelector: BigInt(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
-        destChainConfig: FeeQuoterDestChainConfig.create({
+        destChainConfig: fq.FeeQuoterDestChainConfig.create({
           isEnabled: true,
           maxNumberOfTokensPerMsg: 0n,
           maxDataBytes: 100n,
@@ -85,16 +98,16 @@ export const setupTestFeeQuoter = async (
   expect(result.transactions).toHaveTransaction({ to: feeQuoter.address, success: true })
 
   result = await feeQuoter.sendFeeQuoterUpdateFeeTokens(deployer.getSender(), toNano('1'), {
-    add: new Map([[NATIVE_GRAM, FeeToken.create({ premiumMultiplierWeiPerEth: 1n })]]),
+    add: new Map([[NATIVE_GRAM, fq.FeeToken.create({ premiumMultiplierWeiPerEth: 1n })]]),
     remove: [],
   })
   expect(result.transactions).toHaveTransaction({ to: feeQuoter.address, success: true })
 
   result = await feeQuoter.sendFeeQuoterUpdatePrices(deployer.getSender(), toNano('1'), {
-    updates: PriceUpdates.create({
+    updates: fq.PriceUpdates.create({
       tokenPriceUpdates: [],
       gasPriceUpdates: [
-        GasPriceUpdate.create({
+        fq.GasPriceUpdate.create({
           destChainSelector: BigInt(ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001),
           executionGasPrice: 1n,
           dataAvailabilityGasPrice: 1n,

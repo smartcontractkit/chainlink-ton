@@ -8,7 +8,7 @@ import { randomAddress } from '@ton/test-utils'
 import { ChainSelectors } from '../../utils/Selectors'
 
 type OnRampOverrides = Partial<
-  Omit<or.OnRamp_Storage, '$' | 'config' | 'staticConfig' | 'ownable'>
+  Omit<or.OnRamp_Storage_V1_7_0, '$' | 'config' | 'staticConfig' | 'ownable'>
 > & {
   config?: Partial<Omit<or.OnRamp_DynamicConfig, '$'>>
   staticConfig?: Partial<Omit<or.OnRamp_StaticConfig, '$'>>
@@ -59,7 +59,7 @@ export async function deployOnRampContractW(
     ...(opt.overrides?.config ?? {}),
   })
 
-  const data = or.OnRamp_Storage.create({
+  const data = or.OnRamp_Storage_V1_7_0.create({
     ...defaults,
     ...(opt.overrides ?? {}),
     ownable: or.Ownable2Step.create({

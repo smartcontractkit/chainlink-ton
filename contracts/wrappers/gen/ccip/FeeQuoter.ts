@@ -2271,7 +2271,7 @@ export const Fee = {
 }
 
 /**
- > struct Storage {
+ > struct (0xf298db16) FeeQuoter_Storage_V1_7_0 {
  >     id: uint32
  >     ownable: Ownable2Step
  >     allowedPriceUpdaters: map<address, ()>
@@ -2283,8 +2283,8 @@ export const Fee = {
  >     destChainConfigs: map<uint64, DestChainConfig>
  > }
  */
-export interface Storage {
-    readonly $: 'Storage'
+export interface FeeQuoter_Storage_V1_7_0 {
+    readonly $: 'FeeQuoter_Storage_V1_7_0'
     id: uint32
     ownable: Ownable2Step
     allowedPriceUpdaters: Set<c.Address> /* = [] as map<address, ()> */
@@ -2296,7 +2296,9 @@ export interface Storage {
     destChainConfigs: Map<uint64, DestChainConfig> /* = [] as map<uint64, DestChainConfig> */
 }
 
-export const Storage = {
+export const FeeQuoter_Storage_V1_7_0 = {
+    PREFIX: 0xf298db16,
+
     create(args: {
         id: uint32
         ownable: Ownable2Step
@@ -2307,15 +2309,16 @@ export const Storage = {
         usdPerToken: Map<c.Address, TimestampedPrice> /* = [] as map<address, TimestampedPrice> */
         premiumMultiplierWeiPerEth: Map<c.Address, uint64> /* = [] as map<address, uint64> */
         destChainConfigs: Map<uint64, DestChainConfig> /* = [] as map<uint64, DestChainConfig> */
-    }): Storage {
+    }): FeeQuoter_Storage_V1_7_0 {
         return {
-            $: 'Storage',
+            $: 'FeeQuoter_Storage_V1_7_0',
             ...args
         }
     },
-    fromSlice(s: c.Slice): Storage {
+    fromSlice(s: c.Slice): FeeQuoter_Storage_V1_7_0 {
+        loadAndCheckPrefix32(s, 0xf298db16, 'FeeQuoter_Storage_V1_7_0');
         return {
-            $: 'Storage',
+            $: 'FeeQuoter_Storage_V1_7_0',
             id: s.loadUintBig(32),
             ownable: Ownable2Step.fromSlice(s),
             allowedPriceUpdaters: dictToSet(c.Dictionary.load<c.Address, []>(c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
@@ -2330,7 +2333,8 @@ export const Storage = {
             destChainConfigs: dictToMap(c.Dictionary.load<uint64, DestChainConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<DestChainConfig>(DestChainConfig.fromSlice, DestChainConfig.store), s)),
         }
     },
-    store(self: Storage, b: c.Builder): void {
+    store(self: FeeQuoter_Storage_V1_7_0, b: c.Builder): void {
+        b.storeUint(0xf298db16, 32);
         b.storeUint(self.id, 32);
         Ownable2Step.store(self.ownable, b);
         b.storeDict<c.Address, []>(setToDict(self.allowedPriceUpdaters, c.Dictionary.Keys.Address(), createDictionaryValue<[]>(
@@ -2347,8 +2351,8 @@ export const Storage = {
         b.storeDict<c.Address, uint64>(mapToDict(self.premiumMultiplierWeiPerEth, c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(64)), c.Dictionary.Keys.Address(), c.Dictionary.Values.BigUint(64));
         b.storeDict<uint64, DestChainConfig>(mapToDict(self.destChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<DestChainConfig>(DestChainConfig.fromSlice, DestChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<DestChainConfig>(DestChainConfig.fromSlice, DestChainConfig.store));
     },
-    toCell(self: Storage): c.Cell {
-        return makeCellFrom<Storage>(self, Storage.store);
+    toCell(self: FeeQuoter_Storage_V1_7_0): c.Cell {
+        return makeCellFrom<FeeQuoter_Storage_V1_7_0>(self, FeeQuoter_Storage_V1_7_0.store);
     }
 }
 
@@ -2493,7 +2497,7 @@ export class FeeQuoter implements c.Contract {
         }
         const initialState = {
             code: deployedOptions.overrideContractCode,
-            data: Storage.toCell(Storage.create(emptyStorage)),
+            data: FeeQuoter_Storage_V1_7_0.toCell(FeeQuoter_Storage_V1_7_0.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
         return new FeeQuoter(address, initialState);

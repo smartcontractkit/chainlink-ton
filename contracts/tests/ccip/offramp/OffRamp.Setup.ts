@@ -66,7 +66,7 @@ export async function deployOffRampContract(
     rmnRouter?: Address
   },
 ): Promise<SandboxContract<of.OffRamp>> {
-  const storage = of.Storage.create({
+  const storage = of.OffRamp_Storage_V1_7_0.create({
     id: generateRandomContractId(),
     ownable: of.Ownable2Step.create({
       owner: owner.address,
@@ -296,7 +296,7 @@ export class OffRampTestSetup {
     // setup router
     //
     {
-      let data = rt.Storage.create({
+      let data = rt.Router_Storage_V1_7_0.create({
         id: generateRandomContractId(),
         ownable: rt.Ownable2Step.create({
           owner: this.deployer.address,

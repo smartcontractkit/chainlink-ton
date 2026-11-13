@@ -2459,7 +2459,7 @@ export const TVM2AnyRampMessageIDHeader = {
 }
 
 /**
- > struct OnRamp_Storage {
+ > struct (0xf07fc051) OnRamp_Storage_V1_7_0 {
  >     id: uint32
  >     ownable: Ownable2Step
  >     staticConfig: Cell<OnRamp_StaticConfig>
@@ -2468,8 +2468,8 @@ export const TVM2AnyRampMessageIDHeader = {
  >     pendingFeeReservations: coins
  > }
  */
-export interface OnRamp_Storage {
-    readonly $: 'OnRamp_Storage'
+export interface OnRamp_Storage_V1_7_0 {
+    readonly $: 'OnRamp_Storage_V1_7_0'
     id: uint32
     ownable: Ownable2Step
     staticConfig: OnRamp_StaticConfig
@@ -2478,7 +2478,9 @@ export interface OnRamp_Storage {
     pendingFeeReservations: coins /* = 0 */
 }
 
-export const OnRamp_Storage = {
+export const OnRamp_Storage_V1_7_0 = {
+    PREFIX: 0xf07fc051,
+
     create(args: {
         id: uint32
         ownable: Ownable2Step
@@ -2486,16 +2488,17 @@ export const OnRamp_Storage = {
         config: OnRamp_DynamicConfig
         destChainConfigs: Map<uint64, OnRamp_DestChainConfig> /* = [] as map<uint64, OnRamp_DestChainConfig> */
         pendingFeeReservations?: coins /* = 0 */
-    }): OnRamp_Storage {
+    }): OnRamp_Storage_V1_7_0 {
         return {
-            $: 'OnRamp_Storage',
+            $: 'OnRamp_Storage_V1_7_0',
             pendingFeeReservations: 0n,
             ...args
         }
     },
-    fromSlice(s: c.Slice): OnRamp_Storage {
+    fromSlice(s: c.Slice): OnRamp_Storage_V1_7_0 {
+        loadAndCheckPrefix32(s, 0xf07fc051, 'OnRamp_Storage_V1_7_0');
         return {
-            $: 'OnRamp_Storage',
+            $: 'OnRamp_Storage_V1_7_0',
             id: s.loadUintBig(32),
             ownable: Ownable2Step.fromSlice(s),
             staticConfig: loadCellRef<OnRamp_StaticConfig>(s, OnRamp_StaticConfig.fromSlice),
@@ -2504,7 +2507,8 @@ export const OnRamp_Storage = {
             pendingFeeReservations: s.loadCoins(),
         }
     },
-    store(self: OnRamp_Storage, b: c.Builder): void {
+    store(self: OnRamp_Storage_V1_7_0, b: c.Builder): void {
+        b.storeUint(0xf07fc051, 32);
         b.storeUint(self.id, 32);
         Ownable2Step.store(self.ownable, b);
         storeCellRef<OnRamp_StaticConfig>(self.staticConfig, b, OnRamp_StaticConfig.store);
@@ -2512,8 +2516,8 @@ export const OnRamp_Storage = {
         b.storeDict<uint64, OnRamp_DestChainConfig>(mapToDict(self.destChainConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<OnRamp_DestChainConfig>(OnRamp_DestChainConfig.fromSlice, OnRamp_DestChainConfig.store));
         b.storeCoins(self.pendingFeeReservations);
     },
-    toCell(self: OnRamp_Storage): c.Cell {
-        return makeCellFrom<OnRamp_Storage>(self, OnRamp_Storage.store);
+    toCell(self: OnRamp_Storage_V1_7_0): c.Cell {
+        return makeCellFrom<OnRamp_Storage_V1_7_0>(self, OnRamp_Storage_V1_7_0.store);
     }
 }
 
@@ -3889,7 +3893,7 @@ export class OnRamp implements c.Contract {
         }
         const initialState = {
             code: deployedOptions.overrideContractCode,
-            data: OnRamp_Storage.toCell(OnRamp_Storage.create(emptyStorage)),
+            data: OnRamp_Storage_V1_7_0.toCell(OnRamp_Storage_V1_7_0.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
         return new OnRamp(address, initialState);

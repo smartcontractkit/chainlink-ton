@@ -28,7 +28,7 @@ contract TokenAdminRegistry {
     version: "1.7.0"
     description: "link.chain.ton.ccip.TokenAdminRegistry"
 
-    storage: TokenAdminRegistry_Storage
+    storage: TokenAdminRegistry_Storage_V1_7_0
     incomingMessages: TokenAdminRegistry_InMessage | Ownable2Step_Messages
     thrownErrors: Ownable2Step_Error | TokenAdminRegistry_Error | Upgradeable_Error | Withdrawable_Error
 }
@@ -41,13 +41,13 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistry_InMessage.fromSlice(in.body);
     match (msg) {
         TokenAdminRegistry_RegisterToken => {
-            var st = lazy TokenAdminRegistry_Storage.load();
+            var st = lazy TokenAdminRegistry_Storage_V1_7_0.load();
             st.ownable.requireOwner(in.senderAddress);
             assert(in.valueCoins >= TokenAdminRegistry_RegisterToken.cost()) throw (TokenAdminRegistry_Error.InsufficientValue);
             registerToken(st, msg);
         }
         TokenAdminRegistry_OverridePendingAdministrator => {
-            var st = lazy TokenAdminRegistry_Storage.load();
+            var st = lazy TokenAdminRegistry_Storage_V1_7_0.load();
             st.ownable.requireOwner(in.senderAddress);
             assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw (TokenAdminRegistry_Error.InsufficientValue);
             overridePendingAdministrator(msg);
@@ -72,12 +72,12 @@ fun onInternalMessage(in: InMessage) {
             });
         }
         TokenAdminRegistryEntry_TokenInfo => {
-            val st = TokenAdminRegistry_Storage.load();
+            val st = TokenAdminRegistry_Storage_V1_7_0.load();
             requireEntrySender(st, msg.token, in.senderAddress);
             relayTokenInfo(msg);
         }
         TokenAdminRegistry_EntryUpgradeRequest => {
-            val st = TokenAdminRegistry_Storage.load();
+            val st = TokenAdminRegistry_Storage_V1_7_0.load();
             requireEntrySender(st, msg.token, in.senderAddress);
             upgradeAndResume(in.senderAddress, msg.queryId, msg.request, in.valueCoins);
         }
@@ -87,27 +87,27 @@ fun onInternalMessage(in: InMessage) {
             sendUpgrade(entryAddress(msg.tokenAddress).calculateAddress(), msg.queryId, 0, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         Upgradeable_Upgrade => {
-            val st = lazy TokenAdminRegistry_Storage.load();
+            val st = lazy TokenAdminRegistry_Storage_V1_7_0.load();
             st.ownable.requireOwner(in.senderAddress);
             Upgradeable{ migrate, version }.upgrade(msg);
         }
         Withdrawable_Withdraw => {
-            val st = lazy TokenAdminRegistry_Storage.load();
+            val st = lazy TokenAdminRegistry_Storage_V1_7_0.load();
             st.ownable.requireOwner(in.senderAddress);
             Withdrawable{ reserve: WITHDRAW_RESERVE }.withdraw(msg);
         }
         TokenAdminRegistry_AdministratorTransferRequested => {
-            val st = TokenAdminRegistry_Storage.load();
+            val st = TokenAdminRegistry_Storage_V1_7_0.load();
             requireEntrySender(st, msg.token, in.senderAddress);
             emitAdministratorTransferRequested(msg);
         }
         TokenAdminRegistry_AdministratorTransferred => {
-            val st = TokenAdminRegistry_Storage.load();
+            val st = TokenAdminRegistry_Storage_V1_7_0.load();
             requireEntrySender(st, msg.token, in.senderAddress);
             emitAdministratorTransferred(msg);
         }
         TokenAdminRegistry_PoolSet => {
-            val st = TokenAdminRegistry_Storage.load();
+            val st = TokenAdminRegistry_Storage_V1_7_0.load();
             requireEntrySender(st, msg.token, in.senderAddress);
             emitPoolSet(msg);
         }
@@ -120,7 +120,7 @@ fun onInternalMessage(in: InMessage) {
             forwardToEntry(msg.tokenAddress, msg.queryId, TokenAdminRegistryEntry_RefreshPoolConfig { requester: in.senderAddress });
         }
         else => {
-            var st = lazy TokenAdminRegistry_Storage.load();
+            var st = lazy TokenAdminRegistry_Storage_V1_7_0.load();
             val handled = st.ownable.onInternalMessage(in.senderAddress, in.body);
             if (handled) {
                 st.store();
@@ -176,7 +176,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 fun requestSender(content: TokenAdminRegistryEntry_RootMessage): address {
     return match (content) {
         TokenAdminRegistryEntry_GetTokenInfo => content.requester,
-        TokenAdminRegistryEntry_ProposeAdministrator => TokenAdminRegistry_Storage.load().ownable.get_owner(),
+        TokenAdminRegistryEntry_ProposeAdministrator => TokenAdminRegistry_Storage_V1_7_0.load().ownable.get_owner(),
         TokenAdminRegistryEntry_TransferAdminRole => content.actor,
         TokenAdminRegistryEntry_AcceptAdminRole => content.actor,
         TokenAdminRegistryEntry_SetPool => content.actor,
@@ -187,7 +187,7 @@ fun requestSender(content: TokenAdminRegistryEntry_RootMessage): address {
 
 /// Every entry event is relayed through the root. The token in the payload is
 /// sufficient to recompute the only entry address that may send that event.
-fun requireEntrySender(st: TokenAdminRegistry_Storage, token: address, sender: address) {
+fun requireEntrySender(st: TokenAdminRegistry_Storage_V1_7_0, token: address, sender: address) {
     val expectedEntry = entryAddress(token).calculateAddress();
     assert(sender == expectedEntry) throw (TokenAdminRegistry_Error.UnauthorizedEntry);
 }
@@ -295,7 +295,7 @@ fun emitPoolSet(event: TokenAdminRegistry_PoolSet) {
 ///
 /// The entry then queries the token with TEP-89 and stays disabled until the token
 /// answers with a wallet. See TokenAdminRegistry_VerifyToken to query again.
-fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_RegisterToken) {
+fun registerToken(st: TokenAdminRegistry_Storage_V1_7_0, msg: TokenAdminRegistry_RegisterToken) {
     val deployMsg = createMessage({
         bounce: BounceMode.NoBounce,
         value: TokenAdminRegistryEntry_deployCost(),
@@ -375,13 +375,13 @@ get fun entryUpgradeCost(): coins {
 
 /// Gets the current owner of the registry root.
 get fun owner(): address {
-    val st = lazy TokenAdminRegistry_Storage.load();
+    val st = lazy TokenAdminRegistry_Storage_V1_7_0.load();
     return st.ownable.get_owner();
 }
 
 /// Gets the pending owner of the registry root, if any.
 get fun pendingOwner(): address? {
-    val st = lazy TokenAdminRegistry_Storage.load();
+    val st = lazy TokenAdminRegistry_Storage_V1_7_0.load();
     return st.ownable.get_pendingOwner();
 }
 

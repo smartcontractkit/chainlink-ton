@@ -97,7 +97,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
     })
 
     const routerCode = await contractCode.ccip.local('Router')
-    const routerData = rt.Storage.create({
+    const routerData = rt.Router_Storage_V1_7_0.create({
       id: 0n,
       ownable: rt.Ownable2Step.create({ owner: deployer.address }),
       offRamps: new Map(),
@@ -112,7 +112,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
     )
     await router.sendDeploy(deployer.getSender(), toNano('1'))
 
-    const onRampData = or.OnRamp_Storage.create({
+    const onRampData = or.OnRamp_Storage_V1_7_0.create({
       id: 0n,
       ownable: or.Ownable2Step.create({ owner: deployer.address }),
       staticConfig: or.OnRamp_StaticConfig.create({

@@ -9,7 +9,8 @@ struct RMNRemote {
     forwardUpdates: map<address, ()> = [];
 }
 
-struct Storage {
+// nolint:opcode : storage layout version
+struct (0xb17ecdf5) Router_Storage_V1_7_0 {
     id: uint32;
     ownable: Ownable2Step;
 
@@ -19,10 +20,10 @@ struct Storage {
     rmnRemote: Cell<RMNRemote>;
 }
 
-fun Storage.load(): Storage {
-    return Storage.fromCell(contract.getData());
+fun Router_Storage_V1_7_0.load(): Router_Storage_V1_7_0 {
+    return Router_Storage_V1_7_0.fromCell(contract.getData());
 }
 
-fun Storage.store(self) {
+fun Router_Storage_V1_7_0.store(self) {
     return contract.setData(self.toCell());
 }

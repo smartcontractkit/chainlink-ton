@@ -5038,7 +5038,7 @@ export const RMNRemote = {
 }
 
 /**
- > struct Storage {
+ > struct (0xb17ecdf5) Router_Storage_V1_7_0 {
  >     id: uint32
  >     ownable: Ownable2Step
  >     onRamps: map<uint64, address>
@@ -5046,8 +5046,8 @@ export const RMNRemote = {
  >     rmnRemote: Cell<RMNRemote>
  > }
  */
-export interface Storage {
-    readonly $: 'Storage'
+export interface Router_Storage_V1_7_0 {
+    readonly $: 'Router_Storage_V1_7_0'
     id: uint32
     ownable: Ownable2Step
     onRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
@@ -5055,22 +5055,25 @@ export interface Storage {
     rmnRemote: RMNRemote
 }
 
-export const Storage = {
+export const Router_Storage_V1_7_0 = {
+    PREFIX: 0xb17ecdf5,
+
     create(args: {
         id: uint32
         ownable: Ownable2Step
         onRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
         offRamps: Map<uint64, c.Address> /* = [] as map<uint64, address> */
         rmnRemote: RMNRemote
-    }): Storage {
+    }): Router_Storage_V1_7_0 {
         return {
-            $: 'Storage',
+            $: 'Router_Storage_V1_7_0',
             ...args
         }
     },
-    fromSlice(s: c.Slice): Storage {
+    fromSlice(s: c.Slice): Router_Storage_V1_7_0 {
+        loadAndCheckPrefix32(s, 0xb17ecdf5, 'Router_Storage_V1_7_0');
         return {
-            $: 'Storage',
+            $: 'Router_Storage_V1_7_0',
             id: s.loadUintBig(32),
             ownable: Ownable2Step.fromSlice(s),
             onRamps: dictToMap(c.Dictionary.load<uint64, c.Address>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
@@ -5084,7 +5087,8 @@ export const Storage = {
             rmnRemote: loadCellRef<RMNRemote>(s, RMNRemote.fromSlice),
         }
     },
-    store(self: Storage, b: c.Builder): void {
+    store(self: Router_Storage_V1_7_0, b: c.Builder): void {
+        b.storeUint(0xb17ecdf5, 32);
         b.storeUint(self.id, 32);
         Ownable2Step.store(self.ownable, b);
         b.storeDict<uint64, c.Address>(mapToDict(self.onRamps, c.Dictionary.Keys.BigUint(64), createDictionaryValue<c.Address>(
@@ -5103,8 +5107,8 @@ export const Storage = {
         ));
         storeCellRef<RMNRemote>(self.rmnRemote, b, RMNRemote.store);
     },
-    toCell(self: Storage): c.Cell {
-        return makeCellFrom<Storage>(self, Storage.store);
+    toCell(self: Router_Storage_V1_7_0): c.Cell {
+        return makeCellFrom<Router_Storage_V1_7_0>(self, Router_Storage_V1_7_0.store);
     }
 }
 
@@ -5685,7 +5689,7 @@ export class Router implements c.Contract {
         }
         const initialState = {
             code: deployedOptions.overrideContractCode,
-            data: Storage.toCell(Storage.create(emptyStorage)),
+            data: Router_Storage_V1_7_0.toCell(Router_Storage_V1_7_0.create(emptyStorage)),
         };
         const address = calculateDeployedAddress(initialState.code, initialState.data, deployedOptions ?? {});
         return new Router(address, initialState);
