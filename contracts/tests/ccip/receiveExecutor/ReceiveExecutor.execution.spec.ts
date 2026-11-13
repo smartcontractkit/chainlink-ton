@@ -363,6 +363,36 @@ describe('ReceiveExecutor - Execution', () => {
       })
     })
 
+    it.each([
+      ['zero', 0n],
+      ['a positive exit code', 22127n],
+      ['a negative exit code (OOG)', -14n],
+    ])(
+      'should preserve the supplied errorCode (%s) in NotifyFailure',
+      async (_label, errorCode) => {
+        await transitionToExecuteState()
+        const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
+          deployer.getSender(),
+          toNano('0.05'),
+          {
+            receiver: deployer.address,
+            errorCode,
+          },
+        )
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutor.address,
+          to: deployer.address,
+          success: true,
+          op: of.OffRamp_NotifyFailure.PREFIX,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_NotifyFailure.fromSlice(body.beginParse())
+            return msg.errorCode === errorCode
+          },
+        })
+      },
+    )
+
     it('should reject Bounced from non-owner', async () => {
       const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
         nonOwner.getSender(),
