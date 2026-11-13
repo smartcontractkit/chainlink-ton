@@ -10,6 +10,7 @@ import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/forward_payload_wrap"
+import "../../../lib/versioning/upgradeable"
 import "../../lib/cross_chain_address/types"
 
 import "../../cct/messages"
@@ -53,6 +54,20 @@ contract BurnMintTokenPool {
 
 const CONTRACT_VERSION = "0.1.0".literalSlice();
 
+/// This code was deployed before the pool became upgradeable.
+fun requireSupportedVersion(version: slice) {
+    assert (version.bitsEqual("0.1.0".literalSlice())) throw (Upgradeable_Error.VersionMismatch);
+}
+
+@method_id(1000)
+fun migrate(storage: cell, version: slice): cell {
+    requireSupportedVersion(version);
+    return storage;
+}
+
+@method_id(1001)
+fun version(): slice { return CONTRACT_VERSION; }
+
 fun onInternalMessage(in: InMessage) {
     var st = Storage.load();
     var pool = st.TokenPool();
@@ -73,6 +88,11 @@ fun onInternalMessage(in: InMessage) {
         CCT_ReturnExcessesBack => {
             onCCTReturnExcessesBack(mutate st, in.senderAddress, in.valueCoins, msg);
             st.store();
+        }
+        Upgradeable_Upgrade => {
+            st.TokenPool().data.adminConfig.load().ownable.load().requireOwner(in.senderAddress);
+            Upgradeable { migrate, version }.upgrade(msg);
+            return;
         }
         else => {
             assert(in.body.isEmpty()) throw (0xFFFF);
