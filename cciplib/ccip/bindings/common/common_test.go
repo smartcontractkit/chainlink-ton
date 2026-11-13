@@ -568,12 +568,12 @@ func makeLibraryRefCell(t *testing.T) *cell.Cell {
 	for i := range hash {
 		hash[i] = byte(i + 1)
 	}
-	c := cell.BeginCell().
+	c, err := cell.BeginCell().
 		MustStoreUInt(0x02, 8).
 		MustStoreSlice(hash, 256).
-		EndCell()
+		EndCellSpecial(true)
+	require.NoError(t, err)
 	require.Equal(t, uint(264), c.BitsSize())
-	c.UnsafeModify(cell.LevelMask{}, true)
 	require.Equal(t, cell.LibraryCellType, c.GetType())
 	return c
 }

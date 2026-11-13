@@ -37,12 +37,12 @@ func makeLibraryCell(t *testing.T) *cell.Cell {
 	for i := range hash {
 		hash[i] = byte(i + 1)
 	}
-	c := cell.BeginCell().
+	c, err := cell.BeginCell().
 		MustStoreUInt(0x02, 8).
 		MustStoreSlice(hash, 256).
-		EndCell()
+		EndCellSpecial(true)
+	require.NoError(t, err)
 	require.Equal(t, uint(264), c.BitsSize())
-	c.UnsafeModify(cell.LevelMask{}, true)
 	require.Equal(t, cell.LibraryCellType, c.GetType())
 	return c
 }
@@ -138,7 +138,7 @@ func TestF2_branchedDataCell_rejected(t *testing.T) {
 		EndCell()
 
 	var snake common.SnakeBytes
-	err := snake.LoadFromCell(branched.BeginParse())
+	err := snake.LoadFromCell(branched.MustBeginParse())
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid snake chain")
@@ -154,7 +154,7 @@ func TestF2_partialByteCell_isPaddedOffchain(t *testing.T) {
 		tail := cell.BeginCell().MustStoreSlice([]byte{0xAB}, 4).EndCell()
 
 		var snake common.SnakeBytes
-		require.NoError(t, snake.LoadFromCell(tail.BeginParse()))
+		require.NoError(t, snake.LoadFromCell(tail.MustBeginParse()))
 		require.Equal(t, []byte{0xA0}, []byte(snake), "partial byte is padded, not rejected")
 	})
 
@@ -165,7 +165,7 @@ func TestF2_partialByteCell_isPaddedOffchain(t *testing.T) {
 			EndCell()
 
 		var snake common.SnakeBytes
-		require.NoError(t, snake.LoadFromCell(head.BeginParse()))
+		require.NoError(t, snake.LoadFromCell(head.MustBeginParse()))
 		require.Equal(t, []byte{0xA0, 0x00}, []byte(snake), "mid-chain partial byte is padded too")
 	})
 }
@@ -180,7 +180,7 @@ func TestF3_splitAccountAcrossCells_rejected(t *testing.T) {
 		EndCell()
 
 	var accounts common.SnakedCell[onramp.Account256]
-	require.Error(t, accounts.LoadFromCell(head.BeginParse()))
+	require.Error(t, accounts.LoadFromCell(head.MustBeginParse()))
 }
 
 // TestF3_truncatedCollection_rejected covers a collection whose aggregate bits
@@ -192,7 +192,7 @@ func TestF3_truncatedCollection_rejected(t *testing.T) {
 		EndCell()
 
 	var accounts common.SnakedCell[onramp.Account256]
-	require.Error(t, accounts.LoadFromCell(tail.BeginParse()))
+	require.Error(t, accounts.LoadFromCell(tail.MustBeginParse()))
 }
 
 // TestF3_canonicalMultiCellCollection_accepted is the control: a well-formed snake
@@ -206,7 +206,7 @@ func TestF3_canonicalMultiCellCollection_accepted(t *testing.T) {
 	require.NoError(t, err)
 
 	var decoded common.SnakedCell[onramp.Account256]
-	require.NoError(t, decoded.LoadFromCell(c.BeginParse()))
+	require.NoError(t, decoded.LoadFromCell(c.MustBeginParse()))
 	require.Equal(t, original, decoded)
 
 	extraArgs := buildSVMExtraArgsWithAccountsRef(bytesN(0x33, 32), c).ToBOC()
@@ -253,14 +253,24 @@ func TestF1_onlyOptionalGasLimitCanBeAbsent(t *testing.T) {
 // absent, its two refs satisfy a schema's ref fields, and the remaining
 // descriptor bits are never consumed — so generic TL-B decoding accepts it and
 // yields a plausible-looking empty report.
+//
+// tonutils-go validates special cells both when building them and when parsing
+// a BOC, so the embedded hashes and depths must match the refs.
 func makeMerkleUpdateCell(t *testing.T) *cell.Cell {
 	t.Helper()
-	data := bytesN(0, 552/8)
-	data[0] = 0x04
 	empty := cell.BeginCell().EndCell()
 
-	c := cell.BeginCell().MustStoreSlice(data, 552).MustStoreRef(empty).MustStoreRef(empty).EndCell()
-	c.UnsafeModify(cell.LevelMask{}, true)
+	c, err := cell.BeginCell().
+		MustStoreUInt(0x04, 8).
+		MustStoreSlice(empty.Hash(0), 256). // old hash
+		MustStoreSlice(empty.Hash(0), 256). // new hash
+		MustStoreUInt(uint64(empty.Depth(0)), 16).
+		MustStoreUInt(uint64(empty.Depth(0)), 16).
+		MustStoreRef(empty).
+		MustStoreRef(empty).
+		EndCellSpecial(true)
+	require.NoError(t, err)
+	require.Equal(t, uint(552), c.BitsSize())
 	require.Equal(t, cell.MerkleUpdateCellType, c.GetType())
 	return c
 }
@@ -283,15 +293,18 @@ func TestF4_merkleUpdateRoot_rejected(t *testing.T) {
 // TestF4_merkleProofRoot_rejected is the same class via the other wrapper, whose
 // single ref is enough for a schema expecting exactly one.
 func TestF4_merkleProofRoot_rejected(t *testing.T) {
-	data := bytesN(0, (8+256+16)/8)
-	data[0] = 0x03
 	inner := cell.BeginCell().MustStoreUInt(1, 8).EndCell()
 
-	c := cell.BeginCell().MustStoreSlice(data, 8+256+16).MustStoreRef(inner).EndCell()
-	c.UnsafeModify(cell.LevelMask{}, true)
+	c, err := cell.BeginCell().
+		MustStoreUInt(0x03, 8).
+		MustStoreSlice(inner.Hash(0), 256).
+		MustStoreUInt(uint64(inner.Depth(0)), 16).
+		MustStoreRef(inner).
+		EndCellSpecial(true)
+	require.NoError(t, err)
 	require.Equal(t, cell.MerkleProofCellType, c.GetType())
 
-	_, err := NewCommitPluginCodecV1().Decode(context.Background(), c.ToBOC())
+	_, err = NewCommitPluginCodecV1().Decode(context.Background(), c.ToBOC())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "merkle-proof")
 }
