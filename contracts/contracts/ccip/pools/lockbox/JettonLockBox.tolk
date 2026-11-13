@@ -12,6 +12,7 @@ import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/gas"
 import "../../../lib/funding/withdrawable"
 import "../../../lib/funding/jetton_withdrawable"
+import "../../../lib/versioning/upgradeable"
 
 import "types"
 import "messages"
@@ -58,6 +59,10 @@ fun onInternalMessage(in: InMessage) {
         }
         Withdrawable_Withdraw => {
             onWithdrawableWithdraw(st, in.senderAddress, in.valueCoins, msg);
+        }
+        Upgradeable_Upgrade => {
+            onUpgrade(st, in.senderAddress, msg);
+            return;
         }
         else => {
             var rbac = hookTrait__AccessControl(st);
@@ -365,6 +370,14 @@ fun onWithdrawableWithdraw(st: Storage, sender: address, msgValue: coins, msg: W
     Withdrawable { reserve: MIN_GRAM_TO_RESERVE }.withdraw(msg);
 }
 
+/// Admin-only code upgrade. `Upgradeable.upgrade` commits the migrated storage directly, so the
+/// caller must not store its in-memory state afterwards.
+fun onUpgrade(st: Storage, sender: address, msg: Upgradeable_Upgrade) {
+    val rbac = hookTrait__AccessControl(st);
+    rbac.requireRole(DEFAULT_ADMIN_ROLE, sender);
+    Upgradeable { migrate, version }.upgrade(msg);
+}
+
 /// Handles bounced jetton transfers — notifies the original caller that the withdrawal failed.
 /// @dev The bounce handler recovers the caller and the original withdraw request from the
 /// `Jetton_ForwardPayloadWrap` tagged onto the `AskToTransfer` in `onWithdraw`.
@@ -427,6 +440,22 @@ fun parseLockBoxWithdrawWrap(forwardPayload: ForwardPayloadRemainder): Jetton_Fo
 fun hookTrait__AccessControl(st: Storage): AccessControl<null?> {
     return AccessControl<null?> { data: st.rbac, context: null, hooks: null };
 }
+
+// --- Upgradeable ---
+
+/// This code was deployed before the lockbox became upgradeable.
+fun requireSupportedVersion(version: slice) {
+    assert (version.bitsEqual("0.1.0".literalSlice())) throw (Upgradeable_Error.VersionMismatch);
+}
+
+@method_id(1000)
+fun migrate(storage: cell, version: slice): cell {
+    requireSupportedVersion(version);
+    return storage;
+}
+
+@method_id(1001)
+fun version(): slice { return CONTRACT_VERSION; }
 
 // --- Getters ---
 

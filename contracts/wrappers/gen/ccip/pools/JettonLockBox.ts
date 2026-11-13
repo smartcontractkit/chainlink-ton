@@ -212,6 +212,27 @@ type uint64 = bigint
 type uint256 = bigint
 
 /**
+ > struct UnsafeBodyNoRef<T> {
+ >     forceInline: T
+ > }
+ */
+export interface UnsafeBodyNoRef<T> {
+    readonly $: 'UnsafeBodyNoRef'
+    forceInline: T
+}
+
+export const UnsafeBodyNoRef = {
+    create<T>(args: {
+        forceInline: T
+    }): UnsafeBodyNoRef<T> {
+        return {
+            $: 'UnsafeBodyNoRef',
+            ...args
+        }
+    },
+}
+
+/**
  > struct AccessControl_Data {
  >     roles: map<uint256, Cell<AccessControl_RoleData>>
  > }
@@ -617,6 +638,87 @@ export const JettonWithdrawable_FeeTokenWithdrawn = {
     },
     toCell(self: JettonWithdrawable_FeeTokenWithdrawn): c.Cell {
         return makeCellFrom<JettonWithdrawable_FeeTokenWithdrawn>(self, JettonWithdrawable_FeeTokenWithdrawn.store);
+    }
+}
+
+/**
+ > struct (0x0aa811ed) Upgradeable_Upgrade {
+ >     queryId: uint64
+ >     code: cell
+ > }
+ */
+export interface Upgradeable_Upgrade {
+    readonly $: 'Upgradeable_Upgrade'
+    queryId: uint64
+    code: c.Cell
+}
+
+export const Upgradeable_Upgrade = {
+    PREFIX: 0x0aa811ed,
+
+    create(args: {
+        queryId?: uint64
+        code: c.Cell
+    }): Upgradeable_Upgrade {
+        return {
+            $: 'Upgradeable_Upgrade',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): Upgradeable_Upgrade {
+        loadAndCheckPrefix32(s, 0x0aa811ed, 'Upgradeable_Upgrade');
+        return {
+            $: 'Upgradeable_Upgrade',
+            queryId: s.loadUintBig(64),
+            code: s.loadRef(),
+        }
+    },
+    store(self: Upgradeable_Upgrade, b: c.Builder): void {
+        b.storeUint(0x0aa811ed, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeRef(self.code);
+    },
+    toCell(self: Upgradeable_Upgrade): c.Cell {
+        return makeCellFrom<Upgradeable_Upgrade>(self, Upgradeable_Upgrade.store);
+    }
+}
+
+/**
+ > struct Upgradeable_UpgradedEvent {
+ >     code: cell
+ >     hash: uint256
+ >     version: UnsafeBodyNoRef<slice>
+ > }
+ */
+export interface Upgradeable_UpgradedEvent {
+    readonly $: 'Upgradeable_UpgradedEvent'
+    code: c.Cell
+    hash: uint256
+    version: UnsafeBodyNoRef<c.Slice>
+}
+
+export const Upgradeable_UpgradedEvent = {
+    create(args: {
+        code: c.Cell
+        hash: uint256
+        version: UnsafeBodyNoRef<c.Slice>
+    }): Upgradeable_UpgradedEvent {
+        return {
+            $: 'Upgradeable_UpgradedEvent',
+            ...args
+        }
+    },
+    fromSlice(s: c.Slice): Upgradeable_UpgradedEvent {
+        throw new Error(`Can't unpack 'Upgradeable_UpgradedEvent' from cell, because 'UnsafeBodyNoRef.forceInline' is 'slice' (it can be used for writing only)`);
+    },
+    store(self: Upgradeable_UpgradedEvent, b: c.Builder): void {
+        b.storeRef(self.code);
+        b.storeUint(self.hash, 256);
+        b.storeSlice(self.version.forceInline);
+    },
+    toCell(self: Upgradeable_UpgradedEvent): c.Cell {
+        return makeCellFrom<Upgradeable_UpgradedEvent>(self, Upgradeable_UpgradedEvent.store);
     }
 }
 
@@ -1261,6 +1363,7 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 
 export class JettonLockBox implements c.Contract {
     static Errors = {
+        'Upgradeable_Error.VersionMismatch': 19900,
         'AccessControl_Error.UnauthorizedAccount': 47400,
         'AccessControl_Error.BadConfirmation': 47401,
         'JettonWithdrawable_Error.ZeroAddressNotAllowed': 55700,
@@ -1355,6 +1458,13 @@ export class JettonLockBox implements c.Contract {
         return TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body));
     }
 
+    static createCellOfUpgradeableUpgrade(body: {
+        queryId?: uint64
+        code: c.Cell
+    }) {
+        return Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body));
+    }
+
     async sendDeploy(provider: ContractProvider, via: Sender, msgValue: coins, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -1433,6 +1543,17 @@ export class JettonLockBox implements c.Contract {
         return provider.internal(via, {
             value: msgValue,
             body: TransferNotificationForRecipient.toCell(TransferNotificationForRecipient.create(body)),
+            ...extraOptions
+        });
+    }
+
+    async sendUpgradeableUpgrade(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        code: c.Cell
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: Upgradeable_Upgrade.toCell(Upgradeable_Upgrade.create(body)),
             ...extraOptions
         });
     }
