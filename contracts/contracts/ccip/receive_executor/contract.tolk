@@ -365,7 +365,7 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
         dest: st.owner,
         body: OffRamp_NotifyFailure {
             queryId: st.state.queryId,
-            header: messageHeader.toCell(),
+            messageRef: messageHeader.toRef(),
             execId: st.execId,
             root: st.root,
             excesses: st.state.excesses!,
@@ -452,7 +452,7 @@ fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: 
         dest: st.owner,
         body: OffRamp_NotifySuccess {
             queryId: st.state.queryId,
-            header: messageHeader.toCell(),
+            messageRef: messageHeader.toRef(),
             execId: st.execId,
             root: st.root,
             delivered,

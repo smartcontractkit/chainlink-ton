@@ -35,6 +35,36 @@ export async function sendMessageAsync(
   return iter
 }
 
+// Delivers a bounced message to `to`, as if `from` had bounced a message `to` sent it. Lets tests
+// exercise bounce handlers for failures the real flow cannot produce. Build a rich bounce body with
+// `buildRichBounceBody` (richBounce.ts).
+export async function sendBouncedMessage(
+  blockchain: s.Blockchain,
+  from: c.Address,
+  opt: {
+    to: c.Address
+    value: bigint
+    body: c.Cell
+  },
+): Promise<s.SendMessageResult> {
+  return blockchain.sendMessage({
+    info: {
+      type: 'internal',
+      ihrDisabled: true,
+      bounce: false,
+      bounced: true,
+      src: from,
+      dest: opt.to,
+      value: { coins: opt.value },
+      ihrFee: 0n,
+      forwardFee: 0n,
+      createdLt: 0n,
+      createdAt: 0,
+    },
+    body: opt.body,
+  })
+}
+
 type AccountSnapshot = {
   stateType: string | undefined
   balance: bigint

@@ -31,6 +31,13 @@ import {
 import { Costs as RegistryCosts } from '../../../wrappers/ccip/TokenAdminRegistry'
 import { snakeData } from '../../utils/snakeData'
 
+const toMessageRef = ({
+  messageId,
+  sourceChainSelector,
+  sequenceNumber,
+}: rx.RampMessageHeader): rx.RampMessageRef =>
+  rx.RampMessageRef.create({ messageId, sourceChainSelector, sequenceNumber })
+
 // What a registry reply carries back: the query value minus the registry's fees.
 const REGISTRY_REPLY_VALUE = toNano('0.006')
 
@@ -47,9 +54,7 @@ describe('ReceiveExecutor - Execution', () => {
   let nonOwner: SandboxContract<TreasuryContract>
   let receiveExecutorCode: Cell
   let defaultInitExecute: {
-    sequenceNumber: bigint
-    sourceChainSelector: bigint
-    messageId: bigint
+    messageRef: rx.RampMessageRef
     effectiveGasLimit: bigint
     excesses: rx.ReceiveExecutor_Excesses
   }
@@ -117,9 +122,7 @@ describe('ReceiveExecutor - Execution', () => {
       )
 
       defaultInitExecute = {
-        sequenceNumber: arbMessage.header.sequenceNumber,
-        sourceChainSelector: arbMessage.header.sourceChainSelector,
-        messageId: arbMessage.header.messageId,
+        messageRef: toMessageRef(arbMessage.header),
         effectiveGasLimit: arbMessage.gasLimit,
         excesses: rx.ReceiveExecutor_Excesses.create({
           to: deployer.address,
@@ -547,9 +550,7 @@ describe('ReceiveExecutor - Execution', () => {
           messageWithTT,
         )
         defaultInitExecute = {
-          sequenceNumber: messageWithTT.header.sequenceNumber,
-          sourceChainSelector: messageWithTT.header.sourceChainSelector,
-          messageId: messageWithTT.header.messageId,
+          messageRef: toMessageRef(messageWithTT.header),
           effectiveGasLimit: messageWithTT.gasLimit,
           excesses: rx.ReceiveExecutor_Excesses.create({
             to: deployer.address,
@@ -918,9 +919,7 @@ describe('ReceiveExecutor - Execution', () => {
           messageWithTT,
         )
         defaultInitExecute = {
-          sequenceNumber: messageWithTT.header.sequenceNumber,
-          sourceChainSelector: messageWithTT.header.sourceChainSelector,
-          messageId: messageWithTT.header.messageId,
+          messageRef: toMessageRef(messageWithTT.header),
           effectiveGasLimit: messageWithTT.gasLimit,
           excesses: rx.ReceiveExecutor_Excesses.create({
             to: deployer.address,
@@ -1336,9 +1335,7 @@ describe('ReceiveExecutor - Execution', () => {
         )
 
         defaultInitExecute = {
-          sequenceNumber: messageWithTT.header.sequenceNumber,
-          sourceChainSelector: messageWithTT.header.sourceChainSelector,
-          messageId: messageWithTT.header.messageId,
+          messageRef: toMessageRef(messageWithTT.header),
           effectiveGasLimit: messageWithTT.gasLimit,
           excesses: rx.ReceiveExecutor_Excesses.create({
             to: deployer.address,
@@ -1410,9 +1407,7 @@ describe('ReceiveExecutor - Execution', () => {
           messageWithTT,
         )
         defaultInitExecute = {
-          sequenceNumber: messageWithTT.header.sequenceNumber,
-          sourceChainSelector: messageWithTT.header.sourceChainSelector,
-          messageId: messageWithTT.header.messageId,
+          messageRef: toMessageRef(messageWithTT.header),
           effectiveGasLimit: messageWithTT.gasLimit,
           excesses: rx.ReceiveExecutor_Excesses.create({
             to: deployer.address,
@@ -1454,7 +1449,10 @@ describe('ReceiveExecutor - Execution', () => {
           receiveExecutorCode,
           messageWithTT,
         )
-        defaultInitExecute = { ...defaultInitExecute, messageId: messageWithTT.header.messageId }
+        defaultInitExecute = {
+          ...defaultInitExecute,
+          messageRef: toMessageRef(messageWithTT.header),
+        }
 
         await transitionToReleaseOrMint(receiveExecutorPtt)
         const result = await forwardNotification(receiveExecutorPtt, destinationAmount)

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../lib/jetton/messages"
 
+import "../common/types"
 import "../offramp/messages"
 import "../offramp/types"
 import "../token_admin_registry/messages"
@@ -33,9 +34,8 @@ struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
     queryId: uint64;
     effectiveGasLimit: coins;
     root: address;
-    sequenceNumber: uint64;
-    sourceChainSelector: uint64;
-    messageId: uint256;
+    /// Unused by the executor: lets the OffRamp mark the message Failure if this bounces.
+    messageRef: RampMessageRef;
     tokenTransfer: Cell<ReceiveExecutor_TokenTransfer>? = null;
     excesses: Cell<ReceiveExecutor_Excesses>;
 }

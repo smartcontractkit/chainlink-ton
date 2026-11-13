@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+import "@stdlib/lisp-lists"
 import "../../lib/utils"
 import "../lib/client/receiver/types"
 import "../lib/cross_chain_address/types"
@@ -30,43 +31,89 @@ struct GasOverride {
     tokenGasOverrides: SnakedCell<coins>? = null
 }
 
-// getEffectiveDestGasAmount returns the gas amount to use for token transfer
-//
-// @note: We currently only support a single token transfer
-//
-// If the gasOverride is null or its tokenGasOverrides is null, or its tokenGasOverrides is zero,
-// it returns the sum of destGasAmount from all token transfers in the message.
-// Otherwise, it returns the tokenGasOverride
-//
-// @note from evm:
-//
-// The gas limit can not be lowered as that could cause the message to fail. If manual execution is done
-// from an UNTOUCHED state and we would allow lower gas limit, anyone could grief by executing the message with
-// lower gas limit than the DON would have used. This results in the message being marked FAILURE and the DON
-// would not attempt it with the correct gas limit.
-fun GasOverride?.getEffectiveDestGasAmount(self, tokenTransfer: Any2TVMTokenTransfer): coins? {
-    if (self != null && self.tokenGasOverrides != null) {
-        val tokenGasOverride = self.tokenGasOverrides.asSingle().unwrap(OffRamp_Error.ManualExecutionGasAmountCountMismatch);
-        if (tokenGasOverride != 0) {
-            assert (tokenGasOverride >= tokenTransfer.destGasAmount) throw (OffRamp_Error.InvalidManualExecutionGasLimit);
-            return tokenGasOverride;
-        }
-    }
-    return tokenTransfer.destGasAmount;
+/// Execution parameters of a message, parsed from the report and the manual execution gas override
+/// by the first OffRamp handler (onExecuteSingleReport), which rejects the execution when they are
+/// invalid. Relayed through the MerkleRoot as an opaque `context` cell (MerkleRoot_Validate ->
+/// OffRamp_ExecuteValidated) and consumed by onExecuteValidated without validating it again.
+///
+/// The opcode versions the layout: a new layout gets a new struct (and opcode), so a context built
+/// by a different OffRamp version is rejected instead of misread.
+///
+/// Offchain token data is not part of the context: it is not supported yet, so the only valid
+/// value (one empty entry per token transfer) carries no information.
+struct (0xbb577e7a) OffRamp_ExecutionContext {
+    /// Gas forwarded to the receiver: the message's gasLimit, or the manual override when set.
+    effectiveGasLimit: coins;
+    /// Gas for each of the message's token transfers, in order: the transfer's destGasAmount, or
+    /// the manual override when set. Empty when the message has no token transfers.
+    tokenDestGasAmounts: lisp_list<coins>;
 }
 
-// getEffectiveGasLimit returns the total gas amount to use for message execution
-//
-// If the gasOverride is not null and its receiverExecutionGasLimit is not null or zero,
-// it returns its receiverExecutionGasLimit.
-// Otherwise, it returns gasLimit from the message, passed as an argument.
-// It throws if receiverExecutionGasLimit is less than the gasLimit from the message
-fun GasOverride?.getEffectiveGasLimit(self, gasLimit: coins): coins {
-    if (self != null && self.receiverExecutionGasLimit != null && self.receiverExecutionGasLimit != 0) {
-        assert (self.receiverExecutionGasLimit >= gasLimit) throw (OffRamp_Error.InvalidManualExecutionGasLimit);
-        return self.receiverExecutionGasLimit;
+/// Parses the execution context of `message`, applying the manual execution `gasOverride` (null
+/// for DON executions). A zero override (receiver or token) means "no override".
+///
+/// The number of token transfers is NOT validated here: a message with an unsupported number of
+/// transfers is marked Failure by onExecuteValidated, so it can be executed once supported.
+///
+/// @note from evm:
+///
+/// The gas limit can not be lowered as that could cause the message to fail. If manual execution is done
+/// from an UNTOUCHED state and we would allow lower gas limit, anyone could grief by executing the message with
+/// lower gas limit than the DON would have used. This results in the message being marked FAILURE and the DON
+/// would not attempt it with the correct gas limit.
+///
+/// @throws OffRamp_Error.InvalidManualExecutionGasLimit if a non-zero override is lower than the
+/// message's gasLimit (receiver) or the transfer's destGasAmount (token).
+/// @throws OffRamp_Error.ManualExecutionGasAmountCountMismatch if tokenGasOverrides is set and does
+/// not have exactly one entry per token transfer.
+fun OffRamp_ExecutionContext.parse(message: Any2TVMRampMessage, gasOverride: GasOverride?): OffRamp_ExecutionContext {
+    var effectiveGasLimit = message.gasLimit;
+    var hasTokenGasOverrides = false;
+    var tokenGasOverrides = Iterator<coins>.new(createEmptyCell());
+    if (gasOverride != null) {
+        val receiverGasOverride = gasOverride.receiverExecutionGasLimit;
+        if (receiverGasOverride != null && receiverGasOverride != 0) {
+            assert (receiverGasOverride >= message.gasLimit) throw (OffRamp_Error.InvalidManualExecutionGasLimit);
+            effectiveGasLimit = receiverGasOverride;
+        }
+        if (gasOverride.tokenGasOverrides != null) {
+            hasTokenGasOverrides = true;
+            tokenGasOverrides = gasOverride.tokenGasOverrides.iter();
+        }
     }
-    return gasLimit;
+
+    var backwardsTokenDestGasAmounts: lisp_list<coins> = [];
+    if (message.tokenAmounts != null) {
+        var transfers = message.tokenAmounts.iter();
+        while (!transfers.empty()) {
+            var destGasAmount = transfers.next().destGasAmount;
+            if (hasTokenGasOverrides) {
+                assert (!tokenGasOverrides.empty()) throw (OffRamp_Error.ManualExecutionGasAmountCountMismatch);
+                val tokenGasOverride = tokenGasOverrides.next();
+                if (tokenGasOverride != 0) {
+                    assert (tokenGasOverride >= destGasAmount) throw (OffRamp_Error.InvalidManualExecutionGasLimit);
+                    destGasAmount = tokenGasOverride;
+                }
+            }
+            backwardsTokenDestGasAmounts.prependHead(destGasAmount);
+        }
+    }
+    assert (tokenGasOverrides.empty()) throw (OffRamp_Error.ManualExecutionGasAmountCountMismatch);
+
+    return {
+        effectiveGasLimit,
+        tokenDestGasAmounts: backwardsTokenDestGasAmounts.calculateReversed(),
+    };
+}
+
+/// Total gas of the message's token transfers.
+fun OffRamp_ExecutionContext.tokenDestGasTotal(self): coins {
+    var total: coins = 0;
+    var amounts = self.tokenDestGasAmounts;
+    while (!amounts.isEmpty()) {
+        total += amounts.popHead();
+    }
+    return total;
 }
 
 // Matches the EVM struct

@@ -44,7 +44,7 @@ type OffRamp_InMessage =
     | ReturnExcessesBack
     | Withdrawable_Withdraw
     | OffRamp_ReturnExcessToExecutor
-    | MerkleRoot_StateMarked;
+    | MerkleRoot_ExecutionStateChanged;
 
 type OffRamp_InMessageBounced = 
     | ReceiveExecutor_InitExecute
@@ -73,9 +73,11 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     message: Cell<Any2TVMRampMessage>;
     root: MerkleRootId;
     metadataHash: uint256;
-    gasOverride: GasOverride? = null;
-    executionState: ExecutionState;
-    offchainTokenData: lisp_list<lisp_list<cell>>;
+    /// The ReceiveExecutor is not deployed yet: this attempt deploys it and funds its init value.
+    /// True on the first attempt, and on any attempt after one whose deploy was reverted or did not take place.
+    deployExecutor: bool;
+    /// OffRamp_ExecutionContext parsed by onExecuteSingleReport, relayed unchanged by the root.
+    context: cell;
     /// Caller of the execution, refunded with the flow's excesses
     excessesTo: address;
 }
@@ -129,7 +131,7 @@ struct (0x2dcf2a43) OffRamp_CCIPReceiveBounced {
 
 struct (0x59e56170) OffRamp_NotifySuccess {
     queryId: uint64;
-    header: Cell<RampMessageHeader>;
+    messageRef: RampMessageRef;
     execId: ReceiveExecutionID;
     root: address;
     /// Set for token-only messages: the token transfer delivery to relay to the pool.
@@ -153,7 +155,7 @@ struct OffRamp_DeliveredTransfer {
 
 struct (0x177ebd03) OffRamp_NotifyFailure {
     queryId: uint64;
-    header: Cell<RampMessageHeader>;
+    messageRef: RampMessageRef;
     execId: ReceiveExecutionID;
     root: address;
     /// Caller of the execution attempt and whether it funded the executor's init value.
@@ -246,11 +248,13 @@ fun OffRamp_Costs.execute(hasTokens: bool): int {
     return baseFee + MerkleRoot_Costs.validate(hasTokens);
 }
 
-// OffRamp_Execute: hashing a 2000-byte message, a 6-sibling proof (64-message commit) and the
-// Validate fwdFee.
-const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.0145");
+// OffRamp_Execute: hashing a 2000-byte message, a 6-sibling proof (64-message commit), the report
+// checks and OffRamp_ExecutionContext parsing, and the Validate fwdFee.
+const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.015");
 // OffRamp_ExecuteValidated: event and InitExecute fwdFee carrying the message, executor deploy.
-const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = grams("0.0155");
+// If it throws, the bounce returns this message's value minus the compute spent, which pays for
+// the root's bounce handler and the OffRamp's ExecutionStateChanged.
+const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = grams("0.0145");
 const OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE = grams("0.005");
 const OFFRAMP_COSTS_RELEASE_OR_MINT_FEE = grams("0.0025");
 const ROUTER_COSTS_RELAY_RELEASE_OR_MINT_FEE = grams("0.006");
@@ -260,5 +264,5 @@ const OFFRAMP_COSTS_TOKEN_TRANSFER_DELIVERED_FEE = grams("0.008");
 const OFFRAMP_COSTS_NOTIFY_FEE = grams("0.003");
 const OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE = grams("0.002");
 // OffRamp_Commit with a root and price updates, signature verification included, and the excesses refund to the transmitter.
-const OFFRAMP_COSTS_COMMIT_FEE = grams("0.0105");
+const OFFRAMP_COSTS_COMMIT_FEE = grams("0.011");
 const OFFRAMP_COSTS_MERKLE_ROOT_INIT_FEE = grams("0.0005");

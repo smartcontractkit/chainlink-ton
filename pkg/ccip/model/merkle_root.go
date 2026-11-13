@@ -14,13 +14,16 @@ import (
 // ---------- MerkleRoot Model Struct Definitions ----------
 
 type MerkleRootStorage struct {
-	Root                  string           `json:"root"`
-	Owner                 *address.Address `json:"owner"`
-	Timestamp             time.Time        `json:"timestamp"`
-	MinMsgNr              uint64           `json:"minMsgNr"`
-	MaxMsgNr              uint64           `json:"maxMsgNr"`
-	MessageStates         []ExecutionState `json:"messageStates"`
-	DeliveredMessageCount uint16           `json:"deliveredMessageCount"`
+	Root          string           `json:"root"`
+	Owner         *address.Address `json:"owner"`
+	Timestamp     time.Time        `json:"timestamp"`
+	MinMsgNr      uint64           `json:"minMsgNr"`
+	MaxMsgNr      uint64           `json:"maxMsgNr"`
+	MessageStates []ExecutionState `json:"messageStates"`
+	// PendingExecutorDeploy[i] is true when the next execution attempt of message MinMsgNr+i must
+	// deploy its ReceiveExecutor although the message is no longer Untouched.
+	PendingExecutorDeploy []bool `json:"pendingExecutorDeploy"`
+	DeliveredMessageCount uint16 `json:"deliveredMessageCount"`
 }
 
 type ExecutionState int
@@ -101,6 +104,14 @@ func (b *MerkleRootStorageBuilder) WithMessageStates(states []ExecutionState) *M
 	return b
 }
 
+func (b *MerkleRootStorageBuilder) WithPendingExecutorDeploy(pending []bool) *MerkleRootStorageBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.storage.PendingExecutorDeploy = pending
+	return b
+}
+
 func (b *MerkleRootStorageBuilder) WithDeliveredMessageCount(count uint16) *MerkleRootStorageBuilder {
 	if b.err != nil {
 		return b
@@ -166,6 +177,13 @@ func (s *MerkleRootStorage) FromBinding(raw *merkleroot.Storage) error {
 
 	b = b.WithMessageStates(messageStates)
 
+	// Pending executor deploys: one bit per message, at most 64 messages.
+	pendingExecutorDeploy := make([]bool, numberOfMessages)
+	for i := range numberOfMessages {
+		pendingExecutorDeploy[i] = i < 64 && (raw.PendingExecutorDeploy>>i)&1 == 1
+	}
+	b = b.WithPendingExecutorDeploy(pendingExecutorDeploy)
+
 	// Timestamp
 	if raw.Timestamp > math.MaxInt64 {
 		return fmt.Errorf("timestamp %d overflows int64", raw.Timestamp)
@@ -222,6 +240,17 @@ func (s *MerkleRootStorage) ToBinding() (*merkleroot.Storage, error) {
 		messageStates.Or(messageStates, value)
 	}
 	st.MessageStates = messageStates
+
+	// Pending executor deploys
+	for i, pending := range s.PendingExecutorDeploy {
+		if !pending {
+			continue
+		}
+		if i < 0 || i >= 64 {
+			return nil, fmt.Errorf("pending executor deploy index %d out of range [0, 64)", i)
+		}
+		st.PendingExecutorDeploy |= 1 << uint(i)
+	}
 
 	// Timestamp
 	timestamp := s.Timestamp.Unix()
