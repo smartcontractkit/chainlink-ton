@@ -28,6 +28,7 @@ var (
 )
 
 type Storage struct {
+	_       tlb.Magic            `tlb:"#b743059a" json:"-"` //nolint:revive // storage layout prefix
 	ID      uint32               `tlb:"## 32"`
 	Ownable ownable2step.Storage `tlb:"."`
 }
