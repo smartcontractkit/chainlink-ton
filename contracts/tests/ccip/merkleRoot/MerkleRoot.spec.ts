@@ -5,7 +5,7 @@ import {
   SandboxContract,
   TreasuryContract,
 } from '@ton/sandbox'
-import { beginCell, Cell, toNano } from '@ton/core'
+import { beginCell, Cell, CommonMessageInfoInternal, toNano } from '@ton/core'
 import { crc32 } from 'zlib'
 
 import { errorCode, facilityId } from '../../../wrappers/utils'
@@ -22,8 +22,13 @@ import * as mr from '../../../wrappers/gen/ccip/MerkleRoot'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
-import { findTransaction, flattenTransaction } from '@ton/test-utils'
-import { sendMessageAsync, captureAccountChanges } from '../../utils/sendInternalMessage'
+import { findTransaction, findTransactionRequired, flattenTransaction } from '@ton/test-utils'
+import { buildRichBounceBody, RichBouncePhase } from '../../utils/richBounce'
+import {
+  sendMessageAsync,
+  captureAccountChanges,
+  sendBouncedMessage,
+} from '../../utils/sendInternalMessage'
 
 interface MerkleRootStorageOverrides {
   root?: bigint
@@ -352,6 +357,81 @@ describe('MerkleRoot - Message Handling', () => {
             exitCode: mr.MerkleRoot.Errors['MerkleRoot_Error.InvalidState'],
           })
         })
+      })
+
+      it('should commit Failure and the pending deploy when the bounce cannot pay for ExecutionStateChanged', async () => {
+        // The root notifies the OffRamp with the value the bounce carries. If that value covers the
+        // root's compute but not the notification, the send must be skipped (IGNORE_ERRORS) rather
+        // than failing the action phase, which would revert the state change and leave the message
+        // InProgress forever.
+        const bounceBody = buildRichBounceBody({
+          originalBody: mr.OffRamp_ExecuteValidated.toCell(
+            mr.OffRamp_ExecuteValidated.create({
+              message: buildMessage(1n),
+              root: ROOT,
+              metadataHash: METADATA_HASH,
+              deployExecutor: true,
+              context: CONTEXT,
+              excessesTo: owner.address,
+            }),
+          ),
+          bouncedByPhase: RichBouncePhase.ComputeFailed,
+          exitCode: 0xffff,
+        })
+        const deployInProgress = (root: bigint) =>
+          deployMerkleRootContract(blockchain, owner, {
+            root,
+            timestamp: NOW,
+            minMsgNr: 1n,
+            maxMsgNr: 3n,
+            messageStates: encodeState(1n, mr.ExecutionState.InProgress, 1n),
+          })
+        const bounce = (merkleRoot: SandboxContract<mr.MerkleRoot>, value: bigint) =>
+          sendBouncedMessage(blockchain, owner.address, {
+            to: merkleRoot.address,
+            value,
+            body: bounceBody,
+          })
+
+        // Measure, on a funded bounce to another root, the handler's compute fee and the
+        // notification's forward fee.
+        const funded = await bounce(await deployInProgress(ROOT + 1n), toNano('0.5'))
+        const fundedHandler = findTransactionRequired(funded.transactions, {
+          from: owner.address,
+          success: true,
+        }).description
+        if (fundedHandler.type !== 'generic' || fundedHandler.computePhase.type !== 'vm') {
+          throw new Error('Expected the bounce handler to run')
+        }
+        const notification = findTransactionRequired(funded.transactions, {
+          to: owner.address,
+          op: mr.MerkleRoot_ExecutionStateChanged.PREFIX,
+        })
+        const notificationInfo = notification.inMessage!.info as CommonMessageInfoInternal
+        // The header carries the forward fee minus the sender's share, so half of it is still
+        // below the full forward fee.
+        const value = fundedHandler.computePhase.gasFees + notificationInfo.forwardFee / 2n
+
+        // Enough for the root to process the bounce, not enough for the notification.
+        const merkleRoot = await deployInProgress(ROOT)
+        const underfunded = await bounce(merkleRoot, value)
+        expect(underfunded.transactions).toHaveTransaction({
+          from: owner.address,
+          to: merkleRoot.address,
+          success: true,
+          aborted: false,
+        })
+        expect(underfunded.transactions).not.toHaveTransaction({
+          from: merkleRoot.address,
+          op: mr.MerkleRoot_ExecutionStateChanged.PREFIX,
+        })
+
+        const storage = await loadStorage(merkleRoot.address)
+        expect(storage.messageStates).toBe(encodeState(1n, mr.ExecutionState.Failure, 1n))
+        expect(storage.pendingExecutorDeploy).toBe(1n)
+
+        const retry = await manualRetry(merkleRoot)
+        expectExecuteValidated(retry.transactions, merkleRoot, true)
       })
 
       it('should not set the pending deploy when a retry bounces after the executor was deployed', async () => {
