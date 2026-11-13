@@ -6364,7 +6364,6 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
         'RateLimiter_Error.TokenRateLimitReached': 16302,
         'RateLimiter_Error.InvalidRateLimitRate': 16303,
         'RateLimiter_Error.DisabledNonZeroRateLimit': 16304,
-        'Upgradeable_Error.VersionMismatch': 19900,
         'LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured': 20900,
         'LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender': 20901,
         'LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce': 20902,
