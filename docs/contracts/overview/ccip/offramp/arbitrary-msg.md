@@ -208,7 +208,7 @@ sequenceDiagram
     Note over RE: Verifies Confirm.sender is Receiver
     Note over RE: Set state: ExecuteFailed
     deactivate RE
-    RE ->> OR: NotifyFailure { header, execID }
+    RE ->> OR: NotifyFailure { header, execID, errorCode }
 
 
 
