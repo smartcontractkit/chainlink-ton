@@ -699,6 +699,7 @@ fun AccessControl<T>.onInternalMessage(mutate self, msgSender: address, _msgValu
     val returnExcess = true;
     val sender = self.msgSender(msgSender, msgBody);
     val msg = lazy AccessControl_InMessage.fromSlice(msgBody);
+    var handled = -1; // message is handled
     match (msg) {
         AccessControl_GrantRole => {
             self.grantRole(msg.queryId, sender, msg.role, msg.account, returnExcess);
@@ -710,9 +711,9 @@ fun AccessControl<T>.onInternalMessage(mutate self, msgSender: address, _msgValu
             self.renounceRole(msg.queryId, sender, msg.role, msg.callerConfirmation, returnExcess);
         },
         else => {
-            return 0; // unknown message, not handled
+            handled = 0; // unknown message, not handled
         }
     };
 
-    return -1; // handled
+    return handled;
 }
