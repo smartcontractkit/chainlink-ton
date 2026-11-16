@@ -81,14 +81,14 @@ func TestTraceAccountStates(t *testing.T) {
 	}
 
 	// forwarded returns the single message the probe forwarded and asserts that it was handled by an
-	// account that did not exist before.
-	forwarded := func(t *testing.T, probeMsg *tracetracking.ReceivedMessage, to *address.Address) *tracetracking.ReceivedMessage {
+	// account that did not exist before, skipping the compute phase with skipReason.
+	forwarded := func(t *testing.T, probeMsg *tracetracking.ReceivedMessage, to *address.Address, skipReason tvm.ExitCode) *tracetracking.ReceivedMessage {
 		t.Helper()
 		require.Len(t, probeMsg.OutgoingInternalReceivedMessages, 1)
 		dstMsg := probeMsg.OutgoingInternalReceivedMessages[0]
 		require.True(t, dstMsg.InternalMsg.DstAddr.Equals(to))
 		require.EqualValues(t, tlb.AccountStatusNonExist, dstMsg.OrigStatus)
-		require.Equal(t, tvm.ExitCodeComputeSkipReasonNoState, must(dstMsg.ExitCode()))
+		require.Equal(t, skipReason, must(dstMsg.ExitCode()))
 		return dstMsg
 	}
 
@@ -112,7 +112,7 @@ func TestTraceAccountStates(t *testing.T) {
 
 		probeMsg := call(t, probe, traceProbeForward{QueryID: mathrand.Uint64(), To: to, Bounceable: true, Value: tlb.MustFromTON("0.01")})
 
-		dstMsg := forwarded(t, probeMsg, to)
+		dstMsg := forwarded(t, probeMsg, to, tvm.ExitCodeComputeSkipReasonNoState)
 		require.EqualValues(t, tlb.AccountStatusNonExist, dstMsg.EndStatus)
 		require.Len(t, dstMsg.OutgoingInternalReceivedMessages, 1)
 		bounce := dstMsg.OutgoingInternalReceivedMessages[0]
@@ -128,7 +128,7 @@ func TestTraceAccountStates(t *testing.T) {
 		probeMsg := call(t, probe, traceProbeForward{QueryID: mathrand.Uint64(), To: to, Bounceable: false, Value: tlb.MustFromTON("0.01")})
 
 		// The value creates the account, uninitialized.
-		dstMsg := forwarded(t, probeMsg, to)
+		dstMsg := forwarded(t, probeMsg, to, tvm.ExitCodeComputeSkipReasonNoState)
 		require.EqualValues(t, tlb.AccountStatusUninit, dstMsg.EndStatus)
 		require.Empty(t, dstMsg.OutgoingInternalReceivedMessages)
 	})
@@ -140,8 +140,8 @@ func TestTraceAccountStates(t *testing.T) {
 
 		probeMsg := call(t, probe, traceProbeForward{QueryID: mathrand.Uint64(), To: to, Bounceable: false, Value: tlb.ZeroCoins})
 
-		// Without value, the account is not created.
-		dstMsg := forwarded(t, probeMsg, to)
+		// Without value, the message cannot pay for gas and the account is not created.
+		dstMsg := forwarded(t, probeMsg, to, tvm.ExitCodeComputeSkipReasonNoGas)
 		require.EqualValues(t, tlb.AccountStatusNonExist, dstMsg.EndStatus)
 		require.Empty(t, dstMsg.OutgoingInternalReceivedMessages)
 	})

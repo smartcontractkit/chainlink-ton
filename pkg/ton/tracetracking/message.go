@@ -342,9 +342,9 @@ func (m *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.Interna
 
 // WaitForOutgoingMessagesToBeReceived waits for all outgoing messages to be
 // received by their respective recipients and blocks until completion. It
-// subscribes to transactions for each recipient address and matches incoming
-// transactions with the sent messages. The OutgoingInternalMessagesReceived
-// field is updated with the received messages.
+// searches the blocks of each recipient's shard for the transaction receiving
+// each sent message. The OutgoingInternalMessagesReceived field is updated with
+// the received messages.
 //
 // Returns an error if any of the outgoing messages failed to be processed
 // or if there are issues with transaction monitoring.
@@ -370,24 +370,7 @@ func (m *ReceivedMessage) waitForOutgoingMessages(ctx context.Context, c ton.API
 		}
 
 		m.OutgoingInternalSentMessages = m.OutgoingInternalSentMessages[1:]
-		transactionsReceived := make(chan *tlb.Transaction)
-
-		// Cancelable context per goroutine to prevent leaks from SubscribeOnTransactions
-		subCtx, cancel := context.WithCancel(ctx)
-		go c.SubscribeOnTransactions(subCtx, sentMessage.InternalMsg.DstAddr, m.LamportTime, transactionsReceived)
-
-		receivedMessage, err := waitForMatchingMessage(subCtx, transactionsReceived, sentMessage)
-
-		// Cancel context and drain the channel so the SubscribeOnTransactions goroutine
-		// can unblock from its bare `channel <- tx` send, reach the `workerCtx.Done()`
-		// select, and exit. Without draining, the goroutine leaks forever.
-		cancel()
-		go func() {
-			for tx := range transactionsReceived {
-				_ = tx // intentionally draining channel to unblock sender goroutine
-			}
-		}()
-
+		receivedMessage, err := findReceipt(ctx, c, sentMessage)
 		if err != nil {
 			return err
 		}
@@ -395,29 +378,6 @@ func (m *ReceivedMessage) waitForOutgoingMessages(ctx context.Context, c ton.API
 	}
 
 	return nil
-}
-
-func waitForMatchingMessage(ctx context.Context, transactionsReceived chan *tlb.Transaction, sentMessage *SentMessage) (*ReceivedMessage, error) {
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case rTX, ok := <-transactionsReceived:
-			if !ok {
-				return nil, errors.New("transaction channel closed")
-			}
-
-			if rTX.IO.In != nil && rTX.IO.In.MsgType == tlb.MsgTypeInternal {
-				receivedMessage, err := sentMessage.MapToReceivedMessageIfMatches(rTX)
-				if err != nil {
-					return nil, fmt.Errorf("failed to process incoming message: %w", err)
-				}
-				if receivedMessage != nil {
-					return receivedMessage, nil
-				}
-			}
-		}
-	}
 }
 
 // MapToReceivedMessageIfMatches checks if a transaction corresponds to the reception

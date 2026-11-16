@@ -106,7 +106,7 @@ func TestWaitForTraceWith_SkipsDeclinedBranches(t *testing.T) {
 	require.True(t, toPing.OutgoingInternalSkippedMessages[0].InternalMsg.DstAddr.Equals(pingB))
 
 	// pingB was never subscribed to.
-	require.NotContains(t, chain.Subscribed(), pingB.String())
+	require.NotContains(t, chain.Searched(), pingB.String())
 
 	// Paths run from the root down to the sender of the evaluated message.
 	require.Len(t, seenPaths, 3)

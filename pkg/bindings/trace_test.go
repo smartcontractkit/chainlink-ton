@@ -113,7 +113,7 @@ func TestCCIPReceiverFollowCondition_BoundsMaliciousReceiver(t *testing.T) {
 	require.Equal(t, unknown.CreatedLT, skipped[1].InternalMsg.CreatedLT)
 	require.Equal(t, send.CreatedLT, skipped[2].InternalMsg.CreatedLT)
 
-	require.NotContains(t, chain.Subscribed(), attacker.String())
+	require.NotContains(t, chain.Searched(), attacker.String())
 }
 
 func TestCCIPReceiverFollowCondition_SkipsRepliesToReceiver(t *testing.T) {
