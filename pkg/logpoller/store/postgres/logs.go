@@ -63,6 +63,18 @@ func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log, batchInser
 	return totalInserted, nil
 }
 
+// Transact runs fn against a log store bound to a single database transaction.
+// SaveLogs calls made through it join that transaction instead of committing on their own.
+func (s *pgLogStore) Transact(ctx context.Context, fn func(tx logpoller.LogStore) error) error {
+	return s.orm.Transact(ctx, func(orm *DSORM) error {
+		return fn(&pgLogStore{
+			chainID: s.chainID,
+			orm:     orm,
+			lggr:    s.lggr,
+		})
+	})
+}
+
 // insertLogsWithBatching handles batched log insertion with transaction support
 func (s *pgLogStore) insertLogsWithBatching(ctx context.Context, logs []logModel, batchInsertSize, minBatchSize uint32) (int64, error) {
 	var totalInserted int64

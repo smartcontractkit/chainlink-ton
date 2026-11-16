@@ -2,6 +2,7 @@ package inmemory
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
@@ -276,5 +278,77 @@ func TestInMemoryLogs_GetHighestMCBlockSeqno(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, uint32(200), latestSeqno)
 		assert.True(t, exists, "exists should be true after saving logs")
+	})
+}
+
+func TestInMemoryLogs_Transact(t *testing.T) {
+	t.Parallel()
+
+	testAddr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+	require.NoError(t, err)
+
+	makeLog := func(idx byte, mcSeqno uint32) models.Log {
+		return models.Log{
+			ChainID:      "test-chain",
+			FilterID:     1,
+			Address:      testAddr,
+			EventSig:     0x12345678,
+			Data:         tvm.EmptyCell,
+			TxHash:       models.TxHash{idx},
+			TxLT:         1000 + uint64(idx),
+			MsgLT:        1000 + uint64(idx),
+			TxTimestamp:  time.Now(),
+			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100 + uint32(idx)},
+			MCBlockSeqno: mcSeqno,
+		}
+	}
+
+	t.Run("commits staged logs when fn succeeds", func(t *testing.T) {
+		t.Parallel()
+		store := NewLogStore("test-chain", logger.Test(t))
+
+		err := store.Transact(t.Context(), func(tx logpoller.LogStore) error {
+			if _, err := tx.SaveLogs(t.Context(), []models.Log{makeLog(1, 150)}, 100, 10); err != nil {
+				return err
+			}
+
+			// staged logs are not visible until commit
+			_, exists, err := store.GetHighestMCBlockSeqno(t.Context())
+			require.NoError(t, err)
+			require.False(t, exists)
+
+			_, err = tx.SaveLogs(t.Context(), []models.Log{makeLog(2, 200)}, 100, 10)
+			return err
+		})
+		require.NoError(t, err)
+
+		seqno, exists, err := store.GetHighestMCBlockSeqno(t.Context())
+		require.NoError(t, err)
+		require.True(t, exists)
+		require.Equal(t, uint32(200), seqno)
+		require.Len(t, store.(*inMemoryLogs).logs, 2)
+	})
+
+	t.Run("discards staged logs when fn fails", func(t *testing.T) {
+		t.Parallel()
+		store := NewLogStore("test-chain", logger.Test(t))
+
+		_, err := store.SaveLogs(t.Context(), []models.Log{makeLog(1, 150)}, 100, 10)
+		require.NoError(t, err)
+
+		fnErr := errors.New("range incomplete")
+		err = store.Transact(t.Context(), func(tx logpoller.LogStore) error {
+			if _, err := tx.SaveLogs(t.Context(), []models.Log{makeLog(2, 300)}, 100, 10); err != nil {
+				return err
+			}
+			return fnErr
+		})
+		require.ErrorIs(t, err, fnErr)
+
+		seqno, exists, err := store.GetHighestMCBlockSeqno(t.Context())
+		require.NoError(t, err)
+		require.True(t, exists)
+		require.Equal(t, uint32(150), seqno, "rolled back logs must not move the resume point")
+		require.Len(t, store.(*inMemoryLogs).logs, 1)
 	})
 }

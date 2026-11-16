@@ -323,13 +323,33 @@ func (lp *service) processBlockRange(
 		}
 	}()
 
-	totalSaved, err := lp.saveLogs(ctx, logsCh)
-	if err != nil {
-		return fmt.Errorf("failed to save logs: %w", err)
-	}
+	// The whole range is saved atomically. Loaders run concurrently per address, so logs
+	// arrive in no particular block order and any single chunk may hold a high block while
+	// lower blocks are still in flight. Committing chunks independently would let a crash
+	// leave a stored high block above unsaved lower ones, and restart resumption (which
+	// reads the highest stored block) would then skip them.
+	var totalSaved int
+	err := lp.logStore.Transact(ctx, func(tx LogStore) error {
+		saved, err := lp.saveLogs(ctx, tx, logsCh)
+		if err != nil {
+			return fmt.Errorf("failed to save logs: %w", err)
+		}
+		totalSaved = saved
 
-	// Wait for error processing to complete before logging summary and returning
-	wg.Wait()
+		// Wait for error processing to complete before deciding whether to commit
+		wg.Wait()
+
+		if loadErrCount > 0 {
+			// Loader errors mean some transactions in the range were never fetched. Roll back
+			// the logs saved for the range and return an error so it is retried on the next
+			// tick, rather than risk data loss by committing incomplete transaction data.
+			return fmt.Errorf("block range processing had %d loader error(s)", loadErrCount)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
 
 	// Note: logs inserted metric is recorded by ObservedLogStore.SaveLogs
 	if totalSaved > 0 {
@@ -343,14 +363,6 @@ func (lp *service) processBlockRange(
 			"parseErrCount", parseErrCount,
 			"fromSeqNo", blockRange.FromSeqNo(),
 			"toSeqNo", blockRange.ToSeqNo())
-	}
-
-	if loadErrCount > 0 {
-		// Loader errors are more concerning as they may indicate issues with fetching transactions,
-		// which can lead to missing logs but advanced block checkpoint
-		// so here we abort the current loop and return an error to trigger retry on next tick,
-		// rather than risk data loss by proceeding with incomplete transaction data.
-		return fmt.Errorf("block range processing had %d loader error(s)", loadErrCount)
 	}
 
 	return nil
@@ -450,7 +462,8 @@ func (lp *service) resolveMCBlockSeqNoWithRetry(ctx context.Context, block *ton.
 	return 0, fmt.Errorf("failed after %d attempts: %w", lp.mcBlockResolveMaxRetries, lastErr)
 }
 
-func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log) (int, error) {
+// saveLogs drains logsCh into store in chunks of saveThreshold logs to bound memory usage.
+func (lp *service) saveLogs(ctx context.Context, store LogStore, logsCh <-chan models.Log) (int, error) {
 	saveThreshold := int(lp.saveThreshold)
 	chunk := slices.Grow([]models.Log{}, saveThreshold)
 	totalSaved := 0
@@ -460,7 +473,7 @@ func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log) (int,
 
 		// save chunk if it's full
 		if len(chunk) >= saveThreshold {
-			savedCount, err := lp.logStore.SaveLogs(ctx, chunk, lp.batchInsertSize, lp.minBatchSize)
+			savedCount, err := store.SaveLogs(ctx, chunk, lp.batchInsertSize, lp.minBatchSize)
 			if err != nil {
 				return totalSaved, fmt.Errorf("failed to save chunk: %w", err)
 			}
@@ -471,7 +484,7 @@ func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log) (int,
 
 	// save remaining logs in the last chunk
 	if len(chunk) > 0 {
-		savedCount, err := lp.logStore.SaveLogs(ctx, chunk, lp.batchInsertSize, lp.minBatchSize)
+		savedCount, err := store.SaveLogs(ctx, chunk, lp.batchInsertSize, lp.minBatchSize)
 		if err != nil {
 			return totalSaved, fmt.Errorf("failed to save final chunk: %w", err)
 		}

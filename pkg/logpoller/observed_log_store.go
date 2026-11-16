@@ -53,6 +53,18 @@ func (o *ObservedLogStore) SaveLogs(ctx context.Context, logs []models.Log, batc
 	return count, err
 }
 
+// Transact wraps the underlying Transact, keeping metrics instrumentation on the
+// transaction-bound store passed to fn.
+func (o *ObservedLogStore) Transact(ctx context.Context, fn func(tx LogStore) error) error {
+	return o.LogStore.Transact(ctx, func(tx LogStore) error {
+		return fn(&ObservedLogStore{
+			LogStore: tx,
+			metrics:  o.metrics,
+			lggr:     o.lggr,
+		})
+	})
+}
+
 // QueryLogs wraps the underlying QueryLogs with metrics
 func (o *ObservedLogStore) QueryLogs(ctx context.Context, logQuery *query.LogQuery) ([]models.Log, bool, string, error) {
 	start := time.Now()

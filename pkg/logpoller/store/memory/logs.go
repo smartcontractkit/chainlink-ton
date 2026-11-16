@@ -100,6 +100,46 @@ func (s *inMemoryLogs) SaveLogs(ctx context.Context, logs []models.Log, batchIns
 	return inserted, nil
 }
 
+// Transact stages every SaveLogs call made through the store passed to fn and applies them
+// only if fn returns nil. Reads through that store see committed logs only.
+func (s *inMemoryLogs) Transact(ctx context.Context, fn func(tx logpoller.LogStore) error) error {
+	tx := &stagedLogs{inMemoryLogs: s}
+	if err := fn(tx); err != nil {
+		return err
+	}
+	if _, err := s.SaveLogs(ctx, tx.staged, 0, 0); err != nil {
+		return fmt.Errorf("failed to commit staged logs: %w", err)
+	}
+	return nil
+}
+
+// stagedLogs is the transaction-bound view handed out by inMemoryLogs.Transact.
+type stagedLogs struct {
+	*inMemoryLogs
+	stageMu sync.Mutex
+	staged  []models.Log
+}
+
+// SaveLogs validates and stages logs. It returns the number of logs staged; duplicates
+// are dropped when the staged logs are applied.
+func (t *stagedLogs) SaveLogs(_ context.Context, logs []models.Log, _, _ uint32) (int64, error) {
+	for i, log := range logs {
+		if err := log.Validate(t.chainID); err != nil {
+			return 0, fmt.Errorf("invalid log at index %d: %w", i, err)
+		}
+	}
+
+	t.stageMu.Lock()
+	defer t.stageMu.Unlock()
+	t.staged = append(t.staged, logs...)
+	return int64(len(logs)), nil
+}
+
+// Transact on an already transaction-bound store joins the enclosing transaction.
+func (t *stagedLogs) Transact(_ context.Context, fn func(tx logpoller.LogStore) error) error {
+	return fn(t)
+}
+
 // QueryLogs retrieves logs with TON-specific filtering capabilities including byte-level filtering,
 // sorting, and pagination applied in-memory. This provides the same interface as the PostgreSQL store
 // but implements filtering logic in-memory for test compatibility.

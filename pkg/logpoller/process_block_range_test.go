@@ -28,13 +28,14 @@ type testTxLoader struct {
 	err error
 }
 
+// LoadTxsForAddress emits all configured txs, then the configured error (if any),
+// mimicking a loader that fails part-way through a range.
 func (l *testTxLoader) LoadTxsForAddress(_ context.Context, _ *models.BlockRange, _ *address.Address, _ uint32, txOut chan<- models.Tx, errOut chan<- error) error {
-	if l.err != nil {
-		errOut <- l.err
-		return nil
-	}
 	for _, tx := range l.txs {
 		txOut <- tx
+	}
+	if l.err != nil {
+		errOut <- l.err
 	}
 	return nil
 }
@@ -44,8 +45,9 @@ func (l *testTxLoader) GetTxsForAddress(_ context.Context, _ *models.BlockRange,
 }
 
 type testLogStore struct {
-	mu   sync.Mutex
-	logs []models.Log
+	mu         sync.Mutex
+	logs       []models.Log // committed logs
+	rolledBack []models.Log // logs saved inside a Transact call whose fn failed
 }
 
 func (s *testLogStore) SaveLogs(_ context.Context, logs []models.Log, _, _ uint32) (int64, error) {
@@ -53,6 +55,21 @@ func (s *testLogStore) SaveLogs(_ context.Context, logs []models.Log, _, _ uint3
 	defer s.mu.Unlock()
 	s.logs = append(s.logs, logs...)
 	return int64(len(logs)), nil
+}
+
+// Transact stages logs saved through tx and commits them only if fn succeeds.
+func (s *testLogStore) Transact(_ context.Context, fn func(tx LogStore) error) error {
+	tx := &testLogStore{}
+	err := fn(tx)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err != nil {
+		s.rolledBack = append(s.rolledBack, tx.logs...)
+		return err
+	}
+	s.logs = append(s.logs, tx.logs...)
+	return nil
 }
 
 func (s *testLogStore) QueryLogs(context.Context, *query.LogQuery) ([]models.Log, bool, string, error) {
@@ -175,6 +192,30 @@ func TestProcessBlockRange(t *testing.T) {
 		err := svc.processBlockRange(t.Context(), blockRange, addrs, filterIndex)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "loader error")
+	})
+
+	t.Run("loader error rolls back logs already saved for the range", func(t *testing.T) {
+		t.Parallel()
+
+		validTx, err := makeTestValidTx(testAddr, eventSig)
+		require.NoError(t, err)
+
+		logStore := &testLogStore{}
+		svc := makeTestService(t, &testTxLoader{
+			txs: []models.Tx{validTx},
+			err: errors.New("liteserver failure"),
+		}, logStore)
+		// flush every log as its own chunk so it is written before the loader error is known
+		svc.saveThreshold = 1
+
+		err = svc.processBlockRange(t.Context(), blockRange, addrs, filterIndex)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "loader error")
+
+		logStore.mu.Lock()
+		defer logStore.mu.Unlock()
+		require.NotEmpty(t, logStore.rolledBack, "valid tx log must have been saved inside the range transaction")
+		require.Empty(t, logStore.logs, "no log from a range with loader errors may be committed")
 	})
 
 	t.Run("parse error does not block checkpoint", func(t *testing.T) {

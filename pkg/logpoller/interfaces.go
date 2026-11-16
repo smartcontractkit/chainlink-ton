@@ -79,6 +79,11 @@ type LogStore interface {
 	// minBatchSize sets the minimum batch size for retry attempts on timeout errors.
 	// Returns the number of logs successfully saved.
 	SaveLogs(ctx context.Context, logs []models.Log, batchInsertSize, minBatchSize uint32) (int64, error)
+	// Transact runs fn against a LogStore whose writes are atomic: they all persist if fn
+	// returns nil and none of them persist otherwise. The service saves each processed
+	// block range through a single Transact call, so stored logs only ever cover fully
+	// processed ranges, which GetHighestMCBlockSeqno relies on for restart resumption.
+	Transact(ctx context.Context, fn func(tx LogStore) error) error
 	// QueryLogs retrieves logs with TON-specific filtering capabilities including byte-level filtering,
 	// sorting, and pagination. This method handles all filtering, sorting, and pagination.
 	// The LogStore is responsible for translating parameters to its optimal execution strategy.
@@ -87,7 +92,8 @@ type LogStore interface {
 	// GetHighestMCBlockSeqno retrieves the highest masterchain block sequence number
 	// from stored logs. Returns (seqno, exists, err) where exists indicates whether any
 	// logs are stored. This is used for resuming processing from the last known state
-	// after a service restart.
+	// after a service restart. It is a safe resume point only because logs are written
+	// one fully processed block range at a time (see Transact).
 	GetHighestMCBlockSeqno(ctx context.Context) (seqno uint32, exists bool, err error)
 	// DeleteExpiredLogs removes logs that have passed their pre-computed expiration time.
 	// Uses the expires_at column (set at insert time as tx_timestamp + retention).
