@@ -70,6 +70,7 @@ type testLogStore struct {
 	logs        []models.Log // committed logs
 	rolledBack  []models.Log // logs saved inside a Transact call whose fn failed
 	transactErr error        // when set, Transact fails without calling fn (e.g. BEGIN failed)
+	commitErr   error        // when set, Transact calls fn and then fails without committing (e.g. COMMIT failed)
 }
 
 func (s *testLogStore) SaveLogs(_ context.Context, logs []models.Log, _, _ uint32) (int64, error) {
@@ -86,6 +87,9 @@ func (s *testLogStore) Transact(_ context.Context, fn func(tx LogStore) error) e
 	}
 	tx := &testLogStore{}
 	err := fn(tx)
+	if err == nil {
+		err = s.commitErr
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
