@@ -195,14 +195,19 @@ func TestF3_truncatedCollection_rejected(t *testing.T) {
 }
 
 // TestF3_canonicalMultiCellCollection_accepted is the control: a well-formed snake
-// still decodes and still produces [][32]byte for the plugin.
+// still decodes and still produces [][32]byte for the plugin. Four accounts is the
+// minimum that forces a cell boundary (3×256 = 768 bits still fit in one cell), so
+// the head must carry a continuation ref for the test to exercise what its name claims.
 func TestF3_canonicalMultiCellCollection_accepted(t *testing.T) {
 	original := common.SnakedCell[onramp.Account256]{
 		{Value: bytesN(0x11, 32)},
 		{Value: bytesN(0x22, 32)},
+		{Value: bytesN(0x33, 32)},
+		{Value: bytesN(0x44, 32)},
 	}
 	c, err := original.ToCell()
 	require.NoError(t, err)
+	require.Equal(t, uint(1), c.RefsNum(), "head must have a continuation ref, i.e. a real multi-cell snake")
 
 	var decoded common.SnakedCell[onramp.Account256]
 	require.NoError(t, decoded.LoadFromCell(c.MustBeginParse()))
@@ -214,9 +219,11 @@ func TestF3_canonicalMultiCellCollection_accepted(t *testing.T) {
 
 	accounts, ok := out["accounts"].([][32]byte)
 	require.True(t, ok, "expected [][32]byte, got %T", out["accounts"])
-	require.Len(t, accounts, 2)
+	require.Len(t, accounts, 4)
 	require.Equal(t, [32]byte(bytesN(0x11, 32)), accounts[0])
 	require.Equal(t, [32]byte(bytesN(0x22, 32)), accounts[1])
+	require.Equal(t, [32]byte(bytesN(0x33, 32)), accounts[2])
+	require.Equal(t, [32]byte(bytesN(0x44, 32)), accounts[3])
 }
 
 // TestF1_onlyOptionalGasLimitCanBeAbsent pins the reach of the typed-nil guard.
