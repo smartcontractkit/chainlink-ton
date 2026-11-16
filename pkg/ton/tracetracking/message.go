@@ -57,6 +57,10 @@ type SentMessage struct {
 	Amount      *big.Int
 	LamportTime uint64   // Lamport time of sender when emitting the message
 	FwdFee      *big.Int // Of sending this message. This is paid by the sender of the message. It is 0 on external messages.
+
+	// receiptSearch is how far the search for the transaction receiving this message has got, so
+	// a search cut short resumes where it stopped.
+	receiptSearch receiptCursor
 }
 
 // NewSentMessage creates a SentMessage from an internal message.

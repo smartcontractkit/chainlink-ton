@@ -74,3 +74,28 @@ func TestWaitForTrace_WaitsForReceipt(t *testing.T) {
 	require.NoError(t, root.WaitForTrace(ctx, chain))
 	require.Len(t, root.OutgoingInternalReceivedMessages, 1)
 }
+
+func TestWaitForTrace_ResumesReceiptSearch(t *testing.T) {
+	chain := tracetest.NewChain(t)
+	root, rootTx := sendToContract(t, chain)
+	for range 5 {
+		chain.Receive(chain.Send(wallet, pingA, tracetest.Body(3)))
+	}
+
+	// The first wait searches every block produced so far and times out waiting for the next one.
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+	require.ErrorIs(t, root.WaitForTrace(ctx, chain), context.DeadlineExceeded)
+	searchedBefore := chain.SearchedBlocks()
+	require.Len(t, searchedBefore, 6, "the root's block and the five after it")
+
+	// Once the message is received, the next wait searches only the block holding the receipt.
+	receipt := chain.Receive(rootTx.Out[0])
+	ctx, cancel = context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, root.WaitForTrace(ctx, chain))
+
+	require.Len(t, root.OutgoingInternalReceivedMessages, 1)
+	require.Equal(t, receipt.LT, root.OutgoingInternalReceivedMessages[0].LamportTime)
+	require.Equal(t, []uint32{searchedBefore[len(searchedBefore)-1] + 1}, chain.SearchedBlocks()[len(searchedBefore):])
+}

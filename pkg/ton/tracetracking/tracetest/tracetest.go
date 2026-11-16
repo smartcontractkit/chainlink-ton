@@ -39,6 +39,8 @@ type Chain struct {
 	open   *block // the block Receive records into, if any
 	// addresses whose transactions were searched for, in search order
 	searched []string
+	// sequence numbers of the blocks whose transactions were listed, in listing order
+	searchedBlocks []uint32
 }
 
 type block struct {
@@ -165,6 +167,14 @@ func (c *Chain) Searched() []string {
 	return append([]string(nil), c.searched...)
 }
 
+// SearchedBlocks returns the sequence numbers of the blocks whose transactions were listed, in
+// listing order, with a repetition for each further page of a block.
+func (c *Chain) SearchedBlocks() []uint32 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return slices.Clone(c.searchedBlocks)
+}
+
 func (c *Chain) Client() ton.LiteClient {
 	return liteClient{c}
 }
@@ -192,6 +202,7 @@ func (c *Chain) GetBlockTransactionsV2(_ context.Context, id *ton.BlockIDExt, co
 	if err != nil {
 		return nil, false, err
 	}
+	c.searchedBlocks = append(c.searchedBlocks, blk.id.SeqNo)
 
 	var from *ton.TransactionID3
 	if len(after) > 0 && after[0] != nil {

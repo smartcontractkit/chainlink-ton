@@ -36,19 +36,24 @@ const (
 // waiting for the blocks the chain has not produced yet, until it finds the transaction or ctx is
 // done. Shard splits and merges need no handling: blocks are looked up by the destination's account
 // prefix and by logical time, which always resolve to the shard holding the destination.
+//
+// The search records its progress in sent, so a search cut short by ctx resumes after the last block
+// it fully searched.
 func findReceipt(ctx context.Context, c ton.APIClientWrapped, sent *SentMessage) (*ReceivedMessage, error) {
 	// Keep the search on one liteserver, so a block found by one is not missing on another.
 	ctx = c.Client().StickyContext(ctx)
 
 	dst := sent.InternalMsg.DstAddr
-	lt := sent.InternalMsg.CreatedLT
-	var searched *ton.BlockIDExt // the last block searched
+	cur := &sent.receiptSearch
+	if cur.lt == 0 {
+		cur.lt = sent.InternalMsg.CreatedLT
+	}
 
 	for {
-		block, err := lookupBlockByLT(ctx, c, dst, lt)
-		if err == nil && searched != nil && block.Equals(searched) {
+		block, err := lookupBlockByLT(ctx, c, dst, cur.lt)
+		if err == nil && cur.searched != nil && block.Equals(cur.searched) {
 			// The block ending at lt is the one already searched: look past it.
-			lt++
+			cur.lt++
 			continue
 		}
 
@@ -68,7 +73,7 @@ func findReceipt(ctx context.Context, c ton.APIClientWrapped, sent *SentMessage)
 			var header *tlb.BlockHeader
 			header, err = c.GetBlockHeader(ctx, block) //nolint:tonapiwaitlint // WaitForBlock takes a masterchain seqno; block is a shard block this sticky liteserver returned
 			if err == nil {
-				searched, lt = block, max(header.EndLt, lt+1)
+				cur.searched, cur.lt = block, max(header.EndLt, cur.lt+1)
 				continue
 			}
 		}
@@ -81,6 +86,14 @@ func findReceipt(ctx context.Context, c ton.APIClientWrapped, sent *SentMessage)
 		case <-time.After(receiptPollInterval):
 		}
 	}
+}
+
+// receiptCursor is how far findReceipt has searched for the transaction receiving a message. Blocks
+// before it are known not to hold the transaction. Block IDs and logical times are the same on every
+// liteserver, so the search can resume on another one.
+type receiptCursor struct {
+	lt       uint64          // logical time to look the next block up by; 0 before the search starts
+	searched *ton.BlockIDExt // the last block fully searched
 }
 
 // findInBlock returns the transaction of block in which the destination of sent receives it, or nil
