@@ -133,7 +133,6 @@ func (t *Txm) InflightCount() (int, int) {
 func (t *Txm) Close() error {
 	return t.starter.StopOnce("Txm", func() error {
 		close(t.stop)
-		close(t.broadcastChan)
 		t.done.Wait()
 		return nil
 	})
@@ -204,7 +203,10 @@ func (t *Txm) Enqueue(request Request) error {
 		ID:         request.ID,
 	}
 
+	// broadcastChan is never closed, so a send racing Close cannot panic.
 	select {
+	case <-t.stop:
+		return errors.New("txm stopped, could not enqueue transaction")
 	case t.broadcastChan <- tx:
 		return nil
 	default:
@@ -223,12 +225,7 @@ func (t *Txm) broadcastLoop() {
 
 	for {
 		select {
-		case tx, ok := <-t.broadcastChan:
-			if !ok {
-				t.logger.Infow("broadcast channel closed, exiting broadcastLoop")
-				return
-			}
-
+		case tx := <-t.broadcastChan:
 			t.logger.Debugw("broadcasting transaction", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
 
 			var st tlb.StateInit

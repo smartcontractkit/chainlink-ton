@@ -2,6 +2,7 @@ package relay
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -52,10 +53,9 @@ func (s *Service) GetBlockData(ctx context.Context, block *tontypes.BlockIDExt) 
 		return nil, fmt.Errorf("failed to create TON client for chain ID %s: %w", s.chain.ID(), err)
 	}
 
-	blockIDExt := &ton.BlockIDExt{
-		Workchain: block.Workchain,
-		Shard:     block.Shard,
-		SeqNo:     block.SeqNo,
+	blockIDExt, err := resolveBlockID(ctx, client, block)
+	if err != nil {
+		return nil, err
 	}
 
 	blockData, err := client.WaitForBlock(blockIDExt.SeqNo).GetBlockData(ctx, blockIDExt)
@@ -72,18 +72,17 @@ func (s *Service) GetAccountBalance(ctx context.Context, address string, block *
 		return nil, fmt.Errorf("failed to create TON client for chain ID %s: %w", s.chain.ID(), err)
 	}
 
-	blockIDExt := &ton.BlockIDExt{
-		Workchain: block.Workchain,
-		Shard:     block.Shard,
-		SeqNo:     block.SeqNo,
-	}
-
 	addr, err := tonaddress.ParseAddr(address)
 	if err != nil {
 		return nil, fmt.Errorf("failed parsing address %s: %w", address, err)
 	}
 
-	acc, err := client.WaitForBlock(block.SeqNo).GetAccount(ctx, blockIDExt, addr)
+	blockIDExt, err := resolveBlockID(ctx, client, block)
+	if err != nil {
+		return nil, err
+	}
+
+	acc, err := client.WaitForBlock(blockIDExt.SeqNo).GetAccount(ctx, blockIDExt, addr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account for address %s: %w", address, err)
 	}
@@ -106,17 +105,23 @@ func (s *Service) SendTx(ctx context.Context, msg tontypes.Message) error {
 		return fmt.Errorf("failed parsing msg.ToAddress %s: %w", msg.ToAddress, err)
 	}
 
-	body, err := cell.FromBOC(msg.Body)
+	body, err := optionalCellFromBOC(msg.Body)
 	if err != nil {
-		return fmt.Errorf("failed parsing msg.Body %s: %w", msg.Body, err)
+		return fmt.Errorf("failed parsing msg.Body %x: %w", msg.Body, err)
 	}
 
-	stateInit, err := cell.FromBOC(msg.StateInit)
+	stateInit, err := optionalCellFromBOC(msg.StateInit)
 	if err != nil {
-		return fmt.Errorf("failed parsing msg.StateInit %s: %w", msg.StateInit, err)
+		return fmt.Errorf("failed parsing msg.StateInit %x: %w", msg.StateInit, err)
 	}
 
-	amount := tlb.MustFromTON(msg.Amount)
+	amount, err := tlb.FromTON(msg.Amount)
+	if err != nil {
+		return fmt.Errorf("failed parsing msg.Amount %q: %w", msg.Amount, err)
+	}
+	if amount.Nano().Sign() <= 0 {
+		return fmt.Errorf("msg.Amount must be positive, got %q", msg.Amount)
+	}
 
 	txManager := s.chain.TxManager()
 	client, err := txManager.GetClient(ctx)
@@ -171,4 +176,27 @@ func (s *Service) RegisterFilter(ctx context.Context, filter tontypes.LPFilterQu
 func (s *Service) UnregisterFilter(ctx context.Context, name string) error {
 	// TODO(NONEVM-1460): implement
 	return nil
+}
+
+func optionalCellFromBOC(boc []byte) (*cell.Cell, error) {
+	if len(boc) == 0 {
+		return nil, nil
+	}
+	return cell.FromBOC(boc)
+}
+
+// resolveBlockID looks up the full block ID, since the common BlockIDExt type carries no
+// root/file hashes and liteserver requests need them for proof verification.
+func resolveBlockID(ctx context.Context, client ton.APIClientWrapped, block *tontypes.BlockIDExt) (*ton.BlockIDExt, error) {
+	if block == nil {
+		return nil, errors.New("block is nil")
+	}
+	full, err := client.LookupBlock(ctx, block.Workchain, block.Shard, block.SeqNo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to look up block %d:%x:%d: %w", block.Workchain, uint64(block.Shard), block.SeqNo, err) //nolint:gosec // shard printed as its unsigned hex form
+	}
+	if full == nil || len(full.RootHash) != 32 || len(full.FileHash) != 32 {
+		return nil, fmt.Errorf("invalid block ID returned for block %d:%x:%d", block.Workchain, uint64(block.Shard), block.SeqNo) //nolint:gosec // shard printed as its unsigned hex form
+	}
+	return full, nil
 }
