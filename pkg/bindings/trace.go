@@ -64,3 +64,52 @@ var DefaultTraceStopCondition tracetracking.StopCondition = func(parent, current
 
 	return false, nil // Don't stop by default (continue tracing)
 }
+
+// CCIPReceiverFollowCondition bounds the trace a transaction waits for at the third-party CCIP
+// receiver. It follows the Router's Receiver_CCIPReceiveV2 delivery and the receiver's messages
+// back to that Router (the confirmation or the bounce), and skips everything else the receiver
+// sends as well as every later message addressed to the receiver. Without this, a receiver could
+// keep the trace open indefinitely, either messaging its own contracts or answering the Router's
+// replies to it.
+//
+// Traces without a Receiver_CCIPReceiveV2 delivery are followed entirely.
+var CCIPReceiverFollowCondition tracetracking.FollowCondition = func(path []*tracetracking.ReceivedMessage, out *tracetracking.SentMessage) (bool, error) {
+	for i, msg := range path {
+		isDelivery, err := isCCIPReceiveDelivery(msg)
+		if err != nil {
+			return false, err
+		}
+		if !isDelivery {
+			continue
+		}
+
+		delivery := msg.InternalMsg
+		if i == len(path)-1 {
+			// out is sent by the receiver: follow it only back to the Router that delivered.
+			return out.InternalMsg.DstAddr.Equals(delivery.SrcAddr), nil
+		}
+		// out is sent after the receiver handed back to the Router: keep out of the receiver.
+		return !out.InternalMsg.DstAddr.Equals(delivery.DstAddr), nil
+	}
+	return true, nil
+}
+
+// CCIPReceiverOutcomeBoundary excludes the third-party CCIP receiver's handling of a
+// Receiver_CCIPReceiveV2 delivery, and everything that follows it, from a trace's outcome. The
+// receiver failing or bouncing is a message execution outcome the OffRamp records, not a failure of
+// the transaction that triggered the execution.
+var CCIPReceiverOutcomeBoundary tracetracking.StopCondition = func(_, current *tracetracking.ReceivedMessage) (bool, error) {
+	return isCCIPReceiveDelivery(current)
+}
+
+// isCCIPReceiveDelivery reports whether msg is a receiver handling a Receiver_CCIPReceiveV2 delivery.
+func isCCIPReceiveDelivery(msg *tracetracking.ReceivedMessage) (bool, error) {
+	if msg.InternalMsg == nil || msg.InternalMsg.Bounced {
+		return false, nil
+	}
+	opcode, err := tvm.ExtractOpcode(msg.InternalMsg.Body)
+	if err != nil {
+		return false, fmt.Errorf("failed to extract opcode: %w", err)
+	}
+	return uint64(opcode) == offramp.OpcodeCCIPReceive, nil
+}

@@ -82,6 +82,7 @@ type ReceivedMessage struct {
 	Description                      *tlb.TransactionDescriptionOrdinary // Description of the transaction (if ordinary)
 	OutgoingInternalSentMessages     []*SentMessage                      // Internal messages sent as a result of this message
 	OutgoingInternalReceivedMessages []*ReceivedMessage                  // Internal messages that have been received by their recipients
+	OutgoingInternalSkippedMessages  []*SentMessage                      // Internal messages a FollowCondition excluded from the trace; their reception is not tracked
 	OutgoingExternalMessages         []OutgoingExternalMessages
 }
 
@@ -121,6 +122,9 @@ func (m *ReceivedMessage) TotalActionPhaseFees() *big.Int {
 	}
 	for _, receivedMessage := range m.OutgoingInternalReceivedMessages {
 		total.Add(total, receivedMessage.FwdFee)
+	}
+	for _, skippedMessage := range m.OutgoingInternalSkippedMessages {
+		total.Add(total, skippedMessage.FwdFee)
 	}
 	return total
 }
@@ -179,6 +183,9 @@ func (m *ReceivedMessage) OutgoingAmount() *big.Int {
 	}
 	for _, receivedMessage := range m.OutgoingInternalReceivedMessages {
 		base.Add(base, receivedMessage.Amount)
+	}
+	for _, skippedMessage := range m.OutgoingInternalSkippedMessages {
+		base.Add(base, skippedMessage.Amount)
 	}
 	return base
 }
@@ -342,8 +349,26 @@ func (m *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.Interna
 // Returns an error if any of the outgoing messages failed to be processed
 // or if there are issues with transaction monitoring.
 func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ctx context.Context, c ton.APIClientWrapped) error {
+	return m.waitForOutgoingMessages(ctx, c, []*ReceivedMessage{m}, FollowAll)
+}
+
+// waitForOutgoingMessages waits for the outgoing messages of m, the last message of path, that
+// follow accepts. Messages follow declines are moved to OutgoingInternalSkippedMessages without
+// waiting for them.
+func (m *ReceivedMessage) waitForOutgoingMessages(ctx context.Context, c ton.APIClientWrapped, path []*ReceivedMessage, follow FollowCondition) error {
 	for len(m.OutgoingInternalSentMessages) != 0 {
 		sentMessage := m.OutgoingInternalSentMessages[0]
+
+		ok, err := follow(path, sentMessage)
+		if err != nil {
+			return fmt.Errorf("failed to evaluate follow condition: %w", err)
+		}
+		if !ok {
+			m.OutgoingInternalSentMessages = m.OutgoingInternalSentMessages[1:]
+			m.OutgoingInternalSkippedMessages = append(m.OutgoingInternalSkippedMessages, sentMessage)
+			continue
+		}
+
 		m.OutgoingInternalSentMessages = m.OutgoingInternalSentMessages[1:]
 		transactionsReceived := make(chan *tlb.Transaction)
 
@@ -451,25 +476,54 @@ func (m SentMessage) MatchesReceived(incomingMessage *tlb.InternalMessage) bool 
 // The function returns immediately if the message is already in Finalized state.
 // Otherwise, it processes all cascading messages until the entire trace is complete.
 func (m *ReceivedMessage) WaitForTrace(ctx context.Context, c ton.APIClientWrapped) error {
+	return m.WaitForTraceWith(ctx, c, FollowAll)
+}
+
+// WaitForTraceWith waits for the execution trace of a message like WaitForTrace, but only for the
+// outgoing messages that follow accepts. follow is evaluated before waiting for each message, so a
+// declined message's branch is never waited for: the message is moved to
+// OutgoingInternalSkippedMessages and the trace completes without it. A nil follow waits for every
+// message.
+func (m *ReceivedMessage) WaitForTraceWith(ctx context.Context, c ton.APIClientWrapped, follow FollowCondition) error {
 	if m.Status() == Finalized {
 		return nil
 	}
+	if follow == nil {
+		follow = FollowAll
+	}
 
-	messagesWithUnconfirmedOutgoingMessages := make([]*ReceivedMessage, 0)
-	messagesWithUnconfirmedOutgoingMessages = append(messagesWithUnconfirmedOutgoingMessages, m)
+	// Each entry is the path from m down to a message whose outgoing messages are awaited.
+	pending := [][]*ReceivedMessage{{m}}
 
-	for len(messagesWithUnconfirmedOutgoingMessages) != 0 {
-		cascadingMessage := messagesWithUnconfirmedOutgoingMessages[0]
+	for len(pending) != 0 {
+		path := pending[0]
+		pending = pending[1:]
 
-		messagesWithUnconfirmedOutgoingMessages = messagesWithUnconfirmedOutgoingMessages[1:]
-		err := cascadingMessage.WaitForOutgoingMessagesToBeReceived(ctx, c)
+		cascadingMessage := path[len(path)-1]
+		err := cascadingMessage.waitForOutgoingMessages(ctx, c, path, follow)
 		if err != nil {
 			return fmt.Errorf("failed to wait for outgoing messages: %w", err)
 		}
-		messagesWithUnconfirmedOutgoingMessages = append(messagesWithUnconfirmedOutgoingMessages, cascadingMessage.OutgoingInternalReceivedMessages...)
+		for _, received := range cascadingMessage.OutgoingInternalReceivedMessages {
+			childPath := make([]*ReceivedMessage, len(path), len(path)+1)
+			copy(childPath, path)
+			pending = append(pending, append(childPath, received))
+		}
 	}
 	return nil
 }
+
+// FollowCondition decides, before a trace waits for an outgoing internal message, whether the
+// message and its branch belong to the trace. path holds the received messages from the trace root
+// down to the message that sent out, which is last. Returning false skips the message: the trace
+// does not wait for it to be received.
+//
+// Unlike StopCondition, it only sees the sent message, so it can bound a trace whose excluded
+// branches never complete (e.g. contracts messaging each other indefinitely).
+type FollowCondition func(path []*ReceivedMessage, out *SentMessage) (bool, error)
+
+// FollowAll is a FollowCondition that waits for every outgoing message.
+var FollowAll FollowCondition = func(_ []*ReceivedMessage, _ *SentMessage) (bool, error) { return true, nil }
 
 // StopCondition is a function type that defines a condition to determine when to stop
 // traversing the message trace. It takes a parent and current ReceivedMessage as input

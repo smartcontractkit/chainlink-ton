@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -174,7 +175,7 @@ func (d debugger) dumpRec(m *tt.ReceivedMessage, verbose bool) error {
 			return fmt.Errorf("error describing received message: %w", err)
 		}
 	}
-	for _, sentMessage := range m.OutgoingInternalSentMessages {
+	for _, sentMessage := range slices.Concat(m.OutgoingInternalSentMessages, m.OutgoingInternalSkippedMessages) {
 		msgInfo, err := subD.environment.describeSentMessage(sentMessage, verbose)
 		if err != nil {
 			return fmt.Errorf("error describing sent message: %w", err)
