@@ -43,49 +43,64 @@ func findReceipt(ctx context.Context, c ton.APIClientWrapped, sent *SentMessage)
 	// Keep the search on one liteserver, so a block found by one is not missing on another.
 	ctx = c.Client().StickyContext(ctx)
 
-	dst := sent.InternalMsg.DstAddr
-	cur := &sent.receiptSearch
-	if cur.lt == 0 {
-		cur.lt = sent.InternalMsg.CreatedLT
+	if sent.receiptSearch.lt == 0 {
+		sent.receiptSearch.lt = sent.InternalMsg.CreatedLT
 	}
 
 	for {
-		block, err := lookupBlockByLT(ctx, c, dst, cur.lt)
-		if err == nil && cur.searched != nil && block.Equals(cur.searched) {
-			// The block ending at lt is the one already searched: look past it.
-			cur.lt++
+		tx, err := searchNextBlock(ctx, c, sent)
+		if err != nil {
+			// The chain has not produced the block yet, or the liteserver failed: retry.
+			select {
+			case <-ctx.Done():
+				return nil, fmt.Errorf("transaction receiving message from %s to %s at lt %d not found: %w (last error: %w)",
+					sent.InternalMsg.SrcAddr, sent.InternalMsg.DstAddr, sent.InternalMsg.CreatedLT, ctx.Err(), err)
+			case <-time.After(receiptPollInterval):
+			}
+			continue
+		}
+		if tx == nil {
 			continue
 		}
 
-		if err == nil {
-			var tx *tlb.Transaction
-			tx, err = findInBlock(ctx, c, block, sent)
-			if tx != nil {
-				received, mapErr := MapToReceivedMessage(tx)
-				if mapErr != nil {
-					return nil, fmt.Errorf("failed to map transaction: %w", mapErr)
-				}
-				return &received, nil
-			}
+		received, err := MapToReceivedMessage(tx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map transaction: %w", err)
 		}
-
-		if err == nil {
-			var header *tlb.BlockHeader
-			header, err = c.GetBlockHeader(ctx, block) //nolint:tonapiwaitlint // WaitForBlock takes a masterchain seqno; block is a shard block this sticky liteserver returned
-			if err == nil {
-				cur.searched, cur.lt = block, max(header.EndLt, cur.lt+1)
-				continue
-			}
-		}
-
-		// The chain has not produced the block yet, or the liteserver failed: retry.
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("transaction receiving message from %s to %s at lt %d not found: %w (last error: %w)",
-				sent.InternalMsg.SrcAddr, dst, sent.InternalMsg.CreatedLT, ctx.Err(), err)
-		case <-time.After(receiptPollInterval):
-		}
+		return &received, nil
 	}
+}
+
+// searchNextBlock searches the block at the receipt search cursor of sent for the transaction
+// receiving sent. When the block does not hold it, searchNextBlock moves the cursor past the block
+// and returns nil.
+func searchNextBlock(ctx context.Context, c ton.APIClientWrapped, sent *SentMessage) (*tlb.Transaction, error) {
+	cur := &sent.receiptSearch
+
+	block, err := lookupBlockByLT(ctx, c, sent.InternalMsg.DstAddr, cur.lt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find the next block to search: %w", err)
+	}
+	if cur.searched != nil && block.Equals(cur.searched) {
+		// The block ending at lt is the one already searched: look past it.
+		cur.lt++
+		return nil, nil
+	}
+
+	tx, err := findInBlock(ctx, c, block, sent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search block %d: %w", block.SeqNo, err)
+	}
+	if tx != nil {
+		return tx, nil
+	}
+
+	header, err := c.GetBlockHeader(ctx, block) //nolint:tonapiwaitlint // WaitForBlock takes a masterchain seqno; block is a shard block this sticky liteserver returned
+	if err != nil {
+		return nil, fmt.Errorf("failed to get header of block %d: %w", block.SeqNo, err)
+	}
+	cur.searched, cur.lt = block, max(header.EndLt, cur.lt+1)
+	return nil, nil
 }
 
 // receiptCursor is how far findReceipt has searched for the transaction receiving a message. Blocks
