@@ -31,6 +31,9 @@ func TestDecodeMerkleRootData(t *testing.T) {
 		WithMinMsgNr(10).
 		WithMaxMsgNr(19).
 		WithDeliveredMessageCount(3).
+		WithPendingExecutorDeploy([]bool{
+			false, true, false, false, false, false, false, false, false, false,
+		}).
 		WithMessageStates([]model.ExecutionState{
 			model.Untouched, model.Failure, model.InProgress, model.Success, model.Success, model.Untouched, model.Untouched, model.Untouched, model.Untouched, model.Untouched,
 		}).
@@ -51,13 +54,14 @@ func TestDecodeMerkleRootData(t *testing.T) {
 		require.Equal(t, 1, countState(storage.MessageStates, model.InProgress))
 		require.Equal(t, 2, countState(storage.MessageStates, model.Success))
 		require.Equal(t, 1, countState(storage.MessageStates, model.Failure))
+		require.Equal(t, []bool{false, true, false, false, false, false, false, false, false, false}, storage.PendingExecutorDeploy)
 		require.Equal(t, mustTimestamp("2025-11-18T17:59:46Z"), storage.Timestamp)
 	})
 
 	t.Run("TestMapper", func(t *testing.T) {
 		t.Parallel()
 
-		hexData := "b5ee9c7241010101006e0000d77f3c9e12a4d8b0f16c27e5aa91f4cb8d3e0fa7c6b28d54ef1c93b72a0de4589f800000000000000000000000000000000000000000000000000000000000000000400000000d23968240000000000000014000000000000002600000000000000000000000000000538000700de1c6ea"
+		hexData := "b5ee9c724101010100760000e77f3c9e12a4d8b0f16c27e5aa91f4cb8d3e0fa7c6b28d54ef1c93b72a0de4589f800000000000000000000000000000000000000000000000000000000000000000400000000d2396824000000000000001400000000000000260000000000000000000000000000053800000000000000040007057626613"
 
 		AssertHexMappingRoundTrip[merkleroot.Storage](
 			t,

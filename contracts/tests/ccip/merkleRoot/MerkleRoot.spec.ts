@@ -5,7 +5,7 @@ import {
   SandboxContract,
   TreasuryContract,
 } from '@ton/sandbox'
-import { beginCell, Cell, toNano } from '@ton/core'
+import { beginCell, Cell, CommonMessageInfoInternal, toNano } from '@ton/core'
 import { crc32 } from 'zlib'
 
 import { errorCode, facilityId } from '../../../wrappers/utils'
@@ -22,8 +22,13 @@ import * as mr from '../../../wrappers/gen/ccip/MerkleRoot'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { ChainSelectors } from '../../utils/Selectors'
 import EVM_ADDRESS from '../../utils/evmAddress'
-import { findTransaction, flattenTransaction } from '@ton/test-utils'
-import { sendMessageAsync, captureAccountChanges } from '../../utils/sendInternalMessage'
+import { findTransaction, findTransactionRequired, flattenTransaction } from '@ton/test-utils'
+import { buildRichBounceBody, RichBouncePhase } from '../../utils/richBounce'
+import {
+  sendMessageAsync,
+  captureAccountChanges,
+  sendBouncedMessage,
+} from '../../utils/sendInternalMessage'
 
 interface MerkleRootStorageOverrides {
   root?: bigint
@@ -31,6 +36,7 @@ interface MerkleRootStorageOverrides {
   minMsgNr?: bigint
   maxMsgNr?: bigint
   messageStates?: bigint
+  pendingExecutorDeploy?: bigint
   deliveredMessageCount?: bigint
 }
 
@@ -47,6 +53,7 @@ async function deployMerkleRootContract(
     minMsgNr: overrides.minMsgNr ?? 0n,
     maxMsgNr: overrides.maxMsgNr ?? 5n,
     messageStates: overrides.messageStates ?? 0n,
+    pendingExecutorDeploy: overrides.pendingExecutorDeploy ?? 0n,
     deliveredMessageCount: overrides.deliveredMessageCount ?? 0n,
   })
 
@@ -133,11 +140,13 @@ describe('MerkleRoot - Message Handling', () => {
       tokenAmounts: null,
     })
 
-  const buildGasOverride = (): mr.GasOverride =>
-    mr.GasOverride.create({
-      receiverExecutionGasLimit: toNano('0.05'),
-      tokenGasOverrides: [],
-    })
+  const buildMessageRef = (sequenceNumber: bigint): mr.RampMessageRef => {
+    const { messageId, sourceChainSelector } = buildMessage(sequenceNumber).header
+    return mr.RampMessageRef.create({ messageId, sourceChainSelector, sequenceNumber })
+  }
+
+  // Opaque to the MerkleRoot: relayed unchanged on OffRamp_ExecuteValidated.
+  const CONTEXT = beginCell().storeUint(0xc0ffee, 24).endCell()
 
   const loadStorage = async (address: mr.MerkleRoot['address']): Promise<mr.MerkleRoot_Storage> => {
     const contract = await blockchain.getContract(address)
@@ -177,8 +186,8 @@ describe('MerkleRoot - Message Handling', () => {
         message,
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [[]],
-        gasOverride: null,
+        isManualExecution: false,
+        context: CONTEXT,
         excessesTo: owner.address,
       })
 
@@ -199,8 +208,8 @@ describe('MerkleRoot - Message Handling', () => {
           return (
             decoded.root === ROOT &&
             decoded.metadataHash === METADATA_HASH &&
-            decoded.gasOverride === null &&
-            decoded.executionState === mr.ExecutionState.Untouched &&
+            decoded.context.equals(CONTEXT) &&
+            decoded.deployExecutor &&
             decoded.message.header.sequenceNumber === 1n
           )
         },
@@ -211,18 +220,12 @@ describe('MerkleRoot - Message Handling', () => {
     })
 
     describe('when the OffRamp bounces OffRamp_ExecuteValidated', () => {
-      let merkleRoot: SandboxContract<mr.MerkleRoot>
-      let bounce: Awaited<ReturnType<Blockchain['sendMessage']>>['transactions'][number]
-
-      beforeEach(async () => {
-        merkleRoot = await deployMerkleRootContract(blockchain, owner, {
-          root: ROOT,
-          timestamp: NOW,
-          minMsgNr: 1n,
-          maxMsgNr: 3n,
-        })
-
-        // The owner (the OffRamp) rejects every message while the request is in flight.
+      // Sends MerkleRoot_Validate while the owner (the OffRamp) rejects every message, so the
+      // OffRamp_ExecuteValidated it answers with bounces back to the root.
+      const validateBounced = async (
+        merkleRoot: SandboxContract<mr.MerkleRoot>,
+        isManualExecution: boolean,
+      ) => {
         const ownerAccount = (await blockchain.getContract(owner.address)).account
         await blockchain.setShardAccount(
           owner.address,
@@ -240,8 +243,8 @@ describe('MerkleRoot - Message Handling', () => {
             message: buildMessage(1n),
             permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
             metadataHash: METADATA_HASH,
-            offchainTokenData: [[]],
-            gasOverride: null,
+            isManualExecution,
+            context: CONTEXT,
             excessesTo: owner.address,
           },
         )
@@ -253,44 +256,201 @@ describe('MerkleRoot - Message Handling', () => {
           op: mr.OffRamp_ExecuteValidated.PREFIX,
           success: false,
         })
-        const found = findTransaction(result.transactions, {
+        const bounce = findTransaction(result.transactions, {
           from: owner.address,
           to: merkleRoot.address,
           op: 0xfffffffe,
           success: true,
         })
-        if (!found) throw new Error('Rich bounce of OffRamp_ExecuteValidated not found')
-        bounce = found
-      })
+        if (!bounce) throw new Error('Rich bounce of OffRamp_ExecuteValidated not found')
+        return { result, bounce }
+      }
 
-      it('should mark the message Failure, so it can be manually executed', async () => {
-        const storage = await loadStorage(merkleRoot.address)
-        expect(storage.messageStates).toBe(encodeState(1n, mr.ExecutionState.Failure, 1n))
-
-        // Failure allows manual execution even though the commit is fresh.
-        const retry = await merkleRoot.sendMerkleRootValidate(owner.getSender(), toNano('0.5'), {
+      const manualRetry = (merkleRoot: SandboxContract<mr.MerkleRoot>) =>
+        merkleRoot.sendMerkleRootValidate(owner.getSender(), toNano('0.5'), {
           message: buildMessage(1n),
           permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
           metadataHash: METADATA_HASH,
-          offchainTokenData: [[]],
-          gasOverride: buildGasOverride(),
+          isManualExecution: true,
+          context: CONTEXT,
           excessesTo: owner.address,
         })
-        expect(retry.transactions).toHaveTransaction({
+
+      const expectExecuteValidated = (
+        transactions: Awaited<ReturnType<typeof manualRetry>>['transactions'],
+        merkleRoot: SandboxContract<mr.MerkleRoot>,
+        deployExecutor: boolean,
+      ) =>
+        expect(transactions).toHaveTransaction({
           from: merkleRoot.address,
           to: owner.address,
           op: mr.OffRamp_ExecuteValidated.PREFIX,
+          body(x) {
+            if (!x) return false
+            return (
+              mr.OffRamp_ExecuteValidated.fromSlice(x.beginParse()).deployExecutor ===
+              deployExecutor
+            )
+          },
+        })
+
+      describe('on the first attempt (Untouched)', () => {
+        let merkleRoot: SandboxContract<mr.MerkleRoot>
+        let bounced: Awaited<ReturnType<typeof validateBounced>>
+
+        beforeEach(async () => {
+          merkleRoot = await deployMerkleRootContract(blockchain, owner, {
+            root: ROOT,
+            timestamp: NOW,
+            minMsgNr: 1n,
+            maxMsgNr: 3n,
+          })
+          bounced = await validateBounced(merkleRoot, false)
+        })
+
+        it('should mark the message Failure and notify the OffRamp', async () => {
+          const storage = await loadStorage(merkleRoot.address)
+          expect(storage.messageStates).toBe(encodeState(1n, mr.ExecutionState.Failure, 1n))
+
+          expect(bounced.result.transactions).toHaveTransaction({
+            from: merkleRoot.address,
+            to: owner.address,
+            op: mr.MerkleRoot_ExecutionStateChanged.PREFIX,
+            body(x) {
+              if (!x) return false
+              const decoded = mr.MerkleRoot_ExecutionStateChanged.fromSlice(x.beginParse())
+              return (
+                decoded.state === mr.ExecutionState.Failure &&
+                decoded.excessesTo.equals(owner.address)
+              )
+            },
+          })
+        })
+
+        it('should make the next attempt deploy the executor, whose deploy was reverted', async () => {
+          // Offset 0: seqNum 1 with minMsgNr 1.
+          expect((await loadStorage(merkleRoot.address)).pendingExecutorDeploy).toBe(1n)
+
+          // Failure allows manual execution even though the commit is fresh.
+          const retry = await manualRetry(merkleRoot)
+          expectExecuteValidated(retry.transactions, merkleRoot, true)
+
+          const storage = await loadStorage(merkleRoot.address)
+          expect(storage.messageStates).toBe(encodeState(1n, mr.ExecutionState.InProgress, 1n))
+          expect(storage.pendingExecutorDeploy).toBe(0n)
+        })
+
+        it('should keep asking to deploy the executor while attempts keep bouncing', async () => {
+          await validateBounced(merkleRoot, true)
+          expect((await loadStorage(merkleRoot.address)).pendingExecutorDeploy).toBe(1n)
+
+          const retry = await manualRetry(merkleRoot)
+          expectExecuteValidated(retry.transactions, merkleRoot, true)
+        })
+
+        it('should reject the bounce once the message is no longer InProgress', async () => {
+          const result = await blockchain.sendMessage(bounced.bounce.inMessage!)
+          expect(result.transactions).toHaveTransaction({
+            from: owner.address,
+            to: merkleRoot.address,
+            success: false,
+            exitCode: mr.MerkleRoot.Errors['MerkleRoot_Error.InvalidState'],
+          })
         })
       })
 
-      it('should reject the bounce once the message is no longer InProgress', async () => {
-        const result = await blockchain.sendMessage(bounce.inMessage!)
-        expect(result.transactions).toHaveTransaction({
+      it('should commit Failure and the pending deploy when the bounce cannot pay for ExecutionStateChanged', async () => {
+        // The root notifies the OffRamp with the value the bounce carries. If that value covers the
+        // root's compute but not the notification, the send must be skipped (IGNORE_ERRORS) rather
+        // than failing the action phase, which would revert the state change and leave the message
+        // InProgress forever.
+        const bounceBody = buildRichBounceBody({
+          originalBody: mr.OffRamp_ExecuteValidated.toCell(
+            mr.OffRamp_ExecuteValidated.create({
+              message: buildMessage(1n),
+              root: ROOT,
+              metadataHash: METADATA_HASH,
+              deployExecutor: true,
+              context: CONTEXT,
+              excessesTo: owner.address,
+            }),
+          ),
+          bouncedByPhase: RichBouncePhase.ComputeFailed,
+          exitCode: 0xffff,
+        })
+        const deployInProgress = (root: bigint) =>
+          deployMerkleRootContract(blockchain, owner, {
+            root,
+            timestamp: NOW,
+            minMsgNr: 1n,
+            maxMsgNr: 3n,
+            messageStates: encodeState(1n, mr.ExecutionState.InProgress, 1n),
+          })
+        const bounce = (merkleRoot: SandboxContract<mr.MerkleRoot>, value: bigint) =>
+          sendBouncedMessage(blockchain, owner.address, {
+            to: merkleRoot.address,
+            value,
+            body: bounceBody,
+          })
+
+        // Measure, on a funded bounce to another root, the handler's compute fee and the
+        // notification's forward fee.
+        const funded = await bounce(await deployInProgress(ROOT + 1n), toNano('0.5'))
+        const fundedHandler = findTransactionRequired(funded.transactions, {
+          from: owner.address,
+          success: true,
+        }).description
+        if (fundedHandler.type !== 'generic' || fundedHandler.computePhase.type !== 'vm') {
+          throw new Error('Expected the bounce handler to run')
+        }
+        const notification = findTransactionRequired(funded.transactions, {
+          to: owner.address,
+          op: mr.MerkleRoot_ExecutionStateChanged.PREFIX,
+        })
+        const notificationInfo = notification.inMessage!.info as CommonMessageInfoInternal
+        // The header carries the forward fee minus the sender's share, so half of it is still
+        // below the full forward fee.
+        const value = fundedHandler.computePhase.gasFees + notificationInfo.forwardFee / 2n
+
+        // Enough for the root to process the bounce, not enough for the notification.
+        const merkleRoot = await deployInProgress(ROOT)
+        const underfunded = await bounce(merkleRoot, value)
+        expect(underfunded.transactions).toHaveTransaction({
           from: owner.address,
           to: merkleRoot.address,
-          success: false,
-          exitCode: mr.MerkleRoot.Errors['MerkleRoot_Error.InvalidState'],
+          success: true,
+          aborted: false,
         })
+        expect(underfunded.transactions).not.toHaveTransaction({
+          from: merkleRoot.address,
+          op: mr.MerkleRoot_ExecutionStateChanged.PREFIX,
+        })
+
+        const storage = await loadStorage(merkleRoot.address)
+        expect(storage.messageStates).toBe(encodeState(1n, mr.ExecutionState.Failure, 1n))
+        expect(storage.pendingExecutorDeploy).toBe(1n)
+
+        const retry = await manualRetry(merkleRoot)
+        expectExecuteValidated(retry.transactions, merkleRoot, true)
+      })
+
+      it('should not set the pending deploy when a retry bounces after the executor was deployed', async () => {
+        // Failure after an executor flow: the executor exists.
+        const merkleRoot = await deployMerkleRootContract(blockchain, owner, {
+          root: ROOT,
+          timestamp: NOW,
+          minMsgNr: 1n,
+          maxMsgNr: 3n,
+          messageStates: encodeState(1n, mr.ExecutionState.Failure, 1n),
+        })
+
+        await validateBounced(merkleRoot, true)
+        const storage = await loadStorage(merkleRoot.address)
+        expect(storage.messageStates).toBe(encodeState(1n, mr.ExecutionState.Failure, 1n))
+        expect(storage.pendingExecutorDeploy).toBe(0n)
+
+        const retry = await manualRetry(merkleRoot)
+        expectExecuteValidated(retry.transactions, merkleRoot, false)
       })
     })
 
@@ -327,8 +487,8 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [[]],
-        gasOverride: null,
+        isManualExecution: false,
+        context: CONTEXT,
         excessesTo: owner.address,
       })
 
@@ -352,8 +512,8 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [[]],
-        gasOverride: null,
+        isManualExecution: false,
+        context: CONTEXT,
         excessesTo: owner.address,
       })
 
@@ -377,8 +537,8 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [[]],
-        gasOverride: null,
+        isManualExecution: false,
+        context: CONTEXT,
         excessesTo: owner.address,
       })
 
@@ -401,8 +561,8 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [[]],
-        gasOverride: buildGasOverride(),
+        isManualExecution: true,
+        context: CONTEXT,
         excessesTo: owner.address,
       })
 
@@ -427,8 +587,8 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [[]],
-        gasOverride: buildGasOverride(),
+        isManualExecution: true,
+        context: CONTEXT,
         excessesTo: owner.address,
       })
 
@@ -446,9 +606,7 @@ describe('MerkleRoot - Message Handling', () => {
         body(x) {
           if (!x) return false
           const decoded = mr.OffRamp_ExecuteValidated.fromSlice(x.beginParse())
-          return (
-            decoded.gasOverride !== null && decoded.executionState === mr.ExecutionState.Untouched
-          )
+          return decoded.context.equals(CONTEXT) && decoded.deployExecutor
         },
       })
     })
@@ -466,8 +624,8 @@ describe('MerkleRoot - Message Handling', () => {
         message: buildMessage(1n),
         permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
         metadataHash: METADATA_HASH,
-        offchainTokenData: [[]],
-        gasOverride: buildGasOverride(),
+        isManualExecution: true,
+        context: CONTEXT,
         excessesTo: owner.address,
       })
 
@@ -485,13 +643,52 @@ describe('MerkleRoot - Message Handling', () => {
         body(x) {
           if (!x) return false
           const decoded = mr.OffRamp_ExecuteValidated.fromSlice(x.beginParse())
-          return decoded.executionState === mr.ExecutionState.Failure
+          // Failure after an executor flow: the executor exists, so it is not deployed again.
+          return !decoded.deployExecutor
         },
       })
     })
   })
 
   describe('MerkleRoot_MarkState', () => {
+    it('should make the next attempt deploy the executor when its deploy bounced', async () => {
+      const merkleRoot = await deployMerkleRootContract(blockchain, owner, {
+        root: ROOT,
+        minMsgNr: 1n,
+        maxMsgNr: 3n,
+        messageStates: encodeState(1n, mr.ExecutionState.InProgress, 1n),
+      })
+      // The OffRamp reports an InitExecute that bounced without reaching an executor.
+      await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
+        messageRef: buildMessageRef(1n),
+        state: mr.ExecutionState.Failure,
+        excessesTo: owner.address,
+        executorDeployFailed: true,
+      })
+      const storage = await loadStorage(merkleRoot.address)
+      expect(storage.messageStates).toBe(encodeState(1n, mr.ExecutionState.Failure, 1n))
+      expect(storage.pendingExecutorDeploy).toBe(1n)
+
+      const retry = await merkleRoot.sendMerkleRootValidate(owner.getSender(), toNano('0.5'), {
+        message: buildMessage(1n),
+        permissionlessExecutionThresholdSeconds: THRESHOLD_SEC,
+        metadataHash: METADATA_HASH,
+        isManualExecution: true,
+        context: CONTEXT,
+        excessesTo: owner.address,
+      })
+      expect(retry.transactions).toHaveTransaction({
+        from: merkleRoot.address,
+        to: owner.address,
+        op: mr.OffRamp_ExecuteValidated.PREFIX,
+        body(x) {
+          if (!x) return false
+          return mr.OffRamp_ExecuteValidated.fromSlice(x.beginParse()).deployExecutor
+        },
+      })
+      expect((await loadStorage(merkleRoot.address)).pendingExecutorDeploy).toBe(0n)
+    })
+
     it('should mark seq as Success and increment deliveredMessageCount', async () => {
       const merkleRoot = await deployMerkleRootContract(blockchain, owner, {
         minMsgNr: 1n,
@@ -500,9 +697,10 @@ describe('MerkleRoot - Message Handling', () => {
       })
 
       const result = await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
-        seqNum: 1n,
+        messageRef: buildMessageRef(1n),
         state: mr.ExecutionState.Success,
         excessesTo: owner.address,
+        executorDeployFailed: false,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -524,9 +722,10 @@ describe('MerkleRoot - Message Handling', () => {
       })
 
       const result = await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
-        seqNum: 1n,
+        messageRef: buildMessageRef(1n),
         state: mr.ExecutionState.Failure,
         excessesTo: owner.address,
+        executorDeployFailed: false,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -548,9 +747,10 @@ describe('MerkleRoot - Message Handling', () => {
       })
 
       const result = await merkleRoot.sendMerkleRootMarkState(nonOwner.getSender(), toNano('0.1'), {
-        seqNum: 1n,
+        messageRef: buildMessageRef(1n),
         state: mr.ExecutionState.Success,
         excessesTo: owner.address,
+        executorDeployFailed: false,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -569,9 +769,10 @@ describe('MerkleRoot - Message Handling', () => {
       })
 
       const result = await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
-        seqNum: 1n,
+        messageRef: buildMessageRef(1n),
         state: mr.ExecutionState.Failure,
         excessesTo: owner.address,
+        executorDeployFailed: false,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -589,9 +790,10 @@ describe('MerkleRoot - Message Handling', () => {
       })
 
       const result = await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
-        seqNum: 1n,
+        messageRef: buildMessageRef(1n),
         state: mr.ExecutionState.InProgress,
         excessesTo: owner.address,
+        executorDeployFailed: false,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -609,9 +811,10 @@ describe('MerkleRoot - Message Handling', () => {
       })
 
       const result = await merkleRoot.sendMerkleRootMarkState(owner.getSender(), toNano('0.1'), {
-        seqNum: 42n,
+        messageRef: buildMessageRef(42n),
         state: mr.ExecutionState.Success,
         excessesTo: owner.address,
+        executorDeployFailed: false,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -632,9 +835,10 @@ describe('MerkleRoot - Message Handling', () => {
       })
 
       const body = mr.MerkleRoot.createCellOfMerkleRootMarkState({
-        seqNum: 1n,
+        messageRef: buildMessageRef(1n),
         state: mr.ExecutionState.Success,
         excessesTo: owner.address,
+        executorDeployFailed: false,
       })
 
       const txs = await sendMessageAsync(blockchain, owner.address, {
@@ -668,12 +872,14 @@ describe('MerkleRoot - Message Handling', () => {
       const excessTX = findTransaction(transactions, {
         from: merkleRoot.address,
         to: owner.address,
-        op: mr.MerkleRoot_StateMarked.PREFIX,
+        op: mr.MerkleRoot_ExecutionStateChanged.PREFIX,
       })
       if (!excessTX) throw new Error('ReturnExecuteExcess transaction not found')
       const excessValue = flattenTransaction(excessTX).value
       if (excessValue == undefined) throw new Error('Value not found in excess transaction')
-      const excess = mr.MerkleRoot_StateMarked.fromSlice(excessTX.inMessage!.body.beginParse())
+      const excess = mr.MerkleRoot_ExecutionStateChanged.fromSlice(
+        excessTX.inMessage!.body.beginParse(),
+      )
       expect(excess.root).toEqual(ROOT)
       expect(excess.excessesTo.equals(owner.address)).toBe(true)
       // Trigger value minus the MarkState fees.

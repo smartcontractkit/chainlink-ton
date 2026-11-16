@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../lib/utils"
+import "../common/types"
 import "../offramp/messages"
 import "../offramp/types"
 import "messages"
@@ -61,14 +62,37 @@ fun onBouncedMessage(in: InMessageBounced) {
     st.store();
 }
 
-/// The OffRamp rejected the validated message, so no ReceiveExecutor was started. Marks it
-/// Failure instead of leaving it InProgress, so it can be manually executed again. Nothing else
-/// moves the message off InProgress before the OffRamp answers, so any other state is a bug.
+/// The OffRamp rejected the validated message: its whole transaction was reverted, so no
+/// ReceiveExecutor was started and, if this attempt was meant to deploy the executor, the deploy
+/// was reverted too. Marks it Failure instead of leaving it InProgress, so it can be manually
+/// executed again, and records the pending deploy so the next attempt deploys the executor.
+/// Nothing else moves the message off InProgress before the OffRamp answers, so any other state
+/// is a bug. Notifies the OffRamp so it emits the ExecutionStateChanged event and refunds the
+/// caller with the bounced value (retries are re-funded by the new executor, so nothing stays on
+/// the root).
 fun onExecuteValidatedBounced(mutate st: MerkleRoot_Storage, msg: OffRamp_ExecuteValidated) {
     val message = lazy msg.message.load();
     val seqNum = message.header.sequenceNumber;
     assert (st.getMessageState(seqNum) == ExecutionState.InProgress) throw (MerkleRoot_Error.InvalidState);
     st.setMessageState(seqNum, ExecutionState.Failure);
+    if (msg.deployExecutor) {
+        st.setExecutorDeployPending(seqNum, true);
+    }
+
+    val stateChanged = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: st.owner,
+        body: MerkleRoot_ExecutionStateChanged {
+            root: st.root,
+            messageRef: message.header.toRef(),
+            state: ExecutionState.Failure,
+            excessesTo: msg.excessesTo,
+        },
+    });
+    // IGNORE_ERRORS: if the bounced value cannot pay for the notification, the state change above
+    // must still commit; otherwise the message would stay InProgress and could never be retried.
+    stateChanged.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
 }
 
 /*
@@ -79,25 +103,34 @@ sending remaining balance back to the OffRamp owner.
 */
 fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
     // validate we're transitioning states correctly: success is final
-    val previousState= st.getMessageState(msg.seqNum);
+    val seqNum = msg.messageRef.sequenceNumber;
+    val previousState = st.getMessageState(seqNum);
 
     assert (previousState != ExecutionState.Success) throw (MerkleRoot_Error.InvalidState);
     assert (msg.state == ExecutionState.Success || msg.state == ExecutionState.Failure) throw (MerkleRoot_Error.InvalidState);
 
-    st.setMessageState(msg.seqNum, msg.state);
+    st.setMessageState(seqNum, msg.state);
+    // Validate clears it. Each attempt ends with a single MarkState (or the ExecuteValidated bounce),
+    // so no later message of the same attempt can arrive after a retry started.
+    if (msg.executorDeployFailed) {
+        st.setExecutorDeployPending(seqNum, true);
+    }
 
     if (msg.state == ExecutionState.Success) {
         st.deliveredMessageCount += 1;
     }
 
     // Return the excesses carried by this message (inbound value minus this transaction's fees)
-    // to the OffRamp, which refunds them to the execution caller.
+    // to the OffRamp, which refunds them to the execution caller and emits the
+    // ExecutionStateChanged event for the state committed above.
     val excesses = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: st.owner,
-        body: MerkleRoot_StateMarked {
+        body: MerkleRoot_ExecutionStateChanged {
             root: st.root,
+            messageRef: msg.messageRef,
+            state: msg.state,
             excessesTo: msg.excessesTo,
         },
     });
@@ -129,9 +162,7 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
     val state = st.getMessageState(message.header.sequenceNumber);
     assert (state == ExecutionState.Failure || state == ExecutionState.Untouched) throw (MerkleRoot_Error.SkippedAlreadyExecutedMessage);
 
-    val isManualExecute = msg.gasOverride != null;
-
-    if (isManualExecute) {
+    if (msg.isManualExecution) {
         val isOldCommitReport = (blockchain.now() - st.timestamp > msg.permissionlessExecutionThresholdSeconds);
         // Manual execution is fine if we previously failed or if the commit report is just too old.
         // (In that case the report will still be in UNTOUCHED state)
@@ -141,6 +172,11 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
         assert (state == ExecutionState.Untouched) throw (MerkleRoot_Error.AlreadyExecuted);
     }
 
+    // The executor is deployed by the first attempt, and again by the attempt after one whose
+    // deploy was reverted or did not take place. Cleared optimistically: if this attempt bounces, the bounce
+    // handler sets it again.
+    val deployExecutor = state == ExecutionState.Untouched || st.isExecutorDeployPending(message.header.sequenceNumber);
+    st.setExecutorDeployPending(message.header.sequenceNumber, false);
     st.setMessageState(message.header.sequenceNumber, ExecutionState.InProgress);
 
     val executeValidated = createMessage({
@@ -152,9 +188,8 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
             message: message.toCell(),
             root: st.root,
             metadataHash: msg.metadataHash,
-            gasOverride: msg.gasOverride,
-            executionState: state,
-            offchainTokenData: msg.offchainTokenData,
+            deployExecutor,
+            context: msg.context,
             excessesTo: msg.excessesTo,
         }
     });

@@ -15,6 +15,7 @@ type Storage struct {
 	MinMsgNr              uint64           `tlb:"## 64"`
 	MaxMsgNr              uint64           `tlb:"## 64"`
 	MessageStates         *big.Int         `tlb:"## 128"`
+	PendingExecutorDeploy uint64           `tlb:"## 64"`
 	DeliveredMessageCount uint16           `tlb:"## 16"`
 }
 
