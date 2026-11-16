@@ -697,11 +697,13 @@ describe('OffRamp - Execute', () => {
       const report = setup.createExecuteReport([message])
       const result = await setup.executeReport(report)
 
-      // Message should fail due to low gas limit
+      // The OffRamp rejects the low-gas dispatch, which bounces back to the
+      // executor and fails the execution.
       expect(result.transactions).toHaveTransaction({
-        from: setup.offRamp.address,
-        success: true,
-        op: rx.ReceiveExecutor_CCIPReceiveFailed.PREFIX,
+        to: setup.offRamp.address,
+        success: false,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.NotEnoughGas'],
+        op: of.OffRamp_DispatchValidated.PREFIX,
       })
 
       assertLog(
@@ -2267,20 +2269,14 @@ describe('OffRamp - Execute', () => {
         op: of.OffRamp_TokenTransferDelivered.PREFIX,
         success: true,
       })
+      // With effectiveGasLimit 0 the OffRamp rejects the dispatch (below
+      // minGasLimit); the bounce fails the execution on the executor.
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
         to: setup.offRamp.address,
         op: of.OffRamp_DispatchValidated.PREFIX,
-        success: true,
-      })
-
-      // With effectiveGasLimit 0 the OffRamp rejects the dispatch (below
-      // minGasLimit) and notifies the executor of the failure.
-      expect(result.transactions).toHaveTransaction({
-        from: setup.offRamp.address,
-        to: executorAddress,
-        op: rx.ReceiveExecutor_CCIPReceiveFailed.PREFIX,
-        success: true,
+        success: false,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.NotEnoughGas'],
       })
 
       // The executor notifies failure and the message ends in Failure.

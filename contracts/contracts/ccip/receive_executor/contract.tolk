@@ -30,6 +30,7 @@ contract ReceiveExecutor {
     storage: ReceiveExecutor_Storage
     incomingMessages: ReceiveExecutor_InMessage
     thrownErrors: ReceiveExecutor_Error | Utils_Error
+    forceAbiExport: ReceiveExecutor_FailureErrors
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -83,7 +84,7 @@ fun onInternalMessage(in: InMessage) {
             assert (in.senderAddress == ttInfo.state.tokenPool) throw (ReceiveExecutor_Error.Unauthorized);
             // TokenPool returns a small remainder of the destGasAmount set
             setGasLimitToMaximum();
-            onReleaseOrMintFailure(mutate st, ttInfo, ttInfo.state);
+            onReleaseOrMintFailure(mutate st, ttInfo, ttInfo.state, msg.errorCode);
             st.store();
         }
         // Permissionless. Execution may already be final, so the value goes to the OffRamp.
@@ -108,7 +109,7 @@ fun onInternalMessage(in: InMessage) {
             assert (in.senderAddress == st.owner) throw (ReceiveExecutor_Error.Unauthorized);
             val ttInfo = st.state.tokenTransfer.loadOpt();
             assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_ReleaseOrMint) throw (ReceiveExecutor_Error.TokenPoolUnexpectedResponse);
-            onReleaseOrMintFailure(mutate st, ttInfo, ttInfo.state);
+            onReleaseOrMintFailure(mutate st, ttInfo, ttInfo.state, msg.errorCode);
             st.store();
         }
         // Sender must be the owner (OffRamp)
@@ -137,43 +138,43 @@ fun onBouncedMessage(in: InMessageBounced) {
     var st = ReceiveExecutor_Storage.load();
     match (bounced) {
         TokenAdminRegistry_GetTokenInfo => {
-            onGetTokenInfoBounced(mutate st);
+            onGetTokenInfoBounced(mutate st, rich.exitCode);
         }
         OffRamp_ReleaseOrMint => {
-            onReleaseOrMintRequestBounced(mutate st);
+            onReleaseOrMintRequestBounced(mutate st, rich.exitCode);
         }
         OffRamp_DispatchValidated => {
-            onDispatchValidatedBounced(mutate st);
+            onDispatchValidatedBounced(mutate st, rich.exitCode);
         }
     }
     st.store();
 }
 
 /// The token admin registry did not answer. The retry restarts from the registry query.
-fun onGetTokenInfoBounced(mutate st: ReceiveExecutor_Storage) {
+fun onGetTokenInfoBounced(mutate st: ReceiveExecutor_Storage, errorCode: int32) {
     var ttInfo = st.state.tokenTransfer.loadOpt();
     assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery) throw (ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse);
     ttInfo.state = ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {};
     st.state.tokenTransfer = ttInfo.toCell();
     val message = lazy st.message.load();
-    endExecutionWithFailure(mutate st, message.header);
+    endExecutionWithFailure(mutate st, message.header, errorCode);
 }
 
 /// The OffRamp rejected the release-or-mint request, so nothing reached the Router or the pool.
 /// Fails the transfer as a pool failure would; the retry restarts from the registry query.
-fun onReleaseOrMintRequestBounced(mutate st: ReceiveExecutor_Storage) {
+fun onReleaseOrMintRequestBounced(mutate st: ReceiveExecutor_Storage, errorCode: int32) {
     val ttInfo = st.state.tokenTransfer.loadOpt();
     assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_ReleaseOrMint) throw (ReceiveExecutor_Error.TokenPoolUnexpectedResponse);
-    onReleaseOrMintFailure(mutate st, ttInfo, ttInfo.state);
+    onReleaseOrMintFailure(mutate st, ttInfo, ttInfo.state, errorCode);
 }
 
 /// The OffRamp rejected the dispatch, so the receiver was never called. Fails the execution as a
 /// receiver failure would; the retry dispatches again.
-fun onDispatchValidatedBounced(mutate st: ReceiveExecutor_Storage) {
+fun onDispatchValidatedBounced(mutate st: ReceiveExecutor_Storage, errorCode: int32) {
     assert (st.state.messageExecution == ReceiveExecutor_MessageExecutionState.Execute) throw (ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage);
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.ExecuteFailed;
     val message = lazy st.message.load();
-    endExecutionWithFailure(mutate st, message.header);
+    endExecutionWithFailure(mutate st, message.header, errorCode);
 }
 
 // onInitExecute is called by the OffRamp to initiate the execution of a message in the ReceiveExecutor.
@@ -246,7 +247,7 @@ fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenA
     val poolInfo = msg.poolInfo!.load();
     // The source's destGasAmount must fund the pool's release admission.
     if (ttInfo.transfer.load().destGasAmount < poolInfo.admission.load().releaseOrMint) {
-        return onTARQueryFailed(mutate st, ttInfo, ReceiveExecutor_Error.TokenAdmissionNotMet);
+        return onTARQueryFailed(mutate st, ttInfo, ReceiveExecutor_FailureErrors.TokenAdmissionNotMet as int32);
     }
 
     val transferInitiator = poolInfo.transferInitiator == null
@@ -255,7 +256,7 @@ fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenA
     releaseOrMint(mutate st, ttInfo, poolInfo.tokenPool, transferInitiator);
 }
 
-fun onTARQueryFailed(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, errorCode: uint16) {
+fun onTARQueryFailed(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, errorCode: int32) {
     val rampMsg = lazy st.message.load();
     ttInfo.state = ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {};
     st.state.tokenTransfer = ttInfo.toCell();
@@ -263,7 +264,7 @@ fun onTARQueryFailed(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor
 }
 
 fun onTokenNotEnabled(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo) {
-    onTARQueryFailed(mutate st, ttInfo, ReceiveExecutor_Error.TokenNotEnabledInTokenRegistry);
+    onTARQueryFailed(mutate st, ttInfo, ReceiveExecutor_FailureErrors.TokenNotEnabledInTokenRegistry as int32);
 }
 
 fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address, transferInitiator: Cell<address>?) {
@@ -351,11 +352,11 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
     assert (msg.receiver == ccipMessage.receiver) throw (ReceiveExecutor_Error.NotificationFromInvalidReceiver);
 
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.ExecuteFailed;
-    endExecutionWithFailure(mutate st, ccipMessage.header);
+    endExecutionWithFailure(mutate st, ccipMessage.header, msg.errorCode ?? ReceiveExecutor_FailureErrors.ReceiverBounced as int32);
 }
 
 // Returns all balance to the OffRamp; a manual execution funds the retry again.
-fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, _errorCode: uint16 = 0) {
+fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, errorCode: int32) {
 
     reserveGramsOnBalance(RECEIVE_EXECUTOR_INIT_VALUE, RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
@@ -369,6 +370,7 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
             execId: st.execId,
             root: st.root,
             excesses: st.state.excesses!,
+            errorCode,
         },
     });
     // SAFETY: The excesses message carries all remaining balance above the
@@ -462,14 +464,14 @@ fun endExecutionSuccessfully(mutate st: ReceiveExecutor_Storage, messageHeader: 
     notifySuccess.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
-fun onReleaseOrMintFailure(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, releaseOrMint: ReceiveExecutor_TokenTransferState_ReleaseOrMint) {
+fun onReleaseOrMintFailure(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, releaseOrMint: ReceiveExecutor_TokenTransferState_ReleaseOrMint, errorCode: int32) {
     ttInfo.state = ReceiveExecutor_TokenTransferState_ReleaseOrMintFailed {
         tokenPool: releaseOrMint.tokenPool,
         transferInitiator: releaseOrMint.transferInitiator,
     };
     st.state.tokenTransfer = ttInfo.toCell();
     val ccipMessage = lazy st.message.load();
-    endExecutionWithFailure(mutate st, ccipMessage.header);
+    endExecutionWithFailure(mutate st, ccipMessage.header, errorCode);
 }
 
 get fun typeAndVersion(): (slice, slice) {

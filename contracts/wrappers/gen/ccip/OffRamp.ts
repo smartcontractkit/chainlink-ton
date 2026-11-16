@@ -1770,13 +1770,13 @@ export const ReceiveExecutor_TokenTransfer = {
 /**
  > struct (0xdf58530e) ReceiveExecutor_ReleaseOrMintFailed {
  >     queryId: uint64
- >     reason: ReleaseOrMint_ReleaseOrMintFailedReason
+ >     errorCode: int32
  > }
  */
 export interface ReceiveExecutor_ReleaseOrMintFailed {
     readonly $: 'ReceiveExecutor_ReleaseOrMintFailed'
     queryId: uint64
-    reason: ReleaseOrMint_ReleaseOrMintFailedReason
+    errorCode: int32
 }
 
 export const ReceiveExecutor_ReleaseOrMintFailed = {
@@ -1784,7 +1784,7 @@ export const ReceiveExecutor_ReleaseOrMintFailed = {
 
     create(args: {
         queryId?: uint64
-        reason: ReleaseOrMint_ReleaseOrMintFailedReason
+        errorCode: int32
     }): ReceiveExecutor_ReleaseOrMintFailed {
         return {
             $: 'ReceiveExecutor_ReleaseOrMintFailed',
@@ -1797,111 +1797,16 @@ export const ReceiveExecutor_ReleaseOrMintFailed = {
         return {
             $: 'ReceiveExecutor_ReleaseOrMintFailed',
             queryId: s.loadUintBig(64),
-            reason: ReleaseOrMint_ReleaseOrMintFailedReason.fromSlice(s),
+            errorCode: s.loadIntBig(32),
         }
     },
     store(self: ReceiveExecutor_ReleaseOrMintFailed, b: c.Builder): void {
         b.storeUint(0xdf58530e, 32);
         b.storeUint(self.queryId, 64);
-        ReleaseOrMint_ReleaseOrMintFailedReason.store(self.reason, b);
+        b.storeInt(self.errorCode, 32);
     },
     toCell(self: ReceiveExecutor_ReleaseOrMintFailed): c.Cell {
         return makeCellFrom<ReceiveExecutor_ReleaseOrMintFailed>(self, ReceiveExecutor_ReleaseOrMintFailed.store);
-    }
-}
-
-/**
- > type ReleaseOrMint_ReleaseOrMintFailedReason = ReleaseOrMintBounced | NotEnoughDestGasAmountForTokenTransfer
- */
-export type ReleaseOrMint_ReleaseOrMintFailedReason =
-    | ReleaseOrMintBounced
-    | NotEnoughDestGasAmountForTokenTransfer
-
-export const ReleaseOrMint_ReleaseOrMintFailedReason = {
-    fromSlice(s: c.Slice): ReleaseOrMint_ReleaseOrMintFailedReason {
-        return lookupPrefix(s, 0xb70c2a9a, 32) ? ReleaseOrMintBounced.fromSlice(s) :
-            lookupPrefix(s, 0xb304ecdf, 32) ? NotEnoughDestGasAmountForTokenTransfer.fromSlice(s) :
-            throwNonePrefixMatch('ReleaseOrMint_ReleaseOrMintFailedReason');
-    },
-    store(self: ReleaseOrMint_ReleaseOrMintFailedReason, b: c.Builder): void {
-        switch (self.$) {
-            case 'ReleaseOrMintBounced':
-                ReleaseOrMintBounced.store(self, b);
-                break;
-            case 'NotEnoughDestGasAmountForTokenTransfer':
-                NotEnoughDestGasAmountForTokenTransfer.store(self, b);
-                break;
-        }
-    },
-    toCell(self: ReleaseOrMint_ReleaseOrMintFailedReason): c.Cell {
-        return makeCellFrom<ReleaseOrMint_ReleaseOrMintFailedReason>(self, ReleaseOrMint_ReleaseOrMintFailedReason.store);
-    }
-}
-
-/**
- > struct (0xb70c2a9a) ReleaseOrMintBounced {
- >     errorCode: int32
- > }
- */
-export interface ReleaseOrMintBounced {
-    readonly $: 'ReleaseOrMintBounced'
-    errorCode: int32
-}
-
-export const ReleaseOrMintBounced = {
-    PREFIX: 0xb70c2a9a,
-
-    create(args: {
-        errorCode: int32
-    }): ReleaseOrMintBounced {
-        return {
-            $: 'ReleaseOrMintBounced',
-            ...args
-        }
-    },
-    fromSlice(s: c.Slice): ReleaseOrMintBounced {
-        loadAndCheckPrefix32(s, 0xb70c2a9a, 'ReleaseOrMintBounced');
-        return {
-            $: 'ReleaseOrMintBounced',
-            errorCode: s.loadIntBig(32),
-        }
-    },
-    store(self: ReleaseOrMintBounced, b: c.Builder): void {
-        b.storeUint(0xb70c2a9a, 32);
-        b.storeInt(self.errorCode, 32);
-    },
-    toCell(self: ReleaseOrMintBounced): c.Cell {
-        return makeCellFrom<ReleaseOrMintBounced>(self, ReleaseOrMintBounced.store);
-    }
-}
-
-/**
- > struct (0xb304ecdf) NotEnoughDestGasAmountForTokenTransfer {
- > }
- */
-export interface NotEnoughDestGasAmountForTokenTransfer {
-    readonly $: 'NotEnoughDestGasAmountForTokenTransfer'
-}
-
-export const NotEnoughDestGasAmountForTokenTransfer = {
-    PREFIX: 0xb304ecdf,
-
-    create(): NotEnoughDestGasAmountForTokenTransfer {
-        return {
-            $: 'NotEnoughDestGasAmountForTokenTransfer',
-        }
-    },
-    fromSlice(s: c.Slice): NotEnoughDestGasAmountForTokenTransfer {
-        loadAndCheckPrefix32(s, 0xb304ecdf, 'NotEnoughDestGasAmountForTokenTransfer');
-        return {
-            $: 'NotEnoughDestGasAmountForTokenTransfer',
-        }
-    },
-    store(self: NotEnoughDestGasAmountForTokenTransfer, b: c.Builder): void {
-        b.storeUint(0xb304ecdf, 32);
-    },
-    toCell(self: NotEnoughDestGasAmountForTokenTransfer): c.Cell {
-        return makeCellFrom<NotEnoughDestGasAmountForTokenTransfer>(self, NotEnoughDestGasAmountForTokenTransfer.store);
     }
 }
 
@@ -1957,14 +1862,14 @@ export const ReceiveExecutor_CCIPReceiveConfirm = {
  > struct (0x8854993b) ReceiveExecutor_CCIPReceiveFailed {
  >     queryId: uint64
  >     receiver: address
- >     reason: ReceiveExecutor_FailedReason
+ >     errorCode: int32?
  > }
  */
 export interface ReceiveExecutor_CCIPReceiveFailed {
     readonly $: 'ReceiveExecutor_CCIPReceiveFailed'
     queryId: uint64
     receiver: c.Address
-    reason: ReceiveExecutor_FailedReason
+    errorCode: int32 | null
 }
 
 export const ReceiveExecutor_CCIPReceiveFailed = {
@@ -1973,7 +1878,7 @@ export const ReceiveExecutor_CCIPReceiveFailed = {
     create(args: {
         queryId?: uint64
         receiver: c.Address
-        reason: ReceiveExecutor_FailedReason
+        errorCode: int32 | null
     }): ReceiveExecutor_CCIPReceiveFailed {
         return {
             $: 'ReceiveExecutor_CCIPReceiveFailed',
@@ -1987,38 +1892,19 @@ export const ReceiveExecutor_CCIPReceiveFailed = {
             $: 'ReceiveExecutor_CCIPReceiveFailed',
             queryId: s.loadUintBig(64),
             receiver: s.loadAddress(),
-            reason: ReceiveExecutor_FailedReason.fromSlice(s),
+            errorCode: s.loadBoolean() ? s.loadIntBig(32) : null,
         }
     },
     store(self: ReceiveExecutor_CCIPReceiveFailed, b: c.Builder): void {
         b.storeUint(0x8854993b, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.receiver);
-        ReceiveExecutor_FailedReason.store(self.reason, b);
+        storeTolkNullable<int32>(self.errorCode, b,
+            (v,b) => b.storeInt(v, 32)
+        );
     },
     toCell(self: ReceiveExecutor_CCIPReceiveFailed): c.Cell {
         return makeCellFrom<ReceiveExecutor_CCIPReceiveFailed>(self, ReceiveExecutor_CCIPReceiveFailed.store);
-    }
-}
-
-/**
- > enum ReceiveExecutor_FailedReason { 3 variants }
- */
-export type ReceiveExecutor_FailedReason = bigint
-
-export const ReceiveExecutor_FailedReason = {
-    NotEnoughGas: 0n,
-    BouncedFromReceiver: 1n,
-    BouncedFromRouter: 2n,
-
-    fromSlice(s: c.Slice): ReceiveExecutor_FailedReason {
-        return s.loadUintBig(8);
-    },
-    store(self: ReceiveExecutor_FailedReason, b: c.Builder): void {
-        b.storeUint(self, 8);
-    },
-    toCell(self: ReceiveExecutor_FailedReason): c.Cell {
-        return makeCellFrom<ReceiveExecutor_FailedReason>(self, ReceiveExecutor_FailedReason.store);
     }
 }
 
@@ -3006,6 +2892,7 @@ export const OffRamp_DeliveredTransfer = {
  >     execId: ReceiveExecutionID
  >     root: address
  >     excesses: Cell<ReceiveExecutor_Excesses>
+ >     errorCode: int32
  > }
  */
 export interface OffRamp_NotifyFailure {
@@ -3015,6 +2902,7 @@ export interface OffRamp_NotifyFailure {
     execId: ReceiveExecutionID
     root: c.Address
     excesses: ReceiveExecutor_Excesses
+    errorCode: int32
 }
 
 export const OffRamp_NotifyFailure = {
@@ -3026,6 +2914,7 @@ export const OffRamp_NotifyFailure = {
         execId: ReceiveExecutionID
         root: c.Address
         excesses: ReceiveExecutor_Excesses
+        errorCode: int32
     }): OffRamp_NotifyFailure {
         return {
             $: 'OffRamp_NotifyFailure',
@@ -3042,6 +2931,7 @@ export const OffRamp_NotifyFailure = {
             execId: ReceiveExecutionID.fromSlice(s),
             root: s.loadAddress(),
             excesses: loadCellRef<ReceiveExecutor_Excesses>(s, ReceiveExecutor_Excesses.fromSlice),
+            errorCode: s.loadIntBig(32),
         }
     },
     store(self: OffRamp_NotifyFailure, b: c.Builder): void {
@@ -3051,6 +2941,7 @@ export const OffRamp_NotifyFailure = {
         ReceiveExecutionID.store(self.execId, b);
         b.storeAddress(self.root);
         storeCellRef<ReceiveExecutor_Excesses>(self.excesses, b, ReceiveExecutor_Excesses.store);
+        b.storeInt(self.errorCode, 32);
     },
     toCell(self: OffRamp_NotifyFailure): c.Cell {
         return makeCellFrom<OffRamp_NotifyFailure>(self, OffRamp_NotifyFailure.store);
@@ -3287,7 +3178,7 @@ export const OffRamp_ReturnExcessToExecutor = {
 }
 
 /**
- > enum OffRamp_Error { 27 variants }
+ > enum OffRamp_Error { 29 variants }
  */
 export type OffRamp_Error = bigint
 
@@ -3319,6 +3210,8 @@ export const OffRamp_Error = {
     TokenAdminRegistryNotSet: 22124n,
     TokenAdminRegistryAlreadySet: 22125n,
     UnhandledLegacyBounce: 22126n,
+    NotEnoughGas: 22127n,
+    NotEnoughDestGasAmount: 22128n,
 
     fromSlice(s: c.Slice): OffRamp_Error {
         return s.loadUintBig(15);
@@ -5065,6 +4958,8 @@ export class OffRamp implements c.Contract {
         'OffRamp_Error.TokenAdminRegistryNotSet': 22124,
         'OffRamp_Error.TokenAdminRegistryAlreadySet': 22125,
         'OffRamp_Error.UnhandledLegacyBounce': 22126,
+        'OffRamp_Error.NotEnoughGas': 22127,
+        'OffRamp_Error.NotEnoughDestGasAmount': 22128,
         'Ownable2Step_Error.OnlyCallableByOwner': 49800,
         'Ownable2Step_Error.CannotTransferToSelf': 49801,
         'Ownable2Step_Error.MustBeProposedOwner': 49802,
@@ -5229,6 +5124,7 @@ export class OffRamp implements c.Contract {
         execId: ReceiveExecutionID
         root: c.Address
         excesses: ReceiveExecutor_Excesses
+        errorCode: int32
     }) {
         return OffRamp_NotifyFailure.toCell(OffRamp_NotifyFailure.create(body));
     }
@@ -5487,6 +5383,7 @@ export class OffRamp implements c.Contract {
         execId: ReceiveExecutionID
         root: c.Address
         excesses: ReceiveExecutor_Excesses
+        errorCode: int32
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
