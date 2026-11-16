@@ -15,6 +15,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
@@ -109,14 +110,22 @@ func (a *TONAccessor) convertCCIPMessageSent(
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert source pool address: %w", err)
 		}
+		extraData, err := snakePayloadBytes(transfer.ExtraData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode token transfer extra data: %w", err)
+		}
+		destExecData, err := snakePayloadBytes(transfer.DestExecData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode token transfer dest exec data: %w", err)
+		}
 		// The cross-chain amount is the post-fee amount the pool reported
 		// (LockOrBurnFinished.destTokenAmount)
 		tokenAmounts = append(tokenAmounts, ccipocr3.RampTokenAmount{
 			SourcePoolAddress: sourcePoolAddress,
 			DestTokenAddress:  ccipocr3.UnknownAddress(transfer.DestTokenAddress),
-			ExtraData:         cellPayload(transfer.ExtraData),
+			ExtraData:         extraData,
 			Amount:            ccipocr3.NewBigInt(transfer.Amount),
-			DestExecData:      cellPayload(transfer.DestExecData),
+			DestExecData:      destExecData,
 		})
 	}
 
@@ -167,22 +176,21 @@ func sourcePoolAddressBytes(addr *address.Address) (ccipocr3.UnknownAddress, err
 	return ccipocr3.UnknownAddress(raw[:]), nil
 }
 
-// cellPayload extracts the raw bytes a payload cell carries. The token-transfer payloads
-// (extraData, destExecData) are capped at CCIP_LOCK_OR_BURN_V1_RET_BYTES, so they always
-// fit in a single cell's data and never spill into references.
-func cellPayload(c *cell.Cell) ccipocr3.Bytes {
+// snakePayloadBytes decodes a snake-encoded byte payload (extraData / destExecData).
+// The OnRamp stores pool data as a snake chain of cells, so the whole chain must be
+// walked: reading only the root cell's bits truncates payloads larger than one cell.
+func snakePayloadBytes(c *cell.Cell) (ccipocr3.Bytes, error) {
 	if c == nil {
-		return nil
+		return nil, nil
 	}
-	s, err := c.BeginParse()
-	if err != nil {
-		return nil
+	var data common.SnakeBytes
+	if err := tlb.Parse(&data, c); err != nil {
+		return nil, err
 	}
-	data := s.MustLoadSlice(c.BitsSize())
 	if len(data) == 0 {
-		return nil
+		return nil, nil
 	}
-	return ccipocr3.Bytes(data)
+	return ccipocr3.Bytes(data), nil
 }
 
 func (a *TONAccessor) validateCommitReportAcceptedEvent(
