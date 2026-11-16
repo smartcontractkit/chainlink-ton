@@ -338,8 +338,8 @@ func TestInMemoryLogs_Transact(t *testing.T) {
 
 		fnErr := errors.New("range incomplete")
 		err = store.Transact(t.Context(), func(tx logpoller.LogStore) error {
-			if _, err := tx.SaveLogs(t.Context(), []models.Log{makeLog(2, 300)}, 100, 10); err != nil {
-				return err
+			if _, saveErr := tx.SaveLogs(t.Context(), []models.Log{makeLog(2, 300)}, 100, 10); saveErr != nil {
+				return saveErr
 			}
 			return fnErr
 		})

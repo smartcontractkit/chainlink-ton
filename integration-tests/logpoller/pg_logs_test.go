@@ -437,11 +437,11 @@ func TestPgLogStoreTransact(t *testing.T) {
 
 	// Committed range: two chunks saved through one transaction.
 	err = logStore.Transact(ctx, func(tx logpoller.LogStore) error {
-		if _, err := tx.SaveLogs(ctx, []models.Log{makeLog(1, 5000)}, batchInsertSize, minBatchSize); err != nil {
-			return err
+		if _, saveErr := tx.SaveLogs(ctx, []models.Log{makeLog(1, 5000)}, batchInsertSize, minBatchSize); saveErr != nil {
+			return saveErr
 		}
-		_, err := tx.SaveLogs(ctx, []models.Log{makeLog(2, 5100)}, batchInsertSize, minBatchSize)
-		return err
+		_, saveErr := tx.SaveLogs(ctx, []models.Log{makeLog(2, 5100)}, batchInsertSize, minBatchSize)
+		return saveErr
 	})
 	require.NoError(t, err)
 
@@ -454,11 +454,11 @@ func TestPgLogStoreTransact(t *testing.T) {
 	// Neither chunk may persist, so the resume point stays at the last complete range.
 	rangeErr := errors.New("range incomplete")
 	err = logStore.Transact(ctx, func(tx logpoller.LogStore) error {
-		if _, err := tx.SaveLogs(ctx, []models.Log{makeLog(3, 5300)}, batchInsertSize, minBatchSize); err != nil {
-			return err
+		if _, saveErr := tx.SaveLogs(ctx, []models.Log{makeLog(3, 5300)}, batchInsertSize, minBatchSize); saveErr != nil {
+			return saveErr
 		}
-		if _, err := tx.SaveLogs(ctx, []models.Log{makeLog(4, 5200)}, batchInsertSize, minBatchSize); err != nil {
-			return err
+		if _, saveErr := tx.SaveLogs(ctx, []models.Log{makeLog(4, 5200)}, batchInsertSize, minBatchSize); saveErr != nil {
+			return saveErr
 		}
 		return rangeErr
 	})
