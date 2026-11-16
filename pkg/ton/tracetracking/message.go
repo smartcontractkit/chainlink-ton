@@ -604,17 +604,20 @@ func (m *ReceivedMessage) TraceExitCodeWith(boundary StopCondition) (tvm.ExitCod
 	return tvm.ExitCodeSuccess, nil
 }
 
+// Succeeded reports whether the transaction that received this message fully executed.
+// It relies on the transaction's Aborted flag, which the node sets unless both the compute
+// phase and the action phase succeeded (a skipped compute phase counts as not succeeded).
+// A successful compute phase alone is not enough, since the action phase can still fail
+// (e.g. a non-ignored send that cannot pay its value), which aborts the transaction and
+// discards its state changes and outgoing messages.
 func (m *ReceivedMessage) Succeeded() bool {
-	if m.Description == nil {
-		return false // Expected compute phase
-	}
-	computePhase, ok := m.Description.ComputePhase.Phase.(tlb.ComputePhaseVM)
-	if !ok {
-		return false // Expected VM compute phase
-	}
-	return computePhase.Success
+	return m.Description != nil && !m.Description.Aborted
 }
 
+// ExitCode returns the code describing how the transaction that received this message
+// executed: the compute phase exit code, or the action phase result code when the compute
+// phase succeeded but the action phase failed. A skipped compute phase is reported with
+// the ExitCodeComputeSkipReason* pseudo exit codes.
 func (m *ReceivedMessage) ExitCode() (tvm.ExitCode, error) {
 	if m.Description == nil {
 		return 0, errors.New("no description in transaction")
@@ -634,7 +637,15 @@ func (m *ReceivedMessage) ExitCode() (tvm.ExitCode, error) {
 			return tvm.ExitCodeComputeSkipReasonNoGas, nil
 		case tlb.ComputeSkipReasonSuspended:
 			return tvm.ExitCodeComputeSkipReasonSuspended, nil
+		default:
+			return 0, fmt.Errorf("compute phase skipped for unknown reason %q; cannot extract exit code", skipped.Reason.Type)
 		}
+	}
+	if !computePhase.Success {
+		return tvm.ExitCode(computePhase.Details.ExitCode), nil
+	}
+	if actionPhase := m.Description.ActionPhase; actionPhase != nil && !actionPhase.Success {
+		return tvm.ExitCode(actionPhase.ResultCode), nil
 	}
 	return tvm.ExitCode(computePhase.Details.ExitCode), nil
 }

@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking/tracetest"
 )
@@ -181,4 +183,126 @@ func TestWaitForTraceWith_NilFollowsAll(t *testing.T) {
 	defer cancel()
 
 	require.ErrorIs(t, root.WaitForTraceWith(ctx, chain, nil), context.DeadlineExceeded)
+}
+
+func vmPhase(success bool, exitCode int32) tlb.ComputePhase {
+	return tlb.ComputePhase{Phase: tlb.ComputePhaseVM{
+		Success: success,
+		Details: tlb.ComputePhaseVMDetails{ExitCode: exitCode},
+	}}
+}
+
+func skippedPhase(reason tlb.ComputeSkipReasonType) tlb.ComputePhase {
+	return tlb.ComputePhase{Phase: tlb.ComputePhaseSkipped{Reason: tlb.ComputeSkipReason{Type: reason}}}
+}
+
+func actionPhase(success bool, resultCode int32) *tlb.ActionPhase {
+	return &tlb.ActionPhase{Success: success, ResultCode: resultCode}
+}
+
+func TestReceivedMessage_Outcome(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		description   *tlb.TransactionDescriptionOrdinary
+		wantSucceeded bool
+		wantExitCode  tvm.ExitCode
+		wantErr       string
+	}{
+		{
+			name:          "compute and action succeeded",
+			description:   &tlb.TransactionDescriptionOrdinary{ComputePhase: vmPhase(true, 0), ActionPhase: actionPhase(true, 0)},
+			wantSucceeded: true,
+			wantExitCode:  tvm.ExitCodeSuccess,
+		},
+		{
+			name:          "compute failed",
+			description:   &tlb.TransactionDescriptionOrdinary{ComputePhase: vmPhase(false, 100), Aborted: true},
+			wantSucceeded: false,
+			wantExitCode:  100,
+		},
+		{
+			name: "compute succeeded but action phase failed",
+			description: &tlb.TransactionDescriptionOrdinary{
+				ComputePhase: vmPhase(true, 0),
+				ActionPhase:  actionPhase(false, int32(tvm.ExitCodeNotEnoughToncoin)),
+				Aborted:      true,
+			},
+			wantSucceeded: false,
+			wantExitCode:  tvm.ExitCodeNotEnoughToncoin,
+		},
+		{
+			name:          "compute skipped",
+			description:   &tlb.TransactionDescriptionOrdinary{ComputePhase: skippedPhase(tlb.ComputeSkipReasonNoState), Aborted: true},
+			wantSucceeded: false,
+			wantExitCode:  tvm.ExitCodeComputeSkipReasonNoState,
+		},
+		{
+			name:          "compute skipped for unknown reason",
+			description:   &tlb.TransactionDescriptionOrdinary{ComputePhase: skippedPhase("UNKNOWN"), Aborted: true},
+			wantSucceeded: false,
+			wantErr:       `compute phase skipped for unknown reason "UNKNOWN"`,
+		},
+		{
+			name:          "no description",
+			description:   nil,
+			wantSucceeded: false,
+			wantErr:       "no description in transaction",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			msg := &tracetracking.ReceivedMessage{Description: tt.description}
+
+			require.Equal(t, tt.wantSucceeded, msg.Succeeded())
+
+			exitCode, err := msg.ExitCode()
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantExitCode, exitCode)
+		})
+	}
+}
+
+func TestReceivedMessage_TraceOutcomeWithActionPhaseFailure(t *testing.T) {
+	t.Parallel()
+
+	succeeded := &tlb.TransactionDescriptionOrdinary{ComputePhase: vmPhase(true, 0), ActionPhase: actionPhase(true, 0)}
+	actionFailed := &tlb.TransactionDescriptionOrdinary{
+		ComputePhase: vmPhase(true, 0),
+		ActionPhase:  actionPhase(false, int32(tvm.ExitCodeNotEnoughToncoin)),
+		Aborted:      true,
+	}
+
+	t.Run("root action phase failure fails the trace", func(t *testing.T) {
+		t.Parallel()
+		root := &tracetracking.ReceivedMessage{Description: actionFailed}
+
+		require.False(t, root.TraceSucceeded())
+		exitCode, err := root.TraceExitCode()
+		require.NoError(t, err)
+		require.Equal(t, tvm.ExitCodeNotEnoughToncoin, exitCode)
+	})
+
+	t.Run("descendant action phase failure fails the trace", func(t *testing.T) {
+		t.Parallel()
+		root := &tracetracking.ReceivedMessage{
+			Description: succeeded,
+			OutgoingInternalReceivedMessages: []*tracetracking.ReceivedMessage{
+				{Description: succeeded},
+				{Description: actionFailed},
+			},
+		}
+
+		require.False(t, root.TraceSucceeded())
+		exitCode, err := root.TraceExitCode()
+		require.NoError(t, err)
+		require.Equal(t, tvm.ExitCodeNotEnoughToncoin, exitCode)
+	})
 }
