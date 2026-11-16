@@ -537,7 +537,7 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(knownAddresses, sequenceDiagram.OutputFmtURL).DumpReceived(&receivedMessage))
 			}
 
-			if receivedMessage.Status() != tracetracking.Finalized {
+			if receivedMessage.TraceStatus() != tracetracking.TraceFinalized {
 				continue
 			}
 

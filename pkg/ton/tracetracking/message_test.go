@@ -120,6 +120,59 @@ func TestWaitForTraceWith_SkipsDeclinedBranches(t *testing.T) {
 	require.Equal(t, 0, toPing.OutgoingAmount().Cmp(skipped.Amount))
 }
 
+func TestWaitForTrace_ResumesAfterTimeout(t *testing.T) {
+	chain := tracetest.NewChain(t)
+	in := chain.Send(wallet, contract, tracetest.Body(1))
+	rootTx := chain.Receive(in, tracetest.Out{Dst: pingA, Body: tracetest.Body(2)})
+	pingATx := chain.Receive(rootTx.Out[0], tracetest.Out{Dst: pingB, Body: tracetest.Body(3)})
+	root := mapRoot(t, rootTx)
+
+	// pingB has not received its message yet.
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+	require.ErrorIs(t, root.WaitForTrace(ctx, chain), context.DeadlineExceeded)
+
+	// The root's own messages are all received, but the trace is not complete.
+	require.Empty(t, root.OutgoingInternalSentMessages)
+	require.Equal(t, tracetracking.Finalized, root.Status())
+	require.Equal(t, tracetracking.TraceCascading, root.TraceStatus())
+	toPing := root.OutgoingInternalReceivedMessages[0]
+	require.Len(t, toPing.OutgoingInternalSentMessages, 1, "the message pingB has not received stays pending")
+	require.Empty(t, toPing.OutgoingInternalReceivedMessages)
+
+	// Waiting again once pingB receives it completes the trace.
+	chain.Receive(pingATx.Out[0])
+	ctx, cancel = context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, root.WaitForTrace(ctx, chain))
+
+	require.Equal(t, tracetracking.TraceFinalized, root.TraceStatus())
+	require.Empty(t, toPing.OutgoingInternalSentMessages)
+	require.Len(t, toPing.OutgoingInternalReceivedMessages, 1)
+	require.True(t, toPing.OutgoingInternalReceivedMessages[0].InternalMsg.DstAddr.Equals(pingB))
+}
+
+func TestTraceStatus(t *testing.T) {
+	chain := tracetest.NewChain(t)
+	in := chain.Send(wallet, contract, tracetest.Body(1))
+	rootTx := chain.Receive(in, tracetest.Out{Dst: pingA, Body: tracetest.Body(2)})
+	root := mapRoot(t, rootTx)
+	require.Equal(t, tracetracking.TraceReceived, root.TraceStatus())
+
+	leaf := mapRoot(t, chain.Receive(chain.Send(wallet, contract, tracetest.Body(1))))
+	require.Equal(t, tracetracking.TraceFinalized, leaf.TraceStatus())
+
+	child := mapRoot(t, chain.Receive(rootTx.Out[0], tracetest.Out{Dst: pingB, Body: tracetest.Body(3)}))
+	root.OutgoingInternalSentMessages = nil
+	root.OutgoingInternalReceivedMessages = []*tracetracking.ReceivedMessage{child}
+	require.Equal(t, tracetracking.TraceCascading, root.TraceStatus(), "a message two hops down is pending")
+	require.Equal(t, tracetracking.Finalized, root.Status(), "Status only considers the root's own messages")
+
+	child.OutgoingInternalSkippedMessages = child.OutgoingInternalSentMessages
+	child.OutgoingInternalSentMessages = nil
+	require.Equal(t, tracetracking.TraceFinalized, root.TraceStatus(), "skipped messages are not pending")
+}
+
 func TestWaitForTraceWith_NilFollowsAll(t *testing.T) {
 	chain := tracetest.NewChain(t)
 	root := buildPingPong(t, chain, 2)

@@ -31,6 +31,22 @@ const (
 	Finalized
 )
 
+// TraceStatus represents how much of a message's trace has been received.
+// It can be one of the following:
+//   - TraceReceived: The message has been received and has outgoing messages,
+//     none of them received yet.
+//   - TraceCascading: Some outgoing messages have been received, but messages
+//     are still pending somewhere in the trace.
+//   - TraceFinalized: Every message of the trace has been received, or skipped
+//     by a FollowCondition.
+type TraceStatus int
+
+const (
+	TraceReceived TraceStatus = iota
+	TraceCascading
+	TraceFinalized
+)
+
 // SentMessage represents a message that has been sent from one contract to another
 // in the TON blockchain. It contains information about the internal message,
 // the amount transferred, the Lamport time when the message was sent, and the
@@ -156,6 +172,9 @@ func (m *ReceivedMessage) TotalTransactionExecutionFee() *big.Int {
 // Status returns the current status of the message based on its outgoing messages.
 // Returns Finalized if no outgoing messages exist, Cascading if some outgoing messages
 // have been received, or Received if outgoing messages exist but none have been received yet.
+//
+// It only considers the message's own outgoing messages: use TraceStatus for the status of
+// the whole trace.
 func (m *ReceivedMessage) Status() MsgStatus {
 	if len(m.OutgoingInternalSentMessages) == 0 {
 		return Finalized
@@ -164,6 +183,34 @@ func (m *ReceivedMessage) Status() MsgStatus {
 		return Cascading
 	}
 	return Received
+}
+
+// TraceStatus returns the status of the message's whole trace: TraceFinalized if no message is
+// pending anywhere in the trace, TraceCascading if messages are pending but some outgoing message has
+// been received, or TraceReceived if outgoing messages are pending and none has been received yet.
+// Messages a FollowCondition skipped are not pending.
+func (m *ReceivedMessage) TraceStatus() TraceStatus {
+	if !m.hasPendingMessages() {
+		return TraceFinalized
+	}
+	if len(m.OutgoingInternalReceivedMessages) != 0 {
+		return TraceCascading
+	}
+	return TraceReceived
+}
+
+// hasPendingMessages reports whether a message of m's trace has been sent but not received yet.
+func (m *ReceivedMessage) hasPendingMessages() bool {
+	stack := []*ReceivedMessage{m}
+	for len(stack) > 0 {
+		curr := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if len(curr.OutgoingInternalSentMessages) != 0 {
+			return true
+		}
+		stack = append(stack, curr.OutgoingInternalReceivedMessages...)
+	}
+	return false
 }
 
 // NetCreditResult calculates the net amount credited to the recipient after
@@ -369,11 +416,12 @@ func (m *ReceivedMessage) waitForOutgoingMessages(ctx context.Context, c ton.API
 			continue
 		}
 
-		m.OutgoingInternalSentMessages = m.OutgoingInternalSentMessages[1:]
+		// The message stays pending until it is found, so a wait cut short by ctx can be resumed.
 		receivedMessage, err := findReceipt(ctx, c, sentMessage)
 		if err != nil {
 			return err
 		}
+		m.OutgoingInternalSentMessages = m.OutgoingInternalSentMessages[1:]
 		m.OutgoingInternalReceivedMessages = append(m.OutgoingInternalReceivedMessages, receivedMessage)
 	}
 
@@ -433,8 +481,10 @@ func (m SentMessage) MatchesReceived(incomingMessage *tlb.InternalMessage) bool 
 // It modifies the OutgoingInternalMessagesReceived field and returns an error
 // if any part of the trace fails to process.
 //
-// The function returns immediately if the message is already in Finalized state.
+// The function returns immediately if the message's trace is already in Finalized state.
 // Otherwise, it processes all cascading messages until the entire trace is complete.
+// If ctx ends first, the trace keeps the messages received so far and those still
+// pending, and waiting again resumes from there.
 func (m *ReceivedMessage) WaitForTrace(ctx context.Context, c ton.APIClientWrapped) error {
 	return m.WaitForTraceWith(ctx, c, FollowAll)
 }
@@ -445,7 +495,7 @@ func (m *ReceivedMessage) WaitForTrace(ctx context.Context, c ton.APIClientWrapp
 // OutgoingInternalSkippedMessages and the trace completes without it. A nil follow waits for every
 // message.
 func (m *ReceivedMessage) WaitForTraceWith(ctx context.Context, c ton.APIClientWrapped, follow FollowCondition) error {
-	if m.Status() == Finalized {
+	if m.TraceStatus() == TraceFinalized {
 		return nil
 	}
 	if follow == nil {
