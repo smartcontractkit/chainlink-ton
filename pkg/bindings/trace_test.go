@@ -2,11 +2,13 @@ package bindings_test
 
 import (
 	"context"
+	"math/big"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
@@ -36,6 +38,28 @@ const (
 	opLegacyBounce = 0xffffffff
 )
 
+// execID is the execution the Router delivers in execution, and otherExecID another one.
+var (
+	execID      = big.NewInt(0xe1)
+	otherExecID = big.NewInt(0xe2)
+)
+
+// deliveryBody returns a Receiver_CCIPReceiveV2 body for execution id, up to the execution ID.
+func deliveryBody(id *big.Int) *cell.Cell {
+	return cell.BeginCell().
+		MustStoreUInt(offramp.OpcodeCCIPReceive, 32).
+		MustStoreBigUInt(id, 192).
+		EndCell()
+}
+
+// confirmBody returns a Router_CCIPReceiveConfirm body for execution id.
+func confirmBody(t *testing.T, id *big.Int) *cell.Cell {
+	t.Helper()
+	body, err := tlb.ToCell(router.CCIPReceiveConfirm{QueryID: 1, ExecID: id})
+	require.NoError(t, err)
+	return body
+}
+
 func mapRoot(t *testing.T, tx tracetest.Tx) *tracetracking.ReceivedMessage {
 	t.Helper()
 	root, err := tracetracking.MapToReceivedMessage(tx.Transaction)
@@ -51,7 +75,7 @@ func execution(t *testing.T, chain *tracetest.Chain) (*tracetracking.ReceivedMes
 	execute := chain.Send(transmitter, offRampAddr, tracetest.Body(opExecute))
 	offRampTx := chain.Receive(execute, tracetest.Out{Dst: routerAddr, Body: tracetest.Body(opRoute)})
 	routerTx := chain.Receive(offRampTx.Out[0],
-		tracetest.Out{Dst: receiver, Body: tracetest.Body(offramp.OpcodeCCIPReceive)},
+		tracetest.Out{Dst: receiver, Body: deliveryBody(execID)},
 		tracetest.Out{Dst: offRampAddr, Body: tracetest.Body(opExcess)},
 	)
 	delivery, excess := routerTx.Out[0], routerTx.Out[1]
@@ -79,16 +103,17 @@ func TestCCIPReceiverFollowCondition_BoundsMaliciousReceiver(t *testing.T) {
 	root, delivery := execution(t, chain)
 
 	// The receiver confirms, starts a ping-pong with its own contract, sends the Router an unknown
-	// opcode that the Router bounces back to it, and has the Router start a send that reaches the
-	// attacker. None of the ping-pong, the bounce or the send ever completes, so the trace only
-	// completes if all of them are skipped.
+	// opcode that the Router bounces back to it, has the Router start a send that reaches the
+	// attacker, and confirms again. None of the ping-pong, the bounce, the send or the second
+	// confirmation ever completes, so the trace only completes if all of them are skipped.
 	receiverTx := chain.Receive(delivery,
-		tracetest.Out{Dst: routerAddr, Body: tracetest.Body(router.OpcodeCCIPReceiveConfirm)},
+		tracetest.Out{Dst: routerAddr, Body: confirmBody(t, execID)},
 		tracetest.Out{Dst: attacker, Body: tracetest.Body(opUnknown)},
 		tracetest.Out{Dst: routerAddr, Body: tracetest.Body(opUnknown)},
 		tracetest.Out{Dst: routerAddr, Body: tracetest.Body(router.OpcodeCCIPSend)},
+		tracetest.Out{Dst: routerAddr, Body: confirmBody(t, execID)},
 	)
-	confirm, unknown, send := receiverTx.Out[0], receiverTx.Out[2], receiverTx.Out[3]
+	confirm, unknown, send, again := receiverTx.Out[0], receiverTx.Out[2], receiverTx.Out[3], receiverTx.Out[4]
 	confirmLeg(chain, confirm)
 	chain.ReceiveWithExitCode(0xffff, unknown,
 		tracetest.Out{Dst: receiver, Body: tracetest.Body(opLegacyBounce), Bounced: true},
@@ -108,10 +133,11 @@ func TestCCIPReceiverFollowCondition_BoundsMaliciousReceiver(t *testing.T) {
 	require.Len(t, confirmMsg.OutgoingInternalReceivedMessages[0].OutgoingInternalReceivedMessages, 1)
 
 	skipped := receiverMsg.OutgoingInternalSkippedMessages
-	require.Len(t, skipped, 3)
+	require.Len(t, skipped, 4)
 	require.True(t, skipped[0].InternalMsg.DstAddr.Equals(attacker))
 	require.Equal(t, unknown.CreatedLT, skipped[1].InternalMsg.CreatedLT)
 	require.Equal(t, send.CreatedLT, skipped[2].InternalMsg.CreatedLT)
+	require.Equal(t, again.CreatedLT, skipped[3].InternalMsg.CreatedLT)
 
 	require.NotContains(t, chain.Searched(), attacker.String())
 }
@@ -122,7 +148,7 @@ func TestCCIPReceiverFollowCondition_SkipsRepliesToReceiver(t *testing.T) {
 
 	// The OffRamp rejects the confirmation and the Router tells the receiver, which never handles it.
 	receiverTx := chain.Receive(delivery,
-		tracetest.Out{Dst: routerAddr, Body: tracetest.Body(router.OpcodeCCIPReceiveConfirm)},
+		tracetest.Out{Dst: routerAddr, Body: confirmBody(t, execID)},
 	)
 	routerTx := chain.Receive(receiverTx.Out[0], tracetest.Out{Dst: offRampAddr, Body: tracetest.Body(opToOffRamp)})
 	offRampTx := chain.ReceiveWithExitCode(300, routerTx.Out[0],
@@ -138,6 +164,27 @@ func TestCCIPReceiverFollowCondition_SkipsRepliesToReceiver(t *testing.T) {
 	require.Empty(t, bouncedMsg.OutgoingInternalReceivedMessages)
 	require.Len(t, bouncedMsg.OutgoingInternalSkippedMessages, 1)
 	require.True(t, bouncedMsg.OutgoingInternalSkippedMessages[0].InternalMsg.DstAddr.Equals(receiver))
+}
+
+func TestCCIPReceiverFollowCondition_FollowsFirstConfirmationOfExecution(t *testing.T) {
+	chain := tracetest.NewChain(t)
+	root, delivery := execution(t, chain)
+
+	// Before confirming the delivered execution, the receiver confirms another execution and sends a
+	// truncated confirmation. Only the confirmation of the delivered execution is ever received.
+	receiverTx := chain.Receive(delivery,
+		tracetest.Out{Dst: routerAddr, Body: confirmBody(t, otherExecID)},
+		tracetest.Out{Dst: routerAddr, Body: tracetest.Body(router.OpcodeCCIPReceiveConfirm)},
+		tracetest.Out{Dst: routerAddr, Body: confirmBody(t, execID)},
+	)
+	confirmLeg(chain, receiverTx.Out[2])
+
+	require.NoError(t, root.WaitForTraceWith(waitCtx(t), chain, bindings.CCIPReceiverFollowCondition))
+
+	receiverMsg := root.OutgoingInternalReceivedMessages[0].OutgoingInternalReceivedMessages[0]
+	require.Len(t, receiverMsg.OutgoingInternalReceivedMessages, 1)
+	require.Equal(t, receiverTx.Out[2].CreatedLT, receiverMsg.OutgoingInternalReceivedMessages[0].InternalMsg.CreatedLT)
+	require.Len(t, receiverMsg.OutgoingInternalSkippedMessages, 2)
 }
 
 // receiverBounces records the receiver failing on delivery and its bounce going through the Router
