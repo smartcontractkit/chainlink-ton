@@ -365,14 +365,13 @@ retryLoop:
 				"to", tx.To.String(),
 				"amount", tx.Amount.Nano().String())
 
-			// Transaction was broadcast successfully, but may have failed to execute due to ExitCode.
+			// Transaction was broadcast successfully, but may have failed to execute.
 			// Use separate error variable since this doesn't affect broadcast success.
-			exitCode, exitCodeErr := receivedMessage.ExitCode()
-			if exitCodeErr != nil {
-				t.logger.Errorw("failed to get exit code", "error", exitCodeErr)
-			}
-			if exitCode != 0 {
-				t.logger.Errorw("transaction failed", "exitcode", exitCode, "description", exitCode.Describe())
+			result, exitCode, resultErr := receivedMessage.Result()
+			if resultErr != nil {
+				t.logger.Errorw("failed to get transaction outcome", "error", resultErr)
+			} else if result != tracetracking.ResultSuccess {
+				t.logger.Errorw("transaction failed", "phase", result, "exitcode", exitCode, "description", exitCode.Describe())
 			}
 
 			if len(receivedMessage.OutgoingInternalSentMessages) == 0 && len(receivedMessage.OutgoingInternalReceivedMessages) == 0 {
@@ -549,16 +548,12 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				"LT", unconfirmedTx.LT,
 				"latency", finalizationLatency.String())
 
-			exitCode, err := receivedMessage.TraceExitCodeWith(t.traceOutcome)
+			result, exitCode, err := receivedMessage.TraceResultWith(t.traceOutcome)
 			if err != nil {
-				t.logger.Errorw("failed to get outcome exit code", "LT", unconfirmedTx.LT, "error", err)
+				t.logger.Errorw("failed to get trace outcome", "LT", unconfirmedTx.LT, "error", err)
 				continue
 			}
-			traceSucceeded, err := receivedMessage.TraceSucceededWith(t.traceOutcome)
-			if err != nil {
-				t.logger.Errorw("failed to check trace outcome", "LT", unconfirmedTx.LT, "error", err)
-				continue
-			}
+			traceSucceeded := result == tracetracking.ResultSuccess
 
 			if err := txStore.MarkFinalized(unconfirmedTx.LT, traceSucceeded, exitCode); err != nil {
 				t.logger.Errorw("failed to mark tx as finalized in TxStore", "LT", unconfirmedTx.LT, "error", err)
@@ -571,7 +566,7 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				t.logger.Infow("transaction confirmed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
 			} else {
 				t.metrics.IncrementRevertTxs(ctx, fmt.Sprintf("%d", exitCode))
-				t.logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
+				t.logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "phase", result, "exitCode", exitCode)
 			}
 		}
 	}

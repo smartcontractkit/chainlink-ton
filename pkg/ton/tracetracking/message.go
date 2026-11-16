@@ -563,8 +563,26 @@ func (m *ReceivedMessage) TraceExitCode() (tvm.ExitCode, error) {
 //
 // If all messages within the boundary succeeded, it returns the success exit code.
 func (m *ReceivedMessage) TraceExitCodeWith(boundary StopCondition) (tvm.ExitCode, error) {
+	_, exitCode, err := m.TraceResultWith(boundary)
+	return exitCode, err
+}
+
+// TraceResult returns the result of the first failed message found in this message or any of
+// its outgoing internal messages, as reported by Result. If all messages succeeded, it returns
+// ResultSuccess and the success exit code. On error it returns ResultUnknown.
+func (m *ReceivedMessage) TraceResult() (Result, tvm.ExitCode, error) {
+	return m.TraceResultWith(NoBound)
+}
+
+// TraceResultWith returns the result of the first failed message found in this message or any
+// of its outgoing internal messages, as reported by Result, stopping the search to progress in
+// trace branches where the provided boundary condition is met (continues searching other branches).
+//
+// If all messages within the boundary succeeded, it returns ResultSuccess and the success exit code.
+// On error it returns ResultUnknown.
+func (m *ReceivedMessage) TraceResultWith(boundary StopCondition) (Result, tvm.ExitCode, error) {
 	if m == nil {
-		return 0, errors.New("cannot get trace exit code from nil ReceivedMessage")
+		return ResultUnknown, 0, errors.New("cannot get trace result from nil ReceivedMessage")
 	}
 
 	if boundary == nil {
@@ -578,12 +596,12 @@ func (m *ReceivedMessage) TraceExitCodeWith(boundary StopCondition) (tvm.ExitCod
 		curr := stack[n]
 
 		stack = stack[:n]
-		exitCode, err := curr.ExitCode()
+		result, exitCode, err := curr.Result()
 		if err != nil {
-			return 0, fmt.Errorf("failed to get exit code: %w", err)
+			return ResultUnknown, 0, fmt.Errorf("failed to get exit code: %w", err)
 		}
-		if exitCode != tvm.ExitCodeSuccess {
-			return exitCode, nil
+		if result != ResultSuccess {
+			return result, exitCode, nil
 		}
 
 		for i := len(curr.OutgoingInternalReceivedMessages) - 1; i >= 0; i-- {
@@ -591,7 +609,7 @@ func (m *ReceivedMessage) TraceExitCodeWith(boundary StopCondition) (tvm.ExitCod
 
 			stop, err := boundary(curr, msg)
 			if err != nil {
-				return 0, fmt.Errorf("failed to evaluate stop condition: %w", err)
+				return ResultUnknown, 0, fmt.Errorf("failed to evaluate stop condition: %w", err)
 			}
 			if stop {
 				continue // Skip traversing further in this branch if the stop condition is met
@@ -601,7 +619,7 @@ func (m *ReceivedMessage) TraceExitCodeWith(boundary StopCondition) (tvm.ExitCod
 		}
 	}
 
-	return tvm.ExitCodeSuccess, nil
+	return ResultSuccess, tvm.ExitCodeSuccess, nil
 }
 
 // Succeeded reports whether the transaction that received this message fully executed.
@@ -614,40 +632,85 @@ func (m *ReceivedMessage) Succeeded() bool {
 	return m.Description != nil && !m.Description.Aborted
 }
 
-// ExitCode returns the code describing how the transaction that received this message
-// executed: the compute phase exit code, or the action phase result code when the compute
-// phase succeeded but the action phase failed. A skipped compute phase is reported with
-// the ExitCodeComputeSkipReason* pseudo exit codes.
-func (m *ReceivedMessage) ExitCode() (tvm.ExitCode, error) {
+// Result is the outcome of a transaction: success, or the phase that made it fail.
+// Compute phase exit codes and action phase result codes share the same numeric range
+// (e.g. 37 is both a possible contract throw and the action phase's "not enough Toncoin"),
+// so the result is needed to interpret an exit code unambiguously.
+type Result int
+
+const (
+	ResultUnknown        Result = iota // the outcome could not be determined (returned alongside an error)
+	ResultSuccess                      // the transaction succeeded
+	ResultComputeSkipped               // the compute phase did not run (exit code is an ExitCodeComputeSkipReason* pseudo code)
+	ResultComputeFailed                // the compute phase ran and failed (exit code is the VM exit code)
+	ResultActionFailed                 // the compute phase succeeded but the action phase failed (exit code is the action result code)
+)
+
+func (r Result) String() string {
+	switch r {
+	case ResultUnknown:
+		return "Unknown"
+	case ResultSuccess:
+		return "Success"
+	case ResultComputeSkipped:
+		return "ComputeSkipped"
+	case ResultComputeFailed:
+		return "ComputeFailed"
+	case ResultActionFailed:
+		return "ActionFailed"
+	default:
+		return fmt.Sprintf("Result(%d)", int(r))
+	}
+}
+
+// Result reports the outcome of the transaction that received this message, together with
+// the exit code describing it:
+//   - ResultSuccess: the compute phase exit code of the successful transaction
+//   - ResultComputeSkipped: the ExitCodeComputeSkipReason* pseudo code for the skip reason
+//   - ResultComputeFailed: the compute phase exit code
+//   - ResultActionFailed: the action phase result code
+//
+// On error it returns ResultUnknown.
+func (m *ReceivedMessage) Result() (Result, tvm.ExitCode, error) {
 	if m.Description == nil {
-		return 0, errors.New("no description in transaction")
+		return ResultUnknown, 0, errors.New("no description in transaction")
 	}
-	computePhase, ok := m.Description.ComputePhase.Phase.(tlb.ComputePhaseVM)
-	if !ok {
-		skipped, ok := m.Description.ComputePhase.Phase.(tlb.ComputePhaseSkipped)
-		if !ok {
-			return 0, fmt.Errorf("compute phase is %T, not a VM phase; cannot extract exit code", m.Description.ComputePhase.Phase)
-		}
-		switch skipped.Reason.Type {
+
+	switch phase := m.Description.ComputePhase.Phase.(type) {
+	case tlb.ComputePhaseSkipped:
+		switch phase.Reason.Type {
 		case tlb.ComputeSkipReasonNoState:
-			return tvm.ExitCodeComputeSkipReasonNoState, nil
+			return ResultComputeSkipped, tvm.ExitCodeComputeSkipReasonNoState, nil
 		case tlb.ComputeSkipReasonBadState:
-			return tvm.ExitCodeComputeSkipReasonBadState, nil
+			return ResultComputeSkipped, tvm.ExitCodeComputeSkipReasonBadState, nil
 		case tlb.ComputeSkipReasonNoGas:
-			return tvm.ExitCodeComputeSkipReasonNoGas, nil
+			return ResultComputeSkipped, tvm.ExitCodeComputeSkipReasonNoGas, nil
 		case tlb.ComputeSkipReasonSuspended:
-			return tvm.ExitCodeComputeSkipReasonSuspended, nil
+			return ResultComputeSkipped, tvm.ExitCodeComputeSkipReasonSuspended, nil
 		default:
-			return 0, fmt.Errorf("compute phase skipped for unknown reason %q; cannot extract exit code", skipped.Reason.Type)
+			return ResultUnknown, 0, fmt.Errorf("compute phase skipped for unknown reason %q; cannot extract exit code", phase.Reason.Type)
 		}
+	case tlb.ComputePhaseVM:
+		computeExitCode := tvm.ExitCode(phase.Details.ExitCode)
+		if !phase.Success {
+			return ResultComputeFailed, computeExitCode, nil
+		}
+		// the action phase is always present when the compute phase succeeded
+		if actionPhase := m.Description.ActionPhase; actionPhase != nil && !actionPhase.Success {
+			return ResultActionFailed, tvm.ExitCode(actionPhase.ResultCode), nil
+		}
+		return ResultSuccess, computeExitCode, nil
+	default:
+		return ResultUnknown, 0, fmt.Errorf("compute phase is %T, not a VM phase; cannot extract exit code", m.Description.ComputePhase.Phase)
 	}
-	if !computePhase.Success {
-		return tvm.ExitCode(computePhase.Details.ExitCode), nil
-	}
-	if actionPhase := m.Description.ActionPhase; actionPhase != nil && !actionPhase.Success {
-		return tvm.ExitCode(actionPhase.ResultCode), nil
-	}
-	return tvm.ExitCode(computePhase.Details.ExitCode), nil
+}
+
+// ExitCode returns the exit code describing how the transaction that received this message
+// executed. See Result for which code is reported for each outcome, and use Result when the
+// outcome is needed to interpret the code.
+func (m *ReceivedMessage) ExitCode() (tvm.ExitCode, error) {
+	_, exitCode, err := m.Result()
+	return exitCode, err
 }
 
 // FindMessageTo searches this message's trace for a received message addressed to dst,
