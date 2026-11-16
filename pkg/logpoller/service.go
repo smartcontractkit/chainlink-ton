@@ -299,6 +299,11 @@ func (lp *service) processBlockRange(
 	addresses []*address.Address,
 	filterIndex models.FilterIndex,
 ) error {
+	// Cancel the pipeline when processing ends, so producers blocked on a channel that is no
+	// longer drained (the transaction failed to start, a save failed, ...) exit instead of leaking.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	txsCh, loadErrsCh := lp.loadTxsForAddresses(ctx, blockRange, addresses)
 	logsCh, parseErrsCh := lp.parseTransactions(ctx, filterIndex, lp.chainID, txsCh)
 

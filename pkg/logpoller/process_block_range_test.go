@@ -44,10 +44,32 @@ func (l *testTxLoader) GetTxsForAddress(_ context.Context, _ *models.BlockRange,
 	return nil, errors.New("not implemented")
 }
 
+// endlessTxLoader keeps emitting tx until its context is cancelled, then closes done.
+type endlessTxLoader struct {
+	tx   models.Tx
+	done chan struct{}
+}
+
+func (l *endlessTxLoader) LoadTxsForAddress(ctx context.Context, _ *models.BlockRange, _ *address.Address, _ uint32, txOut chan<- models.Tx, _ chan<- error) error {
+	defer close(l.done)
+	for {
+		select {
+		case txOut <- l.tx:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (l *endlessTxLoader) GetTxsForAddress(_ context.Context, _ *models.BlockRange, _ *address.Address, _ uint32) ([]models.Tx, error) {
+	return nil, errors.New("not implemented")
+}
+
 type testLogStore struct {
-	mu         sync.Mutex
-	logs       []models.Log // committed logs
-	rolledBack []models.Log // logs saved inside a Transact call whose fn failed
+	mu          sync.Mutex
+	logs        []models.Log // committed logs
+	rolledBack  []models.Log // logs saved inside a Transact call whose fn failed
+	transactErr error        // when set, Transact fails without calling fn (e.g. BEGIN failed)
 }
 
 func (s *testLogStore) SaveLogs(_ context.Context, logs []models.Log, _, _ uint32) (int64, error) {
@@ -59,6 +81,9 @@ func (s *testLogStore) SaveLogs(_ context.Context, logs []models.Log, _, _ uint3
 
 // Transact stages logs saved through tx and commits them only if fn succeeds.
 func (s *testLogStore) Transact(_ context.Context, fn func(tx LogStore) error) error {
+	if s.transactErr != nil {
+		return s.transactErr
+	}
 	tx := &testLogStore{}
 	err := fn(tx)
 
@@ -216,6 +241,26 @@ func TestProcessBlockRange(t *testing.T) {
 		defer logStore.mu.Unlock()
 		require.NotEmpty(t, logStore.rolledBack, "valid tx log must have been saved inside the range transaction")
 		require.Empty(t, logStore.logs, "no log from a range with loader errors may be committed")
+	})
+
+	t.Run("transaction start failure releases the pipeline", func(t *testing.T) {
+		t.Parallel()
+
+		validTx, err := makeTestValidTx(testAddr, eventSig)
+		require.NoError(t, err)
+
+		beginErr := errors.New("failed to begin transaction")
+		loader := &endlessTxLoader{tx: validTx, done: make(chan struct{})}
+		svc := makeTestService(t, loader, &testLogStore{transactErr: beginErr})
+
+		err = svc.processBlockRange(t.Context(), blockRange, addrs, filterIndex)
+		require.ErrorIs(t, err, beginErr)
+
+		select {
+		case <-loader.done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("loader still blocked on the undrained pipeline after processBlockRange returned")
+		}
 	})
 
 	t.Run("parse error does not block checkpoint", func(t *testing.T) {
