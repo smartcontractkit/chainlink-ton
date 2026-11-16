@@ -830,7 +830,8 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 
 export class TestReceiver implements c.Contract {
     static Errors = {
-        'TVMError.CellOverflow': 8,
+        'CrossChainAddress_Error.InvalidBitLength': 298,
+        'CrossChainAddress_Error.TooManyBytes': 299,
         'Receiver_Error.Unauthorized': 5400,
         'Receiver_Error.LowValue': 5401,
         'TestReceiver_Error.Rejected': 19100,

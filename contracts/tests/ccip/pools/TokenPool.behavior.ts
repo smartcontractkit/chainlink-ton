@@ -15,6 +15,7 @@ import {
   TokenPool_LockOrBurnInV1,
   TokenPool_ReleaseOrMint,
   TokenPool_ReleaseOrMintDelivery,
+  TokenPool_LockOrBurnFailure,
   TokenPool_ReleaseOrMintFailure,
   TransferNotificationForRecipient,
   TokenPool_ReleaseOrMintForwardPayload,
@@ -33,6 +34,8 @@ import {
 import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 import { CURSE_ROLE } from '../../../wrappers/ccip/Router'
 import { BurnMintTokenPool } from '../../../wrappers/gen/ccip/pools/BurnMintTokenPool'
+import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
+import { contractCode } from '../../../wrappers/codeLoader'
 import { getExternals, testLog } from '../../Logs'
 import {
   Ownable2Step_AcceptOwnership,
@@ -153,8 +156,7 @@ export function runTokenPoolBehaviorTests(
 
   describe(`${name} TokenPool behavior`, () => {
     describe('flow admission', () => {
-      // Downstream continuations consume value, so an admitted flow needs headroom.
-      const headroom = toNano('0.5')
+      const lockOrBurnFinalization = toNano('0.01')
       const policies = [
         { name: 'default', budget: { safety: 0n, admission: 0n } },
         { name: 'raised safety', budget: { safety: toNano('0.1'), admission: 0n } },
@@ -174,21 +176,21 @@ export function runTokenPoolBehaviorTests(
           ctx = await setup()
           await setTokenPoolBudget(ctx.blockchain, ctx.pool.address, budget)
           const effective = await ctx.pool.getBudget()
-          lockOrBurnThreshold = effective.lockOrBurn.admission
+          lockOrBurnThreshold = effective.lockOrBurn.admission + lockOrBurnFinalization
           // ReleaseOrMint admission also covers the caller's delivery continuation.
           releaseOrMintThreshold =
             effective.releaseOrMint.admission +
             deliveryTo(ctx.recipient.address, ctx.deployer.address).forwardTonAmount
         })
 
-        it('reports at least the configured values, with admission covering both custody phases', async () => {
+        it('reports at least the configured values, with admission covering custody', async () => {
           const { lockOrBurn, releaseOrMint } = await ctx.pool.getBudget()
           expect(lockOrBurn.safety).toBeGreaterThanOrEqual(budget.safety)
           expect(lockOrBurn.admission).toBeGreaterThanOrEqual(budget.admission)
           expect(lockOrBurn.admission).toBeGreaterThanOrEqual(lockOrBurn.safety * 3n)
           expect(releaseOrMint.safety).toBeGreaterThanOrEqual(budget.safety)
           expect(releaseOrMint.admission).toBeGreaterThanOrEqual(budget.admission)
-          expect(releaseOrMint.admission).toBeGreaterThanOrEqual(releaseOrMint.safety)
+          expect(releaseOrMint.admission).toBeGreaterThanOrEqual(releaseOrMint.safety * 2n)
         })
 
         describe('LockOrBurn', () => {
@@ -209,7 +211,7 @@ export function runTokenPoolBehaviorTests(
               requestedFinalityConfig: 0n,
               tokenArgs: null,
               replyTo: ctx.deployer.address,
-              finalizationValue: toNano('0.01'),
+              finalizationValue: lockOrBurnFinalization,
               onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
             })
           }
@@ -234,7 +236,7 @@ export function runTokenPoolBehaviorTests(
           it.each(acceptedBoundaries)('accepts $name the threshold', async ({ offset }) => {
             const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
 
-            const { transactions } = await sendLockOrBurn(lockOrBurnThreshold + offset + headroom)
+            const { transactions } = await sendLockOrBurn(lockOrBurnThreshold + offset)
 
             expect(transactions).toHaveTransaction({
               from: ctx.deployer.address,
@@ -280,9 +282,7 @@ export function runTokenPoolBehaviorTests(
           it.each(acceptedBoundaries)('accepts $name the threshold', async ({ offset }) => {
             const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
 
-            const { transactions } = await sendReleaseOrMint(
-              releaseOrMintThreshold + offset + headroom,
-            )
+            const { transactions } = await sendReleaseOrMint(releaseOrMintThreshold + offset)
 
             expect(transactions).toHaveTransaction({
               from: ctx.deployer.address,
@@ -446,6 +446,230 @@ export function runTokenPoolBehaviorTests(
         to: ctx.pool.address,
         success: false,
       })
+    })
+
+    describe('fast finality refund routing', () => {
+      const finalityConfig = 1n
+      const topics = {
+        outboundStandardConsumed: 'TokenPool_OutboundRateLimitConsumed',
+        outboundFastConsumed: 'TokenPool_FastFinalityOutboundRateLimitConsumed',
+        inboundStandardConsumed: 'TokenPool_InboundRateLimitConsumed',
+        inboundFastConsumed: 'TokenPool_FastFinalityInboundRateLimitConsumed',
+        outboundStandardRefunded: 'TokenPool_OutboundRateLimitRefunded',
+        outboundFastRefunded: 'TokenPool_FastFinalityOutboundRateLimitRefunded',
+        inboundStandardRefunded: 'TokenPool_InboundRateLimitRefunded',
+        inboundFastRefunded: 'TokenPool_FastFinalityInboundRateLimitRefunded',
+      } as const
+
+      function lockOrBurnRequest(ctx: TokenPoolBehaviorContext): TokenPool_LockOrBurnInV1 {
+        return TokenPool_LockOrBurnInV1.create({
+          transfer: TokenPool_Transfer.create({
+            details: TokenPool_TransferDetails.create({
+              receiver: ctx.destTokenAddress,
+              remoteChainSelector: ctx.remoteChainSelector,
+              originalSender: ctx.deployer.address,
+              amount: 1n,
+              localToken: ctx.localToken,
+            }),
+          }),
+        })
+      }
+
+      // `id = 255` throws on PreflightCheck/PostflightCheck, so the hook callback bounces
+      // back to the pool after admission and the pool must refund the consumed capacity.
+      async function deployBounceHooks(ctx: TokenPoolBehaviorContext) {
+        const hooks = ctx.blockchain.openContract(
+          MockAdvancedPoolHooks.fromStorage(
+            { id: 255n },
+            {
+              overrideContractCode: await contractCode.ccip.local(
+                'ccip.test.mockAdvancedPoolHooks',
+              ),
+            },
+          ),
+        )
+        await hooks.sendDeploy(ctx.deployer.getSender(), toNano('0.1'))
+        await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
+          queryId: 9952n,
+          advancedPoolHooks: hooks.address,
+        })
+      }
+
+      async function configureRefundCase(ctx: TokenPoolBehaviorContext, fastEnabled: boolean) {
+        await ctx.pool.sendTokenPoolSetAllowedFinalityConfig(
+          ctx.deployer.getSender(),
+          toNano('0.2'),
+          { queryId: 9950n, allowedFinalityConfig: finalityConfig },
+        )
+        await ctx.pool.sendTokenPoolSetRateLimitConfig(ctx.deployer.getSender(), toNano('0.2'), {
+          queryId: 9951n,
+          updates: [
+            TokenPool_RateLimitConfigArgs.create({
+              remoteChainSelector: ctx.remoteChainSelector,
+              fastFinality: true,
+              outboundRateLimiterConfig: RateLimiter_Config.create({
+                isEnabled: fastEnabled,
+                capacity: fastEnabled ? toNano('100') : 0n,
+                rate: fastEnabled ? 1n : 0n,
+              }),
+              inboundRateLimiterConfig: RateLimiter_Config.create({
+                isEnabled: fastEnabled,
+                capacity: fastEnabled ? toNano('100') : 0n,
+                rate: fastEnabled ? 1n : 0n,
+              }),
+            }),
+          ],
+        })
+      }
+
+      function eventCount(
+        transactions: Parameters<typeof getExternals>[0],
+        poolAddress: Address,
+        topic: string,
+      ): number {
+        return getExternals(transactions).filter((event) => testLog(event, poolAddress, topic))
+          .length
+      }
+
+      it.each([
+        { fastEnabled: false, label: 'disabled' },
+        { fastEnabled: true, label: 'enabled' },
+      ])(
+        'refunds outbound capacity with the $label fast-finality bucket',
+        async ({ fastEnabled }) => {
+          const ctx = await setup()
+          await deployBounceHooks(ctx)
+          await configureRefundCase(ctx, fastEnabled)
+          const standardBefore = await ctx.pool.getCurrentRateLimiterState(
+            ctx.remoteChainSelector,
+            false,
+          )
+          const fastBefore = await ctx.pool.getCurrentRateLimiterState(
+            ctx.remoteChainSelector,
+            true,
+          )
+
+          const { transactions } = await ctx.pool.sendTokenPoolLockOrBurn(
+            ctx.deployer.getSender(),
+            toNano('1'),
+            {
+              queryId: 2n,
+              request: lockOrBurnRequest(ctx),
+              requestedFinalityConfig: finalityConfig,
+              tokenArgs: null,
+              replyTo: ctx.deployer.address,
+              finalizationValue: toNano('0.01'),
+              onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
+            },
+          )
+
+          expect(transactions).toHaveTransaction({
+            from: ctx.pool.address,
+            to: ctx.deployer.address,
+            op: TokenPool_LockOrBurnFailure.PREFIX,
+            success: true,
+          })
+
+          const standardAfter = await ctx.pool.getCurrentRateLimiterState(
+            ctx.remoteChainSelector,
+            false,
+          )
+          const fastAfter = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, true)
+
+          if (fastEnabled) {
+            expect(eventCount(transactions, ctx.pool.address, topics.outboundFastConsumed)).toBe(1)
+            expect(
+              eventCount(transactions, ctx.pool.address, topics.outboundStandardConsumed),
+            ).toBe(0)
+            expect(eventCount(transactions, ctx.pool.address, topics.outboundFastRefunded)).toBe(1)
+            expect(
+              eventCount(transactions, ctx.pool.address, topics.outboundStandardRefunded),
+            ).toBe(0)
+            expect(fastAfter.outbound.tokens).toEqual(fastBefore.outbound.tokens)
+            expect(standardAfter.outbound.tokens).toEqual(standardBefore.outbound.tokens)
+          } else {
+            expect(
+              eventCount(transactions, ctx.pool.address, topics.outboundStandardConsumed),
+            ).toBe(1)
+            expect(eventCount(transactions, ctx.pool.address, topics.outboundFastConsumed)).toBe(0)
+            expect(
+              eventCount(transactions, ctx.pool.address, topics.outboundStandardRefunded),
+            ).toBe(1)
+            expect(eventCount(transactions, ctx.pool.address, topics.outboundFastRefunded)).toBe(0)
+            expect(standardAfter.outbound.tokens).toEqual(standardBefore.outbound.tokens)
+            expect(fastAfter.outbound.tokens).toEqual(fastBefore.outbound.tokens)
+          }
+        },
+      )
+
+      it.each([
+        { fastEnabled: false, label: 'disabled' },
+        { fastEnabled: true, label: 'enabled' },
+      ])(
+        'refunds inbound capacity with the $label fast-finality bucket',
+        async ({ fastEnabled }) => {
+          const ctx = await setup()
+          await deployBounceHooks(ctx)
+          await configureRefundCase(ctx, fastEnabled)
+          const standardBefore = await ctx.pool.getCurrentRateLimiterState(
+            ctx.remoteChainSelector,
+            false,
+          )
+          const fastBefore = await ctx.pool.getCurrentRateLimiterState(
+            ctx.remoteChainSelector,
+            true,
+          )
+
+          const { transactions } = await ctx.pool.sendTokenPoolReleaseOrMint(
+            ctx.deployer.getSender(),
+            toNano('1'),
+            {
+              queryId: 2n,
+              request: releaseRequest(ctx),
+              requestedFinalityConfig: finalityConfig,
+              replyTo: ctx.offRamp.address,
+              delivery: deliveryTo(ctx.recipient.address, ctx.offRamp.address),
+            },
+          )
+
+          expect(transactions).toHaveTransaction({
+            from: ctx.pool.address,
+            to: ctx.offRamp.address,
+            op: TokenPool_ReleaseOrMintFailure.PREFIX,
+            success: true,
+          })
+
+          const standardAfter = await ctx.pool.getCurrentRateLimiterState(
+            ctx.remoteChainSelector,
+            false,
+          )
+          const fastAfter = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, true)
+
+          if (fastEnabled) {
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundFastConsumed)).toBe(1)
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundStandardConsumed)).toBe(
+              0,
+            )
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundFastRefunded)).toBe(1)
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundStandardRefunded)).toBe(
+              0,
+            )
+            expect(fastAfter.inbound.tokens).toEqual(fastBefore.inbound.tokens)
+            expect(standardAfter.inbound.tokens).toEqual(standardBefore.inbound.tokens)
+          } else {
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundStandardConsumed)).toBe(
+              1,
+            )
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundFastConsumed)).toBe(0)
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundStandardRefunded)).toBe(
+              1,
+            )
+            expect(eventCount(transactions, ctx.pool.address, topics.inboundFastRefunded)).toBe(0)
+            expect(standardAfter.inbound.tokens).toEqual(standardBefore.inbound.tokens)
+            expect(fastAfter.inbound.tokens).toEqual(fastBefore.inbound.tokens)
+          }
+        },
+      )
     })
 
     it('starts with chain not cursed', async () => {
@@ -1251,7 +1475,10 @@ export function runTokenPoolBehaviorTests(
 
         const effective = await ctx.pool.getBudget()
         // Admission covers the withdraw relay and both custody phases.
-        expect(effective.lockOrBurn).toMatchObject({ admission: toNano('3'), safety: toNano('1') })
+        expect(effective.lockOrBurn).toMatchObject({
+          admission: toNano('3'),
+          safety: toNano('1'),
+        })
         expect(effective.releaseOrMint).toMatchObject({
           admission: toNano('2'),
           safety: toNano('1'),

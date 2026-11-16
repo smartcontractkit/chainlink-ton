@@ -156,12 +156,13 @@ struct TokenPool_Hooks<T> {
     postflightCheck: ((T?, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintForwardPayload) -> bool)? = null
 
     /// Continuation after custody is confirmed.
-    /// @param sender   The msg.sender of the original request.
-    /// @param msgValue The value of the inbound message.
-    /// @param msg      The full inbound request.
-    /// @param prepared The validated release/mint data.
+    /// @param sender    The current inbound sender (Router or advanced hooks).
+    /// @param initiator The original release/mint flow initiator.
+    /// @param msgValue  The value of the inbound message.
+    /// @param msg       The full inbound request.
+    /// @param prepared  The validated release/mint data.
     /// @return The (possibly mutated) context, or `null`.
-    onReleaseOrMintContinue: ((T?, address, coins, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?);
+    onReleaseOrMintContinue: ((T?, address, address, coins, TokenPool_ReleaseOrMint, TokenPool_ReleaseOrMintPrepared) -> T?);
 
     // ----------------------------------------------------------------------
     // LockOrBurn flow (outbound)
@@ -265,14 +266,14 @@ fun TokenPool<T>.budget(self): TokenPool_Budget {
         lockOrBurn: {
             admission: max(
                 effective.lockOrBurn.admission,
-                effective.lockOrBurn.safety * LB_CUSTODY_MOVES_BEFORE_WITHDRAW
+                effective.lockOrBurn.safety * LB_CUSTODY_MOVES_BEFORE_WITHDRAW,
             ),
             safety: effective.lockOrBurn.safety,
         },
         releaseOrMint: {
             admission: max(
                 effective.releaseOrMint.admission,
-                effective.releaseOrMint.safety * RM_CUSTODY_MOVES_BEFORE_RELEASE_MINT
+                effective.releaseOrMint.safety * RM_CUSTODY_MOVES_BEFORE_RELEASE_MINT,
             ),
             safety: effective.releaseOrMint.safety,
         },
@@ -473,9 +474,7 @@ fun TokenPool<T>.setDynamicConfig(
     adminConfig.dynamicConfig = dynamicConfig.toCell();
     self.data.adminConfig = adminConfig.toCell();
 
-    // TODO[RESERVE-REBASE]: chore/tp-rent-reserve changes the admin reserve/value model.
-    // Reconcile the admin reserves when rebasing that PR on top.
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
 
     val configSet = TokenPool_DynamicConfigSet { router, rateLimitAdmin, feeAdmin };
     emit(TOPIC_TOKEN_POOL_DYNAMIC_CONFIG_SET, configSet);
@@ -506,7 +505,7 @@ fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, msgValue
     adminConfig.allowedFinalityConfig = allowedFinalityConfig;
     self.data.adminConfig = adminConfig.toCell();
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
 
     val configSet = TokenPool_FinalityConfigSet { allowedFinalityConfig };
     emit(TOPIC_TOKEN_POOL_FINALITY_CONFIG_SET, configSet);
@@ -539,7 +538,7 @@ fun TokenPool<T>.setAdvancedPoolHooks(
     adminConfig.advancedPoolHooks = advancedPoolHooks;
     self.data.adminConfig = adminConfig.toCell();
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
 
     val hooksUpdated = TokenPool_AdvancedPoolHooksUpdated { oldHook, newHook: advancedPoolHooks };
     emit(TOPIC_TOKEN_POOL_ADVANCED_POOL_HOOKS_UPDATED, hooksUpdated);
@@ -576,7 +575,7 @@ fun TokenPool<T>.addRemotePool(
 
     var config = self.data.remoteChainConfigs.mustGet(remoteChainSelector, TokenPool_Error.NonExistentChain as int);
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
     self._setRemotePool(mutate config, remoteChainSelector, remotePoolAddress);
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
@@ -616,7 +615,7 @@ fun TokenPool<T>.removeRemotePool(
     assert (deleted) throw (TokenPool_Error.InvalidRemotePoolForChain);
     self.data.remoteChainConfigs.set(remoteChainSelector, config);
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
     emit(TOPIC_TOKEN_POOL_REMOTE_POOL_REMOVED, TokenPool_RemotePoolRemoved {
         remoteChainSelector,
         remotePoolAddress,
@@ -652,7 +651,7 @@ fun TokenPool<T>.applyChainUpdates(
     self.requireMinValue(msgValue);
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
 
     var rmIter = remoteChainSelectorsToRemove.iter();
     while (!rmIter.empty()) {
@@ -939,16 +938,14 @@ fun TokenPool<T>.onPreflightCheckFinished(
         val custodyMoves = LB_CUSTODY_MOVES_BEFORE_WITHDRAW;
         val minValue = self.custodyForward(custodyMoves, requestMsg.finalizationValue);
         assert (msgValue >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
+
+        // Direct hook continuation: carry only the callback value, leaving the pool balance intact.
+        val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
+        self.onLockOrBurnWithdraw(fwdp.initiator, requestMsg, prepared, sendMode);
     } catch (errorCode) {
         self.recoverLockOrBurnFailure(fwdp, errorCode, msgValue);
         return;
     }
-
-    // TODO[RESERVE-REBASE]: chore/tp-rent-reserve polishes this continuation's value model.
-    // Reconcile when rebasing that PR on top.
-    // This continuation path expects the reserve to be installed
-    reserveBalanceBeforeInMessage(msgValue);
-    self.onLockOrBurnWithdraw(fwdp.originalSender, msgValue, requestMsg, prepared);
 }
 
 fun TokenPool<T>.onPreflightCheckFailed(
@@ -995,15 +992,11 @@ fun TokenPool<T>.onPostflightCheckFinished(
     val prepared = lazy fwdp.prepared.load();
 
     try {
-        // The reply carries the rest of the flow; it must still cover the delivery and finalization.
+        // Direct hook continuation: carry only the callback value, leaving the pool balance intact.
         val minValue = self.releaseOrMintForward(requestMsg.finalizationValue());
         assert (msgValue >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
 
-        // TODO[RESERVE-REBASE]: chore/tp-rent-reserve polishes this continuation's value model.
-        // Reconcile when rebasing that PR on top.
-        // This continuation path expects the reserve to be installed
-        reserveBalanceBeforeInMessage(msgValue);
-        self.onReleaseOrMintContinue(fwdp.originalSender, msgValue, requestMsg, prepared);
+        self.onReleaseOrMintContinue(sender, fwdp.initiator, msgValue, requestMsg, prepared);
     } catch (errorCode) {
         self.recoverReleaseOrMintFailure(fwdp, errorCode, msgValue);
     }
@@ -1070,7 +1063,7 @@ fun TokenPool<T>.recoverLockOrBurnFailure(
     msgValue: coins,
     custodyReturn: AskToTransfer? = null,
 ): void {
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
     self.refundLockOrBurnRateLimit(forwardPayload);
 
     // Determine the failure value to send back based on whether custody return is required.
@@ -1122,7 +1115,7 @@ fun TokenPool<T>.recoverReleaseOrMintFailure(
     errorCode: int32,
     msgValue: coins,
 ): void {
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
     self.refundReleaseOrMintRateLimit(forwardPayload);
 
     val requestMsg = lazy forwardPayload.requestMsg.load();
@@ -1151,7 +1144,7 @@ fun TokenPool<T>.applyTokenTransferFeeConfigUpdates(
 
     self.data.adminConfig.load().ownable.load().requireOwner(sender);
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
 
     var iter = updates.iter();
     while (!iter.empty()) {
@@ -1573,7 +1566,7 @@ fun TokenPool<T>.validateLockOrBurn(
 
     // Build forward payload using the original message (no reconstruction needed).
     val forwardPayload = TokenPool_LockOrBurnForwardPayload {
-        originalSender: sender,
+        initiator: sender,
         requestMsg: msg.toCell(),
         prepared: prepared.toCell(),
     };
@@ -1588,17 +1581,15 @@ fun TokenPool<T>.onLockOrBurn(
     msgValue: coins,
     msg: TokenPool_LockOrBurn,
 ): void {
-    // The inbound value must cover admission plus the caller-provided finalization
+    // The inbound value must cover admission plus the caller-provided finalization.
     // @dev `budget()` clamps `A >= 3S`, so this is also the pre-withdraw `3S + F` gate.
-    assert (
-        msgValue >= self.budget().lockOrBurn.admission + msg.finalizationValue
-    ) throw (TokenPool_Error.InsufficientMessageValue);
+    // Reserve rent; the remaining inbound value must still cover the flow budget.
+    assert (msgValue >= self.budget().lockOrBurn.admission + msg.finalizationValue)
+        throw (TokenPool_Error.InsufficientMessageValue);
 
-    // The caller's success/failure continuation completes the flow,
-    // so it must carry (minimum) value.
-    assert (
-        msg.finalizationValue >= TokenPool_Costs.callerFinalization()
-    ) throw (TokenPool_Error.InsufficientMessageValue);
+    // The caller's success/failure continuation completes the flow, so it must carry (min) value.
+    assert (msg.finalizationValue >= TokenPool_Costs.callerFinalization())
+        throw (TokenPool_Error.InsufficientMessageValue);
 
     if (self.hooks != null && self.hooks.onLockOrBurn != null) {
         self.context = self.hooks.onLockOrBurn(self.context!, sender, msg);
@@ -1608,9 +1599,10 @@ fun TokenPool<T>.onLockOrBurn(
 
     self.updateDepositNamespaces(sender, msg.onRampNamespaces);
 
-    // The validation step emits events (RL) so we reserve the inbound value,
-    // and any continuation should finally carry all (remaining) balance.
-    reserveBalanceBeforeInMessage(msgValue);
+    val (msgValueAfterRent, _) = reserveBalanceBeforeInMessage(msgValue, 0);
+    val custodyMoves = LB_CUSTODY_MOVES_BEFORE_WITHDRAW;
+    assert (msgValueAfterRent >= self.custodyForward(custodyMoves, msg.finalizationValue))
+        throw (TokenPool_Error.InsufficientMessageValue);
 
     // Validate and call preflightCheck with full message.
     val (wait, prepared) = self.validateLockOrBurn(sender, msg);
@@ -1619,7 +1611,8 @@ fun TokenPool<T>.onLockOrBurn(
         return; // Async hook was triggered; will resume via onPreflightCheckFinished/Failed.
     }
 
-    self.onLockOrBurnWithdraw(sender, msgValue, msg, prepared);
+    val sendMode = SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
+    self.onLockOrBurnWithdraw(sender, msg, prepared, sendMode);
 }
 
 /// Replaces the pool's allowed deposit namespaces with the set relayed by the Router on a
@@ -1642,19 +1635,19 @@ fun TokenPool<T>.updateDepositNamespaces(
 /// Handles the withdrawal step after a lock or burn operation has been prepared/checked.
 fun TokenPool<T>.onLockOrBurnWithdraw(
     mutate self,
-    sender: address, // original sender of the lock or burn request
-    msgValue: coins,
+    initiator: address, // original sender of the lock or burn request
     msg: TokenPool_LockOrBurn,
     prepared: TokenPool_LockOrBurnPrepared,
+    sendMode: int,
 ): void {
     val forwardPayload = TokenPool_LockOrBurnForwardPayload {
-        originalSender: sender,
+        initiator,
         requestMsg: msg.toCell(),
         prepared: prepared.toCell(),
     };
 
     val queryId = msg.queryId;
-    val custodyMoves = LB_CUSTODY_MOVES_BEFORE_LOCK_BURN; // = 2; expected budget before final lock/burn
+    val custodyMoves = LB_CUSTODY_MOVES_BEFORE_LOCK_BURN;
     val forwardTonAmount = self.custodyForward(custodyMoves, msg.finalizationValue);
     val withdrawalMsg = createMessage({
         bounce: BounceMode.RichBounce,
@@ -1663,7 +1656,7 @@ fun TokenPool<T>.onLockOrBurnWithdraw(
         body: TokenPool_LockOrBurnWithdraw { queryId, forwardTonAmount, forwardPayload},
     });
 
-    withdrawalMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    withdrawalMsg.send(sendMode);
 }
 
 /// Contains the specific lock or burn token logic for a pool.
@@ -1708,7 +1701,7 @@ fun TokenPool<T>.onLockOrBurnTransfer(
             body: returnTransfer,
         });
 
-        transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+        transfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     }
 }
 
@@ -1890,12 +1883,12 @@ fun TokenPool<T>.onLockOrBurnTransferFinalize(
     val request = lazy requestMsg.request.load();
     val details = lazy request.transfer.details.load();
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
     emit(TOPIC_TOKEN_POOL_LOCKED_OR_BURNED, TokenPool_LockedOrBurned {
         remoteChainSelector: details.remoteChainSelector,
         details: TokenPool_LockedOrBurnedDetails {
             token: details.localToken,
-            sender: forwardPayload.originalSender,
+            sender: forwardPayload.initiator,
             amount: prepared.destTokenAmount,
         }.toCell(),
     });
@@ -1971,7 +1964,7 @@ fun TokenPool<T>.validateReleaseOrMint(
 
     // Build forward payload using the original message (no reconstruction needed).
     val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
-        originalSender: sender,
+        initiator: sender,
         requestMsg: msg.toCell(),
         prepared: prepared.toCell(),
     };
@@ -1988,12 +1981,13 @@ fun TokenPool<T>.onReleaseOrMint(
 ): void {
     // The message value is checked for admission plus the caller's finalization.
     // @dev `budget()` clamps `A >= 2S`, so this is also the pre-withdraw `2S + F` gate.
-    var minValue = self.budget().releaseOrMint.admission + msg.finalizationValue();
-    assert (msgValue >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
+    // Reserve rent; the remaining inbound value must still cover the flow budget.
+    assert (msgValue >= self.budget().releaseOrMint.admission + msg.finalizationValue())
+        throw (TokenPool_Error.InsufficientMessageValue);
 
     // The recipient's notification completes a delivery, so it must carry value.
-    minValue = TokenPool_Costs.callerFinalization();
-    assert (msg.finalizationValue() >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
+    assert (msg.finalizationValue() >= TokenPool_Costs.callerFinalization())
+        throw (TokenPool_Error.InsufficientMessageValue);
 
     if (self.hooks != null && self.hooks.onReleaseOrMint != null) {
         self.context = self.hooks.onReleaseOrMint(self.context!, msg);
@@ -2001,9 +1995,9 @@ fun TokenPool<T>.onReleaseOrMint(
         return;
     }
 
-    // The validation step emits events (RL) so we reserve the inbound value,
-    // and any continuation should finally carry all (remaining) balance.
-    reserveBalanceBeforeInMessage(msgValue);
+    val (msgValueAfterRent, _) = reserveBalanceBeforeInMessage(msgValue, 0);
+    assert (msgValueAfterRent >= self.releaseOrMintForward(msg.finalizationValue()))
+        throw (TokenPool_Error.InsufficientMessageValue);
 
     // Validate and call postflightCheck with full message.
     val (wait, prepared) = self.validateReleaseOrMint(sender, msg);
@@ -2012,19 +2006,21 @@ fun TokenPool<T>.onReleaseOrMint(
         return; // Async hook was triggered; will resume via onPostflightCheckFinished/Failed.
     }
 
-    self.onReleaseOrMintContinue(sender, msgValue, msg, prepared);
+    val initiator = sender;
+    self.onReleaseOrMintContinue(sender, initiator, msgValueAfterRent, msg, prepared);
 }
 
 fun TokenPool<T>.onReleaseOrMintContinue(
     mutate self,
     sender: address,
+    initiator: address,
     msgValue: coins,
     msg: TokenPool_ReleaseOrMint,
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): void {
     if (self.hooks != null) {
-        // Every concrete pool must implement this post-hooks continuation
-        self.context = self.hooks.onReleaseOrMintContinue(self.context, sender, msgValue, msg, prepared);
+        // Every concrete pool must implement this post-hooks continuation.
+        self.context = self.hooks.onReleaseOrMintContinue(self.context, sender, initiator, msgValue, msg, prepared);
 
         return;
     }
@@ -2045,7 +2041,7 @@ fun TokenPool<T>.onReleaseOrMintDelivered(
     val transfer = lazy msg.transfer.load();
     assert (self.isSupportedToken(transfer.localToken)) throw (TokenPool_Error.InvalidToken);
 
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
     emit(TOPIC_TOKEN_POOL_RELEASED_OR_MINTED, TokenPool_ReleasedOrMinted {
         remoteChainSelector: transfer.remoteChainSelector,
         details: TokenPool_ReleasedOrMintedDetails {
@@ -2492,9 +2488,7 @@ fun TokenPool<T>.setRateLimitConfig(
     self.requireMinValue(msgValue);
     self.onlyOwnerOrRateLimitAdmin(sender);
 
-    // TODO[RESERVE-REBASE]: chore/tp-rent-reserve changes the admin reserve/value model.
-    // Reconcile this reserve when rebasing that PR on top.
-    reserveBalanceBeforeInMessage(msgValue);
+    reserveBalanceBeforeInMessage(msgValue, MIN_GRAM_TO_RESERVE);
 
     var iter = updates.iter();
     while (!iter.empty()) {

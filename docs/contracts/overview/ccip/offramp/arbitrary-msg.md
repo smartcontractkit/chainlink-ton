@@ -280,9 +280,8 @@ sequenceDiagram
     Note over RE: Verifies sender is OffRamp
     Note over RE: Verifies receiver is the message's receiver
     Note over RE: Set state: ExecuteFailed<br>(keeps its init value for retries)
-    RE ->> OR: NotifyFailure { messageRef, execID, root, excesses }
+    RE ->> OR: NotifyFailure { messageRef, execID, root, excesses, errorCode }
     deactivate RE
-
 
 
     activate OR

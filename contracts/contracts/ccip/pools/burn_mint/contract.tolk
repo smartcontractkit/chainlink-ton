@@ -172,7 +172,7 @@ fun onLockOrBurnTransferContinue(
         },
     };
 
-    val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
+    val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE;
     val fwdFee = createMessage(burnOpts).estimateFeeWithoutSending(sendMode);
 
     // Check safety budget min size as reference burn/transfer plus LVL3_HIGH finalization costs.
@@ -191,7 +191,8 @@ fun onLockOrBurnTransferContinue(
 
 fun onReleaseOrMintContinue(
     ctx: Storage?,
-    sender: address,
+    _sender: address,
+    initiator: address,
     msgValue: coins,
     msg: TokenPool_ReleaseOrMint,
     prepared: TokenPool_ReleaseOrMintPrepared,
@@ -200,7 +201,7 @@ fun onReleaseOrMintContinue(
     var st = ctx;
     val delivery = msg.delivery.load();
     val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
-        originalSender: sender,
+        initiator,
         requestMsg: msg.toCell(),
         prepared: prepared.toCell(),
     };
@@ -211,15 +212,15 @@ fun onReleaseOrMintContinue(
 
     // The mint context rides along in the wrap only for the bounce path.
     val wrap = Jetton_ForwardPayloadWrap {
-        initiator: sender,
+        initiator,
         context: context.toCell(),
         forwardPayload: delivery.forwardPayload,
     };
     val jettonClient = st.poolData.load().jettonClient();
     val forwardTonAmount = st.TokenPool().releaseOrMintForward(msg.finalizationValue());
 
-    // Caller-selected excess recipient; default to the request sender.
-    val sendExcessesTo = msg.sendExcessesTo != null ? msg.sendExcessesTo! : sender;
+    // Caller-selected excess recipient; default to the flow initiator.
+    val sendExcessesTo = msg.sendExcessesTo != null ? msg.sendExcessesTo! : initiator;
 
     // The recipient's notification carries the pool's finalization safety plus the caller's
     // continuation. The minter gets the exact cost of the mint, so it keeps nothing; the wallet

@@ -28,6 +28,7 @@ import {
   TokenPool_ReleaseOrMintInV1,
   TokenPool_ReleaseOrMintFinalized,
   TokenPool_ReleaseOrMintFailure,
+  TokenPool_ReleaseOrMintForwardPayload,
   TokenPool_PostflightCheckFinished,
   TokenPool_LocalPolicy,
   TokenPool_DynamicConfig,
@@ -59,6 +60,7 @@ import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavi
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
 import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
 import { runTokenPoolContinuationBehaviorTests } from './TokenPool.continuation.behavior'
+import { runTokenPoolMinValueBehaviorTests } from './TokenPool.minValue.behavior'
 import { setTokenPoolSafetyFloor } from '../../utils/minValue'
 import { deriveSenderAccountAddress } from '../../../wrappers/ccip/SenderAccount'
 import * as da from '../../../wrappers/gen/ccip/DepositAccount'
@@ -291,6 +293,20 @@ describe('BurnMintTokenPool', () => {
     localToken: cctMinter.address,
   }))
 
+  runTokenPoolMinValueBehaviorTests('BurnMintTokenPool', async () => ({
+    pool,
+    blockchain,
+    deployer,
+    offRamp,
+    unauthorized,
+    recipient,
+    remoteChainSelector,
+    onRampAddress: deployer.address,
+    destTokenAddress,
+    sourcePoolAddress,
+    localToken: cctMinter.address,
+  }))
+
   runTokenPoolContinuationBehaviorTests('BurnMintTokenPool', async () => ({
     pool,
     blockchain,
@@ -480,7 +496,7 @@ describe('BurnMintTokenPool', () => {
         onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
       })
       const transferPayload = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: deployer.address,
+        initiator: deployer.address,
         requestMsg: lockOrBurn,
         prepared: TokenPool_LockOrBurnPrepared.create({
           feeAmount,
@@ -700,7 +716,7 @@ describe('BurnMintTokenPool', () => {
           forwardTonAmount: toNano(inbound),
           forwardPayload: TokenPool_LockOrBurnForwardPayload.toCell(
             TokenPool_LockOrBurnForwardPayload.create({
-              originalSender: unauthorized.address,
+              initiator: unauthorized.address,
               requestMsg: request,
               prepared: TokenPool_LockOrBurnPrepared.create({
                 feeAmount: 0n,
@@ -770,7 +786,7 @@ describe('BurnMintTokenPool', () => {
       onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
     })
     const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
-      originalSender: attacker.address,
+      initiator: attacker.address,
       requestMsg: request,
       prepared: TokenPool_LockOrBurnPrepared.create({
         feeAmount: 0n,
@@ -949,7 +965,7 @@ describe('BurnMintTokenPool', () => {
         onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
       })
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: deployer.address,
+        initiator: deployer.address,
         requestMsg,
         prepared: TokenPool_LockOrBurnPrepared.create({
           feeAmount: 0n,
@@ -1145,7 +1161,7 @@ describe('BurnMintTokenPool', () => {
 
     // Build expected forward payload (matching what pool creates in validateLockOrBurn)
     const expectedForwardPayload = TokenPool_LockOrBurnForwardPayload.create({
-      originalSender: unauthorized.address,
+      initiator: unauthorized.address,
       requestMsg: lockOrBurn,
       prepared: TokenPool_LockOrBurnPrepared.create({
         feeAmount: 0n,
@@ -1556,6 +1572,125 @@ describe('BurnMintTokenPool', () => {
       from: burnMintPool.address,
       op: TokenPool_ReleaseOrMintFinalized.PREFIX,
     })
+  })
+
+  it('rejects the mint in compute when the rent top-up leaves it unfunded', async () => {
+    const rateLimitBefore = await burnMintPool.getCurrentRateLimiterState(
+      remoteChainSelector,
+      false,
+    )
+    const poolAccount = await blockchain.getContract(burnMintPool.address)
+    poolAccount.balance = toNano('0.01')
+
+    const result = await burnMintPool.sendTokenPoolReleaseOrMint(
+      deployer.getSender(),
+      toNano('0.06'),
+      {
+        queryId: 23n,
+        request: mintRequest(23n, toNano('2')),
+        requestedFinalityConfig: 0n,
+        replyTo: offRamp.address,
+        delivery: deliveryTo(recipient.address, offRamp.address),
+      },
+    )
+
+    // The pool rejects during compute; an action-phase failure would have compute success.
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: burnMintPool.address,
+      exitCode: 51725, // TokenPool_Error.InsufficientMessageValue
+    })
+    expect(result.transactions).not.toHaveTransaction({
+      from: burnMintPool.address,
+      to: cctMinter.address,
+      op: cct.MintNewJettons.PREFIX,
+    })
+    expect(
+      (await burnMintPool.getCurrentRateLimiterState(remoteChainSelector, false)).inbound.tokens,
+    ).toEqual(rateLimitBefore.inbound.tokens)
+  })
+
+  it('recovers when postflight passes the base check but the mint is underfunded', async () => {
+    const hook = await blockchain.treasury('hook')
+    await burnMintPool.sendTokenPoolSetAdvancedPoolHooks(deployer.getSender(), toNano('0.2'), {
+      queryId: 9998n,
+      advancedPoolHooks: hook.address,
+    })
+
+    const rateLimitBefore = await burnMintPool.getCurrentRateLimiterState(
+      remoteChainSelector,
+      false,
+    )
+    const delivery = deliveryTo(recipient.address, deployer.address)
+    const release = await burnMintPool.sendTokenPoolReleaseOrMint(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
+        queryId: 30n,
+        request: mintRequest(30n, toNano('2')),
+        requestedFinalityConfig: 0n,
+        replyTo: deployer.address,
+        delivery,
+      },
+    )
+
+    const postflightMessage = [...release.transactions]
+      .flatMap((tx: any) => [...tx.outMessages.values()])
+      .find(
+        (message: any) =>
+          message.info.type === 'internal' &&
+          message.info.dest?.equals(hook.address) &&
+          message.body.beginParse().preloadUint(32) === 0x703c2b58, // TokenPool_PostflightCheck
+      )
+    expect(postflightMessage).toBeDefined()
+
+    const payloadSlice = postflightMessage!.body.beginParse()
+    payloadSlice.skip(32)
+    const queryId = payloadSlice.loadUintBig(64)
+    payloadSlice.loadRef() // request
+    payloadSlice.loadCoins()
+    payloadSlice.loadUint(32)
+    const forwardPayloadCell = payloadSlice.loadMaybeRef()
+    expect(forwardPayloadCell).not.toBeNull()
+    const forwardPayload = TokenPool_ReleaseOrMintForwardPayload.fromSlice(
+      forwardPayloadCell!.beginParse(),
+    )
+
+    const baseMin =
+      (await burnMintPool.getBudget()).releaseOrMint.safety + delivery.forwardTonAmount
+    const callbackValue = baseMin + 1n
+    const poolAccount = await blockchain.getContract(burnMintPool.address)
+    poolAccount.balance = toNano('0.3')
+
+    const callback = await blockchain.sendMessage(
+      internal({
+        from: hook.address,
+        to: burnMintPool.address,
+        value: callbackValue,
+        body: TokenPool_PostflightCheckFinished.toCell(
+          TokenPool_PostflightCheckFinished.create({
+            queryId,
+            forwardPayload,
+          }),
+        ),
+      }),
+    )
+
+    // The base release-forward check passes; the BurnMint mint check does not. Recovery must run
+    // and refund the inbound rate limit, without an action-phase rollback.
+    expect(callback.transactions).not.toHaveTransaction({
+      from: burnMintPool.address,
+      to: cctMinter.address,
+      op: cct.MintNewJettons.PREFIX,
+    })
+    expect(callback.transactions).toHaveTransaction({
+      from: burnMintPool.address,
+      to: deployer.address,
+      op: TokenPool_ReleaseOrMintFailure.PREFIX,
+    })
+    expect(
+      (await burnMintPool.getCurrentRateLimiterState(remoteChainSelector, false)).inbound.tokens,
+    ).toEqual(rateLimitBefore.inbound.tokens)
   })
 
   function mintToRecipient(funding: string, queryId: bigint, offchainTokenData: Cell | null) {

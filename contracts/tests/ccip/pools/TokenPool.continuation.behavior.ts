@@ -115,13 +115,14 @@ export function runTokenPoolContinuationBehaviorTests(
       const ctx = await setup()
       const floor = toNano('0.3')
       await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
+      const { admission } = (await ctx.pool.getBudget()).lockOrBurn
       const capacityBefore = await ctx.pool.getCurrentRateLimiterState(
         ctx.remoteChainSelector,
         false,
       )
       const admitted = await ctx.pool.sendTokenPoolLockOrBurn(
         ctx.deployer.getSender(),
-        floor * 3n + toNano('0.01'),
+        admission + toNano('0.01'),
         {
           queryId: 1n,
           request: TokenPool_LockOrBurnInV1.create({

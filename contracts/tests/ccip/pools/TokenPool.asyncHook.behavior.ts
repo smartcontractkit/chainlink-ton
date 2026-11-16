@@ -10,6 +10,7 @@ import {
   TokenPool_LockOrBurnPrepared,
   TokenPool_LockOrBurnTransfer,
   TokenPool_LockOrBurnWithdraw,
+  TokenPool_PreflightCheck,
   TokenPool_PreflightCheckFinished,
   TokenPool_PostflightCheckFinished,
   TokenPool_ReleaseOrMint,
@@ -47,6 +48,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         const ctx = await setup()
         const before = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
         await setTokenPoolSafetyFloor(ctx.blockchain, ctx.pool.address, floor)
+        const { admission } = (await ctx.pool.getBudget()).lockOrBurn
         const costlyHooks = await deployMockHooks(ctx, MOCK_HOOKS_COSTLY_ID)
         await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
           queryId: 9995n,
@@ -55,7 +57,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
 
         const { transactions } = await ctx.pool.sendTokenPoolLockOrBurn(
           ctx.deployer.getSender(),
-          floor * 3n + toNano('0.01'),
+          admission + toNano('0.01'),
           {
             queryId: 2n, // The mock hook approves even query IDs.
             request: lockOrBurnIn(ctx),
@@ -148,6 +150,75 @@ export function runTokenPoolAsyncHookBehaviorTests(
       })
     })
 
+    it('carries at least the advertised forward amount from a minimum-funded preflight callback', async () => {
+      const ctx = await setup()
+      const hook = await ctx.blockchain.treasury('minimumPreflightHook')
+      await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 9952n,
+        advancedPoolHooks: hook.address,
+      })
+
+      const finalizationValue = toNano('0.01')
+      const request = lockOrBurnIn(ctx)
+      const initial = await ctx.pool.sendTokenPoolLockOrBurn(
+        ctx.deployer.getSender(),
+        toNano('1'),
+        {
+          queryId: 2n,
+          request,
+          requestedFinalityConfig: 0n,
+          tokenArgs: null,
+          replyTo: ctx.deployer.address,
+          finalizationValue,
+          onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
+        },
+      )
+
+      const preflightMessage = [...initial.transactions]
+        .flatMap((tx: any) => [...tx.outMessages.values()])
+        .find(
+          (message: any) =>
+            message.info.type === 'internal' &&
+            message.info.dest?.equals(hook.address) &&
+            message.body.beginParse().preloadUint(32) === TokenPool_PreflightCheck.PREFIX,
+        )
+      expect(preflightMessage).toBeDefined()
+
+      const preflight = TokenPool_PreflightCheck.fromSlice(preflightMessage!.body.beginParse())
+      expect(preflight.forwardPayload).not.toBeNull()
+      const forwardPayload = TokenPool_LockOrBurnForwardPayload.fromSlice(
+        preflight.forwardPayload!.beginParse(),
+      )
+
+      const safety = (await ctx.pool.getBudget()).lockOrBurn.safety
+      const callbackValue = safety * 3n + finalizationValue
+      const callback = await ctx.blockchain.sendMessage(
+        internal({
+          from: hook.address,
+          to: ctx.pool.address,
+          value: callbackValue,
+          body: TokenPool_PreflightCheckFinished.toCell(
+            TokenPool_PreflightCheckFinished.create({ queryId: preflight.queryId, forwardPayload }),
+          ),
+        }),
+      )
+
+      const withdrawal = [...callback.transactions]
+        .flatMap((tx: any) => [...tx.outMessages.values()])
+        .find(
+          (message: any) =>
+            message.info.type === 'internal' &&
+            message.info.dest?.equals(ctx.deployer.address) &&
+            message.body.beginParse().preloadUint(32) === TokenPool_LockOrBurnWithdraw.PREFIX,
+        )
+      expect(withdrawal).toBeDefined()
+      expect(withdrawal!.info.type).toBe('internal')
+      if (withdrawal!.info.type === 'internal') {
+        const body = TokenPool_LockOrBurnWithdraw.fromSlice(withdrawal!.body.beginParse())
+        expect(withdrawal!.info.value.coins).toBeGreaterThanOrEqual(body.forwardTonAmount)
+      }
+    })
+
     // Deploys a MockAdvancedPoolHooks instance with `id = 255`, which throws on
     // PreflightCheck/PostflightCheck so the requests bounce back to the pool.
     function deployBounceHooks(
@@ -211,7 +282,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         }),
       })
       const fwdp = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: ctx.deployer.address,
+        initiator: ctx.deployer.address,
         requestMsg: TokenPool_LockOrBurn.create({
           queryId: 0n,
           request,
@@ -241,7 +312,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         }),
       })
       const fwdp = TokenPool_ReleaseOrMintForwardPayload.create({
-        originalSender: ctx.deployer.address,
+        initiator: ctx.deployer.address,
         requestMsg: TokenPool_ReleaseOrMint.create({
           queryId: 0n,
           request,
@@ -743,7 +814,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         }),
       })
       const fwdp = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: ctx.deployer.address,
+        initiator: ctx.deployer.address,
         requestMsg,
         prepared,
       })
@@ -798,7 +869,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
 
       const request = lockOrBurnIn(ctx)
       const fwdp = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: ctx.deployer.address,
+        initiator: ctx.deployer.address,
         requestMsg: TokenPool_LockOrBurn.create({
           queryId: 10n,
           request,

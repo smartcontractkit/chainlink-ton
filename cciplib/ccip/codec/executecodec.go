@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
@@ -170,7 +169,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 }
 
 func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr3.ExecutePluginReport, error) {
-	c, err := cell.FromBOC(data)
+	c, err := fromBOC(data)
 	if err != nil {
 		return ccipocr3.ExecutePluginReport{}, fmt.Errorf("decode BOC: %w", err)
 	}

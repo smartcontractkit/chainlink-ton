@@ -72,7 +72,7 @@ function buildWithdrawRequest(opts: {
     tokenPool: opts.tokenPool,
     forwardTonAmount: 0n,
     forwardPayload: tp.TokenPool_LockOrBurnForwardPayload.create({
-      originalSender: opts.originalSender,
+      initiator: opts.originalSender,
       requestMsg,
       prepared,
     }),

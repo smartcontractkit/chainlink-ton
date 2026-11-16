@@ -160,6 +160,8 @@ struct (0x177ebd03) OffRamp_NotifyFailure {
     root: address;
     /// Caller of the execution attempt and whether it funded the executor's init value.
     excesses: Cell<ReceiveExecutor_Excesses>;
+    /// Why the execution failed
+    errorCode: int32;
 }
 
 struct (0x4ca1bcb3) OffRamp_UpdateCursedSubjects {

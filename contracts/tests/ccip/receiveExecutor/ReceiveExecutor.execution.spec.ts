@@ -344,7 +344,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: deployer.address,
-          reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
+          errorCode: null,
         },
       )
       expect(result.transactions).toHaveTransaction({
@@ -358,8 +358,43 @@ describe('ReceiveExecutor - Execution', () => {
         to: deployer.address,
         success: true,
         op: of.OffRamp_NotifyFailure.PREFIX,
+        body(body) {
+          if (!body) return false
+          const msg = of.OffRamp_NotifyFailure.fromSlice(body.beginParse())
+          return msg.errorCode === rx.ReceiveExecutor_FailureErrors.ReceiverBounced
+        },
       })
     })
+
+    it.each([
+      ['zero', 0n],
+      ['a positive exit code', 22127n],
+      ['a negative exit code (OOG)', -14n],
+    ])(
+      'should preserve the supplied errorCode (%s) in NotifyFailure',
+      async (_label, errorCode) => {
+        await transitionToExecuteState()
+        const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
+          deployer.getSender(),
+          toNano('0.05'),
+          {
+            receiver: deployer.address,
+            errorCode,
+          },
+        )
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutor.address,
+          to: deployer.address,
+          success: true,
+          op: of.OffRamp_NotifyFailure.PREFIX,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_NotifyFailure.fromSlice(body.beginParse())
+            return msg.errorCode === errorCode
+          },
+        })
+      },
+    )
 
     it('should reject Bounced from non-owner', async () => {
       const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
@@ -367,7 +402,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: deployer.address,
-          reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
+          errorCode: null,
         },
       )
       expectFailedTransaction(
@@ -384,7 +419,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: deployer.address,
-          reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
+          errorCode: null,
         },
       )
       expectFailedTransaction(
@@ -403,7 +438,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: wrongReceiver,
-          reason: rx.ReceiveExecutor_FailedReason.BouncedFromReceiver,
+          errorCode: null,
         },
       )
       expectFailedTransaction(
@@ -639,6 +674,11 @@ describe('ReceiveExecutor - Execution', () => {
           from: receiveExecutorWithToken.address,
           to: deployer.address,
           op: of.OffRamp_NotifyFailure.PREFIX,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_NotifyFailure.fromSlice(body.beginParse())
+            return msg.errorCode === rx.ReceiveExecutor_FailureErrors.TokenAdmissionNotMet
+          },
         })
         expect(result.transactions).not.toHaveTransaction({
           from: receiveExecutorWithToken.address,
@@ -670,6 +710,11 @@ describe('ReceiveExecutor - Execution', () => {
           success: true,
           op: of.OffRamp_NotifyFailure.PREFIX,
           value: (v) => v! >= OFFRAMP_NOTIFY_COST,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_NotifyFailure.fromSlice(body.beginParse())
+            return msg.errorCode === rx.ReceiveExecutor_FailureErrors.TokenNotEnabledInTokenRegistry
+          },
         })
         expect((await blockchain.getContract(receiveExecutorWithToken.address)).balance).toBe(
           Costs.executorDeployment,
@@ -695,6 +740,11 @@ describe('ReceiveExecutor - Execution', () => {
           success: true,
           op: of.OffRamp_NotifyFailure.PREFIX,
           value: (v) => v! >= OFFRAMP_NOTIFY_COST,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_NotifyFailure.fromSlice(body.beginParse())
+            return msg.errorCode === rx.ReceiveExecutor_FailureErrors.TokenNotEnabledInTokenRegistry
+          },
         })
         expect((await blockchain.getContract(receiveExecutorWithToken.address)).balance).toBe(
           Costs.executorDeployment,
@@ -1136,7 +1186,7 @@ describe('ReceiveExecutor - Execution', () => {
           deployer.getSender(),
           toNano('0.05'),
           {
-            reason: rx.ReleaseOrMintBounced.create({ errorCode: 1n }),
+            errorCode: 1n,
           },
         )
         expect(result.transactions).toHaveTransaction({
@@ -1150,6 +1200,11 @@ describe('ReceiveExecutor - Execution', () => {
           to: deployer.address,
           success: true,
           op: of.OffRamp_NotifyFailure.PREFIX,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_NotifyFailure.fromSlice(body.beginParse())
+            return msg.errorCode === 1n
+          },
         })
       })
 
@@ -1159,7 +1214,7 @@ describe('ReceiveExecutor - Execution', () => {
           nonOwner.getSender(),
           toNano('0.05'),
           {
-            reason: rx.ReleaseOrMintBounced.create({ errorCode: 1n }),
+            errorCode: 1n,
           },
         )
         expectFailedTransaction(
@@ -1175,7 +1230,7 @@ describe('ReceiveExecutor - Execution', () => {
           deployer.getSender(),
           toNano('0.05'),
           {
-            reason: rx.ReleaseOrMintBounced.create({ errorCode: 1n }),
+            errorCode: 1n,
           },
         )
         expectFailedTransaction(
@@ -1501,7 +1556,7 @@ describe('ReceiveExecutor - Execution', () => {
           toNano('0.05'),
           {
             receiver: deployer.address,
-            reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
+            errorCode: null,
           },
         )
         expect(result.transactions).toHaveTransaction({
@@ -1520,7 +1575,7 @@ describe('ReceiveExecutor - Execution', () => {
           toNano('0.05'),
           {
             receiver: deployer.address,
-            reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
+            errorCode: null,
           },
         )
 

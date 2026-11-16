@@ -59,11 +59,6 @@ struct (0x9be1fb61) OnRamp_ExecutorRequestsLockOrBurn {
     originalSender: address,
 }
 
-/// Pool-type default LockOrBurn admission (BurnMint and LockRelease, 1_575_000 gas at mainnet
-/// price). The registry reports the real one per pool; this bounds the Router's entry check,
-/// and the executor re-checks against the reported admission once it has it.
-const TOKEN_POOL_DEFAULT_LOCK_OR_BURN_ADMISSION: coins = grams("0.105");
-
 struct (0x05e47a89) OnRamp_ExecutorRequestsWithdraw {
     queryId: uint64,
     executorId: CCIPSendExecutorId,

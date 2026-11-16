@@ -598,7 +598,7 @@ fun returnAccidentalTransfer(walletSender: address, msg: TransferNotificationFor
             forwardPayload: beginCell().storeMaybeRef(null).endCell().beginParse(),
         },
     });
-    returnMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    returnMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Answers the caller with its receiver account address for `msg.token`. Nothing is deployed.

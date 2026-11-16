@@ -2,13 +2,14 @@ package codec
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"math/big"
 	"reflect"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
@@ -51,7 +52,7 @@ func (d extraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 		return nil, fmt.Errorf("extra args too short: %d, should be at least 4 (i.e the extraArgs tag)", len(extraArgs))
 	}
 
-	c, err := cell.FromBOC(extraArgs)
+	c, err := fromBOC(extraArgs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode BOC: %w", err)
 	}
@@ -85,62 +86,63 @@ func (d extraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 		}
 		if len(field.Name) > 0 {
 			lowerCamelCase := strings.ToLower(field.Name[:1]) + field.Name[1:]
-			outputMap[lowerCamelCase] = normalizeFieldValue(field, val.Field(i).Interface())
+			normalized, err := normalizeFieldValue(field, val.Field(i).Interface())
+			if err != nil {
+				return nil, fmt.Errorf("failed to normalize %s: %w", field.Name, err)
+			}
+			outputMap[lowerCamelCase] = normalized
 		}
 	}
 
 	return outputMap, nil
 }
 
-// normalizeFieldValue converts TL-B decoded types to the canonical types expected by
-// downstream consumers in chainlink-ccip.
+// normalizeFieldValue converts a TL-B decoded extra-args field into the shape
+// chainlink-ccip consumers expect, rejecting values that cannot be represented.
+// Every exported field passes through here, so it is also where validation lives.
 //
-// The tonutils-go TL-B library has a limitation: the `bits N` tag only supports []byte,
-// not fixed-size arrays like [32]byte — reflect.Value.Bytes() (used in serialization)
-// panics on arrays. Similarly, SnakedCell[Account256] uses Account256{Value []byte} wrappers.
-//
-// However, the chainlink-ccip plugin expects:
-//   - TokenReceiver as [32]byte (not []byte)
-//   - Accounts/ReceiverObjectIDs as [][32]byte (not SnakedCell[Account256])
-//
-// This function bridges the gap by checking the struct tag: only []byte fields explicitly
-// tagged with `tlb:"bits 256"` are converted to [32]byte. This avoids accidentally converting
-// a variable-length []byte that happens to be 32 bytes at runtime.
-//
-// Verified: all []byte fields in the onramp bindings (SVMExtraArgsV1, SuiExtraArgsV1) are
-// tagged with fixed `tlb:"bits N"` — there are no dynamically-sized []byte fields that could
-// be misidentified.
-func normalizeFieldValue(field reflect.StructField, val any) any {
-	// Convert []byte with `tlb:"bits 256"` tag to [32]byte.
-	// Only applies to fixed-size 256-bit fields (e.g. TokenReceiver, Account256.Value).
-	if bs, ok := val.([]byte); ok && len(bs) == 32 {
-		tag := field.Tag.Get("tlb")
-		if tag == "bits 256" {
-			var arr [32]byte
-			copy(arr[:], bs)
-			return arr
-		}
+// Two binding quirks force the conversions:
+//   - `tlb:"bits N"` decodes to []byte, but consumers expect [32]byte for
+//     TokenReceiver. Matching the tag keeps this to fields declared 256-bit,
+//     rather than converting any []byte that happens to be 32 bytes long.
+//   - SnakedCell[Account256] decodes to []Account256 with []byte values, but
+//     consumers expect [][32]byte.
+func normalizeFieldValue(field reflect.StructField, val any) (any, error) {
+	// GasLimit is the only `maybe ## <bits>` field today. It decodes to a typed-nil
+	// *big.Int when absent: the interface is non-nil while the pointer under it is,
+	// which defeats the downstream `== nil` and `.(*big.Int)` checks.
+	if gl, ok := val.(*big.Int); ok && gl == nil {
+		return nil, errors.New("absent optional value (decoded as typed-nil *big.Int)")
 	}
 
-	// Convert SnakedCell[Account256] to [][32]byte.
-	// Applies to SVMExtraArgsV1.Accounts and SuiExtraArgsV1.ReceiverObjectIDs.
-	// Preserves nil semantics: a nil SnakedCell stays nil (not empty slice),
-	// which can affect downstream nil checks and JSON encoding (null vs []).
+	// TokenReceiver / Account256.Value: []byte tagged `bits 256` -> [32]byte.
+	if bs, ok := val.([]byte); ok && len(bs) == 32 && field.Tag.Get("tlb") == "bits 256" {
+		var arr [32]byte
+		copy(arr[:], bs)
+		return arr, nil
+	}
+
+	// SVM Accounts / Sui ReceiverObjectIDs: []Account256 -> [][32]byte.
+	// A nil cell stays nil rather than becoming an empty slice, since consumers
+	// distinguish the two (null vs [] in JSON).
 	if accounts, ok := val.(common.SnakedCell[onramp.Account256]); ok {
 		if accounts == nil {
-			return ([][32]byte)(nil)
+			return ([][32]byte)(nil), nil
 		}
 		result := make([][32]byte, len(accounts))
 		for i, acct := range accounts {
 			if len(acct.Value) != 32 {
-				return val // unexpected length, return as-is to avoid silent zero-padding
+				// A short element means the snake did not decode into complete
+				// 256-bit values. Fail here rather than pad (which would change the
+				// hash) or defer the error to a consumer mid-hash.
+				return nil, fmt.Errorf("element %d has length %d, expected 32 bytes", i, len(acct.Value))
 			}
 			copy(result[i][:], acct.Value)
 		}
-		return result
+		return result, nil
 	}
 
-	return val
+	return val, nil
 }
 
 // DecodeDestExecDataToMap is a helper function for converting dest exec data bytes into map[string]any
