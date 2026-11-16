@@ -78,42 +78,66 @@ func TestCCIPReceiverFollowCondition_BoundsMaliciousReceiver(t *testing.T) {
 	chain := tracetest.NewChain(t)
 	root, delivery := execution(t, chain)
 
-	// The receiver confirms, starts a ping-pong with its own contract, and sends the Router an
-	// unknown opcode that the Router bounces back to it. Neither the ping-pong nor the bounce is ever
-	// received, so the trace only completes if both are skipped.
+	// The receiver confirms, starts a ping-pong with its own contract, sends the Router an unknown
+	// opcode that the Router bounces back to it, and has the Router start a send that reaches the
+	// attacker. None of the ping-pong, the bounce or the send ever completes, so the trace only
+	// completes if all of them are skipped.
 	receiverTx := chain.Receive(delivery,
 		tracetest.Out{Dst: routerAddr, Body: tracetest.Body(router.OpcodeCCIPReceiveConfirm)},
 		tracetest.Out{Dst: attacker, Body: tracetest.Body(opUnknown)},
 		tracetest.Out{Dst: routerAddr, Body: tracetest.Body(opUnknown)},
+		tracetest.Out{Dst: routerAddr, Body: tracetest.Body(router.OpcodeCCIPSend)},
 	)
-	confirm, unknown := receiverTx.Out[0], receiverTx.Out[2]
+	confirm, unknown, send := receiverTx.Out[0], receiverTx.Out[2], receiverTx.Out[3]
 	confirmLeg(chain, confirm)
 	chain.ReceiveWithExitCode(0xffff, unknown,
 		tracetest.Out{Dst: receiver, Body: tracetest.Body(opLegacyBounce), Bounced: true},
 	)
+	chain.Receive(send, tracetest.Out{Dst: attacker, Body: tracetest.Body(opUnknown)})
 
 	require.NoError(t, root.WaitForTraceWith(waitCtx(t), chain, bindings.CCIPReceiverFollowCondition))
 
 	receiverMsg := root.OutgoingInternalReceivedMessages[0].OutgoingInternalReceivedMessages[0]
 	require.True(t, receiverMsg.InternalMsg.DstAddr.Equals(receiver))
 
-	// Only the receiver's messages back to the Router are followed.
-	require.Len(t, receiverMsg.OutgoingInternalReceivedMessages, 2)
-	require.Len(t, receiverMsg.OutgoingInternalSkippedMessages, 1)
-	require.True(t, receiverMsg.OutgoingInternalSkippedMessages[0].InternalMsg.DstAddr.Equals(attacker))
-
-	// The confirmation is followed to the executor.
+	// Only the confirmation is followed, to the executor.
+	require.Len(t, receiverMsg.OutgoingInternalReceivedMessages, 1)
 	confirmMsg := receiverMsg.OutgoingInternalReceivedMessages[0]
+	require.True(t, confirmMsg.InternalMsg.DstAddr.Equals(routerAddr))
 	require.Len(t, confirmMsg.OutgoingInternalReceivedMessages, 1)
 	require.Len(t, confirmMsg.OutgoingInternalReceivedMessages[0].OutgoingInternalReceivedMessages, 1)
 
-	// The Router's reply to the receiver is skipped.
-	unknownMsg := receiverMsg.OutgoingInternalReceivedMessages[1]
-	require.Empty(t, unknownMsg.OutgoingInternalReceivedMessages)
-	require.Len(t, unknownMsg.OutgoingInternalSkippedMessages, 1)
-	require.True(t, unknownMsg.OutgoingInternalSkippedMessages[0].InternalMsg.DstAddr.Equals(receiver))
+	skipped := receiverMsg.OutgoingInternalSkippedMessages
+	require.Len(t, skipped, 3)
+	require.True(t, skipped[0].InternalMsg.DstAddr.Equals(attacker))
+	require.Equal(t, unknown.CreatedLT, skipped[1].InternalMsg.CreatedLT)
+	require.Equal(t, send.CreatedLT, skipped[2].InternalMsg.CreatedLT)
 
 	require.NotContains(t, chain.Subscribed(), attacker.String())
+}
+
+func TestCCIPReceiverFollowCondition_SkipsRepliesToReceiver(t *testing.T) {
+	chain := tracetest.NewChain(t)
+	root, delivery := execution(t, chain)
+
+	// The OffRamp rejects the confirmation and the Router tells the receiver, which never handles it.
+	receiverTx := chain.Receive(delivery,
+		tracetest.Out{Dst: routerAddr, Body: tracetest.Body(router.OpcodeCCIPReceiveConfirm)},
+	)
+	routerTx := chain.Receive(receiverTx.Out[0], tracetest.Out{Dst: offRampAddr, Body: tracetest.Body(opToOffRamp)})
+	offRampTx := chain.ReceiveWithExitCode(300, routerTx.Out[0],
+		tracetest.Out{Dst: routerAddr, Body: tracetest.Body(opRichBounce), Bounced: true},
+	)
+	chain.Receive(offRampTx.Out[0], tracetest.Out{Dst: receiver, Body: tracetest.Body(opUnknown)})
+
+	require.NoError(t, root.WaitForTraceWith(waitCtx(t), chain, bindings.CCIPReceiverFollowCondition))
+
+	confirmMsg := root.OutgoingInternalReceivedMessages[0].OutgoingInternalReceivedMessages[0].OutgoingInternalReceivedMessages[0]
+	bouncedMsg := confirmMsg.OutgoingInternalReceivedMessages[0].OutgoingInternalReceivedMessages[0]
+	require.True(t, bouncedMsg.InternalMsg.Bounced)
+	require.Empty(t, bouncedMsg.OutgoingInternalReceivedMessages)
+	require.Len(t, bouncedMsg.OutgoingInternalSkippedMessages, 1)
+	require.True(t, bouncedMsg.OutgoingInternalSkippedMessages[0].InternalMsg.DstAddr.Equals(receiver))
 }
 
 // receiverBounces records the receiver failing on delivery and its bounce going through the Router

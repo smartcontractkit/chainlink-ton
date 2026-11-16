@@ -28,6 +28,7 @@ import (
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/fees"
@@ -141,7 +142,8 @@ func newChain(cfg *config.TOMLConfig, loopKs core.Keystore, lggr logger.Logger, 
 		}, nil
 	}
 
-	ch.txm, err = txm.New(lggr, ch.id, loopKs, signedClientProvider, *ch.cfg.TxManager())
+	ch.txm, err = txm.New(lggr, ch.id, loopKs, signedClientProvider, *ch.cfg.TxManager(),
+		txm.WithTraceBoundaries(bindings.CCIPReceiverFollowCondition, bindings.CCIPReceiverOutcomeBoundary))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create TON TXM for chain ID %s: %w", cfg.ChainID, err)
 	}

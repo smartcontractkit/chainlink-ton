@@ -3,6 +3,8 @@ package bindings
 import (
 	"fmt"
 
+	"github.com/xssnick/tonutils-go/tlb"
+
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
@@ -66,11 +68,15 @@ var DefaultTraceStopCondition tracetracking.StopCondition = func(parent, current
 }
 
 // CCIPReceiverFollowCondition bounds the trace a transaction waits for at the third-party CCIP
-// receiver. It follows the Router's Receiver_CCIPReceiveV2 delivery and the receiver's messages
-// back to that Router (the confirmation or the bounce), and skips everything else the receiver
-// sends as well as every later message addressed to the receiver. Without this, a receiver could
-// keep the trace open indefinitely, either messaging its own contracts or answering the Router's
-// replies to it.
+// receiver. Of the messages the receiver sends while handling the Router's Receiver_CCIPReceiveV2
+// delivery, it follows only those that report the outcome back to the Router that delivered: a
+// Router_CCIPReceiveConfirm or the bounce of the delivery. Downstream of those, it follows the
+// Router, OffRamp and ReceiveExecutor handling them, and skips every message addressed back to the
+// receiver.
+//
+// Without this, a receiver could keep the trace open indefinitely, by messaging its own contracts,
+// by answering the Router's replies to it, or by having the Router start unrelated flows on its
+// behalf (such as a Router_CCIPSend).
 //
 // Traces without a Receiver_CCIPReceiveV2 delivery are followed entirely.
 var CCIPReceiverFollowCondition tracetracking.FollowCondition = func(path []*tracetracking.ReceivedMessage, out *tracetracking.SentMessage) (bool, error) {
@@ -85,13 +91,29 @@ var CCIPReceiverFollowCondition tracetracking.FollowCondition = func(path []*tra
 
 		delivery := msg.InternalMsg
 		if i == len(path)-1 {
-			// out is sent by the receiver: follow it only back to the Router that delivered.
-			return out.InternalMsg.DstAddr.Equals(delivery.SrcAddr), nil
+			// out is sent by the receiver.
+			return isCCIPReceiveOutcome(delivery, out)
 		}
-		// out is sent after the receiver handed back to the Router: keep out of the receiver.
+		// out is sent while the outcome is relayed to the OffRamp: keep out of the receiver.
 		return !out.InternalMsg.DstAddr.Equals(delivery.DstAddr), nil
 	}
 	return true, nil
+}
+
+// isCCIPReceiveOutcome reports whether out, sent by the receiver of delivery, reports the outcome of
+// delivery to the Router that sent it.
+func isCCIPReceiveOutcome(delivery *tlb.InternalMessage, out *tracetracking.SentMessage) (bool, error) {
+	if !out.InternalMsg.DstAddr.Equals(delivery.SrcAddr) {
+		return false, nil
+	}
+	if out.InternalMsg.Bounced {
+		return true, nil
+	}
+	opcode, err := tvm.ExtractOpcode(out.InternalMsg.Body)
+	if err != nil {
+		return false, fmt.Errorf("failed to extract opcode: %w", err)
+	}
+	return uint64(opcode) == router.OpcodeCCIPReceiveConfirm, nil
 }
 
 // CCIPReceiverOutcomeBoundary excludes the third-party CCIP receiver's handling of a
