@@ -40,7 +40,7 @@ func TestCheckUnconfirmed_FinalizesOnlyCompleteTraces(t *testing.T) {
 
 	store := txm.accountStore.GetTxStore(wallet.String())
 	expiration := time.Now().Add(time.Hour)
-	require.NoError(t, store.AddUnconfirmed(root.LamportTime, uint64(expiration.UnixMilli()), &Tx{ //nolint:gosec // positive timestamp
+	require.NoError(t, store.AddUnconfirmed(root.LamportTime, uint64(expiration.UnixMilli()), &Tx{
 		Expiration:      expiration,
 		ReceivedMessage: root,
 	}))

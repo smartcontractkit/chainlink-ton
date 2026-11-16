@@ -27,13 +27,13 @@ type traceProbeStorage struct {
 
 // traceProbeSelfDestruct makes the probe destroy itself, sending its balance back to the sender.
 type traceProbeSelfDestruct struct {
-	_       tlb.Magic `tlb:"#34967105"`
+	_       tlb.Magic `tlb:"#34967105"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
 // traceProbeForward makes the probe send Value to To, bounceable or not, paying the fees itself.
 type traceProbeForward struct {
-	_          tlb.Magic        `tlb:"#7c76ca03"`
+	_          tlb.Magic        `tlb:"#7c76ca03"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID    uint64           `tlb:"## 64"`
 	To         *address.Address `tlb:"addr"`
 	Bounceable bool             `tlb:"bool"`

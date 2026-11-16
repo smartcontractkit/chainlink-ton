@@ -66,7 +66,7 @@ func findReceipt(ctx context.Context, c ton.APIClientWrapped, sent *SentMessage)
 
 		if err == nil {
 			var header *tlb.BlockHeader
-			header, err = c.GetBlockHeader(ctx, block)
+			header, err = c.GetBlockHeader(ctx, block) //nolint:tonapiwaitlint // WaitForBlock takes a masterchain seqno; block is a shard block this sticky liteserver returned
 			if err == nil {
 				searched, lt = block, max(header.EndLt, lt+1)
 				continue
@@ -92,15 +92,15 @@ func findInBlock(ctx context.Context, c ton.APIClientWrapped, block *ton.BlockID
 	// destination at the message's creation time starts at the destination's candidate transactions.
 	after := &ton.TransactionID3{Account: dst.Data(), LT: sent.InternalMsg.CreatedLT}
 	for {
-		txs, incomplete, err := c.GetBlockTransactionsV2(ctx, block, receiptPageSize, after)
+		txs, incomplete, err := c.GetBlockTransactionsV2(ctx, block, receiptPageSize, after) //nolint:tonapiwaitlint // WaitForBlock takes a masterchain seqno; block is a shard block this sticky liteserver returned
 		if err != nil {
-			return nil, fmt.Errorf("failed to list transactions of block %d:%x:%d: %w", block.Workchain, uint64(block.Shard), block.SeqNo, err)
+			return nil, fmt.Errorf("failed to list transactions of block %d:%x:%d: %w", block.Workchain, uint64(block.Shard), block.SeqNo, err) //nolint:gosec // reinterpreting the shard bits
 		}
 		for _, info := range txs {
 			if !bytes.Equal(info.Account, dst.Data()) {
 				return nil, nil // past the destination's transactions
 			}
-			tx, err := c.GetTransaction(ctx, block, dst, info.LT)
+			tx, err := c.GetTransaction(ctx, block, dst, info.LT) //nolint:tonapiwaitlint // WaitForBlock takes a masterchain seqno; block is a shard block this sticky liteserver returned
 			if err != nil {
 				return nil, fmt.Errorf("failed to get transaction %d of %s: %w", info.LT, dst, err)
 			}
