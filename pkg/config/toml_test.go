@@ -46,6 +46,7 @@ PruningStartDelay = '2m'
 CommitPriceUpdateOnlyCostTON = 0.08
 CommitPriceAndRootCostTON = 0.12
 ExecuteCostTON = 0.15
+MaxExecuteValueTON = 7.5
 
 [[Nodes]]
 Name = 'ton-testnet-1'
@@ -85,6 +86,7 @@ URL = 'http://localhost:8081'
 		assert.InEpsilon(t, 0.08, cfg.ContractTransmitter.CommitPriceUpdateOnlyCostTON, 0)
 		assert.InEpsilon(t, 0.12, cfg.ContractTransmitter.CommitPriceAndRootCostTON, 0)
 		assert.InEpsilon(t, 0.15, cfg.ContractTransmitter.ExecuteCostTON, 0)
+		assert.InEpsilon(t, 7.5, cfg.ContractTransmitter.MaxExecuteValueTON, 0)
 
 		require.Len(t, cfg.Nodes, 1)
 		assert.Equal(t, "ton-testnet-1", *cfg.Nodes[0].Name)
@@ -130,6 +132,7 @@ URL = 'http://localhost:8081'
 		assert.InEpsilon(t, ocr.DefaultConfigSet.CommitPriceUpdateOnlyCostTON, cfg.ContractTransmitter.CommitPriceUpdateOnlyCostTON, 0)
 		assert.InEpsilon(t, ocr.DefaultConfigSet.CommitPriceAndRootCostTON, cfg.ContractTransmitter.CommitPriceAndRootCostTON, 0)
 		assert.InEpsilon(t, ocr.DefaultConfigSet.ExecuteCostTON, cfg.ContractTransmitter.ExecuteCostTON, 0)
+		assert.InEpsilon(t, ocr.DefaultConfigSet.MaxExecuteValueTON, cfg.ContractTransmitter.MaxExecuteValueTON, 0)
 	})
 
 	t.Run("partial configs get field-by-field defaults", func(t *testing.T) {
@@ -230,6 +233,7 @@ func TestTOMLConfig_SetDefaults(t *testing.T) {
 		assert.InEpsilon(t, ocr.DefaultConfigSet.CommitPriceUpdateOnlyCostTON, cfg.ContractTransmitter.CommitPriceUpdateOnlyCostTON, 0)
 		assert.InEpsilon(t, ocr.DefaultConfigSet.CommitPriceAndRootCostTON, cfg.ContractTransmitter.CommitPriceAndRootCostTON, 0)
 		assert.InEpsilon(t, ocr.DefaultConfigSet.ExecuteCostTON, cfg.ContractTransmitter.ExecuteCostTON, 0)
+		assert.InEpsilon(t, ocr.DefaultConfigSet.MaxExecuteValueTON, cfg.ContractTransmitter.MaxExecuteValueTON, 0)
 
 		assert.Equal(t, "ton-testnet", cfg.NetworkNameFull)
 	})

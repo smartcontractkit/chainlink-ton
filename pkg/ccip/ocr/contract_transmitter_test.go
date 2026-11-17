@@ -1,6 +1,7 @@
 package ocr
 
 import (
+	"math"
 	"math/big"
 	"testing"
 
@@ -19,6 +20,7 @@ func TestGetReportTxInfo(t *testing.T) {
 		CommitPriceAndRootCostTON:    0.08,
 		ExecuteCostTON:               0.1,
 		ExecuteCostTONTokenTransfer:  0.2,
+		MaxExecuteValueTON:           5,
 	}
 
 	t.Run("execute report with gas limit", func(t *testing.T) {
@@ -485,4 +487,87 @@ func TestGetReportTxInfo(t *testing.T) {
 		assert.Equal(t, expectedCost.Nano(), cost.Nano(),
 			"expected cost %s, got %s", expectedCost.String(), cost.String())
 	})
+}
+
+func executeReportBOC(t *testing.T, gasLimit tlb.Coins, destGasAmounts ...tlb.Coins) []byte {
+	onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
+	destAddr := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")
+	var tokens common.SnakedCell[ocr.Any2TVMTokenTransfer]
+	for i := range destGasAmounts {
+		tokens = append(tokens, ocr.Any2TVMTokenTransfer{
+			SourcePoolAddress: onrampAddr,
+			DestPoolAddress:   destAddr,
+			DestGasAmount:     &destGasAmounts[i],
+			Amount:            big.NewInt(1000),
+		})
+	}
+	report := ocr.ExecuteReport{
+		SourceChainSelector: 123,
+		Message: ocr.Any2TVMRampMessage{
+			Header: ocr.RampMessageHeader{
+				MessageID:           make([]byte, 32),
+				SourceChainSelector: 123,
+				DestChainSelector:   456,
+				SequenceNumber:      1,
+				Nonce:               1,
+			},
+			Sender:       onrampAddr,
+			Data:         []byte("test data"),
+			Receiver:     destAddr,
+			GasLimit:     gasLimit,
+			TokenAmounts: tokens,
+		},
+		OffChainTokenData: common.LispList[common.LispList[common.SnakeBytes]]{},
+		Proofs:            common.SnakedCell[common.Proof]{},
+		ProofFlagBits:     big.NewInt(0),
+	}
+	c, err := tlb.ToCell(report)
+	require.NoError(t, err)
+	return c.ToBOC()
+}
+
+func TestGetReportTxInfoMaxExecuteValue(t *testing.T) {
+	cfg := &Config{
+		CommitPriceUpdateOnlyCostTON: 0.05,
+		CommitPriceAndRootCostTON:    0.08,
+		ExecuteCostTON:               0.1,
+		ExecuteCostTONTokenTransfer:  0.2,
+		MaxExecuteValueTON:           2,
+	}
+
+	tests := []struct {
+		name    string
+		report  []byte
+		wantErr bool
+	}{
+		// 0.1 + 1.9 = 2
+		{name: "at the cap", report: executeReportBOC(t, tlb.MustFromTON("1.9"))},
+		{name: "gas limit above the cap", report: executeReportBOC(t, tlb.MustFromTON("1.900000001")), wantErr: true},
+		// 0.1 + 1 + 0.2 + 0.7 = 2
+		{name: "token transfer at the cap", report: executeReportBOC(t, tlb.MustFromTON("1"), tlb.MustFromTON("0.7"))},
+		{name: "token dest gas above the cap", report: executeReportBOC(t, tlb.MustFromTON("1"), tlb.MustFromTON("0.8")), wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			txID, cost, gasLimit, err := getReportTxInfo(tt.report, 7, cfg)
+			assert.Contains(t, txID, "seq-7-msg-")
+			require.NotNil(t, gasLimit)
+			if tt.wantErr {
+				require.ErrorContains(t, err, "exceeds MaxExecuteValueTON")
+				assert.Nil(t, cost)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tlb.MustFromTON("2").Nano(), cost.Nano())
+		})
+	}
+}
+
+func TestGetReportTxInfoInvalidCosts(t *testing.T) {
+	for _, v := range []float64{0, -1, math.NaN(), math.Inf(1)} {
+		cfg := DefaultConfigSet
+		cfg.ExecuteCostTON = v
+		_, _, _, err := getReportTxInfo(executeReportBOC(t, tlb.MustFromTON("0.1")), 1, &cfg)
+		require.ErrorContains(t, err, "invalid ExecuteCostTON", "value %v", v)
+	}
 }
