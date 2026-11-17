@@ -12,6 +12,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
@@ -94,4 +95,37 @@ func TestEnqueueResumingAfterCloseFails(t *testing.T) {
 
 	require.ErrorContains(t, <-errCh, "txm stopped")
 	require.Empty(t, tm.broadcastChan)
+}
+
+func TestNewWalletMessageStateInit(t *testing.T) {
+	to := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")
+	base := Tx{From: *to, To: *to, Amount: tlb.MustFromTON("0.1"), CreatedAt: time.Now()}
+
+	t.Run("no state init", func(t *testing.T) {
+		msg, err := newWalletMessage(&base)
+		require.NoError(t, err)
+		require.Nil(t, msg.InternalMessage.StateInit)
+	})
+
+	t.Run("with state init", func(t *testing.T) {
+		code := cell.BeginCell().MustStoreUInt(1, 8).EndCell()
+		data := cell.BeginCell().MustStoreUInt(2, 8).EndCell()
+		si, err := tlb.ToCell(&tlb.StateInit{Code: code, Data: data})
+		require.NoError(t, err)
+		tx := base
+		tx.StateInit = si
+
+		msg, err := newWalletMessage(&tx)
+		require.NoError(t, err)
+		require.NotNil(t, msg.InternalMessage.StateInit)
+		require.Equal(t, code.Hash(), msg.InternalMessage.StateInit.Code.Hash())
+		require.Equal(t, data.Hash(), msg.InternalMessage.StateInit.Data.Hash())
+	})
+
+	t.Run("malformed state init", func(t *testing.T) {
+		tx := base
+		tx.StateInit = cell.BeginCell().MustStoreUInt(0xff, 8).EndCell()
+		_, err := newWalletMessage(&tx)
+		require.ErrorContains(t, err, "failed to parse StateInit")
+	})
 }

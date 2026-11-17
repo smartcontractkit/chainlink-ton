@@ -107,6 +107,8 @@ func TestSendTx(t *testing.T) {
 		{name: "zero amount", msg: tontypes.Message{ToAddress: to.String(), Amount: "0"}, wantErr: "must be positive"},
 		{name: "malformed body", msg: tontypes.Message{ToAddress: to.String(), Amount: "1", Body: []byte{1, 2, 3}}, wantErr: "failed parsing msg.Body"},
 		{name: "malformed state init", msg: tontypes.Message{ToAddress: to.String(), Amount: "1", StateInit: []byte{1, 2, 3}}, wantErr: "failed parsing msg.StateInit"},
+		{name: "empty non-nil state init", msg: tontypes.Message{ToAddress: to.String(), Amount: "1", StateInit: []byte{}}, wantErr: "failed parsing msg.StateInit"},
+		{name: "empty non-nil body", msg: tontypes.Message{ToAddress: to.String(), Amount: "1", Body: []byte{}}, wantErr: "failed parsing msg.Body"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -138,10 +140,7 @@ func TestBlockRequestsUseResolvedBlockID(t *testing.T) {
 		require.Len(t, client.gotAccount.RootHash, 32)
 		require.Len(t, client.gotAccount.FileHash, 32)
 		require.Equal(t, block.SeqNo, client.gotAccount.SeqNo)
-		require.NotEmpty(t, client.waitedFor)
-		for _, seqNo := range client.waitedFor {
-			require.Equal(t, block.SeqNo, seqNo)
-		}
+		require.Equal(t, []uint32{block.SeqNo}, client.waitedFor)
 	})
 
 	t.Run("block data", func(t *testing.T) {
@@ -150,6 +149,7 @@ func TestBlockRequestsUseResolvedBlockID(t *testing.T) {
 		_, err := s.GetBlockData(t.Context(), block)
 		require.NoError(t, err)
 		require.Len(t, client.gotBlockReq.RootHash, 32)
+		require.Equal(t, []uint32{block.SeqNo}, client.waitedFor)
 	})
 
 	t.Run("lookup error", func(t *testing.T) {

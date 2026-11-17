@@ -53,12 +53,12 @@ func (s *Service) GetBlockData(ctx context.Context, block *tontypes.BlockIDExt) 
 		return nil, fmt.Errorf("failed to create TON client for chain ID %s: %w", s.chain.ID(), err)
 	}
 
-	blockIDExt, err := resolveBlockID(ctx, client, block)
+	waiter, blockIDExt, err := resolveBlockID(ctx, client, block)
 	if err != nil {
 		return nil, err
 	}
 
-	blockData, err := client.WaitForBlock(blockIDExt.SeqNo).GetBlockData(ctx, blockIDExt)
+	blockData, err := waiter.GetBlockData(ctx, blockIDExt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get block data for chain ID %s: %w", s.chain.ID(), err)
 	}
@@ -77,12 +77,12 @@ func (s *Service) GetAccountBalance(ctx context.Context, address string, block *
 		return nil, fmt.Errorf("failed parsing address %s: %w", address, err)
 	}
 
-	blockIDExt, err := resolveBlockID(ctx, client, block)
+	waiter, blockIDExt, err := resolveBlockID(ctx, client, block)
 	if err != nil {
 		return nil, err
 	}
 
-	acc, err := client.WaitForBlock(blockIDExt.SeqNo).GetAccount(ctx, blockIDExt, addr)
+	acc, err := waiter.GetAccount(ctx, blockIDExt, addr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account for address %s: %w", address, err)
 	}
@@ -178,25 +178,28 @@ func (s *Service) UnregisterFilter(ctx context.Context, name string) error {
 	return nil
 }
 
+// optionalCellFromBOC treats only nil as absent; an empty non-nil BOC is a malformed input.
 func optionalCellFromBOC(boc []byte) (*cell.Cell, error) {
-	if len(boc) == 0 {
+	if boc == nil {
 		return nil, nil
 	}
 	return cell.FromBOC(boc)
 }
 
 // resolveBlockID looks up the full block ID, since the common BlockIDExt type carries no
-// root/file hashes and liteserver requests need them for proof verification.
-func resolveBlockID(ctx context.Context, client ton.APIClientWrapped, block *tontypes.BlockIDExt) (*ton.BlockIDExt, error) {
+// root/file hashes and liteserver requests need them for proof verification. It also returns the
+// client waiting for that block, to be reused for the follow-up request.
+func resolveBlockID(ctx context.Context, client ton.APIClientWrapped, block *tontypes.BlockIDExt) (ton.APIClientWrapped, *ton.BlockIDExt, error) {
 	if block == nil {
-		return nil, errors.New("block is nil")
+		return nil, nil, errors.New("block is nil")
 	}
-	full, err := client.WaitForBlock(block.SeqNo).LookupBlock(ctx, block.Workchain, block.Shard, block.SeqNo)
+	waiter := client.WaitForBlock(block.SeqNo)
+	full, err := waiter.LookupBlock(ctx, block.Workchain, block.Shard, block.SeqNo)
 	if err != nil {
-		return nil, fmt.Errorf("failed to look up block %d:%x:%d: %w", block.Workchain, uint64(block.Shard), block.SeqNo, err) //nolint:gosec // shard printed as its unsigned hex form
+		return nil, nil, fmt.Errorf("failed to look up block %d:%x:%d: %w", block.Workchain, uint64(block.Shard), block.SeqNo, err) //nolint:gosec // shard printed as its unsigned hex form
 	}
 	if full == nil || len(full.RootHash) != 32 || len(full.FileHash) != 32 {
-		return nil, fmt.Errorf("invalid block ID returned for block %d:%x:%d", block.Workchain, uint64(block.Shard), block.SeqNo) //nolint:gosec // shard printed as its unsigned hex form
+		return nil, nil, fmt.Errorf("invalid block ID returned for block %d:%x:%d", block.Workchain, uint64(block.Shard), block.SeqNo) //nolint:gosec // shard printed as its unsigned hex form
 	}
-	return full, nil
+	return waiter, full, nil
 }

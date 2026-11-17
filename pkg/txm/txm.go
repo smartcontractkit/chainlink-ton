@@ -232,29 +232,10 @@ func (t *Txm) broadcastLoop() {
 		case tx := <-t.broadcastChan:
 			t.logger.Debugw("broadcasting transaction", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
 
-			var st tlb.StateInit
-			if tx.StateInit != nil {
-				err := tlb.Parse(&st, tx.StateInit)
-				if err != nil {
-					t.logger.Errorw("load from cell failed", "err", err, "to", tx.To.String())
-					continue
-				}
-			}
-
-			internalMsg := &tlb.InternalMessage{
-				SrcAddr:     &tx.From,
-				DstAddr:     &tx.To,
-				Bounce:      tx.Bounceable,
-				IHRDisabled: true,
-				Amount:      tx.Amount,
-				StateInit:   &st,
-				Body:        tx.Body,
-				CreatedAt:   uint32(tx.CreatedAt.Unix()), //nolint:gosec // ignoring G115 overflow conversion
-			}
-
-			msg := &wallet.Message{
-				Mode:            tx.Mode,
-				InternalMessage: internalMsg,
+			msg, err := newWalletMessage(tx)
+			if err != nil {
+				t.logger.Errorw("failed to build wallet message", "err", err, "to", tx.To.String())
+				continue
 			}
 
 			// 3. Sign and send
@@ -274,7 +255,7 @@ func (t *Txm) broadcastLoop() {
 				"mode", tx.Mode,
 				"bodyBOC", bodyBOC,
 				"bounceable", tx.Bounceable)
-			err := t.broadcastWithRetry(ctx, tx, msg, txID)
+			err = t.broadcastWithRetry(ctx, tx, msg, txID)
 			if err != nil {
 				t.logger.Errorw("broadcast failed after retries",
 					"txID", txID,
@@ -288,6 +269,30 @@ func (t *Txm) broadcastLoop() {
 			return
 		}
 	}
+}
+
+// newWalletMessage builds the wallet message for tx, attaching a StateInit only when tx has one.
+func newWalletMessage(tx *Tx) (*wallet.Message, error) {
+	var stateInit *tlb.StateInit
+	if tx.StateInit != nil {
+		stateInit = &tlb.StateInit{}
+		if err := tlb.Parse(stateInit, tx.StateInit); err != nil {
+			return nil, fmt.Errorf("failed to parse StateInit: %w", err)
+		}
+	}
+	return &wallet.Message{
+		Mode: tx.Mode,
+		InternalMessage: &tlb.InternalMessage{
+			SrcAddr:     &tx.From,
+			DstAddr:     &tx.To,
+			Bounce:      tx.Bounceable,
+			IHRDisabled: true,
+			Amount:      tx.Amount,
+			StateInit:   stateInit,
+			Body:        tx.Body,
+			CreatedAt:   uint32(tx.CreatedAt.Unix()), //nolint:gosec // ignoring G115 overflow conversion
+		},
+	}, nil
 }
 
 // broadcastWithRetry Attempts to broadcast a transaction with retries on failure. We only retry if there was a
