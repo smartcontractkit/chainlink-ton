@@ -138,6 +138,8 @@ func (c *Chain) ReceiveWithExitCode(exitCode int32, in *tlb.InternalMessage, out
 				GasFees: tlb.ZeroCoins,
 				Details: tlb.ComputePhaseVMDetails{ExitCode: exitCode},
 			}},
+			// a transaction whose compute phase fails is aborted
+			Aborted: exitCode != 0,
 		},
 	}
 	tx.IO.In = &tlb.Message{MsgType: tlb.MsgTypeInternal, Msg: in}
