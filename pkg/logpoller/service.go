@@ -339,11 +339,8 @@ func (lp *service) processBlockRange(
 		}
 	}()
 
-	// The whole range is saved atomically. Loaders run concurrently per address, so logs
-	// arrive in no particular block order and any single chunk may hold a high block while
-	// lower blocks are still in flight. Committing chunks independently would let a crash
-	// leave a stored high block above unsaved lower ones, and restart resumption (which
-	// reads the highest stored block) would then skip them.
+	// Saved atomically, so a partially saved range never moves the restart resume point:
+	// loaders deliver logs in no block order (see LogStore.Transact).
 	var totalSaved int
 	err := lp.logStore.Transact(ctx, func(tx LogStore) error {
 		saved, err := lp.saveLogs(ctx, tx, logsCh)

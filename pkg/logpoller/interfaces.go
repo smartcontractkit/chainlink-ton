@@ -83,6 +83,10 @@ type LogStore interface {
 	// returns nil and none of them persist otherwise. The service saves each processed
 	// block range through a single Transact call, so stored logs only ever cover fully
 	// processed ranges, which GetHighestMCBlockSeqno relies on for restart resumption.
+	// Loaders run concurrently per address, so a range's logs arrive in no block order: a
+	// high block can be saved while lower ones are still in flight. Saving them in separate
+	// commits could leave, after a crash, a stored high block above unsaved lower ones, and
+	// resuming from the highest stored block would skip those.
 	Transact(ctx context.Context, fn func(tx LogStore) error) error
 	// QueryLogs retrieves logs with TON-specific filtering capabilities including byte-level filtering,
 	// sorting, and pagination. This method handles all filtering, sorting, and pagination.
