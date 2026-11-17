@@ -8,6 +8,7 @@ import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/gas"
+import "../../../lib/versioning/upgradeable"
 import "../../lib/cross_chain_address/types"
 
 import "../../rmn_remote/lib"
@@ -51,6 +52,15 @@ contract LockReleaseLockboxTokenPool {
 
 const CONTRACT_VERSION = "0.1.0".literalSlice();
 
+/// Initial upgradeable version: there is no previous storage layout to migrate.
+@method_id(1000)
+fun migrate(storage: cell, _version: slice): cell {
+    return storage;
+}
+
+@method_id(1001)
+fun version(): slice { return CONTRACT_VERSION; }
+
 fun onInternalMessage(in: InMessage): void {
     var st = Storage.load();
     var pool = st.TokenPool();
@@ -79,6 +89,11 @@ fun onInternalMessage(in: InMessage): void {
         }
         ReturnExcessesBack => {
             // passive excess receipt; retain coins without advancing an operation or granting authority
+        }
+        Upgradeable_Upgrade => {
+            st.TokenPool().data.adminConfig.load().ownable.load().requireOwner(in.senderAddress);
+            Upgradeable { migrate, version }.upgrade(msg);
+            return;
         }
         else => {
             assert(in.body.isEmpty()) throw (0xFFFF);

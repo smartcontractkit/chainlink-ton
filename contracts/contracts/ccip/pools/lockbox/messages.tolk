@@ -4,6 +4,7 @@
 import "../../../lib/jetton/messages"
 import "../../../lib/funding/withdrawable"
 import "../../../lib/funding/jetton_withdrawable"
+import "../../../lib/versioning/upgradeable"
 
 /// Embedded in a jetton transfer's forwardPayload to identify the deposit context.
 /// The lockbox extracts this from `TransferNotificationForRecipient.forwardPayload` on deposit.
@@ -122,7 +123,8 @@ type JettonLockBox_InMessage =
     | JettonLockBox_Withdraw
     | JettonLockBox_WithdrawRescue
     | Withdrawable_Withdraw
-    | TransferNotificationForRecipient;
+    | TransferNotificationForRecipient
+    | Upgradeable_Upgrade;
 
 /// All outgoing message types.
 type JettonLockBox_OutMessage =
