@@ -492,7 +492,7 @@ func TestGetReportTxInfo(t *testing.T) {
 func executeReportBOC(t *testing.T, gasLimit tlb.Coins, destGasAmounts ...tlb.Coins) []byte {
 	onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
 	destAddr := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")
-	var tokens common.SnakedCell[ocr.Any2TVMTokenTransfer]
+	tokens := make(common.SnakedCell[ocr.Any2TVMTokenTransfer], 0, len(destGasAmounts))
 	for i := range destGasAmounts {
 		tokens = append(tokens, ocr.Any2TVMTokenTransfer{
 			SourcePoolAddress: onrampAddr,
