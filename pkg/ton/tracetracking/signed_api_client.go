@@ -2,11 +2,13 @@ package tracetracking
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 )
@@ -50,6 +52,37 @@ func (c *SignedAPIClient) SendWaitTransaction(ctx context.Context, dstAddr addre
 		return nil, nil, fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
 	}
 	return &receivedMessage, block, nil
+}
+
+// SendExternalWaitTransaction sends an already signed wallet external message and waits for the
+// wallet transaction that processes it. Re-sending the same message is idempotent: the wallet
+// rejects a query id it has already processed.
+func (c *SignedAPIClient) SendExternalWaitTransaction(ctx context.Context, dstAddr address.Address, ext *tlb.ExternalMessage) (*ReceivedMessage, error) {
+	tx, _, _, err := c.Client.SendExternalMessageWaitTransaction(ctx, ext)
+	if err != nil {
+		return nil, fmt.Errorf("wallet transaction error for destination %s: %w", dstAddr.String(), err)
+	}
+	receivedMessage, err := MapToReceivedMessage(tx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
+	}
+	return &receivedMessage, nil
+}
+
+// FindExternalTransaction returns the wallet transaction that processed ext, or nil if there is none.
+func (c *SignedAPIClient) FindExternalTransaction(ctx context.Context, ext *tlb.ExternalMessage) (*ReceivedMessage, error) {
+	tx, err := c.Client.FindLastTransactionByInMsgHash(ctx, c.Wallet.WalletAddress(), ext.Body.Hash())
+	if errors.Is(err, ton.ErrTxWasNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	receivedMessage, err := MapToReceivedMessage(tx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
+	}
+	return &receivedMessage, nil
 }
 
 // SendAndWaitForTrace sends a transaction to the specified address and waits for

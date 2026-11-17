@@ -24,6 +24,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
+	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
@@ -32,6 +33,11 @@ func walletGas(request Request) *tlb.Coins {
 	tonValue := tlb.MustFromTON("0.01")
 	return &tonValue
 }
+
+// externalMessageValidity bounds how long a signed wallet message can still be accepted on-chain:
+// the wallet's message TTL counted from signing, plus a margin for chain time lagging local time.
+// Only after it has passed can a message that was never found be safely replaced by a new one.
+var externalMessageValidity = time.Duration(tonconfig.WalletVersion.MessageTTL)*time.Second + 30*time.Second
 
 type TxManager interface {
 	services.Service
@@ -311,7 +317,10 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 		Jitter: true,
 	}
 
-	// try to broadcast transaction
+	// Reusing the signed message across attempts keeps retries idempotent: the wallet rejects a processed query id.
+	var ext *tlb.ExternalMessage
+	var extExpiresAt time.Time
+
 retryLoop:
 	for attempt := uint(1); attempt <= t.config.MaxSendRetryAttempts; attempt++ {
 		if !time.Now().Before(tx.Expiration) {
@@ -323,6 +332,36 @@ retryLoop:
 			return errors.New("transaction expired, not broadcasting")
 		}
 
+		if ext != nil {
+			landed, findErr := client.FindExternalTransaction(ctx, ext)
+			switch {
+			case findErr != nil:
+				t.logger.Warnw("failed to check whether a previous attempt landed, resending the same message",
+					"txID", txID,
+					"attempt", attempt,
+					"err", findErr)
+			case landed != nil:
+				t.logger.Infow("previous broadcast attempt landed", "txID", txID, "attempt", attempt)
+				receivedMessage, err = landed, nil
+				break retryLoop
+			case time.Now().After(extExpiresAt):
+				ext = nil
+			}
+		}
+
+		if ext == nil {
+			ext, err = client.Wallet.BuildExternalMessageForMany(ctx, []*wallet.Message{msg})
+			if err != nil {
+				err = fmt.Errorf("failed to build external message: %w", err)
+				t.logger.Warnw("failed to sign tx, will retry", "txID", txID, "attempt", attempt, "err", err)
+				if !t.waitRetry(attempt, &b) {
+					return errors.New("broadcast aborted")
+				}
+				continue
+			}
+			extExpiresAt = time.Now().Add(externalMessageValidity)
+		}
+
 		t.logger.Debugw("sending transaction to TON",
 			"txID", txID,
 			"attempt", attempt,
@@ -331,37 +370,11 @@ retryLoop:
 			"bounce", msg.InternalMessage.Bounce,
 			"hasBody", msg.InternalMessage.Body != nil)
 
-		// Create timeout context to prevent SendWaitTransaction from hanging indefinitely
+		// Create timeout context to prevent the send from hanging indefinitely
 		sendCtx, sendCancel := context.WithTimeout(ctx, t.config.SendTimeout.Duration())
-		receivedMessage, _, err = client.SendWaitTransaction(sendCtx, tx.To, msg)
+		receivedMessage, err = client.SendExternalWaitTransaction(sendCtx, tx.To, ext)
 		sendCancel()
 		if err == nil {
-			t.logger.Infow("transaction broadcasted",
-				"txID", txID,
-				"to", tx.To.String(),
-				"amount", tx.Amount.Nano().String())
-
-			// Transaction was broadcast successfully, but may have failed to execute due to ExitCode.
-			// Use separate error variable since this doesn't affect broadcast success.
-			exitCode, exitCodeErr := receivedMessage.ExitCode()
-			if exitCodeErr != nil {
-				t.logger.Errorw("failed to get exit code", "error", exitCodeErr)
-			}
-			if exitCode != 0 {
-				t.logger.Errorw("transaction failed", "exitcode", exitCode, "description", exitCode.Describe())
-			}
-
-			if len(receivedMessage.OutgoingInternalSentMessages) == 0 && len(receivedMessage.OutgoingInternalReceivedMessages) == 0 {
-				t.logger.Errorw("transaction did not produce any outgoing messages, this may indicate that the value of the enqueued message was higher than the balance of the account",
-					"txID", txID,
-					"to", tx.To.String(),
-					"amount", tx.Amount.Nano().String(),
-				)
-			}
-
-			if *t.config.EnableTraceLogging {
-				t.gatherAndLogTrace(ctx, client, receivedMessage, txID)
-			}
 			break
 		}
 
@@ -375,6 +388,12 @@ retryLoop:
 				"timeout", t.config.SendTimeout.Duration(),
 				"err", err)
 		case tracetracking.IsInboundExternalMessageRejectedByAccountError(err):
+			// A resend of a message that already landed is rejected as a processed query id.
+			if landed, findErr := client.FindExternalTransaction(ctx, ext); findErr == nil && landed != nil {
+				t.logger.Infow("previous broadcast attempt landed", "txID", txID, "attempt", attempt)
+				receivedMessage, err = landed, nil
+				break retryLoop
+			}
 			err = fmt.Errorf("transaction rejected by TON node, likely due to insufficient balance: %w", err)
 			t.logger.Warnw(err.Error(),
 				"txID", txID,
@@ -390,13 +409,8 @@ retryLoop:
 				"err", err)
 		}
 
-		if attempt < t.config.MaxSendRetryAttempts {
-			select {
-			case <-time.After(b.Duration()):
-			case <-t.stop:
-				t.logger.Debugw("broadcastWithRetry: stopped during retry delay")
-				return errors.New("broadcast aborted")
-			}
+		if !t.waitRetry(attempt, &b) {
+			return errors.New("broadcast aborted")
 		}
 	}
 
@@ -408,6 +422,33 @@ retryLoop:
 			"err", err,
 			"to", tx.To.String())
 		return err
+	}
+
+	t.logger.Infow("transaction broadcasted",
+		"txID", txID,
+		"to", tx.To.String(),
+		"amount", tx.Amount.Nano().String())
+
+	// Transaction was broadcast successfully, but may have failed to execute due to ExitCode.
+	// Use separate error variable since this doesn't affect broadcast success.
+	exitCode, exitCodeErr := receivedMessage.ExitCode()
+	if exitCodeErr != nil {
+		t.logger.Errorw("failed to get exit code", "error", exitCodeErr)
+	}
+	if exitCode != 0 {
+		t.logger.Errorw("transaction failed", "exitcode", exitCode, "description", exitCode.Describe())
+	}
+
+	if len(receivedMessage.OutgoingInternalSentMessages) == 0 && len(receivedMessage.OutgoingInternalReceivedMessages) == 0 {
+		t.logger.Errorw("transaction did not produce any outgoing messages, this may indicate that the value of the enqueued message was higher than the balance of the account",
+			"txID", txID,
+			"to", tx.To.String(),
+			"amount", tx.Amount.Nano().String(),
+		)
+	}
+
+	if *t.config.EnableTraceLogging {
+		t.gatherAndLogTrace(ctx, client, receivedMessage, txID)
 	}
 
 	// Otherwise, tx was broadcast successfully. Record broadcast time and save to unconfirmed store.
@@ -435,6 +476,21 @@ retryLoop:
 	}
 
 	return nil
+}
+
+// waitRetry sleeps for the next backoff delay unless this was the last attempt.
+// It returns false if the Txm was stopped while waiting.
+func (t *Txm) waitRetry(attempt uint, b *backoff.Backoff) bool {
+	if attempt >= t.config.MaxSendRetryAttempts {
+		return true
+	}
+	select {
+	case <-time.After(b.Duration()):
+		return true
+	case <-t.stop:
+		t.logger.Debugw("broadcastWithRetry: stopped during retry delay")
+		return false
+	}
 }
 
 // gatherAndLogTrace waits for transaction trace data and logs it for debugging purposes.
