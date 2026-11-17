@@ -20,15 +20,17 @@ var (
 	errTxRejected       = errors.New("transaction rejected by TON node, likely due to insufficient balance")
 )
 
-// signedMessage is a signed external message carrying a transaction, with the local times
-// bounding when the wallet can accept it.
+// signedMessage is a signed external message carrying a transaction, with the times bounding
+// when the wallet can accept it.
 type signedMessage struct {
 	ext *tlb.ExternalMessage
-	// sendBefore is when the wallet may start treating ext as expired. ext is not sent after it,
-	// since a rejection could then be an expiry rather than a final rejection.
+	// expiresAt is a time, by the chain's clock, from which the wallet no longer accepts ext: no
+	// block made at or after it can process ext.
+	expiresAt time.Time
+	// sendBefore is when, allowing for the chain's clock differing from the local one, the wallet
+	// may start treating ext as expired. ext is not sent after it, since a rejection could then be
+	// an expiry rather than a final rejection.
 	sendBefore time.Time
-	// validUntil is when the wallet can no longer accept ext.
-	validUntil time.Time
 }
 
 // broadcast holds the inputs of a transaction's broadcast, shared by all its attempts. Its
@@ -39,7 +41,9 @@ type broadcast struct {
 	tx     *Tx
 	msg    *wallet.Message
 	txID   string
-	// lookupAfter is a time before any wallet transaction this broadcast can produce.
+	// lookupAfter is a time before any wallet transaction this broadcast can produce: the wallet
+	// processes a message only in a block made at or after its created_at, which is the local
+	// time it was built at minus CreatedAtBackdate.
 	lookupAfter time.Time
 }
 
@@ -65,9 +69,9 @@ func (b *broadcast) run(ctx context.Context) (*tracetracking.ReceivedMessage, er
 		if attempt > 1 && !b.t.waitFor(retryDelay.Duration()) {
 			return nil, errBroadcastAborted
 		}
-		// Once sent must not be sent again, wait until it can no longer be accepted either, so
-		// that a lookup can tell for certain whether it was processed.
-		if sent != nil && time.Now().After(sent.sendBefore) && !b.t.waitFor(time.Until(sent.validUntil)) {
+		// Once sent must not be sent again, wait until the chain is likely past its expiry, when a
+		// lookup can tell for certain whether it was processed.
+		if sent != nil && time.Now().After(sent.sendBefore) && !b.t.waitFor(time.Until(sent.expiresAt.Add(b.t.messageClockSkew))) {
 			return nil, errBroadcastAborted
 		}
 		if err := b.checkExpired(); err != nil {
@@ -114,39 +118,39 @@ func (b *broadcast) checkExpired() error {
 }
 
 // nextMessage returns the message the next send must use, given the message sent by earlier
-// attempts (nil if none): sent itself while the wallet can still accept it, otherwise a newly
-// built one. If sent was already processed, it instead returns the wallet transaction that
-// processed it and no message.
+// attempts (nil if none): sent itself while it can still be sent, or a newly built one once a
+// lookup shows sent was not processed in any block that could accept it. If sent was already
+// processed, it instead returns the wallet transaction that processed it and no message.
+// Otherwise, when sent can be neither re-sent nor replaced, it returns an error.
 func (b *broadcast) nextMessage(ctx context.Context, sent *signedMessage) (*tracetracking.ReceivedMessage, *signedMessage, error) {
 	if sent == nil {
 		next, err := b.build(ctx)
 		return nil, next, err
 	}
 
-	lookupStartedAt := time.Now()
-	found, err := b.client.FindExternalTransaction(ctx, sent.ext, b.lookupAfter)
-	expired := lookupStartedAt.After(sent.validUntil)
-	if err != nil {
-		if expired {
-			// it is unknown whether the expired message was processed, so it can be neither
-			// re-sent nor replaced until a lookup succeeds
-			return nil, nil, fmt.Errorf("failed to look up expired message: %w", err)
-		}
-		// re-sending the same message is safe, so carry on without the lookup
-		b.t.logger.Warnw("failed to look up previously sent message, re-sending it", "txID", b.txID, "err", err)
-		return nil, sent, nil
-	}
-	if found != nil {
+	found, coveredUntil, err := b.client.FindExternalTransaction(ctx, sent.ext, b.lookupAfter)
+	if err == nil && found != nil {
 		b.t.logger.Infow("previously sent message was processed after its attempt ended", "txID", b.txID)
 		return found, nil, nil
 	}
-	if !expired {
-		return nil, sent, nil
+	if err == nil && !coveredUntil.Before(sent.expiresAt) {
+		b.t.logger.Infow("previously sent message expired unprocessed, building a new one", "txID", b.txID)
+		next, buildErr := b.build(ctx)
+		return nil, next, buildErr
 	}
 
-	b.t.logger.Infow("previously sent message expired unprocessed, building a new one", "txID", b.txID)
-	next, err := b.build(ctx)
-	return nil, next, err
+	// sent may still be processed, so it must not be replaced
+	if time.Now().Before(sent.sendBefore) {
+		if err != nil {
+			b.t.logger.Warnw("failed to look up previously sent message, re-sending it", "txID", b.txID, "err", err)
+		}
+		return nil, sent, nil
+	}
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to look up expired message: %w", err)
+	}
+	return nil, nil, fmt.Errorf("cannot tell yet whether the expired message was processed: the node's view reaches %s, the message is acceptable until %s",
+		coveredUntil.UTC().Format(time.RFC3339), sent.expiresAt.UTC().Format(time.RFC3339))
 }
 
 // build signs a new external message carrying the transaction.
@@ -155,11 +159,13 @@ func (b *broadcast) build(ctx context.Context) (*signedMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	builtAt := time.Now()
+	// ext's created_at was taken from the local clock while building, before builtAt, so
+	// builtAt+messageValidity is at or after ext's expiry by the chain's clock
+	expiresAt := time.Now().Add(b.t.messageValidity)
 	return &signedMessage{
 		ext:        ext,
-		sendBefore: builtAt.Add(b.t.messageValidity - b.t.messageClockSkew),
-		validUntil: builtAt.Add(b.t.messageValidity + b.t.messageClockSkew),
+		expiresAt:  expiresAt,
+		sendBefore: expiresAt.Add(-b.t.messageClockSkew),
 	}, nil
 }
 
@@ -185,7 +191,7 @@ func (b *broadcast) send(ctx context.Context, attempt uint, sent *signedMessage)
 // one. The rejection is final (errTxRejected) only once a lookup shows there is none; a failed
 // lookup is returned as a retryable error.
 func (b *broadcast) checkRejection(ctx context.Context, attempt uint, sent *signedMessage, rejectErr error) (*tracetracking.ReceivedMessage, error) {
-	found, err := b.client.FindExternalTransaction(ctx, sent.ext, b.lookupAfter)
+	found, _, err := b.client.FindExternalTransaction(ctx, sent.ext, b.lookupAfter)
 	if err != nil {
 		return nil, fmt.Errorf("message rejected (%w), and failed to look up whether it was already processed: %w", rejectErr, err)
 	}

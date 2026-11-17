@@ -3,8 +3,10 @@ package txm
 import (
 	"context"
 	"crypto/ed25519"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 	"testing"
 	"time"
@@ -31,8 +33,8 @@ type sentMessage struct {
 	at   time.Time
 }
 
-// broadcastMockAPI is a ton.APIClientWrapped that records sent external messages and keeps
-// the wallet transactions of the messages that are "on chain". Methods not used by the
+// broadcastMockAPI is a ton.APIClientWrapped that records sent external messages and keeps the
+// wallet's transaction history, as seen by a node whose view may lag. Methods not used by the
 // broadcast path are left unimplemented.
 type broadcastMockAPI struct {
 	ton.APIClientWrapped
@@ -40,31 +42,74 @@ type broadcastMockAPI struct {
 	mu      sync.Mutex
 	sends   []sentMessage
 	lookups int
+	history []*tlb.Transaction          // wallet transactions, oldest first
 	onChain map[string]*tlb.Transaction // normalized external message hash -> wallet transaction
-	nextLT  uint64
 
 	// send decides the outcome of the n-th send (0-based) of a message: whether the message is
 	// processed on chain, and the error the send returns (nil returns its transaction).
 	send func(n int, ext *tlb.ExternalMessage) (processed bool, err error)
 	// lookupErr, if set, returns the error of the n-th lookup (0-based); nil looks the message up.
 	lookupErr func(n int) error
+	// view, if set, returns the time of the newest wallet shard block the node has; transactions
+	// made after it are not visible. It defaults to now.
+	view func() time.Time
 }
 
 func newBroadcastMockAPI(send func(n int, ext *tlb.ExternalMessage) (bool, error)) *broadcastMockAPI {
-	return &broadcastMockAPI{onChain: map[string]*tlb.Transaction{}, nextLT: 1000, send: send}
+	return &broadcastMockAPI{onChain: map[string]*tlb.Transaction{}, send: send}
 }
 
 func (m *broadcastMockAPI) CurrentMasterchainInfo(context.Context) (*ton.BlockIDExt, error) {
-	return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 1}, nil
+	return &ton.BlockIDExt{Workchain: address.MasterchainID, Shard: math.MinInt64, SeqNo: 1}, nil
 }
 
 func (m *broadcastMockAPI) WaitForBlock(uint32) ton.APIClientWrapped { return m }
 
+func (m *broadcastMockAPI) GetBlockShardsInfo(context.Context, *ton.BlockIDExt) ([]*ton.BlockIDExt, error) {
+	return []*ton.BlockIDExt{{Workchain: 0, Shard: math.MinInt64, SeqNo: 1}}, nil
+}
+
+// GetBlockHeader is only called by lookups, so it counts them.
+func (m *broadcastMockAPI) GetBlockHeader(context.Context, *ton.BlockIDExt) (*tlb.BlockHeader, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	n := m.lookups
+	m.lookups++
+	if m.lookupErr != nil {
+		if err := m.lookupErr(n); err != nil {
+			return nil, err
+		}
+	}
+	return &tlb.BlockHeader{GenUtime: m.viewTime()}, nil
+}
+
 func (m *broadcastMockAPI) GetAccount(context.Context, *ton.BlockIDExt, *address.Address) (*tlb.Account, error) {
-	return &tlb.Account{
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	acc := &tlb.Account{
 		IsActive: true,
 		State:    &tlb.AccountState{IsValid: true, AccountStorage: tlb.AccountStorage{Status: tlb.AccountStatusActive}},
-	}, nil
+	}
+	if visible := m.visible(); len(visible) > 0 {
+		last := visible[len(visible)-1]
+		acc.LastTxLT, acc.LastTxHash = last.LT, last.Hash
+	}
+	return acc, nil
+}
+
+func (m *broadcastMockAPI) ListTransactions(_ context.Context, _ *address.Address, num uint32, lt uint64, _ []byte) ([]*tlb.Transaction, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	visible := m.visible()
+	for i, tx := range visible {
+		if tx.LT == lt {
+			return visible[max(0, i+1-int(num)) : i+1], nil
+		}
+	}
+	return nil, ton.ErrNoTransactionsWereFound
 }
 
 func (m *broadcastMockAPI) SendExternalMessageWaitTransaction(ctx context.Context, ext *tlb.ExternalMessage) (*tlb.Transaction, *ton.BlockIDExt, []byte, error) {
@@ -82,7 +127,7 @@ func (m *broadcastMockAPI) SendExternalMessageWaitTransaction(ctx context.Contex
 
 	processed, err := m.send(n, ext)
 	if processed && m.onChain[hash] == nil {
-		m.onChain[hash] = m.newWalletTx()
+		m.onChain[hash] = m.addWalletTx(ext)
 	}
 	if err != nil {
 		return nil, nil, nil, err
@@ -94,36 +139,48 @@ func (m *broadcastMockAPI) SendExternalMessageWaitTransaction(ctx context.Contex
 	return tx, &ton.BlockIDExt{SeqNo: 2}, ext.Body.Hash(), nil
 }
 
-func (m *broadcastMockAPI) FindLastTransactionByInMsgHashAfterTime(_ context.Context, _ *address.Address, msgHash []byte, _ time.Time) (*tlb.Transaction, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	n := m.lookups
-	m.lookups++
-	if m.lookupErr != nil {
-		if err := m.lookupErr(n); err != nil {
-			return nil, err
-		}
-	}
-	if tx := m.onChain[string(msgHash)]; tx != nil {
-		return tx, nil
-	}
-	return nil, fmt.Errorf("not found: %w", ton.ErrTxWasNotFound)
-}
-
-// newWalletTx returns a successful wallet transaction for an external message.
-func (m *broadcastMockAPI) newWalletTx() *tlb.Transaction {
-	m.nextLT++
+// addWalletTx appends a successful wallet transaction processing ext to the history.
+func (m *broadcastMockAPI) addWalletTx(ext *tlb.ExternalMessage) *tlb.Transaction {
 	tx := &tlb.Transaction{
-		LT:        m.nextLT,
+		LT:        uint64(1000 + len(m.history)),
+		Now:       uint32(time.Now().Unix()), //nolint:gosec // test clock
 		TotalFees: tlb.CurrencyCollection{Coins: tlb.ZeroCoins},
 		Description: tlb.TransactionDescriptionOrdinary{
 			ComputePhase: tlb.ComputePhase{Phase: tlb.ComputePhaseVM{Success: true, GasFees: tlb.ZeroCoins}},
 			ActionPhase:  &tlb.ActionPhase{Success: true},
 		},
 	}
-	tx.IO.In = &tlb.Message{MsgType: tlb.MsgTypeExternalIn, Msg: &tlb.ExternalMessageIn{ImportFee: tlb.ZeroCoins}}
+	tx.Hash = binary.BigEndian.AppendUint64(nil, tx.LT)
+	if len(m.history) > 0 {
+		prev := m.history[len(m.history)-1]
+		tx.PrevTxLT, tx.PrevTxHash = prev.LT, prev.Hash
+	}
+	tx.IO.In = &tlb.Message{MsgType: tlb.MsgTypeExternalIn, Msg: &tlb.ExternalMessageIn{
+		DstAddr:   ext.DstAddr,
+		ImportFee: tlb.ZeroCoins,
+		Body:      ext.Body,
+	}}
+	m.history = append(m.history, tx)
 	return tx
+}
+
+// viewTime returns the time of the newest wallet shard block the node has, in seconds.
+func (m *broadcastMockAPI) viewTime() uint32 {
+	view := time.Now()
+	if m.view != nil {
+		view = m.view()
+	}
+	return uint32(view.Unix()) //nolint:gosec // test clock
+}
+
+// visible returns the wallet transactions the node has, oldest first.
+func (m *broadcastMockAPI) visible() []*tlb.Transaction {
+	view := m.viewTime()
+	n := 0
+	for n < len(m.history) && m.history[n].Now <= view {
+		n++
+	}
+	return m.history[:n]
 }
 
 func (m *broadcastMockAPI) sent() []sentMessage {
@@ -281,6 +338,31 @@ func TestBroadcastWithRetry_ExternalMessageReuse(t *testing.T) {
 		err := txm.broadcastWithRetry(t.Context(), tx, msg, "id")
 		require.ErrorContains(t, err, "likely due to insufficient balance")
 		require.Len(t, api.sent(), 1)
+	})
+
+	t.Run("a message is not replaced while the node's view may miss its transaction", func(t *testing.T) {
+		t.Parallel()
+		api := newBroadcastMockAPI(func(n int, _ *tlb.ExternalMessage) (bool, error) {
+			return n == 0, context.DeadlineExceeded // the first send is processed, but its wait times out
+		})
+		// the node's view lags until well after the message expired by the local clock
+		start := time.Now()
+		api.view = func() time.Time {
+			if time.Since(start) < 1500*time.Millisecond {
+				return start.Add(-time.Second)
+			}
+			return time.Now()
+		}
+		txm, _ := newBroadcastTestTxm(t, api)
+		txm.messageValidity = 300 * time.Millisecond
+		txm.messageClockSkew = 100 * time.Millisecond
+		tx, msg := newBroadcastTestTx(t)
+
+		require.NoError(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"))
+
+		sends := api.sent()
+		require.Len(t, distinctMessages(sends), 1, "the processed message must not be replaced")
+		require.Equal(t, api.txFor(sends[0].hash).LT, tx.ReceivedMessage.LamportTime)
 	})
 
 	t.Run("a new message is built only after the previous one can no longer be accepted", func(t *testing.T) {

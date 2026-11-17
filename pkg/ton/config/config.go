@@ -17,13 +17,13 @@ const (
 	// messageTTL is the HighloadV3 message timeout: the wallet accepts a message only while
 	// the chain time is less than its created_at plus this timeout.
 	messageTTL = 120 * time.Second
-	// createdAtBackdate is subtracted from the wall clock when stamping a message's created_at,
+	// CreatedAtBackdate is subtracted from the wall clock when stamping a message's created_at,
 	// so the wallet does not reject it as created in the future when the chain time lags behind.
-	createdAtBackdate = 30 * time.Second
+	CreatedAtBackdate = 30 * time.Second
 
 	// MessageValidity is how long after being built an external message signed with
 	// WalletVersion can still be accepted by the wallet, by the chain's clock.
-	MessageValidity = messageTTL - createdAtBackdate
+	MessageValidity = messageTTL - CreatedAtBackdate
 )
 
 // WalletVersion is the HighloadV3 wallet config used by the relayer.
@@ -39,7 +39,7 @@ var WalletVersion = func() wallet.ConfigHighloadV3 {
 	return wallet.ConfigHighloadV3{
 		MessageTTL: uint32(messageTTL / time.Second),
 		MessageBuilder: func(ctx context.Context, subWalletId uint32) (id uint32, createdAt int64, err error) {
-			tm := time.Now().Add(-createdAtBackdate).Unix()
+			tm := time.Now().Add(-CreatedAtBackdate).Unix()
 			return queryID.Add(1) & (maxQueryID - 1), tm, nil
 		}}
 }()

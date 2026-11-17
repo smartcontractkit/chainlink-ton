@@ -339,7 +339,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 		tx:          tx,
 		msg:         msg,
 		txID:        txID,
-		lookupAfter: time.Now().Add(-t.messageClockSkew),
+		lookupAfter: time.Now().Add(-tonconfig.CreatedAtBackdate),
 	}
 	receivedMessage, err := b.run(ctx)
 	if err != nil {
