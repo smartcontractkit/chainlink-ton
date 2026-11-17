@@ -2,6 +2,7 @@ package tracetracking_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -98,4 +99,27 @@ func TestWaitForTrace_ResumesReceiptSearch(t *testing.T) {
 	require.Len(t, root.OutgoingInternalReceivedMessages, 1)
 	require.Equal(t, receipt.LT, root.OutgoingInternalReceivedMessages[0].LamportTime)
 	require.Equal(t, []uint32{searchedBefore[len(searchedBefore)-1] + 1}, chain.SearchedBlocks()[len(searchedBefore):])
+}
+
+func TestWaitForTrace_ReturnsSearchFailures(t *testing.T) {
+	chain := tracetest.NewChain(t)
+	root, rootTx := sendToContract(t, chain)
+	chain.Receive(rootTx.Out[0])
+
+	// A failure other than a block not produced yet is returned rather than retried until ctx is done.
+	failure := errors.New("liteserver failure")
+	chain.FailListingTransactions(failure)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	start := time.Now()
+	err := root.WaitForTrace(ctx, chain)
+	require.ErrorIs(t, err, failure)
+	require.NotErrorIs(t, err, context.DeadlineExceeded)
+	require.Less(t, time.Since(start), time.Second)
+	require.Equal(t, tracetracking.TraceReceived, root.TraceStatus(), "the message stays pending")
+
+	// Once the liteserver recovers, waiting again completes the trace.
+	chain.FailListingTransactions(nil)
+	require.NoError(t, root.WaitForTrace(ctx, chain))
+	require.Equal(t, tracetracking.TraceFinalized, root.TraceStatus())
 }

@@ -41,6 +41,8 @@ type Chain struct {
 	searched []string
 	// sequence numbers of the blocks whose transactions were listed, in listing order
 	searchedBlocks []uint32
+	// error listing a block's transactions fails with, if any
+	listErr error
 }
 
 type block struct {
@@ -167,6 +169,14 @@ func (c *Chain) Searched() []string {
 	return append([]string(nil), c.searched...)
 }
 
+// FailListingTransactions makes listing a block's transactions fail with err, or succeed again if
+// err is nil.
+func (c *Chain) FailListingTransactions(err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.listErr = err
+}
+
 // SearchedBlocks returns the sequence numbers of the blocks whose transactions were listed, in
 // listing order, with a repetition for each further page of a block.
 func (c *Chain) SearchedBlocks() []uint32 {
@@ -198,6 +208,9 @@ func (c *Chain) GetBlockTransactionsV2(_ context.Context, id *ton.BlockIDExt, co
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if c.listErr != nil {
+		return nil, false, c.listErr
+	}
 	blk, err := c.block(id)
 	if err != nil {
 		return nil, false, err
