@@ -26,6 +26,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
+// errStall makes a mocked call block until its context is done.
+var errStall = errors.New("stall")
+
 // errRejected mimics the liteserver error for an external message the wallet did not accept.
 var errRejected = errors.New("lite server error, code -701: cannot apply external message to current state")
 
@@ -51,7 +54,8 @@ type broadcastMockAPI struct {
 	// send decides the outcome of the n-th send (0-based) of a message: whether the message is
 	// processed on chain, and the error the send returns (nil returns its transaction).
 	send func(n int, ext *tlb.ExternalMessage) (processed bool, err error)
-	// lookupErr, if set, returns the error of the n-th lookup (0-based); nil looks the message up.
+	// lookupErr, if set, returns the error of the n-th lookup (0-based): nil looks the message up,
+	// and errStall blocks the lookup until its context is done.
 	lookupErr func(n int) error
 	// view, if set, returns the time of the newest wallet shard block the node has; transactions
 	// made after it are not visible. It defaults to now.
@@ -73,18 +77,25 @@ func (m *broadcastMockAPI) GetBlockShardsInfo(context.Context, *ton.BlockIDExt) 
 }
 
 // GetBlockHeader is only called by lookups, so it counts them.
-func (m *broadcastMockAPI) GetBlockHeader(context.Context, *ton.BlockIDExt) (*tlb.BlockHeader, error) {
+func (m *broadcastMockAPI) GetBlockHeader(ctx context.Context, _ *ton.BlockIDExt) (*tlb.BlockHeader, error) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	n := m.lookups
 	m.lookups++
+	var err error
 	if m.lookupErr != nil {
-		if err := m.lookupErr(n); err != nil {
-			return nil, err
-		}
+		err = m.lookupErr(n)
 	}
-	return &tlb.BlockHeader{GenUtime: m.viewTime()}, nil
+	view := m.viewTime()
+	m.mu.Unlock()
+
+	if errors.Is(err, errStall) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &tlb.BlockHeader{GenUtime: view}, nil
 }
 
 func (m *broadcastMockAPI) GetAccount(context.Context, *ton.BlockIDExt, *address.Address) (*tlb.Account, error) {
@@ -221,10 +232,14 @@ func newBroadcastTestTxm(t *testing.T, api *broadcastMockAPI, walletCfg wallet.C
 	_, key, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
 	var signs atomic.Int32
-	signer := func(_ context.Context, toSign *cell.Cell, _ uint32) ([]byte, error) {
+	signer := func(ctx context.Context, toSign *cell.Cell, _ uint32) ([]byte, error) {
 		n := int(signs.Add(1)) - 1
 		if signDelay != nil {
-			time.Sleep(signDelay(n))
+			select {
+			case <-time.After(signDelay(n)):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
 		}
 		return ed25519.Sign(key, toSign.Hash()), nil
 	}
@@ -448,6 +463,48 @@ func TestBroadcastWithRetry_ExternalMessageReuse(t *testing.T) {
 		sends := api.sent()
 		require.Len(t, sends, 1)
 		requireSentInWindow(t, sends, txm.messageClockSkew)
+	})
+
+	t.Run("a stalled signer is bounded by SendTimeout", func(t *testing.T) {
+		t.Parallel()
+		api := newBroadcastMockAPI(func(int, *tlb.ExternalMessage) (bool, error) { return true, nil })
+		txm, _ := newBroadcastTestTxm(t, api, tonconfig.WalletVersion, func(n int) time.Duration {
+			if n == 0 {
+				return time.Hour
+			}
+			return 0
+		})
+		txm.config.SendTimeout = config.MustNewDuration(200 * time.Millisecond)
+		tx, msg := newBroadcastTestTx(t)
+
+		require.NoError(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"))
+		require.Len(t, api.sent(), 1)
+	})
+
+	t.Run("stalled lookups are bounded by SendTimeout", func(t *testing.T) {
+		t.Parallel()
+		api := newBroadcastMockAPI(func(n int, _ *tlb.ExternalMessage) (bool, error) {
+			if n == 0 {
+				return false, context.DeadlineExceeded
+			}
+			// processed in the meantime, so the wallet rejects the re-send as a replay
+			return true, fmt.Errorf("failed to send message: %w", errRejected)
+		})
+		// lookups: before the re-send and after its rejection stall; the next attempt's finds it
+		api.lookupErr = func(n int) error {
+			if n < 2 {
+				return errStall
+			}
+			return nil
+		}
+		txm, _ := newBroadcastTestTxm(t, api, tonconfig.WalletVersion, nil)
+		txm.config.SendTimeout = config.MustNewDuration(200 * time.Millisecond)
+		tx, msg := newBroadcastTestTx(t)
+
+		require.NoError(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"))
+		sends := api.sent()
+		require.Len(t, distinctMessages(sends), 1)
+		require.Equal(t, api.txFor(sends[0].hash).LT, tx.ReceivedMessage.LamportTime)
 	})
 
 	t.Run("a wallet other than HighloadV3 is refused", func(t *testing.T) {

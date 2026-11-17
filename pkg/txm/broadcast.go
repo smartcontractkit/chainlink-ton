@@ -126,7 +126,7 @@ func (b *broadcast) nextMessage(ctx context.Context, sent *signedMessage) (*trac
 		return nil, next, err
 	}
 
-	found, coveredUntil, err := b.client.FindExternalTransaction(ctx, sent.ext, sent.createdAt)
+	found, coveredUntil, err := b.lookUp(ctx, sent)
 	if err == nil && found != nil {
 		b.t.logger.Infow("previously sent message was processed after its attempt ended", "txID", b.txID)
 		return found, nil, nil
@@ -151,10 +151,21 @@ func (b *broadcast) nextMessage(ctx context.Context, sent *signedMessage) (*trac
 		coveredUntil.UTC().Format(time.RFC3339), sent.expiresAt.UTC().Format(time.RFC3339))
 }
 
-// build signs a new external message carrying the transaction. Signing can be slow, so a
-// message whose send window closed while it was being built is dropped; it was never sent.
+// lookUp looks for the wallet transaction that processed sent, for at most SendTimeout; see
+// tracetracking.SignedAPIClient.FindExternalTransaction.
+func (b *broadcast) lookUp(ctx context.Context, sent *signedMessage) (*tracetracking.ReceivedMessage, time.Time, error) {
+	lookupCtx, cancel := context.WithTimeout(ctx, b.t.config.SendTimeout.Duration())
+	defer cancel()
+	return b.client.FindExternalTransaction(lookupCtx, sent.ext, sent.createdAt)
+}
+
+// build signs a new external message carrying the transaction, for at most SendTimeout.
+// Signing can be slow, so a message whose send window closed while it was being built is
+// dropped; it was never sent.
 func (b *broadcast) build(ctx context.Context) (*signedMessage, error) {
-	ext, err := b.client.BuildExternalMessage(ctx, b.msg)
+	buildCtx, cancel := context.WithTimeout(ctx, b.t.config.SendTimeout.Duration())
+	defer cancel()
+	ext, err := b.client.BuildExternalMessage(buildCtx, b.msg)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +209,7 @@ func (b *broadcast) send(ctx context.Context, attempt uint, sent *signedMessage)
 // one. The rejection is final (errTxRejected) only once a lookup shows there is none; a failed
 // lookup is returned as a retryable error.
 func (b *broadcast) checkRejection(ctx context.Context, attempt uint, sent *signedMessage, rejectErr error) (*tracetracking.ReceivedMessage, error) {
-	found, _, err := b.client.FindExternalTransaction(ctx, sent.ext, sent.createdAt)
+	found, _, err := b.lookUp(ctx, sent)
 	if err != nil {
 		return nil, fmt.Errorf("message rejected (%w), and failed to look up whether it was already processed: %w", rejectErr, err)
 	}
