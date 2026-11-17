@@ -51,6 +51,8 @@ type Txm struct {
 	metrics  *txmMetrics
 
 	clientProvider func(context.Context) (tracetracking.SignedAPIClient, error)
+	traceFollow    tracetracking.FollowCondition // which outgoing messages the confirm loop waits for
+	traceOutcome   tracetracking.StopCondition   // which trace branches decide a transaction's outcome
 	broadcastChan  chan *Tx
 	accountStore   *AccountStore
 	starter        services.StateMachine
@@ -75,6 +77,7 @@ func New(
 	keystore core.Keystore,
 	clientProvider func(context.Context) (tracetracking.SignedAPIClient, error),
 	config Config,
+	opts ...Option,
 ) (*Txm, error) {
 	if err := config.ValidateConfig(); err != nil {
 		return nil, fmt.Errorf("invalid txm config: %w", err)
@@ -92,12 +95,34 @@ func New(
 		chainID:        chainID,
 		metrics:        metrics,
 		clientProvider: clientProvider,
+		traceFollow:    tracetracking.FollowAll,
+		traceOutcome:   tracetracking.NoBound,
 		broadcastChan:  make(chan *Tx, config.BroadcastChanSize),
 		accountStore:   NewAccountStore(),
 		stop:           make(chan struct{}),
 	}
+	for _, opt := range opts {
+		opt(txm)
+	}
 
 	return txm, nil
+}
+
+// Option configures optional Txm behaviour.
+type Option func(*Txm)
+
+// WithTraceBoundaries bounds the transaction traces the confirm loop resolves: follow selects the
+// outgoing messages it waits for, and outcome stops the branches that don't count towards a
+// transaction's success. By default the whole trace is waited for and evaluated.
+func WithTraceBoundaries(follow tracetracking.FollowCondition, outcome tracetracking.StopCondition) Option {
+	return func(t *Txm) {
+		if follow != nil {
+			t.traceFollow = follow
+		}
+		if outcome != nil {
+			t.traceOutcome = outcome
+		}
+	}
 }
 
 func (t *Txm) Name() string {
@@ -357,10 +382,6 @@ retryLoop:
 					"amount", tx.Amount.Nano().String(),
 				)
 			}
-
-			if *t.config.EnableTraceLogging {
-				t.gatherAndLogTrace(ctx, client, receivedMessage, txID)
-			}
 			break
 		}
 
@@ -436,32 +457,6 @@ retryLoop:
 	return nil
 }
 
-// gatherAndLogTrace waits for transaction trace data and logs it for debugging purposes.
-// This is a non-fatal operation - trace gathering failures are logged but don't affect transaction success.
-func (t *Txm) gatherAndLogTrace(ctx context.Context, client tracetracking.SignedAPIClient, receivedMessage *tracetracking.ReceivedMessage, txID string) {
-	traceCtx, traceCancel := context.WithTimeout(ctx, t.config.TraceTimeout.Duration())
-	traceErr := receivedMessage.WaitForTrace(traceCtx, client.Client)
-	traceCancel()
-
-	if traceErr != nil {
-		if errors.Is(traceErr, context.DeadlineExceeded) {
-			t.logger.Warnw("trace gathering timed out (non-fatal)",
-				"txID", txID,
-				"timeout", t.config.TraceTimeout.Duration())
-		} else {
-			t.logger.Warnw("failed to wait for trace (non-fatal)",
-				"txID", txID,
-				"timeout", t.config.TraceTimeout.Duration(),
-				"error", traceErr,
-			)
-		}
-		return
-	}
-
-	t.logger.Debugf("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(nil).DumpReceived(receivedMessage))
-	t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(nil, sequenceDiagram.OutputFmtURL).DumpReceived(receivedMessage))
-}
-
 // Periodically checks unconfirmed transactions for finality.
 func (t *Txm) confirmLoop() {
 	defer t.done.Done()
@@ -513,7 +508,7 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				continue
 			}
 			traceCtx, traceCancel := context.WithTimeout(ctx, t.config.TraceTimeout.Duration())
-			traceErr := receivedMessage.WaitForTrace(traceCtx, client.Client)
+			traceErr := receivedMessage.WaitForTraceWith(traceCtx, client.Client, t.traceFollow)
 			traceCancel()
 			if traceErr != nil {
 				if errors.Is(traceErr, context.DeadlineExceeded) {
@@ -542,7 +537,7 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(knownAddresses, sequenceDiagram.OutputFmtURL).DumpReceived(&receivedMessage))
 			}
 
-			if receivedMessage.Status() != tracetracking.Finalized {
+			if receivedMessage.TraceStatus() != tracetracking.TraceFinalized {
 				continue
 			}
 
@@ -554,12 +549,16 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				"LT", unconfirmedTx.LT,
 				"latency", finalizationLatency.String())
 
-			exitCode, err := receivedMessage.TraceExitCode()
+			exitCode, err := receivedMessage.TraceExitCodeWith(t.traceOutcome)
 			if err != nil {
 				t.logger.Errorw("failed to get outcome exit code", "LT", unconfirmedTx.LT, "error", err)
 				continue
 			}
-			traceSucceeded := receivedMessage.TraceSucceeded()
+			traceSucceeded, err := receivedMessage.TraceSucceededWith(t.traceOutcome)
+			if err != nil {
+				t.logger.Errorw("failed to check trace outcome", "LT", unconfirmedTx.LT, "error", err)
+				continue
+			}
 
 			if err := txStore.MarkFinalized(unconfirmedTx.LT, traceSucceeded, exitCode); err != nil {
 				t.logger.Errorw("failed to mark tx as finalized in TxStore", "LT", unconfirmedTx.LT, "error", err)

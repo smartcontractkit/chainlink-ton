@@ -268,6 +268,11 @@ display-name = "tests.mock.Bouncer"
 src = "contracts/test/mock/bouncer.tolk"
 depends = []
 
+[contracts."tests.mock.TraceProbe"]
+display-name = "tests.mock.TraceProbe"
+src = "contracts/test/mock/trace_probe.tolk"
+depends = []
+
 [contracts.TestLispList]
 display-name = "link.chain.ton.test.examples.LispList"
 src = "contracts/test/examples/lisp_list.tolk"
