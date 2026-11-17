@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking/tracetest"
 )
@@ -181,4 +183,216 @@ func TestWaitForTraceWith_NilFollowsAll(t *testing.T) {
 	defer cancel()
 
 	require.ErrorIs(t, root.WaitForTraceWith(ctx, chain, nil), context.DeadlineExceeded)
+}
+
+func vmPhase(success bool, exitCode int32) tlb.ComputePhase {
+	return tlb.ComputePhase{Phase: tlb.ComputePhaseVM{
+		Success: success,
+		Details: tlb.ComputePhaseVMDetails{ExitCode: exitCode},
+	}}
+}
+
+func skippedPhase(reason tlb.ComputeSkipReasonType) tlb.ComputePhase {
+	return tlb.ComputePhase{Phase: tlb.ComputePhaseSkipped{Reason: tlb.ComputeSkipReason{Type: reason}}}
+}
+
+func actionPhase(success bool, resultCode int32) *tlb.ActionPhase {
+	return &tlb.ActionPhase{Success: success, ResultCode: resultCode}
+}
+
+var (
+	succeededDescription = &tlb.TransactionDescriptionOrdinary{
+		ComputePhase: vmPhase(true, 0),
+		ActionPhase:  actionPhase(true, 0),
+	}
+	actionFailedDescription = &tlb.TransactionDescriptionOrdinary{
+		ComputePhase: vmPhase(true, 0),
+		ActionPhase:  actionPhase(false, int32(tvm.ExitCodeNotEnoughToncoin)),
+		Aborted:      true,
+	}
+	computeFailedDescription = &tlb.TransactionDescriptionOrdinary{
+		ComputePhase: vmPhase(false, 100),
+		Aborted:      true,
+	}
+)
+
+func TestReceivedMessage_Outcome(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		description   *tlb.TransactionDescriptionOrdinary
+		wantSucceeded bool
+		wantResult    tracetracking.Result
+		wantExitCode  tvm.ExitCode
+		wantErr       string
+	}{
+		{
+			name:          "compute and action succeeded",
+			description:   succeededDescription,
+			wantSucceeded: true,
+			wantResult:    tracetracking.ResultSuccess,
+			wantExitCode:  tvm.ExitCodeSuccess,
+		},
+		{
+			name:          "compute failed",
+			description:   computeFailedDescription,
+			wantSucceeded: false,
+			wantResult:    tracetracking.ResultComputeFailed,
+			wantExitCode:  100,
+		},
+		{
+			name:          "compute succeeded but action phase failed",
+			description:   actionFailedDescription,
+			wantSucceeded: false,
+			wantResult:    tracetracking.ResultActionFailed,
+			wantExitCode:  tvm.ExitCodeNotEnoughToncoin,
+		},
+		{
+			name:          "compute failed with an exit code shared with action result codes",
+			description:   &tlb.TransactionDescriptionOrdinary{ComputePhase: vmPhase(false, int32(tvm.ExitCodeNotEnoughToncoin)), Aborted: true},
+			wantSucceeded: false,
+			wantResult:    tracetracking.ResultComputeFailed,
+			wantExitCode:  tvm.ExitCodeNotEnoughToncoin,
+		},
+		{
+			name:          "compute skipped",
+			description:   &tlb.TransactionDescriptionOrdinary{ComputePhase: skippedPhase(tlb.ComputeSkipReasonNoState), Aborted: true},
+			wantSucceeded: false,
+			wantResult:    tracetracking.ResultComputeSkipped,
+			wantExitCode:  tvm.ExitCodeComputeSkipReasonNoState,
+		},
+		{
+			name:          "compute skipped for unknown reason",
+			description:   &tlb.TransactionDescriptionOrdinary{ComputePhase: skippedPhase("UNKNOWN"), Aborted: true},
+			wantSucceeded: false,
+			wantErr:       `compute phase skipped for unknown reason "UNKNOWN"`,
+		},
+		{
+			name:          "no description",
+			description:   nil,
+			wantSucceeded: false,
+			wantErr:       "no description in transaction",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			msg := &tracetracking.ReceivedMessage{Description: tt.description}
+
+			require.Equal(t, tt.wantSucceeded, msg.Succeeded())
+
+			result, resultExitCode, resultErr := msg.Result()
+			exitCode, exitCodeErr := msg.ExitCode()
+			if tt.wantErr != "" {
+				require.ErrorContains(t, resultErr, tt.wantErr)
+				require.ErrorContains(t, exitCodeErr, tt.wantErr)
+				require.Equal(t, tracetracking.ResultUnknown, result)
+				return
+			}
+			require.NoError(t, resultErr)
+			require.NoError(t, exitCodeErr)
+			require.Equal(t, tt.wantResult, result)
+			require.Equal(t, tt.wantExitCode, resultExitCode)
+			require.Equal(t, tt.wantExitCode, exitCode)
+		})
+	}
+}
+
+func TestReceivedMessage_TraceOutcome(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		root          *tracetracking.ReceivedMessage
+		wantSucceeded bool
+		wantResult    tracetracking.Result
+		wantExitCode  tvm.ExitCode
+	}{
+		{
+			name: "all messages succeeded",
+			root: &tracetracking.ReceivedMessage{
+				Description:                      succeededDescription,
+				OutgoingInternalReceivedMessages: []*tracetracking.ReceivedMessage{{Description: succeededDescription}},
+			},
+			wantSucceeded: true,
+			wantResult:    tracetracking.ResultSuccess,
+			wantExitCode:  tvm.ExitCodeSuccess,
+		},
+		{
+			name:          "root action phase failure",
+			root:          &tracetracking.ReceivedMessage{Description: actionFailedDescription},
+			wantSucceeded: false,
+			wantResult:    tracetracking.ResultActionFailed,
+			wantExitCode:  tvm.ExitCodeNotEnoughToncoin,
+		},
+		{
+			name: "descendant action phase failure",
+			root: &tracetracking.ReceivedMessage{
+				Description: succeededDescription,
+				OutgoingInternalReceivedMessages: []*tracetracking.ReceivedMessage{
+					{Description: succeededDescription},
+					{Description: actionFailedDescription},
+				},
+			},
+			wantSucceeded: false,
+			wantResult:    tracetracking.ResultActionFailed,
+			wantExitCode:  tvm.ExitCodeNotEnoughToncoin,
+		},
+		{
+			name: "first failure in traversal order is reported",
+			root: &tracetracking.ReceivedMessage{
+				Description: succeededDescription,
+				OutgoingInternalReceivedMessages: []*tracetracking.ReceivedMessage{
+					{Description: computeFailedDescription},
+					{Description: actionFailedDescription},
+				},
+			},
+			wantSucceeded: false,
+			wantResult:    tracetracking.ResultComputeFailed,
+			wantExitCode:  100,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			require.Equal(t, tt.wantSucceeded, tt.root.TraceSucceeded())
+
+			result, exitCode, err := tt.root.TraceResult()
+			require.NoError(t, err)
+			require.Equal(t, tt.wantResult, result)
+			require.Equal(t, tt.wantExitCode, exitCode)
+
+			traceExitCode, err := tt.root.TraceExitCode()
+			require.NoError(t, err)
+			require.Equal(t, tt.wantExitCode, traceExitCode)
+		})
+	}
+
+	t.Run("boundary skips failing branch", func(t *testing.T) {
+		t.Parallel()
+		failing := &tracetracking.ReceivedMessage{Description: actionFailedDescription}
+		root := &tracetracking.ReceivedMessage{
+			Description:                      succeededDescription,
+			OutgoingInternalReceivedMessages: []*tracetracking.ReceivedMessage{failing},
+		}
+		skipFailing := func(_, current *tracetracking.ReceivedMessage) (bool, error) { return current == failing, nil }
+
+		result, exitCode, err := root.TraceResultWith(skipFailing)
+		require.NoError(t, err)
+		require.Equal(t, tracetracking.ResultSuccess, result)
+		require.Equal(t, tvm.ExitCodeSuccess, exitCode)
+	})
+
+	t.Run("nil message", func(t *testing.T) {
+		t.Parallel()
+		var root *tracetracking.ReceivedMessage
+
+		result, _, err := root.TraceResult()
+		require.ErrorContains(t, err, "nil ReceivedMessage")
+		require.Equal(t, tracetracking.ResultUnknown, result)
+	})
 }
