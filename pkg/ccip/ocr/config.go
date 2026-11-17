@@ -2,7 +2,12 @@ package ocr
 
 import (
 	"errors"
+	"fmt"
 	"math"
+	"strconv"
+	"strings"
+
+	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
 )
@@ -65,8 +70,8 @@ func (c *Config) ValidateConfig() (err error) {
 		{"ExecuteCostTONTokenTransfer", c.ExecuteCostTONTokenTransfer},
 		{"MaxExecuteValueTON", c.MaxExecuteValueTON},
 	} {
-		if !(f.value > 0) || math.IsInf(f.value, 0) {
-			err = errors.Join(err, config.ErrInvalid{Name: f.name, Value: f.value, Msg: "must be a finite number greater than 0"})
+		if _, convErr := tonFromFloat(f.value); convErr != nil {
+			err = errors.Join(err, config.ErrInvalid{Name: f.name, Value: f.value, Msg: convErr.Error()})
 		}
 	}
 	if c.MaxExecuteValueTON < c.ExecuteCostTON {
@@ -74,3 +79,19 @@ func (c *Config) ValidateConfig() (err error) {
 	}
 	return err
 }
+
+// tonFromFloat converts a TON amount from config to coins at full nanoTON precision. It uses the
+// shortest decimal that round-trips to v (the value as written in TOML) and rejects values with
+// more than 9 decimal places instead of rounding them.
+func tonFromFloat(v float64) (tlb.Coins, error) {
+	if !(v > 0) || math.IsInf(v, 0) {
+		return tlb.Coins{}, fmt.Errorf("must be a finite number greater than 0, got %v", v)
+	}
+	s := strconv.FormatFloat(v, 'f', -1, 64)
+	if _, frac, ok := strings.Cut(s, "."); ok && len(frac) > tonDecimals {
+		return tlb.Coins{}, fmt.Errorf("%s TON has more than %d decimal places", s, tonDecimals)
+	}
+	return tlb.FromTON(s)
+}
+
+const tonDecimals = 9

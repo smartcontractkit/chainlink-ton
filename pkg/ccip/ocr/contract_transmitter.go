@@ -6,8 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math"
-	"strconv"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -313,11 +311,4 @@ func getReportTxInfo(reportBytes []byte, seqNr uint64, cfg *Config) (txID string
 	}
 
 	return txID, gasCost, nil, nil
-}
-
-func tonFromFloat(v float64) (tlb.Coins, error) {
-	if !(v > 0) || math.IsInf(v, 0) {
-		return tlb.Coins{}, fmt.Errorf("must be a finite number greater than 0, got %v", v)
-	}
-	return tlb.FromTON(strconv.FormatFloat(v, 'f', 6, 64))
 }

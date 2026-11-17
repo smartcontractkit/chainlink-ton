@@ -124,6 +124,19 @@ func TestConfig_ValidateConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("fails on values finer than nanoTON precision", func(t *testing.T) {
+		for _, v := range []float64{0.0000000001, 1.0000000005, 2.1234567891} {
+			cfg := DefaultConfigSet
+			cfg.MaxExecuteValueTON = v
+			cfg.ExecuteCostTONTokenTransfer = v
+			err := cfg.ValidateConfig()
+			require.Error(t, err, "value %v", v)
+			assert.Contains(t, err.Error(), "MaxExecuteValueTON")
+			assert.Contains(t, err.Error(), "ExecuteCostTONTokenTransfer")
+			assert.Contains(t, err.Error(), "more than 9 decimal places")
+		}
+	})
+
 	t.Run("fails when MaxExecuteValueTON is below ExecuteCostTON", func(t *testing.T) {
 		cfg := DefaultConfigSet
 		cfg.MaxExecuteValueTON = cfg.ExecuteCostTON / 2
@@ -154,4 +167,25 @@ func TestDefaultConfigSet(t *testing.T) {
 		err := DefaultConfigSet.ValidateConfig()
 		require.NoError(t, err)
 	})
+}
+
+func TestTonFromFloat(t *testing.T) {
+	for _, tt := range []struct {
+		in   float64
+		nano int64
+	}{
+		{0.085, 85_000_000},
+		{1.9999996, 1_999_999_600},
+		{2.0000004, 2_000_000_400},
+		{0.000000001, 1},
+		{4.2, 4_200_000_000},
+	} {
+		c, err := tonFromFloat(tt.in)
+		require.NoError(t, err, "value %v", tt.in)
+		assert.Equal(t, tt.nano, c.Nano().Int64(), "value %v", tt.in)
+	}
+
+	a, b := 0.1, 0.2
+	_, err := tonFromFloat(a + b) // 0.30000000000000004
+	require.ErrorContains(t, err, "more than 9 decimal places")
 }

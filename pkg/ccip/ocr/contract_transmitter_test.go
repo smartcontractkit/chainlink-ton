@@ -571,3 +571,49 @@ func TestGetReportTxInfoInvalidCosts(t *testing.T) {
 		require.ErrorContains(t, err, "invalid ExecuteCostTON", "value %v", v)
 	}
 }
+
+func TestGetReportTxInfoMaxExecuteValueSubMicroTON(t *testing.T) {
+	cfg := DefaultConfigSet
+	cfg.ExecuteCostTON = 0.1
+
+	tests := []struct {
+		name     string
+		cap      float64
+		gasLimit string
+		wantErr  bool
+	}{
+		{name: "total at a fractional microTON cap", cap: 1.9999996, gasLimit: "1.8999996"},
+		{name: "total 1 nanoTON over a fractional microTON cap", cap: 1.9999996, gasLimit: "1.899999601", wantErr: true},
+		{name: "round total above a fractional microTON cap", cap: 1.9999996, gasLimit: "1.9", wantErr: true},
+		{name: "total below a cap that 6 decimals would round down", cap: 2.0000004, gasLimit: "1.9000002"},
+		{name: "total at a cap that 6 decimals would round down", cap: 2.0000004, gasLimit: "1.9000004"},
+		{name: "total 1 nanoTON over a cap that 6 decimals would round down", cap: 2.0000004, gasLimit: "1.900000401", wantErr: true},
+		{name: "nanoTON precision cap", cap: 2.000000001, gasLimit: "1.900000001"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg.MaxExecuteValueTON = tt.cap
+			require.NoError(t, cfg.ValidateConfig())
+			_, cost, _, err := getReportTxInfo(executeReportBOC(t, tlb.MustFromTON(tt.gasLimit)), 1, &cfg)
+			if tt.wantErr {
+				require.ErrorContains(t, err, "exceeds MaxExecuteValueTON")
+				return
+			}
+			require.NoError(t, err)
+			gas := tlb.MustFromTON(tt.gasLimit)
+			want, err := tlb.MustFromTON("0.1").Add(gas)
+			require.NoError(t, err)
+			assert.Equal(t, want.Nano(), cost.Nano())
+		})
+	}
+}
+
+func TestGetReportTxInfoPreservesNanoTONCosts(t *testing.T) {
+	cfg := DefaultConfigSet
+	cfg.ExecuteCostTON = 0.085000001
+	cfg.ExecuteCostTONTokenTransfer = 0.0545007
+	_, cost, _, err := getReportTxInfo(executeReportBOC(t, tlb.MustFromTON("1"), tlb.MustFromTON("0.2")), 1, &cfg)
+	require.NoError(t, err)
+	// 0.085000001 + 1 + 0.0545007 + 0.2
+	assert.Equal(t, tlb.MustFromTON("1.339500701").Nano(), cost.Nano())
+}
