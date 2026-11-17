@@ -367,7 +367,8 @@ func (lp *service) processBlockRange(
 		return err
 	}
 
-	// Note: logs inserted metric is recorded by ObservedLogStore.SaveLogs
+	// Note: the logs inserted metric is published by ObservedLogStore.Transact once the range is
+	// committed; SaveLogs inside the transaction only buffers it.
 	if totalSaved > 0 {
 		lp.lggr.Debugf("processed range (%d, %d], saved %d logs from %d addresses", blockRange.FromSeqNo(), blockRange.ToSeqNo(), totalSaved, len(addresses))
 	}
