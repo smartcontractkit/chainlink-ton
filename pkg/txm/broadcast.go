@@ -11,6 +11,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
+	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
@@ -20,12 +21,13 @@ var (
 	errTxRejected       = errors.New("transaction rejected by TON node, likely due to insufficient balance")
 )
 
-// signedMessage is a signed external message carrying a transaction, with the times bounding
-// when the wallet can accept it.
+// signedMessage is a signed HighloadV3 external message carrying a transaction, with the times
+// bounding when the wallet can accept it, taken from its signed payload.
 type signedMessage struct {
 	ext *tlb.ExternalMessage
-	// expiresAt is a time, by the chain's clock, from which the wallet no longer accepts ext: no
-	// block made at or after it can process ext.
+	// createdAt is ext's created_at: no block made before it can process ext.
+	createdAt time.Time
+	// expiresAt is ext's created_at plus its timeout: no block made at or after it can process ext.
 	expiresAt time.Time
 	// sendBefore is when, allowing for the chain's clock differing from the local one, the wallet
 	// may start treating ext as expired. ext is not sent after it, since a rejection could then be
@@ -41,10 +43,6 @@ type broadcast struct {
 	tx     *Tx
 	msg    *wallet.Message
 	txID   string
-	// lookupAfter is a time before any wallet transaction this broadcast can produce: the wallet
-	// processes a message only in a block made at or after its created_at, which is the local
-	// time it was built at minus CreatedAtBackdate.
-	lookupAfter time.Time
 }
 
 // run broadcasts the transaction, retrying failed attempts, and returns the wallet transaction
@@ -128,7 +126,7 @@ func (b *broadcast) nextMessage(ctx context.Context, sent *signedMessage) (*trac
 		return nil, next, err
 	}
 
-	found, coveredUntil, err := b.client.FindExternalTransaction(ctx, sent.ext, b.lookupAfter)
+	found, coveredUntil, err := b.client.FindExternalTransaction(ctx, sent.ext, sent.createdAt)
 	if err == nil && found != nil {
 		b.t.logger.Infow("previously sent message was processed after its attempt ended", "txID", b.txID)
 		return found, nil, nil
@@ -153,19 +151,28 @@ func (b *broadcast) nextMessage(ctx context.Context, sent *signedMessage) (*trac
 		coveredUntil.UTC().Format(time.RFC3339), sent.expiresAt.UTC().Format(time.RFC3339))
 }
 
-// build signs a new external message carrying the transaction.
+// build signs a new external message carrying the transaction. Signing can be slow, so a
+// message whose send window closed while it was being built is dropped; it was never sent.
 func (b *broadcast) build(ctx context.Context) (*signedMessage, error) {
 	ext, err := b.client.BuildExternalMessage(ctx, b.msg)
 	if err != nil {
 		return nil, err
 	}
-	// ext's created_at was taken from the local clock while building, before builtAt, so
-	// builtAt+messageValidity is at or after ext's expiry by the chain's clock
-	expiresAt := time.Now().Add(b.t.messageValidity)
+	createdAt, expiresAt, err := tonconfig.HighloadV3MessageWindow(ext)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the signed message's validity: %w", err)
+	}
+
+	sendBefore := expiresAt.Add(-b.t.messageClockSkew)
+	if !time.Now().Before(sendBefore) {
+		return nil, fmt.Errorf("message was built too late to be sent: its send window closed at %s",
+			sendBefore.UTC().Format(time.RFC3339))
+	}
 	return &signedMessage{
 		ext:        ext,
+		createdAt:  createdAt,
 		expiresAt:  expiresAt,
-		sendBefore: expiresAt.Add(-b.t.messageClockSkew),
+		sendBefore: sendBefore,
 	}, nil
 }
 
@@ -191,7 +198,7 @@ func (b *broadcast) send(ctx context.Context, attempt uint, sent *signedMessage)
 // one. The rejection is final (errTxRejected) only once a lookup shows there is none; a failed
 // lookup is returned as a retryable error.
 func (b *broadcast) checkRejection(ctx context.Context, attempt uint, sent *signedMessage, rejectErr error) (*tracetracking.ReceivedMessage, error) {
-	found, _, err := b.client.FindExternalTransaction(ctx, sent.ext, b.lookupAfter)
+	found, _, err := b.client.FindExternalTransaction(ctx, sent.ext, sent.createdAt)
 	if err != nil {
 		return nil, fmt.Errorf("message rejected (%w), and failed to look up whether it was already processed: %w", rejectErr, err)
 	}

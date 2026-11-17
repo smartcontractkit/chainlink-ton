@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -29,8 +31,9 @@ var errRejected = errors.New("lite server error, code -701: cannot apply externa
 
 // sentMessage records one external message handed to SendExternalMessageWaitTransaction.
 type sentMessage struct {
-	hash string
-	at   time.Time
+	hash      string
+	at        time.Time
+	expiresAt time.Time // from the signed payload
 }
 
 // broadcastMockAPI is a ton.APIClientWrapped that records sent external messages and keeps the
@@ -123,7 +126,11 @@ func (m *broadcastMockAPI) SendExternalMessageWaitTransaction(ctx context.Contex
 
 	hash := string(ext.NormalizedHash())
 	n := len(m.sends)
-	m.sends = append(m.sends, sentMessage{hash: hash, at: time.Now()})
+	_, expiresAt, err := tonconfig.HighloadV3MessageWindow(ext)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	m.sends = append(m.sends, sentMessage{hash: hash, at: time.Now(), expiresAt: expiresAt})
 
 	processed, err := m.send(n, ext)
 	if processed && m.onChain[hash] == nil {
@@ -195,12 +202,33 @@ func (m *broadcastMockAPI) txFor(hash string) *tlb.Transaction {
 	return m.onChain[hash]
 }
 
-func newBroadcastTestTxm(t *testing.T, api *broadcastMockAPI) (*Txm, *wallet.Wallet) {
+// shortLivedWallet is a HighloadV3 config whose messages expire within a second of being built.
+func shortLivedWallet() wallet.ConfigHighloadV3 {
+	var queryID atomic.Uint32
+	return wallet.ConfigHighloadV3{
+		MessageTTL: 6, // the shortest tonutils allows
+		MessageBuilder: func(context.Context, uint32) (uint32, int64, error) {
+			return queryID.Add(1), time.Now().Unix() - 5, nil
+		},
+	}
+}
+
+// newBroadcastTestTxm returns a Txm broadcasting from a HighloadV3 wallet with config walletCfg.
+// signDelay, if set, returns how long the n-th (0-based) signing takes.
+func newBroadcastTestTxm(t *testing.T, api *broadcastMockAPI, walletCfg wallet.ConfigHighloadV3, signDelay func(n int) time.Duration) (*Txm, *wallet.Wallet) {
 	t.Helper()
 
 	_, key, err := ed25519.GenerateKey(nil)
 	require.NoError(t, err)
-	w, err := wallet.FromPrivateKeyWithOptions(key, tonconfig.WalletVersion, wallet.WithAPI(api))
+	var signs atomic.Int32
+	signer := func(_ context.Context, toSign *cell.Cell, _ uint32) ([]byte, error) {
+		n := int(signs.Add(1)) - 1
+		if signDelay != nil {
+			time.Sleep(signDelay(n))
+		}
+		return ed25519.Sign(key, toSign.Hash()), nil
+	}
+	w, err := wallet.FromPrivateKeyWithOptions(key, walletCfg, wallet.WithAPI(api), wallet.WithSigner(signer))
 	require.NoError(t, err)
 
 	cfg := DefaultConfigSet
@@ -212,7 +240,17 @@ func newBroadcastTestTxm(t *testing.T, api *broadcastMockAPI) (*Txm, *wallet.Wal
 		return tracetracking.NewSignedAPIClient(api, *w), nil
 	}, cfg)
 	require.NoError(t, err)
+	txm.messageClockSkew = 100 * time.Millisecond
 	return txm, w
+}
+
+// requireSentInWindow checks that no message was sent once the wallet may consider it expired.
+func requireSentInWindow(t *testing.T, sends []sentMessage, clockSkew time.Duration) {
+	t.Helper()
+	for i, s := range sends {
+		require.Truef(t, s.at.Before(s.expiresAt.Add(-clockSkew)),
+			"send %d at %s is past its message's send window, which closes at %s", i, s.at, s.expiresAt.Add(-clockSkew))
+	}
 }
 
 func newBroadcastTestTx(t *testing.T) (*Tx, *wallet.Message) {
@@ -254,7 +292,7 @@ func TestBroadcastWithRetry_ExternalMessageReuse(t *testing.T) {
 			}
 			return true, nil
 		})
-		txm, w := newBroadcastTestTxm(t, api)
+		txm, w := newBroadcastTestTxm(t, api, tonconfig.WalletVersion, nil)
 		tx, msg := newBroadcastTestTx(t)
 
 		require.NoError(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"))
@@ -271,7 +309,7 @@ func TestBroadcastWithRetry_ExternalMessageReuse(t *testing.T) {
 		api := newBroadcastMockAPI(func(n int, _ *tlb.ExternalMessage) (bool, error) {
 			return true, context.DeadlineExceeded // processed, but the wait timed out
 		})
-		txm, _ := newBroadcastTestTxm(t, api)
+		txm, _ := newBroadcastTestTxm(t, api, tonconfig.WalletVersion, nil)
 		tx, msg := newBroadcastTestTx(t)
 
 		require.NoError(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"))
@@ -290,7 +328,7 @@ func TestBroadcastWithRetry_ExternalMessageReuse(t *testing.T) {
 			// processed in the meantime, so the wallet rejects the re-send as a replay
 			return true, fmt.Errorf("failed to send message: %w", errRejected)
 		})
-		txm, _ := newBroadcastTestTxm(t, api)
+		txm, _ := newBroadcastTestTxm(t, api, tonconfig.WalletVersion, nil)
 		tx, msg := newBroadcastTestTx(t)
 
 		require.NoError(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"))
@@ -317,7 +355,7 @@ func TestBroadcastWithRetry_ExternalMessageReuse(t *testing.T) {
 			}
 			return nil
 		}
-		txm, _ := newBroadcastTestTxm(t, api)
+		txm, _ := newBroadcastTestTxm(t, api, tonconfig.WalletVersion, nil)
 		tx, msg := newBroadcastTestTx(t)
 
 		require.NoError(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"))
@@ -332,7 +370,7 @@ func TestBroadcastWithRetry_ExternalMessageReuse(t *testing.T) {
 		api := newBroadcastMockAPI(func(int, *tlb.ExternalMessage) (bool, error) {
 			return false, fmt.Errorf("failed to send message: %w", errRejected)
 		})
-		txm, _ := newBroadcastTestTxm(t, api)
+		txm, _ := newBroadcastTestTxm(t, api, tonconfig.WalletVersion, nil)
 		tx, msg := newBroadcastTestTx(t)
 
 		err := txm.broadcastWithRetry(t.Context(), tx, msg, "id")
@@ -348,14 +386,12 @@ func TestBroadcastWithRetry_ExternalMessageReuse(t *testing.T) {
 		// the node's view lags until well after the message expired by the local clock
 		start := time.Now()
 		api.view = func() time.Time {
-			if time.Since(start) < 1500*time.Millisecond {
+			if time.Since(start) < 2*time.Second {
 				return start.Add(-time.Second)
 			}
 			return time.Now()
 		}
-		txm, _ := newBroadcastTestTxm(t, api)
-		txm.messageValidity = 300 * time.Millisecond
-		txm.messageClockSkew = 100 * time.Millisecond
+		txm, _ := newBroadcastTestTxm(t, api, shortLivedWallet(), nil)
 		tx, msg := newBroadcastTestTx(t)
 
 		require.NoError(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"))
@@ -378,26 +414,56 @@ func TestBroadcastWithRetry_ExternalMessageReuse(t *testing.T) {
 			}
 			return true, nil
 		})
-		txm, _ := newBroadcastTestTxm(t, api)
-		txm.messageValidity = 300 * time.Millisecond
-		txm.messageClockSkew = 100 * time.Millisecond
+		txm, _ := newBroadcastTestTxm(t, api, shortLivedWallet(), nil)
 		tx, msg := newBroadcastTestTx(t)
 
 		require.NoError(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"))
 
 		sends := api.sent()
-		hashes := distinctMessages(sends)
-		require.Len(t, hashes, 2, "exactly one replacement message")
-
-		firstSentAt := sends[0].at
+		require.Len(t, distinctMessages(sends), 2, "exactly one replacement message")
+		requireSentInWindow(t, sends, txm.messageClockSkew)
+		firstExpiresAt := sends[0].expiresAt
 		for _, s := range sends {
-			if s.hash == firstHash {
-				require.Less(t, s.at.Sub(firstSentAt), txm.messageValidity-txm.messageClockSkew,
-					"the first message must not be re-sent once the wallet may consider it expired")
-			} else {
-				require.GreaterOrEqual(t, s.at.Sub(firstSentAt), txm.messageValidity+txm.messageClockSkew,
+			if s.hash != firstHash {
+				require.False(t, s.at.Before(firstExpiresAt),
 					"the replacement must not be sent while the first message could still be accepted")
 			}
 		}
+	})
+
+	t.Run("a message whose send window closed while it was being signed is not sent", func(t *testing.T) {
+		t.Parallel()
+		api := newBroadcastMockAPI(func(int, *tlb.ExternalMessage) (bool, error) { return true, nil })
+		// the first signing outlasts the message's validity
+		txm, _ := newBroadcastTestTxm(t, api, shortLivedWallet(), func(n int) time.Duration {
+			if n == 0 {
+				return 1100 * time.Millisecond
+			}
+			return 0
+		})
+		tx, msg := newBroadcastTestTx(t)
+
+		require.NoError(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"))
+
+		sends := api.sent()
+		require.Len(t, sends, 1)
+		requireSentInWindow(t, sends, txm.messageClockSkew)
+	})
+
+	t.Run("a wallet other than HighloadV3 is refused", func(t *testing.T) {
+		t.Parallel()
+		api := newBroadcastMockAPI(func(int, *tlb.ExternalMessage) (bool, error) { return true, nil })
+		_, key, err := ed25519.GenerateKey(nil)
+		require.NoError(t, err)
+		w, err := wallet.FromPrivateKeyWithOptions(key, wallet.V4R2, wallet.WithAPI(api))
+		require.NoError(t, err)
+		txm, err := New(logger.Test(t), "test", nil, func(context.Context) (tracetracking.SignedAPIClient, error) {
+			return tracetracking.NewSignedAPIClient(api, *w), nil
+		}, DefaultConfigSet)
+		require.NoError(t, err)
+		tx, msg := newBroadcastTestTx(t)
+
+		require.ErrorContains(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"), "requires a HighloadV3 wallet")
+		require.Empty(t, api.sent())
 	})
 }

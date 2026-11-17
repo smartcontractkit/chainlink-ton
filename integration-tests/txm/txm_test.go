@@ -20,6 +20,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/balance"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
+	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
@@ -33,8 +34,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 )
-
-const networkGlobalID int32 = -217
 
 func TestTxmLocal(t *testing.T) {
 	type connection struct {
@@ -72,10 +71,11 @@ func TestTxmLocal(t *testing.T) {
 				txmClient := &testingAPIClientWrapped{
 					APIClientWrapped: tonChain.Client,
 				}
-				txmWallet, err := tvm.NewRandomV5R1TestWallet(txmClient, networkGlobalID)
+				// the TXM requires the relayer's HighloadV3 wallet
+				txmWallet, err := wallet.FromSeedWithOptions(txmClient, wallet.NewSeed(), tonconfig.WalletVersion)
 				require.NoError(t, err)
 
-				setupWallet, err := tvm.NewV5R1Wallet(tonChain.Client, networkGlobalID, txmWallet.PrivateKey())
+				setupWallet, err := wallet.FromPrivateKey(tonChain.Client, txmWallet.PrivateKey(), tonconfig.WalletVersion)
 				require.NoError(t, err)
 
 				recipients[i] = setupWallet.WalletAddress()

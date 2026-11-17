@@ -23,14 +23,12 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
-	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
-// broadcastLookupClockSkew is the tolerance for the chain's clock (block times) differing from
-// the local wall clock when deciding whether a broadcast message can still be accepted and
-// which wallet transactions it could have produced.
-const broadcastLookupClockSkew = 30 * time.Second
+// broadcastClockSkew is the tolerance for the chain's clock (block times) differing from the
+// local wall clock when timing sends and lookups of a broadcast message.
+const broadcastClockSkew = 30 * time.Second
 
 // walletGas accounts for the extra balance used when sending a message with [wallet.PayGasSeparately] mode.
 func walletGas(request Request) *tlb.Coins {
@@ -58,9 +56,7 @@ type Txm struct {
 	clientProvider func(context.Context) (tracetracking.SignedAPIClient, error)
 	traceFollow    tracetracking.FollowCondition // which outgoing messages the confirm loop waits for
 	traceOutcome   tracetracking.StopCondition   // which trace branches decide a transaction's outcome
-	// messageValidity is how long a built external message can be accepted by the wallet,
-	// and messageClockSkew the tolerance applied to it (see broadcastLookupClockSkew).
-	messageValidity  time.Duration
+	// messageClockSkew is broadcastClockSkew, overridable in tests.
 	messageClockSkew time.Duration
 	broadcastChan    chan *Tx
 	accountStore     *AccountStore
@@ -106,8 +102,7 @@ func New(
 		clientProvider:   clientProvider,
 		traceFollow:      tracetracking.FollowAll,
 		traceOutcome:     tracetracking.NoBound,
-		messageValidity:  tonconfig.MessageValidity,
-		messageClockSkew: broadcastLookupClockSkew,
+		messageClockSkew: broadcastClockSkew,
 		broadcastChan:    make(chan *Tx, config.BroadcastChanSize),
 		accountStore:     NewAccountStore(),
 		stop:             make(chan struct{}),
@@ -332,14 +327,17 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	if err != nil {
 		return fmt.Errorf("failed to get client: %w", err)
 	}
+	// the retry logic relies on HighloadV3's replay protection and message validity
+	if _, ok := client.Wallet.GetSpec().(*wallet.SpecHighloadV3); !ok {
+		return fmt.Errorf("unsupported wallet %s: the TXM requires a HighloadV3 wallet", client.Wallet.WalletAddress())
+	}
 
 	b := &broadcast{
-		t:           t,
-		client:      client,
-		tx:          tx,
-		msg:         msg,
-		txID:        txID,
-		lookupAfter: time.Now().Add(-tonconfig.CreatedAtBackdate),
+		t:      t,
+		client: client,
+		tx:     tx,
+		msg:    msg,
+		txID:   txID,
 	}
 	receivedMessage, err := b.run(ctx)
 	if err != nil {
