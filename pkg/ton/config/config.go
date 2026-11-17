@@ -13,6 +13,19 @@ import (
 // query ids: SpecHighloadV3.BuildMessage rejects queryID >= 1<<23.
 const maxQueryID = 1 << 23
 
+const (
+	// messageTTL is the HighloadV3 message timeout: the wallet accepts a message only while
+	// the chain time is less than its created_at plus this timeout.
+	messageTTL = 120 * time.Second
+	// createdAtBackdate is subtracted from the wall clock when stamping a message's created_at,
+	// so the wallet does not reject it as created in the future when the chain time lags behind.
+	createdAtBackdate = 30 * time.Second
+
+	// MessageValidity is how long after being built an external message signed with
+	// WalletVersion can still be accepted by the wallet, by the chain's clock.
+	MessageValidity = messageTTL - createdAtBackdate
+)
+
 // WalletVersion is the HighloadV3 wallet config used by the relayer.
 // It has a query-id source that is safe for concurrent senders: an atomic counter captured
 // by the MessageBuilder closure, so ids never repeat until the 23-bit space wraps.
@@ -24,9 +37,9 @@ var WalletVersion = func() wallet.ConfigHighloadV3 {
 	//nolint:gosec // the seed is not security-sensitive; it only needs to avoid replaying the previous process's counter position, and query ids are public on-chain anyway
 	queryID.Store(rand.Uint32N(maxQueryID))
 	return wallet.ConfigHighloadV3{
-		MessageTTL: 120,
+		MessageTTL: uint32(messageTTL / time.Second),
 		MessageBuilder: func(ctx context.Context, subWalletId uint32) (id uint32, createdAt int64, err error) {
-			tm := time.Now().Unix() - 30
+			tm := time.Now().Add(-createdAtBackdate).Unix()
 			return queryID.Add(1) & (maxQueryID - 1), tm, nil
 		}}
 }()

@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jpillora/backoff"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -24,8 +23,14 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
+	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
+
+// broadcastLookupClockSkew is the tolerance for the chain's clock (block times) differing from
+// the local wall clock when deciding whether a broadcast message can still be accepted and
+// which wallet transactions it could have produced.
+const broadcastLookupClockSkew = 30 * time.Second
 
 // walletGas accounts for the extra balance used when sending a message with [wallet.PayGasSeparately] mode.
 func walletGas(request Request) *tlb.Coins {
@@ -53,11 +58,15 @@ type Txm struct {
 	clientProvider func(context.Context) (tracetracking.SignedAPIClient, error)
 	traceFollow    tracetracking.FollowCondition // which outgoing messages the confirm loop waits for
 	traceOutcome   tracetracking.StopCondition   // which trace branches decide a transaction's outcome
-	broadcastChan  chan *Tx
-	accountStore   *AccountStore
-	starter        services.StateMachine
-	done           sync.WaitGroup
-	stop           services.StopChan
+	// messageValidity is how long a built external message can be accepted by the wallet,
+	// and messageClockSkew the tolerance applied to it (see broadcastLookupClockSkew).
+	messageValidity  time.Duration
+	messageClockSkew time.Duration
+	broadcastChan    chan *Tx
+	accountStore     *AccountStore
+	starter          services.StateMachine
+	done             sync.WaitGroup
+	stop             services.StopChan
 }
 
 type Request struct {
@@ -89,17 +98,19 @@ func New(
 	}
 
 	txm := &Txm{
-		logger:         logger.Named(lggr, "Txm"),
-		keystore:       keystore,
-		config:         config,
-		chainID:        chainID,
-		metrics:        metrics,
-		clientProvider: clientProvider,
-		traceFollow:    tracetracking.FollowAll,
-		traceOutcome:   tracetracking.NoBound,
-		broadcastChan:  make(chan *Tx, config.BroadcastChanSize),
-		accountStore:   NewAccountStore(),
-		stop:           make(chan struct{}),
+		logger:           logger.Named(lggr, "Txm"),
+		keystore:         keystore,
+		config:           config,
+		chainID:          chainID,
+		metrics:          metrics,
+		clientProvider:   clientProvider,
+		traceFollow:      tracetracking.FollowAll,
+		traceOutcome:     tracetracking.NoBound,
+		messageValidity:  tonconfig.MessageValidity,
+		messageClockSkew: broadcastLookupClockSkew,
+		broadcastChan:    make(chan *Tx, config.BroadcastChanSize),
+		accountStore:     NewAccountStore(),
+		stop:             make(chan struct{}),
 	}
 	for _, opt := range opts {
 		opt(txm)
@@ -315,119 +326,28 @@ func newWalletMessage(tx *Tx) (*wallet.Message, error) {
 // broadcastWithRetry Attempts to broadcast a transaction with retries on failure. We only retry if there was a
 // failure to send the transaction, not if the transaction was broadcast but failed to execute (non-zero exit code).
 // Retries use exponential backoff starting from SendRetryDelay, doubling the delay each attempt.
+// Retries re-send the same signed external message, so the transaction is executed at most once.
 func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Message, txID string) error {
-	var receivedMessage *tracetracking.ReceivedMessage
-	var err error
-
-	// load client
-	client, cerr := t.clientProvider(ctx)
-	if cerr != nil {
-		return fmt.Errorf("failed to get client: %w", cerr)
-	}
-
-	// retryDelay := t.config.SendRetryDelay.Duration()
-	b := backoff.Backoff{
-		Min:    t.config.SendRetryDelay.Duration(),
-		Max:    5 * time.Second,
-		Factor: 2,
-		Jitter: true,
-	}
-
-	// try to broadcast transaction
-retryLoop:
-	for attempt := uint(1); attempt <= t.config.MaxSendRetryAttempts; attempt++ {
-		if !time.Now().Before(tx.Expiration) {
-			t.logger.Warnw("transaction expired",
-				"txID", txID,
-				"to", tx.To.String(),
-				"amount", tx.Amount.Nano().String(),
-				"expiration", tx.Expiration.String())
-			return errors.New("transaction expired, not broadcasting")
-		}
-
-		t.logger.Debugw("sending transaction to TON",
-			"txID", txID,
-			"attempt", attempt,
-			"to", tx.To.String(),
-			"amount", tx.Amount.Nano().String(),
-			"bounce", msg.InternalMessage.Bounce,
-			"hasBody", msg.InternalMessage.Body != nil)
-
-		// Create timeout context to prevent SendWaitTransaction from hanging indefinitely
-		sendCtx, sendCancel := context.WithTimeout(ctx, t.config.SendTimeout.Duration())
-		receivedMessage, _, err = client.SendWaitTransaction(sendCtx, tx.To, msg)
-		sendCancel()
-		if err == nil {
-			t.logger.Infow("transaction broadcasted",
-				"txID", txID,
-				"to", tx.To.String(),
-				"amount", tx.Amount.Nano().String())
-
-			// Transaction was broadcast successfully, but may have failed to execute.
-			// Use separate error variable since this doesn't affect broadcast success.
-			result, exitCode, resultErr := receivedMessage.Result()
-			if resultErr != nil {
-				t.logger.Errorw("failed to get transaction outcome", "error", resultErr)
-			} else if result != tracetracking.ResultSuccess {
-				t.logger.Errorw("transaction failed", "phase", result, "exitcode", exitCode, "description", exitCode.Describe())
-			}
-
-			if len(receivedMessage.OutgoingInternalSentMessages) == 0 && len(receivedMessage.OutgoingInternalReceivedMessages) == 0 {
-				t.logger.Errorw("transaction did not produce any outgoing messages, this may indicate that the value of the enqueued message was higher than the balance of the account",
-					"txID", txID,
-					"to", tx.To.String(),
-					"amount", tx.Amount.Nano().String(),
-				)
-			}
-			break
-		}
-
-		// Transaction failed to broadcast. Log error as a warning for now and fall through to retry delay below.
-		switch {
-		case errors.Is(err, context.DeadlineExceeded):
-			t.logger.Warnw("broadcast timed out, will retry",
-				"txID", txID,
-				"attempt", attempt,
-				"to", tx.To.String(),
-				"timeout", t.config.SendTimeout.Duration(),
-				"err", err)
-		case tracetracking.IsInboundExternalMessageRejectedByAccountError(err):
-			err = fmt.Errorf("transaction rejected by TON node, likely due to insufficient balance: %w", err)
-			t.logger.Warnw(err.Error(),
-				"txID", txID,
-				"attempt", attempt,
-				"to", tx.To.String(),
-				"err", err)
-			break retryLoop
-		default:
-			t.logger.Warnw("failed to broadcast tx, will retry",
-				"txID", txID,
-				"attempt", attempt,
-				"to", tx.To.String(),
-				"err", err)
-		}
-
-		if attempt < t.config.MaxSendRetryAttempts {
-			select {
-			case <-time.After(b.Duration()):
-			case <-t.stop:
-				t.logger.Debugw("broadcastWithRetry: stopped during retry delay")
-				return errors.New("broadcast aborted")
-			}
-		}
-	}
-
-	// If err is still set here, all retries have been exhausted. Log and return the error.
+	client, err := t.clientProvider(ctx)
 	if err != nil {
-		t.metrics.IncrementFailedToBroadcastTxs(ctx)
-		t.logger.Errorw("failed to broadcast tx after retries",
-			"txID", txID,
-			"err", err,
-			"to", tx.To.String())
+		return fmt.Errorf("failed to get client: %w", err)
+	}
+
+	b := &broadcast{
+		t:           t,
+		client:      client,
+		tx:          tx,
+		msg:         msg,
+		txID:        txID,
+		lookupAfter: time.Now().Add(-t.messageClockSkew),
+	}
+	receivedMessage, err := b.run(ctx)
+	if err != nil {
 		return err
 	}
+	t.onBroadcastSucceeded(tx, receivedMessage, txID)
 
-	// Otherwise, tx was broadcast successfully. Record broadcast time and save to unconfirmed store.
+	// Record broadcast time and save to unconfirmed store.
 	tx.BroadcastAt = time.Now()
 	broadcastLatency := tx.BroadcastAt.Sub(tx.CreatedAt)
 	t.metrics.RecordBroadcastLatency(ctx, broadcastLatency)
@@ -451,6 +371,32 @@ retryLoop:
 	}
 
 	return nil
+}
+
+// onBroadcastSucceeded logs the outcome of the wallet transaction that processed a broadcast
+// transaction.
+func (t *Txm) onBroadcastSucceeded(tx *Tx, receivedMessage *tracetracking.ReceivedMessage, txID string) {
+	t.logger.Infow("transaction broadcasted",
+		"txID", txID,
+		"to", tx.To.String(),
+		"amount", tx.Amount.Nano().String())
+
+	// Transaction was broadcast successfully, but may have failed to execute.
+	// Use separate error variable since this doesn't affect broadcast success.
+	result, exitCode, resultErr := receivedMessage.Result()
+	if resultErr != nil {
+		t.logger.Errorw("failed to get transaction outcome", "error", resultErr)
+	} else if result != tracetracking.ResultSuccess {
+		t.logger.Errorw("transaction failed", "phase", result, "exitcode", exitCode, "description", exitCode.Describe())
+	}
+
+	if len(receivedMessage.OutgoingInternalSentMessages) == 0 && len(receivedMessage.OutgoingInternalReceivedMessages) == 0 {
+		t.logger.Errorw("transaction did not produce any outgoing messages, this may indicate that the value of the enqueued message was higher than the balance of the account",
+			"txID", txID,
+			"to", tx.To.String(),
+			"amount", tx.Amount.Nano().String(),
+		)
+	}
 }
 
 // Periodically checks unconfirmed transactions for finality.
