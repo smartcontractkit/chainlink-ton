@@ -191,7 +191,7 @@ func resolveBlockID(ctx context.Context, client ton.APIClientWrapped, block *ton
 	if block == nil {
 		return nil, errors.New("block is nil")
 	}
-	full, err := client.LookupBlock(ctx, block.Workchain, block.Shard, block.SeqNo)
+	full, err := client.WaitForBlock(block.SeqNo).LookupBlock(ctx, block.Workchain, block.Shard, block.SeqNo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to look up block %d:%x:%d: %w", block.Workchain, uint64(block.Shard), block.SeqNo, err) //nolint:gosec // shard printed as its unsigned hex form
 	}

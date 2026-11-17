@@ -203,15 +203,19 @@ func (t *Txm) Enqueue(request Request) error {
 		ID:         request.ID,
 	}
 
-	// broadcastChan is never closed, so a send racing Close cannot panic.
-	select {
-	case <-t.stop:
+	// IfStarted holds the state read lock, so the submission cannot interleave with Close.
+	var enqueueErr error
+	started := t.starter.IfStarted(func() {
+		select {
+		case t.broadcastChan <- tx:
+		default:
+			enqueueErr = errors.New("broadcast channel full, could not enqueue transaction")
+		}
+	})
+	if !started {
 		return errors.New("txm stopped, could not enqueue transaction")
-	case t.broadcastChan <- tx:
-		return nil
-	default:
-		return errors.New("broadcast channel full, could not enqueue transaction")
 	}
+	return enqueueErr
 }
 
 // Continuously listens and broadcasts enqueued transactions
