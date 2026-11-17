@@ -247,13 +247,20 @@ func getReportTxInfo(reportBytes []byte, seqNr uint64, cfg *Config) (txID string
 		txID = fmt.Sprintf("seq-%d-msg-%s", seqNr, messageIDHex)
 
 		// Calculate cost: ExecuteCostTON + message gas limit
-		baseCost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.ExecuteCostTON))
+		baseCost, err1 := tonFromFloat(cfg.ExecuteCostTON)
+		if err1 != nil {
+			return txID, nil, &executeReport.Message.GasLimit, fmt.Errorf("invalid ExecuteCostTON: %w", err1)
+		}
 		totalCost, err1 := baseCost.Add(executeReport.Message.GasLimit)
 		if err1 != nil {
 			return txID, nil, &executeReport.Message.GasLimit, fmt.Errorf("failed to add gas limit to execute cost: %w", err1)
 		}
 		if len(executeReport.Message.TokenAmounts) > 0 {
-			baseTokenTransferCost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.ExecuteCostTONTokenTransfer))
+			var baseTokenTransferCost tlb.Coins
+			baseTokenTransferCost, err1 = tonFromFloat(cfg.ExecuteCostTONTokenTransfer)
+			if err1 != nil {
+				return txID, nil, &executeReport.Message.GasLimit, fmt.Errorf("invalid ExecuteCostTONTokenTransfer: %w", err1)
+			}
 
 			for _, tokenAmount := range executeReport.Message.TokenAmounts {
 				totalCost, err1 = totalCost.Add(baseTokenTransferCost)
@@ -269,6 +276,15 @@ func getReportTxInfo(reportBytes []byte, seqNr uint64, cfg *Config) (txID string
 			}
 		}
 
+		maxValue, err1 := tonFromFloat(cfg.MaxExecuteValueTON)
+		if err1 != nil {
+			return txID, nil, &executeReport.Message.GasLimit, fmt.Errorf("invalid MaxExecuteValueTON: %w", err1)
+		}
+		if totalCost.Nano().Cmp(maxValue.Nano()) > 0 {
+			return txID, nil, &executeReport.Message.GasLimit, fmt.Errorf("execute value %s TON exceeds MaxExecuteValueTON %s TON (gasLimit %s TON, %d token transfers)",
+				totalCost, maxValue, executeReport.Message.GasLimit, len(executeReport.Message.TokenAmounts))
+		}
+
 		return txID, &totalCost, &executeReport.Message.GasLimit, nil
 	}
 
@@ -281,10 +297,16 @@ func getReportTxInfo(reportBytes []byte, seqNr uint64, cfg *Config) (txID string
 	// Commit report
 	txID = fmt.Sprintf("seq-%d", seqNr)
 	if len(commitReport.MerkleRoots) == 0 {
-		cost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.CommitPriceUpdateOnlyCostTON))
+		cost, err := tonFromFloat(cfg.CommitPriceUpdateOnlyCostTON)
+		if err != nil {
+			return txID, nil, nil, fmt.Errorf("invalid CommitPriceUpdateOnlyCostTON: %w", err)
+		}
 		gasCost = &cost
 	} else {
-		cost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.CommitPriceAndRootCostTON))
+		cost, err := tonFromFloat(cfg.CommitPriceAndRootCostTON)
+		if err != nil {
+			return txID, nil, nil, fmt.Errorf("invalid CommitPriceAndRootCostTON: %w", err)
+		}
 		gasCost = &cost
 	}
 
