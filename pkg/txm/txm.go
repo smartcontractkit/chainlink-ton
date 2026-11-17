@@ -517,7 +517,8 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 					tx.ReceivedMessage = receivedMessage
 					t.logger.Warnw("trace gathering timed out, will retry next poll",
 						"LT", unconfirmedTx.LT,
-						"timeout", t.config.TraceTimeout.Duration())
+						"timeout", t.config.TraceTimeout.Duration(),
+						"error", traceErr)
 				} else {
 					t.logger.Errorw("failed to wait for trace", "LT", unconfirmedTx.LT, "error", traceErr)
 				}
