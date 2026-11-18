@@ -48,8 +48,7 @@ func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log, batchInser
 		logModel := &logModel{}
 		dbLog, err := logModel.FromLog(log)
 		if err != nil {
-			s.lggr.Errorw("Failed to convert log to DB model", "error", err, "logIndex", i)
-			return 0, fmt.Errorf("failed to convert log at index %d: %w", i, err)
+			return 0,fmt.Errorf("failed to convert log at index %d: %w", i, err)
 		}
 		dbLogs[i] = dbLog
 	}
@@ -57,8 +56,7 @@ func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log, batchInser
 	// Build SQL and execute with transaction and batching
 	totalInserted, err := s.insertLogsWithBatching(ctx, dbLogs, batchInsertSize, minBatchSize)
 	if err != nil {
-		s.lggr.Errorw("Failed to insert logs", "error", err, "logCount", len(dbLogs))
-		return 0, fmt.Errorf("failed to save logs to database: %w", err)
+		return 0, fmt.Errorf("failed to save %d logs to database: %w", len(dbLogs), err)
 	}
 	return totalInserted, nil
 }

@@ -65,12 +65,7 @@ func (s *filterStore) RegisterFilter(ctx context.Context, filter models.Filter) 
 	var id int64
 	err = s.orm.NamedGetContext(ctx, &id, query, &dbF)
 	if err != nil {
-		s.lggr.Errorw("DB insert/update failed",
-			"chainID", dbF.ChainID,
-			"name", dbF.Name,
-			"query", query,
-			"error", err)
-		return 0, err
+		return 0, fmt.Errorf("failed to upsert filter %q: %w", dbF.Name, err)
 	}
 
 	return id, nil
