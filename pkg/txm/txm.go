@@ -159,7 +159,6 @@ func (t *Txm) InflightCount() (int, int) {
 func (t *Txm) Close() error {
 	return t.starter.StopOnce("Txm", func() error {
 		close(t.stop)
-		close(t.broadcastChan)
 		t.done.Wait()
 		return nil
 	})
@@ -230,12 +229,19 @@ func (t *Txm) Enqueue(request Request) error {
 		ID:         request.ID,
 	}
 
-	select {
-	case t.broadcastChan <- tx:
-		return nil
-	default:
-		return errors.New("broadcast channel full, could not enqueue transaction")
+	// IfStarted holds the state read lock, so the submission cannot interleave with Close.
+	var enqueueErr error
+	started := t.starter.IfStarted(func() {
+		select {
+		case t.broadcastChan <- tx:
+		default:
+			enqueueErr = errors.New("broadcast channel full, could not enqueue transaction")
+		}
+	})
+	if !started {
+		return errors.New("txm stopped, could not enqueue transaction")
 	}
+	return enqueueErr
 }
 
 // Continuously listens and broadcasts enqueued transactions
@@ -249,43 +255,13 @@ func (t *Txm) broadcastLoop() {
 
 	for {
 		select {
-		case tx, ok := <-t.broadcastChan:
-			if !ok {
-				t.logger.Infow("broadcast channel closed, exiting broadcastLoop")
-				return
-			}
-
+		case tx := <-t.broadcastChan:
 			t.logger.Debugw("broadcasting transaction", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
 
-			var st tlb.StateInit
-			if tx.StateInit != nil {
-				err := tlb.Parse(&st, tx.StateInit)
-				if err != nil {
-					t.logger.Errorw("load from cell failed", "err", err, "to", tx.To.String())
-					continue
-				}
-			}
-
-			createdAt, tsErr := timeconv.UnixSeconds32(tx.CreatedAt)
-			if tsErr != nil {
-				t.logger.Errorw("invalid transaction creation time", "err", tsErr, "to", tx.To.String())
+			msg, err := newWalletMessage(tx)
+			if err != nil {
+				t.logger.Errorw("failed to build wallet message", "err", err, "to", tx.To.String())
 				continue
-			}
-
-			internalMsg := &tlb.InternalMessage{
-				SrcAddr:     &tx.From,
-				DstAddr:     &tx.To,
-				Bounce:      tx.Bounceable,
-				IHRDisabled: true,
-				Amount:      tx.Amount,
-				StateInit:   &st,
-				Body:        tx.Body,
-				CreatedAt:   createdAt,
-			}
-
-			msg := &wallet.Message{
-				Mode:            tx.Mode,
-				InternalMessage: internalMsg,
 			}
 
 			// 3. Sign and send
@@ -305,7 +281,7 @@ func (t *Txm) broadcastLoop() {
 				"mode", tx.Mode,
 				"bodyBOC", bodyBOC,
 				"bounceable", tx.Bounceable)
-			err := t.broadcastWithRetry(ctx, tx, msg, txID)
+			err = t.broadcastWithRetry(ctx, tx, msg, txID)
 			if err != nil {
 				t.logger.Errorw("broadcast failed after retries",
 					"txID", txID,
@@ -319,6 +295,34 @@ func (t *Txm) broadcastLoop() {
 			return
 		}
 	}
+}
+
+// newWalletMessage builds the wallet message for tx, attaching a StateInit only when tx has one.
+func newWalletMessage(tx *Tx) (*wallet.Message, error) {
+	var stateInit *tlb.StateInit
+	if tx.StateInit != nil {
+		stateInit = &tlb.StateInit{}
+		if err := tlb.Parse(stateInit, tx.StateInit); err != nil {
+			return nil, fmt.Errorf("failed to parse StateInit: %w", err)
+		}
+	}
+	createdAt, tsErr := timeconv.UnixSeconds32(tx.CreatedAt)
+	if tsErr != nil {
+		return nil, fmt.Errorf("invalid transaction creation time: %w", tsErr)
+	}
+	return &wallet.Message{
+		Mode: tx.Mode,
+		InternalMessage: &tlb.InternalMessage{
+			SrcAddr:     &tx.From,
+			DstAddr:     &tx.To,
+			Bounce:      tx.Bounceable,
+			IHRDisabled: true,
+			Amount:      tx.Amount,
+			StateInit:   stateInit,
+			Body:        tx.Body,
+			CreatedAt:   createdAt,
+		},
+	}, nil
 }
 
 // broadcastWithRetry Attempts to broadcast a transaction with retries on failure. We only retry if there was a
@@ -526,7 +530,8 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 					tx.ReceivedMessage = receivedMessage
 					t.logger.Warnw("trace gathering timed out, will retry next poll",
 						"LT", unconfirmedTx.LT,
-						"timeout", t.config.TraceTimeout.Duration())
+						"timeout", t.config.TraceTimeout.Duration(),
+						"error", traceErr)
 				} else {
 					t.logger.Errorw("failed to wait for trace", "LT", unconfirmedTx.LT, "error", traceErr)
 				}

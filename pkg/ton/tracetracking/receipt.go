@@ -15,14 +15,20 @@ import (
 )
 
 const (
-	// receiptPollInterval is how long findReceipt waits before retrying when the chain has not
-	// produced the next block to search yet, or a liteserver query failed.
+	// receiptPollInterval is how long findReceipt waits before looking up a block the chain has
+	// not produced yet again.
 	receiptPollInterval = time.Second
 
 	// receiptPageSize is how many transactions findReceipt lists per query. A block rarely holds
 	// more than a few transactions of the same account.
 	receiptPageSize = 16
+
+	// lsErrorNotReady is the liteserver error code for a block it does not have yet.
+	lsErrorNotReady = 651
 )
+
+// errBlockNotProduced reports that the liteserver has no block holding a logical time yet.
+var errBlockNotProduced = errors.New("block not produced yet")
 
 // findReceipt waits for the transaction in which the destination of sent receives it.
 //
@@ -37,8 +43,10 @@ const (
 // done. Shard splits and merges need no handling: blocks are looked up by the destination's account
 // prefix and by logical time, which always resolve to the shard holding the destination.
 //
-// The search records its progress in sent, so a search cut short by ctx resumes after the last block
-// it fully searched.
+// Only a block the chain has not produced yet is waited for. Any other failure is returned, so a
+// liteserver that cannot serve the search does not hold the caller until ctx is done. The search
+// records its progress in sent, so a search cut short, by ctx or by a failure, resumes after the
+// last block it fully searched.
 func findReceipt(ctx context.Context, c ton.APIClientWrapped, sent *SentMessage) (*ReceivedMessage, error) {
 	// Keep the search on one liteserver, so a block found by one is not missing on another.
 	ctx = c.Client().StickyContext(ctx)
@@ -49,8 +57,7 @@ func findReceipt(ctx context.Context, c ton.APIClientWrapped, sent *SentMessage)
 
 	for {
 		tx, err := searchNextBlock(ctx, c, sent)
-		if err != nil {
-			// The chain has not produced the block yet, or the liteserver failed: retry.
+		if errors.Is(err, errBlockNotProduced) {
 			select {
 			case <-ctx.Done():
 				return nil, fmt.Errorf("transaction receiving message from %s to %s at lt %d not found: %w (last error: %w)",
@@ -58,6 +65,10 @@ func findReceipt(ctx context.Context, c ton.APIClientWrapped, sent *SentMessage)
 			case <-time.After(receiptPollInterval):
 			}
 			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to search for transaction receiving message from %s to %s at lt %d: %w",
+				sent.InternalMsg.SrcAddr, sent.InternalMsg.DstAddr, sent.InternalMsg.CreatedLT, err)
 		}
 		if tx == nil {
 			continue
@@ -165,6 +176,9 @@ func lookupBlockByLT(ctx context.Context, c ton.APIClientWrapped, addr *address.
 		}
 		return t.ID, nil
 	case ton.LSError:
+		if t.Code == lsErrorNotReady {
+			return nil, fmt.Errorf("no block at lt %d: %w", lt, errBlockNotProduced)
+		}
 		return nil, fmt.Errorf("failed to look up block at lt %d: %w", lt, t)
 	}
 	return nil, fmt.Errorf("failed to look up block at lt %d: unexpected response %T", lt, resp)
