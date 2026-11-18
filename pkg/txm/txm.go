@@ -320,7 +320,8 @@ func newWalletMessage(tx *Tx) (*wallet.Message, error) {
 
 // broadcastWithRetry Attempts to broadcast a transaction with retries on failure. We only retry if there was a
 // failure to send the transaction, not if the transaction was broadcast but failed to execute (non-zero exit code).
-// Retries use exponential backoff starting from SendRetryDelay, doubling the delay each attempt.
+// Retries use exponential backoff starting from SendRetryDelay, doubling the delay each attempt
+// up to MaxSendRetryDelay.
 // Retries re-send the same signed external message, so the transaction is executed at most once.
 func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Message, txID string) error {
 	client, err := t.clientProvider(ctx)

@@ -297,6 +297,29 @@ func distinctMessages(sends []sentMessage) []string {
 	return hashes
 }
 
+func TestBroadcastWithRetry_RetryDelay(t *testing.T) {
+	t.Parallel()
+
+	const attempts = 15
+	api := newBroadcastMockAPI(func(n int, _ *tlb.ExternalMessage) (bool, error) {
+		if n < attempts-1 {
+			return false, errors.New("node unavailable")
+		}
+		return true, nil
+	})
+	txm, _ := newBroadcastTestTxm(t, api, tonconfig.WalletVersion, nil)
+	txm.config.MaxSendRetryAttempts = attempts
+	txm.config.MaxSendRetryDelay = config.MustNewDuration(time.Millisecond)
+	tx, msg := newBroadcastTestTx(t)
+
+	start := time.Now()
+	require.NoError(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"))
+
+	require.Len(t, api.sent(), attempts)
+	// uncapped, the delays before the last attempts would take seconds
+	require.Less(t, time.Since(start), time.Second, "delays between attempts must be capped at MaxSendRetryDelay")
+}
+
 func TestBroadcastWithRetry_ExternalMessageReuse(t *testing.T) {
 	t.Parallel()
 

@@ -61,7 +61,7 @@ type broadcast struct {
 func (b *broadcast) run(ctx context.Context) (*tracetracking.ReceivedMessage, error) {
 	retryDelay := backoff.Backoff{
 		Min:    b.t.config.SendRetryDelay.Duration(),
-		Max:    5 * time.Second,
+		Max:    b.t.config.MaxSendRetryDelay.Duration(),
 		Factor: 2,
 		Jitter: true,
 	}
