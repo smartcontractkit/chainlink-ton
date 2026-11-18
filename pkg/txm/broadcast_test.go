@@ -29,8 +29,8 @@ import (
 // errStall makes a mocked call block until its context is done.
 var errStall = errors.New("stall")
 
-// errRejected mimics the liteserver error for an external message the wallet did not accept.
-var errRejected = errors.New("lite server error, code -701: cannot apply external message to current state")
+// errRejected is the liteserver error for an external message the wallet did not accept.
+var errRejected = ton.LSError{Code: -701, Text: "cannot apply external message to current state"}
 
 // sentMessage records one external message handed to SendExternalMessageWaitTransaction.
 type sentMessage struct {

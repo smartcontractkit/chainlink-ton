@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -15,6 +16,29 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
+
+func TestIsInboundExternalMessageRejectedByAccountError(t *testing.T) {
+	t.Parallel()
+
+	rejected := ton.LSError{Code: -701, Text: "cannot apply external message to current state"}
+	for _, tc := range []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"wrapped rejection", fmt.Errorf("wallet transaction error for destination x: %w", fmt.Errorf("failed to send message: %w", rejected)), true},
+		{"bare rejection", rejected, true},
+		{"other liteserver error", fmt.Errorf("failed to send message: %w", ton.LSError{Code: 651, Text: "too big masterchain seqno"}), false},
+		{"rejection text without the liteserver error", errors.New("failed to send message: " + rejected.Error()), false},
+		{"other error", context.DeadlineExceeded, false},
+		{"no error", nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, IsInboundExternalMessageRejectedByAccountError(tc.err))
+		})
+	}
+}
 
 // lookupMockAPI is a node holding a wallet's transaction history, oldest first.
 type lookupMockAPI struct {

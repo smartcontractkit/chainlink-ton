@@ -3,8 +3,8 @@ package tracetracking
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -29,9 +29,17 @@ func NewSignedAPIClient(client ton.APIClientWrapped, wallet wallet.Wallet) Signe
 	}
 }
 
+// liteserverCodeExternalMessageRejected is the liteserver error code for an external message the
+// account did not accept.
+const liteserverCodeExternalMessageRejected = -701
+
+// IsInboundExternalMessageRejectedByAccountError reports whether err carries the liteserver's
+// rejection of an external message by the account it was sent to. Only sending a message returns
+// that code, and SendExternalWaitTransaction reports only the error of its call's first send, so
+// for its errors a match means that send was rejected.
 func IsInboundExternalMessageRejectedByAccountError(err error) bool {
-	return strings.HasPrefix(err.Error(), "wallet transaction error for destination") &&
-		strings.Contains(err.Error(), "failed to send message: lite server error, code -701")
+	var lsErr ton.LSError
+	return errors.As(err, &lsErr) && lsErr.Code == liteserverCodeExternalMessageRejected
 }
 
 // SendWaitTransaction sends a transaction to the specified address and waits for
@@ -161,8 +169,8 @@ func findInboundExternal(ctx context.Context, api ton.APIClientWrapped, acc *tlb
 
 	lt, hash := acc.LastTxLT, acc.LastTxHash
 	for lt != 0 {
-		// newest last; a non-zero lt names an existing transaction, so an empty result means the
-		// node no longer has it
+		// newest last, and never empty: a transaction the node no longer has is reported as an
+		// error (ton.ErrNoTransactionsWereFound)
 		txs, err := api.ListTransactions(ctx, addr, 15, lt, hash)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list transactions of %s from lt %d: %w", addr, lt, err)
