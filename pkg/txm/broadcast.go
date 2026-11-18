@@ -132,23 +132,25 @@ func (b *broadcast) settle(ctx context.Context, sent *signedMessage) (*tracetrac
 
 	found, coveredUntil, err := b.lookUp(ctx, sent)
 	if err != nil {
-		return nil, b.outcomeUnknown(fmt.Errorf("failed to look up the last sent message: %w", err))
+		return nil, b.outcomeUnknown(ctx, fmt.Errorf("failed to look up the last sent message: %w", err))
 	}
 	if found != nil {
 		b.t.logger.Infow("last sent message was processed after the broadcast's last attempt", "txID", b.txID)
 		return found, nil
 	}
 	if coveredUntil.Before(sent.expiresAt) {
-		return nil, b.outcomeUnknown(fmt.Errorf("the node's view reaches %s, the last sent message is acceptable until %s",
+		return nil, b.outcomeUnknown(ctx, fmt.Errorf("the node's view reaches %s, the last sent message is acceptable until %s",
 			coveredUntil.UTC().Format(time.RFC3339), sent.expiresAt.UTC().Format(time.RFC3339)))
 	}
 	return nil, nil
 }
 
 // outcomeUnknown records that it is unknown whether the transaction was executed, and returns
-// errOutcomeUnknown with err, the reason.
-func (b *broadcast) outcomeUnknown(err error) error {
+// errOutcomeUnknown with err, the reason. The broadcast is counted as failed, though the
+// transaction may have been executed; it is logged apart from a definite failure.
+func (b *broadcast) outcomeUnknown(ctx context.Context, err error) error {
 	err = fmt.Errorf("%w: %w", errOutcomeUnknown, err)
+	b.t.metrics.IncrementFailedToBroadcastTxs(ctx)
 	b.t.logger.Errorw("broadcast outcome unknown, the transaction is not tracked",
 		"txID", b.txID,
 		"err", err,

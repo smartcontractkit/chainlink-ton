@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -252,12 +253,34 @@ func newBroadcastTestTxm(t *testing.T, api *broadcastMockAPI, walletCfg wallet.C
 	cfg.SendRetryDelay = config.MustNewDuration(time.Millisecond)
 	cfg.MaxSendRetryAttempts = 50
 
-	txm, err := New(logger.Test(t), "test", nil, func(context.Context) (tracetracking.SignedAPIClient, error) {
+	// the metrics are global, so each test reports them under its own chain ID
+	txm, err := New(logger.Test(t), t.Name(), nil, func(context.Context) (tracetracking.SignedAPIClient, error) {
 		return tracetracking.NewSignedAPIClient(api, *w), nil
 	}, cfg)
 	require.NoError(t, err)
 	txm.messageClockSkew = 100 * time.Millisecond
 	return txm, w
+}
+
+// failedBroadcasts returns the failed broadcasts counted for the Txm of newBroadcastTestTxm(t).
+// The count persists across repeated runs of a test (-count), so compare it before and after.
+func failedBroadcasts(t *testing.T) float64 {
+	t.Helper()
+	families, err := prometheus.DefaultGatherer.Gather()
+	require.NoError(t, err)
+	for _, family := range families {
+		if family.GetName() != "ton_txm_tx_error_broadcast" {
+			continue
+		}
+		for _, m := range family.GetMetric() {
+			for _, label := range m.GetLabel() {
+				if label.GetName() == "chainID" && label.GetValue() == t.Name() {
+					return m.GetCounter().GetValue()
+				}
+			}
+		}
+	}
+	return 0
 }
 
 // requireSentInWindow checks that no message was sent once the wallet may consider it expired.
@@ -585,12 +608,14 @@ func TestBroadcastWithRetry_ExternalMessageReuse(t *testing.T) {
 		txm, _ := newBroadcastTestTxm(t, api, shortLivedWallet(), nil)
 		txm.config.MaxSendRetryAttempts = 2
 		tx, msg := newBroadcastTestTx(t)
+		failedBefore := failedBroadcasts(t)
 
 		err := txm.broadcastWithRetry(t.Context(), tx, msg, "id")
 		require.ErrorIs(t, err, context.DeadlineExceeded)
 		require.NotErrorIs(t, err, errOutcomeUnknown)
 		sends := api.sent()
 		require.False(t, time.Now().Before(sends[len(sends)-1].expiresAt), "the failure must wait for the message to expire")
+		require.InDelta(t, 1, failedBroadcasts(t)-failedBefore, 0)
 	})
 
 	t.Run("running out of attempts while the node's view lags reports an unknown outcome", func(t *testing.T) {
@@ -603,8 +628,10 @@ func TestBroadcastWithRetry_ExternalMessageReuse(t *testing.T) {
 		txm, _ := newBroadcastTestTxm(t, api, shortLivedWallet(), nil)
 		txm.config.MaxSendRetryAttempts = 2
 		tx, msg := newBroadcastTestTx(t)
+		failedBefore := failedBroadcasts(t)
 
 		require.ErrorIs(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"), errOutcomeUnknown)
+		require.InDelta(t, 1, failedBroadcasts(t)-failedBefore, 0, "an unknown outcome counts as a failed broadcast")
 	})
 
 	t.Run("a message processed before the transaction expired is a success", func(t *testing.T) {
