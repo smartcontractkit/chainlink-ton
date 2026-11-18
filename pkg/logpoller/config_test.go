@@ -110,6 +110,11 @@ func TestConfig_ValidateConfig(t *testing.T) {
 		{"PollPeriod at max boundary", func(c *Config) { c.PollPeriod = config.MustNewDuration(10 * time.Minute) }},
 		{"LogPollerStartingLookback at zero", func(c *Config) { c.LogPollerStartingLookback = config.MustNewDuration(0) }},
 		{"PruningStartDelay at zero", func(c *Config) { c.PruningStartDelay = config.MustNewDuration(0) }},
+		// the block count is capped, so any lookback is accepted: a huge one reaches back to genesis
+		{"lookback block count beyond uint32", func(c *Config) {
+			c.BlockTime = config.MustNewDuration(time.Millisecond)
+			c.LogPollerStartingLookback = config.MustNewDuration(1200 * time.Hour)
+		}},
 	}
 
 	for _, tc := range validTests {
@@ -137,10 +142,6 @@ func TestConfig_ValidateConfig(t *testing.T) {
 		{"BlockTime is nil", func(c *Config) { c.BlockTime = nil }},
 		{"BlockTime is zero", func(c *Config) { c.BlockTime = config.MustNewDuration(0) }},
 		{"LogPollerStartingLookback is nil", func(c *Config) { c.LogPollerStartingLookback = nil }},
-		{"lookback block count overflows uint32", func(c *Config) {
-			c.BlockTime = config.MustNewDuration(time.Millisecond)
-			c.LogPollerStartingLookback = config.MustNewDuration(1200 * time.Hour)
-		}},
 		{"PruningInterval is nil", func(c *Config) { c.PruningInterval = nil }},
 		{"PruningInterval too small", func(c *Config) { c.PruningInterval = config.MustNewDuration(30 * time.Second) }},
 		{"PruningInterval too large", func(c *Config) { c.PruningInterval = config.MustNewDuration(2 * time.Hour) }},

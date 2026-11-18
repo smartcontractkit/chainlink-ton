@@ -130,54 +130,30 @@ func TestBlockCount(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := blockCount(tc.d, bt)
-			require.NoError(t, err)
-			require.Equal(t, tc.want, got)
+			require.Equal(t, tc.want, blockCount(tc.d, bt))
 		})
 	}
 
 	t.Run("zero duration is one block for any block time", func(t *testing.T) {
 		for _, blockTime := range []time.Duration{time.Nanosecond, 2 * time.Nanosecond, bt, time.Hour} {
-			got, err := blockCount(0, blockTime)
-			require.NoError(t, err)
-			require.Equal(t, uint32(1), got, "blockTime=%s", blockTime)
+			require.Equal(t, uint32(1), blockCount(0, blockTime), "blockTime=%s", blockTime)
 		}
 	})
 
 	t.Run("1ns block time", func(t *testing.T) {
-		got, err := blockCount(1, time.Nanosecond)
-		require.NoError(t, err)
-		require.Equal(t, uint32(1), got)
-
-		got, err = blockCount(time.Second, time.Nanosecond)
-		require.NoError(t, err)
-		require.Equal(t, uint32(1_000_000_000), got)
+		require.Equal(t, uint32(1), blockCount(1, time.Nanosecond))
+		require.Equal(t, uint32(1_000_000_000), blockCount(time.Second, time.Nanosecond))
 	})
 
 	t.Run("max uint32 boundary", func(t *testing.T) {
-		got, err := blockCount(time.Duration(math.MaxUint32), 1)
-		require.NoError(t, err)
-		require.Equal(t, uint32(math.MaxUint32), got)
-
-		_, err = blockCount(time.Duration(math.MaxUint32)+1, 1)
-		require.Error(t, err)
+		require.Equal(t, uint32(math.MaxUint32), blockCount(time.Duration(math.MaxUint32), 1))
+		require.Equal(t, uint32(math.MaxUint32-1), blockCount(time.Duration(math.MaxUint32-1), 1))
 	})
 
-	t.Run("max duration with small block time overflows", func(t *testing.T) {
-		_, err := blockCount(time.Duration(math.MaxInt64), time.Millisecond)
-		require.Error(t, err)
-	})
-
-	t.Run("rejects zero block time", func(t *testing.T) {
-		_, err := blockCount(time.Hour, 0)
-		require.Error(t, err)
-	})
-
-	t.Run("rejects negative inputs", func(t *testing.T) {
-		_, err := blockCount(-time.Second, bt)
-		require.Error(t, err)
-		_, err = blockCount(time.Hour, -bt)
-		require.Error(t, err)
+	t.Run("counts beyond uint32 are capped", func(t *testing.T) {
+		require.Equal(t, uint32(math.MaxUint32), blockCount(time.Duration(math.MaxUint32)+1, 1))
+		require.Equal(t, uint32(math.MaxUint32), blockCount(1200*time.Hour, time.Millisecond))
+		require.Equal(t, uint32(math.MaxUint32), blockCount(time.Duration(math.MaxInt64), 1))
 	})
 }
 
@@ -190,8 +166,7 @@ func TestComputeLookbackWindow(t *testing.T) {
 		lookbackDuration := 50 * time.Second // Go back 50 seconds
 		blockTime := 2500 * time.Millisecond // 2.5 second block time
 
-		result, err := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
-		require.NoError(t, err)
+		result := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
 
 		// ceil(50s / 2.5s) = ceil(20) = 20 blocks back, so 1000 - 20 = 980
 		expected := uint32(980)
@@ -204,8 +179,7 @@ func TestComputeLookbackWindow(t *testing.T) {
 		lookbackDuration := 51 * time.Second // Go back 51 seconds (not evenly divisible)
 		blockTime := 2500 * time.Millisecond // 2.5 second block time
 
-		result, err := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
-		require.NoError(t, err)
+		result := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
 
 		// ceil(51s / 2.5s) = ceil(20.4) = 21 blocks back, so 1000 - 21 = 979
 		expected := uint32(979)
@@ -218,8 +192,7 @@ func TestComputeLookbackWindow(t *testing.T) {
 		lookbackDuration := 100 * time.Second // Go back 100 seconds
 		blockTime := 2500 * time.Millisecond  // 2.5 second block time
 
-		result, err := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
-		require.NoError(t, err)
+		result := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
 
 		// ceil(100s / 2.5s) = ceil(40) = 40 blocks back, but currentSeqNo (5) < 40, so return 0
 		expected := uint32(0)
@@ -232,8 +205,7 @@ func TestComputeLookbackWindow(t *testing.T) {
 		lookbackDuration := DefaultConfigSet.LogPollerStartingLookback.Duration() // 24 hours
 		blockTime := DefaultConfigSet.BlockTime.Duration()                        // 2.5 seconds
 
-		result, err := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
-		require.NoError(t, err)
+		result := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
 
 		// ceil(24h / 2.5s) = ceil(86400s / 2.5s) = ceil(34560) = 34560 blocks back, so 50000 - 34560 = 15440
 		expected := uint32(15440)
@@ -242,21 +214,16 @@ func TestComputeLookbackWindow(t *testing.T) {
 
 	t.Run("zero lookback with 1ns block time looks back one block", func(t *testing.T) {
 		t.Parallel()
-		result, err := computeLookbackWindow(1000, 0, time.Nanosecond)
-		require.NoError(t, err)
+		result := computeLookbackWindow(1000, 0, time.Nanosecond)
 		require.Equal(t, uint32(999), result, "checkpoint must be behind the head")
 	})
 
-	t.Run("zero block time errors", func(t *testing.T) {
+	t.Run("block count beyond uint32 looks back to genesis", func(t *testing.T) {
 		t.Parallel()
-		_, err := computeLookbackWindow(1000, time.Hour, 0)
-		require.Error(t, err)
-	})
-
-	t.Run("block count overflowing uint32 errors", func(t *testing.T) {
-		t.Parallel()
-		_, err := computeLookbackWindow(1000, 1200*time.Hour, time.Millisecond)
-		require.Error(t, err)
+		// 1200h of 1ms blocks is more than MaxUint32 blocks: capped, it still reaches genesis
+		// from the highest possible seqno.
+		result := computeLookbackWindow(math.MaxUint32, 1200*time.Hour, time.Millisecond)
+		require.Equal(t, uint32(0), result)
 	})
 }
 

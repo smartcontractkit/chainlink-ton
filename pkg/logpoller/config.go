@@ -165,15 +165,15 @@ func (c *Config) ValidateConfig() (err error) {
 		return fmt.Errorf("poll_period %v is too large (maximum: %v)", pollDuration, maxPollPeriod)
 	}
 
-	// Validate the lookback window: the block count derived from it must fit in a uint32.
+	// Validate the lookback window inputs: blockCount divides by the block time.
 	if c.BlockTime == nil {
 		return errors.New("block_time must be set")
 	}
+	if c.BlockTime.Duration() <= 0 {
+		return errors.New("block_time must be positive")
+	}
 	if c.LogPollerStartingLookback == nil {
 		return errors.New("log_poller_starting_lookback must be set")
-	}
-	if _, err = blockCount(c.LogPollerStartingLookback.Duration(), c.BlockTime.Duration()); err != nil {
-		return fmt.Errorf("invalid log_poller_starting_lookback / block_time: %w", err)
 	}
 
 	// Validate pruning configuration

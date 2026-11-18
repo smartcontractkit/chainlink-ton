@@ -90,10 +90,7 @@ func (lp *service) getOrComputeCheckpointSeqNo(ctx context.Context, currentMaste
 		return 0, errors.New("current masterchain seqno is 0 - waiting for next block to start processing")
 	}
 
-	lookbackSeqNo, err := computeLookbackWindow(currentMasterchainBlock.SeqNo, lp.startingLookback, lp.blockTime)
-	if err != nil {
-		return 0, fmt.Errorf("failed to compute lookback window: %w", err)
-	}
+	lookbackSeqNo := computeLookbackWindow(currentMasterchainBlock.SeqNo, lp.startingLookback, lp.blockTime)
 
 	lp.lggr.Debugw("Starting from lookback window",
 		"fromSeqNo", lookbackSeqNo,
@@ -133,13 +130,10 @@ func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlockS
 
 // computeLookbackWindow calculates the lookback sequence number
 // based on the current sequence number, lookback duration, and block time.
-// It errors if blockTime is not positive or the number of blocks does not fit in a uint32.
-func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, blockTime time.Duration) (uint32, error) {
+// lookbackDuration must not be negative and blockTime must be positive, see blockCount.
+func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, blockTime time.Duration) uint32 {
 	// Calculate how many blocks to go back based on time duration, rounding up like Solana.
-	lookbackBlocks, err := blockCount(lookbackDuration, blockTime)
-	if err != nil {
-		return 0, err
-	}
+	lookbackBlocks := blockCount(lookbackDuration, blockTime)
 
 	var lookbackSeqNo uint32
 	if currentSeqNo > lookbackBlocks {
@@ -153,28 +147,22 @@ func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, 
 		lookbackSeqNo = 0
 	}
 
-	return lookbackSeqNo, nil
+	return lookbackSeqNo
 }
 
-// blockCount returns the number of blocks of length blockTime needed to cover d, rounded up and
-// never less than one. It errors if d is negative, blockTime is not positive, or the count does
-// not fit in a uint32.
-func blockCount(d, blockTime time.Duration) (uint32, error) {
-	if d < 0 {
-		return 0, fmt.Errorf("duration must not be negative, got %s", d)
-	}
-	if blockTime <= 0 {
-		return 0, errors.New("block time must be positive")
-	}
+// blockCount returns the number of blocks of length blockTime needed to cover d: rounded up, at
+// least one, and capped at math.MaxUint32, since no masterchain seqno is higher and a larger count
+// reaches back to genesis all the same. d must not be negative and blockTime must be positive.
+func blockCount(d, blockTime time.Duration) uint32 {
 	if d == 0 {
-		return 1, nil
+		return 1
 	}
 	// For d >= 1, ceil(d/blockTime) = (d-1)/blockTime + 1.
-	count := int64((d-1)/blockTime) + 1
+	count := (d-1)/blockTime + 1
 	if count > math.MaxUint32 {
-		return 0, fmt.Errorf("%s of %s blocks (%d) exceeds the uint32 block count range", d, blockTime, count)
+		return math.MaxUint32
 	}
-	return uint32(count), nil //nolint:gosec // G115: range checked above, count >= 1
+	return uint32(count) //nolint:gosec // G115: 1 <= count <= MaxUint32
 }
 
 // resolveMCBlockSeqNo returns the masterchain block sequence number that finalized the given shard block.
