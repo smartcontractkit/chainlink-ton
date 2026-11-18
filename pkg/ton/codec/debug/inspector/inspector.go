@@ -140,7 +140,6 @@ func readStorage(
 	case contractTypeFeeQuoter:
 		target := &model.FeeQuoterStorage{}
 		if err = model.FromBindingDataHex(target, dataHex); err != nil {
-			lggr.Errorf("Failed to decode FeeQuoter storage: %v", err)
 			return nil, fmt.Errorf("unable to decode FeeQuoter storage: %w", err)
 		}
 		storage = target
@@ -148,7 +147,6 @@ func readStorage(
 	case contractTypeRouter:
 		target := &model.RouterStorage{}
 		if err = model.FromBindingDataHex(target, dataHex); err != nil {
-			lggr.Errorf("Failed to decode Router storage: %v", err)
 			return nil, fmt.Errorf("unable to decode Router storage: %w", err)
 		}
 		storage = target
@@ -156,7 +154,6 @@ func readStorage(
 	case contractTypeMerkleRoot:
 		target := &model.MerkleRootStorage{}
 		if err = model.FromBindingDataHex(target, dataHex); err != nil {
-			lggr.Errorf("Failed to decode MerkleRoot storage: %v", err)
 			return nil, fmt.Errorf("unable to decode MerkleRoot storage: %w", err)
 		}
 		storage = target
@@ -164,7 +161,6 @@ func readStorage(
 	case contractTypeOffRamp:
 		target := &model.OffRampStorage{}
 		if err = model.FromBindingDataHex(target, dataHex); err != nil {
-			lggr.Errorf("Failed to decode OffRamp storage: %v", err)
 			return nil, fmt.Errorf("unable to decode OffRamp storage: %w", err)
 		}
 		storage = target
@@ -172,7 +168,6 @@ func readStorage(
 	case contractTypeOnRamp:
 		target := &model.OnRampStorage{}
 		if err = model.FromBindingDataHex(target, dataHex); err != nil {
-			lggr.Errorf("Failed to decode OnRamp storage: %v", err)
 			return nil, fmt.Errorf("unable to decode OnRamp storage: %w", err)
 		}
 		storage = target
