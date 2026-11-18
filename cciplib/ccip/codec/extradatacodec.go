@@ -147,6 +147,9 @@ func normalizeFieldValue(field reflect.StructField, val any) (any, error) {
 
 // DecodeDestExecDataToMap is a helper function for converting dest exec data bytes into map[string]any
 func (d extraDataDecoder) DecodeDestExecDataToMap(destExecData ccipocr3.Bytes) (map[string]any, error) {
+	if len(destExecData) != 4 {
+		return nil, fmt.Errorf("dest exec data must be exactly 4 bytes, got %d", len(destExecData))
+	}
 	return map[string]any{
 		tvmDestExecDataKey: binary.BigEndian.Uint32(destExecData),
 	}, nil
