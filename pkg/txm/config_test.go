@@ -1,6 +1,7 @@
 package txm
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -79,7 +80,8 @@ func TestConfig_ValidateTxExpiration(t *testing.T) {
 	for name, d := range map[string]time.Duration{
 		"zero":    0,
 		"default": 5 * time.Minute,
-		"max":     maxTxExpiration,
+		// any duration is accepted: no TxExpiration can make the expiration timestamp overflow
+		"max duration": math.MaxInt64,
 	} {
 		t.Run("accepts "+name, func(t *testing.T) {
 			cfg := valid()
@@ -87,12 +89,6 @@ func TestConfig_ValidateTxExpiration(t *testing.T) {
 			assert.NoError(t, cfg.ValidateConfig())
 		})
 	}
-
-	t.Run("rejects above max", func(t *testing.T) {
-		cfg := valid()
-		cfg.TxExpiration = config.MustNewDuration(maxTxExpiration + time.Nanosecond)
-		assert.ErrorContains(t, cfg.ValidateConfig(), "TxExpiration")
-	})
 
 	t.Run("rejects nil", func(t *testing.T) {
 		cfg := valid()
