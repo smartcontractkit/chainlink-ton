@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -11,7 +12,6 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/timeconv"
 )
 
 // getMasterchainCurrentBlock retrieves the current masterchain block information.
@@ -136,7 +136,7 @@ func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlockS
 // It errors if blockTime is not positive or the number of blocks does not fit in a uint32.
 func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, blockTime time.Duration) (uint32, error) {
 	// Calculate how many blocks to go back based on time duration, rounding up like Solana.
-	lookbackBlocks, err := timeconv.BlockCount(lookbackDuration, blockTime)
+	lookbackBlocks, err := blockCount(lookbackDuration, blockTime)
 	if err != nil {
 		return 0, err
 	}
@@ -154,6 +154,27 @@ func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, 
 	}
 
 	return lookbackSeqNo, nil
+}
+
+// blockCount returns the number of blocks of length blockTime needed to cover d, rounded up and
+// never less than one. It errors if d is negative, blockTime is not positive, or the count does
+// not fit in a uint32.
+func blockCount(d, blockTime time.Duration) (uint32, error) {
+	if d < 0 {
+		return 0, fmt.Errorf("duration must not be negative, got %s", d)
+	}
+	if blockTime <= 0 {
+		return 0, errors.New("block time must be positive")
+	}
+	if d == 0 {
+		return 1, nil
+	}
+	// For d >= 1, ceil(d/blockTime) = (d-1)/blockTime + 1.
+	count := int64((d-1)/blockTime) + 1
+	if count > math.MaxUint32 {
+		return 0, fmt.Errorf("%s of %s blocks (%d) exceeds the uint32 block count range", d, blockTime, count)
+	}
+	return uint32(count), nil //nolint:gosec // G115: range checked above, count >= 1
 }
 
 // resolveMCBlockSeqNo returns the masterchain block sequence number that finalized the given shard block.

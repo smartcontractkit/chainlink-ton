@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
-
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/timeconv"
 )
 
 // Reasonable operational bounds: between 100ms and 10 minutes
@@ -174,7 +172,7 @@ func (c *Config) ValidateConfig() (err error) {
 	if c.LogPollerStartingLookback == nil {
 		return errors.New("log_poller_starting_lookback must be set")
 	}
-	if _, err = timeconv.BlockCount(c.LogPollerStartingLookback.Duration(), c.BlockTime.Duration()); err != nil {
+	if _, err = blockCount(c.LogPollerStartingLookback.Duration(), c.BlockTime.Duration()); err != nil {
 		return fmt.Errorf("invalid log_poller_starting_lookback / block_time: %w", err)
 	}
 

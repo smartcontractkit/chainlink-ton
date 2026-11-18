@@ -24,7 +24,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/timeconv"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
@@ -215,18 +214,9 @@ func (t *Txm) Enqueue(request Request) error {
 		}
 	}
 
-	txExpiration := t.config.TxExpiration.Duration()
-	tx := &Tx{
-		Mode:       request.Mode,
-		From:       *request.FromWallet.Address(),
-		To:         request.ContractAddress,
-		Amount:     request.Amount,
-		Body:       request.Body,
-		StateInit:  request.StateInit,
-		Bounceable: request.Bounce,
-		CreatedAt:  time.Now(),
-		Expiration: time.Now().Add(txExpiration),
-		ID:         request.ID,
+	tx, err := newTx(request, time.Now(), t.config.TxExpiration.Duration())
+	if err != nil {
+		return err
 	}
 
 	// IfStarted holds the state read lock, so the submission cannot interleave with Close.
@@ -306,10 +296,6 @@ func newWalletMessage(tx *Tx) (*wallet.Message, error) {
 			return nil, fmt.Errorf("failed to parse StateInit: %w", err)
 		}
 	}
-	createdAt, tsErr := timeconv.UnixSeconds32(tx.CreatedAt)
-	if tsErr != nil {
-		return nil, fmt.Errorf("invalid transaction creation time: %w", tsErr)
-	}
 	return &wallet.Message{
 		Mode: tx.Mode,
 		InternalMessage: &tlb.InternalMessage{
@@ -320,7 +306,7 @@ func newWalletMessage(tx *Tx) (*wallet.Message, error) {
 			Amount:      tx.Amount,
 			StateInit:   stateInit,
 			Body:        tx.Body,
-			CreatedAt:   createdAt,
+			CreatedAt:   uint32(tx.CreatedAt.Unix()), //nolint:gosec // G115: fits in a uint32, see Tx.CreatedAt
 		},
 	}, nil
 }
@@ -457,10 +443,7 @@ retryLoop:
 		return fmt.Errorf("txStore not found for sender %s", walletAddr)
 	}
 
-	expirationTimestampMs, err := timeconv.UnixMillisU64(tx.Expiration)
-	if err != nil {
-		return fmt.Errorf("invalid transaction expiration: %w", err)
-	}
+	expirationTimestampMs := uint64(tx.Expiration.UnixMilli()) // exact, see Tx.Expiration
 	err = txStore.AddUnconfirmed(receivedMessage.LamportTime, expirationTimestampMs, tx)
 	if err != nil {
 		t.logger.Errorf("AddUnconfirmed err: %v", err)
@@ -608,11 +591,12 @@ func (t *Txm) cleanupLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			currentTimeMs, err := timeconv.UnixMillisU64(time.Now())
-			if err != nil {
+			now := time.Now()
+			if err := validateUnixMillis(now); err != nil {
 				t.logger.Errorw("cleanup skipped: invalid current time", "err", err)
 				continue
 			}
+			currentTimeMs := uint64(now.UnixMilli()) // exact, validated above
 			finalizedLTs, expiredLTs := t.accountStore.CleanupAll(currentTimeMs)
 
 			if len(finalizedLTs) > 0 || len(expiredLTs) > 0 {
