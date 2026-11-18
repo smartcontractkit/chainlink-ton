@@ -27,6 +27,9 @@ type Config struct {
 	EnableTraceLogging *bool            // Whether to gather and log full transaction traces for debugging
 }
 
+// maxTxExpiration is the upper bound accepted for TxExpiration.
+const maxTxExpiration = 7 * 24 * time.Hour
+
 var DefaultConfigSet = Config{
 	BroadcastChanSize:   100,
 	ConfirmPollInterval: config.MustNewDuration(5 * time.Second),
@@ -100,6 +103,8 @@ func (c *Config) ValidateConfig() (err error) {
 
 	if c.TxExpiration == nil {
 		err = errors.Join(err, config.ErrMissing{Name: "TxExpiration", Msg: "must be set"})
+	} else if d := c.TxExpiration.Duration(); d < 0 || d > maxTxExpiration {
+		err = errors.Join(err, config.ErrInvalid{Name: "TxExpiration", Msg: "must be between 0 and " + maxTxExpiration.String()})
 	}
 	if c.CleanupInterval == nil {
 		err = errors.Join(err, config.ErrMissing{Name: "CleanupInterval", Msg: "must be set"})

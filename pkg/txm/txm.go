@@ -24,6 +24,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/timeconv"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
@@ -265,6 +266,12 @@ func (t *Txm) broadcastLoop() {
 				}
 			}
 
+			createdAt, tsErr := timeconv.UnixSeconds32(tx.CreatedAt)
+			if tsErr != nil {
+				t.logger.Errorw("invalid transaction creation time", "err", tsErr, "to", tx.To.String())
+				continue
+			}
+
 			internalMsg := &tlb.InternalMessage{
 				SrcAddr:     &tx.From,
 				DstAddr:     &tx.To,
@@ -273,7 +280,7 @@ func (t *Txm) broadcastLoop() {
 				Amount:      tx.Amount,
 				StateInit:   &st,
 				Body:        tx.Body,
-				CreatedAt:   uint32(tx.CreatedAt.Unix()), //nolint:gosec // ignoring G115 overflow conversion
+				CreatedAt:   createdAt,
 			}
 
 			msg := &wallet.Message{
@@ -446,7 +453,10 @@ retryLoop:
 		return fmt.Errorf("txStore not found for sender %s", walletAddr)
 	}
 
-	expirationTimestampMs := uint64(tx.Expiration.UnixMilli())
+	expirationTimestampMs, err := timeconv.UnixMillisU64(tx.Expiration)
+	if err != nil {
+		return fmt.Errorf("invalid transaction expiration: %w", err)
+	}
 	err = txStore.AddUnconfirmed(receivedMessage.LamportTime, expirationTimestampMs, tx)
 	if err != nil {
 		t.logger.Errorf("AddUnconfirmed err: %v", err)
@@ -593,7 +603,11 @@ func (t *Txm) cleanupLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			currentTimeMs := uint64(time.Now().UnixMilli())
+			currentTimeMs, err := timeconv.UnixMillisU64(time.Now())
+			if err != nil {
+				t.logger.Errorw("cleanup skipped: invalid current time", "err", err)
+				continue
+			}
 			finalizedLTs, expiredLTs := t.accountStore.CleanupAll(currentTimeMs)
 
 			if len(finalizedLTs) > 0 || len(expiredLTs) > 0 {

@@ -68,3 +68,35 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 		assert.Equal(t, original.CleanupInterval, customConfig.CleanupInterval)
 	})
 }
+
+func TestConfig_ValidateTxExpiration(t *testing.T) {
+	valid := func() Config {
+		cfg := Config{}
+		cfg.ApplyDefaults()
+		return cfg
+	}
+
+	for name, d := range map[string]time.Duration{
+		"zero":    0,
+		"default": 5 * time.Minute,
+		"max":     maxTxExpiration,
+	} {
+		t.Run("accepts "+name, func(t *testing.T) {
+			cfg := valid()
+			cfg.TxExpiration = config.MustNewDuration(d)
+			assert.NoError(t, cfg.ValidateConfig())
+		})
+	}
+
+	t.Run("rejects above max", func(t *testing.T) {
+		cfg := valid()
+		cfg.TxExpiration = config.MustNewDuration(maxTxExpiration + time.Nanosecond)
+		assert.ErrorContains(t, cfg.ValidateConfig(), "TxExpiration")
+	})
+
+	t.Run("rejects nil", func(t *testing.T) {
+		cfg := valid()
+		cfg.TxExpiration = nil
+		assert.ErrorContains(t, cfg.ValidateConfig(), "TxExpiration")
+	})
+}
