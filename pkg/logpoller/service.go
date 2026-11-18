@@ -421,7 +421,8 @@ func (lp *service) loadTxsForAddresses(
 }
 
 // resolveTxsMCBlock resolves masterchain block seqno for each transaction and forwards to output channel.
-// On resolution failure after retries, tx proceeds with MCBlockSeqno=0 to avoid data loss.
+// A resolution failure after retries is sent on errsOut, which fails the range so it is retried;
+// the tx is still forwarded, with MCBlockSeqno=0, so the pipeline keeps draining.
 func (lp *service) resolveTxsMCBlock(ctx context.Context, rawTxsCh <-chan models.Tx, txsOut chan<- models.Tx, errsOut chan<- error) {
 	defer close(txsOut)
 	defer close(errsOut)
