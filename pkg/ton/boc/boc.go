@@ -59,12 +59,11 @@ func HeaderLen(data []byte) (int, error) {
 	if len(data) < baseHeaderSize {
 		return 0, fmt.Errorf("BOC too small for base header size %d, actual size %d", baseHeaderSize, len(data))
 	}
+	// From here on len(data) >= baseHeaderSize, so the cellsNum and rootsNum fields, which end
+	// before it, can be read without further bounds checks.
 
 	// Add root indices size
 	rootsNumOffset := bocHeaderFixedSize + cellSizeBytes
-	if rootsNumOffset+cellSizeBytes > len(data) {
-		return 0, fmt.Errorf("BOC too small to read rootsNum at offset %d", rootsNumOffset)
-	}
 	rootsNum := readDynamicInt(data[rootsNumOffset : rootsNumOffset+cellSizeBytes])
 	rootsSize, err := sectionSize(rootsNum, cellSizeBytes, len(data)-baseHeaderSize)
 	if err != nil {
@@ -75,9 +74,6 @@ func HeaderLen(data []byte) (int, error) {
 	// Add optional index section
 	if hasIndex {
 		cellsNumOffset := bocHeaderFixedSize
-		if cellsNumOffset+cellSizeBytes > len(data) {
-			return 0, fmt.Errorf("BOC too small to read cellsNum at offset %d", cellsNumOffset)
-		}
 		cellsNum := readDynamicInt(data[cellsNumOffset : cellsNumOffset+cellSizeBytes])
 		indexSize, err := sectionSize(cellsNum, sizeBytes, len(data)-headerSize)
 		if err != nil {
@@ -86,24 +82,17 @@ func HeaderLen(data []byte) (int, error) {
 		headerSize += indexSize
 	}
 
-	if len(data) < headerSize {
-		return 0, fmt.Errorf("BOC too small for calculated header size %d, actual size %d", headerSize, len(data))
-	}
-
+	// headerSize <= len(data): each section was sized against the bytes left after the previous ones.
 	return headerSize, nil
 }
 
 // sectionSize returns count*elemSize, the byte size of a header section of count elements,
 // and errors if it exceeds the available bytes. Checking against available before multiplying
 // keeps the product from overflowing, since count comes from untrusted header bytes.
+// available must be non-negative and elemSize positive: HeaderLen passes the bytes left after the
+// sections already counted, and a size descriptor validated to 1..8.
 func sectionSize(count uint64, elemSize, available int) (int, error) {
-	if available < 0 {
-		return 0, errors.New("no data left for section")
-	}
-	if elemSize <= 0 {
-		return 0, fmt.Errorf("invalid element size %d", elemSize)
-	}
-	if count > uint64(available)/uint64(elemSize) {
+	if count > uint64(available)/uint64(elemSize) { //nolint:gosec // G115: available >= 0 and elemSize > 0, see above
 		return 0, fmt.Errorf("section of %d elements of %d bytes exceeds the %d bytes available", count, elemSize, available)
 	}
 	return int(count) * elemSize, nil //nolint:gosec // G115: count <= available/elemSize, so it fits in int

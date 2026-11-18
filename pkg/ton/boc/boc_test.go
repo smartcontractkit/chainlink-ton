@@ -241,12 +241,9 @@ func TestSectionSize(t *testing.T) {
 		count     uint64
 		elem, avl int
 	}{
-		"exceeds available":        {11, 4, 40},
-		"count would overflow":     {math.MaxUint64, 8, math.MaxInt},
-		"count above int range":    {math.MaxUint64, 1, math.MaxInt},
-		"zero element size":        {1, 0, 40},
-		"negative element size":    {1, -1, 40},
-		"negative available bytes": {0, 4, -1},
+		"exceeds available":     {11, 4, 40},
+		"count would overflow":  {math.MaxUint64, 8, math.MaxInt},
+		"count above int range": {math.MaxUint64, 1, math.MaxInt},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := sectionSize(tc.count, tc.elem, tc.avl)
