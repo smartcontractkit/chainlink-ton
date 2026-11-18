@@ -122,7 +122,7 @@ func (r *Relayer) NewCCIPProvider(ctx context.Context, cargs commontypes.CCIPPro
 	}
 	chainSelector, ok := chain_selectors.TonChainIdToChainSelector()[int32(chainID)]
 	if !ok {
-		return nil, fmt.Errorf("invalid chain ID %d: could not find chain selector: %w", chainID, err)
+		return nil, fmt.Errorf("invalid chain ID %d: could not find chain selector", chainID)
 	}
 
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
