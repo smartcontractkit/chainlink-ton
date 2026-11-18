@@ -81,9 +81,12 @@ func validConfig() *Config {
 		MinBatchSize:      500,
 		SaveThreshold:     8000,
 		PollPeriod:        config.MustNewDuration(5 * time.Second),
+		BlockTime:         config.MustNewDuration(2500 * time.Millisecond),
 		PruningInterval:   config.MustNewDuration(10 * time.Minute),
 		PruningBatchSize:  1000,
 		PruningStartDelay: config.MustNewDuration(1 * time.Minute),
+
+		LogPollerStartingLookback: config.MustNewDuration(24 * time.Hour),
 	}
 }
 
@@ -105,6 +108,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 		{"base config", func(c *Config) {}},
 		{"PollPeriod at min boundary", func(c *Config) { c.PollPeriod = config.MustNewDuration(100 * time.Millisecond) }},
 		{"PollPeriod at max boundary", func(c *Config) { c.PollPeriod = config.MustNewDuration(10 * time.Minute) }},
+		{"LogPollerStartingLookback at zero", func(c *Config) { c.LogPollerStartingLookback = config.MustNewDuration(0) }},
 		{"PruningStartDelay at zero", func(c *Config) { c.PruningStartDelay = config.MustNewDuration(0) }},
 	}
 
@@ -130,6 +134,13 @@ func TestConfig_ValidateConfig(t *testing.T) {
 		{"PollPeriod is zero", func(c *Config) { c.PollPeriod = config.MustNewDuration(0) }},
 		{"PollPeriod too small", func(c *Config) { c.PollPeriod = config.MustNewDuration(time.Millisecond) }},
 		{"PollPeriod too large", func(c *Config) { c.PollPeriod = config.MustNewDuration(20 * time.Minute) }},
+		{"BlockTime is nil", func(c *Config) { c.BlockTime = nil }},
+		{"BlockTime is zero", func(c *Config) { c.BlockTime = config.MustNewDuration(0) }},
+		{"LogPollerStartingLookback is nil", func(c *Config) { c.LogPollerStartingLookback = nil }},
+		{"lookback block count overflows uint32", func(c *Config) {
+			c.BlockTime = config.MustNewDuration(time.Millisecond)
+			c.LogPollerStartingLookback = config.MustNewDuration(1200 * time.Hour)
+		}},
 		{"PruningInterval is nil", func(c *Config) { c.PruningInterval = nil }},
 		{"PruningInterval too small", func(c *Config) { c.PruningInterval = config.MustNewDuration(30 * time.Second) }},
 		{"PruningInterval too large", func(c *Config) { c.PruningInterval = config.MustNewDuration(2 * time.Hour) }},

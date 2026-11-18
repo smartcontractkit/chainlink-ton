@@ -3,6 +3,7 @@
 package timeconv
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -25,4 +26,22 @@ func UnixMillisU64(t time.Time) (uint64, error) {
 		return 0, fmt.Errorf("timestamp %s is before the unix epoch", t.UTC().Format(time.RFC3339))
 	}
 	return uint64(ms), nil //nolint:gosec // G115: non-negative, checked above
+}
+
+// BlockCount returns the number of blocks of length blockTime needed to cover d, rounded up and
+// never less than one. It errors if d is negative, blockTime is not positive, or the count does
+// not fit in a uint32.
+func BlockCount(d, blockTime time.Duration) (uint32, error) {
+	if d < 0 {
+		return 0, fmt.Errorf("duration must not be negative, got %s", d)
+	}
+	if blockTime <= 0 {
+		return 0, errors.New("block time must be positive")
+	}
+	// ceil(d/blockTime) = (d-1)/blockTime + 1 for d >= 1; d == 0 yields the minimum of one block.
+	count := int64((d-1)/blockTime) + 1
+	if count > math.MaxUint32 {
+		return 0, fmt.Errorf("%s of %s blocks (%d) exceeds the uint32 block count range", d, blockTime, count)
+	}
+	return uint32(count), nil //nolint:gosec // G115: range checked above, count >= 1
 }

@@ -121,7 +121,8 @@ func TestComputeLookbackWindow(t *testing.T) {
 		lookbackDuration := 50 * time.Second // Go back 50 seconds
 		blockTime := 2500 * time.Millisecond // 2.5 second block time
 
-		result := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
+		result, err := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
+		require.NoError(t, err)
 
 		// ceil(50s / 2.5s) = ceil(20) = 20 blocks back, so 1000 - 20 = 980
 		expected := uint32(980)
@@ -134,7 +135,8 @@ func TestComputeLookbackWindow(t *testing.T) {
 		lookbackDuration := 51 * time.Second // Go back 51 seconds (not evenly divisible)
 		blockTime := 2500 * time.Millisecond // 2.5 second block time
 
-		result := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
+		result, err := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
+		require.NoError(t, err)
 
 		// ceil(51s / 2.5s) = ceil(20.4) = 21 blocks back, so 1000 - 21 = 979
 		expected := uint32(979)
@@ -147,7 +149,8 @@ func TestComputeLookbackWindow(t *testing.T) {
 		lookbackDuration := 100 * time.Second // Go back 100 seconds
 		blockTime := 2500 * time.Millisecond  // 2.5 second block time
 
-		result := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
+		result, err := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
+		require.NoError(t, err)
 
 		// ceil(100s / 2.5s) = ceil(40) = 40 blocks back, but currentSeqNo (5) < 40, so return 0
 		expected := uint32(0)
@@ -160,11 +163,24 @@ func TestComputeLookbackWindow(t *testing.T) {
 		lookbackDuration := DefaultConfigSet.LogPollerStartingLookback.Duration() // 24 hours
 		blockTime := DefaultConfigSet.BlockTime.Duration()                        // 2.5 seconds
 
-		result := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
+		result, err := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
+		require.NoError(t, err)
 
 		// ceil(24h / 2.5s) = ceil(86400s / 2.5s) = ceil(34560) = 34560 blocks back, so 50000 - 34560 = 15440
 		expected := uint32(15440)
 		require.Equal(t, expected, result)
+	})
+
+	t.Run("zero block time errors", func(t *testing.T) {
+		t.Parallel()
+		_, err := computeLookbackWindow(1000, time.Hour, 0)
+		require.Error(t, err)
+	})
+
+	t.Run("block count overflowing uint32 errors", func(t *testing.T) {
+		t.Parallel()
+		_, err := computeLookbackWindow(1000, 1200*time.Hour, time.Millisecond)
+		require.Error(t, err)
 	})
 }
 

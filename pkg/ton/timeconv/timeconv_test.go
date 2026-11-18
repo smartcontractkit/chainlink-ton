@@ -39,3 +39,52 @@ func TestUnixMillisU64(t *testing.T) {
 	_, err = UnixMillisU64(time.Time{})
 	require.Error(t, err)
 }
+
+func TestBlockCount(t *testing.T) {
+	const bt = 2500 * time.Millisecond
+
+	tests := []struct {
+		name string
+		d    time.Duration
+		want uint32
+	}{
+		{"zero duration is one block", 0, 1},
+		{"one nanosecond is one block", 1, 1},
+		{"exact multiple", 50 * time.Second, 20},
+		{"rounds up", 51 * time.Second, 21},
+		{"default 24h", 24 * time.Hour, 34560},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := BlockCount(tc.d, bt)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+
+	t.Run("max uint32 boundary", func(t *testing.T) {
+		got, err := BlockCount(time.Duration(math.MaxUint32), 1)
+		require.NoError(t, err)
+		assert.Equal(t, uint32(math.MaxUint32), got)
+
+		_, err = BlockCount(time.Duration(math.MaxUint32)+1, 1)
+		require.Error(t, err)
+	})
+
+	t.Run("max duration with small block time overflows", func(t *testing.T) {
+		_, err := BlockCount(time.Duration(math.MaxInt64), time.Millisecond)
+		require.Error(t, err)
+	})
+
+	t.Run("rejects zero block time", func(t *testing.T) {
+		_, err := BlockCount(time.Hour, 0)
+		require.Error(t, err)
+	})
+
+	t.Run("rejects negative inputs", func(t *testing.T) {
+		_, err := BlockCount(-time.Second, bt)
+		require.Error(t, err)
+		_, err = BlockCount(time.Hour, -bt)
+		require.Error(t, err)
+	})
+}

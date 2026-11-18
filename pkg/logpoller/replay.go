@@ -52,7 +52,10 @@ func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
 
 	// Use safe lookback window if fromBlock is 0 (avoid replaying entire chain)
 	if fromBlock == 0 {
-		fromBlock = computeLookbackWindow(currentMasterchainBlock.SeqNo, lp.startingLookback, lp.blockTime)
+		fromBlock, err = computeLookbackWindow(currentMasterchainBlock.SeqNo, lp.startingLookback, lp.blockTime)
+		if err != nil {
+			return fmt.Errorf("failed to compute lookback window: %w", err)
+		}
 		lp.lggr.Infow("Replay with no starting block specified, using lookback window",
 			"lookbackSeqNo", fromBlock, "lookbackDuration", lp.startingLookback)
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/timeconv"
 )
 
 // getMasterchainCurrentBlock retrieves the current masterchain block information.
@@ -89,7 +90,10 @@ func (lp *service) getOrComputeCheckpointSeqNo(ctx context.Context, currentMaste
 		return 0, errors.New("current masterchain seqno is 0 - waiting for next block to start processing")
 	}
 
-	lookbackSeqNo := computeLookbackWindow(currentMasterchainBlock.SeqNo, lp.startingLookback, lp.blockTime)
+	lookbackSeqNo, err := computeLookbackWindow(currentMasterchainBlock.SeqNo, lp.startingLookback, lp.blockTime)
+	if err != nil {
+		return 0, fmt.Errorf("failed to compute lookback window: %w", err)
+	}
 
 	lp.lggr.Debugw("Starting from lookback window",
 		"fromSeqNo", lookbackSeqNo,
@@ -129,11 +133,13 @@ func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlockS
 
 // computeLookbackWindow calculates the lookback sequence number
 // based on the current sequence number, lookback duration, and block time.
-func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, blockTime time.Duration) uint32 {
-	// Calculate how many blocks to go back based on time duration
-	// Use ceiling division like Solana: ceil(lookback/blockTime) = (lookback-1)/blockTime + 1
-	//nolint:gosec //G115: integer overflow conversion int64 -> uint32
-	lookbackBlocks := uint32(int64((lookbackDuration-1)/blockTime) + 1)
+// It errors if blockTime is not positive or the number of blocks does not fit in a uint32.
+func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, blockTime time.Duration) (uint32, error) {
+	// Calculate how many blocks to go back based on time duration, rounding up like Solana.
+	lookbackBlocks, err := timeconv.BlockCount(lookbackDuration, blockTime)
+	if err != nil {
+		return 0, err
+	}
 
 	var lookbackSeqNo uint32
 	if currentSeqNo > lookbackBlocks {
@@ -147,7 +153,7 @@ func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, 
 		lookbackSeqNo = 0
 	}
 
-	return lookbackSeqNo
+	return lookbackSeqNo, nil
 }
 
 // resolveMCBlockSeqNo returns the masterchain block sequence number that finalized the given shard block.
