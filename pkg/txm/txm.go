@@ -279,7 +279,11 @@ func (t *Txm) broadcastLoop() {
 				"bounceable", tx.Bounceable)
 			err = t.broadcastWithRetry(ctx, tx, msg, txID)
 			if err != nil {
-				t.logger.Errorw("broadcast failed after retries",
+				logMsg := "failed to broadcast transaction"
+				if errors.Is(err, errOutcomeUnknown) {
+					logMsg = "broadcast outcome unknown, the transaction is not tracked"
+				}
+				t.logger.Errorw(logMsg,
 					"txID", txID,
 					"err", err,
 					"to", tx.To.String(),
