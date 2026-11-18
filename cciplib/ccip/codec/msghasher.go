@@ -112,14 +112,15 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		MustStoreSlice(metadataHash, 256)
 
 	// storing header
-	builder.MustStoreRef(
-		cell.BeginCell().
-			MustStoreSlice(header.MessageID, 256).
-			MustStoreAddr(receiver).
-			MustStoreUInt(header.SequenceNumber, 64).
-			MustStoreBigCoins(gasLimit).
-			MustStoreUInt(header.Nonce, 64).
-			EndCell())
+	headerCell := cell.BeginCell().
+		MustStoreSlice(header.MessageID, 256).
+		MustStoreAddr(receiver).
+		MustStoreUInt(header.SequenceNumber, 64)
+	if err = headerCell.StoreBigCoins(gasLimit); err != nil {
+		return [32]byte{}, fmt.Errorf("store gas limit in header cell: %w", err)
+	}
+	headerCell.MustStoreUInt(header.Nonce, 64)
+	builder.MustStoreRef(headerCell.EndCell())
 
 	sender := common.CrossChainAddress(msg.Sender)
 	// storing sender ref
