@@ -38,7 +38,10 @@ func BlockCount(d, blockTime time.Duration) (uint32, error) {
 	if blockTime <= 0 {
 		return 0, errors.New("block time must be positive")
 	}
-	// ceil(d/blockTime) = (d-1)/blockTime + 1 for d >= 1; d == 0 yields the minimum of one block.
+	if d == 0 {
+		return 1, nil
+	}
+	// For d >= 1, ceil(d/blockTime) = (d-1)/blockTime + 1.
 	count := int64((d-1)/blockTime) + 1
 	if count > math.MaxUint32 {
 		return 0, fmt.Errorf("%s of %s blocks (%d) exceeds the uint32 block count range", d, blockTime, count)

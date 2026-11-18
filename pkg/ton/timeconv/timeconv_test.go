@@ -62,6 +62,24 @@ func TestBlockCount(t *testing.T) {
 		})
 	}
 
+	t.Run("zero duration is one block for any block time", func(t *testing.T) {
+		for _, blockTime := range []time.Duration{time.Nanosecond, 2 * time.Nanosecond, bt, time.Hour} {
+			got, err := BlockCount(0, blockTime)
+			require.NoError(t, err)
+			assert.Equal(t, uint32(1), got, "blockTime=%s", blockTime)
+		}
+	})
+
+	t.Run("1ns block time", func(t *testing.T) {
+		got, err := BlockCount(1, time.Nanosecond)
+		require.NoError(t, err)
+		assert.Equal(t, uint32(1), got)
+
+		got, err = BlockCount(time.Second, time.Nanosecond)
+		require.NoError(t, err)
+		assert.Equal(t, uint32(1_000_000_000), got)
+	})
+
 	t.Run("max uint32 boundary", func(t *testing.T) {
 		got, err := BlockCount(time.Duration(math.MaxUint32), 1)
 		require.NoError(t, err)

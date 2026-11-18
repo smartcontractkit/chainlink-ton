@@ -171,6 +171,13 @@ func TestComputeLookbackWindow(t *testing.T) {
 		require.Equal(t, expected, result)
 	})
 
+	t.Run("zero lookback with 1ns block time looks back one block", func(t *testing.T) {
+		t.Parallel()
+		result, err := computeLookbackWindow(1000, 0, time.Nanosecond)
+		require.NoError(t, err)
+		require.Equal(t, uint32(999), result, "checkpoint must be behind the head")
+	})
+
 	t.Run("zero block time errors", func(t *testing.T) {
 		t.Parallel()
 		_, err := computeLookbackWindow(1000, time.Hour, 0)
