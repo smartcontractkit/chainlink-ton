@@ -48,7 +48,7 @@ func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log, batchInser
 		logModel := &logModel{}
 		dbLog, err := logModel.FromLog(log)
 		if err != nil {
-			return 0,fmt.Errorf("failed to convert log at index %d: %w", i, err)
+			return 0, fmt.Errorf("failed to convert log at index %d: %w", i, err)
 		}
 		dbLogs[i] = dbLog
 	}

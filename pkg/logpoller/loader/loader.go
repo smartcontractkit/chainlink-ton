@@ -77,7 +77,7 @@ func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.
 			break
 		}
 		if err != nil {
-			errOut <-fmt.Errorf("failed to list transactions for address %s: %w", addr.String(), err)
+			errOut <- fmt.Errorf("failed to list transactions for address %s: %w", addr.String(), err)
 			return nil // don't block other addresses
 		}
 		if len(batch) == 0 {
