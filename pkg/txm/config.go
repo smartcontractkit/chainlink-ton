@@ -20,7 +20,7 @@ type Config struct {
 	MaxSendRetryDelay    *config.Duration // Maximum delay between send retry attempts
 	MaxSendRetryAttempts uint             // Max retries before giving up broadcasting
 
-	TxExpiration       *config.Duration // Time after which an unconfirmed transaction is considered expired
+	TxExpiration       *config.Duration // Time a transaction has to be broadcast, from when it is enqueued, and to be finalized, from when it is broadcast
 	CleanupInterval    *config.Duration // Interval to clean up finalized and expired transactions
 	SendTimeout        *config.Duration // Timeout for each SendWaitTransaction call to prevent hanging
 	TraceTimeout       *config.Duration // Timeout for each WaitForTrace call to prevent hanging

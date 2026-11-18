@@ -362,7 +362,11 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 		return fmt.Errorf("txStore not found for sender %s", walletAddr)
 	}
 
-	expirationTimestampMs := uint64(tx.Expiration.UnixMilli()) // exact, see Tx.Expiration
+	// Tracking gets the full TxExpiration from the broadcast rather than what is left of
+	// tx.Expiration, which bounds the broadcast only: a broadcast can take most of it, and can
+	// find the processed message after it. The conversion is exact: BroadcastAt is the current
+	// time, and adding a time.Duration (at most ~292 years) keeps it in the unix milliseconds range.
+	expirationTimestampMs := uint64(tx.BroadcastAt.Add(t.config.TxExpiration.Duration()).UnixMilli())
 	err = txStore.AddUnconfirmed(receivedMessage.LamportTime, expirationTimestampMs, tx)
 	if err != nil {
 		return fmt.Errorf("failed to track broadcast transaction as unconfirmed: %w", err)

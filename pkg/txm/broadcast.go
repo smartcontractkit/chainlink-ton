@@ -19,6 +19,7 @@ var (
 	errBroadcastAborted = errors.New("broadcast aborted")
 	errTxExpired        = errors.New("transaction expired, not broadcasting")
 	errTxRejected       = errors.New("transaction rejected by TON node, likely due to insufficient balance")
+	errOutcomeUnknown   = errors.New("broadcast outcome unknown: the last sent message may have been processed")
 )
 
 // signedMessage is a signed HighloadV3 external message carrying a transaction, with the times
@@ -53,6 +54,10 @@ type broadcast struct {
 // rejects a message it already processed, whereas a newly built one (new query id) would deliver
 // the internal message again. A new message is built only once the previous one can no longer
 // be accepted and was not processed.
+//
+// A broadcast that gives up (the transaction expired or the attempts ran out) after sending a
+// message first settles that message, since it may have been processed or may still be: see
+// settle.
 func (b *broadcast) run(ctx context.Context) (*tracetracking.ReceivedMessage, error) {
 	retryDelay := backoff.Backoff{
 		Min:    b.t.config.SendRetryDelay.Duration(),
@@ -72,8 +77,12 @@ func (b *broadcast) run(ctx context.Context) (*tracetracking.ReceivedMessage, er
 		if sent != nil && time.Now().After(sent.sendBefore) && !b.t.waitFor(time.Until(sent.expiresAt.Add(b.t.messageClockSkew))) {
 			return nil, errBroadcastAborted
 		}
-		if err := b.checkExpired(); err != nil {
-			return nil, err
+		if expiredErr := b.checkExpired(); expiredErr != nil {
+			found, err := b.settle(ctx, sent)
+			if found != nil || err != nil {
+				return found, err
+			}
+			return nil, expiredErr
 		}
 
 		found, next, err := b.nextMessage(ctx, sent)
@@ -85,11 +94,12 @@ func (b *broadcast) run(ctx context.Context) (*tracetracking.ReceivedMessage, er
 		if found != nil {
 			return found, nil
 		}
+		resent := next == sent
 		sent = next
 
 		received, err := b.send(ctx, attempt, sent)
 		if err != nil && tracetracking.IsInboundExternalMessageRejectedByAccountError(err) {
-			received, err = b.checkRejection(ctx, attempt, sent, err)
+			received, err = b.checkRejection(ctx, attempt, sent, resent, err)
 		}
 		if err == nil {
 			return received, nil
@@ -100,7 +110,50 @@ func (b *broadcast) run(ctx context.Context) (*tracetracking.ReceivedMessage, er
 		lastErr = err
 		b.logRetry(attempt, err)
 	}
+
+	found, err := b.settle(ctx, sent)
+	if found != nil || err != nil {
+		return found, err
+	}
 	return nil, b.failed(ctx, lastErr)
+}
+
+// settle finds out what happened to sent, the last message sent, once the broadcast will not send
+// again: it waits until sent can no longer be accepted, then looks it up. It returns the wallet
+// transaction that processed sent if there is one, and nil if sent is nil or was not processed.
+// If a lookup cannot tell, it returns errOutcomeUnknown.
+func (b *broadcast) settle(ctx context.Context, sent *signedMessage) (*tracetracking.ReceivedMessage, error) {
+	if sent == nil {
+		return nil, nil
+	}
+	if !b.t.waitFor(time.Until(sent.expiresAt.Add(b.t.messageClockSkew))) {
+		return nil, errBroadcastAborted
+	}
+
+	found, coveredUntil, err := b.lookUp(ctx, sent)
+	if err != nil {
+		return nil, b.outcomeUnknown(fmt.Errorf("failed to look up the last sent message: %w", err))
+	}
+	if found != nil {
+		b.t.logger.Infow("last sent message was processed after the broadcast's last attempt", "txID", b.txID)
+		return found, nil
+	}
+	if coveredUntil.Before(sent.expiresAt) {
+		return nil, b.outcomeUnknown(fmt.Errorf("the node's view reaches %s, the last sent message is acceptable until %s",
+			coveredUntil.UTC().Format(time.RFC3339), sent.expiresAt.UTC().Format(time.RFC3339)))
+	}
+	return nil, nil
+}
+
+// outcomeUnknown records that it is unknown whether the transaction was executed, and returns
+// errOutcomeUnknown with err, the reason.
+func (b *broadcast) outcomeUnknown(err error) error {
+	err = fmt.Errorf("%w: %w", errOutcomeUnknown, err)
+	b.t.logger.Errorw("broadcast outcome unknown, the transaction is not tracked",
+		"txID", b.txID,
+		"err", err,
+		"to", b.tx.To.String())
+	return err
 }
 
 func (b *broadcast) checkExpired() error {
@@ -204,17 +257,21 @@ func (b *broadcast) send(ctx context.Context, attempt uint, sent *signedMessage)
 	return b.client.SendExternalWaitTransaction(sendCtx, b.tx.To, sent.ext)
 }
 
-// checkRejection handles the wallet rejecting sent. The wallet also rejects a re-sent message it
-// already processed, so it returns the wallet transaction of an earlier send of sent if there is
-// one. The rejection is final (errTxRejected) only once a lookup shows there is none; a failed
-// lookup is returned as a retryable error.
-func (b *broadcast) checkRejection(ctx context.Context, attempt uint, sent *signedMessage, rejectErr error) (*tracetracking.ReceivedMessage, error) {
+// checkRejection handles the wallet rejecting sent. On sent's first send the rejection is final
+// (errTxRejected): nothing could have processed sent before. The wallet also rejects a re-sent
+// message it already processed, so for a re-send it returns the wallet transaction of an earlier
+// send of sent if a lookup finds one, and a retryable error otherwise: the node looked up may not
+// have that transaction yet, so only a later lookup, once sent expired, can tell.
+func (b *broadcast) checkRejection(ctx context.Context, attempt uint, sent *signedMessage, resent bool, rejectErr error) (*tracetracking.ReceivedMessage, error) {
+	if !resent {
+		return nil, fmt.Errorf("%w: %w", errTxRejected, rejectErr)
+	}
 	found, _, err := b.lookUp(ctx, sent)
 	if err != nil {
-		return nil, fmt.Errorf("message rejected (%w), and failed to look up whether it was already processed: %w", rejectErr, err)
+		return nil, fmt.Errorf("re-sent message rejected (%w), and failed to look up whether it was already processed: %w", rejectErr, err)
 	}
 	if found == nil {
-		return nil, fmt.Errorf("%w: %w", errTxRejected, rejectErr)
+		return nil, fmt.Errorf("re-sent message rejected (%w), and not found yet among the wallet's transactions", rejectErr)
 	}
 	b.t.logger.Infow("re-sent message was rejected because it was already processed",
 		"txID", b.txID,

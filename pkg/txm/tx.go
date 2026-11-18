@@ -23,7 +23,7 @@ type Tx struct {
 	CreatedAt       time.Time                     // when the tx was first enqueued; its unix seconds fit in a uint32 (checked by newTx)
 	BroadcastAt     time.Time                     // when the tx was successfully broadcasted
 	FinalizedAt     time.Time                     // when the message status is finalized
-	Expiration      time.Time                     // expiration timestamp based on TTL; its unix milliseconds are non-negative and fit in an int64 (checked by newTx)
+	Expiration      time.Time                     // deadline for broadcasting the tx, TxExpiration after it was enqueued; its unix milliseconds are non-negative and fit in an int64 (checked by newTx)
 	ReceivedMessage tracetracking.ReceivedMessage // received message
 	ID              *string                       // optional: unique ID for transaction tracking
 }

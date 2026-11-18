@@ -213,13 +213,14 @@ func (m *broadcastMockAPI) txFor(hash string) *tlb.Transaction {
 	return m.onChain[hash]
 }
 
-// shortLivedWallet is a HighloadV3 config whose messages expire within a second of being built.
+// shortLivedWallet is a HighloadV3 config whose messages expire between one and two seconds after
+// being built (created_at has a resolution of one second).
 func shortLivedWallet() wallet.ConfigHighloadV3 {
 	var queryID atomic.Uint32
 	return wallet.ConfigHighloadV3{
 		MessageTTL: 6, // the shortest tonutils allows
 		MessageBuilder: func(context.Context, uint32) (uint32, int64, error) {
-			return queryID.Add(1), time.Now().Unix() - 5, nil
+			return queryID.Add(1), time.Now().Unix() - 4, nil
 		},
 	}
 }
@@ -401,7 +402,7 @@ func TestBroadcastWithRetry_ExternalMessageReuse(t *testing.T) {
 		// the node's view lags until well after the message expired by the local clock
 		start := time.Now()
 		api.view = func() time.Time {
-			if time.Since(start) < 2*time.Second {
+			if time.Since(start) < 3*time.Second {
 				return start.Add(-time.Second)
 			}
 			return time.Now()
@@ -452,7 +453,7 @@ func TestBroadcastWithRetry_ExternalMessageReuse(t *testing.T) {
 		// the first signing outlasts the message's validity
 		txm, _ := newBroadcastTestTxm(t, api, shortLivedWallet(), func(n int) time.Duration {
 			if n == 0 {
-				return 1100 * time.Millisecond
+				return 2100 * time.Millisecond
 			}
 			return 0
 		})
@@ -505,6 +506,123 @@ func TestBroadcastWithRetry_ExternalMessageReuse(t *testing.T) {
 		sends := api.sent()
 		require.Len(t, distinctMessages(sends), 1)
 		require.Equal(t, api.txFor(sends[0].hash).LT, tx.ReceivedMessage.LamportTime)
+	})
+
+	t.Run("a rejected re-send is not final while the node may not have the message's transaction", func(t *testing.T) {
+		t.Parallel()
+		api := newBroadcastMockAPI(func(n int, _ *tlb.ExternalMessage) (bool, error) {
+			if n == 0 {
+				return true, context.DeadlineExceeded // processed, but the wait timed out
+			}
+			// the wallet rejects the re-send as a replay
+			return true, fmt.Errorf("failed to send message: %w", errRejected)
+		})
+		// lookups find nothing, without failing, until well after the message expired
+		start := time.Now()
+		api.view = func() time.Time {
+			if time.Since(start) < 3*time.Second {
+				return start.Add(-time.Second)
+			}
+			return time.Now()
+		}
+		txm, _ := newBroadcastTestTxm(t, api, shortLivedWallet(), nil)
+		tx, msg := newBroadcastTestTx(t)
+
+		require.NoError(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"))
+
+		sends := api.sent()
+		require.Greater(t, len(sends), 1, "the message must have been re-sent")
+		require.Len(t, distinctMessages(sends), 1)
+		require.Equal(t, api.txFor(sends[0].hash).LT, tx.ReceivedMessage.LamportTime)
+	})
+
+	t.Run("a message processed after the attempts ran out is a success", func(t *testing.T) {
+		t.Parallel()
+		api := newBroadcastMockAPI(func(n int, _ *tlb.ExternalMessage) (bool, error) {
+			return n == 1, context.DeadlineExceeded // the last attempt's send is processed, but its wait times out
+		})
+		txm, w := newBroadcastTestTxm(t, api, shortLivedWallet(), nil)
+		txm.config.MaxSendRetryAttempts = 2
+		tx, msg := newBroadcastTestTx(t)
+
+		require.NoError(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"))
+
+		sends := api.sent()
+		require.Len(t, sends, 2)
+		require.Len(t, distinctMessages(sends), 1)
+		require.Equal(t, api.txFor(sends[0].hash).LT, tx.ReceivedMessage.LamportTime)
+		require.Len(t, txm.accountStore.GetTxStore(w.Address().String()).GetUnconfirmed(), 1)
+	})
+
+	t.Run("running out of attempts fails once the message can no longer be processed", func(t *testing.T) {
+		t.Parallel()
+		api := newBroadcastMockAPI(func(int, *tlb.ExternalMessage) (bool, error) {
+			return false, context.DeadlineExceeded
+		})
+		txm, _ := newBroadcastTestTxm(t, api, shortLivedWallet(), nil)
+		txm.config.MaxSendRetryAttempts = 2
+		tx, msg := newBroadcastTestTx(t)
+
+		err := txm.broadcastWithRetry(t.Context(), tx, msg, "id")
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+		require.NotErrorIs(t, err, errOutcomeUnknown)
+		sends := api.sent()
+		require.False(t, time.Now().Before(sends[len(sends)-1].expiresAt), "the failure must wait for the message to expire")
+	})
+
+	t.Run("running out of attempts while the node's view lags reports an unknown outcome", func(t *testing.T) {
+		t.Parallel()
+		api := newBroadcastMockAPI(func(int, *tlb.ExternalMessage) (bool, error) {
+			return false, context.DeadlineExceeded
+		})
+		start := time.Now()
+		api.view = func() time.Time { return start.Add(-time.Hour) }
+		txm, _ := newBroadcastTestTxm(t, api, shortLivedWallet(), nil)
+		txm.config.MaxSendRetryAttempts = 2
+		tx, msg := newBroadcastTestTx(t)
+
+		require.ErrorIs(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"), errOutcomeUnknown)
+	})
+
+	t.Run("a message processed before the transaction expired is a success", func(t *testing.T) {
+		t.Parallel()
+		api := newBroadcastMockAPI(func(n int, _ *tlb.ExternalMessage) (bool, error) {
+			time.Sleep(100 * time.Millisecond) // outlasts the transaction's expiration
+			return n == 0, context.DeadlineExceeded
+		})
+		txm, w := newBroadcastTestTxm(t, api, shortLivedWallet(), nil)
+		tx, msg := newBroadcastTestTx(t)
+		tx.Expiration = time.Now().Add(50 * time.Millisecond)
+
+		require.NoError(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"))
+
+		sends := api.sent()
+		require.Len(t, sends, 1)
+		require.Equal(t, api.txFor(sends[0].hash).LT, tx.ReceivedMessage.LamportTime)
+
+		// it is tracked for the full TxExpiration from its broadcast, though its deadline passed
+		txStore := txm.accountStore.GetTxStore(w.Address().String())
+		unconfirmed := txStore.GetUnconfirmed()
+		require.Len(t, unconfirmed, 1)
+		trackedUntil := tx.BroadcastAt.Add(txm.config.TxExpiration.Duration())
+		require.Equal(t, uint64(trackedUntil.UnixMilli()), unconfirmed[0].ExpirationMs)
+		_, expired := txm.accountStore.CleanupAll(uint64(time.Now().UnixMilli()))
+		require.Empty(t, expired)
+		require.Len(t, txStore.GetUnconfirmed(), 1)
+	})
+
+	t.Run("a transaction that expired before its message was processed fails as expired", func(t *testing.T) {
+		t.Parallel()
+		api := newBroadcastMockAPI(func(int, *tlb.ExternalMessage) (bool, error) {
+			time.Sleep(100 * time.Millisecond) // outlasts the transaction's expiration
+			return false, context.DeadlineExceeded
+		})
+		txm, _ := newBroadcastTestTxm(t, api, shortLivedWallet(), nil)
+		tx, msg := newBroadcastTestTx(t)
+		tx.Expiration = time.Now().Add(50 * time.Millisecond)
+
+		require.ErrorIs(t, txm.broadcastWithRetry(t.Context(), tx, msg, "id"), errTxExpired)
+		require.Len(t, api.sent(), 1)
 	})
 
 	t.Run("a wallet other than HighloadV3 is refused", func(t *testing.T) {
