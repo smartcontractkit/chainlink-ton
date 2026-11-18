@@ -103,7 +103,7 @@ func sectionSize(count uint64, elemSize, available int) (int, error) {
 	if elemSize <= 0 {
 		return 0, fmt.Errorf("invalid element size %d", elemSize)
 	}
-	if count > uint64(available)/uint64(elemSize) { //nolint:gosec // G115: available and elemSize are non-negative
+	if count > uint64(available)/uint64(elemSize) {
 		return 0, fmt.Errorf("section of %d elements of %d bytes exceeds the %d bytes available", count, elemSize, available)
 	}
 	return int(count) * elemSize, nil //nolint:gosec // G115: count <= available/elemSize, so it fits in int

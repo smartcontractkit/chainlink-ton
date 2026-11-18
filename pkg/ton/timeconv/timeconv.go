@@ -16,7 +16,7 @@ func UnixSeconds32(t time.Time) (uint32, error) {
 	if sec < 0 || sec > math.MaxUint32 {
 		return 0, fmt.Errorf("timestamp %s is outside the uint32 unix seconds range", t.UTC().Format(time.RFC3339))
 	}
-	return uint32(sec), nil //nolint:gosec // G115: range checked above
+	return uint32(sec), nil
 }
 
 // UnixMillisU64 returns t as a Unix timestamp in milliseconds. It errors if t is before 1970.
@@ -25,7 +25,7 @@ func UnixMillisU64(t time.Time) (uint64, error) {
 	if ms < 0 {
 		return 0, fmt.Errorf("timestamp %s is before the unix epoch", t.UTC().Format(time.RFC3339))
 	}
-	return uint64(ms), nil //nolint:gosec // G115: non-negative, checked above
+	return uint64(ms), nil
 }
 
 // BlockCount returns the number of blocks of length blockTime needed to cover d, rounded up and
