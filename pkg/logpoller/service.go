@@ -2,6 +2,7 @@ package logpoller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -292,6 +293,10 @@ func (lp *service) run(ctx context.Context) (err error) {
 	return nil
 }
 
+// maxReportedLoadErrs is the number of loader errors included in the error returned for a failed
+// block range; the rest are only counted.
+const maxReportedLoadErrs = 10
+
 // processBlockRange handles scanning a range of blocks for transactions
 func (lp *service) processBlockRange(
 	ctx context.Context,
@@ -307,6 +312,10 @@ func (lp *service) processBlockRange(
 	txsCh, loadErrsCh := lp.loadTxsForAddresses(ctx, blockRange, addresses)
 	logsCh, parseErrsCh := lp.parseTransactions(ctx, filterIndex, lp.chainID, txsCh)
 
+	// Loader errors fail the range, so they are returned rather than logged here; only the first
+	// maxReportedLoadErrs are kept, to bound the returned error during an outage. Parse errors
+	// don't fail the range, so they are logged as they arrive.
+	var loadErrs []error
 	var loadErrCount, parseErrCount int
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -315,8 +324,10 @@ func (lp *service) processBlockRange(
 		defer wg.Done()
 		for err := range loadErrsCh {
 			loadErrCount++
+			if len(loadErrs) < maxReportedLoadErrs {
+				loadErrs = append(loadErrs, err)
+			}
 			lp.metrics.IncrementLoaderErrors(ctx)
-			lp.lggr.Errorw("loading transactions error", "err", err)
 		}
 	}()
 	go func() {
@@ -348,7 +359,10 @@ func (lp *service) processBlockRange(
 			// Loader errors mean some transactions in the range were never fetched. Roll back
 			// the logs saved for the range and return an error so it is retried on the next
 			// tick, rather than risk data loss by committing incomplete transaction data.
-			return fmt.Errorf("block range processing had %d loader error(s)", loadErrCount)
+			if omitted := loadErrCount - len(loadErrs); omitted > 0 {
+				loadErrs = append(loadErrs, fmt.Errorf("and %d more", omitted))
+			}
+			return fmt.Errorf("block range processing had %d loader error(s): %w", loadErrCount, errors.Join(loadErrs...))
 		}
 		return nil
 	})
@@ -390,8 +404,7 @@ func (lp *service) loadTxsForAddresses(
 	for _, addr := range srcAddrs {
 		wg.Go(func() {
 			if err := lp.loader.LoadTxsForAddress(ctx, blockRange, addr, lp.pageSize, rawTxsCh, errsOut); err != nil {
-				lp.lggr.Warnf("Loader setup failed for address: %s, err: %v", addr.String(), err)
-				errsOut <- err
+				errsOut <- fmt.Errorf("failed to load transactions for address %s: %w", addr.String(), err)
 			}
 		})
 	}
@@ -416,10 +429,7 @@ func (lp *service) resolveTxsMCBlock(ctx context.Context, rawTxsCh <-chan models
 	for tx := range rawTxsCh {
 		mcSeqno, err := lp.resolveMCBlockSeqNoWithRetry(ctx, tx.Block)
 		if err != nil {
-			lp.lggr.Warnw("failed to resolve masterchain block seqno after retries, using 0 as fallback",
-				"block", shardBlockKey(tx.Block),
-				"err", err)
-			errsOut <- fmt.Errorf("failed to resolve masterchain block seqno: %w", err)
+			errsOut <- fmt.Errorf("failed to resolve masterchain block seqno for block %s: %w", shardBlockKey(tx.Block), err)
 		}
 		tx.MCBlockSeqno = mcSeqno
 
