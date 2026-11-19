@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -216,11 +218,35 @@ func TestProcessBlockRange(t *testing.T) {
 
 	t.Run("loader error blocks checkpoint", func(t *testing.T) {
 		t.Parallel()
-		svc := makeTestService(t, &testTxLoader{err: errors.New("liteserver failure")}, &testLogStore{})
+		loaderErr := errors.New("liteserver failure")
+		svc := makeTestService(t, &testTxLoader{err: loaderErr}, &testLogStore{})
 
 		err := svc.processBlockRange(t.Context(), blockRange, addrs, filterIndex)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "loader error")
+		require.ErrorIs(t, err, loaderErr, "the loader error must be reachable by callers")
+	})
+
+	t.Run("loader errors beyond the limit are counted but not included", func(t *testing.T) {
+		t.Parallel()
+		loaderErr := errors.New("liteserver failure")
+		svc := makeTestService(t, &testTxLoader{err: loaderErr}, &testLogStore{})
+
+		// every address's loader fails, producing one loader error per address
+		const failing = maxReportedLoadErrs + 2
+		manyAddrs := make([]*address.Address, failing)
+		for i := range manyAddrs {
+			data := make([]byte, 32)
+			data[31] = byte(i)
+			manyAddrs[i] = address.NewAddress(0, 0, data)
+		}
+
+		err := svc.processBlockRange(t.Context(), blockRange, manyAddrs, filterIndex)
+		require.Error(t, err)
+		require.ErrorIs(t, err, loaderErr)
+		require.Contains(t, err.Error(), fmt.Sprintf("had %d loader error(s)", failing))
+		require.Equal(t, maxReportedLoadErrs, strings.Count(err.Error(), loaderErr.Error()), "only the first maxReportedLoadErrs causes are included")
+		require.Contains(t, err.Error(), "and 2 more")
 	})
 
 	t.Run("loader error rolls back logs already saved for the range", func(t *testing.T) {
@@ -229,10 +255,11 @@ func TestProcessBlockRange(t *testing.T) {
 		validTx, err := makeTestValidTx(testAddr, eventSig)
 		require.NoError(t, err)
 
+		loaderErr := errors.New("liteserver failure")
 		logStore := &testLogStore{}
 		svc := makeTestService(t, &testTxLoader{
 			txs: []models.Tx{validTx},
-			err: errors.New("liteserver failure"),
+			err: loaderErr,
 		}, logStore)
 		// flush every log as its own chunk so it is written before the loader error is known
 		svc.saveThreshold = 1
@@ -240,6 +267,7 @@ func TestProcessBlockRange(t *testing.T) {
 		err = svc.processBlockRange(t.Context(), blockRange, addrs, filterIndex)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "loader error")
+		require.ErrorIs(t, err, loaderErr, "the loader error must be reachable by callers")
 
 		logStore.mu.Lock()
 		defer logStore.mu.Unlock()

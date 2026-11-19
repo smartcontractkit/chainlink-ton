@@ -446,8 +446,7 @@ retryLoop:
 	expirationTimestampMs := uint64(tx.Expiration.UnixMilli()) // exact, see Tx.Expiration
 	err = txStore.AddUnconfirmed(receivedMessage.LamportTime, expirationTimestampMs, tx)
 	if err != nil {
-		t.logger.Errorf("AddUnconfirmed err: %v", err)
-		return err
+		return fmt.Errorf("failed to track broadcast transaction as unconfirmed: %w", err)
 	}
 
 	return nil
