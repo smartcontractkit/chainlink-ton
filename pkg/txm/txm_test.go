@@ -123,10 +123,73 @@ func TestNewWalletMessageStateInit(t *testing.T) {
 		require.Equal(t, data.Hash(), msg.InternalMessage.StateInit.Data.Hash())
 	})
 
+	t.Run("accepted by highload v3 wallet", func(t *testing.T) {
+		_, key, err := ed25519.GenerateKey(nil)
+		require.NoError(t, err)
+		w, err := wallet.FromPrivateKeyWithOptions(key, tonconfig.WalletVersion)
+		require.NoError(t, err)
+
+		code := cell.BeginCell().MustStoreUInt(1, 8).EndCell()
+		si, err := tlb.ToCell(&tlb.StateInit{Code: code, Data: code})
+		require.NoError(t, err)
+		withStateInit := base
+		withStateInit.StateInit = si
+		fromWallet := base
+		fromWallet.From = *w.WalletAddress()
+
+		for name, tx := range map[string]Tx{"no state init": fromWallet, "with state init": withStateInit} {
+			t.Run(name, func(t *testing.T) {
+				msg, err := newWalletMessage(&tx)
+				require.NoError(t, err)
+				ext, err := w.PrepareExternalMessageForMany(t.Context(), false, []*wallet.Message{msg})
+				require.NoError(t, err)
+				requireHighloadV3Sendable(t, ext.Body)
+			})
+		}
+	})
+
 	t.Run("malformed state init", func(t *testing.T) {
 		tx := base
 		tx.StateInit = cell.BeginCell().MustStoreUInt(0xff, 8).EndCell()
 		_, err := newWalletMessage(&tx)
 		require.ErrorContains(t, err, "failed to parse StateInit")
 	})
+}
+
+// requireHighloadV3Sendable mirrors the checks highload-wallet-v3 runs on message_to_send after
+// commit(); failing any of them throws error::invalid_message_to_send (37) and the message is dropped.
+func requireHighloadV3Sendable(t *testing.T, extBody *cell.Cell) {
+	t.Helper()
+	body, err := extBody.BeginParse()
+	require.NoError(t, err)
+	payload, err := body.LoadRef()
+	require.NoError(t, err)
+	_, err = payload.LoadUInt(32) // subwallet_id
+	require.NoError(t, err)
+	msgToSend, err := payload.LoadRef()
+	require.NoError(t, err)
+
+	tag, err := msgToSend.LoadUInt(1)
+	require.NoError(t, err)
+	require.Zero(t, tag, "message_to_send must be int_msg_info$0")
+	_, err = msgToSend.LoadUInt(3) // ihr_disabled, bounce, bounced
+	require.NoError(t, err)
+	src, err := msgToSend.LoadAddr()
+	require.NoError(t, err)
+	require.Equal(t, address.NoneAddress, src.Type(), "message_to_send src must be addr_none")
+	_, err = msgToSend.LoadAddr() // dest
+	require.NoError(t, err)
+	_, err = msgToSend.LoadCoins()
+	require.NoError(t, err)
+	_, err = msgToSend.LoadDict(32) // extra currencies
+	require.NoError(t, err)
+	_, err = msgToSend.LoadCoins() // ihr_fee
+	require.NoError(t, err)
+	_, err = msgToSend.LoadCoins() // fwd_fee
+	require.NoError(t, err)
+	_, err = msgToSend.LoadUInt(64 + 32) // created_lt, created_at
+	require.NoError(t, err)
+	hasStateInit, err := msgToSend.LoadBoolBit()
+	require.NoError(t, err)
+	require.False(t, hasStateInit, "message_to_send must not carry a state init")
 }
