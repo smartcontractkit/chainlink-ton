@@ -299,7 +299,8 @@ func newWalletMessage(tx *Tx) (*wallet.Message, error) {
 	return &wallet.Message{
 		Mode: tx.Mode,
 		InternalMessage: &tlb.InternalMessage{
-			SrcAddr:     &tx.From,
+			// HighloadV3 rejects (exit 37) messages whose src is not addr_none; the network fills it in.
+			SrcAddr:     address.NewAddressNone(),
 			DstAddr:     &tx.To,
 			Bounce:      tx.Bounceable,
 			IHRDisabled: true,
