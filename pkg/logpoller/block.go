@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -129,11 +130,10 @@ func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlockS
 
 // computeLookbackWindow calculates the lookback sequence number
 // based on the current sequence number, lookback duration, and block time.
+// lookbackDuration must not be negative and blockTime must be positive, see blockCount.
 func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, blockTime time.Duration) uint32 {
-	// Calculate how many blocks to go back based on time duration
-	// Use ceiling division like Solana: ceil(lookback/blockTime) = (lookback-1)/blockTime + 1
-	//nolint:gosec //G115: integer overflow conversion int64 -> uint32
-	lookbackBlocks := uint32(int64((lookbackDuration-1)/blockTime) + 1)
+	// Calculate how many blocks to go back based on time duration, rounding up like Solana.
+	lookbackBlocks := blockCount(lookbackDuration, blockTime)
 
 	var lookbackSeqNo uint32
 	if currentSeqNo > lookbackBlocks {
@@ -148,6 +148,21 @@ func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, 
 	}
 
 	return lookbackSeqNo
+}
+
+// blockCount returns the number of blocks of length blockTime needed to cover d: rounded up, at
+// least one, and capped at math.MaxUint32, since no masterchain seqno is higher and a larger count
+// reaches back to genesis all the same. d must not be negative and blockTime must be positive.
+func blockCount(d, blockTime time.Duration) uint32 {
+	if d == 0 {
+		return 1
+	}
+	// For d >= 1, ceil(d/blockTime) = (d-1)/blockTime + 1.
+	count := (d-1)/blockTime + 1
+	if count > math.MaxUint32 {
+		return math.MaxUint32
+	}
+	return uint32(count) //nolint:gosec // G115: 1 <= count <= MaxUint32
 }
 
 // resolveMCBlockSeqNo returns the masterchain block sequence number that finalized the given shard block.

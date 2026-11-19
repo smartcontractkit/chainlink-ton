@@ -99,12 +99,13 @@ func TestEnqueueResumingAfterCloseFails(t *testing.T) {
 
 func TestNewWalletMessageStateInit(t *testing.T) {
 	to := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")
-	base := Tx{From: *to, To: *to, Amount: tlb.MustFromTON("0.1"), CreatedAt: time.Now()}
+	base := Tx{From: *to, To: *to, Amount: tlb.MustFromTON("0.1"), CreatedAt: time.Unix(1_700_000_000, 0)}
 
 	t.Run("no state init", func(t *testing.T) {
 		msg, err := newWalletMessage(&base)
 		require.NoError(t, err)
 		require.Nil(t, msg.InternalMessage.StateInit)
+		require.Equal(t, uint32(1_700_000_000), msg.InternalMessage.CreatedAt)
 	})
 
 	t.Run("with state init", func(t *testing.T) {

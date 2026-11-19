@@ -247,8 +247,11 @@ func (s *pgLogStore) GetHighestMCBlockSeqno(ctx context.Context) (uint32, bool, 
 		return 0, false, nil
 	}
 
-	//nolint:gosec // G115: safe conversion - master_block_seqno is always positive and within uint32 range
-	return uint32(*result), true, nil
+	seqno, err := toUint32(*result, "master_block_seqno")
+	if err != nil {
+		return 0, false, fmt.Errorf("invalid highest master block seqno: %w", err)
+	}
+	return seqno, true, nil
 }
 
 // DeleteExpiredLogs removes logs that have passed their pre-computed expiration time.

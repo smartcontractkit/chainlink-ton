@@ -1,8 +1,10 @@
 package boc
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -165,6 +167,87 @@ func TestHeaderLenErrors(t *testing.T) {
 			_, err := HeaderLen(tt.boc)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), tt.expectedErr)
+		})
+	}
+}
+
+// headerWith builds a BOC header with the given descriptors and counts, padded so only the
+// descriptor and section size checks can reject it.
+func headerWith(flags, sizeBytes byte, cellsNum, rootsNum []byte) []byte {
+	b := []byte{0xB5, 0xEE, 0x9C, 0x72, flags, sizeBytes}
+	b = append(b, cellsNum...)
+	b = append(b, rootsNum...)
+	b = append(b, make([]byte, len(cellsNum))...) // completeNum
+	return append(b, make([]byte, 16)...)         // dataLen and slack
+}
+
+// TestHeaderLenRejectsInvalidDescriptors verifies the size descriptors are restricted to the
+// ranges the BOC format allows (and tonutils-go accepts).
+func TestHeaderLenRejectsInvalidDescriptors(t *testing.T) {
+	tests := []struct {
+		name        string
+		flags       byte
+		sizeBytes   byte
+		expectedErr string
+	}{
+		{"cell size zero", 0x00, 1, "invalid BOC size descriptor"},
+		{"cell size above 4", 0x05, 1, "invalid BOC size descriptor"},
+		{"cell size 7", 0x07, 1, "invalid BOC size descriptor"},
+		{"offset size zero", 0x01, 0, "invalid BOC offset descriptor"},
+		{"offset size above 8", 0x01, 9, "invalid BOC offset descriptor"},
+		{"offset size 255", 0x01, 255, "invalid BOC offset descriptor"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			n, err := HeaderLen(headerWith(tt.flags, tt.sizeBytes, make([]byte, 4), make([]byte, 4)))
+			require.ErrorContains(t, err, tt.expectedErr)
+			require.Zero(t, n)
+		})
+	}
+}
+
+// TestHeaderLenRejectsOversizedSections verifies that counts read from the header cannot make the
+// computed header size exceed the data.
+func TestHeaderLenRejectsOversizedSections(t *testing.T) {
+	allFF := bytes.Repeat([]byte{0xFF}, 4)
+	zero := make([]byte, 4)
+
+	tests := []struct {
+		name string
+		boc  []byte
+	}{
+		{"root indices larger than data", headerWith(0x04, 8, zero, allFF)},
+		{"index larger than data", headerWith(0x80|0x04, 8, allFF, zero)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			n, err := HeaderLen(tt.boc)
+			require.Error(t, err)
+			require.Zero(t, n)
+		})
+	}
+}
+
+func TestSectionSize(t *testing.T) {
+	got, err := sectionSize(10, 4, 40)
+	require.NoError(t, err)
+	require.Equal(t, 40, got)
+
+	got, err = sectionSize(0, 4, 0)
+	require.NoError(t, err)
+	require.Zero(t, got)
+
+	for name, tc := range map[string]struct {
+		count     uint64
+		elem, avl int
+	}{
+		"exceeds available":     {11, 4, 40},
+		"count would overflow":  {math.MaxUint64, 8, math.MaxInt},
+		"count above int range": {math.MaxUint64, 1, math.MaxInt},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := sectionSize(tc.count, tc.elem, tc.avl)
+			require.Error(t, err)
 		})
 	}
 }

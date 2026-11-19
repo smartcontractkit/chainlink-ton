@@ -1,6 +1,7 @@
 package txm
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -66,5 +67,32 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 		assert.Equal(t, original.MaxSendRetryAttempts, customConfig.MaxSendRetryAttempts)
 		assert.Equal(t, original.TxExpiration, customConfig.TxExpiration)
 		assert.Equal(t, original.CleanupInterval, customConfig.CleanupInterval)
+	})
+}
+
+func TestConfig_ValidateTxExpiration(t *testing.T) {
+	valid := func() Config {
+		cfg := Config{}
+		cfg.ApplyDefaults()
+		return cfg
+	}
+
+	for name, d := range map[string]time.Duration{
+		"zero":    0,
+		"default": 5 * time.Minute,
+		// any duration is accepted: no TxExpiration can make the expiration timestamp overflow
+		"max duration": math.MaxInt64,
+	} {
+		t.Run("accepts "+name, func(t *testing.T) {
+			cfg := valid()
+			cfg.TxExpiration = config.MustNewDuration(d)
+			assert.NoError(t, cfg.ValidateConfig())
+		})
+	}
+
+	t.Run("rejects nil", func(t *testing.T) {
+		cfg := valid()
+		cfg.TxExpiration = nil
+		assert.ErrorContains(t, cfg.ValidateConfig(), "TxExpiration")
 	})
 }

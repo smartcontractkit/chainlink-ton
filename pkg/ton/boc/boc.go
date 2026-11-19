@@ -15,6 +15,12 @@ const (
 	// Reference: tonutils-go/tvm/cell/parse.go:129-145
 	CellDescriptorSize = 2
 	bocHeaderFixedSize = 6 // BOC header fixed section size: magic(4) + flags(1) + sizeBytes(1)
+
+	// Valid ranges of the header descriptors, as enforced by tonutils-go/tvm/cell/parse.go.
+	minCellSizeBytes   = 1 // size:(## 3) { size <= 4 }
+	maxCellSizeBytes   = 4
+	minOffsetSizeBytes = 1 // off_bytes:(## 8) { off_bytes <= 8 }
+	maxOffsetSizeBytes = 8
 )
 
 // HeaderLen calculates the header length of a BOC based on its structure.
@@ -39,44 +45,64 @@ func HeaderLen(data []byte) (int, error) {
 	cellSizeBytes := int(flagsByte & 0x07)
 	sizeBytes := int(data[5])
 
+	// The descriptors must be in the ranges the BOC format allows, matching tonutils-go's parser.
+	if cellSizeBytes < minCellSizeBytes || cellSizeBytes > maxCellSizeBytes {
+		return 0, fmt.Errorf("invalid BOC size descriptor %d: must be between %d and %d", cellSizeBytes, minCellSizeBytes, maxCellSizeBytes)
+	}
+	if sizeBytes < minOffsetSizeBytes || sizeBytes > maxOffsetSizeBytes {
+		return 0, fmt.Errorf("invalid BOC offset descriptor %d: must be between %d and %d", sizeBytes, minOffsetSizeBytes, maxOffsetSizeBytes)
+	}
+
 	// Calculate base header: magic(6) + cellsNum + rootsNum + completeNum + dataLen
 	baseHeaderSize := bocHeaderFixedSize + (3 * cellSizeBytes) + sizeBytes
 
 	if len(data) < baseHeaderSize {
 		return 0, fmt.Errorf("BOC too small for base header size %d, actual size %d", baseHeaderSize, len(data))
 	}
+	// From here on len(data) >= baseHeaderSize, so the cellsNum and rootsNum fields, which end
+	// before it, can be read without further bounds checks.
 
 	// Add root indices size
 	rootsNumOffset := bocHeaderFixedSize + cellSizeBytes
-	if rootsNumOffset+cellSizeBytes > len(data) {
-		return 0, fmt.Errorf("BOC too small to read rootsNum at offset %d", rootsNumOffset)
-	}
 	rootsNum := readDynamicInt(data[rootsNumOffset : rootsNumOffset+cellSizeBytes])
-	headerSize := baseHeaderSize + (rootsNum * cellSizeBytes)
+	rootsSize, err := sectionSize(rootsNum, cellSizeBytes, len(data)-baseHeaderSize)
+	if err != nil {
+		return 0, fmt.Errorf("invalid BOC root indices (rootsNum %d): %w", rootsNum, err)
+	}
+	headerSize := baseHeaderSize + rootsSize
 
 	// Add optional index section
 	if hasIndex {
 		cellsNumOffset := bocHeaderFixedSize
-		if cellsNumOffset+cellSizeBytes > len(data) {
-			return 0, fmt.Errorf("BOC too small to read cellsNum at offset %d", cellsNumOffset)
-		}
 		cellsNum := readDynamicInt(data[cellsNumOffset : cellsNumOffset+cellSizeBytes])
-		headerSize += cellsNum * sizeBytes
+		indexSize, err := sectionSize(cellsNum, sizeBytes, len(data)-headerSize)
+		if err != nil {
+			return 0, fmt.Errorf("invalid BOC index (cellsNum %d): %w", cellsNum, err)
+		}
+		headerSize += indexSize
 	}
 
-	if len(data) < headerSize {
-		return 0, fmt.Errorf("BOC too small for calculated header size %d, actual size %d", headerSize, len(data))
-	}
-
+	// headerSize <= len(data): each section was sized against the bytes left after the previous ones.
 	return headerSize, nil
 }
 
-// readDynamicInt reads a big-endian integer from bytes with dynamic size.
-// The caller must ensure data has sufficient length.
+// sectionSize returns count*elemSize, the byte size of a header section of count elements,
+// and errors if it exceeds the available bytes. Checking against available before multiplying
+// keeps the product from overflowing, since count comes from untrusted header bytes.
+// available must be non-negative and elemSize positive: HeaderLen passes the bytes left after the
+// sections already counted, and a size descriptor validated to 1..8.
+func sectionSize(count uint64, elemSize, available int) (int, error) {
+	if count > uint64(available)/uint64(elemSize) { //nolint:gosec // G115: available >= 0 and elemSize > 0, see above
+		return 0, fmt.Errorf("section of %d elements of %d bytes exceeds the %d bytes available", count, elemSize, available)
+	}
+	return int(count) * elemSize, nil //nolint:gosec // G115: count <= available/elemSize, so it fits in int
+}
+
+// readDynamicInt reads a big-endian unsigned integer of up to 8 bytes.
+// The caller must ensure len(data) <= 8.
 // Reference: tonutils-go/tvm/cell/parse.go:229-234 dynInt()
-func readDynamicInt(data []byte) int {
+func readDynamicInt(data []byte) uint64 {
 	tmp := make([]byte, 8)
 	copy(tmp[8-len(data):], data)
-	val := binary.BigEndian.Uint64(tmp)
-	return int(val) //nolint:gosec // G115 - BOC format limits ensure this fits in int range
+	return binary.BigEndian.Uint64(tmp)
 }
