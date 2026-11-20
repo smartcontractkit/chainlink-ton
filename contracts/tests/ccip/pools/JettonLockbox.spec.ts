@@ -628,9 +628,9 @@ describe('JettonLockBox', () => {
         },
       })
 
-      // Unauthorized deposits are no longer bounced: the role check now lives inside the
-      // try/catch (D1), so the notification is accepted and custody is returned best-effort to the
-      // unauthorized initiator instead of being stranded in the lockbox. No JettonLockBox_Deposited
+      // Unauthorized deposits are not bounced: the role check lives inside the try/catch, so the
+      // notification is accepted and custody is returned best-effort to the unauthorized initiator
+      // instead of being stranded in the lockbox. No JettonLockBox_Deposited
       // is ever issued for an unauthorized operator.
       expect(result.transactions).toHaveTransaction({
         from: lockboxWallet.address,

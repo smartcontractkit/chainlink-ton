@@ -142,34 +142,14 @@ struct OffRamp_DynamicConfig {
     minTTGasLimit: coins
 }
 
-// Config is the backwards-compatible struct returned by the config() getter.
-//
-// Field order matches the TVM stack returned by the getter:
-//   0: chainSelector
-//   1: feeQuoter
-//   2: permissionlessExecutionThresholdSeconds
-//   3: tokenAdminRegistry (appended for backwards compat; old contracts return 3 elements)
-//   4: minGasLimit         (appended by this PR; old contracts return 4 elements)
-//   5: minTTGasLimit       (appended by this PR; old contracts return 5 elements)
-//
-// New fields are appended at the end so old contracts and old Go readers remain
-// compatible — they simply read fewer stack elements.
+// Config is the flattened view of OffRamp_StaticConfig and OffRamp_DynamicConfig returned by
+// the config() getter. Fields are only ever appended so readers of older OffRamp versions keep
+// working: older contracts return a shorter stack without the trailing fields.
 struct Config {
-    // -- Static config
     chainSelector: uint64
-    // gasForCallExactCheck
-    // rmnRemote
-    // nonceManager
-    // -- Dynamic config
     feeQuoter: address
     permissionlessExecutionThresholdSeconds: uint32
-    // isRMNVerificationDisabled
-    // messageInterceptor
-    // -- Static config (appended for backwards compatibility; old contracts
-    // return a 3-element stack and omit this field)
     tokenAdminRegistry: address
-    // -- Dynamic config (appended by this PR; old contracts return a 4-element
-    // stack and omit these fields)
     minGasLimit: coins
     minTTGasLimit: coins
 }
