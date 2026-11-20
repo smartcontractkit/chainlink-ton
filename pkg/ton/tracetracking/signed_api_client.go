@@ -11,6 +11,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 // SignedAPIClient provides a high-level interface for interacting with the TON blockchain.
@@ -227,4 +228,80 @@ func (c *SignedAPIClient) SendAndWaitForTrace(ctx context.Context, dstAddr addre
 	}
 
 	return sentMessage, nil
+}
+
+// DeployAndWaitForTrace deploys a contract from the client's wallet and waits
+// for the complete execution trace of the deployment. It returns the address of
+// the deployed contract and the external message received by the wallet, from
+// which the whole deployment trace can be inspected.
+//
+// The wallet must accept the external message, and the deploy transaction must
+// both activate the contract's account and complete successfully.
+func (c *SignedAPIClient) DeployAndWaitForTrace(ctx context.Context, code *cell.Cell, data *cell.Cell, amount tlb.Coins, body *cell.Cell) (*address.Address, *ReceivedMessage, error) {
+	return c.deployAndWaitForTrace(ctx, code, data, amount, body, true)
+}
+
+// DeployActivateOnlyAndWaitForTrace deploys a contract like DeployAndWaitForTrace,
+// but only requires the deploy transaction to activate the contract's account.
+// Its exit code is left to the caller, which is useful for contracts that
+// activate but reject the deployment message.
+func (c *SignedAPIClient) DeployActivateOnlyAndWaitForTrace(ctx context.Context, code *cell.Cell, data *cell.Cell, amount tlb.Coins, body *cell.Cell) (*address.Address, *ReceivedMessage, error) {
+	return c.deployAndWaitForTrace(ctx, code, data, amount, body, false)
+}
+
+func (c *SignedAPIClient) deployAndWaitForTrace(ctx context.Context, code *cell.Cell, data *cell.Cell, amount tlb.Coins, body *cell.Cell, requireSuccess bool) (*address.Address, *ReceivedMessage, error) {
+	addr, tx, _, err := c.Wallet.DeployContractWaitTransaction(ctx, amount, body, code, data)
+	if err != nil {
+		return nil, nil, fmt.Errorf("deployment failed: %w", err)
+	}
+
+	receivedMessage, err := MapToReceivedMessage(tx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
+	}
+	err = receivedMessage.WaitForTrace(ctx, c.Client)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to wait for trace: %w", err)
+	}
+
+	// The external message (the wallet processing the deploy request) must succeed.
+	// Result covers the alternative success exit code 1 and both compute and
+	// action phase failures.
+	result, exitCode, err := receivedMessage.Result()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get deployment result: %w", err)
+	}
+	if result != ResultSuccess {
+		return nil, nil, fmt.Errorf("contract deployment failed: error sending external message: %s (exit code %d: %s)", result, exitCode, exitCode.Describe())
+	}
+
+	// Some wallet implementations (e.g. HighloadV3) don't send the deployment
+	// message directly: the external message triggers a self-addressed internal
+	// message that the wallet uses to dispatch its outgoing messages. Search the
+	// trace for the message addressed to the new contract instead of assuming it
+	// is the first direct outgoing message.
+	deploymentMessage := receivedMessage.FindMessageTo(addr)
+	if deploymentMessage == nil {
+		return nil, nil, fmt.Errorf("contract deployment failed: no transaction to the new contract address %s found in the deployment trace", addr)
+	}
+
+	if !deploymentMessage.IsDeployment() {
+		deployExitCode, ecErr := deploymentMessage.ExitCode()
+		if ecErr != nil {
+			return nil, nil, fmt.Errorf("contract deployment failed: account did not become active (orig=%s end=%s)", deploymentMessage.OrigStatus, deploymentMessage.EndStatus)
+		}
+		return nil, nil, fmt.Errorf("contract deployment failed: account did not become active (orig=%s end=%s), deploy tx exit code %d: %s", deploymentMessage.OrigStatus, deploymentMessage.EndStatus, deployExitCode, deployExitCode.Describe())
+	}
+
+	if requireSuccess {
+		deployResult, deployExitCode, err := deploymentMessage.Result()
+		if err != nil {
+			return nil, nil, fmt.Errorf("contract deployment failed: failed to get deploy transaction result: %w", err)
+		}
+		if deployResult != ResultSuccess {
+			return nil, nil, fmt.Errorf("contract deployment failed: deploy tx %s (exit code %d: %s)", deployResult, deployExitCode, deployExitCode.Describe())
+		}
+	}
+
+	return addr, &receivedMessage, nil
 }

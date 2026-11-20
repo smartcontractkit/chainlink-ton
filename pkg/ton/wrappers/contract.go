@@ -3,7 +3,6 @@ package wrappers
 import (
 	"context"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +15,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/boc"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
@@ -147,10 +147,6 @@ type tactCompiledContract struct {
 	Abi  string `json:"abi"`
 }
 
-type tolkCompiledContract struct {
-	Hex string `json:"hex"`
-}
-
 func (c tactCompiledContract) codeCell() (*cell.Cell, error) {
 	// Extract the Base64-encoded BOC
 	codeBoc64 := c.Code
@@ -172,34 +168,17 @@ func (c tactCompiledContract) codeCell() (*cell.Cell, error) {
 	return codeCell, nil
 }
 
-func (c tolkCompiledContract) codeCell() (*cell.Cell, error) {
-	// Extract the Hex-encoded BOC
-	codeBocHex := c.Hex
-	if codeBocHex == "" {
-		return nil, errors.New("codeBocHex field is empty in the JSON")
-	}
-
-	// Decode the Hex string to get the actual BOC binary
-	codeBocBytes, err := hex.DecodeString(codeBocHex)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode hex: %w", err)
-	}
-
-	// Parse the BOC binary into a cell
-	codeCell, err := cell.FromBOC(codeBocBytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse BOC binary: %w", err)
-	}
-	return codeCell, nil
-}
-
 // Deploy deploys a contract to the blockchain. It takes the code cell of a
 // compiled contract, the initial data for the contract, and the amount of
 // TON to be sent to the contract upon deployment.
 // It returns the contract wrapper if the deployment is successful.
 // The deploy transaction must complete with a success exit code.
 func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell) (*Contract, *tracetracking.ReceivedMessage, error) {
-	return deploy(ctx, client, codeCell, initData, amount, msgBody, true)
+	addr, receivedMessage, err := client.DeployAndWaitForTrace(ctx, codeCell, initData, amount, msgBody)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &Contract{addr, client}, receivedMessage, nil
 }
 
 // DeployActivateOnly deploys a contract and requires only that its account
@@ -207,72 +186,11 @@ func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 // which is useful for legacy contracts that activate but reject the
 // deployment message.
 func DeployActivateOnly(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell) (*Contract, *tracetracking.ReceivedMessage, error) {
-	return deploy(ctx, client, codeCell, initData, amount, msgBody, false)
-}
-
-func deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell, requireSuccess bool) (*Contract, *tracetracking.ReceivedMessage, error) {
-	// Deploy the contract
-	addr, tx, _, err := client.Wallet.DeployContractWaitTransaction(
-		ctx,
-		amount,
-		msgBody,
-		codeCell,
-		initData,
-	)
+	addr, receivedMessage, err := client.DeployActivateOnlyAndWaitForTrace(ctx, codeCell, initData, amount, msgBody)
 	if err != nil {
-		return nil, nil, fmt.Errorf("deployment failed: %w", err)
+		return nil, nil, err
 	}
-
-	receivedMessage, err := tracetracking.MapToReceivedMessage(tx)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
-	}
-	err = receivedMessage.WaitForTrace(ctx, client.Client)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to wait for trace: %w", err)
-	}
-
-	// The external message (the wallet processing the deploy request) must succeed.
-	// Use Result rather than exit code 0 so the alternative success exit code 1 and
-	// both compute and action phase failures are handled correctly.
-	result, exitCode, err := receivedMessage.Result()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get deployment result: %w", err)
-	}
-	if result != tracetracking.ResultSuccess {
-		return nil, nil, fmt.Errorf("contract deployment failed: error sending external message: %s (exit code %d: %s)", result, exitCode, exitCode.Describe())
-	}
-
-	// Some wallet implementations (e.g. HighloadV3) don't always send the deployment message
-	// directly: the external message triggers a self-addressed internal message that the
-	// wallet uses to dispatch its outgoing messages.
-	// Search the trace for the transaction addressed to the new contract instead
-	// of assuming it is the first direct outgoing message.
-	deploymentMessage := receivedMessage.FindMessageTo(addr)
-	if deploymentMessage == nil {
-		return nil, nil, fmt.Errorf("contract deployment failed: no transaction to the new contract address %s found in the deployment trace. This usually indicates an issue with the deployment process or contract code", addr)
-	}
-
-	// The deploy transaction must both activate the account and complete successfully.
-	if !deploymentMessage.IsDeployment() {
-		deployExitCode, ecErr := deploymentMessage.ExitCode()
-		if ecErr != nil {
-			return nil, nil, fmt.Errorf("contract deployment failed: account did not become active (orig=%s end=%s)", deploymentMessage.OrigStatus, deploymentMessage.EndStatus)
-		}
-		return nil, nil, fmt.Errorf("contract deployment failed: account did not become active (orig=%s end=%s), deploy tx exit code %d: %s", deploymentMessage.OrigStatus, deploymentMessage.EndStatus, deployExitCode, deployExitCode.Describe())
-	}
-
-	if requireSuccess {
-		result, deployExitCode, err := deploymentMessage.Result()
-		if err != nil {
-			return nil, nil, fmt.Errorf("contract deployment failed: failed to get deploy transaction result: %w", err)
-		}
-		if result != tracetracking.ResultSuccess {
-			return nil, nil, fmt.Errorf("contract deployment failed: deploy tx %s (exit code %d: %s)", result, deployExitCode, deployExitCode.Describe())
-		}
-	}
-
-	return &Contract{addr, client}, &receivedMessage, nil
+	return &Contract{addr, client}, receivedMessage, nil
 }
 
 func Open(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell) (*Contract, error) {
@@ -325,11 +243,5 @@ func ParseCompiledTactContractFromFileBytes(data []byte) (*cell.Cell, error) {
 }
 
 func ParseCompiledTolkContractFromFileBytes(data []byte) (*cell.Cell, error) {
-	// Parse the JSON
-	compiledContract := &tolkCompiledContract{}
-	err := json.Unmarshal(data, compiledContract)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
-	}
-	return compiledContract.codeCell()
+	return boc.ParseTolkCompiledContract(data)
 }

@@ -20,7 +20,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/boc"
 )
 
 const (
@@ -157,7 +157,7 @@ func ReadCompiledContract(contractMeta ton.ContractMetadata, pkgPath string, met
 		return ton.CompiledContract{}, fmt.Errorf("failed to read contract file %s: %w", filePath, err)
 	}
 
-	code, err := wrappers.ParseCompiledTolkContractFromFileBytes(data)
+	code, err := boc.ParseTolkCompiledContract(data)
 	if err != nil {
 		return ton.CompiledContract{}, fmt.Errorf("failed to parse compiled contract %s: %w", entry.Path, err)
 	}
