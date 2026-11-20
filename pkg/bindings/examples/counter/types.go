@@ -1,8 +1,8 @@
 package counter
 
 import (
-	"context"
 	"fmt"
+	"math"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/hash"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 type ContractData struct {
@@ -68,20 +68,25 @@ type CountIncreasedMsg struct {
 
 // Getters
 
-func GetValue(ctx context.Context, api ton.APIClientWrapped, addr *address.Address) (uint32, error) {
-	block, err := api.CurrentMasterchainInfo(ctx)
+// GetValue reads the current counter value.
+var GetValue = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint32]{
+	Name:    "value",
+	Decoder: tvm.NewResultDecoder(decodeUint32),
+})
+
+// GetID reads the counter ID.
+var GetID = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint32]{
+	Name:    "id",
+	Decoder: tvm.NewResultDecoder(decodeUint32),
+})
+
+func decodeUint32(r *ton.ExecutionResult) (uint32, error) {
+	val, err := r.Int(0)
 	if err != nil {
-		return 0, fmt.Errorf("CurrentMasterchainInfo err: %w", err)
+		return 0, fmt.Errorf("failed to extract value: %w", err)
 	}
-
-	return wrappers.Uint32From(api.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, addr, "value"))
-}
-
-func GetID(ctx context.Context, api ton.APIClientWrapped, addr *address.Address) (uint32, error) {
-	block, err := api.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("CurrentMasterchainInfo err: %w", err)
+	if !val.IsUint64() || val.Uint64() > math.MaxUint32 {
+		return 0, fmt.Errorf("value %s overflows uint32", val)
 	}
-
-	return wrappers.Uint32From(api.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, addr, "id"))
+	return uint32(val.Uint64()), nil
 }

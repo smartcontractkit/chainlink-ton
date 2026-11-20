@@ -47,7 +47,7 @@ func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount,
 	expectedCounter := uint32(batchCount * txPerBatch * msgPerTx) //nolint:gosec // test code
 
 	require.Eventually(t, func() bool {
-		currentCounter, err := counter.GetValue(t.Context(), client, emitter.ContractAddress())
+		currentCounter, err := tvm.CallGetterLatest(t.Context(), client, emitter.ContractAddress(), counter.GetValue)
 		if err != nil {
 			return false
 		}

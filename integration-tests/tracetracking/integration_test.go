@@ -123,7 +123,7 @@ func TestIntegration(t *testing.T) {
 		t.Logf("\n\n\n\n\n\nTest Started\n==========================\n")
 
 		t.Logf("Checking initial value\n")
-		result, err := counter.GetValue(t.Context(), alice.Client, counterContract.Address)
+		result, err := tvm.CallGetterLatest(t.Context(), alice.Client, counterContract.Address, counter.GetValue)
 		require.NoError(t, err, "failed to get initial value: %w", err)
 		expectedValue := uint32(100)
 		require.Equal(t, expectedValue, result, "Expected initial value %d, got %d", expectedValue, result)
@@ -146,7 +146,7 @@ func TestIntegration(t *testing.T) {
 		t.Logf("SetCount request sent\n")
 
 		t.Logf("Checking result\n")
-		result, err = counter.GetValue(t.Context(), alice.Client, counterContract.Address)
+		result, err = tvm.CallGetterLatest(t.Context(), alice.Client, counterContract.Address, counter.GetValue)
 		require.NoError(t, err, "failed to get value: %w", err)
 		expectedValue = uint32(1)
 		require.Equal(t, expectedValue, result, "Expected value %d, got %d", expectedValue, result)

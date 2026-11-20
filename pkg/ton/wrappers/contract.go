@@ -226,7 +226,7 @@ func ParseCompiledContract(path string) (*cell.Cell, error) {
 	case strings.HasSuffix(path, ".pkg"):
 		return ParseCompiledTactContractFromFileBytes(jsonData)
 	case strings.HasSuffix(path, ".compiled.json"):
-		return ParseCompiledTolkContractFromFileBytes(jsonData)
+		return boc.ParseTolkCompiledContract(jsonData)
 	default:
 		return nil, fmt.Errorf("unsupported contract file format: %s", path)
 	}
@@ -240,8 +240,4 @@ func ParseCompiledTactContractFromFileBytes(data []byte) (*cell.Cell, error) {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 	return compiledContract.codeCell()
-}
-
-func ParseCompiledTolkContractFromFileBytes(data []byte) (*cell.Cell, error) {
-	return boc.ParseTolkCompiledContract(data)
 }

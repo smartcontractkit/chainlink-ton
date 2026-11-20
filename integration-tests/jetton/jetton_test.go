@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
+	"os"
 	"path"
 	"slices"
 	"sync"
@@ -32,14 +33,24 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-// Helper function to load the actual JettonWallet code
+// pathToJettonContracts is the directory holding the compiled jetton contracts,
+// exposed by the default nix shell.
+var pathToJettonContracts = os.Getenv("PATH_CONTRACTS_JETTON")
+
 func loadJettonWalletCode() (*cell.Cell, error) {
-	jettonWalletPath := path.Join(jetton_common.PathToContracts, "JettonWallet.compiled.json")
-	compiledContract, err := wrappers.ParseCompiledContract(jettonWalletPath)
+	return loadJettonContractCode("JettonWallet")
+}
+
+func loadJettonMinterCode() (*cell.Cell, error) {
+	return loadJettonContractCode("JettonMinter")
+}
+
+func loadJettonContractCode(name string) (*cell.Cell, error) {
+	code, err := wrappers.ParseCompiledContract(path.Join(pathToJettonContracts, name+".compiled.json"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse JettonWallet contract: %w", err)
+		return nil, fmt.Errorf("failed to parse %s contract: %w", name, err)
 	}
-	return compiledContract, nil
+	return code, nil
 }
 
 const JettonDataURI = "smartcontract.com"
@@ -551,7 +562,7 @@ func TestJettonAll(t *testing.T) {
 		t.Parallel()
 		setup := setupSender(t)
 		t.Logf("Deploying JettonMinter contract\n")
-		jettonWalletCode, err := wallet.Code()
+		jettonWalletCode, err := loadJettonWalletCode()
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.receiver.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
@@ -806,7 +817,7 @@ func TestJettonAll(t *testing.T) {
 
 		msg, err := tlb.ToCell(jetton_common.TopUpTons{})
 		require.NoError(t, err, "failed to create top-up message")
-		jettonWalletCode, err := wallet.Code()
+		jettonWalletCode, err := loadJettonWalletCode()
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
@@ -865,7 +876,7 @@ func TestJettonAll(t *testing.T) {
 		setup := setupJettonWallet(t)
 		t.Logf("Deploying JettonWallet contract\n")
 
-		jettonWalletCode, err := wallet.Code()
+		jettonWalletCode, err := loadJettonWalletCode()
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
@@ -925,7 +936,7 @@ func TestJettonAll(t *testing.T) {
 		t.Parallel()
 		setup := setupJettonWallet(t)
 		t.Logf("Deploying JettonWallet contract\n")
-		jettonWalletCode, err := wallet.Code()
+		jettonWalletCode, err := loadJettonWalletCode()
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
@@ -976,7 +987,7 @@ func TestJettonAll(t *testing.T) {
 }
 
 func DeployMinter(t *testing.T, deployer *tracetracking.SignedAPIClient, initData minter.InitData) *wrappers.Contract {
-	minterCode, err := minter.Code()
+	minterCode, err := loadJettonMinterCode()
 	require.NoError(t, err, "failed to load JettonMinter code")
 	topUpMsg, err := tlb.ToCell(jetton_common.TopUpTons{})
 	require.NoError(t, err, "failed to create TopUp message")
