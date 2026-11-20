@@ -13,7 +13,7 @@ struct Storage {
 
 type IncomingMessage = Upgradeable_Upgrade;
 
-fun loadData() {
+fun loadData(): Storage {
     return Storage.fromCell(contract.getData());
 }
 

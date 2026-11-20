@@ -55,11 +55,11 @@ type BounceOpToHandle = InternalTransferStep | BurnNotificationForMinter
 const ERROR_UNSUFFICIENT_AMOUNT = 76
 const ERROR_INVALID_EXCESSES_DESTINATION = 77
 
-fun reserveModeExactFail() {
+fun reserveModeExactFail(): int {
     return RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
 }
 
-fun requiredWalletReserve(backedAmount: coins) {
+fun requiredWalletReserve(backedAmount: coins): coins {
     return backedAmount + calculateJettonWalletMinStorageFee() + contract.getStorageDuePayment();
 }
 

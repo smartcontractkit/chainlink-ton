@@ -6,7 +6,7 @@ import "./storage.tolk";
 
 type IncomingMessage = Upgradeable_Upgrade | Step;
 
-fun loadData() {
+fun loadData(): StorageV1 {
     return StorageV1.fromCell(contract.getData());
 }
 

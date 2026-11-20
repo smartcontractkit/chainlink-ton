@@ -90,7 +90,7 @@ struct TokenPool_Data {
 }
 
 @inline
-fun TokenPool_Data.fromContractData() {
+fun TokenPool_Data.fromContractData(): TokenPool_Data {
     return TokenPool_Data.fromCell(contract.getData());
 }
 

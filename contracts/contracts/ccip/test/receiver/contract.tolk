@@ -105,12 +105,12 @@ fun processAccept(msg: Receiver_CCIPReceiveV2) {
     });
 }
 
-fun processRejectAll() {
+fun processRejectAll(): never {
     throw TestReceiver_Error.Rejected;
 }
 
 // This is just for testing purposes
-fun processConsumeAllGas() {
+fun processConsumeAllGas(): never {
     var x: int = 0;
     while (true) { x = x + 1; }
 }

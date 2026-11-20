@@ -12,7 +12,7 @@ struct Storage {
     reserve: coins;
 }
 
-fun loadData() {
+fun loadData(): Storage {
     return Storage.fromCell(contract.getData());
 }
 

@@ -8,7 +8,7 @@ struct OCR3BaseExampleContract {
     ocr3Base: OCR3Base;
 }
 
-fun OCR3BaseExampleContract.load() {
+fun OCR3BaseExampleContract.load(): OCR3BaseExampleContract {
     return OCR3BaseExampleContract.fromCell(contract.getData());
 }
 

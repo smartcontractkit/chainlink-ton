@@ -48,11 +48,11 @@ const ERROR_UNSUFFICIENT_AMOUNT = 76
 const ERROR_INVALID_EXCESSES_DESTINATION = 77
 const ERROR_INVALID_RECIPIENT = 78
 
-fun reserveModeExactFail() {
+fun reserveModeExactFail(): int {
     return RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
 }
 
-fun requiredMinterReserve() {
+fun requiredMinterReserve(): coins {
     return grams("0.01") + contract.getStorageDuePayment();
 }
 

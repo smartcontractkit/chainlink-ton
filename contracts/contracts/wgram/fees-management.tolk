@@ -62,11 +62,11 @@ const GAS_CONSUMPTION_BurnRequest       = 5613
 const GAS_CONSUMPTION_BurnNotification  = 4558
 
 
-fun calculateJettonWalletMinStorageFee() {
+fun calculateJettonWalletMinStorageFee(): coins {
     return calculateStorageFee(MY_WORKCHAIN, MIN_STORAGE_DURATION, STORAGE_SIZE_MaxWallet_bits, STORAGE_SIZE_MaxWallet_cells);
 }
 
-fun forwardInitStateOverhead() {
+fun forwardInitStateOverhead(): coins {
     return calculateForwardFeeWithoutLumpPrice(MY_WORKCHAIN, STORAGE_SIZE_InitStateWallet_bits, STORAGE_SIZE_InitStateWallet_cells);
 }
 

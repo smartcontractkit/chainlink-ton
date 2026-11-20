@@ -9,7 +9,7 @@ struct Deployable<T> {
     id: T // builder on serialize, RemainingBitsAndRefs on deserialize
 }
 
-fun Deployable<T>.load() {
+fun Deployable<T>.load(): Deployable<T> {
     return Deployable<T>.fromCell(contract.getData());
 }
 

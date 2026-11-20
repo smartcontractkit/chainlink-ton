@@ -438,7 +438,7 @@ struct MCMS_Data {
 
 /// Load from contract data using auto-serialization.
 @inline
-fun MCMS_Data.fromContractData() {
+fun MCMS_Data.fromContractData(): MCMS_Data {
     return MCMS_Data.fromCell(contract.getData());
 }
 
