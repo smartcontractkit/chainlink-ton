@@ -9,9 +9,9 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 var PriceRegistryContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.request-reply.PriceRegistry/tact_PriceRegistry.pkg")
@@ -61,9 +61,9 @@ type AddPriceItemMessage struct {
 	Addr    *address.Address `tlb:"addr"`
 }
 
-func (p PriceRegistry) SendAddPriceItem(key uint8, addr *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
+func (p PriceRegistry) SendAddPriceItem(ctx context.Context, key uint8, addr *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = p.Contract.CallWaitRecursively(AddPriceItemMessage{
+	msgReceived, err = p.Contract.CallWaitRecursively(ctx, AddPriceItemMessage{
 		QueryID: queryID,
 		Key:     key,
 		Addr:    addr,

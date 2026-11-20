@@ -1,4 +1,4 @@
-package jetton
+package examples
 
 import (
 	"context"
@@ -9,9 +9,9 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 var OnrampMockContractPath = bindings.GetBuildDir("examples.jetton.OnrampMock.compiled.json")

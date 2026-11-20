@@ -8,9 +8,9 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 var CounterContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.two-phase-commit.Counter/tact_Counter.pkg")
@@ -60,14 +60,16 @@ type sendAckMessage struct {
 	QueryID uint64    `tlb:"## 64"`
 }
 
-func (c Counter) SendAck() (msgReceived *tracetracking.ReceivedMessage, err error) {
+func (c Counter) SendAck(ctx context.Context) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = c.Contract.CallWaitRecursively(sendAckMessage{
+	msgReceived, err = c.Contract.CallWaitRecursively(ctx, sendAckMessage{
 		QueryID: queryID,
 	}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 
-func (c Counter) GetValue() (uint32, error) {
-	return wrappers.Uint32From(c.Contract.Get("value"))
+var getValue = wrappers.NewUint32Getter("value")
+
+func (c Counter) GetValue(ctx context.Context) (uint32, error) {
+	return tvm.CallGetterLatest(ctx, c.Contract.Client.Client, c.Contract.Address, getValue)
 }

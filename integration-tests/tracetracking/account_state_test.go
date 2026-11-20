@@ -14,10 +14,10 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/testutils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 // traceProbeStorage is the storage of contracts/test/mock/trace_probe.tolk.
@@ -67,7 +67,7 @@ func TestTraceAccountStates(t *testing.T) {
 	// call sends msg to probe and waits for the whole trace, returning the probe's handling of msg.
 	call := func(t *testing.T, probe *wrappers.Contract, msg any) *tracetracking.ReceivedMessage {
 		t.Helper()
-		root, err := probe.CallWait(msg, tlb.MustFromTON("0.1"))
+		root, err := probe.CallWait(t.Context(), msg, tlb.MustFromTON("0.1"))
 		require.NoError(t, err)
 
 		ctx, cancel := context.WithTimeout(t.Context(), traceTimeout)

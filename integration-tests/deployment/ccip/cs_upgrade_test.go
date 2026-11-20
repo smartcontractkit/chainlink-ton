@@ -21,10 +21,10 @@ import (
 	opsupgrade "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/lib/versioning/upgradeable"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/versioning/upgradeable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 // upgradeableCounterV1Data matches the V1 data layout:
@@ -146,9 +146,7 @@ func TestUpgradeOperation(t *testing.T) {
 	require.Equal(t, "1.0.0", tv.Version)
 	t.Logf("V1 TypeAndVersion: %s %s", tv.Type, tv.Version)
 
-	valueV1, err := wrappers.Uint32From(
-		tonChain.Client.WaitForBlock(block.SeqNo).RunGetMethod(ctx, block, contract.Address, "value"),
-	)
+	valueV1, err := tvm.CallGetter(ctx, tonChain.Client, block, contract.Address, wrappers.NewUint32Getter("value"))
 	require.NoError(t, err)
 	require.Equal(t, uint32(42), valueV1, "Initial value should be 42")
 
