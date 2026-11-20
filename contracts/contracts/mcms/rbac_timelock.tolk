@@ -1271,8 +1271,6 @@ fun Timelock<T>.submitErrorReport(
     // Mark op in error state (recover with new op + bypass)
     self.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
 
-    //   - opportunity to rollback, not currently supported
-
     // Check the reported error against the stored pending operation
     val matchesPendingOp = self.data.opPendingInfo.opPendingId == id;
     if (matchesPendingOp) {
@@ -1508,14 +1506,12 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 
     if (!matchesPendingOp) {
-        return; // unrelated bounce, error oracle should intervene with a report
+        return; // not attributable to the pending scheduled operation
     }
 
     // Note: make sure opFinalizationTimeout is a large enough value to avoid races here
     timelock.data.timestamps.set(id, ERROR_TIMESTAMP); // mark op as error
     timelock.data.opPendingInfo.validAfter = blockchain.now(); // mark op as final
-
-    //   - opportunity to rollback, not currently supported
 
     // Store the updated contract data
     timelock.data.storeAsContractData();
