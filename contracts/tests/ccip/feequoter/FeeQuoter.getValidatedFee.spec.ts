@@ -235,9 +235,9 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   // Detailed token-transfer fee math (per-token override, deciBps, min/max clamping, defaults
   // fallback, multi-token summation, maxNumberOfTokensPerMsg enforcement) is covered in
-  // FeeQuoter.tokenTransferFee.spec.ts. This just sanity-checks that a token transfer is now
+  // FeeQuoter.tokenTransferFee.spec.ts. This just sanity-checks that a token transfer is
   // priced differently from (and, given the configured overrides, higher than) an equivalent
-  // token-less message, i.e. the extra token-transfer fee is no longer ignored.
+  // token-less message.
   it('prices a token transfer differently from a token-less message', async () => {
     const feeToken = FeeQuoterSetup.NATIVE_TON.token
 
