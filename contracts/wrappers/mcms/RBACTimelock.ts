@@ -170,6 +170,9 @@ export type ContractData = {
   // ID allows multiple independent instances, since contract address depends on initial state.
   id: number // uint32
 
+  // Address allowed to initialize the contract.
+  initializer: Address
+
   // Minimum delay for operations in seconds
   minDelay: number
   // Map of operation id to timestamp
@@ -221,8 +224,8 @@ export type OpPendingInfo = {
   opFinalizationTimeout: number
   // The id of the currently pending operation (OperationBatch hash)
   opPendingId: bigint
-  // The ids (fingerprints) for calls awaiting finalization in the pending op (true = pending, false = finalized/bounced)
-  opPendingCalls?: Dictionary<bigint, boolean>
+  // The logical time of the transaction that executed the pending operation.
+  opPendingExecutionLt: bigint
 }
 
 export type ExecuteData = {
@@ -704,6 +707,7 @@ export const builder = {
       encode: (data: ContractData): Builder => {
         return beginCell()
           .storeUint(data.id, 32)
+          .storeAddress(data.initializer)
           .storeUint(data.minDelay, 32)
           .storeDict(data.timestamps)
           .storeUint(data.blockedFnSelectorsLen || 0, 32) // blocked_fn_selectors_len
@@ -715,7 +719,7 @@ export const builder = {
           .storeUint(data.opPendingInfo.validAfter, 64)
           .storeUint(data.opPendingInfo.opFinalizationTimeout, 32)
           .storeUint(data.opPendingInfo.opPendingId, 256)
-          .storeDict(data.opPendingInfo.opPendingCalls)
+          .storeUint(data.opPendingInfo.opPendingExecutionLt, 64)
           .storeRef(data.rbac)
       },
       load: (src: Slice): ContractData => {
@@ -806,6 +810,8 @@ export enum Error {
   ContractNotInitialized,
   // Value attached to incoming message is not enough to pay for handler execution
   InsufficientFee,
+  // Thrown when the caller is not the configured initializer.
+  UnauthorizedInitializer,
 }
 
 export class ContractClient implements Contract {
@@ -1047,7 +1053,7 @@ export class ContractClient implements Contract {
         validAfter: result.stack.readBigNumber(),
         opFinalizationTimeout: result.stack.readNumber(),
         opPendingId: result.stack.readBigNumber(),
-        // TODO[TEST]: read opPendingCalls dictionary
+        opPendingExecutionLt: result.stack.readBigNumber(),
       }))
   }
 }

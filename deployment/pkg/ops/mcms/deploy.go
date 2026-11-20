@@ -22,6 +22,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -105,8 +106,9 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 
 	addresses := make([]cldfds.AddressRef, 0) // deployed contract addresses to return in output
 
-	// Notice: we set a (static) default when version is not provided (e.g., common 'deploy_mcms_for_cll' changeset)
-	contractsPackage := utils.ContractsPackageLatestSupported
+	// TODO: default to the next released contracts package once it contains the
+	// new Timelock storage layout. Until then, default to the local package.
+	contractsPackage := utils.ContractsVersionLocal
 	if in.Config.ContractVersion != "" {
 		contractsPackage = in.Config.ContractVersion
 	}
@@ -256,7 +258,10 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 
 	// #3 - deploy Timelock
 	if stateMCMSSuite.Timelock == nil || stateMCMSSuite.Timelock.IsAddrNone() { // Deploy Timelock only if not deployed yet
-		storage := timelock.EmptyDataFrom(id)
+		storage, err := timelock.EmptyDataFrom(id, chain.WalletAddress)
+		if err != nil {
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to build timelock storage: %w", err)
+		}
 
 		// MinDelay from cfg.TimelockMinDelay (big.Int) to uint32 safely
 		minDelay := uint32(DefaultMinDelay)
@@ -301,6 +306,31 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		if err != nil {
 			return ccipdseq.OnChainOutput{}, err
 		}
+
+		timelockAddr, err := utils.ToTONAddress(*outputAddr)
+		if err != nil {
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to parse deployed timelock address: %w", err)
+		}
+
+		initialized, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, timelockAddr, timelock.GetIsInitialized)
+		if err != nil {
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to verify timelock initialization at %s: %w", timelockAddr.String(), err)
+		}
+		if !initialized {
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("timelock at %s is not initialized after deployment", timelockAddr.String())
+		}
+
+		adminHasRole, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, timelockAddr, rbac.GetHasRole, rbac.HasRoleArgs{
+			Role:    timelock.RoleAdmin,
+			Account: admin,
+		})
+		if err != nil {
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to verify timelock admin role at %s: %w", timelockAddr.String(), err)
+		}
+		if !adminHasRole {
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("timelock at %s does not grant ADMIN_ROLE to %s after deployment", timelockAddr.String(), admin.String())
+		}
+
 		addresses = append(addresses, *outputAddr)
 		id++ // increment ID for the next contract to avoid address collision
 		b.Logger.Infof("Deployed Timelock at address %s on chain %s", outputAddr.Address, chain.Name)

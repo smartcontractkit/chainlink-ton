@@ -113,3 +113,19 @@ func TestCrossImplementationEncoding(t *testing.T) {
 		require.Equal(t, expectedHash, encoded.Hash(), "OperationBatch encoding should match TypeScript")
 	})
 }
+
+func TestEmptyDataFromRequiresInitializer(t *testing.T) {
+	_, err := EmptyDataFrom(42, nil)
+	require.Error(t, err)
+
+	_, err = EmptyDataFrom(42, address.NewAddressNone())
+	require.Error(t, err)
+
+	data, err := EmptyDataFrom(42, address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001"))
+	require.NoError(t, err)
+	require.NotNil(t, data.Initializer)
+
+	data.Initializer = nil
+	_, err = tlb.ToCell(data)
+	require.ErrorContains(t, err, "address is required")
+}

@@ -23,6 +23,11 @@ var GetMinDelay = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint64]{
 	}),
 })
 
+var GetIsInitialized = tvm.NewNoArgsGetter(tvm.NoArgsOpts[bool]{
+	Name:    "isInitialized",
+	Decoder: BoolRes,
+})
+
 var GetRoleMemberCount = tvm.Getter[*big.Int, uint64]{
 	Name: "getRoleMemberCount",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint64, error) {
@@ -117,10 +122,16 @@ var GetOpPendingInfo = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OpPendingInfo]{
 			return OpPendingInfo{}, fmt.Errorf("error getting Int(2) - opPendingID: %w", err)
 		}
 
+		opPendingExecutionLt, err := r.Int(3)
+		if err != nil {
+			return OpPendingInfo{}, fmt.Errorf("error getting Int(3) - opPendingExecutionLt: %w", err)
+		}
+
 		return OpPendingInfo{
 			ValidAfter:            validAfter.Uint64(),
 			OpFinalizationTimeout: uint32(opFinalizationTimeout.Uint64()),
 			OpPendingID:           tlbe.NewUint256(opPendingID),
+			OpPendingExecutionLt:  opPendingExecutionLt.Uint64(),
 		}, nil
 	}),
 })

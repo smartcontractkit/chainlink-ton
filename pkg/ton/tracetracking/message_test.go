@@ -235,6 +235,13 @@ func TestReceivedMessage_Outcome(t *testing.T) {
 			wantExitCode:  tvm.ExitCodeSuccess,
 		},
 		{
+			name:          "compute succeeded with alternative success exit code",
+			description:   &tlb.TransactionDescriptionOrdinary{ComputePhase: vmPhase(true, int32(tvm.ExitCodeSuccessVariant))},
+			wantSucceeded: true,
+			wantResult:    tracetracking.ResultSuccess,
+			wantExitCode:  tvm.ExitCodeSuccessVariant,
+		},
+		{
 			name:          "compute failed",
 			description:   computeFailedDescription,
 			wantSucceeded: false,

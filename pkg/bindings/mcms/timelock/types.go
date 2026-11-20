@@ -344,6 +344,9 @@ type Data struct {
 	// ID allows multiple independent instances, since contract address depends on initial state.
 	ID uint32 `tlb:"## 32"`
 
+	// Address allowed to initialize this timelock, bound at deployment (stateInit).
+	Initializer *address.Address `tlb:"addr required"`
+
 	// Minimum delay for operations in seconds
 	MinDelay uint32 `tlb:"## 32"`
 	// Map of operation id to timestamp
@@ -396,8 +399,8 @@ type OpPendingInfo struct {
 	OpFinalizationTimeout uint32 `tlb:"## 32"`
 	// The id of the currently pending operation (OperationBatch hash)
 	OpPendingID *tlbe.Uint256 `tlb:"."`
-	// The ids (fingerprints) for calls awaiting finalization in the pending op (true = pending, false = finalized/bounced)
-	OpPendingCalls *tlbe.Dict[tlbe.Uint256, bool] `tlb:"."`
+	// The logical time of the transaction that executed the pending operation.
+	OpPendingExecutionLt uint64 `tlb:"## 64"`
 }
 
 // --- Constants ---
@@ -455,7 +458,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorSelectorIsBlocked)
-		ecMax = int32(InsufficientFee)
+		ecMax = int32(ErrorUnauthorizedInitializer)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -485,4 +488,6 @@ const (
 	ErrorContractNotInitialized
 	// Value attached to incoming message is not enough to pay for handler execution
 	InsufficientFee
+	// Thrown when the caller is not the configured initializer.
+	ErrorUnauthorizedInitializer
 )

@@ -137,7 +137,7 @@ func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet
 		return nil, fmt.Errorf("failed to create initial data cell: %w", err)
 	}
 
-	contract, _, err := wrappers.Deploy(
+	contract, _, err := wrappers.DeployActivateOnly(
 		ctx,
 		sigClient,
 		codeCell,

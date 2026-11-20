@@ -316,8 +316,8 @@ struct (0xa86846d5) MCMS_ExpiredRootsCleaned {
 struct (0xe695431e) MCMS_BounceHandled {
     /// The sender of the bounced message.
     sender: address;
-    /// The truncated body of the bounced message.
-    bouncedBody: uint256;
+    /// The opcode of the bounced message, if present.
+    opcode: uint32?;
     /// The current root
     root: uint256;
     /// The current root op count (nonce).
@@ -508,6 +508,8 @@ enum MCMS_Error {
     InsufficientFee
 }
 
+// --- Constants - storage ---
+
 // --- Data structures ---
 
 // Signer information
@@ -621,9 +623,9 @@ struct OpPendingInfo {
     opFinalizationTimeout: uint32;
     /// The address that the (pending) operation was sent to (and could bounce from).
     opPendingReceiver: address?;
-    /// The truncated body of the pending operation (256 bits from the original message),
-    /// stored as the next expected potential bounce, and verified in onBounceMessage handler.
-    opPendingBodyTruncated: uint256;
+    /// The transaction logical time at which the pending op was executed.
+    /// Used to reject late bounces from previous ops even when their bodies match.
+    opPendingExecutionLt: uint64;
 }
 
 /// Each root also authenticates metadata about itself (stored as one of the leaves)
@@ -914,7 +916,7 @@ fun MCMS<T>.setRoot(
                 validAfter: blockchain.now(), // immediate
                 opFinalizationTimeout: opPendingInfo.opFinalizationTimeout, // cp from storage
                 opPendingReceiver: null,
-                opPendingBodyTruncated: 0,
+                opPendingExecutionLt: 0,
             }.toCell()
         },
         rootMetadata: metadata,
@@ -1025,7 +1027,7 @@ fun MCMS<T>.execute(
                 opFinalizationTimeout: opPendingInfo.opFinalizationTimeout,
                 // Store the pending message info (checked onBouncedMessage)
                 opPendingReceiver: op.to,
-                opPendingBodyTruncated: extractBouncedBody(op.data.beginParse())
+                opPendingExecutionLt: blockchain.logicalTime() as uint64,
             }.toCell()
         },
         rootMetadata
@@ -1227,7 +1229,7 @@ fun MCMS<T>.setConfig(
                     validAfter: blockchain.now(), // immediate
                     opFinalizationTimeout: opPendingInfo.opFinalizationTimeout, // cp from storage
                     opPendingReceiver: null,
-                    opPendingBodyTruncated: 0
+                    opPendingExecutionLt: 0
                 }.toCell()
             },
             rootMetadata: RootMetadata{
@@ -1347,7 +1349,7 @@ fun MCMS<T>.submitErrorReport(
     val matchesPendingOp = true
         && opPendingInfo.opPendingReceiver != null
         && opPendingInfo.opPendingReceiver == op.to
-        && opPendingInfo.opPendingBodyTruncated == extractBouncedBody(op.data.beginParse());
+        && op.nonce + 1 == rootInfo.expiringRootAndOpCount.opCount;
 
     // Store the root in a separate cell (size limit)
     val root = beginCell()
@@ -1436,8 +1438,10 @@ fun MCMS<T>._execute(self, dest: address, value: coins, body: cell): void {
         return self.hooks.execute(self.context, dest, value, body); // extension hook
     }
 
-    // Send a message to the target with the provided value and data
-    val op = createMessage({bounce: BounceMode.Only256BitsOfBody, value, dest, body});
+    // Send a message to the target with the provided value and data.
+    // Rich bounce keeps the original message info (including created_lt) so a late
+    // bounce can be reliably attributed to the op that produced it.
+    val op = createMessage({bounce: BounceMode.RichBounceOnlyRootCell, value, dest, body});
     op.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
@@ -1579,14 +1583,24 @@ fun onBouncedMessage(in: InMessageBounced) {
     // Note: make sure opFinalizationTimeout is a large enough value to avoid races here.
     // Check the bounced message against the stored pending operation. If the bounce matches the currently
     // pending op treat it as a retry signal. Otherwise, expire the root based on conditions below.
-    val bouncedBody = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
+    // MCMS sends op messages with rich bounces only.
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val body = rich.originalBody.beginParse();
+    val bouncedCreatedLt = rich.originalInfo.load().createdLt;
+
+    var opcode: uint32? = null;
+    if (body.remainingBitsCount() >= 32) {
+        opcode = body.preloadUint(32) as uint32;
+    }
+
     val root = rootInfo.expiringRootAndOpCount.root;
     val nonce = rootInfo.expiringRootAndOpCount.opCount;
 
     val matchesPendingOp = true
+        && blockchain.now() <= opPendingInfo.validAfter
         && opPendingInfo.opPendingReceiver != null
         && opPendingInfo.opPendingReceiver! == in.senderAddress
-        && opPendingInfo.opPendingBodyTruncated == bouncedBody;
+        && opPendingInfo.opPendingExecutionLt < bouncedCreatedLt;
 
     if (!matchesPendingOp) {
         // A bounce that doesn't match the stored pending op may be:
@@ -1601,7 +1615,7 @@ fun onBouncedMessage(in: InMessageBounced) {
         if (ignoreMismatchedBounce) {
             emit(TOPIC_BOUNCE_HANDLED, MCMS_BounceHandled{
                 sender: in.senderAddress,
-                bouncedBody,
+                opcode,
                 root,
                 nonce,
                 matchesPendingOp,
@@ -1617,7 +1631,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 
         emit(TOPIC_BOUNCE_HANDLED, MCMS_BounceHandled{
             sender: in.senderAddress,
-            bouncedBody,
+            opcode,
             root,
             nonce,
             matchesPendingOp,
@@ -1630,7 +1644,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     rootInfo.expiringRootAndOpCount.opCount = nonce - 1;
     opPendingInfo.validAfter = blockchain.now(); // can be retried immediately
     opPendingInfo.opPendingReceiver = null;
-    opPendingInfo.opPendingBodyTruncated = 0;
+    opPendingInfo.opPendingExecutionLt = 0;
 
     rootInfo.expiringRootAndOpCount.opPendingInfo = opPendingInfo.toCell();
     mcms.data.rootInfo = rootInfo.toCell();
@@ -1638,7 +1652,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     emit(TOPIC_BOUNCE_HANDLED, MCMS_BounceHandled{
         sender: in.senderAddress,
-        bouncedBody,
+        opcode,
         root,
         nonce,
         matchesPendingOp,
