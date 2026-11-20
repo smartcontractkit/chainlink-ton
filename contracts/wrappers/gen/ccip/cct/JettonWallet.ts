@@ -673,11 +673,11 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 
 export class JettonWallet implements c.Contract {
     static Errors = {
-        'ERROR_BALANCE_ERROR': 47,
-        'ERROR_NOT_ENOUGH_GAS': 48,
-        'ERROR_NOT_OWNER': 73,
-        'ERROR_NOT_VALID_WALLET': 74,
-        'ERROR_WRONG_WORKCHAIN': 333,
+        'Jetton_Error.BalanceError': 47,
+        'Jetton_Error.NotEnoughGas': 48,
+        'Jetton_Error.NotOwner': 73,
+        'Jetton_Error.NotValidWallet': 74,
+        'Jetton_Error.WrongWorkchain': 333,
     }
 
     readonly address: c.Address

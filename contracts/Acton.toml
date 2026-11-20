@@ -335,10 +335,10 @@ identical-conditional-branches = "warn" # E021 - Detects conditionals where both
 no-global-variables = "warn" # E022 - Disallows top-level global variable declarations.
 enum-cast-missing-safety-comment = "warn" # E024 - Requires a SAFETY comment for non-literal as casts to enum types.
 missing-contract-header = "warn" # E025 - Warns when a contract source defines standard contract entrypoints but omits the contract header.
-unused-expression = "warn" # E026 - Warns when an expression statement computes a value that is immediately discarded.
-dict-type-use = "warn" # E027 - Warns when code uses the low-level dict type.
-throw-requires-errors-enum = "warn" # E028 - Warns when symbolic throw codes are referenced as bare constants.
-create-message-body-to-cell = "warn" # E029 - Warns about MyMessage { ... }.toCell() inside createMessage({ body: ... }) initializer.
+unused-expression = "deny" # E026 - Warns when an expression statement computes a value that is immediately discarded.
+dict-type-use = "deny" # E027 - Warns when code uses the low-level dict type.
+throw-requires-errors-enum = "deny" # E028 - Warns when symbolic throw codes are referenced as bare constants.
+create-message-body-to-cell = "deny" # E029 - Warns about MyMessage { ... }.toCell() inside createMessage({ body: ... }) initializer.
 throw-requires-documented-error-value = "allow" # TODO E030 - Requires documentation for enum values used as throw codes.
 
 # I would not enable this until we get namespacing in imports

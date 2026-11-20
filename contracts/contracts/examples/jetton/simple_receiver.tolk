@@ -7,7 +7,9 @@ import "../../lib/jetton/messages.tolk"
 
 // SimpleJettonReceiver contract in Tolk
 // Simple receiver that just tracks amounts and payloads
-const INCORRECT_SENDER_ERROR = 100
+enum SimpleJettonReceiver_Error {
+    IncorrectSender = 100
+}
 
 struct SimpleJettonReceiver {
     JettonClient: JettonClient
@@ -47,7 +49,7 @@ fun SimpleJettonReceiver.handleJettonTransferNotification(
     sender: address,
 ) {
     // Check if the sender is our jetton wallet
-    assert (self.JettonClient.isWallet(sender)) throw (INCORRECT_SENDER_ERROR);
+    assert (self.JettonClient.isWallet(sender)) throw (SimpleJettonReceiver_Error.IncorrectSender);
 
     // Handle the jetton transfer - simple implementation just updates trackers
     self.amountChecker += msg.jettonAmount;
