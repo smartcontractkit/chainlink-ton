@@ -110,7 +110,7 @@ get fun dynamicConfig(): OnRamp_DynamicConfig {
 }
 
 // Getter for destination chain config
-get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
+get fun destChainConfig(_destChainSelector: uint64): OnRamp_DestChainConfig {
 	val st = lazy FiredrillOnRamp_Storage.load();
 	return OnRamp_DestChainConfig {
 		router: st.controlAddress,

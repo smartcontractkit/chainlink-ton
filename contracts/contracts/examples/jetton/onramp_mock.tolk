@@ -49,7 +49,7 @@ fun OnrampMock.handleJettonTransferNotification(
     // Check if the sender is our jetton wallet
     assert (sender == self.JettonClient.walletAddress()) throw (INCORRECT_SENDER_ERROR);
 
-    var forwardPayloadCell = loadForwardPayloadAsCell(msg.forwardPayload);
+    val forwardPayloadCell = loadForwardPayloadAsCell(msg.forwardPayload);
 
     // Handle the jetton transfer
     if (msg.jettonAmount < FEE) {

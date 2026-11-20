@@ -141,7 +141,7 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateToken
     while (entry.isFound) {
         val destChainSelector = entry.getKey();
         val update = entry.loadValue();
-        var configEntry = st.destChainConfigs.get(destChainSelector);
+        val configEntry = st.destChainConfigs.get(destChainSelector);
         assert (configEntry.isFound) throw (FeeQuoter_Error.UnknownDestChainSelector);
         var destChainConfig = configEntry.loadValue();
 
@@ -261,11 +261,11 @@ get fun validatedFee(msg: Router_CCIPSend): coins {
 
 // @returns (fee, destOverheads, chainFamilySelector)
 fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, ExtraArgs, lisp_list<FeeQuoter_DestOverhead>?, uint32) {
-    var st = lazy Storage.load();
+    val st = lazy Storage.load();
 
     val destChainConfigResult = st.destChainConfigs.get(msg.destChainSelector);
     assert (destChainConfigResult.isFound) throw (FeeQuoter_Error.DestChainNotEnabled);
-    var destChainConfig = destChainConfigResult.loadValue();
+    val destChainConfig = destChainConfigResult.loadValue();
 
     assert (destChainConfig.config.isEnabled) throw (FeeQuoter_Error.DestChainNotEnabled);
     assert (msg.feeToken != null) throw (FeeQuoter_Error.FeeTokenNotSupported);
@@ -698,7 +698,7 @@ get fun tokenPrices(tokens: array<address>): array<Cell<TimestampedPrice>?> {
 
 get fun destinationChainGasPrice(destChainSelector: uint64): Cell<GasPrice> {
     val st = lazy Storage.load();
-    var entry = st.destChainConfigs.get(destChainSelector);
+    val entry = st.destChainConfigs.get(destChainSelector);
     assert (entry.isFound) throw (FeeQuoter_Error.UnknownDestChainSelector);
     return entry.loadValue().usdPerUnitGas
 }

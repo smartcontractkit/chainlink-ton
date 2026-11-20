@@ -77,7 +77,7 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy BurnMintTokenPool_InMessage.fromSlice(in.body);
     match (msg) {
         BurnMintTokenPool_ClaimMinterAdmin => {
-            onClaimMinterAdmin(mutate st, in.senderAddress, in.valueCoins, msg.queryId);
+            onClaimMinterAdmin(st, in.senderAddress, in.valueCoins, msg.queryId);
             st.store();
         }
         CCT_ReturnExcessesBack => {
@@ -213,7 +213,7 @@ fun onReleaseOrMintContinue(
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
     assert (ctx != null) throw (TokenPool_Error.UnsupportedOperation);
-    var st = ctx;
+    val st = ctx;
     val delivery = msg.delivery.load();
     val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
         initiator,
@@ -288,7 +288,7 @@ fun onReleaseOrMintContinue(
 }
 
 fun onClaimMinterAdmin(
-    mutate st: Storage,
+    st: Storage,
     sender: address,
     msgValue: coins,
     queryId: uint64,

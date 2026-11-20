@@ -67,7 +67,7 @@ fun parityFrom(sig: slice): int {
 ///
 /// Returns true if signature is valid and corresponds to (pubKey, parity).
 fun isSignatureValid_secp256k1(hash: int, sig: slice, pubKey: int, parity: int): bool {
-    var (_, x, y, status) = ecrecoverFrom(hash, sig);
+    val (_, x, y, status) = ecrecoverFrom(hash, sig);
     if (status != 0) {
         return (parity == (y & 1)) & (x == pubKey);
     }
@@ -99,7 +99,7 @@ fun ecrecoverFrom(hash: int, sig: slice): (int, int, int, int) {
 /// EVM ecrecover: returns the 20-byte address (as low 160 bits of keccak256(uncompressed_pubkey[1:65]))
 /// Returns 0 on any failure (invalid signature, low-S, recovery failure).
 fun evm_ecrecoverFrom(hash: int, sig: slice): int {
-    var (_, x, y, status) = ecrecoverFrom(hash, sig);
+    val (_, x, y, status) = ecrecoverFrom(hash, sig);
     if (status == 0) {
         return 0;
     }

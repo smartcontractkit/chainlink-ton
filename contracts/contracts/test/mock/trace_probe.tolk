@@ -55,7 +55,7 @@ fun onInternalMessage(in: InMessage) {
 }
 
 /// Accepts the bounce of a forwarded message.
-fun onBouncedMessage(in: InMessageBounced) {}
+fun onBouncedMessage(_in: InMessageBounced) {}
 
 get fun queryId(): uint64 {
     return Storage.fromCell(contract.getData()).queryId;

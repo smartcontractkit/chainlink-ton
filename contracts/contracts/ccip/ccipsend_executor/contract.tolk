@@ -72,7 +72,7 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must be the TokenAdminRegistry
         TokenAdminRegistry_GetTokenInfoFailed => {
-            var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
+            val this = CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.load();
             assert (this.addresses.load().tokenRegistry!.load() == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
             assert (msg.token == this.state.load().token) throw (CCIPSendExecutor_Error.Unauthorized);
             this.onTokenInfoFailed(msg);
@@ -93,11 +93,11 @@ fun onInternalMessage(in: InMessage) {
         TokenPool_LockOrBurnFailure => {
             val st = lazy CCIPSendExecutor_Data.fromCell(contract.getData());
             if (st.state is Cell<CCIPSendExecutor_State_TokenPool_LockOrBurn>) {
-                var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
+                val this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
                 assert (this.state.load().tokenPool == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
                 this.onLockOrBurnFailure(msg);
             } else {
-                var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.load();
+                val this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.load();
                 assert (this.state.load().tokenPool == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
                 this.onLockOrBurnFailure(msg);
             }
@@ -107,14 +107,14 @@ fun onInternalMessage(in: InMessage) {
         Router_TokenPoolLockOrBurnFailed => {
             val st = lazy CCIPSendExecutor_Data.fromCell(contract.getData());
             if (st.state is Cell<CCIPSendExecutor_State_TokenPool_LockOrBurn>) {
-                var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
+                val this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
                 val state = lazy this.state.load();
                 val addresses = lazy this.addresses.load();
                 assert (addresses.router == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
                 assert (state.tokenPool == msg.tokenPool) throw (CCIPSendExecutor_Error.Unauthorized);
                 this.onRouterLockOrBurnFailed(msg);
             } else {
-                var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.load();
+                val this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.load();
                 val state = lazy this.state.load();
                 val addresses = lazy this.addresses.load();
                 assert (addresses.router == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
@@ -124,7 +124,7 @@ fun onInternalMessage(in: InMessage) {
         }
         // The OnRamp's lock-or-burn request bounced off the Router.
         OnRamp_LockOrBurnFailed => {
-            var this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
+            val this = CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.load();
             assert (this.addresses.load().onramp == in.senderAddress) throw (CCIPSendExecutor_Error.Unauthorized);
             this.onOnRampLockOrBurnFailed(msg);
         }
@@ -388,7 +388,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onConfirmLockO
     sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
-fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdraw(mutate self, msg: TokenPool_LockOrBurnFinished) {
+fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_Withdraw>.onConfirmWithdraw(mutate self, _msg: TokenPool_LockOrBurnFinished) {
     setGasLimitToMaximum();
     // Emit from our pre-custody snapshot, not the pool's reply, so a misbehaving pool
     // cannot alter lockOrBurnOut/destTokenAmount after the tokens were locked/burned.
@@ -457,7 +457,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_TokenPool_LockOrBurn>.onLockOrBurnRe
 }
 
 /// The token registry has no pool for the token. Refund the reserved fee.
-fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoFailed(self, msg: TokenAdminRegistry_GetTokenInfoFailed) {
+fun CCIPSendExecutor<CCIPSendExecutor_State_TokenRegistryAccess>.onTokenInfoFailed(self, _msg: TokenAdminRegistry_GetTokenInfoFailed) {
     self.exitWithError(CCIPSendExecutor_Error.TokenNotEnabled as int32, self.state.load().chargedFee.feeTokenAmount);
 }
 

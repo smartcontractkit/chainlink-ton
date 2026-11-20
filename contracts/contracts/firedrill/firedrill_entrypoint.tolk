@@ -181,7 +181,7 @@ fun drillPriceRegistries(st: FiredrillEntrypoint_Storage) {
 
 // ========== Router Getters ==========
 
-get fun onRamp(destChainSelector: uint64): address {
+get fun onRamp(_destChainSelector: uint64): address {
 	val st = lazy FiredrillEntrypoint_Storage.load();
 
 	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
@@ -190,7 +190,7 @@ get fun onRamp(destChainSelector: uint64): address {
 	return firedrillContracts.firedrillOnRamp;
 }
 
-get fun offRamp(sourceChainSelector: uint64): address {
+get fun offRamp(_sourceChainSelector: uint64): address {
 	val st = lazy FiredrillEntrypoint_Storage.load();
 
 	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
@@ -233,14 +233,14 @@ get fun staticConfig(): (uint96, address, uint64) {
 	return (1, st.tokenAddress, 0);
 }
 
-get fun tokenPrice(token: address): TimestampedPrice {
+get fun tokenPrice(_token: address): TimestampedPrice {
 	return TimestampedPrice {
 		value: 1,
 		timestamp: 0
 	};
 }
 
-get fun destinationChainGasPrice(destChainSelector: uint64): cell {
+get fun destinationChainGasPrice(_destChainSelector: uint64): cell {
 	val gasPrice = GasPrice {
 		executionGasPrice: 1,
 		dataAvailabilityGasPrice: 1,
@@ -249,7 +249,7 @@ get fun destinationChainGasPrice(destChainSelector: uint64): cell {
 	return gasPrice.toCell();
 }
 
-get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
+get fun destChainConfig(_destChainSelector: uint64): DestChainConfig {
   val destChainConfig: DestChainConfig = {
     config: {// minimal valid config for EVM destination
 	isEnabled: true,

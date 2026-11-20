@@ -121,7 +121,7 @@ get fun config(): Config {
 }
 
 // Getter for source chain config
-get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
+get fun sourceChainConfig(_sourceChainSelector: uint64): SourceChainConfig {
 	val st = lazy FiredrillOffRamp_Storage.load();
 	
 	return SourceChainConfig {

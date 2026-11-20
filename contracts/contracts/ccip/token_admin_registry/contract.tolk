@@ -41,13 +41,13 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenAdminRegistry_InMessage.fromSlice(in.body);
     match (msg) {
         TokenAdminRegistry_RegisterToken => {
-            var st = lazy TokenAdminRegistry_Storage.load();
+            val st = lazy TokenAdminRegistry_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             assert(in.valueCoins >= TokenAdminRegistry_RegisterToken.cost()) throw (TokenAdminRegistry_Error.InsufficientValue);
             registerToken(st, msg);
         }
         TokenAdminRegistry_OverridePendingAdministrator => {
-            var st = lazy TokenAdminRegistry_Storage.load();
+            val st = lazy TokenAdminRegistry_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             assert(in.valueCoins >= TokenAdminRegistry_forwardCost()) throw (TokenAdminRegistry_Error.InsufficientValue);
             overridePendingAdministrator(msg);
@@ -187,7 +187,7 @@ fun requestSender(content: TokenAdminRegistryEntry_RootMessage): address {
 
 /// Every entry event is relayed through the root. The token in the payload is
 /// sufficient to recompute the only entry address that may send that event.
-fun requireEntrySender(st: TokenAdminRegistry_Storage, token: address, sender: address) {
+fun requireEntrySender(_st: TokenAdminRegistry_Storage, token: address, sender: address) {
     val expectedEntry = entryAddress(token).calculateAddress();
     assert(sender == expectedEntry) throw (TokenAdminRegistry_Error.UnauthorizedEntry);
 }
@@ -295,7 +295,7 @@ fun emitPoolSet(event: TokenAdminRegistry_PoolSet) {
 ///
 /// The entry then queries the token with TEP-89 and stays disabled until the token
 /// answers with a wallet. See TokenAdminRegistry_VerifyToken to query again.
-fun registerToken(st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_RegisterToken) {
+fun registerToken(_st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_RegisterToken) {
     val deployMsg = createMessage({
         bounce: BounceMode.NoBounce,
         value: TokenAdminRegistryEntry_deployCost(),
@@ -387,7 +387,7 @@ get fun pendingOwner(): address? {
 
 // Implement on future versions to upgrade this contract to
 @method_id(1000)
-fun migrate(storage: cell, version: slice): cell {
+fun migrate(_storage: cell, _version: slice): cell {
     throw Upgradeable_Error.VersionMismatch
 }
 

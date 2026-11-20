@@ -121,7 +121,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         RequestWalletAddress => {
-            var ownerAddress: Cell<address>? = msg.includeOwnerAddress
+            val ownerAddress: Cell<address>? = msg.includeOwnerAddress
                 ? msg.ownerAddress.toCell()
                 : null;
 
@@ -152,7 +152,7 @@ fun onInternalMessage(in: InMessage) {
             val internalTransferMsg = lazy msg.internalTransferMsg.load({
                 throwIfOpcodeDoesNotMatch: ERROR_INVALID_OP
             });
-            var forwardTonAmount = internalTransferMsg.forwardTonAmount;
+            val forwardTonAmount = internalTransferMsg.forwardTonAmount;
             internalTransferMsg.forwardPayload.checkIsCorrectTLBEither();
 
             val jettonAmount = internalTransferMsg.jettonAmount;

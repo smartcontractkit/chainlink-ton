@@ -165,7 +165,7 @@ fun OCR3Base.transmit(
 }
 
 fun OCR3Base.hashReport(self, report: cell, reportContext: ReportContext): int {
-	var data = beginCell()
+	val data = beginCell()
 		.storeRef(report)
 		.storeUint(reportContext.configDigest, 256)
 		.storeUint(0, 192) // Padding to 256 bits

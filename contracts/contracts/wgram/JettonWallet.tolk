@@ -200,7 +200,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         AskToWithdrawExcess => {
-            var storage = lazy WalletStorage.load();
+            val storage = lazy WalletStorage.load();
             assert (in.senderAddress == storage.ownerAddress) throw (ERROR_NOT_OWNER);
             assert (msg.sendExcessesTo.getWorkchain() == MY_WORKCHAIN) throw (ERROR_WRONG_WORKCHAIN);
             // Preserve the strict GRAM backing for the current jetton balance; anything above
@@ -238,7 +238,7 @@ get fun typeAndVersion(): (slice, slice) {
 }
 
 get fun get_wallet_data(): JettonWalletDataReply {
-    var storage = lazy WalletStorage.load();
+    val storage = lazy WalletStorage.load();
 
     return {
         jettonBalance: storage.jettonBalance,
@@ -249,6 +249,6 @@ get fun get_wallet_data(): JettonWalletDataReply {
 }
 
 get fun get_status(): int {
-    var storage = lazy WalletStorage.load();
+    val storage = lazy WalletStorage.load();
     return storage.status;
 }

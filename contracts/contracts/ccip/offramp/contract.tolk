@@ -98,7 +98,7 @@ fun onInternalMessage(in:InMessage) {
         }
         // Sender must be the rmnRouter
         OffRamp_UpdateCursedSubjects => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             assert (in.senderAddress == st.config.load().staticConfig.rmnRouter) throw (OffRamp_Error.Unauthorized);
             onUpdateCursedSubjects(msg)
         },
@@ -228,7 +228,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 /// OffRamp is not a registered price updater, a misconfiguration). latestPriceSequenceNumber
 /// already advanced, so these prices are skipped until the next report (K1). Nothing to unwind
 /// here: the value is back in the balance. Emits an event so the rejection is visible.
-fun onUpdatePricesBounced(msg: FeeQuoter_UpdatePrices, feeQuoter: address, errorCode: int32) {
+fun onUpdatePricesBounced(_msg: FeeQuoter_UpdatePrices, feeQuoter: address, errorCode: int32) {
     emit(UPDATE_PRICES_BOUNCED_TOPIC, OffRamp_UpdatePricesBounced {
         feeQuoter,
         errorCode,
@@ -909,7 +909,7 @@ fun onManuallyExecute(msg: OffRamp_ManuallyExecute, sender: address, value: coin
 //     Wallet  ->> OffRamp:    OffRamp_Execute
 //     OffRamp ->> MerkleRoot: MerkleRoot_Validate
 fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
-    var st = Storage.load();
+    val st = Storage.load();
 
     // emit must be scheduled before onExecuteSingleReport, which sends a message to the MerkleRoot and uses reserve the balance stays constant
     // if onExecuteSingleReport throws, the event will not be emitted
@@ -991,7 +991,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
     val context = OffRamp_ExecutionContext.parse(message, gasOverride);
     assert (value >= OffRamp_Costs.execute(hasTokens) + context.effectiveGasLimit + context.tokenDestGasTotal()) throw (OffRamp_Error.InsufficientFee);
 
-    var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
+    val sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert (sourceChainConfigResult.isFound) throw (OffRamp_Error.SourceChainNotEnabled);
 
     val sourceChainConfig = sourceChainConfigResult.loadValue();
@@ -1053,7 +1053,7 @@ fun onUpdateSourceChainConfigs(msg: OffRamp_UpdateSourceChainConfigs) {
     while (!configIterator.empty()) {
         val configUpdate = configIterator.next();
         var config: SourceChainConfig;
-        var existingConfigEntry = st.sourceChainConfigs.get(configUpdate.sourceChainSelector);
+        val existingConfigEntry = st.sourceChainConfigs.get(configUpdate.sourceChainSelector);
 
         if (!existingConfigEntry.isFound) {
             config = SourceChainConfig {
@@ -1255,7 +1255,7 @@ fun getOwnedReceiveExecutorContractId(messageId: uint256, sourceChainSelector: u
 /*
 Derives the receiver executor contract address from the execId
 */
-fun getReceiverExecutorDeployAddress(st: Storage, execId: ReceiveExecutionID): AutoDeployAddress {
+fun getReceiverExecutorDeployAddress(_st: Storage, execId: ReceiveExecutionID): AutoDeployAddress {
     return {
         stateInit: {
             code: deployerCode(),
@@ -1279,7 +1279,7 @@ fun assertSenderIsReceiverExecutor(st: Storage, execId: ReceiveExecutionID, send
 /*
 Derives the merkle root contract address from the merkleRootId
 */
-fun getMerkleRootDeployAddress(st: Storage, merkleRoot: MerkleRootId): AutoDeployAddress {
+fun getMerkleRootDeployAddress(_st: Storage, merkleRoot: MerkleRootId): AutoDeployAddress {
     return {
         stateInit: {
             code: deployerCode(),
@@ -1365,7 +1365,7 @@ get fun sourceChainSelectors(): lisp_list<uint64> {
 }
 
 get fun ocr3Config(): OCR3Base {
-    var st = lazy Storage.load();
+    val st = lazy Storage.load();
     return st.ocr3Base.load();
 }
 

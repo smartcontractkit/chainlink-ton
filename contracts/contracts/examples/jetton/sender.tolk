@@ -74,7 +74,7 @@ fun onInternalMessage(in: InMessage) {
     }
 
     val msg = IncomingMessage.fromSlice(in.body);
-    var this = JettonSender.load();
+    val this = JettonSender.load();
 
     match (msg) {
         SendJettonsFast => {

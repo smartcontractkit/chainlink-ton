@@ -157,7 +157,7 @@ fun onGetTokenInfoBounced(mutate st: ReceiveExecutor_Storage, errorCode: int32) 
     ttInfo.state = ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {};
     st.state.tokenTransfer = ttInfo.toCell();
     val message = lazy st.message.load();
-    endExecutionWithFailure(mutate st, message.header, errorCode);
+    endExecutionWithFailure(st, message.header, errorCode);
 }
 
 /// The OffRamp rejected the release-or-mint request, so nothing reached the Router or the pool.
@@ -174,7 +174,7 @@ fun onDispatchValidatedBounced(mutate st: ReceiveExecutor_Storage, errorCode: in
     assert (st.state.messageExecution == ReceiveExecutor_MessageExecutionState.Execute) throw (ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage);
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.ExecuteFailed;
     val message = lazy st.message.load();
-    endExecutionWithFailure(mutate st, message.header, errorCode);
+    endExecutionWithFailure(st, message.header, errorCode);
 }
 
 // onInitExecute is called by the OffRamp to initiate the execution of a message in the ReceiveExecutor.
@@ -196,7 +196,7 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
             assert (value >= st.state.effectiveGasLimit + transfer.destGasAmount + ReceiveExecutor_Costs.initExec(true)) throw (0);
         }
     } catch {
-        return endExecutionWithFailure(mutate st, message.header, 0);
+        return endExecutionWithFailure(st, message.header, 0);
     }
 
     if (msg.tokenTransfer != null) { // Message has token transfer
@@ -260,7 +260,7 @@ fun onTARQueryFailed(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor
     val rampMsg = lazy st.message.load();
     ttInfo.state = ReceiveExecutor_TokenTransferState_TokenAdminRegistryQueryFailed {};
     st.state.tokenTransfer = ttInfo.toCell();
-    endExecutionWithFailure(mutate st, rampMsg.header, errorCode);
+    endExecutionWithFailure(st, rampMsg.header, errorCode);
 }
 
 fun onTokenNotEnabled(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo) {
@@ -352,11 +352,11 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
     assert (msg.receiver == ccipMessage.receiver) throw (ReceiveExecutor_Error.NotificationFromInvalidReceiver);
 
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.ExecuteFailed;
-    endExecutionWithFailure(mutate st, ccipMessage.header, msg.errorCode ?? ReceiveExecutor_FailureErrors.ReceiverBounced as int32);
+    endExecutionWithFailure(st, ccipMessage.header, msg.errorCode ?? ReceiveExecutor_FailureErrors.ReceiverBounced as int32);
 }
 
 // Returns all balance to the OffRamp; a manual execution funds the retry again.
-fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, errorCode: int32) {
+fun endExecutionWithFailure(st: ReceiveExecutor_Storage, messageHeader: RampMessageHeader, errorCode: int32) {
 
     reserveGramsOnBalance(RECEIVE_EXECUTOR_INIT_VALUE, RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
@@ -387,7 +387,7 @@ fun endExecutionWithFailure(mutate st: ReceiveExecutor_Storage, messageHeader: R
 // used once the transfer is delivered, so stray notifications cannot drain it.
 fun onDepositAccountNotification(sender: address, msg: DepositAccount_ForwardNotification) {
     var st = ReceiveExecutor_Storage.load();
-    var ttInfo = st.state.tokenTransfer.loadOpt();
+    val ttInfo = st.state.tokenTransfer.loadOpt();
     if (ttInfo == null || ttInfo.state !is ReceiveExecutor_TokenTransferState_ReleaseOrMint) {
         return;
     }
@@ -471,7 +471,7 @@ fun onReleaseOrMintFailure(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveEx
     };
     st.state.tokenTransfer = ttInfo.toCell();
     val ccipMessage = lazy st.message.load();
-    endExecutionWithFailure(mutate st, ccipMessage.header, errorCode);
+    endExecutionWithFailure(st, ccipMessage.header, errorCode);
 }
 
 get fun typeAndVersion(): (slice, slice) {

@@ -32,7 +32,7 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         Transmit => {
         //Using the transmit function validates signatures and emits an event
-            var storage = lazy OCR3BaseExampleContract.load();
+            val storage = lazy OCR3BaseExampleContract.load();
             val sender = in.senderAddress;
             storage.ocr3Base.transmit(
                 sender,
@@ -67,7 +67,7 @@ get fun ocr3Signers(ocrPluginType: uint16): lisp_list<uint256> {
     val s = lazy OCR3BaseExampleContract.load();
     val config = s.ocr3Base.getConfig(ocrPluginType);
     assert (config != null) throw (MultiOCR3Base_Error.NonExistentOcrPluginType);
-    var d = config!.signers;
+    val d = config!.signers;
 
     return keysLispList(d);
 }
@@ -76,7 +76,7 @@ get fun ocr3Transmitters(ocrPluginType: uint16): lisp_list<address> {
     val s = lazy OCR3BaseExampleContract.load();
     val config = s.ocr3Base.getConfig(ocrPluginType);
     assert (config != null) throw (MultiOCR3Base_Error.NonExistentOcrPluginType);
-    var d  = config!.transmitters;
+    val d  = config!.transmitters;
 
     return keysLispList(d);
 }

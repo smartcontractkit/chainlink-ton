@@ -342,7 +342,7 @@ fun onReleaseOrMintContinue(
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
     assert (ctx != null) throw (TokenPool_Error.UnsupportedOperation);
-    var st = ctx;
+    val st = ctx;
     assert(!isZeroAddress(st.lockbox)) throw (LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
 
     // Caller-selected excess recipient; default to the flow initiator.

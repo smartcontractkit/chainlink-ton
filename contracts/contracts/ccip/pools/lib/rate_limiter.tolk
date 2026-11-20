@@ -78,7 +78,7 @@ fun RateLimiter_TokenBucket.consume(mutate self, requestTokens: uint256, tokenAd
     }
 
     if (tokens < requestTokens) {
-        var rate = self.rate;
+        val rate = self.rate;
         if (rate == 0) {
             // No tokens will ever be refilled. Check is required to avoid division by zero later.
             val minWaitInSeconds = MAX_UINT256;
@@ -128,7 +128,7 @@ fun RateLimiter_TokenBucket.refund(mutate self, refundTokens: uint256) {
 fun RateLimiter_TokenBucket.currentTokenBucketState(mutate self): RateLimiter_TokenBucket {
     // We update the bucket to reflect the status at the exact time of the call. This means we might need to refill a
     // part of the bucket based on the time that has passed since the last update.
-    var tokens = self.tokens as uint256;
+    val tokens = self.tokens as uint256;
     val capacity = self.capacity as uint256;
     val timeDiff = blockchain.now() - self.lastUpdated;
 

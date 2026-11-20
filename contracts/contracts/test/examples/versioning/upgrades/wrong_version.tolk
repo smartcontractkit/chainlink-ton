@@ -37,6 +37,6 @@ fun onInternalMessage(in: InMessage) {
 }
 
 @method_id(1000)
-fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
+fun migrate(_storage: cell, _version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }

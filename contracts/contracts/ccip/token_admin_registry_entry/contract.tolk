@@ -398,7 +398,7 @@ fun notifyRoot(body: cell) {
 
 // Implement when upgrading the contract
 @method_id(1000)
-fun migrate(storage: cell, version: slice): cell {
+fun migrate(_storage: cell, _version: slice): cell {
     throw Upgradeable_Error.VersionMismatch
 }
 

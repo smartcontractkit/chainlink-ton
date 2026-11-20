@@ -73,7 +73,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         RequestWalletAddress => {
-            var ownerAddress: Cell<address>? = msg.includeOwnerAddress
+            val ownerAddress: Cell<address>? = msg.includeOwnerAddress
                 ? msg.ownerAddress.toCell()
                 : null;
 
@@ -104,7 +104,7 @@ fun onInternalMessage(in: InMessage) {
             val internalTransferMsg = lazy msg.internalTransferMsg.load({
                 throwIfOpcodeDoesNotMatch: ERROR_INVALID_OP
             });
-            var forwardTonAmount = internalTransferMsg.forwardTonAmount;
+            val forwardTonAmount = internalTransferMsg.forwardTonAmount;
             internalTransferMsg.forwardPayload.checkIsCorrectTLBEither();
 
             // a little more than needed, it’s ok since it’s sent by the admin and excesses will return back
@@ -156,7 +156,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         UpgradeMinterCode => {
-            var storage = lazy MinterStorage.load();
+            val storage = lazy MinterStorage.load();
             assertSenderIsAdmin(in.senderAddress, storage.adminAddress);
             contract.setData(msg.newData);
             contract.setCodePostponed(msg.newCode);

@@ -46,14 +46,14 @@ fun forwardInitStateOverhead() {
 /// only when called by the wallet itself; clients (pools) must pass false so they use the pinned
 /// constants instead of their own precompiled gas.
 fun calculateTransferFee(forwardTonAmount: int, fwdFee: int, usePrecompiledGas: bool = true): coins {
-    var fwdCount = forwardTonAmount != 0 ? 2 : 1; // second sending (forward) will be cheaper that first
+    val fwdCount = forwardTonAmount != 0 ? 2 : 1; // second sending (forward) will be cheaper that first
 
     var jettonWalletGasConsumption: int? = null;
     if (usePrecompiledGas) {
         jettonWalletGasConsumption = getPrecompiledGasConsumption();
     }
-    var sendTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonTransfer : jettonWalletGasConsumption!;
-    var receiveTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonReceive : jettonWalletGasConsumption!;
+    val sendTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonTransfer : jettonWalletGasConsumption!;
+    val receiveTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonReceive : jettonWalletGasConsumption!;
 
     return
         // 3 messages: wal1->wal2,  wal2->owner, wal2->response
@@ -80,7 +80,7 @@ fun calculateBurnRequiredValue(fwdFee: int, hasExcesses: bool, usePrecompiledGas
     if (usePrecompiledGas) {
         jettonWalletGasConsumption = getPrecompiledGasConsumption();
     }
-    var sendBurnGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_BurnRequest : jettonWalletGasConsumption!;
+    val sendBurnGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_BurnRequest : jettonWalletGasConsumption!;
 
     val payloadFee = fwdFee + calculateForwardFeeWithoutLumpPrice(MY_WORKCHAIN, MESSAGE_SIZE_Address_bits, 0);
     val messageFee = max(payloadFee, calculateForwardFee(MY_WORKCHAIN, MESSAGE_SIZE_BurnNotification_bits, MESSAGE_SIZE_BurnNotification_cells));

@@ -328,7 +328,7 @@ fun AccessControl<T>.getRoleMember(self, role: uint256, index: uint32): address?
     }
 
     // Check if the account exists in the role data
-    var d = lazy AccessControl_RoleData.fromCell(data.loadValue());
+    val d = lazy AccessControl_RoleData.fromCell(data.loadValue());
     if (index >= d.membersLen) {
         return null; // index out of bounds
     }
@@ -374,7 +374,7 @@ fun AccessControl<T>.getRoleMemberFirst(self, role: uint256): address? {
     }
 
     // Get the first account in the role data
-    var acc = d.hasRole.findFirst();
+    val acc = d.hasRole.findFirst();
     return acc.getKey();
 }
 
@@ -388,7 +388,7 @@ fun AccessControl<T>.getRoleMemberNext(self, role: uint256, pivot: address): add
 
     // Get the next account in the role data after the pivot
     val d = lazy AccessControl_RoleData.fromCell(data.loadValue());
-    var acc = d.hasRole.findKeyGreater(pivot);
+    val acc = d.hasRole.findKeyGreater(pivot);
     if (!acc.isFound) {
         return null; // no next account
     }
@@ -598,7 +598,7 @@ fun AccessControl_Data.getRoleDataOrSetDefault(mutate self, role: uint256): Acce
     }
 
     // Create a new role data if it doesn't exist
-    var _data: AccessControl_RoleData = {
+    val _data: AccessControl_RoleData = {
         adminRole: DEFAULT_ADMIN_ROLE,
         // Initialize hasRole as an empty map
         hasRole: [],

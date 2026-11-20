@@ -66,7 +66,7 @@ fun onInternalMessage(in: InMessage) {
             }
 
             if (msg.sendExcessesTo != null) {
-                var toLeaveOnBalance = contract.getOriginalBalance() - in.valueCoins + contract.getStorageDuePayment();
+                val toLeaveOnBalance = contract.getOriginalBalance() - in.valueCoins + contract.getStorageDuePayment();
                 reserveGramsOnBalance(max(toLeaveOnBalance, calculateJettonWalletMinStorageFee()), RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
                 val excessesMsg = createMessage({
@@ -151,7 +151,7 @@ struct JettonWalletDataReply {
 }
 
 get fun get_wallet_data(): JettonWalletDataReply {
-    var storage = lazy WalletStorage.load();
+    val storage = lazy WalletStorage.load();
 
     return {
         jettonBalance: storage.jettonBalance,
@@ -162,6 +162,6 @@ get fun get_wallet_data(): JettonWalletDataReply {
 }
 
 get fun get_status(): int {
-    var storage = lazy WalletStorage.load();
+    val storage = lazy WalletStorage.load();
     return storage.status;
 }

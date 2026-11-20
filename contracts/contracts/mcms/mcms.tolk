@@ -850,13 +850,13 @@ fun MCMS<T>.setRoot(
     }
 
     // Upack config from the contract data
-    var config = Config.fromCell(ConfigState.fromCell(self.data.config).config);
+    val config = Config.fromCell(ConfigState.fromCell(self.data.config).config);
 
     // the group at the root of the tree (with index 0) determines whether the vote passed,
     // we cannot proceed if it isn't configured with a valid (non-zero) quorum
     var rootQuorum: uint8;
     {
-        var _rootQuorum = config.groupQuorums.get(0);
+        val _rootQuorum = config.groupQuorums.get(0);
         if (!_rootQuorum.isFound) {
             throw MCMS_Error.MissingConfig;
         }
@@ -872,7 +872,7 @@ fun MCMS<T>.setRoot(
         var ss = signatures.iter();
         var groupVoteCounts: map<uint8, uint8> = []; // number of votes per group, map<uint8, uint8> (indexed)
         while (!ss.empty()) {
-            var s = ss.next();
+            val s = ss.next();
             val signerAddress = evm_ecrecoverFrom(signedHash, s.toCell().beginParse());
             if (signerAddress == 0) {
                 throw MCMS_Error.InvalidSigner;
@@ -904,7 +904,7 @@ fun MCMS<T>.setRoot(
             while (!_break) {
                 var votes = 1;
                 {
-                    var current = groupVoteCounts.get(group);
+                    val current = groupVoteCounts.get(group);
                     if (current.isFound) {
                         votes = current.loadValue() + 1;
                     }
@@ -914,7 +914,7 @@ fun MCMS<T>.setRoot(
 
                 var quorum = 0;
                 {
-                    var _quorum = config.groupQuorums.get(group);
+                    val _quorum = config.groupQuorums.get(group);
                     if (_quorum.isFound) {
                         quorum = _quorum.loadValue();
                     }
@@ -934,7 +934,7 @@ fun MCMS<T>.setRoot(
                 if (!_break) {
                     var parent = 0;
                     {
-                        var _parent = config.groupParents.get(group);
+                        val _parent = config.groupParents.get(group);
                         if (_parent.isFound) {
                             parent = _parent.loadValue();
                         }
@@ -946,7 +946,7 @@ fun MCMS<T>.setRoot(
         }
 
         // did the root group reach its quorum?
-        var _rootVotes = groupVoteCounts.get(0);
+        val _rootVotes = groupVoteCounts.get(0);
         if (!_rootVotes.isFound || _rootVotes.loadValue() < rootQuorum) {
             throw MCMS_Error.InsufficientSigners;
         }
@@ -1203,7 +1203,7 @@ fun MCMS<T>.setConfig(
                 throw MCMS_Error.OutOfBoundsGroup;
             }
 
-            var count = groupChildrenCounts.get(g);
+            val count = groupChildrenCounts.get(g);
             var value = 1;
             if (count.isFound) {
                 value = count.loadValue() + 1;
@@ -1247,7 +1247,7 @@ fun MCMS<T>.setConfig(
     }
 
     // Pack the config back into a data cell.
-    var configState = ConfigState{
+    val configState = ConfigState{
         config: config.toCell(),
         stagedConfig: null,
     };
@@ -1282,7 +1282,7 @@ fun validateGroupTree(
         // ensure we have a well-formed group tree. the root should have itself as parent
         var gp = 0; // default parent for root group
         {
-            var value = groupParents.get(i);
+            val value = groupParents.get(i);
             if (value.isFound) {
                 gp = value.loadValue();
             }
@@ -1293,7 +1293,7 @@ fun validateGroupTree(
 
         var gq = 0; // default quorum for groups without a set quorum
         {
-            var value = groupQuorums.get(i);
+            val value = groupQuorums.get(i);
             if (value.isFound) {
                 gq = value.loadValue();
             }
@@ -1303,7 +1303,7 @@ fun validateGroupTree(
 
         var count = 0; // default count
         {
-            var value = counts.get(i);
+            val value = counts.get(i);
             if (value.isFound) {
                 count = value.loadValue();
             }
@@ -1322,7 +1322,7 @@ fun validateGroupTree(
 
             var current = 0;
             {
-               var value = counts.get(gp);
+               val value = counts.get(gp);
                if (value.isFound) {
                    current = value.loadValue();
                }
@@ -1406,7 +1406,7 @@ fun _stageSigners(
 
         var count = 0;
         {
-            var value = staged.groupChildrenCounts.get(group);
+            val value = staged.groupChildrenCounts.get(group);
             if (value.isFound) {
                 count = value.loadValue();
             }
@@ -1435,7 +1435,7 @@ fun MCMS<T>.beginConfigStaging(
 
     assert(value >= MCMS_Costs.beginConfigStaging(), MCMS_Error.InsufficientFee);
 
-    var staged = StagedConfig{
+    val staged = StagedConfig{
         config: Config{signers: [], groupQuorums, groupParents}.toCell(),
         signers: [],
         numSigners: 0,
@@ -1513,7 +1513,7 @@ fun MCMS<T>.commitConfig(
     if (configState.stagedConfig == null) {
         throw MCMS_Error.ConfigStagingNotStarted;
     }
-    var staged = StagedConfig.fromCell(configState.stagedConfig!);
+    val staged = StagedConfig.fromCell(configState.stagedConfig!);
 
     if (staged.queryId != queryId) {
         throw MCMS_Error.ConfigStagingSessionMismatch;
@@ -1564,7 +1564,7 @@ fun MCMS<T>.abortConfigStaging(
     if (configState.stagedConfig == null) {
         throw MCMS_Error.ConfigStagingNotStarted;
     }
-    var staged = StagedConfig.fromCell(configState.stagedConfig!);
+    val staged = StagedConfig.fromCell(configState.stagedConfig!);
     if (staged.queryId != queryId) {
         throw MCMS_Error.ConfigStagingSessionMismatch;
     }

@@ -704,7 +704,7 @@ fun Timelock<T>.isPendingOperationFinal(self): bool {
 /// unset operations, 1 for done operations, 2 for operations in error state).
 fun Timelock<T>.getTimestamp(self, id: uint256): uint64 {
     // Get the timestamp for the given id from the timestamps map
-    var timestamp = self.data.timestamps.get(id);
+    val timestamp = self.data.timestamps.get(id);
     if (!timestamp.isFound) {
         return 0; // operation not exists
     }
@@ -1327,7 +1327,7 @@ fun Timelock<T>.getBlockedFunctionSelectorAt(self, index: uint32): uint32 {
     }
 
     // Get a mutable reference to the blocked function selectors map (used for iteration)
-    var blockedFnSelectors = self.data.blockedFnSelectors;
+    val blockedFnSelectors = self.data.blockedFnSelectors;
 
     // Notice: we need to iterate through the map to get the item at the specified index.
     // This is not efficient, but it is the only way to get an item at index without additional data structures.
@@ -1349,14 +1349,14 @@ fun Timelock<T>.getBlockedFunctionSelectorFirst(self): uint32 {
     }
 
     // Get the first item in the map
-    var selector = self.data.blockedFnSelectors.findFirst();
+    val selector = self.data.blockedFnSelectors.findFirst();
     return selector.getKey();
 }
 
 @inline
 fun Timelock<T>.getBlockedFunctionSelectorNext(self, pivot: uint32): uint32 {
     // Get the next item in the map, after the pivot
-    var selector = self.data.blockedFnSelectors.findKeyGreater(pivot);
+    val selector = self.data.blockedFnSelectors.findKeyGreater(pivot);
     if (!selector.isFound) {
         return 0; // no next item
     }

@@ -141,16 +141,16 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must hold the RMN curse role.
         Router_RMNRemoteCurse => {
-            var st = lazy Storage.load();
-            var rmn = st.rmnRemote.load();
+            val st = lazy Storage.load();
+            val rmn = st.rmnRemote.load();
             requireRMNCurseAdmin(rmn, in.senderAddress);
             rmn.requireUpdateCursedSubjectsFee(in.valueCoins);
             onRMNRemoteCurse(st, rmn, msg);
         }
         // Sender must hold the RMN uncurse role.
         Router_RMNRemoteUncurse => {
-            var st = lazy Storage.load();
-            var rmn = st.rmnRemote.load();
+            val st = lazy Storage.load();
+            val rmn = st.rmnRemote.load();
             requireRMNUncurseAdmin(rmn, in.senderAddress);
             rmn.requireUpdateCursedSubjectsFee(in.valueCoins);
             onRMNRemoteUncurse(st, rmn, msg);
@@ -305,7 +305,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun onRMNAccessControlMessage(sender: address, value: coins, body: slice) {
+fun onRMNAccessControlMessage(sender: address, _value: coins, body: slice) {
     var st = lazy Storage.load();
     var rmn = st.rmnRemote.load();
     rmn.policy.onAccessControlMessage(sender, body);
@@ -438,7 +438,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>, offr
 /// Asks the sender's sender account to transfer the jettons to the pool. A rejected or bounced
 /// transfer fails the CCIPSend through `failWithdrawToTokenPool`, which finds the executor in the
 /// transfer's forward payload, so that payload must name the executor requesting the withdraw.
-fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
+fun onWithdrawToTokenPool(mutate _st: Storage, msg: Router_WithdrawToTokenPool) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
     val account = withdrawRequest.senderAccount.load();
     val fwdp = lazy withdrawRequest.forwardPayload.load();
@@ -959,7 +959,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
     val st = lazy Storage.load();
 
     // verify destination chain not cursed
-    var rmn = st.rmnRemote.load();
+    val rmn = st.rmnRemote.load();
     val isCursed = rmn.policy.cursedSubjects.isCursed(msg.destChainSelector as uint128);
     assert (!isCursed) throw (Router_Error.SubjectCursed);
 
@@ -1447,7 +1447,7 @@ fun version(): slice { return CONTRACT_VERSION; }
 
 get fun verifyNotCursed(subject: uint128): bool {
     val st = lazy Storage.load();
-    var rmn = st.rmnRemote.load();
+    val rmn = st.rmnRemote.load();
     return !rmn.policy.cursedSubjects.isCursed(subject);
 }
 

@@ -100,7 +100,7 @@ fun JettonWithdrawable.parseWithdrawWrap(ask: AskToTransfer): Jetton_ForwardPayl
 /// @return withdrawnPerWallet Per-wallet total jetton amount relayed, for caller bookkeeping
 ///        (e.g. decrementing a per-wallet fee ledger on success / re-crediting on bounce).
 fun JettonWithdrawable.onWithdraw(
-    msgValue: coins,
+    _msgValue: coins,
     sender: address,
     msg: JettonWithdrawable_Withdraw,
     maxAmount: map<address, coins>?,
