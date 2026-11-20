@@ -629,7 +629,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
         ccipSend.extraArgs = extraArgs.toCell();
 
         response = createMessage({
-            bounce: BounceMode.Only256BitsOfBody,
+            bounce: BounceMode.NoBounce,
             value: 0,
             dest: sender,
             body: FeeQuoter_MessageValidated {
@@ -642,7 +642,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
         });
     } catch (e) {
         response = createMessage({
-            bounce: BounceMode.Only256BitsOfBody,
+            bounce: BounceMode.NoBounce,
             value: 0,
             dest: sender,
             body: FeeQuoter_MessageValidationFailed {

@@ -42,8 +42,8 @@ fun JettonSender.store(self) {
 
 // Send basic jetton transfer
 fun JettonSender.sendJettons(self, msg: SendJettonsFast) {
-    self.JettonClient.sendSimple(
-        { bounce: true, value: 0 },
+    sendSimple(self.JettonClient.walletAddress(),
+        { bounce: false, value: 0 },
         SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
         msg.queryId,
         msg.amount,
@@ -54,8 +54,8 @@ fun JettonSender.sendJettons(self, msg: SendJettonsFast) {
 
 // Send extended jetton transfer with additional parameters
 fun JettonSender.sendJettonsExtended(self, msg: SendJettonsExtended) {
-    self.JettonClient.sendExtended(
-        { bounce: true, value: 0 },
+    sendExtended(self.JettonClient.walletAddress(),
+        { bounce: false, value: 0 },
         SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
         msg.queryId,
         msg.amount,
@@ -88,4 +88,80 @@ fun onInternalMessage(in: InMessage) {
             return;
         }
     }
+}
+
+
+struct JettonMessageOptions {
+    /// whether a message will bounce back on error
+    bounce: bool
+    /// message value: attached tons (or tons + extra currencies)
+    value: coins | (coins, ExtraCurrenciesMap)
+}
+
+@inline
+fun sendSimple(
+    wallet: address,
+    sendOptions: JettonMessageOptions,
+    sendMode: int,
+    queryId: uint64,
+    amount: coins,
+    destination: address,
+    responseDestination: address,
+) {
+    createMessage({
+        // check-disable-next-line no-bounce-handler
+        bounce: sendOptions.bounce,
+        value: sendOptions.value,
+        dest: wallet,
+        body: AskToTransfer {
+            queryId: queryId,
+            jettonAmount: amount,
+            transferRecipient: destination,
+            sendExcessesTo: responseDestination,
+            customPayload: null,
+            forwardTonAmount: 0,
+            forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
+        },
+    })
+        .send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+}
+
+@inline
+fun sendExtended(
+    wallet: address,
+    sendOptions: JettonMessageOptions,
+    sendMode: int,
+    queryId: uint64,
+    amount: coins,
+    destination: address,
+    responseDestination: address,
+    customPayload: cell?,
+    forwardTonAmount: coins,
+    forwardPayload: slice | cell,
+) {
+    var body = beginCell().storeAny(AskToTransfer {
+        queryId: queryId,
+        jettonAmount: amount,
+        transferRecipient: destination,
+        sendExcessesTo: responseDestination,
+        customPayload: customPayload,
+        forwardTonAmount: forwardTonAmount,
+        forwardPayload: createEmptyCell().beginParse(),
+    });
+    match (forwardPayload) {
+        cell => {
+            body.storeMaybeRef(forwardPayload);
+        }
+        slice => {
+            body.storeBool(false).storeSlice(forwardPayload);
+        }
+    }
+    createMessage({
+        // check-disable-next-line no-bounce-handler
+        bounce: sendOptions.bounce,
+        value: sendOptions.value,
+        dest: wallet,
+        body: body,
+    })
+        .send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
