@@ -1,7 +1,7 @@
 [
   {
     "label": "current",
-    "createdAt": "2026-10-27T11:41:26.367Z",
+    "createdAt": "2026-11-20T14:11:35.325Z",
     "result": {
       "JettonMinter": {
         "sendDeploy": {
@@ -79,7 +79,7 @@
         "0x178d4519": {
           "gasUsed": {
             "kind": "init",
-            "value": "7481"
+            "value": "7486"
           },
           "cells": {
             "kind": "init",
