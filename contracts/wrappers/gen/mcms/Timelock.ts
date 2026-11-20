@@ -745,7 +745,7 @@ export const Timelock_BounceHandled = {
         return {
             $: 'Timelock_BounceHandled',
             sender: s.loadAddress(),
-            opcode: s.loadBit() ? s.loadUintBig(32) : null,
+            opcode: s.loadBoolean() ? s.loadUintBig(32) : null,
             opPendingId: s.loadUintBig(256),
             matchesPendingOp: s.loadBoolean(),
         }
@@ -753,7 +753,9 @@ export const Timelock_BounceHandled = {
     store(self: Timelock_BounceHandled, b: c.Builder): void {
         b.storeUint(0x3ed17038, 32);
         b.storeAddress(self.sender);
-        storeTolkNullable<uint32>(self.opcode, b, (v, b) => b.storeUint(v, 32));
+        storeTolkNullable<uint32>(self.opcode, b,
+            (v,b) => b.storeUint(v, 32)
+        );
         b.storeUint(self.opPendingId, 256);
         b.storeBit(self.matchesPendingOp);
     },

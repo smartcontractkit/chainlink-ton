@@ -944,7 +944,7 @@ export const MCMS_BounceHandled = {
         return {
             $: 'MCMS_BounceHandled',
             sender: s.loadAddress(),
-            opcode: s.loadBit() ? s.loadUintBig(32) : null,
+            opcode: s.loadBoolean() ? s.loadUintBig(32) : null,
             root: s.loadUintBig(256),
             nonce: s.loadUintBig(40),
             matchesPendingOp: s.loadBoolean(),
@@ -954,7 +954,9 @@ export const MCMS_BounceHandled = {
     store(self: MCMS_BounceHandled, b: c.Builder): void {
         b.storeUint(0xe695431e, 32);
         b.storeAddress(self.sender);
-        storeTolkNullable<uint32>(self.opcode, b, (v, b) => b.storeUint(v, 32));
+        storeTolkNullable<uint32>(self.opcode, b,
+            (v,b) => b.storeUint(v, 32)
+        );
         b.storeUint(self.root, 256);
         b.storeUint(self.nonce, 40);
         b.storeBit(self.matchesPendingOp);
