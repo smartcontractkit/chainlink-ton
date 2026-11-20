@@ -10,6 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 // buildAny2TVMTokenTransfer converts a ccipocr3.RampTokenAmount into the on-chain
@@ -62,7 +63,7 @@ func buildAny2TVMTokenTransfer(
 		SourcePoolAddress: poolAddrCell,
 		ExtraData:         extraData,
 		DestPoolAddress:   destPoolTonAddr,
-		Amount:            tokenAmount.Amount.Int,
+		Amount:            tlbe.BigUint256{Int: tokenAmount.Amount.Int},
 		DestGasAmount:     destGasAmount,
 	}, nil
 }

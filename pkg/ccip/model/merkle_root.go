@@ -1,6 +1,8 @@
 package model
 
 import (
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -8,6 +10,7 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/merkleroot"
 )
 
@@ -130,10 +133,10 @@ func (b *MerkleRootStorageBuilder) Build() (*MerkleRootStorage, error) {
 }
 
 func (s *MerkleRootStorage) FromBinding(raw *merkleroot.Storage) error {
-	root, err := bigIntToHex(raw.Root, 32)
-	if err != nil {
-		return err
+	if raw.Root == nil {
+		return errors.New("nil merkle root")
 	}
+	root := hex.EncodeToString(raw.Root.F[:])
 
 	b := NewMerkleRootStorageBuilder().
 		WithRoot(root).
@@ -163,7 +166,7 @@ func (s *MerkleRootStorage) FromBinding(raw *merkleroot.Storage) error {
 		mask := new(big.Int).Lsh(big.NewInt(3), shift)
 
 		// temp = (bitmap & mask) >> shift
-		temp := new(big.Int).And(raw.MessageStates, mask)
+		temp := new(big.Int).And(raw.MessageStates.Int, mask)
 		temp.Rsh(temp, shift)
 
 		// lint check
@@ -201,7 +204,7 @@ func (s *MerkleRootStorage) FromBinding(raw *merkleroot.Storage) error {
 }
 
 func (s *MerkleRootStorage) ToBinding() (*merkleroot.Storage, error) {
-	root, err := hexToBigInt(s.Root)
+	root, err := hexToUint256(s.Root)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +242,7 @@ func (s *MerkleRootStorage) ToBinding() (*merkleroot.Storage, error) {
 		// OR it into the bitmap
 		messageStates.Or(messageStates, value)
 	}
-	st.MessageStates = messageStates
+	st.MessageStates = tlbe.BigUint128{Int: messageStates}
 
 	// Pending executor deploys
 	for i, pending := range s.PendingExecutorDeploy {

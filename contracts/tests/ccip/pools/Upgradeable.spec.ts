@@ -102,7 +102,7 @@ describe('Upgradeable token pools and lockbox', () => {
     let targetCode: Cell
 
     beforeEach(async () => {
-      const code = await contractCode.ccip.local('ccip.pool.BurnMintTokenPool')
+      const code = await contractCode.ccip.local('BurnMintTokenPool')
       targetCode = await contractCode.ccip.local('UpgradeTarget')
       pool = blockchain.openContract(
         BurnMintTokenPool.fromStorage(
@@ -166,7 +166,7 @@ describe('Upgradeable token pools and lockbox', () => {
     let targetCode: Cell
 
     beforeEach(async () => {
-      const code = await contractCode.ccip.local('ccip.pool.LockReleaseLockboxTokenPool')
+      const code = await contractCode.ccip.local('LockReleaseLockboxTokenPool')
       targetCode = await contractCode.ccip.local('UpgradeTarget')
       pool = blockchain.openContract(
         LockReleaseLockboxTokenPool.fromStorage(
@@ -229,7 +229,7 @@ describe('Upgradeable token pools and lockbox', () => {
     let targetCode: Cell
 
     beforeEach(async () => {
-      const code = await contractCode.ccip.local('ccip.pool.JettonLockBox')
+      const code = await contractCode.ccip.local('JettonLockBox')
       targetCode = await contractCode.ccip.local('UpgradeTarget')
       lockbox = blockchain.openContract(
         JettonLockBox.fromStorage(

@@ -169,14 +169,14 @@ func updateFeeQuoterPrices(b operations.Bundle, dp *dep.DependencyProvider, in U
 		}
 		tokenPrices = append(tokenPrices, feequoter.TokenPriceUpdate{
 			SourceToken: tokenAddress,
-			UsdPerToken: value,
+			UsdPerToken: tlbe.BigUint224{Int: value},
 		})
 	}
 	for chainSelector, update := range in.GasPrices {
 		gasPrices = append(gasPrices, feequoter.GasPriceUpdate{
 			DestChainSelector:        chainSelector,
-			ExecutionGasPrice:        update.ExecutionGasPrice,
-			DataAvailabilityGasPrice: update.DataAvailabilityGasPrice,
+			ExecutionGasPrice:        tlbe.BigUint112{Int: update.ExecutionGasPrice},
+			DataAvailabilityGasPrice: tlbe.BigUint112{Int: update.DataAvailabilityGasPrice},
 		})
 	}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 func TestCommitReport_EncodingAndDecoding(t *testing.T) {
@@ -18,23 +19,23 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	tokenPriceSlice := []TokenPriceUpdate{
 		{
 			SourceToken: addr,
-			UsdPerToken: big.NewInt(1000000), // Example value
+			UsdPerToken: tlbe.BigUint224{Int: big.NewInt(1000000)}, // Example value
 		},
 		{
 			SourceToken: addr,
-			UsdPerToken: big.NewInt(1000000), // Example value
+			UsdPerToken: tlbe.BigUint224{Int: big.NewInt(1000000)}, // Example value
 		},
 		{
 			SourceToken: addr,
-			UsdPerToken: big.NewInt(1000000), // Example value
+			UsdPerToken: tlbe.BigUint224{Int: big.NewInt(1000000)}, // Example value
 		},
 		{
 			SourceToken: addr,
-			UsdPerToken: big.NewInt(1000000), // Example value
+			UsdPerToken: tlbe.BigUint224{Int: big.NewInt(1000000)}, // Example value
 		},
 		{
 			SourceToken: addr,
-			UsdPerToken: big.NewInt(1000000), // Example value
+			UsdPerToken: tlbe.BigUint224{Int: big.NewInt(1000000)}, // Example value
 		},
 	}
 	require.NoError(t, err)
@@ -42,27 +43,27 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	gasPriceSlice := []GasPriceUpdate{
 		{
 			DestChainSelector:        1,
-			ExecutionGasPrice:        big.NewInt(1000000),
-			DataAvailabilityGasPrice: big.NewInt(2000000),
+			ExecutionGasPrice:        tlbe.BigUint112{Int: big.NewInt(1000000)},
+			DataAvailabilityGasPrice: tlbe.BigUint112{Int: big.NewInt(2000000)},
 		},
 		{
 			DestChainSelector:        2,
-			ExecutionGasPrice:        big.NewInt(3000000),
-			DataAvailabilityGasPrice: big.NewInt(4000000),
+			ExecutionGasPrice:        tlbe.BigUint112{Int: big.NewInt(3000000)},
+			DataAvailabilityGasPrice: tlbe.BigUint112{Int: big.NewInt(4000000)},
 		},
 		{
 			DestChainSelector:        3,
-			ExecutionGasPrice:        big.NewInt(5000000),
-			DataAvailabilityGasPrice: big.NewInt(6000000),
+			ExecutionGasPrice:        tlbe.BigUint112{Int: big.NewInt(5000000)},
+			DataAvailabilityGasPrice: tlbe.BigUint112{Int: big.NewInt(6000000)},
 		}, {
 			DestChainSelector:        4,
-			ExecutionGasPrice:        big.NewInt(7000000),
-			DataAvailabilityGasPrice: big.NewInt(8000000),
+			ExecutionGasPrice:        tlbe.BigUint112{Int: big.NewInt(7000000)},
+			DataAvailabilityGasPrice: tlbe.BigUint112{Int: big.NewInt(8000000)},
 		},
 		{
 			DestChainSelector:        5,
-			ExecutionGasPrice:        big.NewInt(9000000),
-			DataAvailabilityGasPrice: big.NewInt(9900000),
+			ExecutionGasPrice:        tlbe.BigUint112{Int: big.NewInt(9000000)},
+			DataAvailabilityGasPrice: tlbe.BigUint112{Int: big.NewInt(9900000)},
 		},
 	}
 	require.NoError(t, err)

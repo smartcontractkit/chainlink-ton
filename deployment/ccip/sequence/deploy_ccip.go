@@ -21,6 +21,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
@@ -179,7 +180,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				Owner:        chain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
-			MaxFeeJuelsPerMsg:            in.CCIPConfig.FeeQuoterParams.MaxFeeJuelsPerMsg,
+			MaxFeeJuelsPerMsg:            tlbe.BigUint96{Int: in.CCIPConfig.FeeQuoterParams.MaxFeeJuelsPerMsg},
 			LinkToken:                    &linkTokenAddress,
 			TokenPriceStalenessThreshold: in.CCIPConfig.FeeQuoterParams.TokenPriceStalenessThreshold,
 			UsdPerToken:                  nil,

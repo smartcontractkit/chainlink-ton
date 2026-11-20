@@ -11,6 +11,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 // Off-chain hardening regressions for malformed cell classes
@@ -236,7 +237,7 @@ func TestF3_canonicalMultiCellCollection_accepted(t *testing.T) {
 // scope assumption no longer holds.
 func TestF1_onlyOptionalGasLimitCanBeAbsent(t *testing.T) {
 	c, err := tlb.ToCell(onramp.SuiExtraArgsV1{
-		GasLimit:                 new(big.Int),
+		GasLimit:                 tlbe.BigUint256{Int: new(big.Int)},
 		AllowOutOfOrderExecution: true,
 		TokenReceiver:            bytesN(0x55, 32),
 	})

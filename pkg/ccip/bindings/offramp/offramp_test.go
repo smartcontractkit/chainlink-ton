@@ -12,6 +12,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 func TestCommit_EncodingAndDecoding(t *testing.T) {
@@ -20,11 +21,11 @@ func TestCommit_EncodingAndDecoding(t *testing.T) {
 	tokenPriceSlice := []ocr.TokenPriceUpdate{
 		{
 			SourceToken: addr,
-			UsdPerToken: big.NewInt(1000000),
+			UsdPerToken: tlbe.BigUint224{Int: big.NewInt(1000000)},
 		},
 		{
 			SourceToken: addr,
-			UsdPerToken: big.NewInt(1000000),
+			UsdPerToken: tlbe.BigUint224{Int: big.NewInt(1000000)},
 		},
 	}
 	require.NoError(t, err)
@@ -32,13 +33,13 @@ func TestCommit_EncodingAndDecoding(t *testing.T) {
 	gasPriceSlice := []ocr.GasPriceUpdate{
 		{
 			DestChainSelector:        1,
-			ExecutionGasPrice:        big.NewInt(1000000),
-			DataAvailabilityGasPrice: big.NewInt(2000000),
+			ExecutionGasPrice:        tlbe.BigUint112{Int: big.NewInt(1000000)},
+			DataAvailabilityGasPrice: tlbe.BigUint112{Int: big.NewInt(2000000)},
 		},
 		{
 			DestChainSelector:        2,
-			ExecutionGasPrice:        big.NewInt(3000000),
-			DataAvailabilityGasPrice: big.NewInt(4000000),
+			ExecutionGasPrice:        tlbe.BigUint112{Int: big.NewInt(3000000)},
+			DataAvailabilityGasPrice: tlbe.BigUint112{Int: big.NewInt(4000000)},
 		},
 	}
 	require.NoError(t, err)
@@ -116,14 +117,14 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			DestPoolAddress:   addr,
 			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
-			Amount:            big.NewInt(10),
+			Amount:            tlbe.BigUint256{Int: big.NewInt(10)},
 		},
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
-			Amount:            big.NewInt(20),
+			Amount:            tlbe.BigUint256{Int: big.NewInt(20)},
 		},
 	}
 
@@ -146,8 +147,8 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		SourceChainSelector: 1,
 		Message:             rampMessage,
 		OffChainTokenData:   common.LispList[common.LispList[common.SnakeBytes]]{},
-		Proofs:              common.SnakedCell[common.Proof]{{Value: big.NewInt(0)}, {Value: big.NewInt(0)}},
-		ProofFlagBits:       big.NewInt(0),
+		Proofs:              common.SnakedCell[common.Proof]{{Value: &tlbe.Uint256{}}, {Value: &tlbe.Uint256{}}},
+		ProofFlagBits:       tlbe.BigUint256{Int: big.NewInt(0)},
 	}
 
 	configDigest := make([]byte, 64) // 512 bits digest

@@ -12,6 +12,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 func TestGetReportTxInfo(t *testing.T) {
@@ -45,7 +46,7 @@ func TestGetReportTxInfo(t *testing.T) {
 			},
 			OffChainTokenData: common.LispList[common.LispList[common.SnakeBytes]]{},
 			Proofs:            common.SnakedCell[common.Proof]{},
-			ProofFlagBits:     big.NewInt(0),
+			ProofFlagBits:     tlbe.BigUint256{Int: big.NewInt(0)},
 		}
 
 		reportCell, err := tlb.ToCell(executeReport)
@@ -93,7 +94,7 @@ func TestGetReportTxInfo(t *testing.T) {
 			},
 			OffChainTokenData: common.LispList[common.LispList[common.SnakeBytes]]{},
 			Proofs:            common.SnakedCell[common.Proof]{},
-			ProofFlagBits:     big.NewInt(0),
+			ProofFlagBits:     tlbe.BigUint256{Int: big.NewInt(0)},
 		}
 
 		reportCell, err := tlb.ToCell(executeReport)
@@ -144,13 +145,13 @@ func TestGetReportTxInfo(t *testing.T) {
 						SourcePoolAddress: onrampAddr,
 						DestPoolAddress:   destAddr,
 						DestGasAmount:     &destGasAmount,
-						Amount:            big.NewInt(1000),
+						Amount:            tlbe.BigUint256{Int: big.NewInt(1000)},
 					},
 				},
 			},
 			OffChainTokenData: common.LispList[common.LispList[common.SnakeBytes]]{},
 			Proofs:            common.SnakedCell[common.Proof]{},
-			ProofFlagBits:     big.NewInt(0),
+			ProofFlagBits:     tlbe.BigUint256{Int: big.NewInt(0)},
 		}
 
 		reportCell, err := tlb.ToCell(executeReport)
@@ -199,19 +200,19 @@ func TestGetReportTxInfo(t *testing.T) {
 						SourcePoolAddress: onrampAddr,
 						DestPoolAddress:   destAddr,
 						DestGasAmount:     &destGasAmount1,
-						Amount:            big.NewInt(1000),
+						Amount:            tlbe.BigUint256{Int: big.NewInt(1000)},
 					},
 					{
 						SourcePoolAddress: onrampAddr,
 						DestPoolAddress:   destAddr,
 						DestGasAmount:     &destGasAmount2,
-						Amount:            big.NewInt(2000),
+						Amount:            tlbe.BigUint256{Int: big.NewInt(2000)},
 					},
 				},
 			},
 			OffChainTokenData: common.LispList[common.LispList[common.SnakeBytes]]{},
 			Proofs:            common.SnakedCell[common.Proof]{},
-			ProofFlagBits:     big.NewInt(0),
+			ProofFlagBits:     tlbe.BigUint256{Int: big.NewInt(0)},
 		}
 
 		reportCell, err := tlb.ToCell(executeReport)
@@ -242,14 +243,14 @@ func TestGetReportTxInfo(t *testing.T) {
 				TokenPriceUpdates: common.SnakedCell[ocr.TokenPriceUpdate]{
 					{
 						SourceToken: address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"),
-						UsdPerToken: big.NewInt(1000000),
+						UsdPerToken: tlbe.BigUint224{Int: big.NewInt(1000000)},
 					},
 				},
 				GasPriceUpdates: common.SnakedCell[ocr.GasPriceUpdate]{
 					{
 						DestChainSelector:        456,
-						ExecutionGasPrice:        big.NewInt(500000),
-						DataAvailabilityGasPrice: big.NewInt(0),
+						ExecutionGasPrice:        tlbe.BigUint112{Int: big.NewInt(500000)},
+						DataAvailabilityGasPrice: tlbe.BigUint112{Int: big.NewInt(0)},
 					},
 				},
 			},
@@ -376,14 +377,14 @@ func TestGetReportTxInfo(t *testing.T) {
 				TokenPriceUpdates: common.SnakedCell[ocr.TokenPriceUpdate]{
 					{
 						SourceToken: address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"),
-						UsdPerToken: big.NewInt(1000000),
+						UsdPerToken: tlbe.BigUint224{Int: big.NewInt(1000000)},
 					},
 				},
 				GasPriceUpdates: common.SnakedCell[ocr.GasPriceUpdate]{
 					{
 						DestChainSelector:        456,
-						ExecutionGasPrice:        big.NewInt(500000),
-						DataAvailabilityGasPrice: big.NewInt(0),
+						ExecutionGasPrice:        tlbe.BigUint112{Int: big.NewInt(500000)},
+						DataAvailabilityGasPrice: tlbe.BigUint112{Int: big.NewInt(0)},
 					},
 				},
 			},
@@ -498,7 +499,7 @@ func executeReportBOC(t *testing.T, gasLimit tlb.Coins, destGasAmounts ...tlb.Co
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   destAddr,
 			DestGasAmount:     &destGasAmounts[i],
-			Amount:            big.NewInt(1000),
+			Amount:            tlbe.BigUint256{Int: big.NewInt(1000)},
 		})
 	}
 	report := ocr.ExecuteReport{
@@ -519,7 +520,7 @@ func executeReportBOC(t *testing.T, gasLimit tlb.Coins, destGasAmounts ...tlb.Co
 		},
 		OffChainTokenData: common.LispList[common.LispList[common.SnakeBytes]]{},
 		Proofs:            common.SnakedCell[common.Proof]{},
-		ProofFlagBits:     big.NewInt(0),
+		ProofFlagBits:     tlbe.BigUint256{Int: big.NewInt(0)},
 	}
 	c, err := tlb.ToCell(report)
 	require.NoError(t, err)

@@ -15,6 +15,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 // CommitPluginCodecV1 is a codec for encoding and decoding commit plugin reports.
@@ -53,7 +54,7 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 		}
 		tpuSlice[i] = ocr.TokenPriceUpdate{
 			SourceToken: addr,
-			UsdPerToken: tpu.Price.Int,
+			UsdPerToken: tlbe.BigUint224{Int: tpu.Price.Int},
 		}
 	}
 
@@ -72,8 +73,8 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 
 		gpuSlice[i] = ocr.GasPriceUpdate{
 			DestChainSelector:        uint64(gpu.ChainSel),
-			ExecutionGasPrice:        execFee,
-			DataAvailabilityGasPrice: daFee,
+			ExecutionGasPrice:        tlbe.BigUint112{Int: execFee},
+			DataAvailabilityGasPrice: tlbe.BigUint112{Int: daFee},
 		}
 	}
 
@@ -134,9 +135,9 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 				return cciptypes.CommitPluginReport{}, fmt.Errorf("nil or none source token address at index %d", i)
 			}
 			var tokenPrice *big.Int
-			if update.UsdPerToken != nil && update.UsdPerToken.Sign() != 0 {
-				tokenPrice = update.UsdPerToken
-			} else if update.UsdPerToken != nil {
+			if update.UsdPerToken.Int != nil && update.UsdPerToken.Sign() != 0 {
+				tokenPrice = update.UsdPerToken.Int
+			} else if update.UsdPerToken.Int != nil {
 				tokenPrice = big.NewInt(0)
 			}
 			tpuSlice[i] = cciptypes.TokenPrice{
@@ -152,11 +153,11 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 		for i, update := range priceUpdate.GasPriceUpdates {
 			// Pack the two 112-bit fields back into a single 224-bit value
 			// Packed format: (DA << 112) | Exec
-			execFee := update.ExecutionGasPrice
+			execFee := update.ExecutionGasPrice.Int
 			if execFee == nil {
 				execFee = big.NewInt(0)
 			}
-			daFee := update.DataAvailabilityGasPrice
+			daFee := update.DataAvailabilityGasPrice.Int
 			if daFee == nil {
 				daFee = big.NewInt(0)
 			}

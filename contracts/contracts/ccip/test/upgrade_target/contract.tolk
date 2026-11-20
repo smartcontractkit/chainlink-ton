@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../../lib/versioning/upgradeable"
 
-tolk 1.4.2
+tolk 1.5.0
 
 /// Test-only code that any upgradeable contract can be upgraded to. It records the previous
 /// storage and version so tests can prove the new implementation's `migrate` and `version` ran

@@ -1,7 +1,6 @@
 package router
 
 import (
-	"math/big"
 	"reflect"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
@@ -99,9 +99,8 @@ type ChainSelector struct {
 }
 
 // Subject is a wrapper for uint128 to support SnakedCell encoding.
-// Stored as *big.Int since Go doesn't have native uint128.
 type Subject struct {
-	Value *big.Int `tlb:"## 128"`
+	Value *tlbe.Uint128 `tlb:"."`
 }
 
 // crc32("ApplyRampUpdates")
@@ -182,21 +181,21 @@ type RouteMessage struct {
 	_        tlb.Magic              `tlb:"#fc69c50b" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID  uint64                 `tlb:"## 64"`
 	Message  offramp.Any2TVMMessage `tlb:"^"`
-	ExecID   *big.Int               `tlb:"## 192"`
+	ExecID   *tlbe.Uint192          `tlb:"."`
 	Receiver *address.Address       `tlb:"addr"`
 	GasLimit tlb.Coins              `tlb:"."`
 }
 
 type CCIPReceiveConfirm struct {
-	_       tlb.Magic `tlb:"#1e55bbf6" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID uint64    `tlb:"## 64"`
-	ExecID  *big.Int  `tlb:"## 192"`
+	_       tlb.Magic     `tlb:"#1e55bbf6" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64        `tlb:"## 64"`
+	ExecID  *tlbe.Uint192 `tlb:"."`
 }
 
 type MessageSent struct {
 	_                 tlb.Magic        `tlb:"#6513f8e1" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID           uint64           `tlb:"## 64"`
-	MessageID         *big.Int         `tlb:"## 256"`
+	MessageID         *tlbe.Uint256    `tlb:"."`
 	DestChainSelector uint64           `tlb:"## 64"`
 	Sender            *address.Address `tlb:"addr"`
 }
@@ -210,9 +209,9 @@ type MessageRejected struct {
 }
 
 type CCIPSendACK struct {
-	_         tlb.Magic `tlb:"#78d0f21e" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID   uint64    `tlb:"## 64"`
-	MessageID *big.Int  `tlb:"## 256"`
+	_         tlb.Magic     `tlb:"#78d0f21e" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID   uint64        `tlb:"## 64"`
+	MessageID *tlbe.Uint256 `tlb:"."`
 }
 
 type CCIPSendNACK struct {

@@ -65,7 +65,7 @@ describe('math', () => {
 
     // Set up math contract
     {
-      const code = await contractCode.ccip.local('tests.lib.math')
+      const code = await contractCode.ccip.local('TestLibMath')
       bind.math = blockchain.openContract(MathContract.create(code))
     }
 

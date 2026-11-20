@@ -57,7 +57,7 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600  // 5 years
 // recipient notification and excess handling enabled.
 
 const GAS_CONSUMPTION_JettonTransfer    = 7306
-const GAS_CONSUMPTION_JettonReceive     = 7566
+const GAS_CONSUMPTION_JettonReceive     = 7535
 const GAS_CONSUMPTION_BurnRequest       = 5613
 const GAS_CONSUMPTION_BurnNotification  = 4558
 

@@ -70,9 +70,11 @@ display-name = "link.chain.ton.ccip.Deployable"
 src = "contracts/lib/deployable/Deployable.boc"
 depends = []
 
+# Stub for the CCIP Receiver library. Do not deploy.
 [contracts.Receiver]
 display-name = "link.chain.ton.ccip.lib.Receiver"
-src = "contracts/lib/receiver/CCIPReceiver.tolk"
+src = "contracts/test/mock/bouncer.boc"
+types = "contracts/lib/receiver/CCIPReceiver.tolk"
 domain = "ccip"
 depends = []
 
@@ -99,9 +101,11 @@ src = "contracts/ccip/cct/JettonWallet.tolk"
 domain = "ccip/cct"
 depends = []
 
+# Stub for the TokenPool library. Do not deploy.
 [contracts.TokenPool]
 display-name = "link.chain.ton.ccip.pool.TokenPool"
-src = "contracts/ccip/pools/TokenPool.tolk"
+src = "contracts/test/mock/bouncer.boc"
+types = "contracts/ccip/pools/TokenPool.tolk"
 domain = "ccip/pools"
 depends = ["Deployable"]
 

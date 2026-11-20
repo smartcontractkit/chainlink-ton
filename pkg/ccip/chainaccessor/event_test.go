@@ -14,6 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
@@ -128,7 +129,7 @@ func TestConvertCCIPMessageSent_PreservesMultiCellExtraData(t *testing.T) {
 				TokenTransfer: common.SnakedCell[ocr.TVM2AnyTokenTransfer]{
 					{
 						SourcePoolAddress: sender,
-						Amount:            big.NewInt(42),
+						Amount:            tlbe.BigUint256{Int: big.NewInt(42)},
 						DestTokenAddress:  common.CrossChainAddress{0x03},
 						ExtraData:         extraDataCell,
 						DestExecData:      destExecDataCell,
@@ -137,7 +138,7 @@ func TestConvertCCIPMessageSent_PreservesMultiCellExtraData(t *testing.T) {
 				FeeToken:       sender,
 				FeeTokenAmount: &feeAmount,
 			},
-			FeeValueJuels: big.NewInt(500000),
+			FeeValueJuels: tlbe.BigUint96{Int: big.NewInt(500000)},
 		},
 	}
 

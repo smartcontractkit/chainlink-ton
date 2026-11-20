@@ -1,5 +1,6 @@
 import { Address, toNano } from '@ton/core'
-import { compile, NetworkProvider } from '@ton/blueprint'
+import { NetworkProvider } from '@ton/blueprint'
+import { contractCode } from '../wrappers/codeLoader'
 import * as tr from '../wrappers/gen/ccip/TestReceiver'
 import { generateRandomContractId } from '../src/utils'
 
@@ -32,7 +33,7 @@ export async function deployReceiver(
         ownable: tr.Ownable2Step.create({ owner: deployer }),
         authorizedCaller: routerAddress,
       },
-      { overrideContractCode: await compile('ccip.test.receiver') },
+      { overrideContractCode: await contractCode.ccip.local('ccip.test.receiver') },
     ),
   )
 

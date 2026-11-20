@@ -3,7 +3,7 @@
 
 import "../lib/cross_chain_address/types"
 
-tolk 1.4.2
+tolk 1.5.0
 
 const EVM_PRECOMPILE_SPACE = 1024;
 const APTOS_PRECOMPILE_SPACE = 0x0b;

@@ -56,6 +56,8 @@ func TestUintWrappers_WireCompatWithRawStore(t *testing.T) {
 	}{
 		{"uint128", *NewUint128(v), cell.BeginCell().MustStoreBigInt(AsUnsigned(v, 128), 128).EndCell()},
 		{"uint160", *NewUint160(v), cell.BeginCell().MustStoreBigInt(AsUnsigned(v, 160), 160).EndCell()},
+		{"uint192", *NewUint192(v), cell.BeginCell().MustStoreBigInt(AsUnsigned(v, 192), 192).EndCell()},
+		{"uint224", *NewUint224(v), cell.BeginCell().MustStoreBigInt(AsUnsigned(v, 224), 224).EndCell()},
 		{"uint256", *NewUint256(v), cell.BeginCell().MustStoreBigInt(AsUnsigned(v, 256), 256).EndCell()},
 	}
 
@@ -100,6 +102,16 @@ func TestUintWrappers_AreComparable(t *testing.T) {
 	a160, b160 := *NewUint160(v160), *NewUint160(v160)
 	require.Equal(t, a160, b160, "equal Uint160 values must compare equal")
 	require.NotEqual(t, a160, *NewUint160(big.NewInt(1)), "different Uint160 values must compare unequal")
+
+	v192 := new(big.Int).Lsh(big.NewInt(1), 191)
+	a192, b192 := *NewUint192(v192), *NewUint192(v192)
+	require.Equal(t, a192, b192, "equal Uint192 values must compare equal")
+	require.NotEqual(t, a192, *NewUint192(big.NewInt(1)), "different Uint192 values must compare unequal")
+
+	v224 := new(big.Int).Lsh(big.NewInt(1), 223)
+	a224, b224 := *NewUint224(v224), *NewUint224(v224)
+	require.Equal(t, a224, b224, "equal Uint224 values must compare equal")
+	require.NotEqual(t, a224, *NewUint224(big.NewInt(1)), "different Uint224 values must compare unequal")
 
 	v256 := new(big.Int).Lsh(big.NewInt(1), 255)
 	a256, b256 := *NewUint256(v256), *NewUint256(v256)
@@ -331,6 +343,8 @@ func TestUintWrappers_CellRoundTripAndWidth(t *testing.T) {
 	}{
 		{"uint128", func(v *big.Int) (any, uint) { return *NewUint128(v), 128 }},
 		{"uint160", func(v *big.Int) (any, uint) { return *NewUint160(v), 160 }},
+		{"uint192", func(v *big.Int) (any, uint) { return *NewUint192(v), 192 }},
+		{"uint224", func(v *big.Int) (any, uint) { return *NewUint224(v), 224 }},
 		{"uint256", func(v *big.Int) (any, uint) { return *NewUint256(v), 256 }},
 	}
 
@@ -354,6 +368,14 @@ func TestUintWrappers_CellRoundTripAndWidth(t *testing.T) {
 				var decoded Uint160
 				require.NoError(t, decoded.LoadFromCell(c.MustBeginParse()))
 				require.Equal(t, x, decoded)
+			case Uint192:
+				var decoded Uint192
+				require.NoError(t, decoded.LoadFromCell(c.MustBeginParse()))
+				require.Equal(t, x, decoded)
+			case Uint224:
+				var decoded Uint224
+				require.NoError(t, decoded.LoadFromCell(c.MustBeginParse()))
+				require.Equal(t, x, decoded)
 			case Uint256:
 				var decoded Uint256
 				require.NoError(t, decoded.LoadFromCell(c.MustBeginParse()))
@@ -363,7 +385,7 @@ func TestUintWrappers_CellRoundTripAndWidth(t *testing.T) {
 	}
 }
 
-// TestUintWrappers_JSONHexRoundTrip checks canonical hex JSON for all three types.
+// TestUintWrappers_JSONHexRoundTrip checks canonical hex JSON for all types.
 func TestUintWrappers_JSONHexRoundTrip(t *testing.T) {
 	for _, jsonCase := range []struct {
 		value any
@@ -371,6 +393,8 @@ func TestUintWrappers_JSONHexRoundTrip(t *testing.T) {
 	}{
 		{*NewUint128(big.NewInt(255)), `"0xff"`},
 		{*NewUint160(big.NewInt(255)), `"0xff"`},
+		{*NewUint192(big.NewInt(255)), `"0xff"`},
+		{*NewUint224(big.NewInt(255)), `"0xff"`},
 		{*NewUint256(big.NewInt(255)), `"0xff"`},
 	} {
 		payload, err := json.Marshal(jsonCase.value)
@@ -384,6 +408,14 @@ func TestUintWrappers_JSONHexRoundTrip(t *testing.T) {
 			require.Equal(t, x, d)
 		case Uint160:
 			var d Uint160
+			require.NoError(t, json.Unmarshal(payload, &d))
+			require.Equal(t, x, d)
+		case Uint192:
+			var d Uint192
+			require.NoError(t, json.Unmarshal(payload, &d))
+			require.Equal(t, x, d)
+		case Uint224:
+			var d Uint224
 			require.NoError(t, json.Unmarshal(payload, &d))
 			require.Equal(t, x, d)
 		case Uint256:

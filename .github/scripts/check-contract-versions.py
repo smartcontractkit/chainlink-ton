@@ -158,15 +158,66 @@ def extract_entrypoint_from_compile_ts(file_path):
         return None
 
 
+def read_acton_sources(contracts_dir):
+    """Map each Acton.toml contract key to its Tolk source.
+
+    A contract whose `src` is a prebuilt .boc (e.g. a library stub) resolves to its `types` file.
+    """
+    manifest_path = os.path.join(contracts_dir, 'Acton.toml')
+    if not os.path.exists(manifest_path):
+        return {}
+
+    sources = {}
+    key = None
+    fields = {}
+
+    def flush():
+        if key is None:
+            return
+        src = fields.get('src')
+        if src and src.endswith('.tolk'):
+            sources[key] = src
+        elif fields.get('types'):
+            sources[key] = fields['types']
+
+    with open(manifest_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            section = re.match(r'^\s*\[([^\]]+)\]\s*$', line)
+            if section:
+                flush()
+                name = section.group(1).strip()
+                key = name[len('contracts.'):].strip('"') if name.startswith('contracts.') else None
+                fields = {}
+                continue
+            field = re.match(r'^\s*(src|types)\s*=\s*"([^"]+)"', line)
+            if field and key is not None:
+                fields[field.group(1)] = field.group(2)
+    flush()
+    return sources
+
+
+def read_legacy_artifact_names(contracts_dir):
+    """Map legacy artifact names (build/<name>.compiled.json) back to Acton.toml contract keys."""
+    names_path = os.path.join(contracts_dir, 'scripts', 'acton', 'legacyArtifactNames.json')
+    if not os.path.exists(names_path):
+        return {}
+    with open(names_path, 'r', encoding='utf-8') as f:
+        return {artifact: key for key, artifact in json.load(f).items()}
+
+
 def find_contract_entrypoint(contract_name, contracts_dir):
-    """Find the entrypoint for a specific contract by reading its .compile.ts file."""
+    """Find the source file of the contract built into build/<contract_name>.compiled.json.
+
+    Uses wrappers/<contract_name>.compile.ts when present, and Acton.toml otherwise.
+    """
     wrappers_dir = os.path.join(contracts_dir, 'wrappers')
     compile_file = os.path.join(wrappers_dir, f"{contract_name}.compile.ts")
-    
+
     if os.path.exists(compile_file):
         return extract_entrypoint_from_compile_ts(compile_file)
-    
-    return None
+
+    key = read_legacy_artifact_names(contracts_dir).get(contract_name, contract_name)
+    return read_acton_sources(contracts_dir).get(key)
 
 
 def extract_version_from_content(content):

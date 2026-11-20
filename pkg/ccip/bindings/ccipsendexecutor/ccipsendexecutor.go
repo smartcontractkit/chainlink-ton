@@ -1,13 +1,12 @@
 package ccipsendexecutor
 
 import (
-	"math/big"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
@@ -65,7 +64,7 @@ type Config struct {
 // Initial data structure for CCIPSend Executor
 type InitialData struct {
 	OnRamp    *address.Address `tlb:"addr"`
-	MessageID *big.Int         `tlb:"## 224"`
+	MessageID *tlbe.Uint224    `tlb:"."`
 }
 
 // Addresses structure

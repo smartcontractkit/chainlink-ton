@@ -270,7 +270,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 
 		// Validate expected values from the TypeScript test
 		require.Equal(t, "EQDDYtwR_VsYCuRP5d0dL77QeZ0mw1XCqBSud_c04p0zpcYO", tokenUpdate.SourceToken.String(), "SourceToken should match expected address")
-		require.Equal(t, big.NewInt(1), tokenUpdate.UsdPerToken, "UsdPerToken should be 1")
+		require.Equal(t, big.NewInt(1), tokenUpdate.UsdPerToken.Int, "UsdPerToken should be 1")
 
 		// Validate GasPriceUpdates
 		require.NotNil(t, commitReportAccepted.PriceUpdates.GasPriceUpdates, "GasPriceUpdates should not be nil")
@@ -288,8 +288,8 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		// This should unpack to:
 		// - ExecutionGasPrice (lower 112 bits): 1
 		// - DataAvailabilityGasPrice (upper 112 bits): 1
-		require.Equal(t, big.NewInt(1), gasUpdate.ExecutionGasPrice, "ExecutionGasPrice should match expected value")
-		require.Equal(t, big.NewInt(1), gasUpdate.DataAvailabilityGasPrice, "DataAvailabilityGasPrice should match expected value")
+		require.Equal(t, big.NewInt(1), gasUpdate.ExecutionGasPrice.Int, "ExecutionGasPrice should match expected value")
+		require.Equal(t, big.NewInt(1), gasUpdate.DataAvailabilityGasPrice.Int, "DataAvailabilityGasPrice should match expected value")
 	})
 
 	t.Run("Test BOC decoding - Both MerkleRoot and PriceUpdates", func(t *testing.T) {
@@ -329,7 +329,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		t.Logf("      UsdPerToken: %s", tokenUpdate.UsdPerToken.String())
 
 		// Validate expected values from the TypeScript test
-		require.Equal(t, big.NewInt(1), tokenUpdate.UsdPerToken, "UsdPerToken should be 1")
+		require.Equal(t, big.NewInt(1), tokenUpdate.UsdPerToken.Int, "UsdPerToken should be 1")
 
 		// Validate GasPriceUpdates
 		require.NotNil(t, commitReportAccepted.PriceUpdates.GasPriceUpdates, "GasPriceUpdates should not be nil")

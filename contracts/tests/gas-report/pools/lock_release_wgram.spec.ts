@@ -66,7 +66,7 @@ runTokenPoolGasCalibration({
           initializer: deployer.address,
           rbac: emptyAccessControlData(),
         },
-        { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+        { overrideContractCode: await contractCode.ccip.local('JettonLockBox') },
       ),
     )
     await jettonLockBox.sendDeploy(deployer.getSender(), toNano('3'))
@@ -107,9 +107,7 @@ runTokenPoolGasCalibration({
           lockbox: jettonLockBox.address,
         },
         {
-          overrideContractCode: await contractCode.ccip.local(
-            'ccip.pool.LockReleaseLockboxTokenPool',
-          ),
+          overrideContractCode: await contractCode.ccip.local('LockReleaseLockboxTokenPool'),
         },
       ),
     )

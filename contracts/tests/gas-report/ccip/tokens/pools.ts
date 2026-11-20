@@ -113,9 +113,7 @@ export async function deployTokenWithPool(opts: {
       lrp.LockReleaseLockboxTokenPool.fromStorage(
         { poolData, lockbox: lockbox.address },
         {
-          overrideContractCode: await contractCode.ccip.local(
-            'ccip.pool.LockReleaseLockboxTokenPool',
-          ),
+          overrideContractCode: await contractCode.ccip.local('LockReleaseLockboxTokenPool'),
         },
       ),
     )
@@ -132,7 +130,7 @@ export async function deployTokenWithPool(opts: {
     pool = blockchain.openContract(
       bmp.BurnMintTokenPool.fromStorage(
         { poolData },
-        { overrideContractCode: await contractCode.ccip.local('ccip.pool.BurnMintTokenPool') },
+        { overrideContractCode: await contractCode.ccip.local('BurnMintTokenPool') },
       ),
     )
   }
