@@ -253,7 +253,7 @@ describe('Router', () => {
 
     const event = or.CCIPMessageSent.fromSlice(ccipMessageSentExternal.body.beginParse())
 
-    // The ramp message body should contain extra args that are no longer empty.
+    // The ramp message body should contain non-empty extra args.
     // The FeeQuoter should have applied the default gas limit from the dest chain config.
     const extraArgs = event.message.body.extraArgs
     if (extraArgs.$ !== 'GenericExtraArgsV2') {

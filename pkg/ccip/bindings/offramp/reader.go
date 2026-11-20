@@ -74,14 +74,8 @@ var GetOCR3Config = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OCR3Base]{
 
 // GetConfig gets the configuration of the OffRamp contract.
 //
-// The config() getter returns a TVM stack whose layout evolved:
-//   - Old contracts (pre-1.7.0):    3 elements [chainSelector, feeQuoter, threshold]
-//   - 1.7.0 (NONEVM-6144):          4 elements [..., tokenAdminRegistry]
-//   - This PR (NONEVM-6030):        6 elements [..., minGasLimit, minTTGasLimit]
-//
-// Only the 3-element version was deployed to production, so we only need to
-// distinguish between 3 (old) and 6 (new). When the stack has more than 3
-// elements, we assert it has exactly 6 and read all remaining fields.
+// Contracts before 1.7.0 return 3 elements [chainSelector, feeQuoter, threshold];
+// newer ones return 6, appending [tokenAdminRegistry, minGasLimit, minTTGasLimit].
 var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 	Name: configGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (Config, error) {

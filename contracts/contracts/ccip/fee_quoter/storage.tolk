@@ -9,7 +9,7 @@ struct Storage {
     maxFeeJuelsPerMsg: uint96;
     linkToken: address;
 
-    // @deprecated no longer use to validate token prices
+    // @deprecated no longer used to validate token prices
     tokenPriceStalenessThreshold: uint32;
 
     // NOTE: usdPerUnitGasByDestChain is on DestChainConfig instead (same as Solana)
