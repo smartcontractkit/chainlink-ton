@@ -485,6 +485,16 @@ func ensureAssignable(value reflect.Value, targetType reflect.Type) (reflect.Val
 	return reflect.Value{}, fmt.Errorf("%w: cannot assign %s to %s", ErrUnsupportedSample, value.Type(), targetType)
 }
 
+// bigUintFactory generates a tlbe.BigUint that fits its declared width. Without
+// it the generator would fill the embedded *big.Int with 256 random bits.
+func bigUintFactory[W tlbe.Width]() Factory {
+	return func(ctx *Context) (reflect.Value, error) {
+		var v tlbe.BigUint[W]
+		v.Int = ctx.Generator.randomBigInt(int(v.BitsLen()))
+		return reflect.ValueOf(v), nil
+	}
+}
+
 func buildDefaultFactories() map[reflect.Type]Factory {
 	coinsVal := tlb.MustFromTON("0.125")
 	return map[reflect.Type]Factory{
@@ -503,6 +513,11 @@ func buildDefaultFactories() map[reflect.Type]Factory {
 			val := ctx.Generator.randomBigInt(256)
 			return reflect.ValueOf(tlbe.NewUint256(val)), nil
 		},
+		reflect.TypeFor[tlbe.BigUint96]():  bigUintFactory[tlbe.W96](),
+		reflect.TypeFor[tlbe.BigUint112](): bigUintFactory[tlbe.W112](),
+		reflect.TypeFor[tlbe.BigUint128](): bigUintFactory[tlbe.W128](),
+		reflect.TypeFor[tlbe.BigUint224](): bigUintFactory[tlbe.W224](),
+		reflect.TypeFor[tlbe.BigUint256](): bigUintFactory[tlbe.W256](),
 		reflect.TypeFor[big.Int](): func(ctx *Context) (reflect.Value, error) {
 			bits, ok := ctx.Tag.IntBitLen()
 			if !ok || bits <= 0 {

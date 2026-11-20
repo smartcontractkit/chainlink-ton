@@ -135,7 +135,7 @@ func parseUintText(s string, bits uint) (*big.Int, error) {
 
 // fitsUint reports whether v is a non-negative integer of at most bits bits.
 func fitsUint(v *big.Int, bits uint) bool {
-	return v.Sign() >= 0 && v.BitLen() <= int(bits) //nolint:gosec // G115: bits <= 256
+	return v.Sign() >= 0 && v.BitLen() <= int(bits)
 }
 
 // Uint128 is a 128-bit unsigned integer (Tolk uint128, e.g. cursed-subject map
