@@ -1,0 +1,7 @@
+{
+  "TestReceiver": "ccip.test.receiver",
+  "Timelock": "mcms.RBACTimelock",
+  "MCMS": "mcms.MCMS",
+  "JettonMinter": "ccip.cct.JettonMinter",
+  "JettonWallet": "ccip.cct.JettonWallet"
+}

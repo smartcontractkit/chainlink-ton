@@ -119,18 +119,21 @@ struct (0xecf005ba) TokenAdminRegistryEntry_RefreshPoolConfig {
     requester: address;
 }
 
-/// Value an Upgradeable_Upgrade to `code` needs on the entry: 3x the measured compute and 2x the
-/// forward fee of the UpgradedEvent, which echoes the code. A rent debt does not block it: the
-/// storage phase of a bounceable message defers the debt instead of taking the inbound value.
+/// Value an Upgradeable_Upgrade to `code` needs: 3x the measured compute and 3x the forward fee
+/// of a message carrying the code, which covers both the Upgradeable_Upgrade itself and the
+/// UpgradedEvent that echoes it. A rent debt does not block it: the storage phase of a bounceable
+/// message defers the debt instead of taking the inbound value.
 fun TokenAdminRegistryEntry_upgradeCost(code: cell): coins {
     val (cells, bits, _) = code.calculateSizeStrict(TokenAdminRegistryEntry_MAX_CODE_CELLS);
     return 3 * calculateGasFee(BASECHAIN, TokenAdminRegistryEntry_UPGRADE_GAS)
-        + 2 * calculateForwardFee(BASECHAIN, bits + TokenAdminRegistryEntry_UPGRADED_EVENT_BITS, cells + 1);
+        + 3 * calculateForwardFee(BASECHAIN, bits + TokenAdminRegistryEntry_UPGRADED_EVENT_BITS, cells + 1);
 }
 
 const TokenAdminRegistryEntry_MAX_CODE_CELLS = 1024;
-/// About 7000 measured for an Upgradeable_Upgrade with a trivial `migrate`, rounded up.
-const TokenAdminRegistryEntry_UPGRADE_GAS = 10000;
+/// Compute of a TokenAdminRegistry_UpgradeEntry flow, rounded up: about 9700 on the root, up to
+/// about 7000 for an Upgradeable_Upgrade with a trivial `migrate` on the entry, and about 1600
+/// for the refund back to the root.
+const TokenAdminRegistryEntry_UPGRADE_GAS = 20000;
 /// Event fields other than the code: hash and version.
 const TokenAdminRegistryEntry_UPGRADED_EVENT_BITS = 256 + 64;
 

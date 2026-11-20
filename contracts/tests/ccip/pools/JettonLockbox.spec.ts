@@ -108,7 +108,7 @@ describe('JettonLockBox', () => {
           initializer: deployer.address,
           rbac: emptyAccessControlData(),
         },
-        { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+        { overrideContractCode: await contractCode.ccip.local('JettonLockBox') },
       ),
     )
 
@@ -955,7 +955,7 @@ describe('JettonLockBox', () => {
             initializer: deployer.address,
             rbac: emptyAccessControlData(),
           },
-          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+          { overrideContractCode: await contractCode.ccip.local('JettonLockBox') },
         ),
       )
       const boundWalletAddress = await jettonMinter.getWalletAddress(boundLockbox.address)
@@ -1009,7 +1009,7 @@ describe('JettonLockBox', () => {
             initializer: new Address(0, Buffer.alloc(32)),
             rbac: emptyAccessControlData(),
           },
-          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+          { overrideContractCode: await contractCode.ccip.local('JettonLockBox') },
         ),
       )
       const unboundWalletAddress = await jettonMinter.getWalletAddress(unboundLockbox.address)
@@ -1044,7 +1044,7 @@ describe('JettonLockBox', () => {
             initializer: deployer.address,
             rbac: emptyAccessControlData(),
           },
-          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+          { overrideContractCode: await contractCode.ccip.local('JettonLockBox') },
         ),
       )
 
@@ -1082,7 +1082,7 @@ describe('JettonLockBox', () => {
             initializer: operator.address,
             rbac: emptyAccessControlData(),
           },
-          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+          { overrideContractCode: await contractCode.ccip.local('JettonLockBox') },
         ),
       )
 
@@ -1122,7 +1122,7 @@ describe('JettonLockBox', () => {
             initializer: deployer.address,
             rbac: emptyAccessControlData(),
           },
-          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+          { overrideContractCode: await contractCode.ccip.local('JettonLockBox') },
         ),
       )
       const poorWalletAddress = await jettonMinter.getWalletAddress(poorLockbox.address)
@@ -1155,7 +1155,7 @@ describe('JettonLockBox', () => {
             initializer: deployer.address,
             rbac: emptyAccessControlData(),
           },
-          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+          { overrideContractCode: await contractCode.ccip.local('JettonLockBox') },
         ),
       )
       const refundWalletAddress = await jettonMinter.getWalletAddress(refundLockbox.address)
@@ -1201,7 +1201,7 @@ describe('JettonLockBox', () => {
             initializer: deployer.address,
             rbac: emptyAccessControlData(),
           },
-          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+          { overrideContractCode: await contractCode.ccip.local('JettonLockBox') },
         ),
       )
       const refundWalletAddress = await jettonMinter.getWalletAddress(refundLockbox.address)
@@ -1237,7 +1237,7 @@ describe('JettonLockBox', () => {
     })
 
     it('should keep the value when deployed and initialized in one message', async () => {
-      const code = await contractCode.ccip.local('ccip.pool.JettonLockBox')
+      const code = await contractCode.ccip.local('JettonLockBox')
       const lockbox = JettonLockBox.fromStorage(
         {
           minterAddress: jettonMinter.address,
@@ -1288,7 +1288,7 @@ describe('JettonLockBox', () => {
     })
 
     it('should return the message excess when deployed and initialized in one message', async () => {
-      const code = await contractCode.ccip.local('ccip.pool.JettonLockBox')
+      const code = await contractCode.ccip.local('JettonLockBox')
       const lockbox = JettonLockBox.fromStorage(
         {
           minterAddress: jettonMinter.address,

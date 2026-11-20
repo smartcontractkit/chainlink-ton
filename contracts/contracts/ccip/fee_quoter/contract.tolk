@@ -20,7 +20,7 @@ import "messages"
 import "types"
 import "storage"
 
-tolk 1.4.2
+tolk 1.5.0
 
 contract FeeQuoter {
     author: "SmartContract Chainlink Limited SEZC"

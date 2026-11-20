@@ -132,7 +132,7 @@ describe('TokenAdminRegistry flow fees', () => {
     const burnMint = blockchain.openContract(
       BurnMintTokenPool.fromStorage(
         { poolData },
-        { overrideContractCode: await contractCode.ccip.local('ccip.pool.BurnMintTokenPool') },
+        { overrideContractCode: await contractCode.ccip.local('BurnMintTokenPool') },
       ),
     )
     await burnMint.sendDeploy(fx.owner.getSender(), toNano('1'))
@@ -141,9 +141,7 @@ describe('TokenAdminRegistry flow fees', () => {
       LockReleaseLockboxTokenPool.fromStorage(
         { poolData, lockbox: (await blockchain.treasury('lockbox')).address },
         {
-          overrideContractCode: await contractCode.ccip.local(
-            'ccip.pool.LockReleaseLockboxTokenPool',
-          ),
+          overrideContractCode: await contractCode.ccip.local('LockReleaseLockboxTokenPool'),
         },
       ),
     )

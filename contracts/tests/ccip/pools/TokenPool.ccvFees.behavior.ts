@@ -42,7 +42,7 @@ function createSharedDeployHooks(ctx: TokenPoolCcvFeesBehaviorContext) {
       MockAdvancedPoolHooks.fromStorage(
         { id: BigInt(id) },
         {
-          overrideContractCode: await contractCode.ccip.local('ccip.test.mockAdvancedPoolHooks'),
+          overrideContractCode: await contractCode.ccip.local('MockAdvancedPoolHooks'),
         },
       ),
     )

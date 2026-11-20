@@ -17,6 +17,8 @@
 import * as fs from 'fs'
 import * as path from 'path'
 
+import { PINNED_JETTON_ARTIFACT_NAMES } from './acton/pinnedArtifacts'
+
 const BUILD_DIR = 'build'
 
 interface PinnedArtifact {
@@ -32,7 +34,7 @@ function jettonArtifacts(): PinnedArtifact[] {
     return []
   }
 
-  return ['JettonMinter', 'JettonWallet'].map((name) => ({
+  return PINNED_JETTON_ARTIFACT_NAMES.map((name) => ({
     src: path.join(jettonBuildDir, `${name}.compiled.json`),
     dest: path.join(BUILD_DIR, `${name}.compiled.json`),
   }))
@@ -44,6 +46,16 @@ function main(): void {
   fs.mkdirSync(BUILD_DIR, { recursive: true })
 
   for (const { src, dest } of artifacts) {
+    if (fs.existsSync(dest)) {
+      // A different file at `dest` is an artifact built from Acton.toml under the same name.
+      if (!fs.readFileSync(dest).equals(fs.readFileSync(src))) {
+        throw new Error(
+          `${dest} already holds a different artifact; map its contract key in scripts/acton/legacyArtifactNames.json`,
+        )
+      }
+      process.stdout.write(`Already pinned ${dest}\n`)
+      continue
+    }
     fs.copyFileSync(src, dest)
     process.stdout.write(`Pinned ${src} -> ${dest}\n`)
   }

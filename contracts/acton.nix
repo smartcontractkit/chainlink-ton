@@ -5,15 +5,15 @@ pkgs.stdenvNoCC.mkDerivation (finalAttrs: let
     {
       aarch64-darwin = {
         target = "aarch64-apple-darwin";
-        hash = "sha256-z4e3l41eOGh6PBVwqipzeRizR3dyVgDjYds5IwyKMD8=";
+        hash = "sha256-Dbge2exBLZNw2PCo8uS7+f+ZgP9PaQOfIJEKh8dt2QA=";
       };
       aarch64-linux = {
         target = "aarch64-unknown-linux-gnu";
-        hash = "sha256-rkTIG1SZb3TLyAy4jHZfDiI0G56DKUyC9gMwn60Zg94=";
+        hash = "sha256-GvEPX0e89+IxfdcPaSa4ulL1uec0gbAwrEcpIKTFgbI=";
       };
       x86_64-linux = {
         target = "x86_64-unknown-linux-gnu";
-        hash = "sha256-wSxcpiLh5Bom1/fr6gJOS4pxbGXuks5/niIOevDgjNI=";
+        hash = "sha256-SQ1nY9z+FI6cg0bj1Ww5jpUFUtMpp2i36RaNTdVK/j8=";
       };
     }
     .${
@@ -22,7 +22,7 @@ pkgs.stdenvNoCC.mkDerivation (finalAttrs: let
     or (throw "Unsupported Acton platform: ${pkgs.stdenv.hostPlatform.system}");
 in {
   pname = "acton";
-  version = "1.2.0";
+  version = "1.2.1";
 
   src = pkgs.fetchurl {
     url = "https://github.com/ton-blockchain/acton/releases/download/v${finalAttrs.version}/acton-${platform.target}.tar.gz";

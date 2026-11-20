@@ -110,7 +110,7 @@ describe('JettonLockBox gas calibration', () => {
           initializer: deployer.address,
           rbac: emptyAccessControlData(),
         },
-        { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+        { overrideContractCode: await contractCode.ccip.local('JettonLockBox') },
       ),
     )
     await jettonLockBox.sendDeploy(deployer.getSender(), toNano('3'))

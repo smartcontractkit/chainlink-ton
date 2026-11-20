@@ -14,7 +14,7 @@ import "../token_admin_registry_entry/messages"
 import "../token_admin_registry_entry/storage"
 import "../token_admin_registry_entry/types"
 
-tolk 1.4.2
+tolk 1.5.0
 
 /// Root contract for the sharded token-admin registry. It owns deployment
 /// configuration for deterministic entries and is the future replacement for

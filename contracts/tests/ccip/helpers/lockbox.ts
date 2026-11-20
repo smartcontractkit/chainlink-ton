@@ -36,7 +36,7 @@ export async function buildJettonLockBox(opts: {
   initializer: Address
   id?: bigint
 }): Promise<SandboxContract<JettonLockBox>> {
-  const code = await contractCode.ccip.local('ccip.pool.JettonLockBox')
+  const code = await contractCode.ccip.local('JettonLockBox')
   return opts.blockchain.openContract(
     JettonLockBox.fromStorage(
       {
