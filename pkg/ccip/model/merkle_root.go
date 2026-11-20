@@ -10,6 +10,7 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/merkleroot"
 )
 
@@ -165,7 +166,7 @@ func (s *MerkleRootStorage) FromBinding(raw *merkleroot.Storage) error {
 		mask := new(big.Int).Lsh(big.NewInt(3), shift)
 
 		// temp = (bitmap & mask) >> shift
-		temp := new(big.Int).And(raw.MessageStates, mask)
+		temp := new(big.Int).And(raw.MessageStates.Int, mask)
 		temp.Rsh(temp, shift)
 
 		// lint check
@@ -241,7 +242,7 @@ func (s *MerkleRootStorage) ToBinding() (*merkleroot.Storage, error) {
 		// OR it into the bitmap
 		messageStates.Or(messageStates, value)
 	}
-	st.MessageStates = messageStates
+	st.MessageStates = tlbe.BigUint128{Int: messageStates}
 
 	// Pending executor deploys
 	for i, pending := range s.PendingExecutorDeploy {

@@ -56,7 +56,7 @@ func TestTopicCRC32Values(t *testing.T) {
 
 func TestGenericExtraArgsV2_TLBEncodeDecode(t *testing.T) {
 	orig := GenericExtraArgsV2{
-		GasLimit:                 big.NewInt(123456789),
+		GasLimit:                 &tlbe.BigUint256{Int: big.NewInt(123456789)},
 		AllowOutOfOrderExecution: true,
 	}
 
@@ -123,7 +123,7 @@ func TestSuiExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 	}
 
 	orig := SuiExtraArgsV1{
-		GasLimit:                 big.NewInt(50000),
+		GasLimit:                 tlbe.BigUint256{Int: big.NewInt(50000)},
 		AllowOutOfOrderExecution: true,
 		TokenReceiver:            suiAddr1Bytes[:],
 		ReceiverObjectIDs:        receiverObjectIDs,

@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -124,7 +123,7 @@ func (a *TONAccessor) convertCCIPMessageSent(
 			SourcePoolAddress: sourcePoolAddress,
 			DestTokenAddress:  ccipocr3.UnknownAddress(transfer.DestTokenAddress),
 			ExtraData:         extraData,
-			Amount:            ccipocr3.NewBigInt(transfer.Amount),
+			Amount:            ccipocr3.NewBigInt(transfer.Amount.Int),
 			DestExecData:      destExecData,
 		})
 	}
@@ -218,14 +217,14 @@ func (a *TONAccessor) validateCommitReportAcceptedEvent(
 		if tpus.SourceToken.IsAddrNone() {
 			return nil, fmt.Errorf("invalid source token address: %s", tpus.SourceToken.String())
 		}
-		if tpus.UsdPerToken == nil || tpus.UsdPerToken.Cmp(big.NewInt(0)) <= 0 {
+		if tpus.UsdPerToken.Int == nil || tpus.UsdPerToken.Sign() <= 0 {
 			return nil, errors.New("nil or non-positive usd per token")
 		}
 	}
 
 	for _, gpus := range ev.PriceUpdates.GasPriceUpdates {
-		if gpus.DataAvailabilityGasPrice == nil || gpus.DataAvailabilityGasPrice.Cmp(big.NewInt(0)) < 0 {
-			return nil, fmt.Errorf("nil or negative DataAvailabilityGasPrice: %v", gpus.DataAvailabilityGasPrice)
+		if gpus.DataAvailabilityGasPrice.Int == nil {
+			return nil, errors.New("nil DataAvailabilityGasPrice")
 		}
 	}
 

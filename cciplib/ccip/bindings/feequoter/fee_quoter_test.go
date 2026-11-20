@@ -125,7 +125,7 @@ func TestMessageValidated_TLBEncodeDecode(t *testing.T) {
 	orig := MessageValidated{
 		Fee: Fee{
 			FeeTokenAmount: ptrCoins(tlb.MustFromTON("0.5")),
-			FeeValueJuels:  big.NewInt(123456),
+			FeeValueJuels:  tlbe.BigUint96{Int: big.NewInt(123456)},
 		},
 		DestOverheads: &common.LispList[DestOverhead]{
 			{DestGasOverhead: 90000, DestBytesOverhead: 32},
@@ -164,7 +164,7 @@ func TestMessageValidated_NilDestOverheads(t *testing.T) {
 	orig := MessageValidated{
 		Fee: Fee{
 			FeeTokenAmount: ptrCoins(tlb.MustFromTON("0.5")),
-			FeeValueJuels:  big.NewInt(1),
+			FeeValueJuels:  tlbe.BigUint96{Int: big.NewInt(1)},
 		},
 		DestOverheads:       nil,
 		ChainFamilySelector: 0x1e10bdc4,

@@ -11,6 +11,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/parser"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
@@ -168,7 +169,7 @@ var GetTokenPrice = tvm.Getter[*address.Address, TimestampedPrice]{
 		}
 
 		return TimestampedPrice{
-			Value:     value,
+			Value:     tlbe.BigUint224{Int: value},
 			Timestamp: uint32(timestamp.Uint64()),
 		}, nil
 	}),

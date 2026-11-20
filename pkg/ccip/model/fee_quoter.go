@@ -13,6 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
@@ -187,7 +188,7 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 			raw.Ownable.Owner,
 			raw.Ownable.PendingOwner,
 		).
-		WithMaxFeeJuelsPerMsg(raw.MaxFeeJuelsPerMsg).
+		WithMaxFeeJuelsPerMsg(raw.MaxFeeJuelsPerMsg.Int).
 		WithLinkToken(raw.LinkToken).
 		WithTokenPriceStalenessThreshold(raw.TokenPriceStalenessThreshold)
 
@@ -251,8 +252,8 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 				NetworkFeeUsdCents:                dcc.Config.NetworkFeeUsdCents,
 			},
 			USDPerUnitGas: USDPerUnitGas{
-				ExecutionGasPrice:        gas.ExecutionGasPrice,
-				DataAvailabilityGasPrice: gas.DataAvailabilityGasPrice,
+				ExecutionGasPrice:        gas.ExecutionGasPrice.Int,
+				DataAvailabilityGasPrice: gas.DataAvailabilityGasPrice.Int,
 				Timestamp:                time.Unix(int64(gas.Timestamp), 0).UTC(),
 			},
 		}
@@ -276,7 +277,7 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 			return fmt.Errorf("error while decoding UsdPerToken value: %w", err3)
 		}
 
-		b = b.WithUSDPerToken(token.Val, price.Value, time.Unix(int64(price.Timestamp), 0).UTC())
+		b = b.WithUSDPerToken(token.Val, price.Value.Int, time.Unix(int64(price.Timestamp), 0).UTC())
 	}
 
 	// PremiumMultiplierWeiPerEth
@@ -314,7 +315,7 @@ func (s *FeeQuoterStorage) ToBinding() (*feequoter.Storage, error) {
 			Owner:        s.Ownable.Owner,
 			PendingOwner: s.Ownable.PendingOwner,
 		},
-		MaxFeeJuelsPerMsg:            s.MaxFeeJuelsPerMsg,
+		MaxFeeJuelsPerMsg:            tlbe.BigUint96{Int: s.MaxFeeJuelsPerMsg},
 		LinkToken:                    s.LinkToken,
 		TokenPriceStalenessThreshold: s.TokenPriceStalenessThreshold,
 	}
@@ -341,7 +342,7 @@ func (s *FeeQuoterStorage) ToBinding() (*feequoter.Storage, error) {
 		}
 
 		bindingPrice := feequoter.TimestampedPrice{
-			Value:     price.Value,
+			Value:     tlbe.BigUint224{Int: price.Value},
 			Timestamp: uint32(timestamp),
 		}
 
@@ -380,8 +381,8 @@ func (s *FeeQuoterStorage) ToBinding() (*feequoter.Storage, error) {
 		}
 
 		usdPerUnitGas := feequoter.USDPerUnitGas{
-			ExecutionGasPrice:        chainConfig.USDPerUnitGas.ExecutionGasPrice,
-			DataAvailabilityGasPrice: chainConfig.USDPerUnitGas.DataAvailabilityGasPrice,
+			ExecutionGasPrice:        tlbe.BigUint112{Int: chainConfig.USDPerUnitGas.ExecutionGasPrice},
+			DataAvailabilityGasPrice: tlbe.BigUint112{Int: chainConfig.USDPerUnitGas.DataAvailabilityGasPrice},
 			Timestamp:                uint64(timestamp),
 		}
 

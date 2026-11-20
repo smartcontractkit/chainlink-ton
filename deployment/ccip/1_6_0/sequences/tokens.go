@@ -842,8 +842,8 @@ func applyRemoteChainUpdates(
 func disabledRateLimitConfigPair() tokenpool.RateLimitConfigPair {
 	disabled := tokenpool.RateLimitConfig{
 		IsEnabled: false,
-		Capacity:  big.NewInt(0),
-		Rate:      big.NewInt(0),
+		Capacity:  tlbe.BigUint128{Int: big.NewInt(0)},
+		Rate:      tlbe.BigUint128{Int: big.NewInt(0)},
 	}
 	return tokenpool.RateLimitConfigPair{Outbound: disabled, Inbound: disabled}
 }

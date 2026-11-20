@@ -156,7 +156,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		Message:             rampMessage,
 		OffChainTokenData:   offchainTokenData,
 		Proofs:              proofs,
-		ProofFlagBits:       chainReport.ProofFlagBits.Int,
+		ProofFlagBits:       tlbe.BigUint256{Int: chainReport.ProofFlagBits.Int},
 	}
 
 	reportCell, err := tlb.ToCell(executeReport)
@@ -221,16 +221,11 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 			}
 			binary.BigEndian.PutUint32(destGasAmount, uint32(destGasAmountNano))
 
-			// Defensive check
-			if tokenAmount.Amount.Sign() < 0 {
-				return executeReport, fmt.Errorf("negative token amount decoded: %s", tokenAmount.Amount.String())
-			}
-
 			tokenAmounts = append(tokenAmounts, ccipocr3.RampTokenAmount{
 				SourcePoolAddress: ccipocr3.UnknownAddress(tokenAmount.SourcePoolAddress),
 				DestTokenAddress:  destTokenAddr,
 				ExtraData:         ccipocr3.Bytes(extraData),
-				Amount:            ccipocr3.NewBigInt(tokenAmount.Amount),
+				Amount:            ccipocr3.NewBigInt(tokenAmount.Amount.Int),
 				DestExecData:      destGasAmount,
 			})
 		}
@@ -242,7 +237,7 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		receiverAddr := receiverRaw[:]
 
 		extraArgs := onramp.GenericExtraArgsV2{
-			GasLimit:                 msg.GasLimit.Nano(),
+			GasLimit:                 &tlbe.BigUint256{Int: msg.GasLimit.Nano()},
 			AllowOutOfOrderExecution: true,
 		}
 
@@ -284,7 +279,7 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 			Messages:            messages,
 			OffchainTokenData:   offchainTokenData,
 			Proofs:              proofs,
-			ProofFlagBits:       ccipocr3.NewBigInt(tonReport.ProofFlagBits),
+			ProofFlagBits:       ccipocr3.NewBigInt(tonReport.ProofFlagBits.Int),
 		})
 	}
 

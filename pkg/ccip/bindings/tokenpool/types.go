@@ -1,8 +1,6 @@
 package tokenpool
 
 import (
-	"math/big"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -87,9 +85,9 @@ type CursedSubjects struct {
 
 // RateLimitConfig represents a rate limiter configuration.
 type RateLimitConfig struct {
-	IsEnabled bool     `tlb:"bool"`
-	Capacity  *big.Int `tlb:"## 128"`
-	Rate      *big.Int `tlb:"## 128"`
+	IsEnabled bool            `tlb:"bool"`
+	Capacity  tlbe.BigUint128 `tlb:"."`
+	Rate      tlbe.BigUint128 `tlb:"."`
 }
 
 // RateLimitConfigPair holds outbound and inbound rate limit configurations.
@@ -100,11 +98,11 @@ type RateLimitConfigPair struct {
 
 // RateLimiterTokenBucket represents the token bucket rate limiter state.
 type RateLimiterTokenBucket struct {
-	Tokens      *big.Int `tlb:"## 128"`
-	LastUpdated uint32   `tlb:"## 32"`
-	IsEnabled   bool     `tlb:"bool"`
-	Capacity    *big.Int `tlb:"## 128"`
-	Rate        *big.Int `tlb:"## 128"`
+	Tokens      tlbe.BigUint128 `tlb:"."`
+	LastUpdated uint32          `tlb:"## 32"`
+	IsEnabled   bool            `tlb:"bool"`
+	Capacity    tlbe.BigUint128 `tlb:"."`
+	Rate        tlbe.BigUint128 `tlb:"."`
 }
 
 // RateLimiterPair holds outbound and inbound rate limiter token buckets.
@@ -180,7 +178,7 @@ type ReleaseOrMintTransferDetails struct {
 	Receiver            *address.Address `tlb:"addr required"`
 	RemoteChainSelector uint64           `tlb:"## 64"`
 	OriginalSender      *cell.Cell       `tlb:"^"`
-	Amount              *big.Int         `tlb:"## 256"`
+	Amount              tlbe.BigUint256  `tlb:"."`
 	LocalToken          *address.Address `tlb:"addr required"`
 }
 

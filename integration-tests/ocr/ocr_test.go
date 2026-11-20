@@ -18,6 +18,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	ocrbindings "github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/test_logger"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/balance"
@@ -138,14 +139,14 @@ func TestTransmitterLocal(t *testing.T) {
 				TokenPriceUpdates: common.SnakedCell[ocrbindings.TokenPriceUpdate]{
 					{
 						SourceToken: address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"),
-						UsdPerToken: big.NewInt(1000000),
+						UsdPerToken: tlbe.BigUint224{Int: big.NewInt(1000000)},
 					},
 				},
 				GasPriceUpdates: common.SnakedCell[ocrbindings.GasPriceUpdate]{
 					{
 						DestChainSelector:        456,
-						ExecutionGasPrice:        big.NewInt(500000),
-						DataAvailabilityGasPrice: big.NewInt(0),
+						ExecutionGasPrice:        tlbe.BigUint112{Int: big.NewInt(500000)},
+						DataAvailabilityGasPrice: tlbe.BigUint112{Int: big.NewInt(0)},
 					},
 				},
 			},

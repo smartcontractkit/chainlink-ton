@@ -10,6 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 // Verifies the decoder reads the returned Cell<CrossChainAddress> (a length-prefixed slice)
@@ -47,18 +48,18 @@ func TestGetRemotePools_DecodesLengthPrefixedCells(t *testing.T) {
 // (the on-chain TokenPool_RateLimiterPair is flattened into two Cell<RateLimiter_TokenBucket>).
 func TestGetCurrentRateLimiterState_DecodesTwoCells(t *testing.T) {
 	outbound := RateLimiterTokenBucket{
-		Tokens:      big.NewInt(1),
+		Tokens:      tlbe.BigUint128{Int: big.NewInt(1)},
 		LastUpdated: 1700000000,
 		IsEnabled:   true,
-		Capacity:    big.NewInt(2),
-		Rate:        big.NewInt(3),
+		Capacity:    tlbe.BigUint128{Int: big.NewInt(2)},
+		Rate:        tlbe.BigUint128{Int: big.NewInt(3)},
 	}
 	inbound := RateLimiterTokenBucket{
-		Tokens:      big.NewInt(4),
+		Tokens:      tlbe.BigUint128{Int: big.NewInt(4)},
 		LastUpdated: 1700000001,
 		IsEnabled:   false,
-		Capacity:    big.NewInt(5),
-		Rate:        big.NewInt(6),
+		Capacity:    tlbe.BigUint128{Int: big.NewInt(5)},
+		Rate:        tlbe.BigUint128{Int: big.NewInt(6)},
 	}
 	outboundCell, err := tlb.ToCell(outbound)
 	require.NoError(t, err)

@@ -1,8 +1,6 @@
 package onramp
 
 import (
-	"math/big"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
@@ -66,9 +64,9 @@ type ConfigSet struct {
 
 // GenericExtraArgsV2 represents generic extra arguments for transactions.
 type GenericExtraArgsV2 struct {
-	_                        tlb.Magic `tlb:"#181dcf10" json:"-"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP EVMExtraArgsV2")), can be verified with hexutil.MustDecode("0x181dcf10")
-	GasLimit                 *big.Int  `tlb:"maybe ## 256"`
-	AllowOutOfOrderExecution bool      `tlb:"bool"`
+	_                        tlb.Magic        `tlb:"#181dcf10" json:"-"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP EVMExtraArgsV2")), can be verified with hexutil.MustDecode("0x181dcf10")
+	GasLimit                 *tlbe.BigUint256 `tlb:"maybe ."`
+	AllowOutOfOrderExecution bool             `tlb:"bool"`
 }
 
 // Account256 is a fixed 256-bit (32 byte) account address wrapper for SVM accounts.
@@ -90,7 +88,7 @@ type SVMExtraArgsV1 struct {
 // SuiExtraArgsV1 represents extra arguments for Sui transactions.
 type SuiExtraArgsV1 struct {
 	_                        tlb.Magic                     `tlb:"#21ea4ca9" json:"-"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP SuiExtraArgsV1")), can be verified with hexutil.MustDecode("0x21ea4ca9")
-	GasLimit                 *big.Int                      `tlb:"## 256"`
+	GasLimit                 tlbe.BigUint256               `tlb:"."`
 	AllowOutOfOrderExecution bool                          `tlb:"bool"`
 	TokenReceiver            []byte                        `tlb:"bits 256"`
 	ReceiverObjectIDs        common.SnakedCell[Account256] `tlb:"^"`
@@ -164,7 +162,7 @@ type ExecutorTokenTransfer struct {
 	// SourcePoolAddress is an optional address on the contract side: addr_none when the
 	// message carries no token transfer.
 	SourcePoolAddress *address.Address `tlb:"addr"`
-	Amount            *big.Int         `tlb:"## 256"`
+	Amount            tlbe.BigUint256  `tlb:"."`
 	LockOrBurnOut     LockOrBurnOutV1  `tlb:"^"`
 	DestExecData      *cell.Cell       `tlb:"^"`
 }

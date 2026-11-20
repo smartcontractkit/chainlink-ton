@@ -28,8 +28,9 @@ func AsUnsigned(v *big.Int, sz uint) *big.Int {
 //
 // Uint128/Uint160/Uint192/Uint224/Uint256 are boxed fixed-width unsigned
 // integers used to model Tolk's uintN values whose bits are the meaningful part
-// (hashes, ids, addresses, bitmaps). For values used as numbers (amounts,
-// prices, limits) see [BigUint]. They are deliberately NOT aliases of big.Int:
+// (hashes, ids, addresses). For values used as numbers (amounts, prices,
+// limits) or as bitmaps read with big.Int bit operations, see [BigUint]. They
+// are deliberately NOT aliases of big.Int:
 // big.Int is a struct containing a slice, so an alias is neither comparable nor
 // usable as a map/dictionary key, and a pointer to it mis-keys (pointer
 // identity) and panics when decoded through tonutils' reflection path.

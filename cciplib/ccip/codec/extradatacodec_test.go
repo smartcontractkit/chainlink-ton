@@ -13,6 +13,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 func Test_decodeExtraArgs(t *testing.T) {
@@ -82,7 +83,7 @@ func Test_decodeExtraArgs(t *testing.T) {
 
 	t.Run("decode extra args into map evm", func(t *testing.T) {
 		extraArgs := onramp.GenericExtraArgsV2{
-			GasLimit:                 big.NewInt(5000),
+			GasLimit:                 &tlbe.BigUint256{Int: big.NewInt(5000)},
 			AllowOutOfOrderExecution: false,
 		}
 
@@ -121,7 +122,7 @@ func Test_decodeExtraArgs(t *testing.T) {
 			{Value: suiAddr2Bytes[:]},
 		}
 		extraArgs := onramp.SuiExtraArgsV1{
-			GasLimit:                 gasLimit,
+			GasLimit:                 tlbe.BigUint256{Int: gasLimit},
 			AllowOutOfOrderExecution: true,
 			TokenReceiver:            suiReceiverBytes[:],
 			ReceiverObjectIDs:        receiverObjectIDs,

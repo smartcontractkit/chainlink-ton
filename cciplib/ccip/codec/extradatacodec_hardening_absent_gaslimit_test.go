@@ -14,6 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-protos/cre/go/values"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 // Regression tests for an absent optional gasLimit (audit 2026:09, finding 1).
@@ -84,7 +85,7 @@ func TestF1_presentGasLimit_roundTrips(t *testing.T) {
 	for _, gas := range []*big.Int{big.NewInt(0), big.NewInt(500)} {
 		t.Run(gas.String(), func(t *testing.T) {
 			c, err := tlb.ToCell(onramp.GenericExtraArgsV2{
-				GasLimit:                 gas,
+				GasLimit:                 &tlbe.BigUint256{Int: gas},
 				AllowOutOfOrderExecution: true,
 			})
 			require.NoError(t, err)

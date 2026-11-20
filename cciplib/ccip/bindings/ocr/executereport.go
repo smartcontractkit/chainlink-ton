@@ -1,13 +1,12 @@
 package ocr
 
 import (
-	"math/big"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 // ExecuteReport represents CCIP execute report messages on the TON blockchain.
@@ -20,7 +19,7 @@ type ExecuteReport struct {
 	Message             Any2TVMRampMessage                                  `tlb:"^"` // val message = Any2TVMRampMessage.fromCell(report.messages);
 	OffChainTokenData   common.LispList[common.LispList[common.SnakeBytes]] `tlb:"^"` // vec<vec<vec<u8>>>
 	Proofs              common.SnakedCell[common.Proof]                     `tlb:"^"` // vec<bytes32> - inline 256-bit proofs
-	ProofFlagBits       *big.Int                                            `tlb:"## 256"`
+	ProofFlagBits       tlbe.BigUint256                                     `tlb:"."`
 }
 
 // Any2TVMRampMessage represents ramp message, which is part of the execute report.
@@ -48,7 +47,7 @@ type Any2TVMTokenTransfer struct {
 	DestPoolAddress   *address.Address         `tlb:"addr"`
 	DestGasAmount     *tlb.Coins               `tlb:"."`
 	ExtraData         *cell.Cell               `tlb:"maybe ^"`
-	Amount            *big.Int                 `tlb:"## 256"`
+	Amount            tlbe.BigUint256          `tlb:"."`
 }
 
 // TVM2AnyRampMessage for execution context (includes onramp address in header)
@@ -56,7 +55,7 @@ type TVM2AnyRampMessage struct {
 	Header        RampMessageHeader      `tlb:"."`
 	Sender        *address.Address       `tlb:"addr"`
 	Body          TVM2AnyRampMessageBody `tlb:"^"`
-	FeeValueJuels *big.Int               `tlb:"## 96"`
+	FeeValueJuels tlbe.BigUint96         `tlb:"."`
 }
 
 type TVM2AnyRampMessageBody struct {
@@ -82,7 +81,7 @@ type TVM2AnyTokenTransfer struct {
 	// transfer (see TVM2AnyRampMessageBody.TokenTransfer).
 	SourcePoolAddress *address.Address `tlb:"addr"`
 	// Amount is the post-fee cross-chain amount reported by the pool.
-	Amount *big.Int `tlb:"## 256"`
+	Amount tlbe.BigUint256 `tlb:"."`
 	// DestTokenAddress is UNTRUSTED: any pool owner can return whatever value they want.
 	DestTokenAddress common.CrossChainAddress `tlb:"^"`
 	// ExtraData is the pool data forwarded to the destination chain

@@ -11,14 +11,15 @@ import (
 // --- Numeric unsigned integers ---
 //
 // BigUint models a Tolk uintN that is used as a number (token amounts, prices,
-// gas limits, rate-limiter state). It wraps a *big.Int so arithmetic and
-// comparisons work directly on the embedded value, and it encodes as an
-// unsigned N-bit integer: values with the top bit set decode as large positive
-// numbers, and encoding rejects nil, negative and oversized values instead of
-// truncating them. JSON is a decimal number, as for *big.Int.
+// gas limits, rate-limiter state) or as a bitmap read with big.Int bit
+// operations (proof flags, message states). It wraps a *big.Int so arithmetic,
+// bit operations and comparisons work directly on the embedded value, and it
+// encodes as an unsigned N-bit integer: values with the top bit set decode as
+// large positive numbers, and encoding rejects nil, negative and oversized
+// values instead of truncating them. JSON is a decimal number, as for *big.Int.
 //
-// For uintN values whose bits are the meaningful part (hashes, ids, bitmaps),
-// use the fixed-width Uint128/.../Uint256 types instead.
+// For uintN values that are opaque identifiers (hashes, ids, addresses), use the
+// fixed-width Uint128/.../Uint256 types instead.
 //
 // Use it with a `tlb:"."` tag, or `tlb:"maybe ."` on a pointer field for an
 // optional value:

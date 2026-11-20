@@ -468,7 +468,7 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 		return ccipocr3.TimestampedUnixBig{}, err
 	}
 	return ccipocr3.TimestampedUnixBig{
-		Value:     timestampedPrice.Value,
+		Value:     timestampedPrice.Value.Int,
 		Timestamp: timestampedPrice.Timestamp,
 	}, nil
 }
@@ -628,7 +628,7 @@ func (a *TONAccessor) processPriceUpdates(priceUpdates *ocr.PriceUpdates) (ccipo
 	for _, tokenPriceUpdate := range priceUpdates.TokenPriceUpdates {
 		updates.TokenPriceUpdates = append(updates.TokenPriceUpdates, ccipocr3.TokenPrice{
 			TokenID: ccipocr3.UnknownEncodedAddress(tokenPriceUpdate.SourceToken.String()),
-			Price:   ccipocr3.NewBigInt(tokenPriceUpdate.UsdPerToken),
+			Price:   ccipocr3.NewBigInt(tokenPriceUpdate.UsdPerToken.Int),
 		})
 	}
 
@@ -637,8 +637,8 @@ func (a *TONAccessor) processPriceUpdates(priceUpdates *ocr.PriceUpdates) (ccipo
 		// don't store split prices the way the TON contracts do so we need to re-pack the prices here again:
 		// (DA << 112) | Exec
 		packedPrice, err := feequoter.PackGasPrice(
-			gasPriceUpdate.ExecutionGasPrice,
-			gasPriceUpdate.DataAvailabilityGasPrice,
+			gasPriceUpdate.ExecutionGasPrice.Int,
+			gasPriceUpdate.DataAvailabilityGasPrice.Int,
 		)
 		if err != nil {
 			return ccipocr3.PriceUpdates{}, fmt.Errorf("failed to pack gas price for chain %d: %w", gasPriceUpdate.DestChainSelector, err)
@@ -820,11 +820,11 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 			return nil, err
 		}
 
-		execPrice := gasPrice.ExecutionGasPrice
+		execPrice := gasPrice.ExecutionGasPrice.Int
 		if execPrice == nil {
 			execPrice = big.NewInt(0)
 		}
-		daPrice := gasPrice.DataAvailabilityGasPrice
+		daPrice := gasPrice.DataAvailabilityGasPrice.Int
 		if daPrice == nil {
 			daPrice = big.NewInt(0)
 		}
@@ -933,7 +933,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 		}
 
 		price := ccipocr3.TimestampedUnixBig{
-			Value:     tokenPrice.Value,
+			Value:     tokenPrice.Value.Int,
 			Timestamp: tokenPrice.Timestamp,
 		}
 
