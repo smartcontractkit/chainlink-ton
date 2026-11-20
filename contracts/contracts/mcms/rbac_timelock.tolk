@@ -286,8 +286,8 @@ struct (0xf4538b79) Timelock_SubmitErrorReport {
 struct (0x3ed17038) Timelock_BounceHandled {
     /// The sender of the bounced message.
     sender: address;
-    /// The opcode of the bounced message.
-    opcode: uint32;
+    /// The opcode of the bounced message, if present.
+    opcode: uint32?;
     /// The id of the currently pending operation (Timelock_OperationBatch hash)
     opPendingId: uint256;
     /// Whether the bounced message matched the pending op (one of the calls).
@@ -1485,11 +1485,13 @@ fun onBouncedMessage(in: InMessageBounced) {
         body = body.skipBouncedPrefix();
     }
 
-    var opcode: uint32 = 0;
+    var opcode: uint32? = null;
     if (body.remainingBitsCount() >= 32) {
         opcode = body.preloadUint(32) as uint32;
     }
 
+    // Only system-generated bounces reach this handler: TVM clears the bounced
+    // flag on outbound messages, so a contract cannot fabricate a bounce.
     val matchesPendingOp = isRichBounce
         && timelock.data.opPendingInfo.opPendingExecutionLt < bouncedCreatedLt;
 

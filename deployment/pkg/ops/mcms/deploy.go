@@ -106,8 +106,9 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 
 	addresses := make([]cldfds.AddressRef, 0) // deployed contract addresses to return in output
 
-	// Notice: we set a (static) default when version is not provided (e.g., common 'deploy_mcms_for_cll' changeset)
-	contractsPackage := utils.ContractsPackageLatestSupported
+	// TODO: default to the next released contracts package once it contains the
+	// new Timelock storage layout. Until then, default to the local package.
+	contractsPackage := utils.ContractsVersionLocal
 	if in.Config.ContractVersion != "" {
 		contractsPackage = in.Config.ContractVersion
 	}

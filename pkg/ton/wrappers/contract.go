@@ -16,7 +16,6 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
@@ -233,14 +232,15 @@ func deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 		return nil, nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
 
-	// The exit code of the external message (the wallet processing the deploy request)
-	// must be success: this only reflects the wallet accepting and forwarding the message.
-	exitCode, err := receivedMessage.ExitCode()
+	// The external message (the wallet processing the deploy request) must succeed.
+	// Use Result rather than exit code 0 so the alternative success exit code 1 and
+	// both compute and action phase failures are handled correctly.
+	result, exitCode, err := receivedMessage.Result()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get exit code: %w", err)
+		return nil, nil, fmt.Errorf("failed to get deployment result: %w", err)
 	}
-	if exitCode != tvm.ExitCodeSuccess {
-		return nil, nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", exitCode, exitCode.Describe())
+	if result != tracetracking.ResultSuccess {
+		return nil, nil, fmt.Errorf("contract deployment failed: error sending external message: %s (exit code %d: %s)", result, exitCode, exitCode.Describe())
 	}
 
 	// Some wallet implementations (e.g. HighloadV3) don't always send the deployment message
@@ -263,12 +263,12 @@ func deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 	}
 
 	if requireSuccess {
-		deployExitCode, err := deploymentMessage.ExitCode()
+		result, deployExitCode, err := deploymentMessage.Result()
 		if err != nil {
-			return nil, nil, fmt.Errorf("contract deployment failed: failed to get deploy transaction exit code: %w", err)
+			return nil, nil, fmt.Errorf("contract deployment failed: failed to get deploy transaction result: %w", err)
 		}
-		if deployExitCode != tvm.ExitCodeSuccess {
-			return nil, nil, fmt.Errorf("contract deployment failed: deploy tx exit code %d: %s", deployExitCode, deployExitCode.Describe())
+		if result != tracetracking.ResultSuccess {
+			return nil, nil, fmt.Errorf("contract deployment failed: deploy tx %s (exit code %d: %s)", result, deployExitCode, deployExitCode.Describe())
 		}
 	}
 

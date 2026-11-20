@@ -202,6 +202,8 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 				JettonContent: buildOffchainJettonContent(defaultJettonContentURI),
 			}
 
+			// The top-up message is best-effort; account activation is what matters here.
+			// The pinned jetton minter does not accept the 32-bit top-up form.
 			topUpMsg, err := tlb.ToCell(jettoncommon.TopUpTons{})
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to build jetton deploy body: %w", err)
@@ -213,7 +215,7 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 			}
 
 			conn := tracetracking.NewSignedAPIClient(chain.Client, *chain.Wallet)
-			contract, _, err := wrappers.Deploy(
+			contract, _, err := wrappers.DeployActivateOnly(
 				b.GetContext(),
 				&conn,
 				compiledMinter.Code,

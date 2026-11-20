@@ -35,8 +35,7 @@ const (
 
 // For funding the contract with TON.
 type TopUpTons struct {
-	_       tlb.Magic `tlb:"#d372158c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID uint64    `tlb:"## 64"`
+	_ tlb.Magic `tlb:"#d372158c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 }
 
 // ReturnExcessesBack is sent by the jetton minter/wallet after a burn or mint operation.

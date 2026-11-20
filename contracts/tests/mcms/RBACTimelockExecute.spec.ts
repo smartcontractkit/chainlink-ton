@@ -566,6 +566,17 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         success: true,
       })
 
+      const emptyBounce = await baseTest.blockchain.sendMessage(
+        internal({
+          from: baseTest.bind.counter.address,
+          to: baseTest.bind.timelock.address,
+          value: toNano('0.1'),
+          bounced: true,
+          body: beginCell().storeUint(0xffffffff, 32).endCell(),
+        }),
+      )
+      expectBounceHandledOpcode(emptyBounce, null)
+
       expect(await baseTest.bind.timelock.getTimestamp(operationId)).toEqual(rbactl.DONE_TIMESTAMP)
     })
 
@@ -621,16 +632,19 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       expect((await baseTest.bind.timelock.getOpPendingInfo()).opPendingId).toEqual(operationId)
     })
 
-    function expectBounceHandledOpcode(result: SendMessageResult, expected: number) {
+    function expectBounceHandledOpcode(result: SendMessageResult, expected: number | null) {
       const event = result.externals.find(
         (e) =>
           e.info.src.equals(baseTest.bind.timelock.address) &&
           e.info.dest?.value === BigInt(rbactl.opcodes.out.BounceHandled),
       )
       expect(event).toBeDefined()
-      expect(Timelock_BounceHandled.fromSlice(event!.body.beginParse()).opcode).toEqual(
-        BigInt(expected),
-      )
+      const opcode = Timelock_BounceHandled.fromSlice(event!.body.beginParse()).opcode
+      if (expected === null) {
+        expect(opcode).toBeNull()
+      } else {
+        expect(opcode).toEqual(BigInt(expected))
+      }
     }
 
     async function scheduleBatch(operationBatch: rbactl.OperationBatch, queryId: bigint) {

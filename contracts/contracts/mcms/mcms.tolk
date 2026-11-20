@@ -316,8 +316,8 @@ struct (0xa86846d5) MCMS_ExpiredRootsCleaned {
 struct (0xe695431e) MCMS_BounceHandled {
     /// The sender of the bounced message.
     sender: address;
-    /// The opcode of the bounced message.
-    opcode: uint32;
+    /// The opcode of the bounced message, if present.
+    opcode: uint32?;
     /// The current root
     root: uint256;
     /// The current root op count (nonce).
@@ -1599,7 +1599,7 @@ fun onBouncedMessage(in: InMessageBounced) {
         body = body.skipBouncedPrefix();
     }
 
-    var opcode: uint32 = 0;
+    var opcode: uint32? = null;
     if (body.remainingBitsCount() >= 32) {
         opcode = body.preloadUint(32) as uint32;
     }
