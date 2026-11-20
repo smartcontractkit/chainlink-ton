@@ -1827,7 +1827,7 @@ fun TokenPool<T>.createCustodyReturn(
     val requestMsg = lazy forwardPayload.requestMsg.load();
     val details = lazy requestMsg.request.load().transfer.details.load();
 
-    val extra = requestMsg.extra != null ? requestMsg.extra!.load() : null;
+    val extra = requestMsg.extra != null ? requestMsg.extra.load() : null;
     val transferRecipient = extra != null && extra.returnTo != null
         ? extra.returnTo
         : transferInitiator; // default

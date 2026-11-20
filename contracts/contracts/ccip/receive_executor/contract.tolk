@@ -246,7 +246,7 @@ fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenA
         return onTokenNotEnabled(mutate st, ttInfo);
     }
 
-    val poolInfo = msg.poolInfo!.load();
+    val poolInfo = msg.poolInfo.load();
     // The source's destGasAmount must fund the pool's release admission.
     if (ttInfo.transfer.load().destGasAmount < poolInfo.admission.load().releaseOrMint) {
         return onTARQueryFailed(mutate st, ttInfo, ReceiveExecutor_FailureErrors.TokenAdmissionNotMet as int32);
@@ -254,7 +254,7 @@ fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenA
 
     val transferInitiator = poolInfo.transferInitiator == null
         ? null
-        : poolInfo.transferInitiator!.toCell();
+        : poolInfo.transferInitiator.toCell();
     releaseOrMint(mutate st, ttInfo, poolInfo.tokenPool, transferInitiator);
 }
 
@@ -401,7 +401,7 @@ fun onDepositAccountNotification(sender: address, msg: DepositAccount_ForwardNot
     val expected = ttInfo.state.transferInitiator;
     val matches = expected == null
         ? notification.transferInitiator == null
-        : notification.transferInitiator != null && notification.transferInitiator! == expected!.load();
+        : notification.transferInitiator != null && notification.transferInitiator == expected.load();
     if (!matches) {
         return;
     }

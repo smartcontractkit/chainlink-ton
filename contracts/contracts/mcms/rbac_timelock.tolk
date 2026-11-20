@@ -1526,7 +1526,7 @@ fun Timelock<T>.hookTrait__AccessControl(self): AccessControl<T>{
         data: AccessControl_Data.fromCell(self.data.rbac),
         // Set up runtime hooks (extensions)
         context: self.context,
-        hooks: self.hooks != null ? self.hooks!.rbac : null,
+        hooks: self.hooks != null ? self.hooks.rbac : null,
     };
 }
 

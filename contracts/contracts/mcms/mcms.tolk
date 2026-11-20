@@ -1474,7 +1474,7 @@ fun MCMS<T>.stageConfig(
     if (configState.stagedConfig == null) {
         throw MCMS_Error.ConfigStagingNotStarted;
     }
-    var staged = StagedConfig.fromCell(configState.stagedConfig!);
+    var staged = StagedConfig.fromCell(configState.stagedConfig);
 
     if (staged.queryId != queryId) {
         throw MCMS_Error.ConfigStagingSessionMismatch;
@@ -1513,7 +1513,7 @@ fun MCMS<T>.commitConfig(
     if (configState.stagedConfig == null) {
         throw MCMS_Error.ConfigStagingNotStarted;
     }
-    val staged = StagedConfig.fromCell(configState.stagedConfig!);
+    val staged = StagedConfig.fromCell(configState.stagedConfig);
 
     if (staged.queryId != queryId) {
         throw MCMS_Error.ConfigStagingSessionMismatch;
@@ -1564,7 +1564,7 @@ fun MCMS<T>.abortConfigStaging(
     if (configState.stagedConfig == null) {
         throw MCMS_Error.ConfigStagingNotStarted;
     }
-    val staged = StagedConfig.fromCell(configState.stagedConfig!);
+    val staged = StagedConfig.fromCell(configState.stagedConfig);
     if (staged.queryId != queryId) {
         throw MCMS_Error.ConfigStagingSessionMismatch;
     }
@@ -1940,7 +1940,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     val matchesPendingOp = true
         && blockchain.now() <= opPendingInfo.validAfter
         && opPendingInfo.opPendingReceiver != null
-        && opPendingInfo.opPendingReceiver! == in.senderAddress
+        && opPendingInfo.opPendingReceiver == in.senderAddress
         && opPendingInfo.opPendingExecutionLt < bouncedCreatedLt;
 
     if (!matchesPendingOp) {
@@ -2085,7 +2085,7 @@ get fun getStagedConfigNumSigners(): uint16 {
     if (configState.stagedConfig == null) {
         return 0;
     }
-    return StagedConfig.fromCell(configState.stagedConfig!).numSigners;
+    return StagedConfig.fromCell(configState.stagedConfig).numSigners;
 }
 
 /// @see <MCMS<T>.getOpCount>

@@ -354,7 +354,7 @@ fun onBouncedMessage(in: InMessageBounced) {
         // The deposit account was not deployed or rejected the init.
         DepositAccount_Init => {
             if (richMsg.context != null) {
-                val context = lazy Router_DepositAccountInitContext.fromCell(richMsg.context!);
+                val context = lazy Router_DepositAccountInitContext.fromCell(richMsg.context);
                 match (context) {
                     Router_RelayReleaseOrMint => {
                         sendDepositAccountInitFailure(context, rich.exitCode);
@@ -456,13 +456,13 @@ fun onWithdrawToTokenPool(msg: Router_WithdrawToTokenPool) {
     // before custody moves. Use the canonical jetton ask so the deposit account can forward it
     // without a parallel message type. The source sender paid the source-side budget, so the
     // wallet's unused value returns to it rather than accumulating in the OnRamp.
-    val extra = request.extra != null ? request.extra!.load() : null;
+    val extra = request.extra != null ? request.extra.load() : null;
     val ask = AskToTransfer {
         queryId: msg.queryId,
         jettonAmount: withdrawRequest.amount,
         transferRecipient: withdrawRequest.tokenPool,
         sendExcessesTo: extra != null && extra.sendExcessesTo != null
-            ? extra.sendExcessesTo!
+            ? extra.sendExcessesTo
             : request.request.load().transfer.details.load().originalSender,
         customPayload: null,
         forwardTonAmount: withdrawRequest.forwardTonAmount,
@@ -674,7 +674,7 @@ fun updateOnRamps(mutate st: Storage, onRampUpdates: OnRamps?) {
 
 fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: OffRamps?) {
     if (offRampRemoves != null) {
-        val offRampRemove = offRampRemoves.offRamp!;
+        val offRampRemove = offRampRemoves.offRamp;
         var iter = offRampRemoves.sourceChainSelectors.iter();
         while (!iter.empty()) {
             val selector = iter.next();
@@ -690,7 +690,7 @@ fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: O
     }
 
     if (offRampAdds != null) {
-        val offRampAdd = offRampAdds.offRamp!;
+        val offRampAdd = offRampAdds.offRamp;
         var iter = offRampAdds.sourceChainSelectors.iter();
         while (!iter.empty()) {
             val selector = iter.next();
@@ -1318,7 +1318,7 @@ fun receiverAccountsOf(receiver: address, message: Cell<Any2TVMMessage>): array<
     var accounts: array<address> = [];
     val any2tvm = lazy message.load();
     if (any2tvm.tokenAmounts != null) {
-        var tokenAmounts = any2tvm.tokenAmounts!.iter();
+        var tokenAmounts = any2tvm.tokenAmounts.iter();
         while (!tokenAmounts.empty()) {
             val tokenAmount = tokenAmounts.next();
             accounts.push(receiverAccount(receiver, tokenAmount.token).calculateAddress());
@@ -1454,7 +1454,7 @@ get fun verifyNotCursed(subject: uint128): bool {
 get fun cursedSubjects(): lisp_list<uint128> {
     val st = lazy Storage.load();
     val rmn = st.rmnRemote.load();
-    return keysLispList(rmn.policy.cursedSubjects.data)!;
+    return keysLispList(rmn.policy.cursedSubjects.data);
 }
 
 /// Minimum value to attach to curse, uncurse and sync messages.
@@ -1563,7 +1563,7 @@ get fun offRamps(): lisp_list<Ramp> {
 get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy Storage.load();
     val d = st.onRamps;
-    return keysLispList(d)!;
+    return keysLispList(d);
 }
 
 /// Returns the deposit account where off-ramped `token` for `receiver` is delivered.

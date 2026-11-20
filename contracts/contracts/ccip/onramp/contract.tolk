@@ -793,7 +793,7 @@ get fun allowedSendersList(destChainSelector: uint64): lisp_list<address> {
 get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy OnRamp_Storage.load();
     val d = st.destChainConfigs;
-    return keysLispList(d)!;
+    return keysLispList(d);
 }
 
 /// Gets the current owner of the contract.

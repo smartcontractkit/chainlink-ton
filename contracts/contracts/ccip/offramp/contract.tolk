@@ -543,7 +543,7 @@ fun markStateOnRoot(root: address, messageRef: RampMessageRef, state: ExecutionS
 fun onNotifySuccess(st: Storage, msg: OffRamp_NotifySuccess, receiveExecutor: address) {
     if (msg.delivered != null) {
         // Fixed value; the executor's leftover stays on the OffRamp.
-        relayTokenTransferDelivered(st, msg.queryId, msg.execId, receiveExecutor, msg.delivered!, false);
+        relayTokenTransferDelivered(st, msg.queryId, msg.execId, receiveExecutor, msg.delivered, false);
     }
 
     // The executor drained its whole balance, init value included. On a retry that init value
@@ -769,7 +769,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
 
     var hasPriceUpdates = false;
     if (report.priceUpdates != null) {
-        val priceUpdates = report.priceUpdates!.load();
+        val priceUpdates = report.priceUpdates.load();
         hasPriceUpdates = !(priceUpdates.tokenPriceUpdates.empty() && priceUpdates.gasPriceUpdates.empty());
     }
     assert (value >= OffRamp_Costs.commit(hasRoots, hasPriceUpdates)) throw (OffRamp_Error.InsufficientFee);
@@ -823,7 +823,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
     // Don't send the UpdatePrices message if both tokenPriceUpdates and gasPriceUpdates are empty.
 
     if (report.priceUpdates != null) {
-        val priceUpdates = report.priceUpdates!.load();
+        val priceUpdates = report.priceUpdates.load();
 
         // Ignore price updates if both are empty
         if (!(priceUpdates.tokenPriceUpdates.empty() && priceUpdates.gasPriceUpdates.empty())) {
@@ -842,7 +842,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
                     value: FeeQuoter_Costs.updatePrices(),
                     dest: st.config.load().dynamicConfig.load().feeQuoter,
                     body: FeeQuoter_UpdatePrices {
-                        updates: report.priceUpdates!.load(),
+                        updates: report.priceUpdates.load(),
                         sendExcessesTo: sender,
                     }
                 });
@@ -963,7 +963,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: GasOverride?, va
             val tokenTransfer = transfers.next();
             // At most the source pool's encoded decimals.
             if (tokenTransfer.extraData != null) {
-                val extraData = tokenTransfer.extraData!.beginParse();
+                val extraData = tokenTransfer.extraData.beginParse();
                 assert (extraData.remainingRefsCount() == 0 && extraData.remainingBitsCount() <= OFFRAMP_MAX_EXTRA_DATA_BITS) throw (OffRamp_Error.UnexpectedExtraData);
             }
             assert (!offchainTokenDataForTTOfMessage.isEmpty()) throw (OffRamp_Error.UnexpectedTokenData);
@@ -1357,7 +1357,7 @@ get fun latestPriceSequenceNumber(): uint64 {
 get fun sourceChainSelectors(): lisp_list<uint64> {
     val st = lazy Storage.load();
     val d = st.sourceChainConfigs;
-    return keysLispList(d)!;
+    return keysLispList(d);
 }
 
 get fun ocr3Config(): OCR3Base {
@@ -1395,7 +1395,7 @@ get fun verifyNotCursed(subject: uint128): bool {
 
 get fun cursedSubjects(): lisp_list<uint128> {
     val st = lazy Storage.load();
-    return keysLispList(st.cursedSubjects.data)!;
+    return keysLispList(st.cursedSubjects.data);
 }
 
 get fun deployableHashes() : DeployableHashes {

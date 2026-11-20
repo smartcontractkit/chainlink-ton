@@ -116,7 +116,7 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
     rbac._setRoleAdmin(msg.queryId, sender, DEFAULT_ADMIN_ROLE, DEFAULT_ADMIN_ROLE, returnRoleExcess);
     rbac._setRoleAdmin(msg.queryId, sender, OPERATOR_ROLE, DEFAULT_ADMIN_ROLE, returnRoleExcess);
 
-    val adminAddress = msg.admin != null ? msg.admin! : sender;
+    val adminAddress = msg.admin != null ? msg.admin : sender;
     rbac._grantRole(msg.queryId, sender, DEFAULT_ADMIN_ROLE, adminAddress, returnRoleExcess);
 
     st.rbac = rbac.data;
@@ -223,8 +223,8 @@ fun onDepositReturn(
 
     // The failure is optional, only if deposit information is available, and it's
     // non-configurable by design, always sent back to the initiator of the deposit.
-    val depositExtra = deposit != null && deposit!.extra != null
-        ? deposit!.extra!.load()
+    val depositExtra = deposit != null && deposit.extra != null
+        ? deposit.extra.load()
         : null;
     val failureValue = depositExtra != null ? depositExtra.failureValue : 0 as coins;
     val failure = createMessage({
@@ -232,7 +232,7 @@ fun onDepositReturn(
         value: failureValue,
         dest: transferInitiator,
         body: JettonLockBox_DepositFailed {
-            queryId: deposit != null ? deposit!.queryId : msg.queryId,
+            queryId: deposit != null ? deposit.queryId : msg.queryId,
             token: st.minterAddress,
             depositor: transferInitiator,
             amount: msg.jettonAmount,

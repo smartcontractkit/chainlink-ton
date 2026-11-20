@@ -225,7 +225,7 @@ fun onTransferNotification(sender: address, msg: TransferNotificationForRecipien
 
 /// Jettons minted to the account have no initiator and go to `user`.
 fun returnForeignTransfer(wallet: address, msg: TransferNotificationForRecipient, user: address) {
-    val recipient = msg.transferInitiator != null ? msg.transferInitiator! : user;
+    val recipient = msg.transferInitiator != null ? msg.transferInitiator : user;
     val returnTransfer = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
@@ -250,12 +250,12 @@ fun parseNotifyTarget(forwardPayload: ForwardPayloadRemainder): address? {
         var payload = loadForwardPayloadAsCell(forwardPayload);
         val wrap = Jetton_ForwardPayloadWrap.from(forwardPayload);
         if (wrap != null) {
-            payload = wrap!.forwardPayload;
+            payload = wrap.forwardPayload;
         }
         if (payload == null) {
             return null;
         }
-        return DepositAccount_Notify.fromCell(payload!).notify;
+        return DepositAccount_Notify.fromCell(payload).notify;
     } catch {
         return null;
     }

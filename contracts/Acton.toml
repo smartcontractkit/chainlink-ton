@@ -340,6 +340,7 @@ dict-type-use = "deny" # E027 - Warns when code uses the low-level dict type.
 throw-requires-errors-enum = "deny" # E028 - Warns when symbolic throw codes are referenced as bare constants.
 create-message-body-to-cell = "deny" # E029 - Warns about MyMessage { ... }.toCell() inside createMessage({ body: ... }) initializer.
 throw-requires-documented-error-value = "allow" # TODO E030 - Requires documentation for enum values used as throw codes.
+unnecessary-not-null-assertion = "deny" # E031 - Detects a not-null assertion when the expression's inferred type cannot be null.
 
 # I would not enable this until we get namespacing in imports
 name-case-checker = "allow" # S001 - Checks identifier naming style and suggests consistent casing.

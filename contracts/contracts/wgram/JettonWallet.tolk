@@ -172,7 +172,7 @@ fun onInternalMessage(in: InMessage) {
             assert (storage.jettonBalance >= msg.jettonAmount) throw (Jetton_Error.BalanceError);
             // Burn must name a refund destination so the minter can return the withdrawn GRAM instead of trapping it
             assert (msg.sendExcessesTo != null) throw (WGram_Error.InvalidExcessesDestination);
-            assert (msg.sendExcessesTo!.getWorkchain() == MY_WORKCHAIN) throw (Jetton_Error.WrongWorkchain);
+            assert (msg.sendExcessesTo.getWorkchain() == MY_WORKCHAIN) throw (Jetton_Error.WrongWorkchain);
             storage.jettonBalance -= msg.jettonAmount;
             storage.save();
 

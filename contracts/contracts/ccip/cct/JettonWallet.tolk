@@ -75,7 +75,7 @@ fun onInternalMessage(in: InMessage) {
                     value: 0,
                     body: CCT_ReturnExcessesBack {
                         queryId: msg.queryId,
-                        initiator: msg.transferInitiator != null ? msg.transferInitiator! : storage.ownerAddress,
+                        initiator: msg.transferInitiator != null ? msg.transferInitiator : storage.ownerAddress,
                     }
                 });
                 excessesMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);

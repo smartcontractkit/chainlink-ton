@@ -52,8 +52,8 @@ fun calculateTransferFee(forwardTonAmount: int, fwdFee: int, usePrecompiledGas: 
     if (usePrecompiledGas) {
         jettonWalletGasConsumption = getPrecompiledGasConsumption();
     }
-    val sendTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonTransfer : jettonWalletGasConsumption!;
-    val receiveTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonReceive : jettonWalletGasConsumption!;
+    val sendTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonTransfer : jettonWalletGasConsumption;
+    val receiveTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonReceive : jettonWalletGasConsumption;
 
     return
         // 3 messages: wal1->wal2,  wal2->owner, wal2->response
@@ -80,7 +80,7 @@ fun calculateBurnRequiredValue(fwdFee: int, hasExcesses: bool, usePrecompiledGas
     if (usePrecompiledGas) {
         jettonWalletGasConsumption = getPrecompiledGasConsumption();
     }
-    val sendBurnGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_BurnRequest : jettonWalletGasConsumption!;
+    val sendBurnGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_BurnRequest : jettonWalletGasConsumption;
 
     val payloadFee = fwdFee + calculateForwardFeeWithoutLumpPrice(MY_WORKCHAIN, MESSAGE_SIZE_Address_bits, 0);
     val messageFee = max(payloadFee, calculateForwardFee(MY_WORKCHAIN, MESSAGE_SIZE_BurnNotification_bits, MESSAGE_SIZE_BurnNotification_cells));

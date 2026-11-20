@@ -65,7 +65,7 @@ fun onInternalMessage(in: InMessage): void {
     var pool = st.TokenPool();
     val handled = pool.onInternalMessage(in.senderAddress, in.valueCoins, in.body);
     if (handled) {
-        st = pool.context != null ? pool.context! : st;
+        st = pool.context != null ? pool.context : st;
         st.poolData = pool.data.toCell();
         st.store();
 
@@ -155,7 +155,7 @@ fun onLockOrBurnTransferContinue(
     // original sender that paid the source-side budget.
     val requestMsg = lazy fwdPayload.requestMsg.load();
 
-    val extra = requestMsg.extra != null ? requestMsg.extra!.load() : null;
+    val extra = requestMsg.extra != null ? requestMsg.extra.load() : null;
 
     val safety = st.TokenPool().budget().lockOrBurn.safety;
     val forwardTonAmount = safety + requestMsg.finalizationValue;
@@ -309,9 +309,9 @@ fun onLockboxTransferBounced(
 
     val depositSlice = loadForwardPayloadAsSlice(msg.forwardPayload);
     assert(depositSlice != null) throw (LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce);
-    val deposit = JettonLockBox_Deposit.fromSlice(depositSlice!);
+    val deposit = JettonLockBox_Deposit.fromSlice(depositSlice);
     assert(deposit.context != null) throw (LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce);
-    val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(deposit.context!);
+    val context = lazy LockReleaseLockboxTokenPool_LockContext.fromCell(deposit.context);
     val operation = lazy context.forwardPayload.load();
 
     var pool = st.TokenPool();
@@ -345,12 +345,12 @@ fun onReleaseOrMintContinue(
     assert(!isZeroAddress(st.lockbox)) throw (LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
 
     // Caller-selected excess recipient; default to the flow initiator.
-    val sendExcessesTo = msg.sendExcessesTo != null ? msg.sendExcessesTo! : initiator;
+    val sendExcessesTo = msg.sendExcessesTo != null ? msg.sendExcessesTo : initiator;
     val forwardTonAmount = st.TokenPool().releaseOrMintForward(msg.finalizationValue());
 
     // Direct hook callbacks carry only their value; entrypoint continuations carry the remaining balance.
     val hooks = st.poolData.load().adminConfig.load().advancedPoolHooks;
-    val sendMode = hooks != null && sender == hooks!
+    val sendMode = hooks != null && sender == hooks
         ? SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL
         : SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
 
@@ -461,7 +461,7 @@ fun defaultBudget(_ctx: Storage?): TokenPool_Budget {
 
 /// Releases are transferred out of the lockbox's wallet.
 fun transferInitiator(ctx: Storage?): address? {
-    assert(ctx != null && !isZeroAddress(ctx!.lockbox)) throw (LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
+    assert(ctx != null && !isZeroAddress(ctx.lockbox)) throw (LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
     return ctx.lockbox;
 }
 
@@ -612,7 +612,7 @@ get fun getTokenTransferFeeConfig(destChainSelector: uint64): TokenPool_TokenTra
 
 /// Returns the pool-local cursed subjects.
 get fun cursedSubjects(): lisp_list<uint128> {
-    return keysLispList(Storage.load().poolData.load().localPolicy.load().cursePolicy.cursedSubjects.data)!;
+    return keysLispList(Storage.load().poolData.load().localPolicy.load().cursePolicy.cursedSubjects.data);
 }
 
 /// Returns the pool's admin configuration.

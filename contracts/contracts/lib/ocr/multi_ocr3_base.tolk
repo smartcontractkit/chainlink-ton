@@ -60,13 +60,13 @@ fun OCR3Base.getConfig(self, ocrPluginType: uint16): OCRConfig? {
 		if (self.commit == null) {
 			return null;
 		}
-		return self.commit!.load();
+		return self.commit.load();
 
 	} else if (ocrPluginType == OCR_PLUGIN_TYPE_EXECUTE) {
 		if (self.execute == null) {
 			return null;
 		}
-		return self.execute!.load();
+		return self.execute.load();
 	} else {
 		throw MultiOCR3Base_Error.NonExistentOcrPluginType;
 	}
@@ -79,7 +79,7 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 	if (ocrConfig == null) {
 		ocrConfig = newOCRConfig();
 	} 
-	ocrConfig = ocrConfig!;
+	ocrConfig = ocrConfig;
 
 	// If F is 0, then the config is not yet set.
 	if (ocrConfig.configInfo.bigF == 0) {
@@ -134,7 +134,7 @@ fun OCR3Base.transmit(
 ) {
     var ocrConfig = self.getConfig(ocrPluginType);
     assert (ocrConfig != null) throw (MultiOCR3Base_Error.NonExistentOcrPluginType);
-    ocrConfig = ocrConfig!;
+    ocrConfig = ocrConfig;
     val configInfo: ConfigInfo = ocrConfig.configInfo;
     
     // EVM checks transaction data length here, it's probably too expensive to do this in TON 
@@ -192,7 +192,7 @@ fun OCR3Base.verifySignature(
 		val signerIndex = entry.loadValue();
 		assert (isSignatureValid(hashedReport,signature.toCell().beginParse().skipBits(256), signer)) throw (MultiOCR3Base_Error.InvalidSignature);
 
-		assert (!seen.has(signerIndex!)) throw (MultiOCR3Base_Error.NonUniqueSignatures);
-		seen.set(signerIndex!);
+		assert (!seen.has(signerIndex)) throw (MultiOCR3Base_Error.NonUniqueSignatures);
+		seen.set(signerIndex);
 	}
 }

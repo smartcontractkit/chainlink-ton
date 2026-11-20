@@ -70,11 +70,11 @@ struct JettonWithdrawable_WithdrawFailed {
 @inline
 fun JettonWithdrawable.parseWithdrawWrap(ask: AskToTransfer): Jetton_ForwardPayloadWrap? {
     val wrap = Jetton_ForwardPayloadWrap.from(ask.forwardPayload);
-    if (wrap == null || wrap!.context == null) {
+    if (wrap == null || wrap.context == null) {
         return null;
     }
 
-    val ctx = lazy JettonWithdrawable_WithdrawContext.fromCell(wrap!.context!);
+    val ctx = lazy JettonWithdrawable_WithdrawContext.fromCell(wrap.context);
     match (ctx) {
         JettonWithdrawable_WithdrawContext => { return wrap; }
         else => { return null; }
@@ -123,7 +123,7 @@ fun JettonWithdrawable.onWithdraw(
         assert (!isZeroAddress(ask.transferRecipient)) throw (JettonWithdrawable_Error.ZeroAddressNotAllowed);
         // With an allowlist configured, every transfer must land on one of its recipients.
         if (allowedRecipients != null
-            && !JettonWithdrawable.isAllowedRecipient(ask.transferRecipient, allowedRecipients!)) {
+            && !JettonWithdrawable.isAllowedRecipient(ask.transferRecipient, allowedRecipients)) {
             throw JettonWithdrawable_Error.UnallowedRecipient;
         }
 
@@ -136,7 +136,7 @@ fun JettonWithdrawable.onWithdraw(
         }
         val cumulative: coins = prior + ask.jettonAmount;
         if (maxAmount != null) {
-            val cap = maxAmount!.get(transfer.wallet);
+            val cap = maxAmount.get(transfer.wallet);
             if (cap.isFound) {
                 assert (cumulative <= cap.loadValue()) throw (JettonWithdrawable_Error.MaxAmountExceeded);
             }
@@ -208,7 +208,7 @@ fun JettonWithdrawable.onWithdrawBounced(
     val failure = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
-        dest: wrap!.initiator,
+        dest: wrap.initiator,
         body: JettonWithdrawable_WithdrawFailed { wallet, ask },
     });
     failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);

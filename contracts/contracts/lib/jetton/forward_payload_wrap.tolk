@@ -31,7 +31,7 @@ fun Jetton_ForwardPayloadWrap.from(forwardPayload: ForwardPayloadRemainder): Jet
         return null;
     }
 
-    val wrap = lazy Jetton_ForwardPayloadWrap.fromSlice(s!);
+    val wrap = lazy Jetton_ForwardPayloadWrap.fromSlice(s);
     match (wrap) {
         Jetton_ForwardPayloadWrap => { return wrap; }
         else => { return null; }
@@ -47,11 +47,11 @@ fun Jetton_ForwardPayloadWrap.unwrapForwardPayload(payload: cell?): cell? {
         return null;
     }
 
-    val s = payload!.beginParse();
+    val s = payload.beginParse();
     val (opcode, opcodeWith) = reflect.serializationPrefixOf<Jetton_ForwardPayloadWrap>();
     if (s.remainingBitsCount() < opcodeWith || s.preloadUint(opcodeWith) != opcode) {
         return payload;
     }
 
-    return Jetton_ForwardPayloadWrap.fromCell(payload!).forwardPayload;
+    return Jetton_ForwardPayloadWrap.fromCell(payload).forwardPayload;
 }

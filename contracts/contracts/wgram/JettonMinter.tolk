@@ -97,7 +97,7 @@ fun onInternalMessage(in: InMessage) {
             assert (in.senderAddress == calcAddress) throw (Jetton_Error.NotValidWallet);
             // Reject burns without a refund destination so the withdrawn GRAM never gets stranded here.
             assert (msg.sendExcessesTo != null) throw (WGram_Error.InvalidExcessesDestination);
-            assert (msg.sendExcessesTo!.getWorkchain() == MY_WORKCHAIN) throw (Jetton_Error.WrongWorkchain);
+            assert (msg.sendExcessesTo.getWorkchain() == MY_WORKCHAIN) throw (Jetton_Error.WrongWorkchain);
             storage.totalSupply -= msg.jettonAmount;
             storage.save();
 
@@ -107,7 +107,7 @@ fun onInternalMessage(in: InMessage) {
             val excessesMsg = createMessage({
                 // Burn payout sends native GRAM to the recipient as a non-bounceable withdrawal (forced deposit).
                 bounce: BounceMode.NoBounce,
-                dest: msg.sendExcessesTo!,
+                dest: msg.sendExcessesTo,
                 value: 0,
                 body: ReturnExcessesBack {
                     queryId: msg.queryId
@@ -155,8 +155,8 @@ fun onInternalMessage(in: InMessage) {
             val jettonAmount = internalTransferMsg.jettonAmount;
             // Mint must name the same excess/refund destination for both the happy path and a bounced wallet deployment.
             assert (internalTransferMsg.sendExcessesTo != null) throw (WGram_Error.InvalidExcessesDestination);
-            assert (internalTransferMsg.sendExcessesTo!.getWorkchain() == MY_WORKCHAIN) throw (Jetton_Error.WrongWorkchain);
-            assert (internalTransferMsg.sendExcessesTo! != contract.getAddress()) throw (WGram_Error.InvalidRecipient);
+            assert (internalTransferMsg.sendExcessesTo.getWorkchain() == MY_WORKCHAIN) throw (Jetton_Error.WrongWorkchain);
+            assert (internalTransferMsg.sendExcessesTo != contract.getAddress()) throw (WGram_Error.InvalidRecipient);
             // Minting must not impersonate a peer wallet transfer initiator.
             assert (internalTransferMsg.transferInitiator == null) throw (Jetton_Error.InvalidOp);
             // The caller must fund the hosted GRAM backing, the extra transfer budget, and the

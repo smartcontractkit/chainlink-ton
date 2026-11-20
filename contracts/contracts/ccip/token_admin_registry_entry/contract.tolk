@@ -98,7 +98,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     match (bounced) {
         TokenPool_GetConfig => {
             val st = lazy TokenRegistry_Storage.load();
-            if (st.pendingPool != null && in.senderAddress == st.pendingPool!) {
+            if (st.pendingPool != null && in.senderAddress == st.pendingPool) {
                 delist(bounced.queryId, true);
             }
         }
@@ -198,7 +198,7 @@ fun verify(st: TokenRegistry_Storage, queryId: uint64) {
         queryWallet(st.tokenAddress, queryId);
     }
     if (st.pendingPool != null) {
-        probePoolConfig(st.pendingPool!, queryId);
+        probePoolConfig(st.pendingPool, queryId);
     }
 }
 
@@ -277,7 +277,7 @@ fun onSetPool(queryId: uint64, msg: TokenAdminRegistryEntry_SetPool) {
     if (msg.tokenPool != null) {
         st.pendingPool = msg.tokenPool;
         st.store();
-        return probePoolConfig(msg.tokenPool!, queryId);
+        return probePoolConfig(msg.tokenPool, queryId);
     }
 
     delist(queryId, true);
@@ -306,7 +306,7 @@ fun onRefreshPoolConfig(queryId: uint64) {
     val st = lazy TokenRegistry_Storage.load();
     val pool = st.pendingPool != null ? st.pendingPool : st.tokenInfo.load().tokenPool;
     if (pool != null) {
-        probePoolConfig(pool!, queryId);
+        probePoolConfig(pool, queryId);
     }
 }
 
@@ -358,7 +358,7 @@ fun sameAddress(left: address?, right: address?): bool {
     if (right == null) {
         return false;
     }
-    return left! == right!;
+    return left == right;
 }
 
 fun notifyAdministratorTransferRequested(queryId: uint64, token: address, currentAdministrator: address?, newAdministrator: address?) {
@@ -384,7 +384,7 @@ fun notifyPoolSet(queryId: uint64, token: address, previousPool: address?, newPo
             token,
             previousPool,
             newPool,
-            transferInitiator: transferInitiator == null ? null : transferInitiator!.toCell(),
+            transferInitiator: transferInitiator == null ? null : transferInitiator.toCell(),
     }.toCell());
 }
 
