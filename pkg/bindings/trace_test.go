@@ -10,6 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
@@ -55,7 +56,7 @@ func deliveryBody(id *big.Int) *cell.Cell {
 // confirmBody returns a Router_CCIPReceiveConfirm body for execution id.
 func confirmBody(t *testing.T, id *big.Int) *cell.Cell {
 	t.Helper()
-	body, err := tlb.ToCell(router.CCIPReceiveConfirm{QueryID: 1, ExecID: id})
+	body, err := tlb.ToCell(router.CCIPReceiveConfirm{QueryID: 1, ExecID: tlbe.NewUint192(id)})
 	require.NoError(t, err)
 	return body
 }

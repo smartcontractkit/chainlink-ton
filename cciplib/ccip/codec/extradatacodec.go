@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"math/big"
 	"reflect"
 	"strings"
 
@@ -15,6 +14,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 const (
@@ -101,18 +101,26 @@ func (d extraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 // chainlink-ccip consumers expect, rejecting values that cannot be represented.
 // Every exported field passes through here, so it is also where validation lives.
 //
-// Two binding quirks force the conversions:
+// Three binding quirks force the conversions:
+//   - Numeric uintN fields decode to tlbe.BigUint256, but consumers expect
+//     *big.Int.
 //   - `tlb:"bits N"` decodes to []byte, but consumers expect [32]byte for
 //     TokenReceiver. Matching the tag keeps this to fields declared 256-bit,
 //     rather than converting any []byte that happens to be 32 bytes long.
 //   - SnakedCell[Account256] decodes to []Account256 with []byte values, but
 //     consumers expect [][32]byte.
 func normalizeFieldValue(field reflect.StructField, val any) (any, error) {
-	// GasLimit is the only `maybe ## <bits>` field today. It decodes to a typed-nil
-	// *big.Int when absent: the interface is non-nil while the pointer under it is,
-	// which defeats the downstream `== nil` and `.(*big.Int)` checks.
-	if gl, ok := val.(*big.Int); ok && gl == nil {
-		return nil, errors.New("absent optional value (decoded as typed-nil *big.Int)")
+	switch v := val.(type) {
+	case *tlbe.BigUint256:
+		// GasLimit is the only optional (`maybe .`) field today. It decodes to a
+		// typed-nil *tlbe.BigUint256 when absent, which downstream consumers cannot
+		// tell apart from a present value.
+		if v == nil {
+			return nil, errors.New("absent optional value (decoded as typed-nil *tlbe.BigUint256)")
+		}
+		return v.Int, nil
+	case tlbe.BigUint256:
+		return v.Int, nil
 	}
 
 	// TokenReceiver / Account256.Value: []byte tagged `bits 256` -> [32]byte.

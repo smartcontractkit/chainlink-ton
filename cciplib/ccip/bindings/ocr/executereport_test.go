@@ -10,6 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
@@ -27,41 +28,41 @@ func TestTokenAmounts(t *testing.T) {
 			DestPoolAddress:   addr,
 			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
-			Amount:            big.NewInt(10),
+			Amount:            tlbe.BigUint256{Int: big.NewInt(10)},
 		},
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
-			Amount:            big.NewInt(10),
+			Amount:            tlbe.BigUint256{Int: big.NewInt(10)},
 		},
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
-			Amount:            big.NewInt(10),
+			Amount:            tlbe.BigUint256{Int: big.NewInt(10)},
 		}, {
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
-			Amount:            big.NewInt(10),
+			Amount:            tlbe.BigUint256{Int: big.NewInt(10)},
 		},
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
-			Amount:            big.NewInt(10),
+			Amount:            tlbe.BigUint256{Int: big.NewInt(10)},
 		},
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
-			Amount:            big.NewInt(10),
+			Amount:            tlbe.BigUint256{Int: big.NewInt(10)},
 		},
 	})
 	require.NoError(t, err)
@@ -84,21 +85,21 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			DestPoolAddress:   addr,
 			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
-			Amount:            big.NewInt(10),
+			Amount:            tlbe.BigUint256{Int: big.NewInt(10)},
 		},
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
-			Amount:            big.NewInt(20),
+			Amount:            tlbe.BigUint256{Int: big.NewInt(20)},
 		},
 		{
 			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     &destGasAmount,
 			ExtraData:         dummyCell,
-			Amount:            big.NewInt(30),
+			Amount:            tlbe.BigUint256{Int: big.NewInt(30)},
 		},
 	}
 
@@ -121,8 +122,8 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		SourceChainSelector: 1,
 		Message:             rampMessageSlice,
 		OffChainTokenData:   common.LispList[common.LispList[common.SnakeBytes]]{},
-		Proofs:              common.SnakedCell[common.Proof]{{Value: big.NewInt(0)}, {Value: big.NewInt(0)}},
-		ProofFlagBits:       big.NewInt(0),
+		Proofs:              common.SnakedCell[common.Proof]{{Value: &tlbe.Uint256{}}, {Value: &tlbe.Uint256{}}},
+		ProofFlagBits:       tlbe.BigUint256{Int: big.NewInt(0)},
 	}
 
 	// Encode to cell
@@ -166,7 +167,7 @@ func TestTVM2AnyRampMessageBody_LoadsTokenTransferLayout(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, decoded.TokenTransfer, 1)
 	require.Equal(t, addr.String(), decoded.TokenTransfer[0].SourcePoolAddress.String())
-	require.Equal(t, big.NewInt(4242), decoded.TokenTransfer[0].Amount)
+	require.Equal(t, big.NewInt(4242), decoded.TokenTransfer[0].Amount.Int)
 	require.Equal(t, common.CrossChainAddress{1, 2, 3}, decoded.TokenTransfer[0].DestTokenAddress)
 	require.Equal(t, extraData, decoded.TokenTransfer[0].ExtraData)
 	require.Equal(t, destExecData, decoded.TokenTransfer[0].DestExecData)

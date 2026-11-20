@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -667,7 +667,7 @@ func NewDummyCell() (*cell.Cell, error) {
 // ToCell/LoadFromCell that directly store/load 256 bits inline, avoiding the
 // infinite loop issue that occurs with SnakeBytes (which uses c.ToCell() in LoadFromCell).
 type Proof struct {
-	Value *big.Int `tlb:"## 256"` // The value of the struct
+	Value *tlbe.Uint256 `tlb:"."` // The value of the struct
 }
 
 // UInt32 is a LispList element wrapper for Tolk's lisp_list<uint32>.

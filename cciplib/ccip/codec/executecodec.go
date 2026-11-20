@@ -16,6 +16,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 // ExecutePluginCodecV1 is a codec for encoding and decoding execute plugin reports.
@@ -146,9 +147,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 
 	proofs := make(common.SnakedCell[common.Proof], 0, len(chainReport.Proofs))
 	for _, proof := range chainReport.Proofs {
-		var p common.Proof
-		p.Value = new(big.Int).SetBytes(proof[:])
-		proofs = append(proofs, p)
+		proofs = append(proofs, common.Proof{Value: &tlbe.Uint256{F: proof}})
 	}
 
 	// Take only the first message (contract only processes one message at a time)
@@ -157,7 +156,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		Message:             rampMessage,
 		OffChainTokenData:   offchainTokenData,
 		Proofs:              proofs,
-		ProofFlagBits:       chainReport.ProofFlagBits.Int,
+		ProofFlagBits:       tlbe.BigUint256{Int: chainReport.ProofFlagBits.Int},
 	}
 
 	reportCell, err := tlb.ToCell(executeReport)
@@ -188,13 +187,7 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 	{
 		proofs := make([]ccipocr3.Bytes32, 0, len(tonReport.Proofs))
 		for _, proof := range tonReport.Proofs {
-			proofBytes := proof.Value.Bytes()
-			if len(proofBytes) > 32 {
-				return executeReport, fmt.Errorf("invalid proof length, got: %d, max: 32", len(proofBytes))
-			}
-			var bytes32 ccipocr3.Bytes32
-			copy(bytes32[32-len(proofBytes):], proofBytes) // Right-align, padding left with zeros
-			proofs = append(proofs, bytes32)
+			proofs = append(proofs, ccipocr3.Bytes32(proof.Value.F))
 		}
 
 		// Message is a single message (not array) - contract only processes one at a time
@@ -228,16 +221,11 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 			}
 			binary.BigEndian.PutUint32(destGasAmount, uint32(destGasAmountNano))
 
-			// Defensive check
-			if tokenAmount.Amount.Sign() < 0 {
-				return executeReport, fmt.Errorf("negative token amount decoded: %s", tokenAmount.Amount.String())
-			}
-
 			tokenAmounts = append(tokenAmounts, ccipocr3.RampTokenAmount{
 				SourcePoolAddress: ccipocr3.UnknownAddress(tokenAmount.SourcePoolAddress),
 				DestTokenAddress:  destTokenAddr,
 				ExtraData:         ccipocr3.Bytes(extraData),
-				Amount:            ccipocr3.NewBigInt(tokenAmount.Amount),
+				Amount:            ccipocr3.NewBigInt(tokenAmount.Amount.Int),
 				DestExecData:      destGasAmount,
 			})
 		}
@@ -249,7 +237,7 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		receiverAddr := receiverRaw[:]
 
 		extraArgs := onramp.GenericExtraArgsV2{
-			GasLimit:                 msg.GasLimit.Nano(),
+			GasLimit:                 &tlbe.BigUint256{Int: msg.GasLimit.Nano()},
 			AllowOutOfOrderExecution: true,
 		}
 
@@ -291,7 +279,7 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 			Messages:            messages,
 			OffchainTokenData:   offchainTokenData,
 			Proofs:              proofs,
-			ProofFlagBits:       ccipocr3.NewBigInt(tonReport.ProofFlagBits),
+			ProofFlagBits:       ccipocr3.NewBigInt(tonReport.ProofFlagBits.Int),
 		})
 	}
 

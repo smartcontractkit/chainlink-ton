@@ -1,11 +1,10 @@
 package ocr
 
 import (
-	"math/big"
-
 	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 // SignatureEd25519 represents a signature structure used in commit reports.
@@ -28,14 +27,14 @@ type PriceUpdates struct {
 // TokenPriceUpdate represents a price update for a token.
 type TokenPriceUpdate struct {
 	SourceToken *address.Address `tlb:"addr"`
-	UsdPerToken *big.Int         `tlb:"## 224"`
+	UsdPerToken tlbe.BigUint224  `tlb:"."`
 }
 
 // GasPriceUpdate represents a gas price update for a chain.
 type GasPriceUpdate struct {
-	DestChainSelector        uint64   `tlb:"## 64"`
-	ExecutionGasPrice        *big.Int `tlb:"## 112"`
-	DataAvailabilityGasPrice *big.Int `tlb:"## 112"`
+	DestChainSelector        uint64          `tlb:"## 64"`
+	ExecutionGasPrice        tlbe.BigUint112 `tlb:"."`
+	DataAvailabilityGasPrice tlbe.BigUint112 `tlb:"."`
 }
 
 // MerkleRoot represents a Merkle root for a chain's data.

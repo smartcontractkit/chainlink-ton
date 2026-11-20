@@ -91,7 +91,7 @@ type Storage struct {
 	ID                           uint32               `tlb:"## 32"`
 	Ownable                      ownable2step.Storage `tlb:"."`
 	AllowedPriceUpdaters         *cell.Dictionary     `tlb:"dict 267"`
-	MaxFeeJuelsPerMsg            *big.Int             `tlb:"## 96"`
+	MaxFeeJuelsPerMsg            tlbe.BigUint96       `tlb:"."`
 	LinkToken                    *address.Address     `tlb:"addr"`
 	TokenPriceStalenessThreshold uint32               `tlb:"## 32"`
 	UsdPerToken                  *cell.Dictionary     `tlb:"dict 267"`
@@ -109,9 +109,9 @@ type DestChainConfigs struct {
 }
 
 type USDPerUnitGas struct {
-	ExecutionGasPrice        *big.Int `tlb:"## 112"`
-	DataAvailabilityGasPrice *big.Int `tlb:"## 112"`
-	Timestamp                uint64   `tlb:"## 64"`
+	ExecutionGasPrice        tlbe.BigUint112 `tlb:"."`
+	DataAvailabilityGasPrice tlbe.BigUint112 `tlb:"."`
+	Timestamp                uint64          `tlb:"## 64"`
 }
 
 // Deprecated: Use GetDestinationChainGasPrice getter instead.
@@ -181,8 +181,8 @@ type TokenTransferFeeConfig struct {
 }
 
 type TimestampedPrice struct {
-	Value     *big.Int `tlb:"## 224"`
-	Timestamp uint32   `tlb:"## 32"`
+	Value     tlbe.BigUint224 `tlb:"."`
+	Timestamp uint32          `tlb:"## 32"`
 }
 
 // Deprecated: Use GetTokenPrice getter instead.
@@ -202,13 +202,13 @@ func (p *TimestampedPrice) GetterMethodName() string {
 
 type TokenPriceUpdate struct {
 	SourceToken *address.Address `tlb:"addr"`
-	UsdPerToken *big.Int         `tlb:"## 224"`
+	UsdPerToken tlbe.BigUint224  `tlb:"."`
 }
 
 type GasPriceUpdate struct {
-	DestChainSelector        uint64   `tlb:"## 64"`
-	ExecutionGasPrice        *big.Int `tlb:"## 112"`
-	DataAvailabilityGasPrice *big.Int `tlb:"## 112"`
+	DestChainSelector        uint64          `tlb:"## 64"`
+	ExecutionGasPrice        tlbe.BigUint112 `tlb:"."`
+	DataAvailabilityGasPrice tlbe.BigUint112 `tlb:"."`
 }
 
 type FeeToken struct {
@@ -247,8 +247,8 @@ type DestOverhead struct {
 }
 
 type Fee struct {
-	FeeTokenAmount *tlb.Coins `tlb:"."`     // fee value in fee token
-	FeeValueJuels  *big.Int   `tlb:"## 96"` // fee value in juels
+	FeeTokenAmount *tlb.Coins     `tlb:"."` // fee value in fee token
+	FeeValueJuels  tlbe.BigUint96 `tlb:"."` // fee value in juels
 }
 
 // Context is `cell?` on-chain: a presence bit followed by the cell in a ref when present.

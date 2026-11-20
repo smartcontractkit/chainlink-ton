@@ -21,6 +21,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
 	mocks "github.com/smartcontractkit/chainlink-ton/cciplib/mocks/ccipocr3"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.ExecutePluginReport {
@@ -177,18 +178,15 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 		// In practice, this protects against corrupted BOC data or future encoding bugs
 	})
 
-	t.Run("negative token amount validation", func(t *testing.T) {
-		// Construct an ExecuteReport directly with a negative token amount
-		// This bypasses Encode validation to test the Decode defensive check
+	t.Run("token amount with the top bit set decodes as unsigned", func(t *testing.T) {
 		addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 		require.NoError(t, err)
 
 		extraDataCell, err := tlb.ToCell(common.SnakeBytes{})
 		require.NoError(t, err)
 
-		// Create a negative amount (simulates what would happen if bit 255 is set
-		// and tlb.LoadBigInt interprets it as signed two's complement)
-		negativeAmount := big.NewInt(-1)
+		// 2^256 - 1: every bit set, so a signed load would read it as -1.
+		maxAmount := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(1))
 
 		destGasAmount := tlb.FromNanoTONU(uint64(1000))
 		tokenTransfer := ocr.Any2TVMTokenTransfer{
@@ -196,7 +194,7 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 			DestPoolAddress:   addr,
 			DestGasAmount:     &destGasAmount,
 			ExtraData:         extraDataCell,
-			Amount:            negativeAmount,
+			Amount:            tlbe.BigUint256{Int: maxAmount},
 		}
 
 		rampMessage := ocr.Any2TVMRampMessage{
@@ -219,7 +217,7 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 			Message:             rampMessage,
 			OffChainTokenData:   common.LispList[common.LispList[common.SnakeBytes]]{},
 			Proofs:              common.SnakedCell[common.Proof]{},
-			ProofFlagBits:       big.NewInt(0),
+			ProofFlagBits:       tlbe.BigUint256{Int: big.NewInt(0)},
 		}
 
 		reportCell, err := tlb.ToCell(executeReport)
@@ -227,10 +225,12 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 
 		boc := reportCell.ToBOC()
 
-		// Decode should fail with negative token amount error
-		_, err = codec.Decode(ctx, boc)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "negative token amount decoded")
+		decoded, err := codec.Decode(ctx, boc)
+		require.NoError(t, err)
+		require.Len(t, decoded.ChainReports, 1)
+		require.Len(t, decoded.ChainReports[0].Messages, 1)
+		require.Len(t, decoded.ChainReports[0].Messages[0].TokenAmounts, 1)
+		require.Zero(t, maxAmount.Cmp(decoded.ChainReports[0].Messages[0].TokenAmounts[0].Amount.Int))
 	})
 
 	t.Run("Address validation", func(t *testing.T) {

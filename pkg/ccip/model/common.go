@@ -9,6 +9,8 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 type Mapper[B any] interface {
@@ -93,6 +95,23 @@ func hexToBigInt(n string) (*big.Int, error) {
 	}
 
 	return new(big.Int).SetBytes(rootBytes), nil
+}
+
+// hexToUint256 converts a hex string of at most 32 bytes to a Uint256, padding
+// shorter inputs on the left with zeros.
+func hexToUint256(n string) (*tlbe.Uint256, error) {
+	b, err := hex.DecodeString(n)
+	if err != nil {
+		return nil, err
+	}
+	if len(b) > 32 {
+		return nil, fmt.Errorf("value too large: %d bytes, max 32", len(b))
+	}
+
+	var out tlbe.Uint256
+	copy(out.F[32-len(b):], b)
+
+	return &out, nil
 }
 
 func loadCell(dataHex string) (*cell.Cell, error) {

@@ -19,6 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/testadapters"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 
 	tonhash "github.com/smartcontractkit/chainlink-ton/cciplib/ton/hash"
@@ -105,7 +106,7 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 
 	// Build extra args
 	extraArgs := onramp.GenericExtraArgsV2{
-		GasLimit:                 big.NewInt(lib.TONDefaultGasLimit),
+		GasLimit:                 &tlbe.BigUint256{Int: big.NewInt(lib.TONDefaultGasLimit)},
 		AllowOutOfOrderExecution: true,
 	}
 

@@ -17,6 +17,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
@@ -199,7 +200,7 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 							TokenTransfer: common.SnakedCell[ocr.TVM2AnyTokenTransfer]{
 								{
 									SourcePoolAddress: sender,
-									Amount:            big.NewInt(0),
+									Amount:            tlbe.BigUint256{Int: big.NewInt(0)},
 									DestTokenAddress:  common.CrossChainAddress{},
 									ExtraData:         tvm.EmptyCell,
 									DestExecData:      tvm.EmptyCell,
@@ -208,7 +209,7 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 							FeeToken:       feeToken,
 							FeeTokenAmount: &feeAmount,
 						},
-						FeeValueJuels: big.NewInt(500000),
+						FeeValueJuels: tlbe.BigUint96{Int: big.NewInt(500000)},
 					},
 				}
 
