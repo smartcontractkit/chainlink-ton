@@ -1,5 +1,4 @@
 import '@ton/test-utils'
-import { compile } from '@ton/blueprint'
 import { toNano, Cell, Address, beginCell } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 

@@ -1,4 +1,3 @@
-import { compile } from '@ton/blueprint'
 import { Cell } from '@ton/core'
 import { promises as fs } from 'fs'
 import { join, resolve } from 'path'
@@ -17,15 +16,13 @@ type ContractCodeLoader = (contractName: string) => Promise<Cell>
 
 function createContractCodeLoader({
   buildDirectory,
-  compileIfMissing = false,
   cache = new Map<string, Cell>(),
 }: {
   buildDirectory: string
-  compileIfMissing?: boolean
   cache?: Map<string, Cell>
 }): ContractCodeLoader {
   return async (contractName: string) => {
-    const code = await getCode(cache, buildDirectory, contractName, compileIfMissing)
+    const code = await getCode(cache, buildDirectory, contractName)
 
     if (contractName === 'Deployable') {
       expect(code.hash()).toEqual(DEPLOYABLE_HASH)
@@ -107,7 +104,6 @@ async function getCode(
   cache: Map<string, Cell>,
   buildDirectory: string,
   contractName: string,
-  compileIfMissing: boolean,
 ): Promise<Cell> {
   const cachedCode = cache.get(contractName)
   if (cachedCode) {
@@ -118,13 +114,6 @@ async function getCode(
   if (preCompiledCode) {
     cache.set(contractName, preCompiledCode)
     return preCompiledCode
-  }
-
-  if (compileIfMissing) {
-    console.warn(`Compiled code for contract ${contractName} not found, attempting to compile...`)
-    const compiledCode = await compile(contractName)
-    cache.set(contractName, compiledCode)
-    return compiledCode
   }
 
   throw new Error(`Compiled code for contract ${contractName} not found at ${buildDirectory}`)

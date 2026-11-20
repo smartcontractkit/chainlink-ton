@@ -1,5 +1,6 @@
 import { Address, toNano } from '@ton/core'
-import { compile, NetworkProvider } from '@ton/blueprint'
+import { NetworkProvider } from '@ton/blueprint'
+import { contractCode } from '../wrappers/codeLoader'
 import { FiredrillEntrypoint } from '../wrappers/firedrill/FiredrillEntrypoint'
 import { FiredrillOnRamp } from '../wrappers/firedrill/FiredrillOnRamp'
 import { FiredrillOffRamp } from '../wrappers/firedrill/FiredrillOffRamp'
@@ -8,12 +9,12 @@ import * as CrossChainAddressCodec from '../wrappers/ccip/common/CrossChainAddre
 import { ChainSelectors } from '../tests/utils/Selectors'
 
 export async function run(provider: NetworkProvider) {
-  // Compile contracts
-  console.log('📦 Compiling contracts...')
-  const entrypointCode = await compile('firedrill.entrypoint')
-  const onRampCode = await compile('firedrill.onramp')
-  const offRampCode = await compile('firedrill.offramp')
-  console.log('✅ Contracts compiled')
+  // Load contracts built by `yarn build`
+  console.log('📦 Loading contracts...')
+  const entrypointCode = await contractCode.ccip.local('firedrill.entrypoint')
+  const onRampCode = await contractCode.ccip.local('firedrill.onramp')
+  const offRampCode = await contractCode.ccip.local('firedrill.offramp')
+  console.log('✅ Contracts loaded')
 
   // Get deployer info
   const sender = provider.sender()
