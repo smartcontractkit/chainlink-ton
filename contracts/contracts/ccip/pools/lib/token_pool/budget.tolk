@@ -14,7 +14,7 @@ fun TokenPool_Costs.admin(): coins {
     return calculateGasFee(w, BUDGET_UNITS_LVL3_HIGH);
 }
 
-/// Default flow-admission threshold for a token pool (≈0.042 TON at mainnet gas). Configured
+/// Default flow-admission threshold for a token pool (≈0.067 TON at mainnet gas). Configured
 /// admissions are total values.
 fun TokenPool_Costs.admission(): coins {
     val w = contract.getAddress().getWorkchain();
