@@ -8,12 +8,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/contracts"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
-var CounterContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.two-phase-commit.Counter/tact_Counter.pkg")
+var CounterContractPath = contracts.TestDataPath("legacy-tact/examples.async-communication.two-phase-commit.Counter/tact_Counter.pkg")
 
 type CounterProvider struct {
 	apiClient tracetracking.SignedAPIClient

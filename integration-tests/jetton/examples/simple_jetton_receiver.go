@@ -9,13 +9,13 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/contracts"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
-var SimpleJettonReceiverContractPath = bindings.GetBuildDir("examples.jetton.SimpleJettonReceiver.compiled.json")
+var SimpleJettonReceiverContractPath = contracts.BuildPath("examples.jetton.SimpleJettonReceiver.compiled.json")
 
 type SimpleJettonReceiverProvider struct {
 	apiClient tracetracking.SignedAPIClient

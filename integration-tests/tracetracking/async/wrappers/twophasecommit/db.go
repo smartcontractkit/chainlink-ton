@@ -9,12 +9,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/contracts"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
-var DbContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.two-phase-commit.DB/tact_DB.pkg")
+var DbContractPath = contracts.TestDataPath("legacy-tact/examples.async-communication.two-phase-commit.DB/tact_DB.pkg")
 
 type DBProvider struct {
 	apiClient tracetracking.SignedAPIClient

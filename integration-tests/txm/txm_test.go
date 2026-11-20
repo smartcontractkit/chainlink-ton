@@ -16,10 +16,10 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/contracts"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/test_logger"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/balance"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
 	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -408,7 +408,7 @@ func deployCounterContract(t *testing.T, wallet wallet.Wallet, initialValue uint
 	dataCell, err := tlb.ToCell(data)
 	require.NoError(t, err)
 
-	path := bindings.GetBuildDir("examples.Counter.compiled.json")
+	path := contracts.BuildPath("examples.Counter.compiled.json")
 	code, err := wrappers.ParseCompiledContract(path)
 	require.NoError(t, err)
 

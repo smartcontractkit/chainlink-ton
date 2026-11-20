@@ -7,12 +7,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/contracts"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
-var ItemCountContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.request-reply-with-two-dependencies.ItemCount/tact_ItemCount.pkg")
+var ItemCountContractPath = contracts.TestDataPath("legacy-tact/examples.async-communication.request-reply-with-two-dependencies.ItemCount/tact_ItemCount.pkg")
 
 type ItemCountProvider struct {
 	apiClient tracetracking.SignedAPIClient

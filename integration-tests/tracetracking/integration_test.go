@@ -23,8 +23,8 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/contracts"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
@@ -110,7 +110,7 @@ func TestIntegration(t *testing.T) {
 		dataCell, err := tlb.ToCell(data)
 		require.NoError(t, err)
 
-		path := bindings.GetBuildDir("examples.Counter.compiled.json")
+		path := contracts.BuildPath("examples.Counter.compiled.json")
 		code, err := wrappers.ParseCompiledContract(path)
 		require.NoError(t, err)
 
