@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 import "@stdlib/lisp-lists"
 import "@stdlib/exotic-cells"
-import "@stdlib/gas-payments";
 
 const Utils_FACILITY_NAME = "link.chain.ton.lib.Utils";
 const Utils_FACILITY_ID = Utils_FACILITY_NAME.crc32() % 640 + 10; // 135

@@ -6,7 +6,6 @@
 // GAS_CONSUMPTION_* / MESSAGE_SIZE_* constants, so they need separate harness contracts (Tolk has
 // no import namespacing).
 
-import "@stdlib/gas-payments"
 
 import "../../wgram/fees-management"
 

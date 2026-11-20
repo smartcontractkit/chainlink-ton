@@ -7,7 +7,6 @@ import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/forward_payload_wrap"
-import "../../../lib/gas"
 import "../../../lib/versioning/upgradeable"
 import "../../lib/cross_chain_address/types"
 

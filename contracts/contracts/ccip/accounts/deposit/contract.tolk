@@ -2,7 +2,6 @@
 tolk 1.5.0
 
 import "@stdlib/common"
-import "@stdlib/gas-payments"
 
 import "../../../lib/utils"
 import "../../../lib/jetton/messages"

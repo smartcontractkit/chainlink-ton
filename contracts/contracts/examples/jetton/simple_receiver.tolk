@@ -4,7 +4,6 @@ tolk 1.5.0
 import "@stdlib/common.tolk"
 import "../../lib/jetton/jetton_client.tolk"
 import "../../lib/jetton/messages.tolk"
-import "../../lib/utils"
 
 // SimpleJettonReceiver contract in Tolk
 // Simple receiver that just tracks amounts and payloads

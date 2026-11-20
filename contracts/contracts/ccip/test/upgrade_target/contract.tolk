@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "../../../lib/versioning/upgradeable"
 
 tolk 1.5.0
 

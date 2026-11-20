@@ -10,7 +10,6 @@
 
 import "@stdlib/gas-payments"
 
-import "../../lib/utils"
 import "../pools/lib/token_pool/messages"
 
 contract MockAdvancedPoolHooks {
