@@ -39,9 +39,9 @@ type storageKey struct {
 	logKey
 }
 
-// inMemoryLogs is in-memory implementation of the LogStore interface.
-// This provides basic log storage and querying capabilities without database persistence.
-// For production use, proper database-backed storage should be used.
+// inMemoryLogs is a test-only, in-memory implementation of the LogStore interface. It
+// approximates the PostgreSQL store rather than matching it exactly; see Transact for where
+// they differ.
 type inMemoryLogs struct {
 	mu      sync.Mutex
 	logs    []models.Log
@@ -101,7 +101,10 @@ func (s *inMemoryLogs) SaveLogs(ctx context.Context, logs []models.Log, batchIns
 }
 
 // Transact stages every SaveLogs call made through the store passed to fn and applies them
-// only if fn returns nil. Reads through that store see committed logs only.
+// only if fn returns nil. Unlike the PostgreSQL store:
+//   - reads through the store passed to fn see committed logs only, not the logs fn saved;
+//   - SaveLogs through that store returns the number of logs staged, which counts duplicates
+//     that are dropped when the logs are applied.
 func (s *inMemoryLogs) Transact(ctx context.Context, fn func(tx logpoller.LogStore) error) error {
 	tx := &stagedLogs{inMemoryLogs: s}
 	if err := fn(tx); err != nil {
@@ -120,8 +123,8 @@ type stagedLogs struct {
 	staged  []models.Log
 }
 
-// SaveLogs validates and stages logs. It returns the number of logs staged; duplicates
-// are dropped when the staged logs are applied.
+// SaveLogs validates and stages logs. It returns the number of logs staged, duplicates
+// included; they are dropped when the staged logs are applied.
 func (t *stagedLogs) SaveLogs(_ context.Context, logs []models.Log, _, _ uint32) (int64, error) {
 	for i, log := range logs {
 		if err := log.Validate(t.chainID); err != nil {
