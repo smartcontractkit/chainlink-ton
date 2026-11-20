@@ -115,9 +115,9 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must be OnRamp
         Router_WithdrawToTokenPool => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
-            onWithdrawToTokenPool(mutate st, msg);
+            onWithdrawToTokenPool(msg);
         }
         // Sender must be OnRamp
         Router_WithdrawToTokenPoolFailed => {
@@ -186,7 +186,7 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must hold the appropriate RMN role (checked in AccessControl struct)
         Router_RMNAccessControlMessage => {
-            onRMNAccessControlMessage(in.senderAddress, in.valueCoins, msg.content.beginParse());
+            onRMNAccessControlMessage(in.senderAddress, msg.content.beginParse());
         }
         // Sender must be owner
         Withdrawable_Withdraw => {
@@ -305,7 +305,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun onRMNAccessControlMessage(sender: address, _value: coins, body: slice) {
+fun onRMNAccessControlMessage(sender: address, body: slice) {
     var st = lazy Storage.load();
     var rmn = st.rmnRemote.load();
     rmn.policy.onAccessControlMessage(sender, body);
@@ -438,7 +438,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>, offr
 /// Asks the sender's sender account to transfer the jettons to the pool. A rejected or bounced
 /// transfer fails the CCIPSend through `failWithdrawToTokenPool`, which finds the executor in the
 /// transfer's forward payload, so that payload must name the executor requesting the withdraw.
-fun onWithdrawToTokenPool(mutate _st: Storage, msg: Router_WithdrawToTokenPool) {
+fun onWithdrawToTokenPool(msg: Router_WithdrawToTokenPool) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
     val account = withdrawRequest.senderAccount.load();
     val fwdp = lazy withdrawRequest.forwardPayload.load();

@@ -44,7 +44,7 @@ fun onInternalMessage(in: InMessage) {
             val st = lazy TokenAdminRegistry_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             assert(in.valueCoins >= TokenAdminRegistry_RegisterToken.cost()) throw (TokenAdminRegistry_Error.InsufficientValue);
-            registerToken(st, msg);
+            registerToken(msg);
         }
         TokenAdminRegistry_OverridePendingAdministrator => {
             val st = lazy TokenAdminRegistry_Storage.load();
@@ -72,13 +72,11 @@ fun onInternalMessage(in: InMessage) {
             });
         }
         TokenAdminRegistryEntry_TokenInfo => {
-            val st = TokenAdminRegistry_Storage.load();
-            requireEntrySender(st, msg.token, in.senderAddress);
+            requireEntrySender(msg.token, in.senderAddress);
             relayTokenInfo(msg);
         }
         TokenAdminRegistry_EntryUpgradeRequest => {
-            val st = TokenAdminRegistry_Storage.load();
-            requireEntrySender(st, msg.token, in.senderAddress);
+            requireEntrySender(msg.token, in.senderAddress);
             upgradeAndResume(in.senderAddress, msg.queryId, msg.request, in.valueCoins);
         }
         TokenAdminRegistry_UpgradeRefund => {}
@@ -97,18 +95,15 @@ fun onInternalMessage(in: InMessage) {
             Withdrawable{ reserve: WITHDRAW_RESERVE }.withdraw(msg);
         }
         TokenAdminRegistry_AdministratorTransferRequested => {
-            val st = TokenAdminRegistry_Storage.load();
-            requireEntrySender(st, msg.token, in.senderAddress);
+            requireEntrySender(msg.token, in.senderAddress);
             emitAdministratorTransferRequested(msg);
         }
         TokenAdminRegistry_AdministratorTransferred => {
-            val st = TokenAdminRegistry_Storage.load();
-            requireEntrySender(st, msg.token, in.senderAddress);
+            requireEntrySender(msg.token, in.senderAddress);
             emitAdministratorTransferred(msg);
         }
         TokenAdminRegistry_PoolSet => {
-            val st = TokenAdminRegistry_Storage.load();
-            requireEntrySender(st, msg.token, in.senderAddress);
+            requireEntrySender(msg.token, in.senderAddress);
             emitPoolSet(msg);
         }
         TokenAdminRegistry_VerifyToken => {
@@ -187,7 +182,7 @@ fun requestSender(content: TokenAdminRegistryEntry_RootMessage): address {
 
 /// Every entry event is relayed through the root. The token in the payload is
 /// sufficient to recompute the only entry address that may send that event.
-fun requireEntrySender(_st: TokenAdminRegistry_Storage, token: address, sender: address) {
+fun requireEntrySender(token: address, sender: address) {
     val expectedEntry = entryAddress(token).calculateAddress();
     assert(sender == expectedEntry) throw (TokenAdminRegistry_Error.UnauthorizedEntry);
 }
@@ -295,7 +290,7 @@ fun emitPoolSet(event: TokenAdminRegistry_PoolSet) {
 ///
 /// The entry then queries the token with TEP-89 and stays disabled until the token
 /// answers with a wallet. See TokenAdminRegistry_VerifyToken to query again.
-fun registerToken(_st: TokenAdminRegistry_Storage, msg: TokenAdminRegistry_RegisterToken) {
+fun registerToken(msg: TokenAdminRegistry_RegisterToken) {
     val deployMsg = createMessage({
         bounce: BounceMode.NoBounce,
         value: TokenAdminRegistryEntry_deployCost(),

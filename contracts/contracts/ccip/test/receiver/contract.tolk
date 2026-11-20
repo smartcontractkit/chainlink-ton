@@ -51,7 +51,7 @@ fun onInternalMessage(in: InMessage) {
             // 3. Process the message according to your product logic
             match (st.behavior) {
                 TestReceiver_Behavior.Accept => {
-                    processAccept(msg, in.senderAddress)
+                    processAccept(msg)
                 },
                 TestReceiver_Behavior.RejectAll => {
                     processRejectAll()
@@ -99,7 +99,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun processAccept(msg: Receiver_CCIPReceiveV2, _senderAddress: address) {
+fun processAccept(msg: Receiver_CCIPReceiveV2) {
     emit(RECEIVED_MESSAGE_TOPIC, CCIPMessageReceived{
         message: msg.message.load(),
     });
