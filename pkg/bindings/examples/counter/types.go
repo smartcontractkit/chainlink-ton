@@ -85,8 +85,12 @@ func decodeUint32(r *ton.ExecutionResult) (uint32, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to extract value: %w", err)
 	}
-	if !val.IsUint64() || val.Uint64() > math.MaxUint32 {
+	if !val.IsUint64() {
 		return 0, fmt.Errorf("value %s overflows uint32", val)
 	}
-	return uint32(val.Uint64()), nil
+	u := val.Uint64()
+	if u > math.MaxUint32 {
+		return 0, fmt.Errorf("value %s overflows uint32", val)
+	}
+	return uint32(u), nil
 }

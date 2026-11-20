@@ -15,8 +15,14 @@ func NewUint32Getter(name string) tvm.Getter[tvm.NoArgs, uint32] {
 	return tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint32]{
 		Name: name,
 		Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint32, error) {
-			val, err := decodeUint(r, math.MaxUint32)
-			return uint32(val), err
+			val, err := decodeUint64(r)
+			if err != nil {
+				return 0, err
+			}
+			if val > math.MaxUint32 {
+				return 0, fmt.Errorf("value %d out of range [0, %d]", val, uint32(math.MaxUint32))
+			}
+			return uint32(val), nil
 		}),
 	})
 }
@@ -25,20 +31,18 @@ func NewUint32Getter(name string) tvm.Getter[tvm.NoArgs, uint32] {
 // result is a uint64.
 func NewUint64Getter(name string) tvm.Getter[tvm.NoArgs, uint64] {
 	return tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint64]{
-		Name: name,
-		Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint64, error) {
-			return decodeUint(r, math.MaxUint64)
-		}),
+		Name:    name,
+		Decoder: tvm.NewResultDecoder(decodeUint64),
 	})
 }
 
-func decodeUint(r *ton.ExecutionResult, maxValue uint64) (uint64, error) {
+func decodeUint64(r *ton.ExecutionResult) (uint64, error) {
 	val, err := r.Int(0)
 	if err != nil {
 		return 0, fmt.Errorf("failed to extract value: %w", err)
 	}
-	if !val.IsUint64() || val.Uint64() > maxValue {
-		return 0, fmt.Errorf("value %s out of range [0, %d]", val, maxValue)
+	if !val.IsUint64() {
+		return 0, fmt.Errorf("value %s out of range [0, %d]", val, uint64(math.MaxUint64))
 	}
 	return val.Uint64(), nil
 }
