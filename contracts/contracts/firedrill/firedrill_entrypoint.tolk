@@ -106,13 +106,13 @@ fun prepareRegister(st: FiredrillEntrypoint_Storage) {
 	// Send message to OffRamp to emit SourceChainConfigSet event
 	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
-	val msg = createMessage({
+	val emitSourceChainConfigSet = createMessage({
 		bounce: BounceMode.NoBounce,
 		value: 0,
 		dest: firedrillContracts.firedrillOffRamp,
 		body: FiredrillOffRamp_EmitSourceChainConfigSet {},
 	});
-	msg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+	emitSourceChainConfigSet.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun drillPendingCommitPendingQueueTxSpike(mutate st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypoint_DrillPendingCommitPendingQueueTxSpike, value: coins) {
@@ -131,13 +131,13 @@ fun drillPendingCommitPendingQueueTxSpike(mutate st: FiredrillEntrypoint_Storage
 			sequenceNumber: i
 		};
 		
-		val message = createMessage({
+		val emitCCIPMessageSent = createMessage({
 			bounce: BounceMode.NoBounce,
 			value: DRILL_MESSAGE_VALUE,
 			dest: firedrillContracts.firedrillOnRamp,
 			body: emitMsg,
 		});
-		message.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+		emitCCIPMessageSent.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 		
 		i += 1;
 	}
@@ -158,13 +158,13 @@ fun drillPendingExecution(st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypo
 	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 
-	val message = createMessage({
+	val emitCommitReportAccepted = createMessage({
 		bounce: BounceMode.NoBounce,
 		value: 0,
 		dest: firedrillContracts.firedrillOffRamp,
 		body: emitMsg,
 	});
-	message.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+	emitCommitReportAccepted.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun drillPriceRegistries(st: FiredrillEntrypoint_Storage) {

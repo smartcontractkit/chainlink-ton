@@ -145,7 +145,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     val request = requestCell.load();
     val content = request.content.load();
     if (content is TokenAdminRegistryEntry_GetTokenInfo) {
-        createMessage({
+        val getTokenInfoFailed = createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
             dest: content.requester,
@@ -153,10 +153,11 @@ fun onBouncedMessage(in: InMessageBounced) {
                 queryId: request.queryId,
                 token: content.token,
             },
-        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+        });
+        getTokenInfoFailed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
-    createMessage({
+    val requestFailed = createMessage({
         bounce: false,
         value: 0,
         dest: requestSender(content),
@@ -165,7 +166,8 @@ fun onBouncedMessage(in: InMessageBounced) {
             errorCode: rich.exitCode,
             request: requestCell,
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    });
+    requestFailed.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun requestSender(content: TokenAdminRegistryEntry_RootMessage): address {
@@ -194,7 +196,7 @@ fun entryAddress(token: address): AutoDeployAddress {
 /// Forwards to an entry carrying all value, so a stale entry can fund its
 /// upgrade round trip before handling the request.
 fun forwardToEntry(token: address, queryId: uint64, content: TokenAdminRegistryEntry_RootMessage) {
-    createMessage({
+    val messageFromRoot = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
         dest: entryAddress(token).calculateAddress(),
@@ -203,7 +205,8 @@ fun forwardToEntry(token: address, queryId: uint64, content: TokenAdminRegistryE
             minEntryVersion: TokenAdminRegistryEntry_VERSION,
             content: content.toCell(),
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    });
+    messageFromRoot.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Answers a stale entry with an Upgradeable_Upgrade followed by the deferred request as a
@@ -222,16 +225,17 @@ fun upgradeAndResume(entry: address, queryId: uint64, request: Cell<TokenAdminRe
     if (contract.getOriginalBalance() - requestValue >= upgradeValue + upgradeFwdFee) {
         sendUpgrade(entry, queryId, upgradeValue, SEND_MODE_PAY_FEES_SEPARATELY);
     }
-    createMessage({
+    val resume = createMessage({
         bounce: BounceMode.RichBounce,
         value: 0,
         dest: entry,
         body: TokenAdminRegistryEntry_Resume { request },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    });
+    resume.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun sendUpgrade(dest: address, queryId: uint64, value: coins, mode: int) {
-    createMessage({
+    val upgrade = createMessage({
         bounce: BounceMode.Only256BitsOfBody,
         value,
         dest,
@@ -239,7 +243,8 @@ fun sendUpgrade(dest: address, queryId: uint64, value: coins, mode: int) {
             queryId,
             code: entryCode(),
         },
-    }).send(mode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    });
+    upgrade.send(mode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
@@ -257,7 +262,7 @@ fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
         }.toCell();
     }
 
-    createMessage({
+    val relay = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: msg.requester,
@@ -267,7 +272,8 @@ fun relayTokenInfo(msg: TokenAdminRegistryEntry_TokenInfo) {
             version: tokenInfo.version,
             poolInfo,
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    });
+    relay.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun emitAdministratorTransferRequested(event: TokenAdminRegistry_AdministratorTransferRequested) {

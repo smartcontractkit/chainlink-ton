@@ -108,7 +108,7 @@ fun sendSimple(
     destination: address,
     responseDestination: address,
 ) {
-    createMessage({
+    val transfer = createMessage({
         // check-disable-next-line no-bounce-handler
         bounce: sendOptions.bounce,
         value: sendOptions.value,
@@ -122,8 +122,8 @@ fun sendSimple(
             forwardTonAmount: 0,
             forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
         },
-    })
-        .send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    });
+    transfer.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 @inline
@@ -156,12 +156,12 @@ fun sendExtended(
             body.storeBool(false).storeSlice(forwardPayload);
         }
     }
-    createMessage({
+    val transfer = createMessage({
         // check-disable-next-line no-bounce-handler
         bounce: sendOptions.bounce,
         value: sendOptions.value,
         dest: wallet,
         body: body,
-    })
-        .send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    });
+    transfer.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }

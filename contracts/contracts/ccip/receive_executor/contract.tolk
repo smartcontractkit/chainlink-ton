@@ -90,12 +90,13 @@ fun onInternalMessage(in: InMessage) {
         // Permissionless. Execution may already be final, so the value goes to the OffRamp.
         TokenPool_ReleaseOrMintFinalized => {
             val st = lazy ReceiveExecutor_Storage.load();
-            createMessage({
+            val forwardToOffRamp = createMessage({
                 bounce: BounceMode.NoBounce,
                 value: 0,
                 dest: st.owner,
                 body: createEmptyCell(),
-            }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+            });
+            forwardToOffRamp.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
         // Passive excess return from a release/mint jetton wallet. Retain it in the executor;
         // the finalization message carries the remaining balance to the OffRamp.
@@ -226,7 +227,7 @@ fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitE
 fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo) {
     ttInfo.state = ReceiveExecutor_TokenTransferState_TokenAdminRegistryQuery {};
     st.state.tokenTransfer = ttInfo.toCell();
-    createMessage(
+    val tokenInfoQuery = createMessage(
         {
             bounce: BounceMode.RichBounce,
             value: TokenAdminRegistry_GetTokenInfo.cost(),
@@ -236,7 +237,8 @@ fun queryTokenAdminRegistry(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveE
                 token: ttInfo.transfer.load().token,
             }
         }
-    ).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    );
+    tokenInfoQuery.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun onTokenAdminRegistryResponse(mutate st: ReceiveExecutor_Storage, msg: TokenAdminRegistry_TokenInfo, ttInfo: ReceiveExecutor_TokenTransferInfo) {
@@ -306,7 +308,7 @@ fun releaseOrMint(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_To
 fun execute(mutate st: ReceiveExecutor_Storage) {
     st.lastExecutionTimestamp = blockchain.now();
     st.state.messageExecution = ReceiveExecutor_MessageExecutionState.Execute;
-    createMessage(
+    val dispatchValidated = createMessage(
         {
             bounce: BounceMode.RichBounce,
             value: OffRamp_Costs.dispatchValidated() + st.state.effectiveGasLimit,
@@ -319,7 +321,8 @@ fun execute(mutate st: ReceiveExecutor_Storage) {
                 tokenAmounts: receiverTokenAmounts(st),
             }
         }
-    ).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    );
+    dispatchValidated.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun receiverTokenAmounts(st: ReceiveExecutor_Storage): SnakedCell<TokenAmount>? {
