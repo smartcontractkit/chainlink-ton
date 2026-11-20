@@ -114,7 +114,7 @@ fun sendSimple(
         value: sendOptions.value,
         dest: wallet,
         body: AskToTransfer {
-            queryId: queryId,
+            queryId,
             jettonAmount: amount,
             transferRecipient: destination,
             sendExcessesTo: responseDestination,
@@ -140,12 +140,12 @@ fun sendExtended(
     forwardPayload: slice | cell,
 ) {
     var body = beginCell().storeAny(AskToTransfer {
-        queryId: queryId,
+        queryId,
         jettonAmount: amount,
         transferRecipient: destination,
         sendExcessesTo: responseDestination,
-        customPayload: customPayload,
-        forwardTonAmount: forwardTonAmount,
+        customPayload,
+        forwardTonAmount,
         forwardPayload: createEmptyCell().beginParse(),
     });
     match (forwardPayload) {
@@ -161,7 +161,7 @@ fun sendExtended(
         bounce: sendOptions.bounce,
         value: sendOptions.value,
         dest: wallet,
-        body: body,
+        body,
     });
     transfer.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }

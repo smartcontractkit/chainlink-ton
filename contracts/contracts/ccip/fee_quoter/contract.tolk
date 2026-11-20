@@ -317,8 +317,8 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, ExtraArgs, lisp_list<FeeQ
             premiumFeeUsdWei = mustAdd(premiumFeeUsdWei, tokenPremiumFeeUsdWei, FeeQuoter_Error.PremiumFeeOverflow);
             tokenTransferGas = mustAdd(tokenTransferGas, tokenGas, FeeQuoter_Error.ExecutionCostOverflow);
             backwardsDestOverheads.prependHead(FeeQuoter_DestOverhead {
-                destGasOverhead: destGasOverhead,
-                destBytesOverhead: destBytesOverhead,
+                destGasOverhead,
+                destBytesOverhead,
             });
         }
         destOverheads = backwardsDestOverheads.calculateReversed();

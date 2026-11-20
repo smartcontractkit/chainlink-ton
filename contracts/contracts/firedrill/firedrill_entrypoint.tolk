@@ -175,7 +175,7 @@ fun drillPriceRegistries(st: FiredrillEntrypoint_Storage) {
 		destChainSelector: st.chainSelector,
 		executionGasPrice: 1,
 		dataAvailabilityGasPrice: 1,
-		timestamp: timestamp
+		timestamp
 	});
 }
 

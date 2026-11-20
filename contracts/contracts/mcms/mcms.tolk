@@ -1218,8 +1218,8 @@ fun MCMS<T>.setConfig(
     // replacing its roots is O(1), and direct setConfig also clears any staged session.
     var config = Config{
         signers: [],
-        groupQuorums: groupQuorums,
-        groupParents: groupParents,
+        groupQuorums,
+        groupParents,
     };
     self.data.signers = [];
 

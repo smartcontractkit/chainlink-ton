@@ -86,14 +86,14 @@ fun emitCommitReportAccepted(minSeqNr: uint64, maxSeqNr: uint64, st: FiredrillOf
 	val merkleRoot = MerkleRoot {
 		sourceChainSelector: st.chainSelector,
 		onRampAddress: st.onRampAddress,
-		minSeqNr: minSeqNr,
-		maxSeqNr: maxSeqNr,
+		minSeqNr,
+		maxSeqNr,
 		merkleRoot: merkleRootHash
 	};
 	
 	// Emit CommitReportAccepted with empty price updates
 	emit(TOPIC_COMMIT_REPORT_ACCEPTED, CommitReportAccepted {
-		merkleRoot: merkleRoot,
+		merkleRoot,
 		priceUpdates: null
 	});
 }
