@@ -344,16 +344,16 @@ throw-requires-documented-error-value = "allow" # TODO E030 - Requires documenta
 # I would not enable this until we get namespacing in imports
 name-case-checker = "allow" # S001 - Checks identifier naming style and suggests consistent casing.
 
-explicit-return-type = "warn" # S002 - Requires explicit return types for function declarations.
-field-init-can-be-folded = "warn" # S003 - Checks for struct initialization where the field name and the variable used to initialize it are the same.
+explicit-return-type = "deny" # S002 - Requires explicit return types for function declarations.
+field-init-can-be-folded = "deny" # S003 - Checks for struct initialization where the field name and the variable used to initialize it are the same.
 method-can-be-static = "warn" # TODO S004 - Checks for instance methods where self is unnecessary.
-message-should-be-named = "allow" # S005 - Checks for messages created with createMessage(...) but named as generic msg or message.
-create-message-inline-send = "warn" # S006 - Checks for inline sending of newly created messages: createMessage(...).send(...).
+message-should-be-named = "deny" # S005 - Checks for messages created with createMessage(...) but named as generic msg or message.
+create-message-inline-send = "deny" # S006 - Checks for inline sending of newly created messages: createMessage(...).send(...).
 
 # Blueprint doesn't support @mapping yet
 import-path-can-use-mappings = "allow" # S007 - Warns when a relative import path can be replaced with a configured @mapping/... path.
 
-negated-is-type-can-use-not-is = "warn" # S008 - Detects negated type checks written as !(a is T).
+negated-is-type-can-use-not-is = "deny" # S008 - Detects negated type checks written as !(a is T).
 
 
 [import-mappings]
