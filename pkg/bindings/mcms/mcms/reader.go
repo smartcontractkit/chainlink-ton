@@ -83,6 +83,21 @@ var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 	}),
 })
 
+var GetStagedConfigNumSigners = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint16]{
+	Name: "getStagedConfigNumSigners",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint16, error) {
+		ri, err := r.Int(0)
+		if err != nil {
+			return 0, fmt.Errorf("error getting Int(0) - stagedConfigNumSigners: %w", err)
+		}
+		value := ri.Uint64()
+		if value > 0xffff {
+			return 0, fmt.Errorf("staged config signer count %d overflows uint16", value)
+		}
+		return uint16(value), nil
+	}),
+})
+
 var GetOpCount = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint64]{
 	Name: "getOpCount",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint64, error) {

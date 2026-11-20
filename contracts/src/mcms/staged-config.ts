@@ -23,11 +23,19 @@ export function buildStagedConfigMessages(input: StagedConfigInput): StagedConfi
   if (input.signerAddresses.length === 0) {
     throw new Error('MCMS config must contain at least one signer')
   }
+  if (input.signerAddresses.length > mcms.MAX_NUM_SIGNERS) {
+    throw new Error(
+      `MCMS config has ${input.signerAddresses.length} signers, maximum is ${mcms.MAX_NUM_SIGNERS}`,
+    )
+  }
   if (input.signerAddresses.length !== input.signerGroups.length) {
     throw new Error('signer addresses and groups length mismatch')
   }
   if (chunkSize <= 0) {
     throw new Error('chunk size must be greater than zero')
+  }
+  if (chunkSize > mcms.MAX_SIGNERS_PER_STAGE) {
+    throw new Error(`chunk size ${chunkSize} exceeds maximum ${mcms.MAX_SIGNERS_PER_STAGE}`)
   }
 
   const begin = mcms.builder.message.in.beginConfigStaging

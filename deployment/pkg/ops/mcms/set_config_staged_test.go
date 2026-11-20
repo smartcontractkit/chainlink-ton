@@ -59,6 +59,14 @@ func TestBuildStagedConfigMessages(t *testing.T) {
 	require.False(t, commit.ClearRoot)
 }
 
+func TestBuildStagedConfigMessagesRejectsZeroAmount(t *testing.T) {
+	dst := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")
+	cfg := stagedTestConfig(t, 2, 1)
+
+	_, err := buildStagedConfigMessages(dst, tlb.MustFromTON("0"), cfg, false, true)
+	require.EqualError(t, err, "amount must be greater than zero")
+}
+
 func TestBuildStagedConfigMessagesMaxSize(t *testing.T) {
 	dst := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c")
 	cfg := stagedTestConfig(t, MaxStagedConfigSigners, 31)

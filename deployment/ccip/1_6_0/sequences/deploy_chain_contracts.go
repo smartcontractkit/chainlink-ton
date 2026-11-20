@@ -43,7 +43,7 @@ const defaultReserveAmount = "0.5"
 // TonDeployAdapter implements the deploy.Deployer interface for TON chains.
 type TonDeployAdapter struct {
 	// mcmsIntermediateConfig is applied before an oversized final MCMS config so the
-	// final setConfig fits within the 1M per-transaction gas limit on TON 1.6.2.
+	// final setConfig fits within the 1M per-transaction gas limit on TON.
 	mcmsIntermediateConfig *mcmstypes.Config
 }
 

@@ -8,6 +8,8 @@ import (
 	"github.com/Masterminds/semver/v3"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/require"
+
+	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 )
 
 func TestContractConfigSteps(t *testing.T) {
@@ -79,7 +81,7 @@ func TestContractConfigSteps(t *testing.T) {
 			wantSteps:       2,
 		},
 		{
-			name:            "0.0.5 uses the normal path",
+			name:            "0.0.5 configSteps returns the final config",
 			contractVersion: semver.MustParse("0.0.5"),
 			currentSigners:  69,
 			currentGroups:   21,
@@ -115,60 +117,47 @@ func TestContractConfigSteps(t *testing.T) {
 
 func TestNeedsStagedConfig(t *testing.T) {
 	tests := []struct {
-		name           string
-		version        *semver.Version
-		currentSigners int
-		currentGroups  int
-		final          mcmstypes.Config
-		want           bool
+		name    string
+		version *semver.Version
+		final   mcmstypes.Config
+		want    bool
 	}{
 		{
-			name:           "0.0.4 stays on intermediate workaround",
-			version:        semver.MustParse("0.0.4"),
-			currentSigners: 16,
-			currentGroups:  8,
-			final:          testConfig(t, 69, 21),
-			want:           false,
+			name:    "0.0.4 stays on intermediate workaround",
+			version: semver.MustParse("0.0.4"),
+			final:   testConfig(t, 69, 21),
+			want:    false,
 		},
 		{
-			name:           "0.0.5 small config stays direct",
-			version:        semver.MustParse("0.0.5"),
-			currentSigners: 31,
-			currentGroups:  8,
-			final:          testConfig(t, 52, 21),
-			want:           false,
+			name:    "0.0.5 small final stays direct",
+			version: semver.MustParse("0.0.5"),
+			final:   testConfig(t, 52, 21),
+			want:    false,
 		},
 		{
-			name:           "0.0.5 large final uses staging",
-			version:        semver.MustParse("0.0.5"),
-			currentSigners: 16,
-			currentGroups:  8,
-			final:          testConfig(t, 69, 21),
-			want:           true,
+			name:    "0.0.5 large final uses staging",
+			version: semver.MustParse("0.0.5"),
+			final:   testConfig(t, 69, 21),
+			want:    true,
 		},
 		{
-			name:           "0.0.5 large current uses staging",
-			version:        semver.MustParse("0.0.5"),
-			currentSigners: 69,
-			currentGroups:  21,
-			final:          testConfig(t, 42, 3),
-			want:           true,
-		},
-		{
-			name:           "unknown version stays direct",
-			version:        nil,
-			currentSigners: 16,
-			currentGroups:  8,
-			final:          testConfig(t, 69, 21),
-			want:           false,
+			name:    "unknown version stays direct",
+			version: nil,
+			final:   testConfig(t, 69, 21),
+			want:    false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.want, needsStagedConfig(tt.version, tt.currentSigners, tt.currentGroups, tt.final))
+			require.Equal(t, tt.want, opsmcms.NeedsStagedConfig(tt.version, &tt.final))
 		})
 	}
+}
+
+func TestNeedsStagedConfigUsesFinalConfigOnly(t *testing.T) {
+	final := testConfig(t, 42, 3)
+	require.False(t, opsmcms.NeedsStagedConfig(semver.MustParse("0.0.5"), &final))
 }
 
 func TestNeedsTwoStepCountsNestedGroups(t *testing.T) {
@@ -178,7 +167,7 @@ func TestNeedsTwoStepCountsNestedGroups(t *testing.T) {
 			{Quorum: 1, GroupSigners: make([]mcmstypes.Config, 22)},
 		},
 	}
-	require.True(t, needsTwoStep(1, 1, nested))
+	require.True(t, opsmcms.NeedsTwoStep(1, 1, &nested))
 }
 
 func TestConfigStepsRequiresIntermediateConfig(t *testing.T) {

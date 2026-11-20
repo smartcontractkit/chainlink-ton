@@ -7,6 +7,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
+const (
+	// MaxNumSigners is the maximum signer count accepted by the MCMS contract.
+	MaxNumSigners = 200
+	// MaxSignersPerStage is the maximum number of signers accepted by one stageConfig call.
+	MaxSignersPerStage = 32
+)
+
 // StagedConfigMessages contains the ordered messages for a staged config update.
 type StagedConfigMessages struct {
 	Begin  BeginConfigStaging
@@ -29,11 +36,17 @@ func BuildStagedConfigMessages(
 	if len(signerAddresses) == 0 {
 		return StagedConfigMessages{}, errors.New("config must contain at least one signer")
 	}
+	if len(signerAddresses) > MaxNumSigners {
+		return StagedConfigMessages{}, fmt.Errorf("config has %d signers, maximum is %d", len(signerAddresses), MaxNumSigners)
+	}
 	if len(signerAddresses) != len(signerGroups) {
 		return StagedConfigMessages{}, errors.New("signer addresses and groups length mismatch")
 	}
 	if chunkSize <= 0 {
 		return StagedConfigMessages{}, errors.New("chunk size must be greater than zero")
+	}
+	if chunkSize > MaxSignersPerStage {
+		return StagedConfigMessages{}, fmt.Errorf("chunk size %d exceeds maximum %d", chunkSize, MaxSignersPerStage)
 	}
 
 	gqDict, err := tlbe.NewDictFromSlice[uint8](groupQuorums[:])
@@ -64,7 +77,7 @@ func BuildStagedConfigMessages(
 		}
 		messages.Stages = append(messages.Stages, StageConfig{
 			QueryID:            queryID,
-			ExpectedNumSigners: uint16(offset), //nolint:gosec // caller bounds config size
+			ExpectedNumSigners: uint16(offset),
 			SignerAddresses:    signerAddresses[offset:end],
 			SignerGroups:       signerGroups[offset:end],
 		})

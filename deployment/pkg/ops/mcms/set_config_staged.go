@@ -26,13 +26,11 @@ import (
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 )
 
-// StageConfigChunkSize is the maximum number of signers accepted by one stageConfig call.
-// It mirrors MAX_SIGNERS_PER_STAGE in the MCMS contract.
 const (
 	// StageConfigChunkSize is the maximum number of signers accepted by one stageConfig call.
-	StageConfigChunkSize = 32
+	StageConfigChunkSize = mcms.MaxSignersPerStage
 	// MaxStagedConfigSigners mirrors the MCMS contract maximum.
-	MaxStagedConfigSigners = 200
+	MaxStagedConfigSigners = mcms.MaxNumSigners
 )
 
 type SetConfigStagedInput struct {
@@ -42,15 +40,16 @@ type SetConfigStagedInput struct {
 
 	Config    *mcmstypes.Config `json:"config"`
 	ClearRoot bool              `json:"clearRoot"`
+	Plan      bool              `json:"plan"`
 }
 
-// SetConfigStaged plans the begin/stage/commit messages required to install a config
-// that is too large for one setConfig call. It intentionally supports planning only:
-// the staged flow must execute through the Timelock/MCMS batch.
+// SetConfigStaged builds the begin/stage/commit messages required to install a config
+// that is too large for one setConfig call. SendOrPlan decides whether the resulting
+// messages are sent directly or batched for Timelock/MCMS execution.
 var SetConfigStaged = cldfops.NewOperation(
 	"ton/ops/mcms/set-config-staged",
 	semver.MustParse("0.1.0"),
-	"Plans begin/stage/commit messages for a large MCMS config",
+	"Sends or plans begin/stage/commit messages for a large MCMS config",
 	func(b cldfops.Bundle, dp *dep.DependencyProvider, in SetConfigStagedInput) (opston.SendMessagesOutput, error) {
 		_, err := dep.Resolve[cldfton.Chain](dp)
 		if err != nil {
@@ -65,7 +64,7 @@ var SetConfigStaged = cldfops.NewOperation(
 		}
 		out, err := cldfops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 			Messages: messages,
-			Plan:     true,
+			Plan:     in.Plan,
 		})
 		if err != nil {
 			return opston.SendMessagesOutput{}, fmt.Errorf("failed to plan staged MCMS messages: %w", err)
@@ -80,6 +79,9 @@ func buildStagedConfigMessages(dst *address.Address, amount tlb.Coins, cfg *mcms
 	}
 	if cfg == nil {
 		return nil, errors.New("config is required")
+	}
+	if amount.IsZero() {
+		return nil, errors.New("amount must be greater than zero")
 	}
 
 	groupQuorums, groupParents, signerAddresses, signerGroups, err := sdk.ExtractSetConfigInputs(cfg)

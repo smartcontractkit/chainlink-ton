@@ -8,28 +8,13 @@ import (
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
-)
-
-const (
-	// Safe single-step setConfig thresholds for the live TON 1.6.2 contracts.
-	// Above either limit on either the current or final config, apply an
-	// intermediate config first. Calibrated with the release-1.6.2 limits suite:
-	// 52/21 -> 52/21 succeeds, while 52/21 -> 56/21 is already at the 1M OOG
-	// boundary and is not used as a single-step production path. Use 52/21 as
-	// the safe boundary; larger final/current configs require two-step.
-	maxSingleStepSigners = 52
-	maxSingleStepGroups  = 21
+	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 )
 
 // multiStepSetConfigVersion is the only MCMS version that needs the temporary
 // intermediate-config workaround. Remove this gate and the multi-step path once
 // this version is no longer live.
 var multiStepSetConfigVersion = semver.MustParse("0.0.4")
-
-// stagedSetConfigMinVersion is the first MCMS version with the staged config
-// entrypoints. Larger configs on these versions use stage/commit instead of the
-// temporary intermediate-config workaround.
-var stagedSetConfigMinVersion = semver.MustParse("0.0.5")
 
 var defaultTonDeployAdapter = NewTonDeployAdapter(nil)
 
@@ -47,7 +32,7 @@ func SetTonDeployAdapterIntermediateConfig(config *mcmstypes.Config) {
 // the same Timelock batch, preserving order and allowing recovery if the final
 // call fails.
 func (a *TonDeployAdapter) configSteps(contractVersion *semver.Version, currentSigners, currentGroups int, final mcmstypes.Config) ([]mcmstypes.Config, error) {
-	if !supportsMultiStepSetConfig(contractVersion) || !needsTwoStep(currentSigners, currentGroups, final) {
+	if !supportsMultiStepSetConfig(contractVersion) || !opsmcms.NeedsTwoStep(currentSigners, currentGroups, &final) {
 		return []mcmstypes.Config{final}, nil
 	}
 
@@ -68,21 +53,6 @@ func supportsMultiStepSetConfig(contractVersion *semver.Version) bool {
 	return contractVersion != nil && contractVersion.Equal(multiStepSetConfigVersion)
 }
 
-func needsStagedConfig(contractVersion *semver.Version, currentSigners, currentGroups int, final mcmstypes.Config) bool {
-	return contractVersion != nil &&
-		!contractVersion.LessThan(stagedSetConfigMinVersion) &&
-		needsTwoStep(currentSigners, currentGroups, final)
-}
-
-func needsTwoStep(currentSigners, currentGroups int, final mcmstypes.Config) bool {
-	finalSigners := len(final.AllSigners())
-	finalGroups := countGroups(&final)
-	return currentSigners > maxSingleStepSigners ||
-		currentGroups > maxSingleStepGroups ||
-		finalSigners > maxSingleStepSigners ||
-		finalGroups > maxSingleStepGroups
-}
-
 func activeGroupCount(quorums *tlbe.Dict[uint8, uint8]) int {
 	if quorums == nil {
 		return 0
@@ -93,14 +63,6 @@ func activeGroupCount(quorums *tlbe.Dict[uint8, uint8]) int {
 		if group != 0 && quorum > 0 {
 			count++
 		}
-	}
-	return count
-}
-
-func countGroups(config *mcmstypes.Config) int {
-	count := len(config.GroupSigners)
-	for i := range config.GroupSigners {
-		count += countGroups(&config.GroupSigners[i])
 	}
 	return count
 }

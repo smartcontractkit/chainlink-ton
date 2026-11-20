@@ -8,7 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	// TODO: these shoud be outside pkg/ccip/
+	// TODO: these should be outside pkg/ccip/
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
@@ -430,12 +430,12 @@ type Config struct {
 
 // Config assembled across multiple transactions before being activated atomically.
 type StagedConfig struct {
-	Config              Config                            `tlb:"^"`
-	Signers             *tlbe.Dict[*tlbe.Uint160, Signer] `tlb:"."`
-	NumSigners          uint16                            `tlb:"## 16"`
-	QueryID             uint64                            `tlb:"## 64"`
-	LastAddress         *tlbe.Uint160                     `tlb:"."`
-	GroupChildrenCounts *tlbe.Dict[uint8, uint8]          `tlb:"."`
+	Config              Config                           `tlb:"^"`
+	Signers             *tlbe.Dict[tlbe.Uint160, Signer] `tlb:"."`
+	NumSigners          uint16                           `tlb:"## 16"`
+	QueryID             uint64                           `tlb:"## 64"`
+	LastAddress         *tlbe.Uint160                    `tlb:"."`
+	GroupChildrenCounts *tlbe.Dict[uint8, uint8]         `tlb:"."`
 }
 
 // Information about the current root, extracted into a separate struct (wrapped in a cell).

@@ -24,6 +24,7 @@ var (
 		// MCMS operations
 		mcms.SetConfig.AsUntypedRelaxed(),
 		mcms.SetConfigStaged.AsUntypedRelaxed(),
+		mcms.AbortConfigStaged.AsUntypedRelaxed(),
 
 		// CCIP operations
 		ccipoperation.UpdateFeeQuoterFeeTokensOp.AsUntypedRelaxed(),

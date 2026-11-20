@@ -2,11 +2,32 @@ package mcms
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 	"testing"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
+
+func TestStagedConfigSignerLookupByValue(t *testing.T) {
+	key := tlbe.NewUint160(big.NewInt(1))
+	equalKey := tlbe.NewUint160(big.NewInt(1))
+
+	staged := StagedConfig{
+		Signers: tlbe.NewDict(map[tlbe.Uint160]Signer{
+			*key: {Address: key, Index: 7, Group: 3},
+		}),
+	}
+
+	signer, ok := staged.Signers.Get(*equalKey)
+	if !ok {
+		t.Fatal("expected signer lookup to succeed for an equal key value")
+	}
+	if signer.Index != 7 || signer.Group != 3 {
+		t.Fatalf("unexpected signer: %+v", signer)
+	}
+}
 
 func TestExitCodeCodecAndStringer(t *testing.T) {
 	valid := []struct {
