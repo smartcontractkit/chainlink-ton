@@ -7,7 +7,7 @@ import "../v1/storage.tolk";
 
 type IncomingMessage = Upgradeable_Upgrade | Step;
 
-fun loadData() {
+fun loadData(): StorageV2 {
     return StorageV2.fromCell(contract.getData());
 }
 
@@ -29,7 +29,7 @@ fun onInternalMessage(in: InMessage) {
 
     val sender = in.senderAddress;
     var storage = loadData();
-    var handled = storage.ownable2Step.onInternalMessage(sender, in.body);
+    val handled = storage.ownable2Step.onInternalMessage(sender, in.body);
 
     if (handled) {
         saveData(storage);
@@ -76,9 +76,9 @@ fun migrate(storage: cell, version: slice): cell {
     assert (version.bitsEqual(COUNTER_V1_CONTRACT_VERSION)) throw (Upgradeable_Error.VersionMismatch);
     
     // Parse it as StorageV1
-    var oldStorage = StorageV1.fromCell(storage);
+    val oldStorage = StorageV1.fromCell(storage);
     // Create new StorageV2 with the old value and id
-    var newStorage = StorageV2{
+    val newStorage = StorageV2{
         value: oldStorage.value as uint64,
         id: oldStorage.id,
         ownable2Step: oldStorage.ownable2Step,

@@ -141,7 +141,7 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateToken
     while (entry.isFound) {
         val destChainSelector = entry.getKey();
         val update = entry.loadValue();
-        var configEntry = st.destChainConfigs.get(destChainSelector);
+        val configEntry = st.destChainConfigs.get(destChainSelector);
         assert (configEntry.isFound) throw (FeeQuoter_Error.UnknownDestChainSelector);
         var destChainConfig = configEntry.loadValue();
 
@@ -261,17 +261,17 @@ get fun validatedFee(msg: Router_CCIPSend): coins {
 
 // @returns (fee, destOverheads, chainFamilySelector)
 fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, ExtraArgs, lisp_list<FeeQuoter_DestOverhead>?, uint32) {
-    var st = lazy Storage.load();
+    val st = lazy Storage.load();
 
     val destChainConfigResult = st.destChainConfigs.get(msg.destChainSelector);
     assert (destChainConfigResult.isFound) throw (FeeQuoter_Error.DestChainNotEnabled);
-    var destChainConfig = destChainConfigResult.loadValue();
+    val destChainConfig = destChainConfigResult.loadValue();
 
     assert (destChainConfig.config.isEnabled) throw (FeeQuoter_Error.DestChainNotEnabled);
     assert (msg.feeToken != null) throw (FeeQuoter_Error.FeeTokenNotSupported);
     // Fee payment with Jetton is not supported
     assert (msg.feeToken == NATIVE_GRAM) throw (FeeQuoter_Error.FeeTokenNotSupported);
-    val feeToken = msg.feeToken!;
+    val feeToken = msg.feeToken;
     val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported);
     val feeTokenPrice = st.getValidatedTokenPrice(feeToken);
 
@@ -317,8 +317,8 @@ fun calculateValidatedFee(msg: Router_CCIPSend): (Fee, ExtraArgs, lisp_list<FeeQ
             premiumFeeUsdWei = mustAdd(premiumFeeUsdWei, tokenPremiumFeeUsdWei, FeeQuoter_Error.PremiumFeeOverflow);
             tokenTransferGas = mustAdd(tokenTransferGas, tokenGas, FeeQuoter_Error.ExecutionCostOverflow);
             backwardsDestOverheads.prependHead(FeeQuoter_DestOverhead {
-                destGasOverhead: destGasOverhead,
-                destBytesOverhead: destBytesOverhead,
+                destGasOverhead,
+                destBytesOverhead,
             });
         }
         destOverheads = backwardsDestOverheads.calculateReversed();
@@ -401,7 +401,7 @@ fun validateTokenTransfers(destChainConfig: DestChainConfig, tokenAmounts: Snake
             assert (tokenAmount.amount > 0) throw (FeeQuoter_Error.CannotSendZeroTokens);
 
             val config = getEnabledTokenTransferFeeConfig(destChainConfig, tokenAmount.token);
-            val tokenBytesOverhead = config != null ? config!.destBytesOverhead as int : CCIP_LOCK_OR_BURN_V1_RET_BYTES;
+            val tokenBytesOverhead = config != null ? config.destBytesOverhead as int : CCIP_LOCK_OR_BURN_V1_RET_BYTES;
             tokenTransferBytesOverhead = mustAdd(tokenTransferBytesOverhead, tokenBytesOverhead, FeeQuoter_Error.ExecutionCostOverflow);
         }
     } catch (e) {
@@ -565,7 +565,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: Cell<ExtraArgs>, 
 fun parseGenericExtraArgs(extraArgs: Cell<ExtraArgs>, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): GenericExtraArgsV2 {
     val extra = _parseUnvalidatedEVMExtraArgs(extraArgs, defaultTxGasLimit);
     // Resolve an absent gasLimit to the default so it never escapes unresolved.
-    val gasLimit = extra.gasLimit != null ? extra.gasLimit! : defaultTxGasLimit as uint256;
+    val gasLimit = extra.gasLimit != null ? extra.gasLimit : defaultTxGasLimit as uint256;
     assert (gasLimit <= maxPerMsgGasLimit) throw (FeeQuoter_Error.GasLimitTooHigh);
     // Out of order is always enforced because we don't do ordering on non-EVMs
     assert (extra.allowOutOfOrderExecution) throw (FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue);
@@ -629,7 +629,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
         ccipSend.extraArgs = extraArgs.toCell();
 
         response = createMessage({
-            bounce: BounceMode.Only256BitsOfBody,
+            bounce: BounceMode.NoBounce,
             value: 0,
             dest: sender,
             body: FeeQuoter_MessageValidated {
@@ -642,7 +642,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
         });
     } catch (e) {
         response = createMessage({
-            bounce: BounceMode.Only256BitsOfBody,
+            bounce: BounceMode.NoBounce,
             value: 0,
             dest: sender,
             body: FeeQuoter_MessageValidationFailed {
@@ -658,7 +658,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
 fun sendExcessesTo(sendExcessesTo: address?, sender: address) {
     var receiver = sender;
     if (sendExcessesTo != null) {
-        receiver = sendExcessesTo!;
+        receiver = sendExcessesTo;
     }
 
     val returnExcesses = createMessage({
@@ -698,7 +698,7 @@ get fun tokenPrices(tokens: array<address>): array<Cell<TimestampedPrice>?> {
 
 get fun destinationChainGasPrice(destChainSelector: uint64): Cell<GasPrice> {
     val st = lazy Storage.load();
-    var entry = st.destChainConfigs.get(destChainSelector);
+    val entry = st.destChainConfigs.get(destChainSelector);
     assert (entry.isFound) throw (FeeQuoter_Error.UnknownDestChainSelector);
     return entry.loadValue().usdPerUnitGas
 }
@@ -766,7 +766,7 @@ get fun errorCode(local: uint16): uint16 {
 get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy Storage.load();
     val d = st.destChainConfigs;
-    return keysLispList(d)!;
+    return keysLispList(d);
 }
 
 get fun reserve(): coins {

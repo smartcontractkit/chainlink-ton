@@ -90,7 +90,7 @@ struct TokenPool_Data {
 }
 
 @inline
-fun TokenPool_Data.fromContractData() {
+fun TokenPool_Data.fromContractData(): TokenPool_Data {
     return TokenPool_Data.fromCell(contract.getData());
 }
 
@@ -718,7 +718,7 @@ fun TokenPool<T>.applyChainUpdates(
 
 /// Curses `subjects` in the pool-local `CursePolicy`. Sender must hold
 /// `CURSE_ROLE` or be the policy admin, which is not the pool owner.
-fun TokenPool<T>.curse(mutate self, sender: address, msgValue: coins, subjects: SnakedCell<uint128>) {
+fun TokenPool<T>.curse(mutate self, sender: address, _msgValue: coins, subjects: SnakedCell<uint128>) {
     var localPolicy = self.data.localPolicy.load();
     localPolicy.cursePolicy.requireCurseRole(sender);
     localPolicy.cursePolicy.curseAll(subjects);
@@ -727,7 +727,7 @@ fun TokenPool<T>.curse(mutate self, sender: address, msgValue: coins, subjects: 
 
 /// Uncurses `subjects` in the pool-local `CursePolicy`. Sender must hold
 /// `UNCURSE_ROLE` or be the policy admin.
-fun TokenPool<T>.uncurse(mutate self, sender: address, msgValue: coins, subjects: SnakedCell<uint128>) {
+fun TokenPool<T>.uncurse(mutate self, sender: address, _msgValue: coins, subjects: SnakedCell<uint128>) {
     var localPolicy = self.data.localPolicy.load();
     localPolicy.cursePolicy.requireUncurseRole(sender);
     localPolicy.cursePolicy.uncurseAll(subjects);
@@ -929,8 +929,8 @@ fun TokenPool<T>.onPreflightCheckFinished(
     self.onlyAdvancedPoolHooks(sender);
 
     val fwdp = msg.forwardPayload.load();
-    var requestMsg = lazy fwdp.requestMsg.load();
-    var prepared = lazy fwdp.prepared.load();
+    val requestMsg = lazy fwdp.requestMsg.load();
+    val prepared = lazy fwdp.prepared.load();
 
     try {
         // The hook must return enough for the pre-withdraw gate (`3S + F`): one `S` funds this
@@ -1407,7 +1407,7 @@ fun TokenPool<T>.onGetCCVs(
     }
 
     // No hooks -> empty CCV set (callers fall back to lane defaults).
-    var emptyCCVs: array<address> = [];
+    val emptyCCVs: array<address> = [];
     self.sendCCVsReply(replyTo, msg.queryId, emptyCCVs, context);
 }
 
@@ -1827,7 +1827,7 @@ fun TokenPool<T>.createCustodyReturn(
     val requestMsg = lazy forwardPayload.requestMsg.load();
     val details = lazy requestMsg.request.load().transfer.details.load();
 
-    val extra = requestMsg.extra != null ? requestMsg.extra!.load() : null;
+    val extra = requestMsg.extra != null ? requestMsg.extra.load() : null;
     val transferRecipient = extra != null && extra.returnTo != null
         ? extra.returnTo
         : transferInitiator; // default
@@ -2159,7 +2159,7 @@ fun TokenPool<T>.ensureNotCursed(self, remoteChainSelector: uint64) {
 
 fun TokenPool<T>.preflightCheck(
     self,
-    sender: address,
+    _sender: address,
     msg: TokenPool_LockOrBurn,
     forwardPayload: TokenPool_LockOrBurnForwardPayload,
 ): bool {
@@ -2199,7 +2199,7 @@ fun TokenPool<T>.preflightCheck(
 
 fun TokenPool<T>.postflightCheck(
     self,
-    sender: address,
+    _sender: address,
     msg: TokenPool_ReleaseOrMint,
     forwardPayload: TokenPool_ReleaseOrMintForwardPayload,
 ): bool {

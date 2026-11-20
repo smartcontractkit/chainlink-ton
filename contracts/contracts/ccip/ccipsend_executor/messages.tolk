@@ -1,5 +1,3 @@
-import "../../lib/jetton/messages"
-
 import "../router/messages"
 import "../onramp/messages"
 import "../fee_quoter/messages"

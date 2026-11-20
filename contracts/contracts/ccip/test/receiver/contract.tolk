@@ -39,7 +39,7 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy TestReceiver_InMessage.fromSlice(in.body);
     match (msg) {
         Receiver_CCIPReceiveV2 => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             // Standard way for a receiver to be implemented:
 
             // 1. Check that enough value is received to process this message (you should benchmark accordingly)
@@ -51,7 +51,7 @@ fun onInternalMessage(in: InMessage) {
             // 3. Process the message according to your product logic
             match (st.behavior) {
                 TestReceiver_Behavior.Accept => {
-                    processAccept(msg, in.senderAddress)
+                    processAccept(msg)
                 },
                 TestReceiver_Behavior.RejectAll => {
                     processRejectAll()
@@ -88,7 +88,7 @@ fun onInternalMessage(in: InMessage) {
             onUpdateBehavior(msg, in.senderAddress)
         }
         Upgradeable_Upgrade => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onUpgrade(msg);
         }
@@ -99,18 +99,18 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun processAccept(msg: Receiver_CCIPReceiveV2, senderAddress: address) {
+fun processAccept(msg: Receiver_CCIPReceiveV2) {
     emit(RECEIVED_MESSAGE_TOPIC, CCIPMessageReceived{
         message: msg.message.load(),
     });
 }
 
-fun processRejectAll() {
+fun processRejectAll(): never {
     throw TestReceiver_Error.Rejected;
 }
 
 // This is just for testing purposes
-fun processConsumeAllGas() {
+fun processConsumeAllGas(): never {
     var x: int = 0;
     while (true) { x = x + 1; }
 }

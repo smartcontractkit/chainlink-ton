@@ -106,13 +106,13 @@ fun prepareRegister(st: FiredrillEntrypoint_Storage) {
 	// Send message to OffRamp to emit SourceChainConfigSet event
 	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
-	val msg = createMessage({
+	val emitSourceChainConfigSet = createMessage({
 		bounce: BounceMode.NoBounce,
 		value: 0,
 		dest: firedrillContracts.firedrillOffRamp,
 		body: FiredrillOffRamp_EmitSourceChainConfigSet {},
 	});
-	msg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+	emitSourceChainConfigSet.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun drillPendingCommitPendingQueueTxSpike(mutate st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypoint_DrillPendingCommitPendingQueueTxSpike, value: coins) {
@@ -131,13 +131,13 @@ fun drillPendingCommitPendingQueueTxSpike(mutate st: FiredrillEntrypoint_Storage
 			sequenceNumber: i
 		};
 		
-		val message = createMessage({
+		val emitCCIPMessageSent = createMessage({
 			bounce: BounceMode.NoBounce,
 			value: DRILL_MESSAGE_VALUE,
 			dest: firedrillContracts.firedrillOnRamp,
 			body: emitMsg,
 		});
-		message.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+		emitCCIPMessageSent.send(SEND_MODE_REGULAR | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 		
 		i += 1;
 	}
@@ -158,13 +158,13 @@ fun drillPendingExecution(st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypo
 	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 
-	val message = createMessage({
+	val emitCommitReportAccepted = createMessage({
 		bounce: BounceMode.NoBounce,
 		value: 0,
 		dest: firedrillContracts.firedrillOffRamp,
 		body: emitMsg,
 	});
-	message.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+	emitCommitReportAccepted.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun drillPriceRegistries(st: FiredrillEntrypoint_Storage) {
@@ -175,13 +175,13 @@ fun drillPriceRegistries(st: FiredrillEntrypoint_Storage) {
 		destChainSelector: st.chainSelector,
 		executionGasPrice: 1,
 		dataAvailabilityGasPrice: 1,
-		timestamp: timestamp
+		timestamp
 	});
 }
 
 // ========== Router Getters ==========
 
-get fun onRamp(destChainSelector: uint64): address {
+get fun onRamp(_destChainSelector: uint64): address {
 	val st = lazy FiredrillEntrypoint_Storage.load();
 
 	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
@@ -190,7 +190,7 @@ get fun onRamp(destChainSelector: uint64): address {
 	return firedrillContracts.firedrillOnRamp;
 }
 
-get fun offRamp(sourceChainSelector: uint64): address {
+get fun offRamp(_sourceChainSelector: uint64): address {
 	val st = lazy FiredrillEntrypoint_Storage.load();
 
 	assert (st.firedrillContracts != null) throw (FiredrillEntrypoint_Error.RampsNotInitialized);
@@ -233,14 +233,14 @@ get fun staticConfig(): (uint96, address, uint64) {
 	return (1, st.tokenAddress, 0);
 }
 
-get fun tokenPrice(token: address): TimestampedPrice {
+get fun tokenPrice(_token: address): TimestampedPrice {
 	return TimestampedPrice {
 		value: 1,
 		timestamp: 0
 	};
 }
 
-get fun destinationChainGasPrice(destChainSelector: uint64): cell {
+get fun destinationChainGasPrice(_destChainSelector: uint64): cell {
 	val gasPrice = GasPrice {
 		executionGasPrice: 1,
 		dataAvailabilityGasPrice: 1,
@@ -249,7 +249,7 @@ get fun destinationChainGasPrice(destChainSelector: uint64): cell {
 	return gasPrice.toCell();
 }
 
-get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
+get fun destChainConfig(_destChainSelector: uint64): DestChainConfig {
   val destChainConfig: DestChainConfig = {
     config: {// minimal valid config for EVM destination
 	isEnabled: true,

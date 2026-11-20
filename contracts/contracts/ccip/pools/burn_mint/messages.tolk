@@ -2,7 +2,6 @@
 import "../../../lib/jetton/messages"
 import "../../../lib/versioning/upgradeable"
 import "../../cct/messages"
-import "../lib/token_pool/messages"
 
 struct (0x39898e4d) BurnMintTokenPool_ClaimMinterAdmin {
     queryId: uint64;

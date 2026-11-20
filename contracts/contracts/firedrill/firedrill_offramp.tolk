@@ -86,14 +86,14 @@ fun emitCommitReportAccepted(minSeqNr: uint64, maxSeqNr: uint64, st: FiredrillOf
 	val merkleRoot = MerkleRoot {
 		sourceChainSelector: st.chainSelector,
 		onRampAddress: st.onRampAddress,
-		minSeqNr: minSeqNr,
-		maxSeqNr: maxSeqNr,
+		minSeqNr,
+		maxSeqNr,
 		merkleRoot: merkleRootHash
 	};
 	
 	// Emit CommitReportAccepted with empty price updates
 	emit(TOPIC_COMMIT_REPORT_ACCEPTED, CommitReportAccepted {
-		merkleRoot: merkleRoot,
+		merkleRoot,
 		priceUpdates: null
 	});
 }
@@ -121,7 +121,7 @@ get fun config(): Config {
 }
 
 // Getter for source chain config
-get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
+get fun sourceChainConfig(_sourceChainSelector: uint64): SourceChainConfig {
 	val st = lazy FiredrillOffRamp_Storage.load();
 	
 	return SourceChainConfig {

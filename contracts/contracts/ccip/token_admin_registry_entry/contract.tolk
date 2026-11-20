@@ -3,7 +3,6 @@ import "messages"
 import "storage"
 import "errors"
 import "types"
-import "../../lib/utils"
 import "../../lib/versioning/upgradeable"
 import "../token_admin_registry/messages"
 import "../../lib/jetton/messages"
@@ -99,7 +98,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     match (bounced) {
         TokenPool_GetConfig => {
             val st = lazy TokenRegistry_Storage.load();
-            if (st.pendingPool != null && in.senderAddress == st.pendingPool!) {
+            if (st.pendingPool != null && in.senderAddress == st.pendingPool) {
                 delist(bounced.queryId, true);
             }
         }
@@ -117,7 +116,7 @@ fun requireRoot(sender: address) {
 /// request to resume. All message value is carried.
 fun deferToRoot(msg: TokenAdminRegistryEntry_MessageFromRoot) {
     val st = lazy TokenRegistry_Storage.load();
-    createMessage({
+    val upgradeRequest = createMessage({
         bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: st.adminConfig.load().tokenAdminRegistry,
@@ -126,7 +125,8 @@ fun deferToRoot(msg: TokenAdminRegistryEntry_MessageFromRoot) {
             token: st.tokenAddress,
             request: msg.toCell(),
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    });
+    upgradeRequest.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Several requests may be deferred concurrently, each funding an upgrade from the root's balance.
@@ -134,12 +134,13 @@ fun deferToRoot(msg: TokenAdminRegistryEntry_MessageFromRoot) {
 fun onUpgrade(msg: Upgradeable_Upgrade) {
     if (contract.getCode().hashEqual(msg.code)) {
         val st = lazy TokenRegistry_Storage.load();
-        createMessage({
+        val refund = createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
             dest: st.adminConfig.load().tokenAdminRegistry,
             body: TokenAdminRegistry_UpgradeRefund { queryId: msg.queryId },
-        }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+        });
+        refund.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
     Upgradeable { migrate, version }.upgrade(msg);
@@ -153,7 +154,7 @@ fun onGetTokenInfo(queryId: uint64, msg: TokenAdminRegistryEntry_GetTokenInfo) {
         disabled.tokenPool = null;
         tokenInfo = disabled.toCell();
     }
-    createMessage({
+    val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: st.adminConfig.load().tokenAdminRegistry,
@@ -163,7 +164,8 @@ fun onGetTokenInfo(queryId: uint64, msg: TokenAdminRegistryEntry_GetTokenInfo) {
             requester: msg.requester,
             tokenInfo,
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Emits the initial proposal after Deployable has atomically installed this
@@ -196,7 +198,7 @@ fun verify(st: TokenRegistry_Storage, queryId: uint64) {
         queryWallet(st.tokenAddress, queryId);
     }
     if (st.pendingPool != null) {
-        probePoolConfig(st.pendingPool!, queryId);
+        probePoolConfig(st.pendingPool, queryId);
     }
 }
 
@@ -211,7 +213,7 @@ fun onVerifyToken(queryId: uint64) {
 
 /// A bounced query or a response without a wallet leaves the token unverified.
 fun queryWallet(token: address, queryId: uint64) {
-    createMessage({
+    val walletQuery = createMessage({
         bounce: BounceMode.RichBounce,
         value: TokenAdminRegistryEntry_WALLET_QUERY_VALUE,
         dest: token,
@@ -220,7 +222,8 @@ fun queryWallet(token: address, queryId: uint64) {
             ownerAddress: contract.getAddress(),
             includeOwnerAddress: false,
         },
-    }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    });
+    walletQuery.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun onResponseWalletAddress(msg: ResponseWalletAddress, sender: address) {
@@ -274,7 +277,7 @@ fun onSetPool(queryId: uint64, msg: TokenAdminRegistryEntry_SetPool) {
     if (msg.tokenPool != null) {
         st.pendingPool = msg.tokenPool;
         st.store();
-        return probePoolConfig(msg.tokenPool!, queryId);
+        return probePoolConfig(msg.tokenPool, queryId);
     }
 
     delist(queryId, true);
@@ -303,17 +306,18 @@ fun onRefreshPoolConfig(queryId: uint64) {
     val st = lazy TokenRegistry_Storage.load();
     val pool = st.pendingPool != null ? st.pendingPool : st.tokenInfo.load().tokenPool;
     if (pool != null) {
-        probePoolConfig(pool!, queryId);
+        probePoolConfig(pool, queryId);
     }
 }
 
 fun probePoolConfig(pool: address, queryId: uint64) {
-    createMessage({
+    val configQuery = createMessage({
         bounce: BounceMode.RichBounce,
         value: TokenAdminRegistryEntry_POOL_PROBE_VALUE,
         dest: pool,
         body: TokenPool_GetConfig { queryId },
-    }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    });
+    configQuery.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Accepts the answer of the pending pool (setting it) or of the current pool (refreshing it).
@@ -354,7 +358,7 @@ fun sameAddress(left: address?, right: address?): bool {
     if (right == null) {
         return false;
     }
-    return left! == right!;
+    return left == right;
 }
 
 fun notifyAdministratorTransferRequested(queryId: uint64, token: address, currentAdministrator: address?, newAdministrator: address?) {
@@ -380,7 +384,7 @@ fun notifyPoolSet(queryId: uint64, token: address, previousPool: address?, newPo
             token,
             previousPool,
             newPool,
-            transferInitiator: transferInitiator == null ? null : transferInitiator!.toCell(),
+            transferInitiator: transferInitiator == null ? null : transferInitiator.toCell(),
     }.toCell());
 }
 
@@ -388,17 +392,18 @@ fun notifyPoolSet(queryId: uint64, token: address, previousPool: address?, newPo
 /// payload as an external event. The attached value funds root execution/logging.
 fun notifyRoot(body: cell) {
     val st = TokenRegistry_Storage.load();
-    createMessage({
+    val notification = createMessage({
         bounce: BounceMode.Only256BitsOfBody,
         value: TokenAdminRegistryEntry_relayEventCost(),
         dest: st.adminConfig.load().tokenAdminRegistry,
         body,
-    }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    });
+    notification.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // Implement when upgrading the contract
 @method_id(1000)
-fun migrate(storage: cell, version: slice): cell {
+fun migrate(_storage: cell, _version: slice): cell {
     throw Upgradeable_Error.VersionMismatch
 }
 

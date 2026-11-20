@@ -6,7 +6,7 @@ import "./storage.tolk";
 
 type IncomingMessage = Upgradeable_Upgrade | Step;
 
-fun loadData() {
+fun loadData(): StorageV1 {
     return StorageV1.fromCell(contract.getData());
 }
 
@@ -28,7 +28,7 @@ fun onInternalMessage(in: InMessage) {
 
     val sender = in.senderAddress;
     var storage = loadData();
-    var handled = storage.ownable2Step.onInternalMessage(sender, in.body);
+    val handled = storage.ownable2Step.onInternalMessage(sender, in.body);
 
     if (handled) {
         saveData(storage);
@@ -69,7 +69,7 @@ get fun pendingOwner(): address? {
 }
 
 @method_id(1000)
-fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
+fun migrate(_storage: cell, _version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }
 

@@ -2,7 +2,6 @@
 tolk 1.5.0
 
 import "@stdlib/common"
-import "@stdlib/gas-payments"
 
 import "../../../lib/utils"
 import "../../../lib/jetton/messages"
@@ -139,19 +138,21 @@ fun replyToPendingInit(mutate data: DepositAccount_Data, walletLearned: bool) {
     data.pendingInit = null;
     reserveGramsOnBalance(DepositAccount_MIN_GRAM_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
     if (walletLearned) {
-        createMessage({
+        val initialized = createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
             dest: data.owner,
             body: DepositAccount_Initialized { queryId: pending.queryId, context: pending.context },
-        }).send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+        });
+        initialized.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     } else {
-        createMessage({
+        val walletUnavailable = createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
             dest: data.owner,
             body: DepositAccount_WalletUnavailable { queryId: pending.queryId, context: pending.context },
-        }).send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+        });
+        walletUnavailable.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     }
 }
 
@@ -224,8 +225,8 @@ fun onTransferNotification(sender: address, msg: TransferNotificationForRecipien
 
 /// Jettons minted to the account have no initiator and go to `user`.
 fun returnForeignTransfer(wallet: address, msg: TransferNotificationForRecipient, user: address) {
-    val recipient = msg.transferInitiator != null ? msg.transferInitiator! : user;
-    createMessage({
+    val recipient = msg.transferInitiator != null ? msg.transferInitiator : user;
+    val returnTransfer = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: wallet,
@@ -238,7 +239,8 @@ fun returnForeignTransfer(wallet: address, msg: TransferNotificationForRecipient
             forwardTonAmount: 0,
             forwardPayload: beginCell().storeMaybeRef(null).endCell().beginParse(),
         },
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
+    });
+    returnTransfer.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
 }
 
 /// Returns the `DepositAccount_Notify` target in `forwardPayload`, directly or inside a
@@ -248,12 +250,12 @@ fun parseNotifyTarget(forwardPayload: ForwardPayloadRemainder): address? {
         var payload = loadForwardPayloadAsCell(forwardPayload);
         val wrap = Jetton_ForwardPayloadWrap.from(forwardPayload);
         if (wrap != null) {
-            payload = wrap!.forwardPayload;
+            payload = wrap.forwardPayload;
         }
         if (payload == null) {
             return null;
         }
-        return DepositAccount_Notify.fromCell(payload!).notify;
+        return DepositAccount_Notify.fromCell(payload).notify;
     } catch {
         return null;
     }

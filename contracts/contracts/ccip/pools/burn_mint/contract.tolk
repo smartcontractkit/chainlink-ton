@@ -68,7 +68,7 @@ fun onInternalMessage(in: InMessage) {
     var pool = st.TokenPool();
     val handled = pool.onInternalMessage(in.senderAddress, in.valueCoins, in.body);
     if (handled) {
-        st = pool.context != null ? pool.context! : st;
+        st = pool.context != null ? pool.context : st;
         st.poolData = pool.data.toCell();
         st.store();
         return;
@@ -77,7 +77,7 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy BurnMintTokenPool_InMessage.fromSlice(in.body);
     match (msg) {
         BurnMintTokenPool_ClaimMinterAdmin => {
-            onClaimMinterAdmin(mutate st, in.senderAddress, in.valueCoins, msg.queryId);
+            onClaimMinterAdmin(st, in.senderAddress, in.valueCoins, msg.queryId);
             st.store();
         }
         CCT_ReturnExcessesBack => {
@@ -213,7 +213,7 @@ fun onReleaseOrMintContinue(
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
     assert (ctx != null) throw (TokenPool_Error.UnsupportedOperation);
-    var st = ctx;
+    val st = ctx;
     val delivery = msg.delivery.load();
     val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
         initiator,
@@ -235,7 +235,7 @@ fun onReleaseOrMintContinue(
     val forwardTonAmount = st.TokenPool().releaseOrMintForward(msg.finalizationValue());
 
     // Caller-selected excess recipient; default to the flow initiator.
-    val sendExcessesTo = msg.sendExcessesTo != null ? msg.sendExcessesTo! : initiator;
+    val sendExcessesTo = msg.sendExcessesTo != null ? msg.sendExcessesTo : initiator;
 
     // The recipient's notification carries the pool's finalization safety plus the caller's
     // continuation. The minter gets the exact cost of the mint, so it keeps nothing; the wallet
@@ -288,7 +288,7 @@ fun onReleaseOrMintContinue(
 }
 
 fun onClaimMinterAdmin(
-    mutate st: Storage,
+    st: Storage,
     sender: address,
     msgValue: coins,
     queryId: uint64,
@@ -482,7 +482,7 @@ get fun getTokenTransferFeeConfig(destChainSelector: uint64): TokenPool_TokenTra
 
 /// Returns the pool-local cursed subjects.
 get fun cursedSubjects(): lisp_list<uint128> {
-    return keysLispList(Storage.load().poolData.load().localPolicy.load().cursePolicy.cursedSubjects.data)!;
+    return keysLispList(Storage.load().poolData.load().localPolicy.load().cursePolicy.cursedSubjects.data);
 }
 
 /// Returns the pool's admin configuration.

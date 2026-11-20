@@ -61,10 +61,10 @@ fun emitCCIPMessageSent(sender: address, sequenceNumber: uint64, chainSelector: 
 		.hash();
 	
 	val header = RampMessageHeader {
-		messageId: messageId,
+		messageId,
 		sourceChainSelector: chainSelector,
 		destChainSelector: chainSelector, // For firedrill, using same chain
-		sequenceNumber: sequenceNumber,
+		sequenceNumber,
 		nonce: 1
 	};
 	
@@ -83,13 +83,13 @@ fun emitCCIPMessageSent(sender: address, sequenceNumber: uint64, chainSelector: 
 	};
 	
 	val message = TVM2AnyRampMessage {
-		header: header,
-		sender: sender,
+		header,
+		sender,
 		body: messageBody.toCell(),
 		feeValueJuels: 0
 	};
 	
-	emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent { message: message });
+	emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent { message });
 }
 
 // Note: getStaticConfig name is kept to match EVM implementation
@@ -110,7 +110,7 @@ get fun dynamicConfig(): OnRamp_DynamicConfig {
 }
 
 // Getter for destination chain config
-get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
+get fun destChainConfig(_destChainSelector: uint64): OnRamp_DestChainConfig {
 	val st = lazy FiredrillOnRamp_Storage.load();
 	return OnRamp_DestChainConfig {
 		router: st.controlAddress,

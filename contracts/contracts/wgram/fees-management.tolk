@@ -62,20 +62,20 @@ const GAS_CONSUMPTION_BurnRequest       = 5613
 const GAS_CONSUMPTION_BurnNotification  = 4558
 
 
-fun calculateJettonWalletMinStorageFee() {
+fun calculateJettonWalletMinStorageFee(): coins {
     return calculateStorageFee(MY_WORKCHAIN, MIN_STORAGE_DURATION, STORAGE_SIZE_MaxWallet_bits, STORAGE_SIZE_MaxWallet_cells);
 }
 
-fun forwardInitStateOverhead() {
+fun forwardInitStateOverhead(): coins {
     return calculateForwardFeeWithoutLumpPrice(MY_WORKCHAIN, STORAGE_SIZE_InitStateWallet_bits, STORAGE_SIZE_InitStateWallet_cells);
 }
 
 fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: int) {
-    var fwdCount = forwardTonAmount != 0 ? 2 : 1; // second sending (forward) will be cheaper than first
+    val fwdCount = forwardTonAmount != 0 ? 2 : 1; // second sending (forward) will be cheaper than first
 
-    var jettonWalletGasConsumption = getPrecompiledGasConsumption();
-    var sendTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonTransfer : jettonWalletGasConsumption;
-    var receiveTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonReceive : jettonWalletGasConsumption;
+    val jettonWalletGasConsumption = getPrecompiledGasConsumption();
+    val sendTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonTransfer : jettonWalletGasConsumption;
+    val receiveTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonReceive : jettonWalletGasConsumption;
 
     assert (msgValue >
         forwardTonAmount +
@@ -86,7 +86,7 @@ fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: 
         calculateGasFee(MY_WORKCHAIN, sendTransferGasConsumption) +
         calculateGasFee(MY_WORKCHAIN, receiveTransferGasConsumption) +
         calculateJettonWalletMinStorageFee()
-    ) throw (ERROR_NOT_ENOUGH_GAS);
+    ) throw (Jetton_Error.NotEnoughGas);
 }
 
 fun checkAmountIsEnoughToMint(msgValue: int, jettonAmount: int, tonAmount: int, fwdFee: int) {
@@ -97,12 +97,12 @@ fun checkAmountIsEnoughToMint(msgValue: int, jettonAmount: int, tonAmount: int, 
         tonAmount +
         fwdFee +
         forwardInitStateOverhead() // additional fwd fees related to initstate in internal_transfer
-    ) throw (ERROR_NOT_ENOUGH_GAS);
+    ) throw (Jetton_Error.NotEnoughGas);
 }
 
 fun checkAmountIsEnoughToBurn(msgValue: int) {
-    var jettonWalletGasConsumption = getPrecompiledGasConsumption();
-    var sendBurnGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_BurnRequest : jettonWalletGasConsumption;
+    val jettonWalletGasConsumption = getPrecompiledGasConsumption();
+    val sendBurnGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_BurnRequest : jettonWalletGasConsumption;
 
     assert (msgValue >
         calculateForwardFee(MY_WORKCHAIN, MESSAGE_SIZE_BurnNotification_bits, MESSAGE_SIZE_BurnNotification_cells) +
@@ -112,5 +112,5 @@ fun checkAmountIsEnoughToBurn(msgValue: int) {
         calculateForwardFee(MY_WORKCHAIN, MESSAGE_SIZE_ReturnExcesses_bits, MESSAGE_SIZE_ReturnExcesses_cells) +
         calculateGasFee(MY_WORKCHAIN, sendBurnGasConsumption) +
         calculateGasFee(MY_WORKCHAIN, GAS_CONSUMPTION_BurnNotification)
-    ) throw (ERROR_NOT_ENOUGH_GAS);
+    ) throw (Jetton_Error.NotEnoughGas);
 }

@@ -60,13 +60,13 @@ fun OCR3Base.getConfig(self, ocrPluginType: uint16): OCRConfig? {
 		if (self.commit == null) {
 			return null;
 		}
-		return self.commit!.load();
+		return self.commit.load();
 
 	} else if (ocrPluginType == OCR_PLUGIN_TYPE_EXECUTE) {
 		if (self.execute == null) {
 			return null;
 		}
-		return self.execute!.load();
+		return self.execute.load();
 	} else {
 		throw MultiOCR3Base_Error.NonExistentOcrPluginType;
 	}
@@ -79,7 +79,6 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 	if (ocrConfig == null) {
 		ocrConfig = newOCRConfig();
 	} 
-	ocrConfig = ocrConfig!;
 
 	// If F is 0, then the config is not yet set.
 	if (ocrConfig.configInfo.bigF == 0) {
@@ -132,9 +131,8 @@ fun OCR3Base.transmit(
     report: cell,
     signatures: SnakedCell<SignatureEd25519>,
 ) {
-    var ocrConfig = self.getConfig(ocrPluginType);
+    val ocrConfig = self.getConfig(ocrPluginType);
     assert (ocrConfig != null) throw (MultiOCR3Base_Error.NonExistentOcrPluginType);
-    ocrConfig = ocrConfig!;
     val configInfo: ConfigInfo = ocrConfig.configInfo;
     
     // EVM checks transaction data length here, it's probably too expensive to do this in TON 
@@ -165,7 +163,7 @@ fun OCR3Base.transmit(
 }
 
 fun OCR3Base.hashReport(self, report: cell, reportContext: ReportContext): int {
-	var data = beginCell()
+	val data = beginCell()
 		.storeRef(report)
 		.storeUint(reportContext.configDigest, 256)
 		.storeUint(0, 192) // Padding to 256 bits
@@ -192,7 +190,7 @@ fun OCR3Base.verifySignature(
 		val signerIndex = entry.loadValue();
 		assert (isSignatureValid(hashedReport,signature.toCell().beginParse().skipBits(256), signer)) throw (MultiOCR3Base_Error.InvalidSignature);
 
-		assert (!seen.has(signerIndex!)) throw (MultiOCR3Base_Error.NonUniqueSignatures);
-		seen.set(signerIndex!);
+		assert (!seen.has(signerIndex)) throw (MultiOCR3Base_Error.NonUniqueSignatures);
+		seen.set(signerIndex);
 	}
 }

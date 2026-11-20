@@ -144,7 +144,7 @@ fun CursedSubjects.curse(mutate self, subject: uint128) {
 fun CursedSubjects.uncurse(mutate self, subject: uint128) {
     self.data.delete(subject);
 }
-fun CursedSubjects.isCursed(self, subject: uint128) {
+fun CursedSubjects.isCursed(self, subject: uint128): bool {
     // fastpath, majority of the time there's no curse
     if (self.data.isEmpty()) { return false; }
     val isGlobalCursed = self.data.exists(RMNREMOTE_GLOBAL_CURSE_SUBJECT);

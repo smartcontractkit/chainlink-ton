@@ -2,7 +2,6 @@
 tolk 1.5.0
 
 import "@stdlib/common.tolk"
-import "@stdlib/gas-payments"
 
 import "../../../lib/utils"
 import "../../../lib/access/access_control"
@@ -46,10 +45,10 @@ fun onInternalMessage(in: InMessage) {
 
     match (msg) {
         TransferNotificationForRecipient => {
-            onDepositWithTransferNotification(mutate st, in.senderAddress, in.valueCoins, msg);
+            onDepositWithTransferNotification(st, in.senderAddress, in.valueCoins, msg);
         }
         JettonLockBox_Withdraw => {
-            onWithdraw(mutate st, in.senderAddress, in.valueCoins, msg);
+            onWithdraw(st, in.senderAddress, in.valueCoins, msg);
         }
         JettonLockBox_WithdrawRescue => {
             onWithdrawRescue(st, in.senderAddress, in.valueCoins, msg);
@@ -117,7 +116,7 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
     rbac._setRoleAdmin(msg.queryId, sender, DEFAULT_ADMIN_ROLE, DEFAULT_ADMIN_ROLE, returnRoleExcess);
     rbac._setRoleAdmin(msg.queryId, sender, OPERATOR_ROLE, DEFAULT_ADMIN_ROLE, returnRoleExcess);
 
-    val adminAddress = msg.admin != null ? msg.admin! : sender;
+    val adminAddress = msg.admin != null ? msg.admin : sender;
     rbac._grantRole(msg.queryId, sender, DEFAULT_ADMIN_ROLE, adminAddress, returnRoleExcess);
 
     st.rbac = rbac.data;
@@ -147,7 +146,7 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
 ///      would otherwise be permanently parked in this lockbox. Return them best-effort to the transfer
 ///      initiator instead of silently dropping them.
 fun onDepositWithTransferNotification(
-    mutate st: Storage,
+    st: Storage,
     sender: address,
     msgValue: coins,
     msg: TransferNotificationForRecipient,
@@ -224,16 +223,16 @@ fun onDepositReturn(
 
     // The failure is optional, only if deposit information is available, and it's
     // non-configurable by design, always sent back to the initiator of the deposit.
-    val depositExtra = deposit != null && deposit!.extra != null
-        ? deposit!.extra!.load()
+    val depositExtra = deposit != null && deposit.extra != null
+        ? deposit.extra.load()
         : null;
     val failureValue = depositExtra != null ? depositExtra.failureValue : 0 as coins;
-    var failure = createMessage({
+    val failure = createMessage({
         bounce: BounceMode.NoBounce,
         value: failureValue,
         dest: transferInitiator,
         body: JettonLockBox_DepositFailed {
-            queryId: deposit != null ? deposit!.queryId : msg.queryId,
+            queryId: deposit != null ? deposit.queryId : msg.queryId,
             token: st.minterAddress,
             depositor: transferInitiator,
             amount: msg.jettonAmount,
@@ -243,7 +242,7 @@ fun onDepositReturn(
     });
 
     // Best-effort return to the account named in the deposit (falls back to the depositor).
-    var transferRecipient = depositExtra != null && depositExtra.returnTo != null
+    val transferRecipient = depositExtra != null && depositExtra.returnTo != null
         ? depositExtra.returnTo
         : transferInitiator;
     // Keep the return's excess at the caller-selected recipient; fall back to the depositor when
@@ -260,7 +259,7 @@ fun onDepositReturn(
             .beginParse() as ForwardPayloadRemainder;
     // A failed return uses a short bounce; the lockbox accepts the returned TON and never
     // enters the rich-bounce withdraw handler.
-    var transfer = createMessage({
+    val transfer = createMessage({
         bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: st.walletAddress!, // sender
@@ -293,7 +292,7 @@ fun onDepositReturn(
 /// @dev Bounces to `onBouncedMessage` if the transfer fails, which notifies the caller with `WithdrawFailed`.
 /// @dev The caller's address and the original withdraw request are tagged onto the transfer's
 /// `forwardPayload` via `Jetton_ForwardPayloadWrap`, so the bounce handler can notify the caller with context.
-fun onWithdraw(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLockBox_Withdraw) {
+fun onWithdraw(st: Storage, sender: address, msgValue: coins, msg: JettonLockBox_Withdraw) {
     assert (st.isInitialized()) throw (JettonLockBox_Error.ContractNotInitialized);
 
     val rbac = hookTrait__AccessControl(st);
@@ -364,8 +363,8 @@ fun onWithdrawRescue(st: Storage, sender: address, msgValue: coins, msg: JettonL
 }
 
 /// Admin-only recovery of any excess GRAM
-fun onWithdrawableWithdraw(st: Storage, sender: address, msgValue: coins, msg: Withdrawable_Withdraw) {
-    var rbac = hookTrait__AccessControl(st);
+fun onWithdrawableWithdraw(st: Storage, sender: address, _msgValue: coins, msg: Withdrawable_Withdraw) {
+    val rbac = hookTrait__AccessControl(st);
     rbac.requireRole(DEFAULT_ADMIN_ROLE, sender);
     Withdrawable { reserve: MIN_GRAM_TO_RESERVE }.withdraw(msg);
 }

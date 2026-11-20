@@ -22,7 +22,7 @@ struct(0x00000001) CalculateRoot {
     proofFlagBits: uint256,
 }
 
-fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+fun onInternalMessage(_myBalance: int, _msgValue: int, _msgFull: cell, msgBody: slice) {
     if (msgBody.isEmpty()) { // ignore all empty messages
         return;
     }
@@ -30,8 +30,8 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     var storage = loadData();
     val msg = CalculateRoot.fromSlice(msgBody);
 
-    var leavesIterator = msg.leaves.iter();
-    var proofsIterator = msg.proofs.iter();
+    val leavesIterator = msg.leaves.iter();
+    val proofsIterator = msg.proofs.iter();
     val root = merkleRoot(
         leavesIterator,
         proofsIterator,
@@ -43,7 +43,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 }
 
 get fun root(): uint256 {
-    var storage = loadData();
+    val storage = loadData();
     return storage.root;
 }
 

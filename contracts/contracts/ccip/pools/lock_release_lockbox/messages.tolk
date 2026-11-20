@@ -3,7 +3,6 @@
 import "../../../lib/jetton/messages"
 import "../../../lib/versioning/upgradeable"
 
-import "../lib/token_pool/messages"
 import "../lockbox/messages"
 
 type LockReleaseLockboxTokenPool_InMessage =

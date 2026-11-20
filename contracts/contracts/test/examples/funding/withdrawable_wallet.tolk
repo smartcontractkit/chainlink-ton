@@ -12,7 +12,7 @@ struct Storage {
     reserve: coins;
 }
 
-fun loadData() {
+fun loadData(): Storage {
     return Storage.fromCell(contract.getData());
 }
 
@@ -25,7 +25,7 @@ type IncomingMessage = Withdrawable_Withdraw;
 fun onInternalMessage(in: InMessage) {
     val sender = in.senderAddress;
     var storage: Storage = loadData();
-    var handled = storage.ownable2Step.onInternalMessage(sender, in.body);
+    val handled = storage.ownable2Step.onInternalMessage(sender, in.body);
 
     if (handled) {
         saveData(storage);
@@ -72,6 +72,6 @@ get fun errorCode(local: uint16): uint16 {
 }
 
 get fun reserve(): coins {
-    var storage: Storage = loadData();
+    val storage: Storage = loadData();
     return storage.reserve;
 }

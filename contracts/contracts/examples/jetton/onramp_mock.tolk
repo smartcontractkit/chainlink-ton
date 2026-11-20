@@ -10,8 +10,10 @@ import "../../lib/utils.tolk"
 // Mock onramp that accepts jetton transfers if they meet the fee requirement
 const FEE = 5
 
-const INCORRECT_SENDER_ERROR = 100
-const FORWARD_PAYLOAD_REQUIRED_ERROR = 101
+enum OnrampMock_Error {
+    IncorrectSender = 100
+    ForwardPayloadRequired = 101
+}
 
 // Jetton wallet utilities for Tolk
 const JETTON_TOPIC : int = 0x351 // for easier indexing
@@ -47,9 +49,9 @@ fun OnrampMock.handleJettonTransferNotification(
     sender: address,
 ) {
     // Check if the sender is our jetton wallet
-    assert (sender == self.JettonClient.walletAddress()) throw (INCORRECT_SENDER_ERROR);
+    assert (sender == self.JettonClient.walletAddress()) throw (OnrampMock_Error.IncorrectSender);
 
-    var forwardPayloadCell = loadForwardPayloadAsCell(msg.forwardPayload);
+    val forwardPayloadCell = loadForwardPayloadAsCell(msg.forwardPayload);
 
     // Handle the jetton transfer
     if (msg.jettonAmount < FEE) {

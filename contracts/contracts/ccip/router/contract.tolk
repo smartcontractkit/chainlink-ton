@@ -115,9 +115,9 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must be OnRamp
         Router_WithdrawToTokenPool => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
-            onWithdrawToTokenPool(mutate st, msg);
+            onWithdrawToTokenPool(msg);
         }
         // Sender must be OnRamp
         Router_WithdrawToTokenPoolFailed => {
@@ -141,16 +141,16 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must hold the RMN curse role.
         Router_RMNRemoteCurse => {
-            var st = lazy Storage.load();
-            var rmn = st.rmnRemote.load();
+            val st = lazy Storage.load();
+            val rmn = st.rmnRemote.load();
             requireRMNCurseAdmin(rmn, in.senderAddress);
             rmn.requireUpdateCursedSubjectsFee(in.valueCoins);
             onRMNRemoteCurse(st, rmn, msg);
         }
         // Sender must hold the RMN uncurse role.
         Router_RMNRemoteUncurse => {
-            var st = lazy Storage.load();
-            var rmn = st.rmnRemote.load();
+            val st = lazy Storage.load();
+            val rmn = st.rmnRemote.load();
             requireRMNUncurseAdmin(rmn, in.senderAddress);
             rmn.requireUpdateCursedSubjectsFee(in.valueCoins);
             onRMNRemoteUncurse(st, rmn, msg);
@@ -186,7 +186,7 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must hold the appropriate RMN role (checked in AccessControl struct)
         Router_RMNAccessControlMessage => {
-            onRMNAccessControlMessage(in.senderAddress, in.valueCoins, msg.content.beginParse());
+            onRMNAccessControlMessage(in.senderAddress, msg.content.beginParse());
         }
         // Sender must be owner
         Withdrawable_Withdraw => {
@@ -305,7 +305,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun onRMNAccessControlMessage(sender: address, value: coins, body: slice) {
+fun onRMNAccessControlMessage(sender: address, body: slice) {
     var st = lazy Storage.load();
     var rmn = st.rmnRemote.load();
     rmn.policy.onAccessControlMessage(sender, body);
@@ -354,7 +354,7 @@ fun onBouncedMessage(in: InMessageBounced) {
         // The deposit account was not deployed or rejected the init.
         DepositAccount_Init => {
             if (richMsg.context != null) {
-                val context = lazy Router_DepositAccountInitContext.fromCell(richMsg.context!);
+                val context = lazy Router_DepositAccountInitContext.fromCell(richMsg.context);
                 match (context) {
                     Router_RelayReleaseOrMint => {
                         sendDepositAccountInitFailure(context, rich.exitCode);
@@ -438,7 +438,7 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>, offr
 /// Asks the sender's sender account to transfer the jettons to the pool. A rejected or bounced
 /// transfer fails the CCIPSend through `failWithdrawToTokenPool`, which finds the executor in the
 /// transfer's forward payload, so that payload must name the executor requesting the withdraw.
-fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
+fun onWithdrawToTokenPool(msg: Router_WithdrawToTokenPool) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
     val account = withdrawRequest.senderAccount.load();
     val fwdp = lazy withdrawRequest.forwardPayload.load();
@@ -456,13 +456,13 @@ fun onWithdrawToTokenPool(mutate st: Storage, msg: Router_WithdrawToTokenPool) {
     // before custody moves. Use the canonical jetton ask so the deposit account can forward it
     // without a parallel message type. The source sender paid the source-side budget, so the
     // wallet's unused value returns to it rather than accumulating in the OnRamp.
-    val extra = request.extra != null ? request.extra!.load() : null;
+    val extra = request.extra != null ? request.extra.load() : null;
     val ask = AskToTransfer {
         queryId: msg.queryId,
         jettonAmount: withdrawRequest.amount,
         transferRecipient: withdrawRequest.tokenPool,
         sendExcessesTo: extra != null && extra.sendExcessesTo != null
-            ? extra.sendExcessesTo!
+            ? extra.sendExcessesTo
             : request.request.load().transfer.details.load().originalSender,
         customPayload: null,
         forwardTonAmount: withdrawRequest.forwardTonAmount,
@@ -674,7 +674,7 @@ fun updateOnRamps(mutate st: Storage, onRampUpdates: OnRamps?) {
 
 fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: OffRamps?) {
     if (offRampRemoves != null) {
-        val offRampRemove = offRampRemoves.offRamp!;
+        val offRampRemove = offRampRemoves.offRamp;
         var iter = offRampRemoves.sourceChainSelectors.iter();
         while (!iter.empty()) {
             val selector = iter.next();
@@ -690,7 +690,7 @@ fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: O
     }
 
     if (offRampAdds != null) {
-        val offRampAdd = offRampAdds.offRamp!;
+        val offRampAdd = offRampAdds.offRamp;
         var iter = offRampAdds.sourceChainSelectors.iter();
         while (!iter.empty()) {
             val selector = iter.next();
@@ -959,7 +959,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
     val st = lazy Storage.load();
 
     // verify destination chain not cursed
-    var rmn = st.rmnRemote.load();
+    val rmn = st.rmnRemote.load();
     val isCursed = rmn.policy.cursedSubjects.isCursed(msg.destChainSelector as uint128);
     assert (!isCursed) throw (Router_Error.SubjectCursed);
 
@@ -1318,7 +1318,7 @@ fun receiverAccountsOf(receiver: address, message: Cell<Any2TVMMessage>): array<
     var accounts: array<address> = [];
     val any2tvm = lazy message.load();
     if (any2tvm.tokenAmounts != null) {
-        var tokenAmounts = any2tvm.tokenAmounts!.iter();
+        var tokenAmounts = any2tvm.tokenAmounts.iter();
         while (!tokenAmounts.empty()) {
             val tokenAmount = tokenAmounts.next();
             accounts.push(receiverAccount(receiver, tokenAmount.token).calculateAddress());
@@ -1447,14 +1447,14 @@ fun version(): slice { return CONTRACT_VERSION; }
 
 get fun verifyNotCursed(subject: uint128): bool {
     val st = lazy Storage.load();
-    var rmn = st.rmnRemote.load();
+    val rmn = st.rmnRemote.load();
     return !rmn.policy.cursedSubjects.isCursed(subject);
 }
 
 get fun cursedSubjects(): lisp_list<uint128> {
     val st = lazy Storage.load();
     val rmn = st.rmnRemote.load();
-    return keysLispList(rmn.policy.cursedSubjects.data)!;
+    return keysLispList(rmn.policy.cursedSubjects.data);
 }
 
 /// Minimum value to attach to curse, uncurse and sync messages.
@@ -1563,7 +1563,7 @@ get fun offRamps(): lisp_list<Ramp> {
 get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy Storage.load();
     val d = st.onRamps;
-    return keysLispList(d)!;
+    return keysLispList(d);
 }
 
 /// Returns the deposit account where off-ramped `token` for `receiver` is delivered.

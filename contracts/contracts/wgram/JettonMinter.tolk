@@ -24,6 +24,7 @@ tolk 1.5.0
 import "@stdlib/strings"
 import "@stdlib/gas-payments"
 import "../lib/jetton/errors"
+import "errors"
 import "../lib/jetton/jetton-utils"
 import "../lib/jetton/storage"
 import "../lib/jetton/messages"
@@ -44,15 +45,11 @@ type AllowedMessageToMinter =
     | RequestWalletAddress
     | TopUpTons
 
-const ERROR_UNSUFFICIENT_AMOUNT = 76
-const ERROR_INVALID_EXCESSES_DESTINATION = 77
-const ERROR_INVALID_RECIPIENT = 78
-
-fun reserveModeExactFail() {
+fun reserveModeExactFail(): int {
     return RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
 }
 
-fun requiredMinterReserve() {
+fun requiredMinterReserve(): coins {
     return grams("0.01") + contract.getStorageDuePayment();
 }
 
@@ -97,10 +94,10 @@ fun onInternalMessage(in: InMessage) {
         BurnNotificationForMinter => {
             var storage = lazy MinterStorage.load();
             val calcAddress = calcAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode);
-            assert (in.senderAddress == calcAddress) throw (ERROR_NOT_VALID_WALLET);
+            assert (in.senderAddress == calcAddress) throw (Jetton_Error.NotValidWallet);
             // Reject burns without a refund destination so the withdrawn GRAM never gets stranded here.
-            assert (msg.sendExcessesTo != null) throw (ERROR_INVALID_EXCESSES_DESTINATION);
-            assert (msg.sendExcessesTo!.getWorkchain() == MY_WORKCHAIN) throw (ERROR_WRONG_WORKCHAIN);
+            assert (msg.sendExcessesTo != null) throw (WGram_Error.InvalidExcessesDestination);
+            assert (msg.sendExcessesTo.getWorkchain() == MY_WORKCHAIN) throw (Jetton_Error.WrongWorkchain);
             storage.totalSupply -= msg.jettonAmount;
             storage.save();
 
@@ -110,7 +107,7 @@ fun onInternalMessage(in: InMessage) {
             val excessesMsg = createMessage({
                 // Burn payout sends native GRAM to the recipient as a non-bounceable withdrawal (forced deposit).
                 bounce: BounceMode.NoBounce,
-                dest: msg.sendExcessesTo!,
+                dest: msg.sendExcessesTo,
                 value: 0,
                 body: ReturnExcessesBack {
                     queryId: msg.queryId
@@ -121,7 +118,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         RequestWalletAddress => {
-            var ownerAddress: Cell<address>? = msg.includeOwnerAddress
+            val ownerAddress: Cell<address>? = msg.includeOwnerAddress
                 ? msg.ownerAddress.toCell()
                 : null;
 
@@ -138,7 +135,7 @@ fun onInternalMessage(in: InMessage) {
                 body: ResponseWalletAddress {
                     queryId: msg.queryId,
                     jettonWalletAddress: walletAddress,
-                    ownerAddress: ownerAddress,
+                    ownerAddress,
                 }
             });
             respondMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
@@ -146,22 +143,22 @@ fun onInternalMessage(in: InMessage) {
 
         MintNewJettons => {
             var storage = lazy MinterStorage.load();
-            assert (msg.mintRecipient.getWorkchain() == MY_WORKCHAIN) throw (ERROR_WRONG_WORKCHAIN);
-            assert (msg.mintRecipient != contract.getAddress()) throw (ERROR_INVALID_RECIPIENT);
+            assert (msg.mintRecipient.getWorkchain() == MY_WORKCHAIN) throw (Jetton_Error.WrongWorkchain);
+            assert (msg.mintRecipient != contract.getAddress()) throw (WGram_Error.InvalidRecipient);
 
             val internalTransferMsg = lazy msg.internalTransferMsg.load({
-                throwIfOpcodeDoesNotMatch: ERROR_INVALID_OP
+                throwIfOpcodeDoesNotMatch: Jetton_Error.InvalidOp as int
             });
-            var forwardTonAmount = internalTransferMsg.forwardTonAmount;
+            val forwardTonAmount = internalTransferMsg.forwardTonAmount;
             internalTransferMsg.forwardPayload.checkIsCorrectTLBEither();
 
             val jettonAmount = internalTransferMsg.jettonAmount;
             // Mint must name the same excess/refund destination for both the happy path and a bounced wallet deployment.
-            assert (internalTransferMsg.sendExcessesTo != null) throw (ERROR_INVALID_EXCESSES_DESTINATION);
-            assert (internalTransferMsg.sendExcessesTo!.getWorkchain() == MY_WORKCHAIN) throw (ERROR_WRONG_WORKCHAIN);
-            assert (internalTransferMsg.sendExcessesTo! != contract.getAddress()) throw (ERROR_INVALID_RECIPIENT);
+            assert (internalTransferMsg.sendExcessesTo != null) throw (WGram_Error.InvalidExcessesDestination);
+            assert (internalTransferMsg.sendExcessesTo.getWorkchain() == MY_WORKCHAIN) throw (Jetton_Error.WrongWorkchain);
+            assert (internalTransferMsg.sendExcessesTo != contract.getAddress()) throw (WGram_Error.InvalidRecipient);
             // Minting must not impersonate a peer wallet transfer initiator.
-            assert (internalTransferMsg.transferInitiator == null) throw (ERROR_INVALID_OP);
+            assert (internalTransferMsg.transferInitiator == null) throw (Jetton_Error.InvalidOp);
             // The caller must fund the hosted GRAM backing, the extra transfer budget, and the
             // minter's own outbound deploy/forward fee rather than borrowing it from minter surplus.
             checkAmountIsEnoughToMint(in.valueCoins, jettonAmount, msg.tonAmount, in.originalForwardFee);
@@ -170,7 +167,7 @@ fun onInternalMessage(in: InMessage) {
             checkAmountIsEnoughToTransfer(msg.tonAmount, forwardTonAmount, in.originalForwardFee);
             // Keep the minter rent reserve intact so minting cannot drain operational GRAM.
             val requiredReserve = requiredMinterReserve();
-            assert (contract.getOriginalBalance() >= requiredReserve + jettonAmount + msg.tonAmount) throw (ERROR_UNSUFFICIENT_AMOUNT);
+            assert (contract.getOriginalBalance() >= requiredReserve + jettonAmount + msg.tonAmount) throw (WGram_Error.InsufficientAmount);
 
             storage.totalSupply += jettonAmount;
             storage.save();

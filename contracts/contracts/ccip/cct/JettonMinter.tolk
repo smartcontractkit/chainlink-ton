@@ -37,10 +37,10 @@ fun onBouncedMessage(in: InMessageBounced) {
 fun assertSenderIsAdmin(senderAddress: address, adminAddress: address?) {
     // theoretically, minter's admin can be dropped and be `null`, so being precise, we should check:
     // ```
-    // assert (adminAddress != null) throw ERROR_NOT_OWNER;
+    // assert (adminAddress != null) throw Jetton_Error.NotOwner;
     // ```
     // but in practice, the above assertion is reduntant, we just bypass the nullability check:
-    assert (senderAddress == adminAddress!) throw (ERROR_NOT_OWNER);
+    assert (senderAddress == adminAddress!) throw (Jetton_Error.NotOwner);
     // then, if admin is `null`, error code 7 will be thrown (while executing operator `==`),
     // it's suitable for current implementation
 }
@@ -51,7 +51,7 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         CCT_BurnNotificationForMinter => {
             var storage = lazy MinterStorage.load();
-            assert (in.senderAddress == calcAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode)) throw (ERROR_NOT_VALID_WALLET);
+            assert (in.senderAddress == calcAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode)) throw (Jetton_Error.NotValidWallet);
             storage.totalSupply -= msg.jettonAmount;
             storage.save();
 
@@ -73,7 +73,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         RequestWalletAddress => {
-            var ownerAddress: Cell<address>? = msg.includeOwnerAddress
+            val ownerAddress: Cell<address>? = msg.includeOwnerAddress
                 ? msg.ownerAddress.toCell()
                 : null;
 
@@ -90,7 +90,7 @@ fun onInternalMessage(in: InMessage) {
                 body: ResponseWalletAddress {
                     queryId: msg.queryId,
                     jettonWalletAddress: walletAddress,
-                    ownerAddress: ownerAddress,
+                    ownerAddress,
                 }
             });
             respondMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
@@ -99,12 +99,12 @@ fun onInternalMessage(in: InMessage) {
         MintNewJettons => {
             var storage = lazy MinterStorage.load();
             assertSenderIsAdmin(in.senderAddress, storage.adminAddress);
-            assert (msg.mintRecipient.getWorkchain() == MY_WORKCHAIN) throw (ERROR_WRONG_WORKCHAIN);
+            assert (msg.mintRecipient.getWorkchain() == MY_WORKCHAIN) throw (Jetton_Error.WrongWorkchain);
 
             val internalTransferMsg = lazy msg.internalTransferMsg.load({
-                throwIfOpcodeDoesNotMatch: ERROR_INVALID_OP
+                throwIfOpcodeDoesNotMatch: Jetton_Error.InvalidOp as int
             });
-            var forwardTonAmount = internalTransferMsg.forwardTonAmount;
+            val forwardTonAmount = internalTransferMsg.forwardTonAmount;
             internalTransferMsg.forwardPayload.checkIsCorrectTLBEither();
 
             // a little more than needed, it’s ok since it’s sent by the admin and excesses will return back
@@ -156,7 +156,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         UpgradeMinterCode => {
-            var storage = lazy MinterStorage.load();
+            val storage = lazy MinterStorage.load();
             assertSenderIsAdmin(in.senderAddress, storage.adminAddress);
             contract.setData(msg.newData);
             contract.setCodePostponed(msg.newCode);

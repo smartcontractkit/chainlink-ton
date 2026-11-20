@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 import "@stdlib/lisp-lists"
 import "@stdlib/exotic-cells"
-import "@stdlib/gas-payments";
 
 const Utils_FACILITY_NAME = "link.chain.ton.lib.Utils";
 const Utils_FACILITY_ID = Utils_FACILITY_NAME.crc32() % 640 + 10; // 135
@@ -70,7 +69,7 @@ fun globalId(): int {
     // Notice: configParam(19) should be available (TVM upgrade 04/24)
     val param = blockchain.configParam(19);
     return param != null
-        ? param!.beginParse().loadInt(32)
+        ? param.beginParse().loadInt(32)
         : GLOBAL_ID_UNSET;
 }
 

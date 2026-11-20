@@ -81,13 +81,13 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must be Send Executor
         OnRamp_ExecutorRequestsLockOrBurn => {
-            var st = lazy OnRamp_Storage.load();
+            val st = lazy OnRamp_Storage.load();
             assert (executorAutoDeployAddress(msg.executorId).calculateAddress() == in.senderAddress) throw (OnRamp_Error.Unauthorized);
             onExecutorRequestsLockOrBurn(st, msg, in.senderAddress);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorRequestsWithdraw =>  {
-            var st = lazy OnRamp_Storage.load();
+            val st = lazy OnRamp_Storage.load();
             assert (executorAutoDeployAddress(msg.executorId).calculateAddress() == in.senderAddress) throw (OnRamp_Error.Unauthorized);
             onExecutorRequestsWithdraw(st, msg, in.senderAddress);
         }
@@ -357,7 +357,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
 }
 
 fun onExecutorRequestsLockOrBurn(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsLockOrBurn, sender: address) {
-    var destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector as int);
+    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, OnRamp_Error.UnknownDestChainSelector as int);
     val tokenAmount = msg.tokenAmount.load();
     val routerLockOrBurn = createMessage({
         bounce: BounceMode.RichBounce,
@@ -793,7 +793,7 @@ get fun allowedSendersList(destChainSelector: uint64): lisp_list<address> {
 get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy OnRamp_Storage.load();
     val d = st.destChainConfigs;
-    return keysLispList(d)!;
+    return keysLispList(d);
 }
 
 /// Gets the current owner of the contract.
