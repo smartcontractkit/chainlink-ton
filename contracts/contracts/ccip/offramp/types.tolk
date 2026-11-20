@@ -142,22 +142,13 @@ struct OffRamp_DynamicConfig {
     minTTGasLimit: coins
 }
 
-// Config is the struct returned by the config() getter.
-//
-// Fields are only ever appended so readers of older OffRamp versions keep
+// Config is the flattened view of OffRamp_StaticConfig and OffRamp_DynamicConfig returned by
+// the config() getter. Fields are only ever appended so readers of older OffRamp versions keep
 // working: older contracts return a shorter stack without the trailing fields.
 struct Config {
-    // -- Static config
     chainSelector: uint64
-    // gasForCallExactCheck
-    // rmnRemote
-    // nonceManager
-    // -- Dynamic config
     feeQuoter: address
     permissionlessExecutionThresholdSeconds: uint32
-    // isRMNVerificationDisabled
-    // messageInterceptor
-    // -- Appended fields
     tokenAdminRegistry: address
     minGasLimit: coins
     minTTGasLimit: coins
