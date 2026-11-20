@@ -58,8 +58,8 @@ struct (0xdf58530e) ReceiveExecutor_ReleaseOrMintFailed {
 struct (0xf0af71c5) ReceiveExecutor_CCIPReceiveConfirm {
     queryId: uint64;
     receiver: address
-    /// Unused by the executor; it lets the OffRamp relay a rejection to the Router. Last, so
-    /// executors deployed before it was added still accept the message.
+    /// Unused by the executor; it lets the OffRamp relay a rejection to the Router. Kept last so
+    /// older executors still accept the message.
     execId: ReceiveExecutionID;
 }
 

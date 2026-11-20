@@ -425,7 +425,7 @@ fun onExecutorRequestsWithdraw(st: OnRamp_Storage, msg: OnRamp_ExecutorRequestsW
 /// Reports a bounced Router_LockOrBurn to the executor that requested it, so the executor exits
 /// with an error and releases the fee reservation.
 ///
-/// @dev Other bounces are ignored, as before this handler existed: legacy (256-bit) bounces of
+/// @dev Other bounces are ignored: legacy (256-bit) bounces of
 ///      Deployable_InitializeAndSend and OnRamp_ExecutorFeeReserved carry no context to act on.
 fun onBouncedMessage(in: InMessageBounced) {
     if (in.bouncedBody.preloadUint(32) == 0xffffffff) {

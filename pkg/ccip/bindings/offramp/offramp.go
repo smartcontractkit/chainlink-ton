@@ -258,12 +258,11 @@ type StorageConfig struct {
 //	0: chainSelector
 //	1: feeQuoter
 //	2: permissionlessExecutionThresholdSeconds
-//	3: tokenAdminRegistry (optional — old contracts return only 3 elements)
-//	4: minGasLimit         (optional — old contracts return only 4 elements)
-//	5: minTTGasLimit       (optional — old contracts return only 5 elements)
+//	3: tokenAdminRegistry
+//	4: minGasLimit
+//	5: minTTGasLimit
 //
-// New fields are appended at the end so old contracts and old Go readers remain
-// compatible — they simply read fewer stack elements.
+// Fields 3-5 are absent on contracts before 1.7.0, which return only 3 elements.
 type Config struct {
 	ChainSelector                           uint64           `tlb:"## 64"`
 	FeeQuoterAddress                        *address.Address `tlb:"addr"`
