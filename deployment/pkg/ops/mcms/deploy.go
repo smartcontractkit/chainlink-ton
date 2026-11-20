@@ -145,33 +145,40 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		storage := mcms.EmptyDataFrom(id, chain.WalletAddress, chainID)
 		storage.RootInfo.ExpiringRootAndOpCount.OpPendingInfo.OpFinalizationTimeout = opFinalizationTimeout
 
-		// Notice: we use a unique seriesID for the setConfig operations to ensure that the reports are correctly matched to each execution,
-		// otherwise we can skip execution (matching report) when executing same input multiple times.
-		// Not critical here as we only plan, but set as an example.
-		seriesID := strconv.FormatUint(uint64(id), 10)
-		out, err := opsutils.ExecuteOperation(b, SetConfig, dp, SetConfigInput{
-			Bounce:  false,
-			DstAddr: tvm.ZeroAddress,      // placeholder, actual address is determined by the deployment and not known at this point
-			Amount:  tlb.MustFromTON("0"), // placeholder, we just plan here
+		staged := NeedsStagedConfig(compiledContracts[bindings.TypeMCMS].Version, config)
 
-			// Params for setConfig message body
-			Config:    config,
-			ClearRoot: false,
+		var body any
+		if !staged {
+			// Notice: we use a unique seriesID for the setConfig operations to ensure that the reports are correctly matched to each execution,
+			// otherwise we can skip execution (matching report) when executing same input multiple times.
+			// Not critical here as we only plan, but set as an example.
+			seriesID := strconv.FormatUint(uint64(id), 10)
+			out, err := opsutils.ExecuteOperation(b, SetConfig, dp, SetConfigInput{
+				Bounce:  false,
+				DstAddr: tvm.ZeroAddress,      // placeholder, actual address is determined by the deployment and not known at this point
+				Amount:  tlb.MustFromTON("0"), // placeholder, we just plan here
 
-			Plan: true, // we just want to plan the setConfig message to get the body for deployment
-		}, seriesID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to send messages: %w", err)
+				// Params for setConfig message body
+				Config:    config,
+				ClearRoot: false,
+
+				Plan: true, // we just want to plan the setConfig message to get the body for deployment
+			}, seriesID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to send messages: %w", err)
+			}
+
+			// Extract the body from the full message plan to use it for deployment
+			msg, err := out.Output.Plans[0].Cell.ToValue()
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert plan cell to value: %w", err)
+			}
+			body = msg.Body
 		}
 
-		// Extract the body from the full message plan to use it for deployment
-		msg, err := out.Output.Plans[0].Cell.ToValue()
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert plan cell to value: %w", err)
-		}
-		body := msg.Body
-
-		// Notice: storage.id acts as a series ID and makes the input unique per deployment
+		// Notice: storage.id acts as a series ID and makes the input unique per deployment.
+		// A staged deployment starts with an empty config and installs the final config
+		// immediately after the account is active.
 		outputAddr, err := operation.InvokeDeployContractOperation(b, dp, selector, compiledContracts[bindings.TypeMCMS], storage, body, value.String())
 		if err != nil {
 			return nil, fmt.Errorf("failed to deploy MCMS contract of type %s: %w", contractType, err)
@@ -182,12 +189,26 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		outputAddr.Type = contractType
 		b.Logger.Infof("Deployed MCMS type %s at address %s on chain %s", outputAddr.Type, outputAddr.Address, chain.Name)
 
-		// Notice: we fund MCMS contract with a separate (empty) message as setConfig will return excess to sender
 		outputAddrTON, err := utils.ToTONAddress(*outputAddr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert output address to TON format: %w", err)
 		}
 
+		if staged {
+			_, err = cldfops.ExecuteOperation(b, SetConfigStaged, dp, SetConfigStagedInput{
+				Bounce:    true,
+				DstAddr:   outputAddrTON,
+				Amount:    tlb.MustFromTON("0.5"),
+				Config:    config,
+				ClearRoot: false,
+				Plan:      false,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to install staged MCMS config: %w", err)
+			}
+		}
+
+		// Notice: we fund MCMS contract with a separate (empty) message as setConfig will return excess to sender
 		mcell, err := tlbe.NewCellFrom(tlb.InternalMessage{
 			Bounce:  true,
 			DstAddr: outputAddrTON,

@@ -4,13 +4,14 @@ runLimitsSuite({
   version: 'local',
   expectedVersion: '0.0.5',
   limits: {
-    maxSigners: 56,
+    maxSigners: 200,
     maxGroups: 31,
-    maxSignatures: 56,
+    maxSignatures: 72,
+    setConfigStrategy: 'staged',
   },
   cases: [
-    // Direct single-step configs on current main. Main's iterator size validation
-    // makes these more expensive than older releases.
+    // Direct single-step configs on current main. The iterator size validation in
+    // current main makes these more expensive than older releases.
     {
       name: 'setConfig: 56 signers / 31 groups',
       op: 'setConfig',
@@ -125,8 +126,8 @@ runLimitsSuite({
       signatures: 64,
       expected: 'success',
     },
-    // Team requirement validation. Large config writes are expected to OOG in the
-    // clearing-only branch on current main; the staged branch covers them.
+    // Team requirements. Stages larger configs; 50 non-root groups is not
+    // representable because the contract supports at most 31 non-root groups.
     {
       name: 'setConfig: proposer 42 signers / 3 groups',
       op: 'setConfig',
@@ -156,7 +157,8 @@ runLimitsSuite({
       op: 'setConfig',
       signers: 80,
       groups: 19,
-      expected: 'out-of-gas',
+      strategy: 'staged',
+      expected: 'success',
     },
     {
       name: 'setConfig: bypasser 70 signers / 21 groups',
@@ -170,7 +172,24 @@ runLimitsSuite({
       op: 'setConfig',
       signers: 80,
       groups: 21,
-      expected: 'out-of-gas',
+      strategy: 'staged',
+      expected: 'success',
+    },
+    {
+      name: 'setConfig: 150 signers / 31 groups (staged)',
+      op: 'setConfig',
+      signers: 150,
+      groups: 31,
+      strategy: 'staged',
+      expected: 'success',
+    },
+    {
+      name: 'setConfig: 200 signers / 31 groups (staged)',
+      op: 'setConfig',
+      signers: 200,
+      groups: 31,
+      strategy: 'staged',
+      expected: 'success',
     },
     {
       name: 'setRoot: canceller 69 signers / 19 groups, 69 signatures',
