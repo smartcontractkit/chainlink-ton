@@ -9,12 +9,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/contracts"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var StorageContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.two-msg-chain.Storage/tact_Storage.pkg")
+var StorageContractPath = contracts.TestDataPath("legacy-tact/examples.async-communication.two-msg-chain.Storage/tact_Storage.pkg")
 
 type StorageProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -61,9 +61,9 @@ type storeMessage struct {
 	Value   uint32    `tlb:"## 32"`
 }
 
-func (s Storage) SendStore(i uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
+func (s Storage) SendStore(ctx context.Context, i uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(storeMessage{
+	msgReceived, err = s.Contract.CallWaitRecursively(ctx, storeMessage{
 		QueryID: queryID,
 		Value:   i,
 	}, tlb.MustFromTON("0.5"))

@@ -9,12 +9,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/contracts"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var DbContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.two-phase-commit.DB/tact_DB.pkg")
+var DbContractPath = contracts.TestDataPath("legacy-tact/examples.async-communication.two-phase-commit.DB/tact_DB.pkg")
 
 type DBProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -60,8 +60,8 @@ type beginTransactionMessage struct {
 	QueryID uint64    `tlb:"## 64"`
 }
 
-func (s DB) SendBeginTransaction(queryID uint64) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	msgReceived, err = s.Contract.CallWaitRecursively(beginTransactionMessage{
+func (s DB) SendBeginTransaction(ctx context.Context, queryID uint64) (msgReceived *tracetracking.ReceivedMessage, err error) {
+	msgReceived, err = s.Contract.CallWaitRecursively(ctx, beginTransactionMessage{
 		QueryID: queryID,
 	}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
@@ -74,9 +74,9 @@ type setValueMessage struct {
 	Value   uint32           `tlb:"## 32"`
 }
 
-func (s DB) SendSetValue(counterAddr *address.Address, value uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
+func (s DB) SendSetValue(ctx context.Context, counterAddr *address.Address, value uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(setValueMessage{
+	msgReceived, err = s.Contract.CallWaitRecursively(ctx, setValueMessage{
 		QueryID: queryID,
 		Counter: counterAddr,
 		Value:   value,
@@ -89,9 +89,9 @@ type commitMessage struct {
 	QueryID uint64    `tlb:"## 64"`
 }
 
-func (s DB) SendCommit() (msgReceived *tracetracking.ReceivedMessage, err error) {
+func (s DB) SendCommit(ctx context.Context) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(commitMessage{
+	msgReceived, err = s.Contract.CallWaitRecursively(ctx, commitMessage{
 		QueryID: queryID,
 	}, tlb.MustFromTON("0.5"))
 	return msgReceived, err

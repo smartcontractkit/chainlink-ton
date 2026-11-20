@@ -271,7 +271,7 @@ func Test_LogPoller(t *testing.T) {
 
 		require.Eventually(t, func() bool {
 			// Check emitterA
-			counterA, caerr := counter.GetValue(t.Context(), tonChain.Client, emitterA.ContractAddress())
+			counterA, caerr := tvm.CallGetterLatest(t.Context(), tonChain.Client, emitterA.ContractAddress(), counter.GetValue)
 			if caerr != nil {
 				t.Logf("failed to get on-chain counter for emitterA, retrying: %v", caerr)
 				return false
@@ -283,7 +283,7 @@ func Test_LogPoller(t *testing.T) {
 			}
 
 			// Check emitterB
-			counterB, cberr := counter.GetValue(t.Context(), tonChain.Client, emitterB.ContractAddress())
+			counterB, cberr := tvm.CallGetterLatest(t.Context(), tonChain.Client, emitterB.ContractAddress(), counter.GetValue)
 			if cberr != nil {
 				t.Logf("failed to get on-chain counter for emitterB, retrying: %v", cberr)
 				return false

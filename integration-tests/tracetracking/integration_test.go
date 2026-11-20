@@ -23,10 +23,10 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/contracts"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 func must[E any](out E, err error) E {
@@ -110,7 +110,7 @@ func TestIntegration(t *testing.T) {
 		dataCell, err := tlb.ToCell(data)
 		require.NoError(t, err)
 
-		path := bindings.GetBuildDir("examples.Counter.compiled.json")
+		path := contracts.BuildPath("examples.Counter.compiled.json")
 		code, err := wrappers.ParseCompiledContract(path)
 		require.NoError(t, err)
 
@@ -123,7 +123,7 @@ func TestIntegration(t *testing.T) {
 		t.Logf("\n\n\n\n\n\nTest Started\n==========================\n")
 
 		t.Logf("Checking initial value\n")
-		result, err := counter.GetValue(t.Context(), alice.Client, counterContract.Address)
+		result, err := tvm.CallGetterLatest(t.Context(), alice.Client, counterContract.Address, counter.GetValue)
 		require.NoError(t, err, "failed to get initial value: %w", err)
 		expectedValue := uint32(100)
 		require.Equal(t, expectedValue, result, "Expected initial value %d, got %d", expectedValue, result)
@@ -134,7 +134,7 @@ func TestIntegration(t *testing.T) {
 			QueryID:  rand.Uint64(),
 			NewCount: 1,
 		}
-		msgReceived, err := counterContract.CallWaitRecursively(msg, tlb.MustFromTON("0.5"))
+		msgReceived, err := counterContract.CallWaitRecursively(t.Context(), msg, tlb.MustFromTON("0.5"))
 		require.NoError(t, err, "failed to send SetCount request: %w", err)
 
 		require.Equal(t, tvm.ExitCodeSuccess, must(msgReceived.ExitCode()), "Expected exit code 0, got %d", must(msgReceived.ExitCode()))
@@ -146,7 +146,7 @@ func TestIntegration(t *testing.T) {
 		t.Logf("SetCount request sent\n")
 
 		t.Logf("Checking result\n")
-		result, err = counter.GetValue(t.Context(), alice.Client, counterContract.Address)
+		result, err = tvm.CallGetterLatest(t.Context(), alice.Client, counterContract.Address, counter.GetValue)
 		require.NoError(t, err, "failed to get value: %w", err)
 		expectedValue = uint32(1)
 		require.Equal(t, expectedValue, result, "Expected value %d, got %d", expectedValue, result)
@@ -187,7 +187,7 @@ func TestIntegration(t *testing.T) {
 
 		for index, name := range priceIndex {
 			t.Logf("Sending AddPriceItem request for %s, key: %d, addr: %s\n", name, index, itemAddresses[index].String())
-			_, serr := priceRegistry.SendAddPriceItem(uint8(index), itemAddresses[index])
+			_, serr := priceRegistry.SendAddPriceItem(t.Context(), uint8(index), itemAddresses[index])
 			require.NoError(t, serr, "failed to send AddPriceItem request: %w", serr)
 			t.Logf("AddPriceItem request sent\n")
 		}
@@ -201,12 +201,12 @@ func TestIntegration(t *testing.T) {
 
 		for index, name := range priceIndex {
 			t.Logf("Sending GetPrice request for %s\n", name)
-			_, err = storage.SendGetPriceFrom(priceRegistry.Contract.Address, uint8(index))
+			_, err = storage.SendGetPriceFrom(t.Context(), priceRegistry.Contract.Address, uint8(index))
 			require.NoError(t, err, "failed to send GetPriceFrom request: %w", err)
 			t.Logf("GetPriceFrom request sent\n")
 
 			t.Logf("Checking result\n")
-			result, err := storage.GetValue()
+			result, err := storage.GetValue(t.Context())
 			require.NoError(t, err, "failed to get value: %w", err)
 			expectedPrice := prices[name]
 			assert.Equal(t, expectedPrice, result, "Expected price %d, got %d", expectedPrice, result)
@@ -263,7 +263,7 @@ func TestIntegration(t *testing.T) {
 
 		for index, name := range priceIndex {
 			t.Logf("Sending AddItem request for %s, key: %d, priceAddr: %s, countAddr: %s\n", name, index, itemAddresses[index].PriceAddr.String(), itemAddresses[index].CountAddr.String())
-			_, serr := inventory.SendAddItem(uint8(index), itemAddresses[index].PriceAddr, itemAddresses[index].CountAddr)
+			_, serr := inventory.SendAddItem(t.Context(), uint8(index), itemAddresses[index].PriceAddr, itemAddresses[index].CountAddr)
 			require.NoError(t, serr, "failed to send AddItem request: %w", serr)
 			t.Logf("AddItem request sent\n")
 		}
@@ -277,12 +277,12 @@ func TestIntegration(t *testing.T) {
 
 		for index, name := range priceIndex {
 			t.Logf("Sending GetCapitalFrom request for %s\n", name)
-			_, err = storage.SendGetCapitalFrom(inventory.Contract.Address, uint8(index))
+			_, err = storage.SendGetCapitalFrom(t.Context(), inventory.Contract.Address, uint8(index))
 			require.NoError(t, err, "failed to send GetCapitalFrom request: %w", err)
 			t.Logf("GetCapitalFrom request sent\n")
 
 			t.Logf("Checking result\n")
-			result, err := storage.GetValue()
+			result, err := storage.GetValue(t.Context())
 			require.NoError(t, err, "failed to get value: %w", err)
 			expectedCapital := prices[name] * quantity[name]
 			assert.Equal(t, expectedCapital, result, "Expected capital %d, got %d", expectedCapital, result)
@@ -302,17 +302,17 @@ func TestIntegration(t *testing.T) {
 		require.NoError(t, err, "failed to deploy memory contract: %w", err)
 		t.Logf("Memory contract deployed at %s\n", memoryContract.Contract.Address.String())
 		t.Logf("Checking if memory contract is deployed\n")
-		initValueReturned, err := memoryContract.GetValue()
+		initValueReturned, err := memoryContract.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value: %w", err)
 		t.Logf("Initial value in memory contract is %d\n", initValueReturned)
 		assert.Equal(t, initValue, initValueReturned, "Initial value should be %d", initValue)
 		t.Logf("Storing value %d in memory contract\n", initValue)
 		const valueToStore = uint32(2)
-		msgRec, err := memoryContract.SendSetValue(valueToStore)
+		msgRec, err := memoryContract.SendSetValue(t.Context(), valueToStore)
 		require.NoError(t, err, "failed to store value: %w", err)
 		_ = msgRec
 		t.Logf("Checking if value is stored in memory contract\n")
-		recordedValue, err := memoryContract.GetValue()
+		recordedValue, err := memoryContract.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value: %w", err)
 		assert.Equal(t, valueToStore, recordedValue, "Stored value should be %d", valueToStore)
 	})
@@ -333,19 +333,19 @@ func TestIntegration(t *testing.T) {
 		t.Logf("Storage contract deployed at %s\n", storageContract.Contract.Address.String())
 
 		t.Logf("Checking if memory contract is deployed\n")
-		initValueReturned, err := memoryContract.GetValue()
+		initValueReturned, err := memoryContract.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value: %w", err)
 		t.Logf("Initial value in memory contract is %d\n", initValueReturned)
 		assert.Equal(t, initValue, initValueReturned, "Initial value should be %d", initValue)
 
 		const valueToStore = uint32(2)
 		t.Logf("Storing value %d in storage contract\n", valueToStore)
-		msgRec, err := storageContract.SendStore(valueToStore)
+		msgRec, err := storageContract.SendStore(t.Context(), valueToStore)
 		require.NoError(t, err, "failed to store value: %w", err)
 		_ = msgRec
 
 		t.Logf("Checking if value is stored in memory contract\n")
-		recordedValue, err := memoryContract.GetValue()
+		recordedValue, err := memoryContract.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value: %w", err)
 		assert.Equal(t, valueToStore, recordedValue, "Stored value should be %d", valueToStore)
 	})
@@ -378,28 +378,28 @@ func TestIntegration(t *testing.T) {
 
 		t.Logf("Beginning transaction\n")
 		txID := rand.Uint64()
-		_, err = dbContract.SendBeginTransaction(txID)
+		_, err = dbContract.SendBeginTransaction(t.Context(), txID)
 		require.NoError(t, err, "failed to begin transaction: %w", err)
 		t.Logf("Transaction started with ID %d\n", txID)
 
 		t.Logf("Setting value in counter A to %d\n", valueForCounterA)
-		_, err = dbContract.SendSetValue(counterA.Contract.Address, valueForCounterA)
+		_, err = dbContract.SendSetValue(t.Context(), counterA.Contract.Address, valueForCounterA)
 		require.NoError(t, err, "failed to set value in counter A: %w", err)
 
 		t.Logf("Setting value in counter B to %d\n", valueForCounterB)
-		_, err = dbContract.SendSetValue(counterB.Contract.Address, valueForCounterB)
+		_, err = dbContract.SendSetValue(t.Context(), counterB.Contract.Address, valueForCounterB)
 		require.NoError(t, err, "failed to set value in counter B: %w", err)
 
 		t.Logf("Committing transaction\n")
-		_, err = dbContract.SendCommit()
+		_, err = dbContract.SendCommit(t.Context())
 		require.NoError(t, err, "failed to commit transaction: %w", err)
 		t.Logf("Transaction committed\n")
 
 		t.Logf("Checking value in counters\n")
-		valueA, err := counterA.GetValue()
+		valueA, err := counterA.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value from counter A: %w", err)
 		assert.Equal(t, valueForCounterA, valueA, "Counter A value mismatch: expected %d, got %d", valueForCounterA, valueA)
-		valueB, err := counterB.GetValue()
+		valueB, err := counterB.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value from counter B: %w", err)
 		assert.Equal(t, valueForCounterB, valueB, "Counter B value mismatch: expected %d, got %d", valueForCounterB, valueB)
 
@@ -434,44 +434,44 @@ func TestIntegration(t *testing.T) {
 
 		t.Logf("Beginning transaction\n")
 		txID := rand.Uint64()
-		_, err = dbContract.SendBeginTransaction(txID)
+		_, err = dbContract.SendBeginTransaction(t.Context(), txID)
 		require.NoError(t, err, "failed to begin transaction: %w", err)
 		t.Logf("Transaction started with ID %d\n", txID)
 
 		t.Logf("Setting value in counter A to %d\n", valueForCounterA)
-		_, err = dbContract.SendSetValue(counterA.Contract.Address, valueForCounterA)
+		_, err = dbContract.SendSetValue(t.Context(), counterA.Contract.Address, valueForCounterA)
 		require.NoError(t, err, "failed to set value in counter A: %w", err)
 
 		t.Logf("Sending ack to counter A\n")
-		_, err = counterA.SendAck()
+		_, err = counterA.SendAck(t.Context())
 		require.NoError(t, err, "failed to send ack to counter A: %w", err)
 
 		t.Logf("Setting value in counter B to %d\n", valueForCounterB)
-		_, err = dbContract.SendSetValue(counterB.Contract.Address, valueForCounterB)
+		_, err = dbContract.SendSetValue(t.Context(), counterB.Contract.Address, valueForCounterB)
 		require.NoError(t, err, "failed to set value in counter B: %w", err)
 
 		t.Logf("Sending ack to counter B\n")
-		_, err = counterB.SendAck()
+		_, err = counterB.SendAck(t.Context())
 		require.NoError(t, err, "failed to send ack to counter B: %w", err)
 
 		t.Logf("Checking value in counters\n")
-		valueA, err := counterA.GetValue()
+		valueA, err := counterA.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value from counter A: %w", err)
 		assert.Equal(t, initValue, valueA, "Counter A value mismatch: expected %d, got %d", initValue, valueA)
-		valueB, err := counterB.GetValue()
+		valueB, err := counterB.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value from counter B: %w", err)
 		assert.Equal(t, initValue, valueB, "Counter B value mismatch: expected %d, got %d", valueForCounterB, valueB)
 
 		t.Logf("Committing transaction\n")
-		_, err = dbContract.SendCommit()
+		_, err = dbContract.SendCommit(t.Context())
 		require.NoError(t, err, "failed to commit transaction: %w", err)
 		t.Logf("Transaction committed\n")
 
 		t.Logf("Checking value in counters\n")
-		valueA, err = counterA.GetValue()
+		valueA, err = counterA.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value from counter A: %w", err)
 		assert.Equal(t, valueForCounterA, valueA, "Counter A value mismatch: expected %d, got %d", valueForCounterA, valueA)
-		valueB, err = counterB.GetValue()
+		valueB, err = counterB.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value from counter B: %w", err)
 		assert.Equal(t, valueForCounterB, valueB, "Counter B value mismatch: expected %d, got %d", valueForCounterB, valueB)
 
@@ -506,44 +506,44 @@ func TestIntegration(t *testing.T) {
 
 		t.Logf("Beginning transaction\n")
 		txID := rand.Uint64()
-		_, err = dbContract.SendBeginTransaction(txID)
+		_, err = dbContract.SendBeginTransaction(t.Context(), txID)
 		require.NoError(t, err, "failed to begin transaction: %w", err)
 		t.Logf("Transaction started with ID %d\n", txID)
 
 		t.Logf("Setting value in counter A to %d\n", valueForCounterA)
-		_, err = dbContract.SendSetValue(counterA.Contract.Address, valueForCounterA)
+		_, err = dbContract.SendSetValue(t.Context(), counterA.Contract.Address, valueForCounterA)
 		require.NoError(t, err, "failed to set value in counter A: %w", err)
 
 		t.Logf("Setting value in counter B to %d\n", valueForCounterB)
-		_, err = dbContract.SendSetValue(counterB.Contract.Address, valueForCounterB)
+		_, err = dbContract.SendSetValue(t.Context(), counterB.Contract.Address, valueForCounterB)
 		require.NoError(t, err, "failed to set value in counter B: %w", err)
 
 		t.Logf("Committing transaction\n")
-		_, err = dbContract.SendCommit()
+		_, err = dbContract.SendCommit(t.Context())
 		require.NoError(t, err, "failed to commit transaction: %w", err)
 		t.Logf("Transaction committed\n")
 
 		t.Logf("Sending ack to counter A\n")
-		_, err = counterA.SendAck()
+		_, err = counterA.SendAck(t.Context())
 		require.NoError(t, err, "failed to send ack to counter A: %w", err)
 
 		t.Logf("Checking value in counters\n")
-		valueA, err := counterA.GetValue()
+		valueA, err := counterA.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value from counter A: %w", err)
 		assert.Equal(t, initValue, valueA, "Counter A value mismatch: expected %d, got %d", valueForCounterA, valueA)
-		valueB, err := counterB.GetValue()
+		valueB, err := counterB.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value from counter B: %w", err)
 		assert.Equal(t, initValue, valueB, "Counter B value mismatch: expected %d, got %d", valueForCounterB, valueB)
 
 		t.Logf("Sending ack to counter B\n")
-		_, err = counterB.SendAck()
+		_, err = counterB.SendAck(t.Context())
 		require.NoError(t, err, "failed to send ack to counter B: %w", err)
 
 		t.Logf("Checking value in counters\n")
-		valueA, err = counterA.GetValue()
+		valueA, err = counterA.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value from counter A: %w", err)
 		assert.Equal(t, valueForCounterA, valueA, "Counter A value mismatch: expected %d, got %d", valueForCounterA, valueA)
-		valueB, err = counterB.GetValue()
+		valueB, err = counterB.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value from counter B: %w", err)
 		assert.Equal(t, valueForCounterB, valueB, "Counter B value mismatch: expected %d, got %d", valueForCounterB, valueB)
 
@@ -578,44 +578,44 @@ func TestIntegration(t *testing.T) {
 
 		t.Logf("Beginning transaction\n")
 		txID := rand.Uint64()
-		_, err = dbContract.SendBeginTransaction(txID)
+		_, err = dbContract.SendBeginTransaction(t.Context(), txID)
 		require.NoError(t, err, "failed to begin transaction: %w", err)
 		t.Logf("Transaction started with ID %d\n", txID)
 
 		t.Logf("Setting value in counter A to %d\n", valueForCounterA)
-		_, err = dbContract.SendSetValue(counterA.Contract.Address, valueForCounterA)
+		_, err = dbContract.SendSetValue(t.Context(), counterA.Contract.Address, valueForCounterA)
 		require.NoError(t, err, "failed to set value in counter A: %w", err)
 
 		t.Logf("Setting value in counter B to %d\n", valueForCounterB)
-		_, err = dbContract.SendSetValue(counterB.Contract.Address, valueForCounterB)
+		_, err = dbContract.SendSetValue(t.Context(), counterB.Contract.Address, valueForCounterB)
 		require.NoError(t, err, "failed to set value in counter B: %w", err)
 
 		t.Logf("Sending ack to counter A\n")
-		_, err = counterA.SendAck()
+		_, err = counterA.SendAck(t.Context())
 		require.NoError(t, err, "failed to send ack to counter A: %w", err)
 
 		t.Logf("Committing transaction\n")
-		_, err = dbContract.SendCommit()
+		_, err = dbContract.SendCommit(t.Context())
 		require.NoError(t, err, "failed to commit transaction: %w", err)
 		t.Logf("Transaction committed\n")
 
 		t.Logf("Checking value in counters\n")
-		valueA, err := counterA.GetValue()
+		valueA, err := counterA.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value from counter A: %w", err)
 		assert.Equal(t, initValue, valueA, "Counter A value mismatch: expected %d, got %d", valueForCounterA, valueA)
-		valueB, err := counterB.GetValue()
+		valueB, err := counterB.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value from counter B: %w", err)
 		assert.Equal(t, initValue, valueB, "Counter B value mismatch: expected %d, got %d", valueForCounterB, valueB)
 
 		t.Logf("Sending ack to counter B\n")
-		_, err = counterB.SendAck()
+		_, err = counterB.SendAck(t.Context())
 		require.NoError(t, err, "failed to send ack to counter B: %w", err)
 
 		t.Logf("Checking value in counters\n")
-		valueA, err = counterA.GetValue()
+		valueA, err = counterA.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value from counter A: %w", err)
 		assert.Equal(t, valueForCounterA, valueA, "Counter A value mismatch: expected %d, got %d", valueForCounterA, valueA)
-		valueB, err = counterB.GetValue()
+		valueB, err = counterB.GetValue(t.Context())
 		require.NoError(t, err, "failed to get value from counter B: %w", err)
 		assert.Equal(t, valueForCounterB, valueB, "Counter B value mismatch: expected %d, got %d", valueForCounterB, valueB)
 

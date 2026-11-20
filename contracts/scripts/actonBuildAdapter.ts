@@ -3,7 +3,7 @@
  * Converts acton's native build output (build/<ContractKey>.json, holding
  * code_boc64 + hash) into the legacy blueprint artifact shape
  * (build/<artifactName>.compiled.json, holding a `hex` field) that
- * wrappers/codeLoader.ts and pkg/ton/wrappers/contract.go both expect.
+ * wrappers/codeLoader.ts and pkg/ton/boc/compiled.go both expect.
  *
  * Each contract is written under its Acton.toml contract key. Contracts listed in
  * scripts/acton/legacyArtifactNames.json are also written under their legacy name,

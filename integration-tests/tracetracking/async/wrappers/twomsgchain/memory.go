@@ -8,12 +8,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/contracts"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var MemoryContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.two-msg-chain.Memory/tact_Memory.pkg")
+var MemoryContractPath = contracts.TestDataPath("legacy-tact/examples.async-communication.two-msg-chain.Memory/tact_Memory.pkg")
 
 type MemoryProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -60,15 +60,17 @@ type setValueMessage struct {
 	Value   uint32    `tlb:"## 32"`
 }
 
-func (m Memory) SendSetValue(i uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
+func (m Memory) SendSetValue(ctx context.Context, i uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = m.Contract.CallWaitRecursively(setValueMessage{
+	msgReceived, err = m.Contract.CallWaitRecursively(ctx, setValueMessage{
 		QueryID: queryID,
 		Value:   i,
 	}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 
-func (m Memory) GetValue() (uint32, error) {
-	return wrappers.Uint32From(m.Contract.Get("value"))
+var getValue = wrappers.NewUint32Getter("value")
+
+func (m Memory) GetValue(ctx context.Context) (uint32, error) {
+	return tvm.CallGetterLatest(ctx, m.Contract.Client.Client, m.Contract.Address, getValue)
 }

@@ -19,7 +19,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
@@ -154,12 +153,12 @@ func deployTONContract(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployCo
 
 	b.Logger.Infow("Initializing contract with body", "contract name", in.Name, "body data hash", hex.EncodeToString(bodyCell.Hash()), "body bits size", bodyCell.BitsSize())
 
-	contract, _, err := wrappers.Deploy(ctx, &conn, in.ContractCode, initData, value, bodyCell)
+	addr, _, err := conn.DeployAndWaitForTrace(ctx, in.ContractCode, initData, value, bodyCell)
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy contract: %w", err)
 	}
-	b.Logger.Infow("Contract deployed", "contract name", in.Name, "addr", contract.Address, "deployer wallet addr", chain.WalletAddress.String())
+	b.Logger.Infow("Contract deployed", "contract name", in.Name, "addr", addr, "deployer wallet addr", chain.WalletAddress.String())
 
-	output.Address = contract.Address
+	output.Address = addr
 	return output, nil
 }

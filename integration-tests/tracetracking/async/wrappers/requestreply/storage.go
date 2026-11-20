@@ -9,12 +9,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/contracts"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var StorageContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.request-reply.Storage/tact_Storage.pkg")
+var StorageContractPath = contracts.TestDataPath("legacy-tact/examples.async-communication.request-reply.Storage/tact_Storage.pkg")
 
 type StorageProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -61,9 +61,9 @@ type getPriceFromMessage struct {
 	Key           uint8            `tlb:"## 8"`
 }
 
-func (s Storage) SendGetPriceFrom(priceRegistry *address.Address, key uint8) (msgReceived *tracetracking.ReceivedMessage, err error) {
+func (s Storage) SendGetPriceFrom(ctx context.Context, priceRegistry *address.Address, key uint8) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(getPriceFromMessage{
+	msgReceived, err = s.Contract.CallWaitRecursively(ctx, getPriceFromMessage{
 		QueryID:       queryID,
 		PriceRegistry: priceRegistry,
 		Key:           key,
@@ -71,6 +71,8 @@ func (s Storage) SendGetPriceFrom(priceRegistry *address.Address, key uint8) (ms
 	return msgReceived, err
 }
 
-func (s Storage) GetValue() (uint64, error) {
-	return wrappers.Uint64From(s.Contract.Get("value"))
+var getValue = wrappers.NewUint64Getter("value")
+
+func (s Storage) GetValue(ctx context.Context) (uint64, error) {
+	return tvm.CallGetterLatest(ctx, s.Contract.Client.Client, s.Contract.Address, getValue)
 }

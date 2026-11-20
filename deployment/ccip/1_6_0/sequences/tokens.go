@@ -14,6 +14,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
@@ -48,7 +49,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	ton_tvm "github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 const (
@@ -215,9 +215,8 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 			}
 
 			conn := tracetracking.NewSignedAPIClient(chain.Client, *chain.Wallet)
-			contract, _, err := wrappers.DeployActivateOnly(
+			minterAddr, _, err := conn.DeployActivateOnlyAndWaitForTrace(
 				b.GetContext(),
-				&conn,
 				compiledMinter.Code,
 				initData,
 				tlb.MustFromTON(defaultJettonDeployCoin),
@@ -256,7 +255,7 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to generate query id for pre-mint: %w", qErr)
 				}
 
-				mintMsg, mintErr := contract.CallWaitRecursively(minter.MintNewJettons{
+				mintBody, mintErr := tlb.ToCell(minter.MintNewJettons{
 					QueryID:       queryID,
 					MintRecipient: recipient,
 					TonAmount:     tlb.MustFromTON(defaultJettonMintForwardCoin),
@@ -268,7 +267,21 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 						ForwardTonAmount:  tlb.ZeroCoins,
 						ForwardPayload:    nil,
 					},
-				}, tlb.MustFromTON(defaultJettonMintCoin))
+				})
+				if mintErr != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to build pre-mint message: %w", mintErr)
+				}
+
+				mintMsg, mintErr := conn.SendAndWaitForTrace(b.GetContext(), *minterAddr, &wallet.Message{
+					Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+					InternalMessage: &tlb.InternalMessage{
+						IHRDisabled: true,
+						Bounce:      true,
+						DstAddr:     minterAddr,
+						Amount:      tlb.MustFromTON(defaultJettonMintCoin),
+						Body:        mintBody,
+					},
+				})
 				if mintErr != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to pre-mint %d tokens to %s: %w", *input.PreMint, recipient.String(), mintErr)
 				}
@@ -289,7 +302,7 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 					return sequences.OnChainOutput{}, fmt.Errorf("pre-mint %d tokens to %s failed: trace exit code %d: %s", *input.PreMint, recipient.String(), traceExitCode, traceExitCode.Describe())
 				}
 
-				recipientWalletAddr, walletAddrErr := ton_tvm.CallGetterLatest(b.GetContext(), chain.Client, contract.Address, minter.GetWalletAddress, recipient)
+				recipientWalletAddr, walletAddrErr := ton_tvm.CallGetterLatest(b.GetContext(), chain.Client, minterAddr, minter.GetWalletAddress, recipient)
 				if walletAddrErr != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to derive jetton wallet address for pre-mint recipient %s: %w", recipient.String(), walletAddrErr)
 				}
@@ -305,7 +318,7 @@ func (a *TonTokenAdapter) DeployToken() *cldf_ops.Sequence[tokensapi.DeployToken
 
 			return sequences.OnChainOutput{
 				Addresses: []datastore.AddressRef{{
-					Address:       contract.Address.String(),
+					Address:       minterAddr.String(),
 					ChainSelector: input.ChainSelector,
 					Type:          datastore.ContractType(bindings.ShortJettonMinter),
 					Version:       semver.MustParse("1.0.0"),

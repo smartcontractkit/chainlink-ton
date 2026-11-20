@@ -9,12 +9,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/contracts"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var InventoryContractPath = bindings.GetTestDataDir("legacy-tact/examples.async-communication.request-reply-with-two-dependencies.Inventory/tact_Inventory.pkg")
+var InventoryContractPath = contracts.TestDataPath("legacy-tact/examples.async-communication.request-reply-with-two-dependencies.Inventory/tact_Inventory.pkg")
 
 type InventoryProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -62,9 +62,9 @@ type AddItemMessage struct {
 	CountAddr *address.Address `tlb:"addr"`
 }
 
-func (p Inventory) SendAddItem(key uint8, priceAddr *address.Address, countAddr *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
+func (p Inventory) SendAddItem(ctx context.Context, key uint8, priceAddr *address.Address, countAddr *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = p.Contract.CallWaitRecursively(AddItemMessage{
+	msgReceived, err = p.Contract.CallWaitRecursively(ctx, AddItemMessage{
 		QueryID:   queryID,
 		Key:       key,
 		PriceAddr: priceAddr,

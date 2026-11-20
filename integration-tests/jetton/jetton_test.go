@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
+	"os"
 	"path"
 	"slices"
 	"sync"
@@ -23,23 +24,33 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	jetton_testing_wrappers "github.com/smartcontractkit/chainlink-ton/integration-tests/jetton/examples"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
 	jetton_common "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
-	jetton_testing_wrappers "github.com/smartcontractkit/chainlink-ton/pkg/bindings/test/examples/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-// Helper function to load the actual JettonWallet code
+// pathToJettonContracts is the directory holding the compiled jetton contracts,
+// exposed by the default nix shell.
+var pathToJettonContracts = os.Getenv("PATH_CONTRACTS_JETTON")
+
 func loadJettonWalletCode() (*cell.Cell, error) {
-	jettonWalletPath := path.Join(jetton_common.PathToContracts, "JettonWallet.compiled.json")
-	compiledContract, err := wrappers.ParseCompiledContract(jettonWalletPath)
+	return loadJettonContractCode("JettonWallet")
+}
+
+func loadJettonMinterCode() (*cell.Cell, error) {
+	return loadJettonContractCode("JettonMinter")
+}
+
+func loadJettonContractCode(name string) (*cell.Cell, error) {
+	code, err := wrappers.ParseCompiledContract(path.Join(pathToJettonContracts, name+".compiled.json"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse JettonWallet contract: %w", err)
+		return nil, fmt.Errorf("failed to parse %s contract: %w", name, err)
 	}
-	return compiledContract, nil
+	return code, nil
 }
 
 const JettonDataURI = "smartcontract.com"
@@ -118,7 +129,7 @@ func TestJettonAll(t *testing.T) {
 
 		t.Logf("Minting jettons to sender contract\n")
 		queryID := rand.Uint64()
-		sendMintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintNewJettons{
+		sendMintMsg, err := setup.jettonMinter.CallWaitRecursively(t.Context(), minter.MintNewJettons{
 			QueryID:       queryID,
 			MintRecipient: Sender.Contract.Address,
 			TonAmount:     tlb.MustFromTON("0.05"),
@@ -194,7 +205,7 @@ func TestJettonAll(t *testing.T) {
 		t.Logf("OnrampMock contract deployed at %s\n", onrampMock.Contract.Address.String())
 
 		queryID := rand.Uint64()
-		_, err = setup.common.jettonMinter.CallWaitRecursively(minter.MintNewJettons{
+		_, err = setup.common.jettonMinter.CallWaitRecursively(t.Context(), minter.MintNewJettons{
 			QueryID:       queryID,
 			MintRecipient: setup.sender.Contract.Address,
 			TonAmount:     tlb.MustFromTON("0.05"),
@@ -238,7 +249,7 @@ func TestJettonAll(t *testing.T) {
 		t.Logf("SimpleJettonReceiver contract deployed at %s\n", simpleJettonReceiver.Contract.Address.String())
 
 		queryID := rand.Uint64()
-		_, err = setup.common.jettonMinter.CallWaitRecursively(minter.MintNewJettons{
+		_, err = setup.common.jettonMinter.CallWaitRecursively(t.Context(), minter.MintNewJettons{
 			QueryID:       queryID,
 			MintRecipient: setup.sender.Contract.Address,
 			TonAmount:     tlb.MustFromTON("0.05"),
@@ -270,7 +281,7 @@ func TestJettonAll(t *testing.T) {
 
 		t.Logf("Minting jettons to sender contract\n")
 		queryID := rand.Uint64()
-		sendMintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintNewJettons{
+		sendMintMsg, err := setup.jettonMinter.CallWaitRecursively(t.Context(), minter.MintNewJettons{
 			QueryID:       queryID,
 			MintRecipient: setup.deployer.Wallet.WalletAddress(),
 			TonAmount:     tlb.MustFromTON("0.05"),
@@ -357,7 +368,7 @@ func TestJettonAll(t *testing.T) {
 		t.Logf("Testing change content\n")
 		const newContentURI = "new_content_uri"
 		newContent := createStringCell(t, newContentURI)
-		changeContentMsg, err := setup.jettonMinter.CallWaitRecursively(minter.ChangeMinterMetadataURI{
+		changeContentMsg, err := setup.jettonMinter.CallWaitRecursively(t.Context(), minter.ChangeMinterMetadataURI{
 			QueryID:        rand.Uint64(),
 			NewMetadataURI: newContent,
 		}, tlb.MustFromTON("0.1"))
@@ -397,7 +408,7 @@ func TestJettonAll(t *testing.T) {
 		jettonAmount := tlb.MustFromTON("0.5")
 		queryID := rand.Uint64()
 
-		mintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintNewJettons{
+		mintMsg, err := setup.jettonMinter.CallWaitRecursively(t.Context(), minter.MintNewJettons{
 			QueryID:       queryID,
 			MintRecipient: recipient,
 			TonAmount:     tlb.MustFromTON("0.05"),
@@ -430,7 +441,7 @@ func TestJettonAll(t *testing.T) {
 		t.Parallel()
 		setup := setUpCommon(t)
 		t.Logf("Testing change admin\n")
-		changeAdminMsg, err := setup.jettonMinter.CallWaitRecursively(minter.ChangeMinterAdmin{
+		changeAdminMsg, err := setup.jettonMinter.CallWaitRecursively(t.Context(), minter.ChangeMinterAdmin{
 			QueryID:         rand.Uint64(),
 			NewAdminAddress: setup.receiver.Wallet.Address(),
 		}, tlb.MustFromTON("0.1"))
@@ -447,7 +458,7 @@ func TestJettonAll(t *testing.T) {
 			Client:  &setup.receiver,
 		}
 		require.NoError(t, err, "failed to open jetton minter as new admin")
-		claimAdminMsg, err := jettonMinterAsReceiver.CallWaitRecursively(minter.ClaimMinterAdmin{QueryID: rand.Uint64()}, tlb.MustFromTON("0.1"))
+		claimAdminMsg, err := jettonMinterAsReceiver.CallWaitRecursively(t.Context(), minter.ClaimMinterAdmin{QueryID: rand.Uint64()}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to claim admin")
 		debugger2 := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.receiver.Wallet.Address().String(): {Type: "NewAdmin", Version: *semver.MustParse("0.0.1")},
@@ -467,7 +478,7 @@ func TestJettonAll(t *testing.T) {
 		t.Parallel()
 		setup := setUpCommon(t)
 		t.Logf("Testing drop admin\n")
-		dropAdminMsg, err := setup.jettonMinter.CallWaitRecursively(minter.DropMinterAdmin{
+		dropAdminMsg, err := setup.jettonMinter.CallWaitRecursively(t.Context(), minter.DropMinterAdmin{
 			QueryID: rand.Uint64(),
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to drop admin")
@@ -488,7 +499,7 @@ func TestJettonAll(t *testing.T) {
 		require.Empty(t, msgToMinter.OutgoingInternalReceivedMessages, "Msg to minter should have no outgoing messages")
 
 		queryID := rand.Uint64()
-		mintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintNewJettons{
+		mintMsg, err := setup.jettonMinter.CallWaitRecursively(t.Context(), minter.MintNewJettons{
 			QueryID:       queryID,
 			MintRecipient: setup.receiver.Wallet.Address(),
 			TonAmount:     tlb.MustFromTON("0.05"),
@@ -525,7 +536,7 @@ func TestJettonAll(t *testing.T) {
 		receiver := address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ")
 		jettonAmount := tlb.MustFromTON("12")
 		queryID := rand.Uint64()
-		msgReceived, err := setup.sender.Contract.CallWaitRecursively(jetton_testing_wrappers.SendJettonsFastMessage{
+		msgReceived, err := setup.sender.Contract.CallWaitRecursively(t.Context(), jetton_testing_wrappers.SendJettonsFastMessage{
 			QueryID:     queryID,
 			Amount:      jettonAmount,
 			Destination: receiver,
@@ -551,7 +562,7 @@ func TestJettonAll(t *testing.T) {
 		t.Parallel()
 		setup := setupSender(t)
 		t.Logf("Deploying JettonMinter contract\n")
-		jettonWalletCode, err := wallet.Code()
+		jettonWalletCode, err := loadJettonWalletCode()
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.receiver.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
@@ -569,7 +580,7 @@ func TestJettonAll(t *testing.T) {
 
 		jettonAmount := tlb.MustFromTON("12")
 		queryID := rand.Uint64()
-		msgReceived, err := setup.sender.Contract.CallWaitRecursively(jetton_testing_wrappers.SendJettonsFastMessage{
+		msgReceived, err := setup.sender.Contract.CallWaitRecursively(t.Context(), jetton_testing_wrappers.SendJettonsFastMessage{
 			QueryID:     queryID,
 			Amount:      jettonAmount,
 			Destination: setup.common.receiver.Wallet.Address(),
@@ -603,7 +614,7 @@ func TestJettonAll(t *testing.T) {
 		forwardPayload := createStringCell(t, "forward_payload")
 
 		queryID := rand.Uint64()
-		msgJettonsExtended, err := setup.sender.Contract.CallWaitRecursively(jetton_testing_wrappers.SendJettonsExtendedMessage{
+		msgJettonsExtended, err := setup.sender.Contract.CallWaitRecursively(t.Context(), jetton_testing_wrappers.SendJettonsExtendedMessage{
 			QueryID:          queryID,
 			Amount:           jettonAmount,
 			Destination:      receiver,
@@ -653,7 +664,7 @@ func TestJettonAll(t *testing.T) {
 
 		sendCallWithAmount := func(jettonAmount tlb.Coins) (tracetracking.OutgoingExternalMessages, uint64, error) {
 			queryID := rand.Uint64()
-			msgReceived, err2 := setup.Sender.Contract.CallWaitRecursively(jetton_testing_wrappers.SendJettonsExtendedMessage{
+			msgReceived, err2 := setup.Sender.Contract.CallWaitRecursively(t.Context(), jetton_testing_wrappers.SendJettonsExtendedMessage{
 				QueryID:          queryID,
 				Amount:           jettonAmount,
 				Destination:      setup.onrampMock.Contract.Address,
@@ -748,11 +759,11 @@ func TestJettonAll(t *testing.T) {
 		t.Logf("\n\n\n\n\n\nJetton Receiver Tests Started\n==========================\n")
 
 		t.Logf("Testing receiver checkers\n")
-		amountChecker, err := setup.simpleReceiver.GetAmountChecker()
+		amountChecker, err := setup.simpleReceiver.GetAmountChecker(t.Context())
 		require.NoError(t, err, "failed to get amount checker")
 		assert.Equal(t, tlb.MustFromTON("0").Nano().Uint64(), amountChecker.Nano().Uint64(), "Amount checker should be 0.1 TON")
 
-		payloadCheckerResult, err := setup.simpleReceiver.GetPayloadChecker()
+		payloadCheckerResult, err := setup.simpleReceiver.GetPayloadChecker(t.Context())
 		require.NoError(t, err, "failed to get payload checker")
 		assert.Nil(t, payloadCheckerResult, "Payload checker should be nil")
 		t.Logf("Receiver checkers test passed\n")
@@ -761,7 +772,7 @@ func TestJettonAll(t *testing.T) {
 		expectedPayload := createStringCell(t, "expected_payload")
 		jettonAmount := tlb.MustFromTON("0.5")
 		queryID := rand.Uint64()
-		receivedMsg, err := setup.Sender.Contract.CallWaitRecursively(jetton_testing_wrappers.SendJettonsExtendedMessage{
+		receivedMsg, err := setup.Sender.Contract.CallWaitRecursively(t.Context(), jetton_testing_wrappers.SendJettonsExtendedMessage{
 			QueryID:          queryID,
 			Amount:           jettonAmount,
 			Destination:      setup.simpleReceiver.Contract.Address,
@@ -785,11 +796,11 @@ func TestJettonAll(t *testing.T) {
 		t.Logf("Jettons sent: \n%s\n", debugger.DumpReceived(receivedMsg))
 
 		t.Logf("Testing receiver checkers\n")
-		amountChecker, err = setup.simpleReceiver.GetAmountChecker()
+		amountChecker, err = setup.simpleReceiver.GetAmountChecker(t.Context())
 		require.NoError(t, err, "failed to get amount checker")
 		assert.Equal(t, jettonAmount.Nano().Uint64(), amountChecker.Nano().Uint64(), "Amount checker should be 0.1 TON")
 
-		payloadCheckerResult, err = setup.simpleReceiver.GetPayloadChecker()
+		payloadCheckerResult, err = setup.simpleReceiver.GetPayloadChecker(t.Context())
 		require.NoError(t, err, "failed to get payload checker")
 		assert.NotNil(t, payloadCheckerResult, "Payload checker should not be nil")
 		assert.Equal(t, expectedPayload.String(), payloadCheckerResult.String(), "Payload checker should match expected payload")
@@ -806,7 +817,7 @@ func TestJettonAll(t *testing.T) {
 
 		msg, err := tlb.ToCell(jetton_common.TopUpTons{})
 		require.NoError(t, err, "failed to create top-up message")
-		jettonWalletCode, err := wallet.Code()
+		jettonWalletCode, err := loadJettonWalletCode()
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
@@ -834,7 +845,7 @@ func TestJettonAll(t *testing.T) {
 		jettonAmount := tlb.MustFromTON("0.5")
 		fwdTonAmount := tlb.MustFromTON("0.01")
 		queryID := rand.Uint64()
-		transferMsg, err := deployerJettonWallet.CallWaitRecursively(jetton.TransferPayload{
+		transferMsg, err := deployerJettonWallet.CallWaitRecursively(t.Context(), jetton.TransferPayload{
 			QueryID:             queryID,
 			Amount:              jettonAmount,
 			Destination:         recipient,
@@ -865,7 +876,7 @@ func TestJettonAll(t *testing.T) {
 		setup := setupJettonWallet(t)
 		t.Logf("Deploying JettonWallet contract\n")
 
-		jettonWalletCode, err := wallet.Code()
+		jettonWalletCode, err := loadJettonWalletCode()
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
@@ -895,7 +906,7 @@ func TestJettonAll(t *testing.T) {
 		jettonAmount := tlb.MustFromTON("0.5")
 		fwdTonAmount := tlb.MustFromTON("0.01")
 		queryID := rand.Uint64()
-		transferMsg, err := deployerJettonWallet.CallWaitRecursively(jetton.TransferPayload{
+		transferMsg, err := deployerJettonWallet.CallWaitRecursively(t.Context(), jetton.TransferPayload{
 			QueryID:             queryID,
 			Amount:              jettonAmount,
 			Destination:         recipient,
@@ -925,7 +936,7 @@ func TestJettonAll(t *testing.T) {
 		t.Parallel()
 		setup := setupJettonWallet(t)
 		t.Logf("Deploying JettonWallet contract\n")
-		jettonWalletCode, err := wallet.Code()
+		jettonWalletCode, err := loadJettonWalletCode()
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
@@ -951,7 +962,7 @@ func TestJettonAll(t *testing.T) {
 		jettonAmountToBurn := tlb.MustFromNano(big.NewInt(0).Div(initialBalance, big.NewInt(2)), tlb.ZeroCoins.Decimals())
 		t.Logf("Jetton amount to burn: %s", jettonAmountToBurn.String())
 		queryID := rand.Uint64()
-		burnMsg, err := jettonWallet.CallWaitRecursively(jetton.BurnPayload{
+		burnMsg, err := jettonWallet.CallWaitRecursively(t.Context(), jetton.BurnPayload{
 			QueryID:             queryID,
 			Amount:              jettonAmountToBurn,
 			ResponseDestination: setup.common.deployer.Wallet.WalletAddress(),
@@ -976,7 +987,7 @@ func TestJettonAll(t *testing.T) {
 }
 
 func DeployMinter(t *testing.T, deployer *tracetracking.SignedAPIClient, initData minter.InitData) *wrappers.Contract {
-	minterCode, err := minter.Code()
+	minterCode, err := loadJettonMinterCode()
 	require.NoError(t, err, "failed to load JettonMinter code")
 	topUpMsg, err := tlb.ToCell(jetton_common.TopUpTons{})
 	require.NoError(t, err, "failed to create TopUp message")

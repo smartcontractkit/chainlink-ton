@@ -16,13 +16,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/contracts"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/test_logger"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/balance"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
 	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 
 	"github.com/stretchr/testify/mock"
@@ -113,7 +113,7 @@ func TestTxmLocal(t *testing.T) {
 				counterAddr := deployCounterContract(t, setup.setupClient.Wallet, initialValue)
 
 				// Check current state
-				current, err := counter.GetValue(t.Context(), setup.setupClient.Client, counterAddr)
+				current, err := tvm.CallGetterLatest(t.Context(), setup.setupClient.Client, counterAddr, counter.GetValue)
 				require.NoError(t, err)
 				require.Equal(t, initialValue, current)
 
@@ -156,7 +156,7 @@ func TestTxmLocal(t *testing.T) {
 				waitForStableInflightCount(lggr, tonTxm, 30*time.Second)
 
 				// Check final value
-				final, err := counter.GetValue(t.Context(), setup.setupClient.Client, counterAddr)
+				final, err := tvm.CallGetterLatest(t.Context(), setup.setupClient.Client, counterAddr, counter.GetValue)
 				require.NoError(t, err)
 				lggr.Infow("Final counter value", "value", final)
 				require.Equal(t, expected, final)
@@ -226,7 +226,7 @@ func TestTxmLocal(t *testing.T) {
 					step()
 					waitForStableInflightCount(lggr, tonTxm, 10*time.Second)
 
-					currentValue, err := counter.GetValue(t.Context(), setup.setupClient.Client, counterAddr)
+					currentValue, err := tvm.CallGetterLatest(t.Context(), setup.setupClient.Client, counterAddr, counter.GetValue)
 					require.NoError(t, err)
 					require.Equal(t, initialValue, currentValue, "Counter should remain unchanged after tx with insufficient funds")
 					setup.txmTestingClient.AssertExpectations(t)
@@ -288,7 +288,7 @@ func TestTxmLocal(t *testing.T) {
 					step()
 					waitForStableInflightCount(lggr, tonTxm, 10*time.Second)
 
-					currentValue, err := counter.GetValue(t.Context(), setup.setupClient.Client, counterAddr)
+					currentValue, err := tvm.CallGetterLatest(t.Context(), setup.setupClient.Client, counterAddr, counter.GetValue)
 					require.NoError(t, err)
 					require.Equal(t, initialValue, currentValue, "Counter should remain unchanged after tx with insufficient funds")
 					setup.txmTestingClient.AssertExpectations(t)
@@ -408,7 +408,7 @@ func deployCounterContract(t *testing.T, wallet wallet.Wallet, initialValue uint
 	dataCell, err := tlb.ToCell(data)
 	require.NoError(t, err)
 
-	path := bindings.GetBuildDir("examples.Counter.compiled.json")
+	path := contracts.BuildPath("examples.Counter.compiled.json")
 	code, err := wrappers.ParseCompiledContract(path)
 	require.NoError(t, err)
 

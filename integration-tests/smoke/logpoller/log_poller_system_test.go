@@ -159,7 +159,7 @@ func Test_LogPoller_System(t *testing.T) {
 
 		// Wait for transactions to be confirmed by checking counter value
 		require.Eventually(t, func() bool {
-			counterValue, cerr := counter.GetValue(t.Context(), tonChain.Client, emitter.ContractAddress())
+			counterValue, cerr := tvm.CallGetterLatest(t.Context(), tonChain.Client, emitter.ContractAddress(), counter.GetValue)
 			if cerr != nil {
 				t.Logf("failed to get counter value: %v", err)
 				return false
@@ -167,7 +167,7 @@ func Test_LogPoller_System(t *testing.T) {
 			return counterValue == preReplayEvents
 		}, 30*time.Second, 1*time.Second, "counter should reach expected value")
 
-		counterValue, _ := counter.GetValue(t.Context(), tonChain.Client, emitter.ContractAddress())
+		counterValue, _ := tvm.CallGetterLatest(t.Context(), tonChain.Client, emitter.ContractAddress(), counter.GetValue)
 		require.Equal(t, preReplayEvents, int(counterValue))
 
 		// 4. Start LogPoller (with in-memory stores)

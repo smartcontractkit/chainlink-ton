@@ -23,10 +23,10 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/contracts"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount, txPerBatch, msgPerTx int) (*TestEventSource, []TestEventRes) {
@@ -47,7 +47,7 @@ func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount,
 	expectedCounter := uint32(batchCount * txPerBatch * msgPerTx) //nolint:gosec // test code
 
 	require.Eventually(t, func() bool {
-		currentCounter, err := counter.GetValue(t.Context(), client, emitter.ContractAddress())
+		currentCounter, err := tvm.CallGetterLatest(t.Context(), client, emitter.ContractAddress(), counter.GetValue)
 		if err != nil {
 			return false
 		}
@@ -114,7 +114,7 @@ type TestEventSource struct {
 }
 
 func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet *wallet.Wallet, name string, id uint32, lggr logger.Logger) (*TestEventSource, error) {
-	codeCell, cerr := wrappers.ParseCompiledContract(bindings.GetBuildDir("examples.Counter.compiled.json"))
+	codeCell, cerr := wrappers.ParseCompiledContract(contracts.BuildPath("examples.Counter.compiled.json"))
 	if cerr != nil {
 		return nil, fmt.Errorf("failed to parse compiled contract: %w", cerr)
 	}

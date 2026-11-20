@@ -2,7 +2,6 @@ package wallet
 
 import (
 	"fmt"
-	"path"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 // JettonWallet opcodes
@@ -97,8 +95,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	jetton.TopUpTons{},
 }).MustWithStorageType(InitData{})
 
-var WalletContractPath = path.Join(jetton.PathToContracts, "JettonWallet.compiled.json")
-
 type Provider struct {
 	MinterAddress *address.Address
 }
@@ -114,14 +110,6 @@ type InitData struct {
 	Balance       tlb.Coins        `tlb:"."`
 	OwnerAddress  *address.Address `tlb:"addr"`
 	MasterAddress *address.Address `tlb:"addr"`
-}
-
-func Code() (*cell.Cell, error) {
-	compiledContract, err := wrappers.ParseCompiledContract(WalletContractPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to compile contract: %w", err)
-	}
-	return compiledContract, nil
 }
 
 func (p *Provider) GetWalletInitCell(ownerAddress *address.Address) (*cell.Cell, error) {
