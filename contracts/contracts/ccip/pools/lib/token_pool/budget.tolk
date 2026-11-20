@@ -38,7 +38,6 @@ fun TokenPool_Costs.callerFinalization(): coins {
 
 /// TON budgets of a token pool: empirical (gas-report tests), with pool-type defaults that each
 /// instance can raise (`TokenPool_SetBudget`). In storage, a zero field means "use the default".
-/// See docs/contracts/overview/ccip/budget/TP-VALUE-BUDGET-AUDIT.md.
 
 /// - `admission`: checked at the entrypoint and published to CCIP. Covers the pre-custody path
 ///   and `lockOrBurnCustodyMoves * safety`. The separate caller continuation `F` is not included.
