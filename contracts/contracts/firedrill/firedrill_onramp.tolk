@@ -42,12 +42,12 @@ fun onInternalMessage(in: InMessage) {
 	match (msg) {
 		FiredrillOnRamp_EmitCCIPMessageSent => {
 			// Only control address can trigger emissions
-			assert(in.senderAddress == st.controlAddress, 100);
+			assert (in.senderAddress == st.controlAddress) throw (100);
 			emitCCIPMessageSent(msg.sender, msg.sequenceNumber, st.chainSelector, st.tokenAddress);
 		}
 		else => {
 		    // ignore empty messages, "wrong opcode" for others
-		    assert (in.body.isEmpty()) throw 0xFFFF;
+		    assert (in.body.isEmpty()) throw (0xFFFF);
 		}
 	}
 }

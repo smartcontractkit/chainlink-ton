@@ -12,10 +12,10 @@ import (
 // --- Constants ---
 
 const (
-	// OffRampAccountDeployValue is the TON value sent when deploying the per-release
+	// ReceiverAccountDeployValue is the TON value sent when deploying the per-release
 	// DepositAccount (off-ramp role). lock_release_lockbox deploys with value 0 and carries
 	// the remaining message value through (SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE).
-	OffRampAccountDeployValue = 0
+	ReceiverAccountDeployValue = 0
 )
 
 // --- Data types ---
@@ -57,9 +57,9 @@ const (
 	ExitCodeLockboxNotConfigured ExitCode = iota + 20900 // Facility ID 209 * 100
 	ExitCodeUnexpectedLockboxConfirmationSender
 	ExitCodeUnexpectedLockBounce
-	ExitCodeInvalidOffRampAccountReply
-	ExitCodeInvalidOffRampAccountNotification
-	ExitCodeOffRampAccountDeployFailed
+	ExitCodeInvalidReceiverAccountReply
+	ExitCodeInvalidReceiverAccountNotification
+	ExitCodeReceiverAccountDeployFailed
 	ExitCodeLockboxWithdrawFailed
 )
 

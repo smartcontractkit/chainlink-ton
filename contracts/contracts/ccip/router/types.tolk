@@ -15,7 +15,7 @@ struct OffRamps {
     offRamp: address;
 }
 
-/// Deployables ID of a Router-owned deposit account, in the OnRampAccount or DepositAccount
+/// Deployables ID of a Router-owned deposit account, in the SenderAccount or DepositAccount
 /// namespace.
 ///
 /// @dev The token is part of the ID so an account can only ever hold one jetton: were it

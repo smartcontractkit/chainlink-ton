@@ -12,6 +12,7 @@ import {
   TokenPool_AdminConfig,
   TokenPool_DynamicConfig,
   TokenPool_LocalPolicy,
+  TokenPool_ReleaseOrMint,
   TokenPool_ReleaseOrMintFailure,
   TokenPool_ReleaseOrMintFinalized,
   TransferNotificationForRecipient,
@@ -61,9 +62,11 @@ import {
   runTokenPoolBehaviorTests,
 } from './TokenPool.behavior'
 import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
+import { runTokenPoolMinValueBehaviorTests } from './TokenPool.minValue.behavior'
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
 import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
-import { deriveOnRampAccountAddress } from '../../../wrappers/ccip/OnRampAccount'
+import { deriveSenderAccountAddress } from '../../../wrappers/ccip/SenderAccount'
+import { ZERO_ADDRESS } from '../../../src/utils'
 import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
@@ -97,6 +100,36 @@ describe('LockReleaseLockboxTokenPool', () => {
   let sourcePoolAddress: CrossChainAddress
   let destTokenAddress: CrossChainAddress
   let receiverAddress: CrossChainAddress
+
+  function createPoolStorage(lockbox: Address) {
+    return {
+      poolData: TokenPool_Data.create({
+        adminConfig: TokenPool_AdminConfig.create({
+          ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+          dynamicConfig: TokenPool_DynamicConfig.create({
+            router: deployer.address,
+            rateLimitAdmin: null,
+            feeAdmin: null,
+          }),
+          allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
+          jettonClient: JettonClient.create({
+            masterAddress: jettonMinter.address,
+            jettonWalletCode,
+          }),
+          allowedFinalityConfig: 0n,
+          advancedPoolHooks: null,
+        }),
+        localPolicy: TokenPool_LocalPolicy.create({
+          cursePolicy: createEmptyCursePolicy(deployer.address),
+        }),
+        tokenDecimals: 9n,
+        remoteChainConfigs: new Map(),
+        tokenTransferFeeConfigs: new Map(),
+        accruedFees: 0n,
+      }),
+      lockbox,
+    }
+  }
 
   beforeAll(async () => {
     sourcePoolAddress = CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool'))
@@ -167,40 +200,11 @@ describe('LockReleaseLockboxTokenPool', () => {
 
     // Deploy LockReleaseLockboxTokenPool (need pool address for role grant below)
     lockReleaseLockboxPool = blockchain.openContract(
-      LockReleaseLockboxTokenPool.fromStorage(
-        {
-          poolData: TokenPool_Data.create({
-            adminConfig: TokenPool_AdminConfig.create({
-              ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
-              dynamicConfig: TokenPool_DynamicConfig.create({
-                router: deployer.address,
-                rateLimitAdmin: null,
-                feeAdmin: null,
-              }),
-              allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
-              jettonClient: JettonClient.create({
-                masterAddress: jettonMinter.address,
-                jettonWalletCode,
-              }),
-              allowedFinalityConfig: 0n,
-              advancedPoolHooks: null,
-            }),
-            localPolicy: TokenPool_LocalPolicy.create({
-              cursePolicy: createEmptyCursePolicy(deployer.address),
-            }),
-            tokenDecimals: 9n,
-            remoteChainConfigs: new Map(),
-            tokenTransferFeeConfigs: new Map(),
-            accruedFees: 0n,
-          }),
-          lockbox: jettonLockBox.address,
-        },
-        {
-          overrideContractCode: await contractCode.ccip.local(
-            'ccip.pool.LockReleaseLockboxTokenPool',
-          ),
-        },
-      ),
+      LockReleaseLockboxTokenPool.fromStorage(createPoolStorage(jettonLockBox.address), {
+        overrideContractCode: await contractCode.ccip.local(
+          'ccip.pool.LockReleaseLockboxTokenPool',
+        ),
+      }),
     )
     await lockReleaseLockboxPool.sendDeploy(deployer.getSender(), toNano('5'))
 
@@ -291,7 +295,7 @@ describe('LockReleaseLockboxTokenPool', () => {
   // set the transferInitiator so we cannot check if OPERATOR. Instead, deposit
   // through the pool (the OPERATOR) with a valid forward payload so the jettons
   // stay in the lockbox.
-  // The deposit impersonates the Router-driven flow: the sender's OnRampAccount (derived
+  // The deposit impersonates the Router-driven flow: the sender's SenderAccount (derived
   // offchain) transfers to the pool carrying the forward payload, tagged with
   // `initiator` = Router, which the pool requires to trust the payload.
   // @param amount Number of jettons to deposit into the lockbox.
@@ -305,7 +309,6 @@ describe('LockReleaseLockboxTokenPool', () => {
       queryId: BigInt(queryId),
       request: TokenPool_LockOrBurnInV1.create({
         transfer: TokenPool_Transfer.create({
-          id: BigInt(queryId),
           details: TokenPool_TransferDetails.create({
             receiver: receiverAddress,
             remoteChainSelector,
@@ -318,11 +321,11 @@ describe('LockReleaseLockboxTokenPool', () => {
       requestedFinalityConfig: 0n,
       tokenArgs: null,
       replyTo: deployer.address,
-      onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+      onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
       finalizationValue: toNano('0.01'),
     })
     const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
-      originalSender: deployer.address,
+      initiator: deployer.address,
       requestMsg: lockOrBurn,
       prepared: TokenPool_LockOrBurnPrepared.create({
         feeAmount: 0n,
@@ -333,7 +336,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         }),
       }),
     })
-    const accountAddress = deriveOnRampAccountAddress({
+    const accountAddress = deriveSenderAccountAddress({
       router: deployer.address,
       user: deployer.address,
       token: jettonMinter.address,
@@ -389,6 +392,21 @@ describe('LockReleaseLockboxTokenPool', () => {
     // Fund the lockbox so release completions can actually be observed in behavior tests.
     await fundLockboxViaLock(toNano('10'))
   }
+
+  runTokenPoolMinValueBehaviorTests('LockReleaseLockboxTokenPool', async () => ({
+    pool,
+    blockchain,
+    deployer,
+    offRamp,
+    unauthorized: recipient,
+    recipient,
+    remoteChainSelector,
+    onRampAddress: deployer.address,
+    destTokenAddress,
+    sourcePoolAddress,
+    localToken: jettonMinter.address,
+    releaseOrMintInitiator: jettonLockBox.address,
+  }))
 
   runTokenPoolBehaviorTests(
     'LockReleaseLockboxTokenPool',
@@ -496,7 +514,6 @@ describe('LockReleaseLockboxTokenPool', () => {
         queryId,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: queryId,
             details: TokenPool_TransferDetails.create({
               receiver: receiverAddress,
               remoteChainSelector,
@@ -509,11 +526,11 @@ describe('LockReleaseLockboxTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
-        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
         finalizationValue: toNano('0.01'),
       })
       const transferPayload = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: deployer.address,
+        initiator: deployer.address,
         requestMsg: lockOrBurn,
         prepared: TokenPool_LockOrBurnPrepared.create({
           feeAmount,
@@ -524,7 +541,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           }),
         }),
       })
-      const accountAddress = deriveOnRampAccountAddress({
+      const accountAddress = deriveSenderAccountAddress({
         router: deployer.address,
         user: deployer.address,
         token: jettonMinter.address,
@@ -617,19 +634,44 @@ describe('LockReleaseLockboxTokenPool', () => {
       expect(await lockReleaseLockboxPool.getToken()).toEqualAddress(jettonMinter.address)
       expect(await lockReleaseLockboxPool.getTokenDecimals()).toBe(9n)
     })
+
+    it('rejects a zero lockbox address', async () => {
+      const zeroLockboxPool = blockchain.openContract(
+        LockReleaseLockboxTokenPool.fromStorage(createPoolStorage(ZERO_ADDRESS), {
+          overrideContractCode: await contractCode.ccip.local(
+            'ccip.pool.LockReleaseLockboxTokenPool',
+          ),
+        }),
+      )
+      await zeroLockboxPool.sendDeploy(deployer.getSender(), toNano('5'))
+
+      const result = await zeroLockboxPool.sendTokenPoolGetConfig(
+        deployer.getSender(),
+        toNano('0.05'),
+        { queryId: 1n },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: zeroLockboxPool.address,
+        success: false,
+        exitCode:
+          LockReleaseLockboxTokenPool.Errors[
+            'LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured'
+          ],
+      })
+    })
   })
 
   describe('lock flow (jetton transfer -> lockbox custody)', () => {
-    // Runs the authenticated lock flow: the deployer's wallet funds the derived OnRampAccount,
+    // Runs the authenticated lock flow: the deployer's wallet funds the derived SenderAccount,
     // which then transfers to the pool carrying the Router-initiated forward payload wrapper
     // (same shape as `fundLockboxViaLock`). Sending directly from a user wallet with an
     // unwrapped payload would take the pool's recovery path instead of locking.
-    const lockViaOnRampAccount = async (amount: bigint, queryId: bigint) => {
+    const lockViaSenderAccount = async (amount: bigint, queryId: bigint) => {
       const lockOrBurn = TokenPool_LockOrBurn.create({
         queryId,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: queryId,
             details: TokenPool_TransferDetails.create({
               receiver: receiverAddress,
               remoteChainSelector,
@@ -642,12 +684,12 @@ describe('LockReleaseLockboxTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: deployer.address,
-        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
         finalizationValue: toNano('0.01'),
       })
 
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: deployer.address,
+        initiator: deployer.address,
         requestMsg: lockOrBurn,
         prepared: TokenPool_LockOrBurnPrepared.create({
           feeAmount: 0n,
@@ -659,7 +701,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         }),
       })
 
-      const accountAddress = deriveOnRampAccountAddress({
+      const accountAddress = deriveSenderAccountAddress({
         router: deployer.address,
         user: deployer.address,
         token: jettonMinter.address,
@@ -699,6 +741,23 @@ describe('LockReleaseLockboxTokenPool', () => {
       })
     }
 
+    function buildRichBounce(originalBody: Cell): Cell {
+      const originalInfo = beginCell()
+        .storeCoins(toNano('0.05'))
+        .storeDict(null)
+        .storeUint(0, 64)
+        .storeUint(0, 32)
+        .endCell()
+      return beginCell()
+        .storeUint(0xfffffffe, 32)
+        .storeRef(originalBody)
+        .storeRef(originalInfo)
+        .storeUint(1, 8)
+        .storeInt(47, 32)
+        .storeBit(false)
+        .endCell()
+    }
+
     // The lockbox wallet is lazily deployed on first funding, so tolerate it not being active yet.
     const lockboxBalance = async (): Promise<bigint> => {
       try {
@@ -712,7 +771,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       const poolWallet = await userWallet(lockReleaseLockboxPool.address)
       const lockboxBalanceBefore = await lockboxBalance()
 
-      const result = await lockViaOnRampAccount(toNano('10'), 100n)
+      const result = await lockViaSenderAccount(toNano('10'), 100n)
 
       // Pool's jetton wallet sends TransferNotificationForRecipient to pool
       expect(result.transactions).toHaveTransaction({
@@ -750,10 +809,87 @@ describe('LockReleaseLockboxTokenPool', () => {
       expect(await lockboxBalance()).toEqual(lockboxBalanceBefore + toNano('10'))
     })
 
+    it('recovers the lock context from the deposit forward payload on a bounced lock transfer', async () => {
+      const queryId = 150n
+      const request = TokenPool_LockOrBurn.create({
+        queryId,
+        request: TokenPool_LockOrBurnInV1.create({
+          transfer: TokenPool_Transfer.create({
+            details: TokenPool_TransferDetails.create({
+              receiver: receiverAddress,
+              remoteChainSelector,
+              originalSender: deployer.address,
+              amount: 1n,
+              localToken: jettonMinter.address,
+            }),
+          }),
+        }),
+        requestedFinalityConfig: 0n,
+        tokenArgs: null,
+        replyTo: deployer.address,
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
+        finalizationValue: toNano('0.01'),
+      })
+      const operation = TokenPool_LockOrBurnForwardPayload.create({
+        initiator: deployer.address,
+        requestMsg: request,
+        prepared: TokenPool_LockOrBurnPrepared.create({
+          feeAmount: 0n,
+          destTokenAmount: 1n,
+          out: TokenPool_LockOrBurnOutV1.create({
+            destTokenAddress,
+            destPoolData: Cell.EMPTY,
+          }),
+        }),
+      })
+      const lockContext = LockReleaseLockboxTokenPool_LockContext.create({
+        forwardPayload: operation,
+        transferInitiator: deployer.address,
+      })
+      const deposit = JettonLockBox_Deposit.create({
+        queryId,
+        token: jettonMinter.address,
+        remoteChainSelector,
+        amount: 1n,
+        context: LockReleaseLockboxTokenPool_LockContext.toCell(lockContext),
+        extra: null,
+      })
+      const ask = AskToTransfer.create({
+        queryId,
+        jettonAmount: 1n,
+        transferRecipient: lockReleaseLockboxPool.address,
+        sendExcessesTo: deployer.address,
+        customPayload: null,
+        forwardTonAmount: 0n,
+        forwardPayload: beginCell()
+          .storeMaybeRef(JettonLockBox_Deposit.toCell(deposit))
+          .endCell()
+          .beginParse(),
+      })
+
+      const poolWallet = await userWallet(lockReleaseLockboxPool.address)
+      const result = await blockchain.sendMessage(
+        internal({
+          from: poolWallet.address,
+          to: lockReleaseLockboxPool.address,
+          value: toNano('0.2'),
+          bounced: true,
+          body: buildRichBounce(AskToTransfer.toCell(ask)),
+        }),
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: lockReleaseLockboxPool.address,
+        to: deployer.address,
+        op: TokenPool_LockOrBurnFailure.PREFIX,
+        success: true,
+      })
+    })
+
     it('should store pending lock when forwarded amount matches transfer amount', async () => {
       const lockboxBalanceBefore = await lockboxBalance()
 
-      const result = await lockViaOnRampAccount(toNano('5'), 101n)
+      const result = await lockViaSenderAccount(toNano('5'), 101n)
 
       // Amounts match, so the lock finalizes and custody lands in the lockbox.
       expect(result.transactions).toHaveTransaction({
@@ -793,7 +929,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId: 200n,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: 200n,
               details: TokenPool_TransferDetails.create({
                 originalSender: sourcePoolAddress,
                 remoteChainSelector,
@@ -836,7 +971,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId: 201n,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: 201n,
               details: TokenPool_TransferDetails.create({
                 originalSender: sourcePoolAddress,
                 remoteChainSelector,
@@ -875,7 +1009,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: queryId,
               details: TokenPool_TransferDetails.create({
                 originalSender: sourcePoolAddress,
                 remoteChainSelector,
@@ -978,7 +1111,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: queryId,
               details: TokenPool_TransferDetails.create({
                 originalSender: sourcePoolAddress,
                 remoteChainSelector,
@@ -1123,7 +1255,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId,
           request: TokenPool_LockOrBurnInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: queryId,
               details: TokenPool_TransferDetails.create({
                 receiver: receiverAddress,
                 remoteChainSelector,
@@ -1136,7 +1267,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: deployer.address,
-          onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+          onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
           finalizationValue: toNano('0.01'),
         })
         const admitted = await pool.sendTokenPoolLockOrBurn(
@@ -1167,7 +1298,6 @@ describe('LockReleaseLockboxTokenPool', () => {
             queryId: 303n,
             request: TokenPool_LockOrBurnInV1.create({
               transfer: TokenPool_Transfer.create({
-                id: 303n,
                 details: TokenPool_TransferDetails.create({
                   receiver: receiverAddress,
                   remoteChainSelector,
@@ -1179,7 +1309,7 @@ describe('LockReleaseLockboxTokenPool', () => {
             }),
           }),
         )
-        const accountAddress = deriveOnRampAccountAddress({
+        const accountAddress = deriveSenderAccountAddress({
           router: deployer.address,
           user: deployer.address,
           token: jettonMinter.address,
@@ -1328,7 +1458,6 @@ describe('LockReleaseLockboxTokenPool', () => {
         queryId: 305n,
         request: TokenPool_LockOrBurnInV1.create({
           transfer: TokenPool_Transfer.create({
-            id: 305n,
             details: TokenPool_TransferDetails.create({
               receiver: receiverAddress,
               remoteChainSelector,
@@ -1341,11 +1470,11 @@ describe('LockReleaseLockboxTokenPool', () => {
         requestedFinalityConfig: 0n,
         tokenArgs: null,
         replyTo: attacker.address,
-        onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+        onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
         finalizationValue: toNano('0.01'),
       })
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
-        originalSender: attacker.address,
+        initiator: attacker.address,
         requestMsg: request,
         prepared: TokenPool_LockOrBurnPrepared.create({
           feeAmount: 0n,
@@ -1357,9 +1486,9 @@ describe('LockReleaseLockboxTokenPool', () => {
         }),
       })
 
-      // Deploy the attacker's OnRampAccount the way the Router does, with the attacker as a
+      // Deploy the attacker's SenderAccount the way the Router does, with the attacker as a
       // beneficiary, and fund its wallet.
-      const accountAddress = deriveOnRampAccountAddress({
+      const accountAddress = deriveSenderAccountAddress({
         router: deployer.address,
         user: attacker.address,
         token: jettonMinter.address,
@@ -1370,7 +1499,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           {
             owner: deployer.address,
             id: Deployable.builder.data.namespaced.encode({
-              namespace: NameSpace.CCIPNamespace.OnRampAccount,
+              namespace: NameSpace.CCIPNamespace.SenderAccount,
               id: beginCell().storeAddress(attacker.address).storeAddress(jettonMinter.address),
             }),
           },
@@ -1564,7 +1693,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId: 300n,
           request: TokenPool_LockOrBurnInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: 300n,
               details: TokenPool_TransferDetails.create({
                 receiver: receiverAddress,
                 remoteChainSelector,
@@ -1577,7 +1705,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           requestedFinalityConfig: 0n,
           tokenArgs: null,
           replyTo: deployer.address,
-          onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+          onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
           finalizationValue: toNano('0.01'),
           extra: TokenPool_LockOrBurnExtra.create({
             sendExcessesTo: recipient.address,
@@ -1585,7 +1713,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         })
 
         const forwardPayload = TokenPool_LockOrBurnForwardPayload.create({
-          originalSender: deployer.address,
+          initiator: deployer.address,
           requestMsg: lockOrBurn,
           prepared: TokenPool_LockOrBurnPrepared.create({
             feeAmount: 0n,
@@ -1597,7 +1725,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           }),
         })
 
-        const accountAddress = deriveOnRampAccountAddress({
+        const accountAddress = deriveSenderAccountAddress({
           router: deployer.address,
           user: deployer.address,
           token: jettonMinter.address,
@@ -1712,7 +1840,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId: 400n,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: 400n,
               details: TokenPool_TransferDetails.create({
                 originalSender: sourcePoolAddress,
                 remoteChainSelector,
@@ -1796,7 +1923,6 @@ describe('LockReleaseLockboxTokenPool', () => {
           queryId: 401n,
           request: TokenPool_ReleaseOrMintInV1.create({
             transfer: TokenPool_Transfer.create({
-              id: 401n,
               details: TokenPool_TransferDetails.create({
                 originalSender: sourcePoolAddress,
                 remoteChainSelector,

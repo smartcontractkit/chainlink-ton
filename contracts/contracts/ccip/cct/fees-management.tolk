@@ -68,7 +68,7 @@ fun calculateTransferFee(forwardTonAmount: int, fwdFee: int, usePrecompiledGas: 
 fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: int, usePrecompiledGas: bool = true) {
     assert (msgValue >
         forwardTonAmount + calculateTransferFee(forwardTonAmount, fwdFee, usePrecompiledGas)
-    ) throw ERROR_NOT_ENOUGH_GAS;
+    ) throw (ERROR_NOT_ENOUGH_GAS);
 }
 
 /// The value a burn must carry to fund the wallet, the minter's notification and, when
@@ -94,5 +94,5 @@ fun calculateBurnRequiredValue(fwdFee: int, hasExcesses: bool, usePrecompiledGas
 /// An underfunded burn is rejected here, before supply changes, instead of committing and dropping
 /// the excess that completes the operation.
 fun checkAmountIsEnoughToBurn(msgValue: int, fwdFee: int, hasExcesses: bool, usePrecompiledGas: bool = true) {
-    assert (msgValue > calculateBurnRequiredValue(fwdFee, hasExcesses, usePrecompiledGas)) throw ERROR_NOT_ENOUGH_GAS;
+    assert (msgValue > calculateBurnRequiredValue(fwdFee, hasExcesses, usePrecompiledGas)) throw (ERROR_NOT_ENOUGH_GAS);
 }

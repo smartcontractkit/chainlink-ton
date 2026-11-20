@@ -16,7 +16,7 @@ import { DEFAULT_MIN_TT_GASLIMIT } from '../../../wrappers/ccip/OffRamp'
 export function createTestMessage(
   opts: {
     receiver?: Address
-    data?: Cell
+    data?: bigint[]
   } = {},
 ): of.Any2TVMRampMessage {
   return of.Any2TVMRampMessage.create({
@@ -28,7 +28,7 @@ export function createTestMessage(
       nonce: 0n,
     }),
     sender: EVM_ADDRESS,
-    data: opts.data ?? Cell.EMPTY,
+    data: opts.data ?? [],
     receiver:
       opts.receiver ??
       Address.parse('0:0000000000000000000000000000000000000000000000000000000000000000'),
@@ -48,7 +48,7 @@ export function createTestMessageWithToken(
     sourcePoolAddress?: of.CrossChainAddress
     extraData?: Cell
     destGasAmount?: bigint
-    data?: Cell
+    data?: bigint[]
     gasLimit?: bigint
   } = {},
 ): of.Any2TVMRampMessage {
@@ -61,7 +61,7 @@ export function createTestMessageWithToken(
       nonce: 0n,
     }),
     sender: EVM_ADDRESS,
-    data: opts.data ?? Cell.EMPTY,
+    data: opts.data ?? [],
     receiver:
       opts.receiver ??
       Address.parse('0:0000000000000000000000000000000000000000000000000000000000000000'),
@@ -102,7 +102,7 @@ export async function setupTestReceiveExecutor(
               nonce: 0n,
             }),
             sender: EVM_ADDRESS,
-            data: Cell.EMPTY,
+            data: [],
             receiver: deployer.address,
             gasLimit: 0n,
             tokenAmounts: null,

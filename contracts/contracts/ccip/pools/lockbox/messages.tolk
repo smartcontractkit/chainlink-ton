@@ -4,6 +4,7 @@
 import "../../../lib/jetton/messages"
 import "../../../lib/funding/withdrawable"
 import "../../../lib/funding/jetton_withdrawable"
+import "../../../lib/versioning/upgradeable"
 
 /// Embedded in a jetton transfer's forwardPayload to identify the deposit context.
 /// The lockbox extracts this from `TransferNotificationForRecipient.forwardPayload` on deposit.
@@ -95,6 +96,8 @@ struct (0xffa6eeb9) JettonLockBox_Init {
     walletAddress: address;
     /// Admin address (defaults to msg.senderAddress if null).
     admin: address?;
+    /// Return the remaining init message value to the sender.
+    returnExcess: bool = false;
 }
 
 /// Sent to the deployer after successful initialization.
@@ -120,7 +123,8 @@ type JettonLockBox_InMessage =
     | JettonLockBox_Withdraw
     | JettonLockBox_WithdrawRescue
     | Withdrawable_Withdraw
-    | TransferNotificationForRecipient;
+    | TransferNotificationForRecipient
+    | Upgradeable_Upgrade;
 
 /// All outgoing message types.
 type JettonLockBox_OutMessage =

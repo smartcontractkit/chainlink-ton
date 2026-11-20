@@ -7,8 +7,12 @@ import * as coverage from '../../coverage/coverage'
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as tar from '../../../wrappers/gen/ccip/TokenAdminRegistry'
 import * as tare from '../../../wrappers/gen/ccip/TokenAdminRegistryEntry'
-import * as target from '../../../wrappers/gen/test/TokenAdminRegistryEntryUpgradeTarget'
-import { Costs, ENTRY_VERSION } from '../../../wrappers/ccip/TokenAdminRegistry'
+import { UpgradeTarget } from '../../../wrappers/gen/test/UpgradeTarget'
+import {
+  Costs,
+  ENTRY_CONTRACT_VERSION,
+  ENTRY_VERSION,
+} from '../../../wrappers/ccip/TokenAdminRegistry'
 import {
   EntryErrors,
   Fixture,
@@ -39,7 +43,7 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
     blockchain = await createBlockchain()
     blockchain.now = 1
     entryCode = await contractCode.ccip.local('TokenAdminRegistryEntry')
-    targetCode = await contractCode.ccip.local('TokenAdminRegistryEntryUpgradeTarget')
+    targetCode = await contractCode.ccip.local('UpgradeTarget')
   })
 
   beforeEach(async () => {
@@ -91,11 +95,13 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
     expect(entryEmittedExternal(upgrade)).toBe(true)
     expect((await accountState(fx)).code).toEqualCell(targetCode)
 
-    const upgraded = blockchain.openContract(
-      target.TokenAdminRegistryEntryUpgradeTarget.fromAddress(entry.address),
-    )
+    const upgraded = blockchain.openContract(UpgradeTarget.fromAddress(entry.address))
     expect(await upgraded.getPreviousStorage()).toEqualCell(storageBefore)
-    expect(await upgraded.getResumed()).toBeNull()
+    expect((await upgraded.getPreviousVersion()).beginParse().loadStringTail()).toBe(
+      ENTRY_CONTRACT_VERSION,
+    )
+    expect(await upgraded.getLastSender()).toBeNull()
+    expect(await upgraded.getLastBody()).toBeNull()
 
     const resume = await entry.sendTokenAdminRegistryEntryResume(asRoot(fx), toNano('0.1'), {
       request,
@@ -106,7 +112,12 @@ describe('TokenAdminRegistry - Entry Upgrades', () => {
       op: tare.TokenAdminRegistryEntry_Resume.PREFIX,
       success: true,
     })
-    expect(await upgraded.getResumed()).toEqual(request)
+    expect(await upgraded.getLastSender()).toEqualAddress(fx.registry.address)
+    expect(await upgraded.getLastBody()).toEqualCell(
+      tare.TokenAdminRegistryEntry_Resume.toCell(
+        tare.TokenAdminRegistryEntry_Resume.create({ request }),
+      ),
+    )
   })
 
   it('answers an upgrade request with an Upgradeable_Upgrade followed by the request as a Resume', async () => {

@@ -17,7 +17,7 @@ const relayValue = toNano('1')
 // Router_Error.DepositAccountWalletUnavailable is only reported as an exit code, never thrown, so
 // the generated Errors map omits it.
 const DEPOSIT_ACCOUNT_WALLET_UNAVAILABLE =
-  rt.Router.Errors['Router_Error.SenderIsNotOnRampAccount'] + 1
+  rt.Router.Errors['Router_Error.SenderIsNotSenderAccount'] + 1
 
 describe('Router.relayReleaseOrMint', () => {
   let blockchain: Blockchain
@@ -56,7 +56,7 @@ describe('Router.relayReleaseOrMint', () => {
     otherToken = otherTokenMaster.address
   })
 
-  // Router.offRampAccount: Deployable namespace DepositAccount, owner = Router,
+  // Router.receiverAccount: Deployable namespace DepositAccount, owner = Router,
   // id = (receiver, token).
   const receiverAccountFor = (user: Address = receiver.address, jetton: Address = token) =>
     NameSpace.deriveAddress(
@@ -66,14 +66,13 @@ describe('Router.relayReleaseOrMint', () => {
       deployableCode,
     )
 
-  const relayOf = (queryID: bigint, jetton: Address = token) =>
+  const relayOf = (queryId: bigint, jetton: Address = token) =>
     rt.Router_RelayReleaseOrMint.create({
-      queryID,
+      queryId,
       sourceChainSelector,
       tokenPool: tokenPool.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
         transfer: rt.TokenPool_Transfer.create({
-          id: queryID,
           details: rt.TokenPool_TransferDetails.create({
             originalSender: EVM_ADDRESS,
             remoteChainSelector: sourceChainSelector,
@@ -141,14 +140,14 @@ describe('Router.relayReleaseOrMint', () => {
     })
 
   describe('receiver deposit account deployment', () => {
-    it('exposes the derived account address via the offRampAccountAddress getter', async () => {
-      const getterAddress = await router.getOffRampAccountAddress(receiver.address, token)
+    it('exposes the derived account address via the receiverAccountAddress getter', async () => {
+      const getterAddress = await router.getReceiverAccountAddress(receiver.address, token)
       expect(getterAddress.equals(receiverAccountFor())).toBe(true)
     })
 
     it('gives the same receiver a different deposit account per token', async () => {
-      const forToken = await router.getOffRampAccountAddress(receiver.address, token)
-      const forOtherToken = await router.getOffRampAccountAddress(receiver.address, otherToken)
+      const forToken = await router.getReceiverAccountAddress(receiver.address, token)
+      const forOtherToken = await router.getReceiverAccountAddress(receiver.address, otherToken)
       expect(forToken.equals(forOtherToken)).toBe(false)
     })
 
@@ -307,10 +306,10 @@ describe('Router.relayReleaseOrMint', () => {
           if (!body) return false
           const failed = rt.Router_TokenPoolReleaseOrMintFailed.fromSlice(body.beginParse())
           return (
-            failed.queryID === 14n &&
+            failed.queryId === 14n &&
             failed.tokenPool.equals(tokenPool.address) &&
             failed.replyTo.equals(executor.address) &&
-            failed.exitCode ===
+            failed.errorCode ===
               BigInt(deposit.DepositAccount.Errors['DepositAccount_Error.InitPending'])
           )
         },
@@ -335,7 +334,8 @@ describe('Router.relayReleaseOrMint', () => {
           if (!body) return false
           const failed = rt.Router_TokenPoolReleaseOrMintFailed.fromSlice(body.beginParse())
           return (
-            failed.queryID === 15n && failed.exitCode === BigInt(DEPOSIT_ACCOUNT_WALLET_UNAVAILABLE)
+            failed.queryId === 15n &&
+            failed.errorCode === BigInt(DEPOSIT_ACCOUNT_WALLET_UNAVAILABLE)
           )
         },
       })

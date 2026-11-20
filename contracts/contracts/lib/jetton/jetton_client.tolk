@@ -47,7 +47,7 @@ fun JettonClient.sendSimple(
             forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
         },
     })
-        .send(sendMode);
+        .send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 @inline
@@ -86,7 +86,7 @@ fun JettonClient.sendExtended(
         dest: self.walletAddress(),
         body: body,
     })
-        .send(sendMode);
+        .send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Cast Cell into ForwardPayloadRemainder by storing as ref

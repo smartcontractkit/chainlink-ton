@@ -211,3 +211,117 @@ func TestExecuteReport_WithHardCodedTSBytes(t *testing.T) {
 	err = tlb.Parse(&report, c)
 	require.NoError(t, err)
 }
+
+// ReceiverAccounts is a Tolk `array<address>`: `len: uint8` + `maybe ^` chain of chunks, each chunk
+// being `next: maybe ^chunk` followed by packed elements. Tolk and the tonutils `array` tag pack
+// several elements per chunk, while the generated TS wrappers store one element per chunk; all of
+// them must decode each other's output.
+func TestCCIPReceiveV2_ReceiverAccounts(t *testing.T) {
+	a1 := address.MustParseAddr("EQBPABJHLy9WThhpL5UIiDIrUHWzz6Mjhq96hPP4TuMkGPsk")
+	a2 := address.MustParseAddr("EQAsP6MHRFOGtFf2xcx4Kt82AAwQWGEcYsQB7v3-vGd8MR-j")
+
+	newMsg := func(accounts []*address.Address) CCIPReceiveV2 {
+		return CCIPReceiveV2{
+			ExecID:       make([]byte, 24),
+			QueryID:      7,
+			ConfirmValue: tlb.MustFromTON("0.01"),
+			Message: Any2TVMMessage{
+				MessageID: make([]byte, 32),
+				Sender:    common.CrossChainAddress{0x01, 0x02},
+				Data:      cell.BeginCell().EndCell(),
+			},
+			ReceiverAccounts: accounts,
+		}
+	}
+	// rawBody builds a CCIPReceiveV2 body by hand with the given receiverAccounts length and head chunk.
+	rawBody := func(t *testing.T, length uint64, head *cell.Cell) *cell.Cell {
+		msgCell, err := tlb.ToCell(newMsg(nil).Message)
+		require.NoError(t, err)
+		return cell.BeginCell().
+			MustStoreUInt(0x5b4bc7a6, 32).
+			MustStoreSlice(make([]byte, 24), 192).
+			MustStoreUInt(7, 64).
+			MustStoreBigCoins(tlb.MustFromTON("0.01").Nano()).
+			MustStoreRef(msgCell).
+			MustStoreUInt(length, 8).
+			MustStoreMaybeRef(head).
+			EndCell()
+	}
+	// skipToReceiverAccounts returns a slice positioned at the receiverAccounts field.
+	skipToReceiverAccounts := func(t *testing.T, c *cell.Cell) *cell.Slice {
+		s := c.MustBeginParse()
+		s.MustLoadUInt(32)         // opcode
+		s.MustLoadSlice(192)       // execID
+		s.MustLoadUInt(64)         // queryId
+		_, err := s.LoadBigCoins() // confirmValue
+		require.NoError(t, err)
+		s.MustLoadRef() // message
+		return s
+	}
+
+	t.Run("round trip", func(t *testing.T) {
+		for _, accounts := range [][]*address.Address{{}, {a1}, {a1, a2}} {
+			c, err := tlb.ToCell(newMsg(accounts))
+			require.NoError(t, err)
+
+			var decoded CCIPReceiveV2
+			require.NoError(t, tlb.LoadFromCell(&decoded, c.MustBeginParse()))
+			require.Len(t, decoded.ReceiverAccounts, len(accounts))
+			for i := range accounts {
+				require.True(t, accounts[i].Equals(decoded.ReceiverAccounts[i]))
+			}
+			require.Equal(t, uint64(7), decoded.QueryID)
+		}
+	})
+
+	t.Run("empty array is len 0 with no chunk", func(t *testing.T) {
+		c, err := tlb.ToCell(newMsg(nil))
+		require.NoError(t, err)
+
+		s := skipToReceiverAccounts(t, c)
+		require.Equal(t, uint64(0), s.MustLoadUInt(8))
+		require.Nil(t, s.MustLoadMaybeRef())
+		require.Zero(t, s.BitsLeft())
+		require.Zero(t, s.RefsNum())
+	})
+
+	t.Run("encodes in Tolk layout", func(t *testing.T) {
+		c, err := tlb.ToCell(newMsg([]*address.Address{a1, a2}))
+		require.NoError(t, err)
+
+		// Decode by hand, accepting any chunking, as Tolk and the TS wrappers do.
+		s := skipToReceiverAccounts(t, c)
+		length := s.MustLoadUInt(8)
+		var got []*address.Address
+		for chunk := s.MustLoadMaybeRef(); chunk != nil; {
+			next := chunk.MustLoadMaybeRef()
+			for chunk.BitsLeft() > 0 {
+				got = append(got, chunk.MustLoadAddr())
+			}
+			chunk = next
+		}
+		require.Equal(t, uint64(2), length)
+		require.Len(t, got, 2)
+		require.True(t, a1.Equals(got[0]))
+		require.True(t, a2.Equals(got[1]))
+	})
+
+	t.Run("decodes one element per chunk (TS wrapper layout)", func(t *testing.T) {
+		// Mirrors storeArrayOf in the generated TS wrappers.
+		tail := cell.BeginCell().MustStoreMaybeRef(nil).MustStoreAddr(a2).EndCell()
+		head := cell.BeginCell().MustStoreMaybeRef(tail).MustStoreAddr(a1).EndCell()
+
+		var decoded CCIPReceiveV2
+		require.NoError(t, tlb.LoadFromCell(&decoded, rawBody(t, 2, head).MustBeginParse()))
+		require.Len(t, decoded.ReceiverAccounts, 2)
+		require.True(t, a1.Equals(decoded.ReceiverAccounts[0]))
+		require.True(t, a2.Equals(decoded.ReceiverAccounts[1]))
+	})
+
+	t.Run("rejects length mismatch", func(t *testing.T) {
+		chunk := cell.BeginCell().MustStoreMaybeRef(nil).MustStoreAddr(a1).EndCell()
+
+		var decoded CCIPReceiveV2
+		require.Error(t, tlb.LoadFromCell(&decoded, rawBody(t, 2, chunk).MustBeginParse()))
+	})
+}

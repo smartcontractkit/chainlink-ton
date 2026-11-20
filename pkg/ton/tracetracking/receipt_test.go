@@ -1,0 +1,125 @@
+package tracetracking_test
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking/tracetest"
+)
+
+// sendToContract records wallet -> contract, which sends a message to other, and returns the trace
+// root and that message.
+func sendToContract(t *testing.T, chain *tracetest.Chain) (*tracetracking.ReceivedMessage, *tracetest.Tx) {
+	t.Helper()
+	in := chain.Send(wallet, contract, tracetest.Body(1))
+	rootTx := chain.Receive(in, tracetest.Out{Dst: other, Body: tracetest.Body(2)})
+	return mapRoot(t, rootTx), &rootTx
+}
+
+func TestWaitForTrace_FindsReceiptAmongOtherTransactions(t *testing.T) {
+	chain := tracetest.NewChain(t)
+	root, rootTx := sendToContract(t, chain)
+	toOther := rootTx.Out[0]
+
+	// other receives more messages in the same block than a listing page holds, both before and
+	// after the traced one, and accounts on both sides of it transact in the block too.
+	chain.OpenBlock()
+	chain.Receive(chain.Send(wallet, pingA, tracetest.Body(3)))
+	for range 20 {
+		chain.Receive(chain.Send(wallet, other, tracetest.Body(3)))
+	}
+	chain.Receive(toOther)
+	chain.Receive(chain.Send(wallet, other, tracetest.Body(3)))
+	chain.Receive(chain.Send(wallet, tracetest.Addr(9), tracetest.Body(3)))
+	chain.CloseBlock()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, root.WaitForTrace(ctx, chain))
+
+	require.Len(t, root.OutgoingInternalReceivedMessages, 1)
+	require.Equal(t, toOther.CreatedLT, root.OutgoingInternalReceivedMessages[0].InternalMsg.CreatedLT)
+}
+
+func TestWaitForTrace_FindsReceiptBlocksLater(t *testing.T) {
+	chain := tracetest.NewChain(t)
+	root, rootTx := sendToContract(t, chain)
+
+	for range 5 {
+		chain.Receive(chain.Send(wallet, pingA, tracetest.Body(3)))
+	}
+	chain.Receive(rootTx.Out[0])
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, root.WaitForTrace(ctx, chain))
+	require.Len(t, root.OutgoingInternalReceivedMessages, 1)
+}
+
+func TestWaitForTrace_WaitsForReceipt(t *testing.T) {
+	chain := tracetest.NewChain(t)
+	root, rootTx := sendToContract(t, chain)
+
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		chain.Receive(rootTx.Out[0])
+	}()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, root.WaitForTrace(ctx, chain))
+	require.Len(t, root.OutgoingInternalReceivedMessages, 1)
+}
+
+func TestWaitForTrace_ResumesReceiptSearch(t *testing.T) {
+	chain := tracetest.NewChain(t)
+	root, rootTx := sendToContract(t, chain)
+	for range 5 {
+		chain.Receive(chain.Send(wallet, pingA, tracetest.Body(3)))
+	}
+
+	// The first wait searches every block produced so far and times out waiting for the next one.
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+	require.ErrorIs(t, root.WaitForTrace(ctx, chain), context.DeadlineExceeded)
+	searchedBefore := chain.SearchedBlocks()
+	require.Len(t, searchedBefore, 6, "the root's block and the five after it")
+
+	// Once the message is received, the next wait searches only the block holding the receipt.
+	receipt := chain.Receive(rootTx.Out[0])
+	ctx, cancel = context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, root.WaitForTrace(ctx, chain))
+
+	require.Len(t, root.OutgoingInternalReceivedMessages, 1)
+	require.Equal(t, receipt.LT, root.OutgoingInternalReceivedMessages[0].LamportTime)
+	require.Equal(t, []uint32{searchedBefore[len(searchedBefore)-1] + 1}, chain.SearchedBlocks()[len(searchedBefore):])
+}
+
+func TestWaitForTrace_ReturnsSearchFailures(t *testing.T) {
+	chain := tracetest.NewChain(t)
+	root, rootTx := sendToContract(t, chain)
+	chain.Receive(rootTx.Out[0])
+
+	// A failure other than a block not produced yet is returned rather than retried until ctx is done.
+	failure := errors.New("liteserver failure")
+	chain.FailListingTransactions(failure)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	start := time.Now()
+	err := root.WaitForTrace(ctx, chain)
+	require.ErrorIs(t, err, failure)
+	require.NotErrorIs(t, err, context.DeadlineExceeded)
+	require.Less(t, time.Since(start), time.Second)
+	require.Equal(t, tracetracking.TraceReceived, root.TraceStatus(), "the message stays pending")
+
+	// Once the liteserver recovers, waiting again completes the trace.
+	chain.FailListingTransactions(nil)
+	require.NoError(t, root.WaitForTrace(ctx, chain))
+	require.Equal(t, tracetracking.TraceFinalized, root.TraceStatus())
+}

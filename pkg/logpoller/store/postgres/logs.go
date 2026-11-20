@@ -48,7 +48,6 @@ func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log, batchInser
 		logModel := &logModel{}
 		dbLog, err := logModel.FromLog(log)
 		if err != nil {
-			s.lggr.Errorw("Failed to convert log to DB model", "error", err, "logIndex", i)
 			return 0, fmt.Errorf("failed to convert log at index %d: %w", i, err)
 		}
 		dbLogs[i] = dbLog
@@ -57,10 +56,21 @@ func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log, batchInser
 	// Build SQL and execute with transaction and batching
 	totalInserted, err := s.insertLogsWithBatching(ctx, dbLogs, batchInsertSize, minBatchSize)
 	if err != nil {
-		s.lggr.Errorw("Failed to insert logs", "error", err, "logCount", len(dbLogs))
-		return 0, fmt.Errorf("failed to save logs to database: %w", err)
+		return 0, fmt.Errorf("failed to save %d logs to database: %w", len(dbLogs), err)
 	}
 	return totalInserted, nil
+}
+
+// Transact runs fn against a log store bound to a single database transaction.
+// SaveLogs calls made through it join that transaction instead of committing on their own.
+func (s *pgLogStore) Transact(ctx context.Context, fn func(tx logpoller.LogStore) error) error {
+	return s.orm.Transact(ctx, func(orm *DSORM) error {
+		return fn(&pgLogStore{
+			chainID: s.chainID,
+			orm:     orm,
+			lggr:    s.lggr,
+		})
+	})
 }
 
 // insertLogsWithBatching handles batched log insertion with transaction support
@@ -235,8 +245,11 @@ func (s *pgLogStore) GetHighestMCBlockSeqno(ctx context.Context) (uint32, bool, 
 		return 0, false, nil
 	}
 
-	//nolint:gosec // G115: safe conversion - master_block_seqno is always positive and within uint32 range
-	return uint32(*result), true, nil
+	seqno, err := toUint32(*result, "master_block_seqno")
+	if err != nil {
+		return 0, false, fmt.Errorf("invalid highest master block seqno: %w", err)
+	}
+	return seqno, true, nil
 }
 
 // DeleteExpiredLogs removes logs that have passed their pre-computed expiration time.

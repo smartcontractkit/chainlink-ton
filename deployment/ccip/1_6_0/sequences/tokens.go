@@ -515,6 +515,8 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				MinterAddress: tokenAddr,
 				WalletAddress: lockBoxWalletAddr,
 				Admin:         owner,
+				// Keep the deploy/init value as the lockbox's initial funding.
+				ReturnExcess: false,
 			})
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to pack lockbox init body: %w", err)

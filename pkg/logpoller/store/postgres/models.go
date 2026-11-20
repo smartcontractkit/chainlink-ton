@@ -61,13 +61,18 @@ func (f *filterModel) ToFilter() (lptypes.Filter, error) {
 		return lptypes.Filter{}, fmt.Errorf("failed to parse address %s: %w", f.Address, err)
 	}
 
+	startingSeqNo, err := toUint32(f.StartingSeqNo, "starting_seq_no")
+	if err != nil {
+		return lptypes.Filter{}, err
+	}
+
 	return lptypes.Filter{
 		ID:            f.ID,
 		Name:          f.Name,
 		Address:       addr,
 		MsgType:       tlb.MsgType(f.MsgType),
 		EventSig:      binary.BigEndian.Uint32(f.EventSig),
-		StartingSeqNo: uint32(f.StartingSeqNo), //nolint:gosec // safe conversion
+		StartingSeqNo: startingSeqNo,
 		LogRetention:  f.LogRetention,
 		MaxLogsKept:   f.MaxLogsKept,
 	}, nil
@@ -195,11 +200,24 @@ func (l *logModel) ToLog() (lptypes.Log, error) {
 	var txHash lptypes.TxHash
 	copy(txHash[:], l.TxHash)
 
+	workchain, err := toInt32(l.BlockWorkchain, "block_workchain")
+	if err != nil {
+		return lptypes.Log{}, err
+	}
+	blockSeqno, err := toUint32(l.BlockSeqno, "block_seqno")
+	if err != nil {
+		return lptypes.Log{}, err
+	}
+	mcBlockSeqno, err := toUint32(l.MCBlockSeqno, "master_block_seqno")
+	if err != nil {
+		return lptypes.Log{}, err
+	}
+
 	// Reconstruct block information
 	block := &ton.BlockIDExt{
-		Workchain: int32(l.BlockWorkchain), //nolint:gosec // TON workchain values are small
+		Workchain: workchain,
 		Shard:     l.BlockShard,
-		SeqNo:     uint32(l.BlockSeqno), //nolint:gosec // TON seqno values fit in uint32
+		SeqNo:     blockSeqno,
 		RootHash:  l.BlockRootHash,
 		FileHash:  l.BlockFileHash,
 	}
@@ -219,7 +237,7 @@ func (l *logModel) ToLog() (lptypes.Log, error) {
 		TxLT:         txLT,
 		TxTimestamp:  l.TxTimestamp,
 		Block:        block,
-		MCBlockSeqno: uint32(l.MCBlockSeqno), //nolint:gosec // MCBlockSeqno values are safe to convert to uint32
+		MCBlockSeqno: mcBlockSeqno,
 		MsgLT:        msgLT,
 		MsgIndex:     l.MsgIndex,
 		ExpiresAt:    l.ExpiresAt,

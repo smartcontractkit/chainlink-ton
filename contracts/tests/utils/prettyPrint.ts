@@ -48,7 +48,7 @@ const EXIT_CODE_DESCRIPTIONS: Record<number, string> = {
  * const result = await router.sendCcipSend(sender.getSender(), {
  *   value: toNano('1'),
  *   body: {
- *     queryID: 1,
+ *     queryId: 1,
  *     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
  *     receiver: Buffer.alloc(64),
  *     data: Cell.EMPTY,
@@ -97,7 +97,7 @@ export function prettifyAddressesMap(transactions: BlockchainTransaction[]): Map
  * const result = await router.sendCcipSend(sender.getSender(), {
  *   value: toNano('1'),
  *   body: {
- *     queryID: 1,
+ *     queryId: 1,
  *     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
  *     receiver: Buffer.alloc(64),
  *     data: Cell.EMPTY,

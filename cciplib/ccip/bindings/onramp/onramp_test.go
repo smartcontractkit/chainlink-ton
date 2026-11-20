@@ -303,11 +303,14 @@ func TestStorage(t *testing.T) {
 // wire value is addr_none and must decode without error.
 func TestExecutorTokenTransferAddrNone(t *testing.T) {
 	emptyCrossChainAddress := cell.BeginCell().MustStoreUInt(0, 8).EndCell()
-	packed := cell.BeginCell().
-		MustStoreAddr(nil). // addr_none, as emptyExecutorTokenTransfer() emits
-		MustStoreBigUInt(big.NewInt(0), 256).
+	lockOrBurnOut := cell.BeginCell().
 		MustStoreRef(emptyCrossChainAddress).
 		MustStoreRef(cell.BeginCell().EndCell()).
+		EndCell()
+	packed := cell.BeginCell().
+		MustStoreAddr(nil). // addr_none
+		MustStoreBigUInt(big.NewInt(0), 256).
+		MustStoreRef(lockOrBurnOut).
 		MustStoreRef(cell.BeginCell().EndCell()).
 		EndCell()
 
@@ -320,4 +323,115 @@ func TestExecutorTokenTransferAddrNone(t *testing.T) {
 	reencoded, err := tlb.ToCell(decoded)
 	require.NoError(t, err)
 	require.Equal(t, packed.Hash(), reencoded.Hash())
+}
+
+// TestExecutorFinishedWithErrorLayout decodes a body laid out as the contract's
+// OnRamp_ExecutorFinishedWithError: queryID, executorID, destChainSelector, sender,
+// errorCode (int32) and refund (Cell<coins>?).
+func TestExecutorFinishedWithErrorLayout(t *testing.T) {
+	sender := address.MustParseAddr("EQBkzHu36ZPPQz59NtCSeeani2ltUPLRhq8suIQxpPYdaZ9M")
+	build := func(refund *cell.Cell) *cell.Cell {
+		return cell.BeginCell().
+			MustStoreUInt(OpcodeOnRampExecutorFinishedWithError, 32).
+			MustStoreUInt(7, 64).
+			MustStoreBigUInt(big.NewInt(42), 224).
+			MustStoreUInt(5009297550715157269, 64).
+			MustStoreAddr(sender).
+			MustStoreInt(-14, 32). // negative TVM exit code
+			MustStoreMaybeRef(refund).
+			EndCell()
+	}
+
+	t.Run("with refund", func(t *testing.T) {
+		packed := build(cell.BeginCell().MustStoreCoins(1_000_000).EndCell())
+
+		var decoded ExecutorFinishedWithError
+		require.NoError(t, tlb.Parse(&decoded, packed))
+		require.Equal(t, uint64(7), decoded.QueryID)
+		require.Equal(t, int64(42), decoded.ExecutorID.Int64())
+		require.Equal(t, uint64(5009297550715157269), decoded.DestChainSelector)
+		require.True(t, decoded.Sender.Equals(sender))
+		require.Equal(t, int32(-14), decoded.ErrorCode)
+		require.NotNil(t, decoded.Refund)
+		require.Equal(t, uint64(1_000_000), decoded.Refund.Nano().Uint64())
+
+		reencoded, err := tlb.ToCell(decoded)
+		require.NoError(t, err)
+		require.Equal(t, packed.Hash(), reencoded.Hash())
+	})
+
+	t.Run("without refund", func(t *testing.T) {
+		packed := build(nil)
+
+		var decoded ExecutorFinishedWithError
+		require.NoError(t, tlb.Parse(&decoded, packed))
+		require.Nil(t, decoded.Refund)
+
+		reencoded, err := tlb.ToCell(decoded)
+		require.NoError(t, err)
+		require.Equal(t, packed.Hash(), reencoded.Hash())
+	})
+}
+
+// TestExecutorFinishedSuccessfullyLayout decodes a body laid out as the contract's
+// OnRamp_ExecutorFinishedSuccessfully: executorID, fee {coins, uint96}, msg ref,
+// metadata {sender, value} and tokenTransfer (Cell<OnRamp_ExecutorTokenTransfer>?).
+func TestExecutorFinishedSuccessfullyLayout(t *testing.T) {
+	sender := address.MustParseAddr("EQBkzHu36ZPPQz59NtCSeeani2ltUPLRhq8suIQxpPYdaZ9M")
+	pool := address.MustParseAddr("EQAvDfWFG0oYX19jwNDNBBL1rKNT9XfaGP9HyTb5nb2Eml6y")
+	ccipSend := cell.BeginCell().MustStoreUInt(0xdead, 16).EndCell()
+	destTokenAddress := cell.BeginCell().MustStoreUInt(20, 8).MustStoreSlice(make([]byte, 20), 160).EndCell()
+	tokenTransfer := cell.BeginCell().
+		MustStoreAddr(pool).
+		MustStoreBigUInt(big.NewInt(1234), 256).
+		MustStoreRef(cell.BeginCell().
+			MustStoreRef(destTokenAddress).
+			MustStoreRef(cell.BeginCell().MustStoreUInt(1, 8).EndCell()).
+			EndCell()).
+		MustStoreRef(cell.BeginCell().MustStoreUInt(90_000, 32).EndCell()).
+		EndCell()
+	build := func(tokenTransfer *cell.Cell) *cell.Cell {
+		return cell.BeginCell().
+			MustStoreUInt(OpcodeOnRampExecutorFinishedSuccessfully, 32).
+			MustStoreBigUInt(big.NewInt(42), 224).
+			MustStoreCoins(5_000).
+			MustStoreBigUInt(big.NewInt(6_000), 96).
+			MustStoreRef(ccipSend).
+			MustStoreAddr(sender).
+			MustStoreCoins(7_000).
+			MustStoreMaybeRef(tokenTransfer).
+			EndCell()
+	}
+
+	t.Run("with token transfer", func(t *testing.T) {
+		packed := build(tokenTransfer)
+
+		var decoded ExecutorFinishedSuccessfully
+		require.NoError(t, tlb.Parse(&decoded, packed))
+		require.Equal(t, int64(42), decoded.ExecutorID.Int64())
+		require.Equal(t, uint64(5_000), decoded.Fee.FeeTokenAmount.Nano().Uint64())
+		require.Equal(t, int64(6_000), decoded.Fee.FeeValueJuels.Int64())
+		require.Equal(t, ccipSend.Hash(), decoded.Msg.Hash())
+		require.True(t, decoded.Metadata.Sender.Equals(sender))
+		require.Equal(t, uint64(7_000), decoded.Metadata.Value.Nano().Uint64())
+		require.NotNil(t, decoded.TokenTransfer)
+		require.True(t, decoded.TokenTransfer.SourcePoolAddress.Equals(pool))
+		require.Equal(t, int64(1234), decoded.TokenTransfer.Amount.Int64())
+
+		reencoded, err := tlb.ToCell(decoded)
+		require.NoError(t, err)
+		require.Equal(t, packed.Hash(), reencoded.Hash())
+	})
+
+	t.Run("without token transfer", func(t *testing.T) {
+		packed := build(nil)
+
+		var decoded ExecutorFinishedSuccessfully
+		require.NoError(t, tlb.Parse(&decoded, packed))
+		require.Nil(t, decoded.TokenTransfer)
+
+		reencoded, err := tlb.ToCell(decoded)
+		require.NoError(t, err)
+		require.Equal(t, packed.Hash(), reencoded.Hash())
+	})
 }

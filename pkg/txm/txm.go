@@ -51,6 +51,8 @@ type Txm struct {
 	metrics  *txmMetrics
 
 	clientProvider func(context.Context) (tracetracking.SignedAPIClient, error)
+	traceFollow    tracetracking.FollowCondition // which outgoing messages the confirm loop waits for
+	traceOutcome   tracetracking.StopCondition   // which trace branches decide a transaction's outcome
 	broadcastChan  chan *Tx
 	accountStore   *AccountStore
 	starter        services.StateMachine
@@ -75,6 +77,7 @@ func New(
 	keystore core.Keystore,
 	clientProvider func(context.Context) (tracetracking.SignedAPIClient, error),
 	config Config,
+	opts ...Option,
 ) (*Txm, error) {
 	if err := config.ValidateConfig(); err != nil {
 		return nil, fmt.Errorf("invalid txm config: %w", err)
@@ -92,12 +95,34 @@ func New(
 		chainID:        chainID,
 		metrics:        metrics,
 		clientProvider: clientProvider,
+		traceFollow:    tracetracking.FollowAll,
+		traceOutcome:   tracetracking.NoBound,
 		broadcastChan:  make(chan *Tx, config.BroadcastChanSize),
 		accountStore:   NewAccountStore(),
 		stop:           make(chan struct{}),
 	}
+	for _, opt := range opts {
+		opt(txm)
+	}
 
 	return txm, nil
+}
+
+// Option configures optional Txm behaviour.
+type Option func(*Txm)
+
+// WithTraceBoundaries bounds the transaction traces the confirm loop resolves: follow selects the
+// outgoing messages it waits for, and outcome stops the branches that don't count towards a
+// transaction's success. By default the whole trace is waited for and evaluated.
+func WithTraceBoundaries(follow tracetracking.FollowCondition, outcome tracetracking.StopCondition) Option {
+	return func(t *Txm) {
+		if follow != nil {
+			t.traceFollow = follow
+		}
+		if outcome != nil {
+			t.traceOutcome = outcome
+		}
+	}
 }
 
 func (t *Txm) Name() string {
@@ -133,7 +158,6 @@ func (t *Txm) InflightCount() (int, int) {
 func (t *Txm) Close() error {
 	return t.starter.StopOnce("Txm", func() error {
 		close(t.stop)
-		close(t.broadcastChan)
 		t.done.Wait()
 		return nil
 	})
@@ -190,26 +214,24 @@ func (t *Txm) Enqueue(request Request) error {
 		}
 	}
 
-	txExpiration := t.config.TxExpiration.Duration()
-	tx := &Tx{
-		Mode:       request.Mode,
-		From:       *request.FromWallet.Address(),
-		To:         request.ContractAddress,
-		Amount:     request.Amount,
-		Body:       request.Body,
-		StateInit:  request.StateInit,
-		Bounceable: request.Bounce,
-		CreatedAt:  time.Now(),
-		Expiration: time.Now().Add(txExpiration),
-		ID:         request.ID,
+	tx, err := newTx(request, time.Now(), t.config.TxExpiration.Duration())
+	if err != nil {
+		return err
 	}
 
-	select {
-	case t.broadcastChan <- tx:
-		return nil
-	default:
-		return errors.New("broadcast channel full, could not enqueue transaction")
+	// IfStarted holds the state read lock, so the submission cannot interleave with Close.
+	var enqueueErr error
+	started := t.starter.IfStarted(func() {
+		select {
+		case t.broadcastChan <- tx:
+		default:
+			enqueueErr = errors.New("broadcast channel full, could not enqueue transaction")
+		}
+	})
+	if !started {
+		return errors.New("txm stopped, could not enqueue transaction")
 	}
+	return enqueueErr
 }
 
 // Continuously listens and broadcasts enqueued transactions
@@ -223,37 +245,13 @@ func (t *Txm) broadcastLoop() {
 
 	for {
 		select {
-		case tx, ok := <-t.broadcastChan:
-			if !ok {
-				t.logger.Infow("broadcast channel closed, exiting broadcastLoop")
-				return
-			}
-
+		case tx := <-t.broadcastChan:
 			t.logger.Debugw("broadcasting transaction", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
 
-			var st tlb.StateInit
-			if tx.StateInit != nil {
-				err := tlb.Parse(&st, tx.StateInit)
-				if err != nil {
-					t.logger.Errorw("load from cell failed", "err", err, "to", tx.To.String())
-					continue
-				}
-			}
-
-			internalMsg := &tlb.InternalMessage{
-				SrcAddr:     &tx.From,
-				DstAddr:     &tx.To,
-				Bounce:      tx.Bounceable,
-				IHRDisabled: true,
-				Amount:      tx.Amount,
-				StateInit:   &st,
-				Body:        tx.Body,
-				CreatedAt:   uint32(tx.CreatedAt.Unix()), //nolint:gosec // ignoring G115 overflow conversion
-			}
-
-			msg := &wallet.Message{
-				Mode:            tx.Mode,
-				InternalMessage: internalMsg,
+			msg, err := newWalletMessage(tx)
+			if err != nil {
+				t.logger.Errorw("failed to build wallet message", "err", err, "to", tx.To.String())
+				continue
 			}
 
 			// 3. Sign and send
@@ -273,7 +271,7 @@ func (t *Txm) broadcastLoop() {
 				"mode", tx.Mode,
 				"bodyBOC", bodyBOC,
 				"bounceable", tx.Bounceable)
-			err := t.broadcastWithRetry(ctx, tx, msg, txID)
+			err = t.broadcastWithRetry(ctx, tx, msg, txID)
 			if err != nil {
 				t.logger.Errorw("broadcast failed after retries",
 					"txID", txID,
@@ -287,6 +285,31 @@ func (t *Txm) broadcastLoop() {
 			return
 		}
 	}
+}
+
+// newWalletMessage builds the wallet message for tx, attaching a StateInit only when tx has one.
+func newWalletMessage(tx *Tx) (*wallet.Message, error) {
+	var stateInit *tlb.StateInit
+	if tx.StateInit != nil {
+		stateInit = &tlb.StateInit{}
+		if err := tlb.Parse(stateInit, tx.StateInit); err != nil {
+			return nil, fmt.Errorf("failed to parse StateInit: %w", err)
+		}
+	}
+	return &wallet.Message{
+		Mode: tx.Mode,
+		InternalMessage: &tlb.InternalMessage{
+			// HighloadV3 rejects (exit 37) messages whose src is not addr_none; the network fills it in.
+			SrcAddr:     address.NewAddressNone(),
+			DstAddr:     &tx.To,
+			Bounce:      tx.Bounceable,
+			IHRDisabled: true,
+			Amount:      tx.Amount,
+			StateInit:   stateInit,
+			Body:        tx.Body,
+			CreatedAt:   uint32(tx.CreatedAt.Unix()), //nolint:gosec // G115: fits in a uint32, see Tx.CreatedAt
+		},
+	}, nil
 }
 
 // broadcastWithRetry Attempts to broadcast a transaction with retries on failure. We only retry if there was a
@@ -340,14 +363,13 @@ retryLoop:
 				"to", tx.To.String(),
 				"amount", tx.Amount.Nano().String())
 
-			// Transaction was broadcast successfully, but may have failed to execute due to ExitCode.
+			// Transaction was broadcast successfully, but may have failed to execute.
 			// Use separate error variable since this doesn't affect broadcast success.
-			exitCode, exitCodeErr := receivedMessage.ExitCode()
-			if exitCodeErr != nil {
-				t.logger.Errorw("failed to get exit code", "error", exitCodeErr)
-			}
-			if exitCode != 0 {
-				t.logger.Errorw("transaction failed", "exitcode", exitCode, "description", exitCode.Describe())
+			result, exitCode, resultErr := receivedMessage.Result()
+			if resultErr != nil {
+				t.logger.Errorw("failed to get transaction outcome", "error", resultErr)
+			} else if result != tracetracking.ResultSuccess {
+				t.logger.Errorw("transaction failed", "phase", result, "exitcode", exitCode, "description", exitCode.Describe())
 			}
 
 			if len(receivedMessage.OutgoingInternalSentMessages) == 0 && len(receivedMessage.OutgoingInternalReceivedMessages) == 0 {
@@ -356,10 +378,6 @@ retryLoop:
 					"to", tx.To.String(),
 					"amount", tx.Amount.Nano().String(),
 				)
-			}
-
-			if *t.config.EnableTraceLogging {
-				t.gatherAndLogTrace(ctx, client, receivedMessage, txID)
 			}
 			break
 		}
@@ -426,40 +444,13 @@ retryLoop:
 		return fmt.Errorf("txStore not found for sender %s", walletAddr)
 	}
 
-	expirationTimestampMs := uint64(tx.Expiration.UnixMilli())
+	expirationTimestampMs := uint64(tx.Expiration.UnixMilli()) // exact, see Tx.Expiration
 	err = txStore.AddUnconfirmed(receivedMessage.LamportTime, expirationTimestampMs, tx)
 	if err != nil {
-		t.logger.Errorf("AddUnconfirmed err: %v", err)
-		return err
+		return fmt.Errorf("failed to track broadcast transaction as unconfirmed: %w", err)
 	}
 
 	return nil
-}
-
-// gatherAndLogTrace waits for transaction trace data and logs it for debugging purposes.
-// This is a non-fatal operation - trace gathering failures are logged but don't affect transaction success.
-func (t *Txm) gatherAndLogTrace(ctx context.Context, client tracetracking.SignedAPIClient, receivedMessage *tracetracking.ReceivedMessage, txID string) {
-	traceCtx, traceCancel := context.WithTimeout(ctx, t.config.TraceTimeout.Duration())
-	traceErr := receivedMessage.WaitForTrace(traceCtx, client.Client)
-	traceCancel()
-
-	if traceErr != nil {
-		if errors.Is(traceErr, context.DeadlineExceeded) {
-			t.logger.Warnw("trace gathering timed out (non-fatal)",
-				"txID", txID,
-				"timeout", t.config.TraceTimeout.Duration())
-		} else {
-			t.logger.Warnw("failed to wait for trace (non-fatal)",
-				"txID", txID,
-				"timeout", t.config.TraceTimeout.Duration(),
-				"error", traceErr,
-			)
-		}
-		return
-	}
-
-	t.logger.Debugf("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(nil).DumpReceived(receivedMessage))
-	t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(nil, sequenceDiagram.OutputFmtURL).DumpReceived(receivedMessage))
 }
 
 // Periodically checks unconfirmed transactions for finality.
@@ -513,7 +504,7 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				continue
 			}
 			traceCtx, traceCancel := context.WithTimeout(ctx, t.config.TraceTimeout.Duration())
-			traceErr := receivedMessage.WaitForTrace(traceCtx, client.Client)
+			traceErr := receivedMessage.WaitForTraceWith(traceCtx, client.Client, t.traceFollow)
 			traceCancel()
 			if traceErr != nil {
 				if errors.Is(traceErr, context.DeadlineExceeded) {
@@ -522,7 +513,8 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 					tx.ReceivedMessage = receivedMessage
 					t.logger.Warnw("trace gathering timed out, will retry next poll",
 						"LT", unconfirmedTx.LT,
-						"timeout", t.config.TraceTimeout.Duration())
+						"timeout", t.config.TraceTimeout.Duration(),
+						"error", traceErr)
 				} else {
 					t.logger.Errorw("failed to wait for trace", "LT", unconfirmedTx.LT, "error", traceErr)
 				}
@@ -542,7 +534,7 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(knownAddresses, sequenceDiagram.OutputFmtURL).DumpReceived(&receivedMessage))
 			}
 
-			if receivedMessage.Status() != tracetracking.Finalized {
+			if receivedMessage.TraceStatus() != tracetracking.TraceFinalized {
 				continue
 			}
 
@@ -554,12 +546,12 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				"LT", unconfirmedTx.LT,
 				"latency", finalizationLatency.String())
 
-			exitCode, err := receivedMessage.TraceExitCode()
+			result, exitCode, err := receivedMessage.TraceResultWith(t.traceOutcome)
 			if err != nil {
-				t.logger.Errorw("failed to get outcome exit code", "LT", unconfirmedTx.LT, "error", err)
+				t.logger.Errorw("failed to get trace outcome", "LT", unconfirmedTx.LT, "error", err)
 				continue
 			}
-			traceSucceeded := receivedMessage.TraceSucceeded()
+			traceSucceeded := result == tracetracking.ResultSuccess
 
 			if err := txStore.MarkFinalized(unconfirmedTx.LT, traceSucceeded, exitCode); err != nil {
 				t.logger.Errorw("failed to mark tx as finalized in TxStore", "LT", unconfirmedTx.LT, "error", err)
@@ -572,7 +564,7 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				t.logger.Infow("transaction confirmed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
 			} else {
 				t.metrics.IncrementRevertTxs(ctx, fmt.Sprintf("%d", exitCode))
-				t.logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
+				t.logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "phase", result, "exitCode", exitCode)
 			}
 		}
 	}
@@ -599,7 +591,12 @@ func (t *Txm) cleanupLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			currentTimeMs := uint64(time.Now().UnixMilli())
+			now := time.Now()
+			if err := validateUnixMillis(now); err != nil {
+				t.logger.Errorw("cleanup skipped: invalid current time", "err", err)
+				continue
+			}
+			currentTimeMs := uint64(now.UnixMilli()) // exact, validated above
 			finalizedLTs, expiredLTs := t.accountStore.CleanupAll(currentTimeMs)
 
 			if len(finalizedLTs) > 0 || len(expiredLTs) > 0 {

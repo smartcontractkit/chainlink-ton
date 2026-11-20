@@ -10,6 +10,7 @@ import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
 import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/forward_payload_wrap"
+import "../../../lib/versioning/upgradeable"
 import "../../lib/cross_chain_address/types"
 
 import "../../cct/messages"
@@ -53,6 +54,15 @@ contract BurnMintTokenPool {
 
 const CONTRACT_VERSION = "0.1.0".literalSlice();
 
+/// Initial upgradeable version: there is no previous storage layout to migrate.
+@method_id(1000)
+fun migrate(storage: cell, _version: slice): cell {
+    return storage;
+}
+
+@method_id(1001)
+fun version(): slice { return CONTRACT_VERSION; }
+
 fun onInternalMessage(in: InMessage) {
     var st = Storage.load();
     var pool = st.TokenPool();
@@ -74,8 +84,13 @@ fun onInternalMessage(in: InMessage) {
             onCCTReturnExcessesBack(mutate st, in.senderAddress, in.valueCoins, msg);
             st.store();
         }
+        Upgradeable_Upgrade => {
+            st.TokenPool().data.adminConfig.load().ownable.load().requireOwner(in.senderAddress);
+            Upgradeable { migrate, version }.upgrade(msg);
+            return;
+        }
         else => {
-            assert(in.body.isEmpty()) throw 0xFFFF;
+            assert(in.body.isEmpty()) throw (0xFFFF);
         }
     }
 }
@@ -97,9 +112,9 @@ fun onBouncedMessage(in: InMessageBounced) {
     val msg = lazy BurnMintTokenPool_BouncedMessage.fromCell(rich.originalBody);
     match (msg) {
         CCT_AskToBurn => {
-            assert(msg.forwardPayload != null) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
+            assert(msg.forwardPayload != null) throw (BurnMintTokenPool_Error.UnexpectedBurnBounce);
             val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload);
-            assert(in.senderAddress == context.wallet) throw BurnMintTokenPool_Error.UnexpectedBurnBounce;
+            assert(in.senderAddress == context.wallet) throw (BurnMintTokenPool_Error.UnexpectedBurnBounce);
 
             val operation = lazy context.forwardPayload.load();
             var pool = st.TokenPool();
@@ -111,10 +126,10 @@ fun onBouncedMessage(in: InMessageBounced) {
             st.store();
         }
         MintNewJettons => {
-            assert(in.senderAddress == st.poolData.load().jettonClient().masterAddress) throw BurnMintTokenPool_Error.UnexpectedMintBounce;
+            assert(in.senderAddress == st.poolData.load().jettonClient().masterAddress) throw (BurnMintTokenPool_Error.UnexpectedMintBounce);
             val internalTransfer = lazy msg.internalTransferMsg.load();
             val wrap = Jetton_ForwardPayloadWrap.from(internalTransfer.forwardPayload);
-            assert(wrap != null && wrap.context != null) throw BurnMintTokenPool_Error.UnexpectedMintBounce;
+            assert(wrap != null && wrap.context != null) throw (BurnMintTokenPool_Error.UnexpectedMintBounce);
             val context = lazy BurnMintTokenPool_MintContext.fromCell(wrap.context);
 
             val operation = lazy context.forwardPayload.load();
@@ -172,7 +187,7 @@ fun onLockOrBurnTransferContinue(
         },
     };
 
-    val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
+    val sendMode = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE;
     val fwdFee = createMessage(burnOpts).estimateFeeWithoutSending(sendMode);
 
     // Check safety budget min size as reference burn/transfer plus LVL3_HIGH finalization costs.
@@ -181,26 +196,27 @@ fun onLockOrBurnTransferContinue(
         JettonFees.Reference.transferValue(0, fwdFee),
         JettonFees.Reference.burnValue(fwdFee, true)
     ) + TokenPool_Costs.finalization();
-    assert(safety >= minValue, TokenPool_Error.InsufficientMessageValue);
+    assert (safety >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
 
     val burn = createMessage(burnOpts);
-    burn.send(sendMode);
+    burn.send(sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 
     return st;
 }
 
 fun onReleaseOrMintContinue(
     ctx: Storage?,
-    sender: address,
+    _sender: address,
+    initiator: address,
     msgValue: coins,
     msg: TokenPool_ReleaseOrMint,
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
-    assert(ctx != null, TokenPool_Error.UnsupportedOperation);
+    assert (ctx != null) throw (TokenPool_Error.UnsupportedOperation);
     var st = ctx;
     val delivery = msg.delivery.load();
     val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
-        originalSender: sender,
+        initiator,
         requestMsg: msg.toCell(),
         prepared: prepared.toCell(),
     };
@@ -211,15 +227,15 @@ fun onReleaseOrMintContinue(
 
     // The mint context rides along in the wrap only for the bounce path.
     val wrap = Jetton_ForwardPayloadWrap {
-        initiator: sender,
+        initiator,
         context: context.toCell(),
         forwardPayload: delivery.forwardPayload,
     };
     val jettonClient = st.poolData.load().jettonClient();
     val forwardTonAmount = st.TokenPool().releaseOrMintForward(msg.finalizationValue());
 
-    // Caller-selected excess recipient; default to the request sender.
-    val sendExcessesTo = msg.sendExcessesTo != null ? msg.sendExcessesTo! : sender;
+    // Caller-selected excess recipient; default to the flow initiator.
+    val sendExcessesTo = msg.sendExcessesTo != null ? msg.sendExcessesTo! : initiator;
 
     // The recipient's notification carries the pool's finalization safety plus the caller's
     // continuation. The minter gets the exact cost of the mint, so it keeps nothing; the wallet
@@ -263,12 +279,10 @@ fun onReleaseOrMintContinue(
     val w = contract.getAddress().getWorkchain();
     val gasFee = calculateGasFee(w, getGasConsumedAtTheMoment() + BurnMintTokenPool_MINT_SEND_GAS_UNITS);
     val minValue = mintOpts.value + fwdFee + gasFee;
-    assert(msgValue >= minValue, TokenPool_Error.InsufficientMessageValue);
+    assert (msgValue >= minValue) throw (TokenPool_Error.InsufficientMessageValue);
 
     val mint = createMessage(mintOpts);
     mint.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-
-    // TODO[VALUE]: [NONEVM-5766]: exceses handling for any leftover funds after the mint and wallet deployment fees are covered.
 
     return st;
 }
@@ -279,7 +293,7 @@ fun onClaimMinterAdmin(
     msgValue: coins,
     queryId: uint64,
 ) {
-    assert(msgValue >= TokenPool_Costs.admin(), TokenPool_Error.InsufficientMessageValue);
+    assert (msgValue >= TokenPool_Costs.admin()) throw (TokenPool_Error.InsufficientMessageValue);
 
     st.poolData.load().adminConfig.load().ownable.load().requireOwner(sender);
 
@@ -289,7 +303,7 @@ fun onClaimMinterAdmin(
         dest: st.poolData.load().token(),
         body: ClaimMinterAdmin { queryId },
     });
-    claim.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    claim.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// @notice Handles `CCT_ReturnExcessesBack` sent by the CCT JettonMinter on the burn path.
@@ -312,9 +326,9 @@ fun onCCTReturnExcessesBack(
 
     var pool: TokenPool<Storage> = st.TokenPool();
     // The only source that carries a burn continuation is the CCT JettonMinter for this token.
-    assert(sender == pool.data.jettonClient().masterAddress, TokenPool_Error.Unauthorized);
+    assert (sender == pool.data.jettonClient().masterAddress) throw (TokenPool_Error.Unauthorized);
     // The minter sets `initiator` to the burnInitiator, which is the pool's own wallet owner (pool).
-    assert(msg.initiator == contract.getAddress(), TokenPool_Error.Unauthorized);
+    assert (msg.initiator == contract.getAddress()) throw (TokenPool_Error.Unauthorized);
 
     val context = lazy BurnMintTokenPool_BurnContext.fromCell(msg.forwardPayload);
     val operation = lazy context.forwardPayload.load();

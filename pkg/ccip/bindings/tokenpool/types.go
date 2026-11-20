@@ -16,7 +16,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/jetton_withdrawable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/withdrawable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
-	pkgtlbe "github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
 // --- Primitives / Wrappers ---
@@ -187,13 +186,11 @@ type ReleaseOrMintTransferDetails struct {
 
 // LockOrBurnTransfer represents a lock/burn transfer.
 type LockOrBurnTransfer struct {
-	ID      *big.Int                   `tlb:"## 256"`
 	Details *LockOrBurnTransferDetails `tlb:"^"`
 }
 
 // ReleaseOrMintTransfer represents a release/mint transfer.
 type ReleaseOrMintTransfer struct {
-	ID      *big.Int                      `tlb:"## 256"`
 	Details *ReleaseOrMintTransferDetails `tlb:"^"`
 }
 
@@ -237,16 +234,16 @@ type ReleaseOrMintPrepared struct {
 
 // LockOrBurnForwardPayload holds the forward payload for lock/burn operations.
 type LockOrBurnForwardPayload struct {
-	OriginalSender *address.Address   `tlb:"addr required"`
-	RequestMsg     LockOrBurn         `tlb:"^"`
-	Prepared       LockOrBurnPrepared `tlb:"^"`
+	Initiator  *address.Address   `tlb:"addr required"`
+	RequestMsg LockOrBurn         `tlb:"^"`
+	Prepared   LockOrBurnPrepared `tlb:"^"`
 }
 
 // ReleaseOrMintForwardPayload holds the forward payload for release/mint operations.
 type ReleaseOrMintForwardPayload struct {
-	OriginalSender *address.Address      `tlb:"addr required"`
-	RequestMsg     ReleaseOrMint         `tlb:"^"`
-	Prepared       ReleaseOrMintPrepared `tlb:"^"`
+	Initiator  *address.Address      `tlb:"addr required"`
+	RequestMsg ReleaseOrMint         `tlb:"^"`
+	Prepared   ReleaseOrMintPrepared `tlb:"^"`
 }
 
 // JettonClient holds the pool's Jetton identity (master + wallet code). Single
@@ -595,10 +592,10 @@ type GetCCVsContext struct {
 //
 // On-chain: struct (0x6c70b2dd) TokenPool_CCVs
 type CCVs struct {
-	_              tlb.Magic                         `tlb:"#6c70b2dd" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64                            `tlb:"## 64"`
-	RequiredCCVs   pkgtlbe.Array[common.AddressWrap] `tlb:"."`
-	ForwardPayload *cell.Cell                        `tlb:"maybe ^"`
+	_              tlb.Magic          `tlb:"#6c70b2dd" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID        uint64             `tlb:"## 64"`
+	RequiredCCVs   []*address.Address `tlb:"array addr"`
+	ForwardPayload *cell.Cell         `tlb:"maybe ^"`
 }
 
 // CCVsAndFees is the reply to a `GetCCVsAndFees` request, carrying the required CCVs plus the
@@ -606,11 +603,11 @@ type CCVs struct {
 //
 // On-chain: struct (0x158dd7d5) TokenPool_CCVsAndFees
 type CCVsAndFees struct {
-	_              tlb.Magic                         `tlb:"#158dd7d5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64                            `tlb:"## 64"`
-	RequiredCCVs   pkgtlbe.Array[common.AddressWrap] `tlb:"."`
-	Fees           *cell.Cell                        `tlb:"^"` // Cell<FeeContext>
-	ForwardPayload *cell.Cell                        `tlb:"maybe ^"`
+	_              tlb.Magic          `tlb:"#158dd7d5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID        uint64             `tlb:"## 64"`
+	RequiredCCVs   []*address.Address `tlb:"array addr"`
+	Fees           *cell.Cell         `tlb:"^"` // Cell<FeeContext>
+	ForwardPayload *cell.Cell         `tlb:"maybe ^"`
 }
 
 // GetCCVsFailed finalizes a `GetCCVs`/`GetCCVsAndFees` that could not complete (e.g. the hooks
@@ -631,10 +628,10 @@ type GetCCVsFailed struct {
 //
 // On-chain: struct (0x30612b17) TokenPool_QueryCCVsReply
 type QueryCCVsReply struct {
-	_              tlb.Magic                         `tlb:"#30612b17" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64                            `tlb:"## 64"`
-	RequiredCCVs   pkgtlbe.Array[common.AddressWrap] `tlb:"."`
-	ForwardPayload *cell.Cell                        `tlb:"maybe ^"`
+	_              tlb.Magic          `tlb:"#30612b17" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID        uint64             `tlb:"## 64"`
+	RequiredCCVs   []*address.Address `tlb:"array addr"`
+	ForwardPayload *cell.Cell         `tlb:"maybe ^"`
 }
 
 // --- Messages - outgoing ---
@@ -695,16 +692,16 @@ type RemotePoolRemovedNotification struct {
 	RemotePoolAddress   common.CrossChainAddress `tlb:"^"`
 }
 
-// FinalityConfigSet confirms the finality config was set.
-type FinalityConfigSet struct {
-	_                     tlb.Magic `tlb:"#426a713b" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+// FinalityConfigSetNotification confirms the finality config was set.
+type FinalityConfigSetNotification struct {
+	_                     tlb.Magic `tlb:"#cbd30d33" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID               uint64    `tlb:"## 64"`
 	AllowedFinalityConfig uint32    `tlb:"## 32"`
 }
 
-// DynamicConfigSet confirms the dynamic config was set.
-type DynamicConfigSet struct {
-	_              tlb.Magic        `tlb:"#b735e30c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+// DynamicConfigSetNotification confirms the dynamic config was set.
+type DynamicConfigSetNotification struct {
+	_              tlb.Magic        `tlb:"#be67c13d" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID        uint64           `tlb:"## 64"`
 	Router         *address.Address `tlb:"addr required"`
 	RateLimitAdmin *address.Address `tlb:"addr"`
@@ -730,9 +727,9 @@ type FeeConfigApplied struct {
 	QueryID uint64    `tlb:"## 64"`
 }
 
-// AdvancedPoolHooksSet confirms the advanced pool hooks were set.
-type AdvancedPoolHooksSet struct {
-	_                 tlb.Magic        `tlb:"#3c869d80" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+// AdvancedPoolHooksSetNotification confirms the advanced pool hooks were set.
+type AdvancedPoolHooksSetNotification struct {
+	_                 tlb.Magic        `tlb:"#f63f3401" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID           uint64           `tlb:"## 64"`
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
 }
@@ -867,6 +864,24 @@ type TokenTransferFeeConfigDeleted struct {
 	DestChainSelector uint64 `tlb:"## 64"`
 }
 
+// DynamicConfigSet is emitted when the pool's dynamic config changes.
+type DynamicConfigSet struct {
+	Router         *address.Address `tlb:"addr required"`
+	RateLimitAdmin *address.Address `tlb:"addr"`
+	FeeAdmin       *address.Address `tlb:"addr"`
+}
+
+// FinalityConfigSet is emitted when the pool's allowed finality config changes.
+type FinalityConfigSet struct {
+	AllowedFinalityConfig uint32 `tlb:"## 32"`
+}
+
+// AdvancedPoolHooksUpdated is emitted when the advanced pool hooks contract changes.
+type AdvancedPoolHooksUpdated struct {
+	OldHook *address.Address `tlb:"addr"`
+	NewHook *address.Address `tlb:"addr"`
+}
+
 var TLBs = tvm.MustNewTLBMap([]any{
 	// Incoming
 	ApplyChainUpdates{},
@@ -908,13 +923,13 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	GetCCVsFailed{},
 	RemotePoolAddedNotification{},
 	RemotePoolRemovedNotification{},
-	FinalityConfigSet{},
-	DynamicConfigSet{},
+	FinalityConfigSetNotification{},
+	DynamicConfigSetNotification{},
 	RateLimitConfiguredNotification{},
 	rbac.RoleGranted{},
 	rbac.RoleRevoked{},
 	rbac.RoleAdminChanged{},
-	AdvancedPoolHooksSet{},
+	AdvancedPoolHooksSetNotification{},
 	Config{},
 	BudgetSet{},
 	ChainUpdatesApplied{},
@@ -934,6 +949,7 @@ const (
 	TopicRemotePoolRemoved                     = "TokenPool_RemotePoolRemoved"
 	TopicDynamicConfigSet                      = "TokenPool_DynamicConfigSet"
 	TopicFinalityConfigSet                     = "TokenPool_FinalityConfigSet"
+	TopicAdvancedPoolHooksUpdated              = "TokenPool_AdvancedPoolHooksUpdated"
 	TopicRateLimitConfigured                   = "TokenPool_RateLimitConfigured"
 	TopicOutboundRateLimitConsumed             = "TokenPool_OutboundRateLimitConsumed"
 	TopicInboundRateLimitConsumed              = "TokenPool_InboundRateLimitConsumed"

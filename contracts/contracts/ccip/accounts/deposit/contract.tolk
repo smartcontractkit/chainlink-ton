@@ -55,7 +55,7 @@ fun onInternalMessage(in: InMessage) {
             onResponseWalletAddress(in.senderAddress, msg);
         }
         else => {
-            assert(in.body.isEmpty()) throw 0xFFFF;
+            assert(in.body.isEmpty()) throw (0xFFFF);
         }
     }
 }
@@ -80,17 +80,16 @@ fun onBouncedMessage(in: InMessageBounced) {
 
 fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
     var data = DepositAccount_Data.load();
-    assert(sender == data.owner, DepositAccount_Error.OnlyOwner);
+    assert (sender == data.owner) throw (DepositAccount_Error.OnlyOwner);
     val waitForWallet = data.wallet == null;
     val initCost = DepositAccount_MIN_GRAM_TO_INIT + (waitForWallet ? DepositAccount_WALLET_QUERY_VALUE : 0);
     // `getOriginalBalance` already includes the inbound value.
-    assert(
-        contract.getOriginalBalance() >= DepositAccount_MIN_GRAM_TO_RESERVE + initCost && msgValue >= initCost,
-        DepositAccount_Error.NotEnoughValue
-    );
+    assert (
+        contract.getOriginalBalance() >= DepositAccount_MIN_GRAM_TO_RESERVE + initCost && msgValue >= initCost
+    ) throw (DepositAccount_Error.NotEnoughValue);
 
     if (!waitForWallet) {
-        reserveGramsOnBalance(DepositAccount_MIN_GRAM_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+        reserveGramsOnBalance(DepositAccount_MIN_GRAM_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
         val reply = createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
@@ -101,11 +100,11 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
             },
         });
         // SAFETY: reserveGramsOnBalance is called before
-        reply.send(SEND_MODE_CARRY_ALL_BALANCE);
+        reply.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         return;
     }
 
-    assert(data.pendingInit == null, DepositAccount_Error.InitPending);
+    assert (data.pendingInit == null) throw (DepositAccount_Error.InitPending);
     data.pendingInit = DepositAccount_PendingInit {
         queryId: msg.queryId,
         context: msg.context,
@@ -121,13 +120,13 @@ fun onInit(sender: address, msgValue: coins, msg: DepositAccount_Init) {
             includeOwnerAddress: false,
         },
     });
-    query.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    query.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 fun onResponseWalletAddress(sender: address, msg: ResponseWalletAddress) {
     var data = DepositAccount_Data.load();
-    assert(sender == data.token, DepositAccount_Error.OnlyToken);
-    assert(data.pendingInit != null, DepositAccount_Error.NoPendingInit);
+    assert (sender == data.token) throw (DepositAccount_Error.OnlyToken);
+    assert (data.pendingInit != null) throw (DepositAccount_Error.NoPendingInit);
     if (msg.jettonWalletAddress != null) {
         data.wallet = msg.jettonWalletAddress.toCell();
     }
@@ -138,28 +137,28 @@ fun onResponseWalletAddress(sender: address, msg: ResponseWalletAddress) {
 fun replyToPendingInit(mutate data: DepositAccount_Data, walletLearned: bool) {
     val pending = data.pendingInit!.load();
     data.pendingInit = null;
-    reserveGramsOnBalance(DepositAccount_MIN_GRAM_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+    reserveGramsOnBalance(DepositAccount_MIN_GRAM_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
     if (walletLearned) {
         createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
             dest: data.owner,
             body: DepositAccount_Initialized { queryId: pending.queryId, context: pending.context },
-        }).send(SEND_MODE_CARRY_ALL_BALANCE);
+        }).send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     } else {
         createMessage({
             bounce: BounceMode.NoBounce,
             value: 0,
             dest: data.owner,
             body: DepositAccount_WalletUnavailable { queryId: pending.queryId, context: pending.context },
-        }).send(SEND_MODE_CARRY_ALL_BALANCE);
+        }).send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     }
 }
 
 fun onWithdraw(sender: address, msg: DepositAccount_Withdraw, msgCell: cell) {
     val data = lazy DepositAccount_Data.load();
-    assert(data.beneficiaries.exists(sender), DepositAccount_Error.OnlyBeneficiary);
-    assert(data.wallet != null, DepositAccount_Error.WalletUnknown);
+    assert (data.beneficiaries.exists(sender)) throw (DepositAccount_Error.OnlyBeneficiary);
+    assert (data.wallet != null) throw (DepositAccount_Error.WalletUnknown);
 
     val transfer = createMessage({
         bounce: BounceMode.RichBounce,
@@ -186,8 +185,9 @@ fun onWithdraw(sender: address, msg: DepositAccount_Withdraw, msgCell: cell) {
 /// Reports the bounced withdraw to its requester.
 fun onWithdrawBounced(wallet: address, ask: AskToTransfer) {
     val data = lazy DepositAccount_Data.load();
+    // SAFETY: AskToTransfer is always sent with a forward payload.
     val wrap = Jetton_ForwardPayloadWrap.from(ask.forwardPayload).unwrap(DepositAccount_Error.InvalidForwardPayload);
-    assert(wrap.context != null, DepositAccount_Error.InvalidForwardPayload);
+    assert (wrap.context != null) throw (DepositAccount_Error.InvalidForwardPayload);
     val reply = createMessage({
         bounce: BounceMode.NoBounce,
         value: 0,
@@ -200,7 +200,7 @@ fun onWithdrawBounced(wallet: address, ask: AskToTransfer) {
             request: wrap.context as Cell<DepositAccount_Withdraw>,
         },
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Only notifications from the learned jetton wallet are forwarded. Any other sender is asked to
@@ -219,7 +219,7 @@ fun onTransferNotification(sender: address, msg: TransferNotificationForRecipien
             notification: beginCell().storeSlice(body).endCell() as Cell<TransferNotificationForRecipient>,
         },
     });
-    notification.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    notification.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Jettons minted to the account have no initiator and go to `user`.

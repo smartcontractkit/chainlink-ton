@@ -11,15 +11,15 @@ func _() {
 	_ = x[ExitCodeLockboxNotConfigured-20900]
 	_ = x[ExitCodeUnexpectedLockboxConfirmationSender-20901]
 	_ = x[ExitCodeUnexpectedLockBounce-20902]
-	_ = x[ExitCodeInvalidOffRampAccountReply-20903]
-	_ = x[ExitCodeInvalidOffRampAccountNotification-20904]
-	_ = x[ExitCodeOffRampAccountDeployFailed-20905]
+	_ = x[ExitCodeInvalidReceiverAccountReply-20903]
+	_ = x[ExitCodeInvalidReceiverAccountNotification-20904]
+	_ = x[ExitCodeReceiverAccountDeployFailed-20905]
 	_ = x[ExitCodeLockboxWithdrawFailed-20906]
 }
 
-const _ExitCode_name = "LockboxNotConfiguredUnexpectedLockboxConfirmationSenderUnexpectedLockBounceInvalidOffRampAccountReplyInvalidOffRampAccountNotificationOffRampAccountDeployFailedLockboxWithdrawFailed"
+const _ExitCode_name = "LockboxNotConfiguredUnexpectedLockboxConfirmationSenderUnexpectedLockBounceInvalidReceiverAccountReplyInvalidReceiverAccountNotificationReceiverAccountDeployFailedLockboxWithdrawFailed"
 
-var _ExitCode_index = [...]uint8{0, 20, 55, 75, 101, 134, 160, 181}
+var _ExitCode_index = [...]uint8{0, 20, 55, 75, 102, 136, 163, 184}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 20900

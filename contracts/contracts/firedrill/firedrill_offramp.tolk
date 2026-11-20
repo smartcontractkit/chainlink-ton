@@ -40,17 +40,17 @@ fun onInternalMessage(in: InMessage) {
 	match (msg) {
 		FiredrillOffRamp_EmitSourceChainConfigSet => {
 			// Only control address can trigger emissions
-			assert(in.senderAddress == st.controlAddress, 100);
+			assert (in.senderAddress == st.controlAddress) throw (100);
 			emitSourceChainConfigSet(st);
 		}
 		FiredrillOffRamp_EmitCommitReportAccepted => {
 			// Only control address can trigger emissions
-			assert(in.senderAddress == st.controlAddress, 100);
+			assert (in.senderAddress == st.controlAddress) throw (100);
 			emitCommitReportAccepted(msg.minSeqNr, msg.maxSeqNr, st);
 		}
 		else => {
 		    // ignore empty messages, "wrong opcode" for others
-		    assert (in.body.isEmpty()) throw 0xFFFF;
+		    assert (in.body.isEmpty()) throw (0xFFFF);
 		}
 	}
 }

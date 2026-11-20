@@ -9,6 +9,8 @@ import { beginCell, ContractProvider, Sender, SendMode } from '@ton/core';
 //   predefined types and functions
 //
 
+type array<T> = T[]
+
 type StoreCallback<T> = (obj: T, b: c.Builder) => void
 type LoadCallback<T> = (s: c.Slice) => T
 
@@ -52,6 +54,35 @@ function storeTolkNullable<T>(v: T | null, b: c.Builder, storeFn_T: StoreCallbac
         b.storeUint(1, 1);
         storeFn_T(v, b);
     }
+}
+
+function storeArrayOf<T>(v: array<T>, b: c.Builder, storeFn_T: StoreCallback<T>): void {
+    // the compiler stores array<T> in chunks; in TypeScript, for simplicity, store "1 elem = 1 ref"
+    let tail = null as c.Cell | null;
+    for (let i = 0; i < v.length; ++i) {
+        let chunkB = beginCell().storeMaybeRef(tail);
+        storeFn_T(v[v.length - 1 - i], chunkB);
+        tail = chunkB.endCell();
+    }
+    b.storeUint(v.length, 8);
+    b.storeMaybeRef(tail);
+}
+
+function loadArrayOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): array<T> {
+    let len = s.loadUint(8);
+    let head = s.loadMaybeRef();
+    let outArr = [] as array<T>;
+    while (head != null) {
+        let s = head.beginParse();
+        head = s.loadMaybeRef();
+        while (s.remainingBits || s.remainingRefs) {
+            outArr.push(loadFn_T(s));
+        }
+    }
+    if (len !== outArr.length) {
+        throw new Error(`mismatch array binary data: expected ${len} elements, got ${outArr.length}`);
+    }
+    return outArr;
 }
 
 // ————————————————————————————————————————————
@@ -137,6 +168,7 @@ function invokeCustomUnpackFromSlice<T>(typeName: string, s: c.Slice): T {
 
 type coins = bigint
 
+type uint8 = bigint
 type uint16 = bigint
 type uint32 = bigint
 type uint64 = bigint
@@ -233,8 +265,9 @@ function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCa
 function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
     let outArr = [] as T[];
     let head = s.loadRef().beginParse();
-    while (head.remainingBits > 0 || head.remainingRefs > 0) {
-        if (head.remainingBits > 0) {
+    while (true) {
+        // Drain every item packed into the current cell before following the chain ref.
+        while (head.remainingBits > 0) {
             outArr.push(loadFn_T(head));
         }
         if (head.remainingRefs > 0) {
@@ -246,6 +279,23 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
     return outArr;
 }
 
+
+/**
+ > type byte = uint8
+ */
+export type byte = uint8
+
+export const byte = {
+    fromSlice(s: c.Slice): byte {
+        return s.loadUintBig(8);
+    },
+    store(self: byte, b: c.Builder): void {
+        b.storeUint(self, 8);
+    },
+    toCell(self: byte): c.Cell {
+        return makeCellFrom<byte>(self, byte.store);
+    }
+}
 
 /**
  > struct Ownable2Step {
@@ -373,6 +423,7 @@ export const Upgradeable_UpgradedEvent = {
  >     queryId: uint64
  >     confirmValue: coins
  >     message: Cell<Any2TVMMessage>
+ >     receiverAccounts: array<address>
  > }
  */
 export interface Receiver_CCIPReceiveV2 {
@@ -381,6 +432,7 @@ export interface Receiver_CCIPReceiveV2 {
     queryId: uint64
     confirmValue: coins
     message: Any2TVMMessage
+    receiverAccounts: array<c.Address>
 }
 
 export const Receiver_CCIPReceiveV2 = {
@@ -391,6 +443,7 @@ export const Receiver_CCIPReceiveV2 = {
         queryId?: uint64
         confirmValue: coins
         message: Any2TVMMessage
+        receiverAccounts: array<c.Address>
     }): Receiver_CCIPReceiveV2 {
         return {
             $: 'Receiver_CCIPReceiveV2',
@@ -406,6 +459,9 @@ export const Receiver_CCIPReceiveV2 = {
             queryId: s.loadUintBig(64),
             confirmValue: s.loadCoins(),
             message: loadCellRef<Any2TVMMessage>(s, Any2TVMMessage.fromSlice),
+            receiverAccounts: loadArrayOf<c.Address>(s,
+                (s) => s.loadAddress()
+            ),
         }
     },
     store(self: Receiver_CCIPReceiveV2, b: c.Builder): void {
@@ -414,6 +470,9 @@ export const Receiver_CCIPReceiveV2 = {
         b.storeUint(self.queryId, 64);
         b.storeCoins(self.confirmValue);
         storeCellRef<Any2TVMMessage>(self.message, b, Any2TVMMessage.store);
+        storeArrayOf<c.Address>(self.receiverAccounts, b,
+            (v,b) => b.storeAddress(v)
+        );
     },
     toCell(self: Receiver_CCIPReceiveV2): c.Cell {
         return makeCellFrom<Receiver_CCIPReceiveV2>(self, Receiver_CCIPReceiveV2.store);
@@ -423,13 +482,13 @@ export const Receiver_CCIPReceiveV2 = {
 /**
  > struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
  >     queryId: uint64
- >     execId: ReceiveExecutorId
+ >     execId: ReceiveExecutionID
  > }
  */
 export interface Router_CCIPReceiveConfirm {
     readonly $: 'Router_CCIPReceiveConfirm'
     queryId: uint64
-    execId: ReceiveExecutorId
+    execId: ReceiveExecutionID
 }
 
 export const Router_CCIPReceiveConfirm = {
@@ -437,7 +496,7 @@ export const Router_CCIPReceiveConfirm = {
 
     create(args: {
         queryId?: uint64
-        execId: ReceiveExecutorId
+        execId: ReceiveExecutionID
     }): Router_CCIPReceiveConfirm {
         return {
             $: 'Router_CCIPReceiveConfirm',
@@ -450,13 +509,13 @@ export const Router_CCIPReceiveConfirm = {
         return {
             $: 'Router_CCIPReceiveConfirm',
             queryId: s.loadUintBig(64),
-            execId: ReceiveExecutorId.fromSlice(s),
+            execId: ReceiveExecutionID.fromSlice(s),
         }
     },
     store(self: Router_CCIPReceiveConfirm, b: c.Builder): void {
         b.storeUint(0x1e55bbf6, 32);
         b.storeUint(self.queryId, 64);
-        ReceiveExecutorId.store(self.execId, b);
+        ReceiveExecutionID.store(self.execId, b);
     },
     toCell(self: Router_CCIPReceiveConfirm): c.Cell {
         return makeCellFrom<Router_CCIPReceiveConfirm>(self, Router_CCIPReceiveConfirm.store);
@@ -468,7 +527,7 @@ export const Router_CCIPReceiveConfirm = {
  >     messageId: uint256
  >     sourceChainSelector: uint64
  >     sender: CrossChainAddress
- >     data: cell
+ >     data: SnakedCell<byte>
  >     tokenAmounts: SnakedCell<TokenAmount>?
  > }
  */
@@ -477,7 +536,7 @@ export interface Any2TVMMessage {
     messageId: uint256
     sourceChainSelector: uint64
     sender: CrossChainAddress
-    data: c.Cell
+    data: SnakedCell<byte>
     tokenAmounts: SnakedCell<TokenAmount> | null
 }
 
@@ -486,7 +545,7 @@ export const Any2TVMMessage = {
         messageId: uint256
         sourceChainSelector: uint64
         sender: CrossChainAddress
-        data: c.Cell
+        data: SnakedCell<byte>
         tokenAmounts: SnakedCell<TokenAmount> | null
     }): Any2TVMMessage {
         return {
@@ -500,7 +559,7 @@ export const Any2TVMMessage = {
             messageId: s.loadUintBig(256),
             sourceChainSelector: s.loadUintBig(64),
             sender: CrossChainAddress.fromSlice(s),
-            data: s.loadRef(),
+            data: loadSnakedCellOf(s, (s) => s.loadUintBig(8)),
             tokenAmounts: s.loadBoolean() ? loadSnakedCellOf(s, TokenAmount.fromSlice) : null,
         }
     },
@@ -508,7 +567,7 @@ export const Any2TVMMessage = {
         b.storeUint(self.messageId, 256);
         b.storeUint(self.sourceChainSelector, 64);
         CrossChainAddress.store(self.sender, b);
-        b.storeRef(self.data);
+        storeSnakedCellOf(self.data, b, (v, b) => b.storeUint(v, 8));
         storeTolkNullable<SnakedCell<TokenAmount>>(self.tokenAmounts, b, (v,b) => storeSnakedCellOf(v, b, TokenAmount.store));
     },
     toCell(self: Any2TVMMessage): c.Cell {
@@ -517,19 +576,19 @@ export const Any2TVMMessage = {
 }
 
 /**
- > type ReceiveExecutorId = uint192
+ > type ReceiveExecutionID = uint192
  */
-export type ReceiveExecutorId = uint192
+export type ReceiveExecutionID = uint192
 
-export const ReceiveExecutorId = {
-    fromSlice(s: c.Slice): ReceiveExecutorId {
+export const ReceiveExecutionID = {
+    fromSlice(s: c.Slice): ReceiveExecutionID {
         return s.loadUintBig(192);
     },
-    store(self: ReceiveExecutorId, b: c.Builder): void {
+    store(self: ReceiveExecutionID, b: c.Builder): void {
         b.storeUint(self, 192);
     },
-    toCell(self: ReceiveExecutorId): c.Cell {
-        return makeCellFrom<ReceiveExecutorId>(self, ReceiveExecutorId.store);
+    toCell(self: ReceiveExecutionID): c.Cell {
+        return makeCellFrom<ReceiveExecutionID>(self, ReceiveExecutionID.store);
     }
 }
 
@@ -771,7 +830,8 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 
 export class TestReceiver implements c.Contract {
     static Errors = {
-        'TVMError.CellOverflow': 8,
+        'CrossChainAddress_Error.InvalidBitLength': 298,
+        'CrossChainAddress_Error.TooManyBytes': 299,
         'Receiver_Error.Unauthorized': 5400,
         'Receiver_Error.LowValue': 5401,
         'TestReceiver_Error.Rejected': 19100,
@@ -824,6 +884,7 @@ export class TestReceiver implements c.Contract {
         queryId?: uint64
         confirmValue: coins
         message: Any2TVMMessage
+        receiverAccounts: array<c.Address>
     }) {
         return Receiver_CCIPReceiveV2.toCell(Receiver_CCIPReceiveV2.create(body));
     }
@@ -868,6 +929,7 @@ export class TestReceiver implements c.Contract {
         queryId?: uint64
         confirmValue: coins
         message: Any2TVMMessage
+        receiverAccounts: array<c.Address>
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

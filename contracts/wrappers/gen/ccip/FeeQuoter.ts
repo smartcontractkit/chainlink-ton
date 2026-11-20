@@ -298,6 +298,8 @@ function invokeCustomUnpackFromSlice<T>(typeName: string, s: c.Slice): T {
 
 type coins = bigint
 
+type int32 = bigint
+
 type uint8 = bigint
 type uint16 = bigint
 type uint32 = bigint
@@ -789,8 +791,9 @@ function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCa
 function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
     let outArr = [] as T[];
     let head = s.loadRef().beginParse();
-    while (head.remainingBits > 0 || head.remainingRefs > 0) {
-        if (head.remainingBits > 0) {
+    while (true) {
+        // Drain every item packed into the current cell before following the chain ref.
+        while (head.remainingBits > 0) {
             outArr.push(loadFn_T(head));
         }
         if (head.remainingRefs > 0) {
@@ -802,6 +805,23 @@ function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<
     return outArr;
 }
 
+
+/**
+ > type byte = uint8
+ */
+export type byte = uint8
+
+export const byte = {
+    fromSlice(s: c.Slice): byte {
+        return s.loadUintBig(8);
+    },
+    store(self: byte, b: c.Builder): void {
+        b.storeUint(self, 8);
+    },
+    toCell(self: byte): c.Cell {
+        return makeCellFrom<byte>(self, byte.store);
+    }
+}
 
 /**
  > type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
@@ -1029,10 +1049,10 @@ export const TokenAmount = {
 
 /**
  > struct (0x31768d95) Router_CCIPSend {
- >     queryID: uint64
+ >     queryId: uint64
  >     destChainSelector: uint64
  >     receiver: CrossChainAddress
- >     data: cell
+ >     data: SnakedCell<byte>
  >     tokenAmounts: SnakedCell<TokenAmount>
  >     feeToken: address?
  >     extraArgs: Cell<ExtraArgs>
@@ -1040,10 +1060,10 @@ export const TokenAmount = {
  */
 export interface Router_CCIPSend {
     readonly $: 'Router_CCIPSend'
-    queryID: uint64
+    queryId: uint64
     destChainSelector: uint64
     receiver: CrossChainAddress
-    data: c.Cell
+    data: SnakedCell<byte>
     tokenAmounts: SnakedCell<TokenAmount>
     feeToken: c.Address | null
     extraArgs: ExtraArgs
@@ -1053,10 +1073,10 @@ export const Router_CCIPSend = {
     PREFIX: 0x31768d95,
 
     create(args: {
-        queryID?: uint64
+        queryId?: uint64
         destChainSelector: uint64
         receiver: CrossChainAddress
-        data: c.Cell
+        data: SnakedCell<byte>
         tokenAmounts: SnakedCell<TokenAmount>
         feeToken: c.Address | null
         extraArgs: ExtraArgs
@@ -1064,17 +1084,17 @@ export const Router_CCIPSend = {
         return {
             $: 'Router_CCIPSend',
             ...args,
-            queryID: args.queryID ?? 0n
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): Router_CCIPSend {
         loadAndCheckPrefix32(s, 0x31768d95, 'Router_CCIPSend');
         return {
             $: 'Router_CCIPSend',
-            queryID: s.loadUintBig(64),
+            queryId: s.loadUintBig(64),
             destChainSelector: s.loadUintBig(64),
             receiver: CrossChainAddress.fromSlice(s),
-            data: s.loadRef(),
+            data: loadSnakedCellOf(s, (s) => s.loadUintBig(8)),
             tokenAmounts: loadSnakedCellOf(s, TokenAmount.fromSlice),
             feeToken: s.loadMaybeAddress(),
             extraArgs: loadCellRef<ExtraArgs>(s, ExtraArgs.fromSlice),
@@ -1082,10 +1102,10 @@ export const Router_CCIPSend = {
     },
     store(self: Router_CCIPSend, b: c.Builder): void {
         b.storeUint(0x31768d95, 32);
-        b.storeUint(self.queryID, 64);
+        b.storeUint(self.queryId, 64);
         b.storeUint(self.destChainSelector, 64);
         CrossChainAddress.store(self.receiver, b);
-        b.storeRef(self.data);
+        storeSnakedCellOf(self.data, b, (v, b) => b.storeUint(v, 8));
         storeSnakedCellOf(self.tokenAmounts, b, TokenAmount.store);
         b.storeAddress(self.feeToken);
         storeCellRef<ExtraArgs>(self.extraArgs, b, ExtraArgs.store);
@@ -1450,14 +1470,14 @@ export const FeeQuoter_MessageValidated = {
 
 /**
  > struct (0x4785cb72) FeeQuoter_MessageValidationFailed {
- >     error: uint256
+ >     errorCode: int32
  >     msg: Cell<Router_CCIPSend>
  >     context: cell?
  > }
  */
 export interface FeeQuoter_MessageValidationFailed {
     readonly $: 'FeeQuoter_MessageValidationFailed'
-    error: uint256
+    errorCode: int32
     msg: Router_CCIPSend
     context: c.Cell | null /* = null */
 }
@@ -1466,7 +1486,7 @@ export const FeeQuoter_MessageValidationFailed = {
     PREFIX: 0x4785cb72,
 
     create(args: {
-        error: uint256
+        errorCode: int32
         msg: Router_CCIPSend
         context?: c.Cell | null /* = null */
     }): FeeQuoter_MessageValidationFailed {
@@ -1480,14 +1500,14 @@ export const FeeQuoter_MessageValidationFailed = {
         loadAndCheckPrefix32(s, 0x4785cb72, 'FeeQuoter_MessageValidationFailed');
         return {
             $: 'FeeQuoter_MessageValidationFailed',
-            error: s.loadUintBig(256),
+            errorCode: s.loadIntBig(32),
             msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
             context: s.loadBoolean() ? s.loadRef() : null,
         }
     },
     store(self: FeeQuoter_MessageValidationFailed, b: c.Builder): void {
         b.storeUint(0x4785cb72, 32);
-        b.storeUint(self.error, 256);
+        b.storeInt(self.errorCode, 32);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkNullable<c.Cell>(self.context, b,
             (v,b) => b.storeRef(v)
@@ -2698,10 +2718,10 @@ export class FeeQuoter implements c.Contract {
 
     async getValidatedFee(provider: ContractProvider, msg: Router_CCIPSend): Promise<coins> {
         const r = StackReader.fromGetMethod(1, await provider.get('validatedFee', [
-            { type: 'int', value: msg.queryID ?? 0n },
+            { type: 'int', value: msg.queryId ?? 0n },
             { type: 'int', value: msg.destChainSelector },
             { type: 'slice', cell: beginCell().storeSlice(msg.receiver).endCell() },
-            { type: 'cell', cell: msg.data },
+            { type: 'cell', cell: buildSnakedCellOf<byte>(msg.data, (v, b) => b.storeUint(v, 8)) },
             { type: 'cell', cell: buildSnakedCellOf<TokenAmount>(msg.tokenAmounts, TokenAmount.store) },
             msg.feeToken === null ? { type: 'null' } : { type: 'slice', cell: makeCellFrom<c.Address | null>(msg.feeToken,
                 (v,b) => b.storeAddress(v)

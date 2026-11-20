@@ -45,10 +45,10 @@ describe('Router.cursing', () => {
 
   it('router respects cursing', async () => {
     const msg = {
-      queryID: 1n,
+      queryId: 1n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_ADDRESS,
-      data: Cell.EMPTY,
+      data: [],
       tokenAmounts: [],
       feeToken: NATIVE_GRAM,
       extraArgs: rt.GenericExtraArgsV2.create({ gasLimit: 100n, allowOutOfOrderExecution: true }),
@@ -136,11 +136,10 @@ describe('Router.cursing', () => {
     })
 
     const result = await router.sendRouterLockOrBurn(onRamp.getSender(), toNano('1'), {
-      queryID: 11n,
+      queryId: 11n,
       tokenPool: deployer.address,
       request: rt.TokenPool_LockOrBurnInV1.create({
         transfer: rt.TokenPool_Transfer.create({
-          id: 11n,
           details: rt.TokenPool_TransferDetails.create({
             originalSender: sender.address,
             remoteChainSelector,
@@ -179,12 +178,11 @@ describe('Router.cursing', () => {
     })
 
     const result = await router.sendRouterRelayReleaseOrMint(offRamp.getSender(), toNano('1'), {
-      queryID: 21n,
+      queryId: 21n,
       sourceChainSelector,
       tokenPool: deployer.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
         transfer: rt.TokenPool_Transfer.create({
-          id: 21n,
           details: rt.TokenPool_TransferDetails.create({
             originalSender: EVM_ADDRESS,
             remoteChainSelector: sourceChainSelector,
@@ -223,12 +221,11 @@ describe('Router.cursing', () => {
     const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 
     const result = await router.sendRouterRelayReleaseOrMint(sender.getSender(), toNano('1'), {
-      queryID: 30n,
+      queryId: 30n,
       sourceChainSelector,
       tokenPool: deployer.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
         transfer: rt.TokenPool_Transfer.create({
-          id: 30n,
           details: rt.TokenPool_TransferDetails.create({
             originalSender: EVM_ADDRESS,
             remoteChainSelector: sourceChainSelector,
@@ -258,12 +255,11 @@ describe('Router.cursing', () => {
     const sourceChainSelector = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 
     const result = await router.sendRouterRelayReleaseOrMint(offRamp.getSender(), toNano('1'), {
-      queryID: 31n,
+      queryId: 31n,
       sourceChainSelector,
       tokenPool: deployer.address,
       request: rt.TokenPool_ReleaseOrMintInV1.create({
         transfer: rt.TokenPool_Transfer.create({
-          id: 31n,
           details: rt.TokenPool_TransferDetails.create({
             // Mismatched remote chain selector.
             originalSender: EVM_ADDRESS,

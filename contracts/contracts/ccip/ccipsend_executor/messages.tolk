@@ -5,6 +5,7 @@ import "../onramp/messages"
 import "../fee_quoter/messages"
 import "../token_admin_registry/messages"
 import "../pools/lib/token_pool/messages"
+import "../pools/lock_release_lockbox/types"
 
 import "types"
 
@@ -18,7 +19,8 @@ type CCIPSendExecutor_InMessage =
     | TokenPool_LockOrBurnWithdraw
     | TokenPool_LockOrBurnFinished
     | TokenPool_LockOrBurnFailure
-    | Router_TokenPoolLockOrBurnFailed;
+    | Router_TokenPoolLockOrBurnFailed
+    | OnRamp_LockOrBurnFailed;
 
 // crc32('CCIPSendExecutor_Execute')
 struct (0xaf3c62b3) CCIPSendExecutor_Execute {
@@ -65,7 +67,13 @@ fun SendExecutor_Costs.TokenTransfer(): int {
     return
         + TokenAdminRegistry_GetTokenInfo.cost()
         + grams("0.003") // TokenAdminRegistry_TokenInfo computeFee + ExecutorRequestsLockOrBurn fwdFee
-        + OnRamp_Costs.ExecutorRequestsLockOrBurn(TOKEN_POOL_DEFAULT_LOCK_OR_BURN_ADMISSION)
+
+        // Pool-type default LockOrBurn admission (1_575_000 gas at mainnet price). The registry
+        // reports the real value per pool; this bounds the Router's entry check, and the executor
+        // re-checks against the reported admission once it has it.
+        + OnRamp_Costs.ExecutorRequestsLockOrBurn(
+            LockReleaseLockboxTokenPool_Costs.lockOrBurnAdmission()
+        )
         ;
 }
 
@@ -93,4 +101,5 @@ type CCIPSendExecutor_BouncedMessage =
     | FeeQuoter_GetValidatedFee
     | OnRamp_ExecutorReserveFee
     | TokenAdminRegistry_GetTokenInfo
+    | OnRamp_ExecutorRequestsLockOrBurn
     ;

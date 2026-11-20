@@ -6,7 +6,7 @@ const CONTRACT_VERSION = "1.0.0";
 
 fun onInternalMessage(in: InMessage) {
     val st = Deployable<RemainingBitsAndRefs>.load();
-    assert(in.senderAddress == st.owner) throw Deployable_Error.NotOwner;
+    assert(in.senderAddress == st.owner) throw (Deployable_Error.NotOwner);
     val inMsg = lazy Deployable_InMessage.fromSlice(in.body);
     match (inMsg) {
         Deployable_Initialize => {
@@ -22,7 +22,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: contract.getAddress(),
                 body: inMsg.selfMessage.body,
             });
-            selfMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+            selfMsg.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
     }
 }

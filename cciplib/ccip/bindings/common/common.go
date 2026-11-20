@@ -320,15 +320,99 @@ func packArrayToCell[T any](array []T) (*cell.Cell, error) {
 	return next, nil
 }
 
+// checkOrdinaryCell rejects cells that are not plain data cells.
+//
+// TVM resolves library references at CTOS, but tonutils-go copies their 264-bit
+// descriptor (type tag + library hash) verbatim, so a schema-aware decoder would
+// read that descriptor as payload.
+func checkOrdinaryCell(c *cell.Cell) error {
+	if c == nil {
+		return nil
+	}
+	if t := c.GetType(); t != cell.OrdinaryCellType {
+		return fmt.Errorf("expected an ordinary cell, got %s", CellTypeName(t))
+	}
+	return nil
+}
+
+// CheckOrdinaryTree reports the first non-ordinary cell in the tree rooted at c.
+//
+// Special cells are rejected at the BOC root too, but that check alone is not
+// enough: TVM resolves library references at CTOS and treats the merkle/pruned
+// wrappers transparently, whereas tonutils-go copies their descriptors verbatim
+// and generic TL-B decoding then reads those descriptor bits as payload.
+//
+// Because a cell's own type is only visible once it is reached, validation has
+// to visit every reference on every path a decoder may take — fields a schema
+// never reads included.
+func CheckOrdinaryTree(c *cell.Cell) error {
+	return walkOrdinary(c, make(map[*cell.Cell]struct{}))
+}
+
+func walkOrdinary(c *cell.Cell, seen map[*cell.Cell]struct{}) error {
+	if c == nil {
+		return nil
+	}
+	if _, ok := seen[c]; ok {
+		return nil
+	}
+	seen[c] = struct{}{}
+
+	if err := checkOrdinaryCell(c); err != nil {
+		return err
+	}
+	for i := uint(0); i < c.RefsNum(); i++ {
+		ref, err := c.PeekRef(int(i))
+		if err != nil {
+			return fmt.Errorf("failed to peek ref %d: %w", i, err)
+		}
+		if err := walkOrdinary(ref, seen); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// CellTypeName renders a [cell.Type] for error messages
+func CellTypeName(t cell.Type) string {
+	switch t {
+	case cell.OrdinaryCellType:
+		return "ordinary"
+	case cell.PrunedCellType:
+		return "pruned"
+	case cell.LibraryCellType:
+		return "library-reference"
+	case cell.MerkleProofCellType:
+		return "merkle-proof"
+	case cell.MerkleUpdateCellType:
+		return "merkle-update"
+	default:
+		return "unknown"
+	}
+}
+
 // loadChainRef returns the next cell in a snake chain, or nil if no more cells.
-// Returns error if more than 1 ref remains (malformed chain).
+// Returns error if more than 1 ref remains (malformed chain) or if the
+// continuation is not an ordinary data cell.
 func loadChainRef(s *cell.Slice) (*cell.Cell, error) {
+	if s.IsSpecial() {
+		return nil, errors.New("invalid snake chain: continuation is a special cell (e.g. a library reference), the Go bindings cannot resolve it")
+	}
 	refsNum := s.RefsNum()
 	if refsNum > 1 {
 		return nil, fmt.Errorf("invalid snake chain: expected at most 1 ref, got %d", refsNum)
 	}
 	if refsNum == 1 {
-		return s.LoadRefCell()
+		ref, err := s.LoadRefCell()
+		if err != nil {
+			return nil, fmt.Errorf("failed to load ref: %w", err)
+		}
+
+		if err := checkOrdinaryCell(ref); err != nil {
+			return nil, fmt.Errorf("invalid snake chain: %w", err)
+		}
+
+		return ref, nil
 	}
 	return nil, nil
 }
@@ -360,6 +444,10 @@ func unpackArrayFromCell[T any](root *cell.Cell) ([]T, error) {
 			return nil, fmt.Errorf("cell chain depth %d exceeds maximum of %d cells", cellCount, MaxCellChainDepth)
 		}
 
+		if err := checkOrdinaryCell(curr); err != nil {
+			return nil, fmt.Errorf("failed to unpack array: %w", err)
+		}
+
 		s, err := curr.BeginParse()
 		if err != nil {
 			return nil, fmt.Errorf("failed to begin parsing cell: %w", err)
@@ -380,7 +468,7 @@ func unpackArrayFromCell[T any](root *cell.Cell) ([]T, error) {
 		// This correctly handles elements with ^ fields whose refs were consumed by tlb.LoadFromCell.
 		curr, err = loadChainRef(s)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to load chain ref: %w", err)
 		}
 	}
 	return result, nil
@@ -459,6 +547,12 @@ func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 		cellCount++
 		if cellCount > MaxCellChainDepth {
 			return nil, fmt.Errorf("cell chain depth %d exceeds maximum of %d cells", cellCount, MaxCellChainDepth)
+		}
+
+		// Check every cell, not just the continuation: the root is not a
+		// continuation, so loadChainRef never sees it.
+		if err := checkOrdinaryCell(curr); err != nil {
+			return nil, fmt.Errorf("failed to unload byte array: %w", err)
 		}
 
 		s, err := curr.BeginParse()

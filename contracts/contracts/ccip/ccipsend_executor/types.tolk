@@ -7,15 +7,15 @@ const CCIPSendExecutor_FACILITY_NAME = "link.chain.ton.ccip.CCIPSendExecutor";
 const CCIPSendExecutor_FACILITY_ID = CCIPSendExecutor_FACILITY_NAME.crc32() % 640 + 10;  // 178
 // NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
-type CCIPSendExecutor_ID = uint224
+type CCIPSendExecutorId = uint224
 
 struct CCIPSendExecutor_InitialData {
     onramp: address,
-    id: CCIPSendExecutor_ID,
+    id: CCIPSendExecutorId,
 }
 
 struct CCIPSendExecutor_Data {
-    id: CCIPSendExecutor_ID,
+    id: CCIPSendExecutorId,
     onrampSend: OnRamp_Send,
     addresses: Cell<CCIPSendExecutor_Addresses>,
     state: CCIPSendExecutor_State,

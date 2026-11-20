@@ -417,11 +417,6 @@ const MAX_NUM_SIGNERS = 200;
 
 const TOPIC_BOUNCE_HANDLED = "MCMS_BounceHandled".crc32();
 
-// --- Constants - storage ---
-
-/// Represents the amount of TON coins we reserve on the balance to pay for storage fees.
-const MIN_TON_TO_RESERVE: int = grams("0.05");
-
 /// Error codes used by the Timelock contract.
 enum MCMS_Error {
     /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
@@ -738,7 +733,7 @@ fun MCMS<T>.setRoot(
     metadataProof: SnakedCell<uint256>,
     signatures: SnakedCell<Signature>,
 ) {
-    assert(value >= MCMS_Costs.setRoot(), MCMS_Error.InsufficientFee);
+    assert (value >= MCMS_Costs.setRoot()) throw (MCMS_Error.InsufficientFee);
 
     if (validUntil < blockchain.now()) {
         throw MCMS_Error.ValidUntilHasAlreadyPassed;
@@ -932,12 +927,12 @@ fun MCMS<T>.setRoot(
 
     // Reply to sender new root was set, return excess
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: MCMS_NewRoot{queryId, root, validUntil, metadata}
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Execute the received op after verifying the proof of its inclusion in the
@@ -965,7 +960,7 @@ fun MCMS<T>.execute(
     op: Op,
     proof: SnakedCell<uint256>,
 ) {
-    assert(value >= MCMS_Costs.execute(), MCMS_Error.InsufficientFee);
+    assert (value >= MCMS_Costs.execute()) throw (MCMS_Error.InsufficientFee);
 
     // Unpack the root info from the contract data
     val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
@@ -1000,7 +995,7 @@ fun MCMS<T>.execute(
 
     // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
     // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-    assert(op.value >= calculateGasFeeDefault(), MCMS_Error.InsufficientValue);
+    assert (op.value >= calculateGasFeeDefault()) throw (MCMS_Error.InsufficientValue);
 
     // verify that the op exists in the merkle tree
     // @dev we use the standard sha256 hash function to hash the leaf.
@@ -1043,18 +1038,18 @@ fun MCMS<T>.execute(
 
     // We reserve some TON coins on the balance for rent
     val reserveMode = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
-    reserveGramsOnBalance(MIN_TON_TO_RESERVE, reserveMode);
+    reserveGramsOnBalance(MIN_GRAM_TO_RESERVE, reserveMode);
 
     self._execute(op.to, op.value, op.data);
 
     // Reply back to sender
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: MCMS_OpExecuted{queryId, nonce: op.nonce, to: op.to, data: op.data, value: op.value}
     });
-    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// setConfig sets a new data.config. If clearRoot is true, then it also invalidates
@@ -1087,7 +1082,7 @@ fun MCMS<T>.setConfig(
 ) {
     self.data.ownable.requireOwner(sender);
 
-    assert(value >= MCMS_Costs.setConfig(), MCMS_Error.InsufficientFee);
+    assert (value >= MCMS_Costs.setConfig()) throw (MCMS_Error.InsufficientFee);
 
     // Validate input lengths
     var signerAddrsIterator = signerAddresses.iter();
@@ -1252,12 +1247,12 @@ fun MCMS<T>.setConfig(
 
     // Reply to sender config is set, return excess
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: MCMS_ConfigSet{ queryId, config, isRootCleared: clearRoot }
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Changes the timeout required to finalize the currently executing op
@@ -1291,12 +1286,12 @@ fun MCMS<T>.updateOpFinalizationTimeout(
     self.data.rootInfo = rootInfo.toCell();
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: MCMS_OpFinalizationTimeoutChange{ queryId, oldDuration: currTimeout, newDuration: newOpFinalizationTimeout}
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Submit an oracle error report, which marks the current root as invalid.
@@ -1318,7 +1313,7 @@ fun MCMS<T>.submitErrorReport(
         throw MCMS_Error.UnauthorizedOracle;
     }
 
-    assert(value >= MCMS_Costs.submitErrorReport(), MCMS_Error.InsufficientFee);
+    assert (value >= MCMS_Costs.submitErrorReport()) throw (MCMS_Error.InsufficientFee);
 
     // Check if right environment via chainId
     if (op.chainId != globalId() as int256) {
@@ -1365,7 +1360,7 @@ fun MCMS<T>.submitErrorReport(
         .endCell() as Cell<uint256>;
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: MCMS_ErrorReportSubmitted{
@@ -1378,7 +1373,7 @@ fun MCMS<T>.submitErrorReport(
             matchesPendingOp,
         }
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Transfer the error oracle role - requires owner.
@@ -1399,12 +1394,12 @@ fun MCMS<T>.transferOracleRole(
     self.data.oracle = newOracle;
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: MCMS_OracleRoleTransferred{ queryId, oldOracle, newOracle }
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Delete expired roots from storage map to reduce (accumulated) rent - requires owner.
@@ -1424,7 +1419,7 @@ fun MCMS<T>.cleanExpiredRoots(
     var rootsIter = roots.iter();
     while (!rootsIter.empty()) {
         val rd = rootsIter.next();
-        assert(rd.validUntil < blockchain.now()) throw MCMS_Error.RootNotExpired;
+        assert(rd.validUntil < blockchain.now()) throw (MCMS_Error.RootNotExpired);
 
         // Construct the ID (hash) of the root
         val signedHash = self._hashRoot(rd.root, rd.validUntil);
@@ -1432,12 +1427,12 @@ fun MCMS<T>.cleanExpiredRoots(
     }
 
     val reply = createMessage({
-        bounce: false,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
         body: MCMS_ExpiredRootsCleaned{queryId, roots}
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Execute an op's call. Performs a raw message send that can bounce on errors.

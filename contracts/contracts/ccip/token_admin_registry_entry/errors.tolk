@@ -10,4 +10,6 @@ enum TokenAdminRegistryEntry_Error {
     InvalidAdministrator
     /// The root could not provide an entry satisfying the requested version.
     VersionUnavailable
+    /// A legacy 256-bit bounce. Only sends whose bounce is not handled yet produce them.
+    UnhandledLegacyBounce
 }

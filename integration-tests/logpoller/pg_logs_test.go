@@ -1,6 +1,7 @@
 package logpoller
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -390,6 +391,87 @@ func TestGetLatestBlock(t *testing.T) {
 			assert.Equal(t, tt.expected, latestBlock)
 		})
 	}
+}
+
+func TestPgLogStoreTransact(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	ds := pgtest.SetupTestDB(t)
+
+	err := pgtest.ExecuteSQL(ctx, ds, testdata.CreateLogPollerTables)
+	require.NoError(t, err)
+
+	lggr := logger.Test(t)
+	orm := postgres.NewORM("test-chain", ds, lggr)
+	filterStore := postgres.NewFilterStore("test-chain", orm, lggr)
+	logStore := postgres.NewLogStore("test-chain", orm, lggr)
+
+	testAddr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+	require.NoError(t, err)
+
+	filterID, err := filterStore.RegisterFilter(ctx, models.Filter{
+		Name:     "test-filter",
+		Address:  testAddr,
+		MsgType:  tlb.MsgTypeExternalOut,
+		EventSig: counter.TopicCountIncreased,
+	})
+	require.NoError(t, err)
+
+	makeLog := func(idx int, mcSeqno uint32) models.Log {
+		return models.Log{
+			ChainID:      "test-chain",
+			FilterID:     filterID,
+			Address:      testAddr,
+			EventSig:     counter.TopicCountIncreased,
+			Data:         cell.BeginCell().MustStoreUInt(1, 32).MustStoreUInt(uint64(idx*100), 32).MustStoreAddr(testAddr).EndCell(), //nolint:gosec // test code
+			TxHash:       models.TxHash{byte(idx), 0, 0},                                                                             //nolint:gosec // test code
+			TxLT:         uint64(1000 + idx),                                                                                         //nolint:gosec // test code
+			MsgLT:        uint64(1000 + idx),                                                                                         //nolint:gosec // test code
+			TxTimestamp:  time.Now(),
+			Block:        tontest.TestBlockIDExt(uint32(100 + idx)), //nolint:gosec // test code
+			MCBlockSeqno: mcSeqno,
+			MsgIndex:     int64(idx),
+		}
+	}
+	batchInsertSize, minBatchSize := logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize
+
+	// Committed range: two chunks saved through one transaction.
+	err = logStore.Transact(ctx, func(tx logpoller.LogStore) error {
+		if _, saveErr := tx.SaveLogs(ctx, []models.Log{makeLog(1, 5000)}, batchInsertSize, minBatchSize); saveErr != nil {
+			return saveErr
+		}
+		_, saveErr := tx.SaveLogs(ctx, []models.Log{makeLog(2, 5100)}, batchInsertSize, minBatchSize)
+		return saveErr
+	})
+	require.NoError(t, err)
+
+	seqno, exists, err := logStore.GetHighestMCBlockSeqno(ctx)
+	require.NoError(t, err)
+	require.True(t, exists)
+	require.Equal(t, uint32(5100), seqno)
+
+	// Failed range: a chunk holding a higher block is saved, then the range fails.
+	// Neither chunk may persist, so the resume point stays at the last complete range.
+	rangeErr := errors.New("range incomplete")
+	err = logStore.Transact(ctx, func(tx logpoller.LogStore) error {
+		if _, saveErr := tx.SaveLogs(ctx, []models.Log{makeLog(3, 5300)}, batchInsertSize, minBatchSize); saveErr != nil {
+			return saveErr
+		}
+		if _, saveErr := tx.SaveLogs(ctx, []models.Log{makeLog(4, 5200)}, batchInsertSize, minBatchSize); saveErr != nil {
+			return saveErr
+		}
+		return rangeErr
+	})
+	require.ErrorIs(t, err, rangeErr)
+
+	seqno, exists, err = logStore.GetHighestMCBlockSeqno(ctx)
+	require.NoError(t, err)
+	require.True(t, exists)
+	require.Equal(t, uint32(5100), seqno, "rolled back chunks must not move the resume point")
+
+	var count int
+	require.NoError(t, ds.GetContext(ctx, &count, `SELECT COUNT(*) FROM ton.log_poller_logs WHERE chain_id = 'test-chain'`))
+	require.Equal(t, 2, count)
 }
 
 func TestMultiFilterDeduplication(t *testing.T) {

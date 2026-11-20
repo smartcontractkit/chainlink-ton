@@ -10,14 +10,14 @@ func _() {
 	var x [1]struct{}
 	_ = x[ExitCodeUnexpectedBurnBounce-45000]
 	_ = x[ExitCodeUnexpectedMintBounce-45001]
-	_ = x[ExitCodeInvalidOffRampAccountReply-45002]
-	_ = x[ExitCodeInvalidOffRampAccountNotification-45003]
-	_ = x[ExitCodeOffRampAccountDeployFailed-45004]
+	_ = x[ExitCodeInvalidReceiverAccountReply-45002]
+	_ = x[ExitCodeInvalidReceiverAccountNotification-45003]
+	_ = x[ExitCodeReceiverAccountDeployFailed-45004]
 }
 
-const _ExitCode_name = "UnexpectedBurnBounceUnexpectedMintBounceInvalidOffRampAccountReplyInvalidOffRampAccountNotificationOffRampAccountDeployFailed"
+const _ExitCode_name = "UnexpectedBurnBounceUnexpectedMintBounceInvalidReceiverAccountReplyInvalidReceiverAccountNotificationReceiverAccountDeployFailed"
 
-var _ExitCode_index = [...]uint8{0, 20, 40, 66, 99, 125}
+var _ExitCode_index = [...]uint8{0, 20, 40, 67, 101, 128}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 45000

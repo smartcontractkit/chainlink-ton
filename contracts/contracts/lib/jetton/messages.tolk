@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Imported from https://github.com/ton-blockchain/tolk-bench/blob/57e1009743bfc19748caa95d76180d9e9793e4c5/contracts_Tolk/03_notcoin/messages.tolk
 
+import "@stdlib/reflection"
+
 type ForwardPayloadRemainder = RemainingBitsAndRefs
 
 /// Detects a cheap (`Only256BitsOfBody`) bounce of a return `AskToTransfer`.
@@ -15,8 +17,9 @@ fun isShortAskToTransferBounce(bouncedBody: slice): bool {
         return false;
     }
     val originalBody = bouncedBody.skipBouncedPrefix();
-    return originalBody.remainingBitsCount() >= 32
-        && originalBody.preloadUint(32) == 0x0f8a7ea5;
+    val (askOpcode, askOpcodeBits) = reflect.serializationPrefixOf<AskToTransfer>();
+    return originalBody.remainingBitsCount() >= askOpcodeBits
+        && originalBody.preloadUint(askOpcodeBits) == askOpcode;
 }
 
 // nolint:opcode

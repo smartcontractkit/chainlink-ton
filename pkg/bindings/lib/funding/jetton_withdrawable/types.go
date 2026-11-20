@@ -7,7 +7,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
 // --- Constants ---
@@ -47,9 +46,9 @@ type WithdrawFeeTransfer struct {
 
 // Withdraw requests withdrawal of accrued fee jettons.
 type Withdraw struct {
-	_         tlb.Magic                       `tlb:"#0d00995c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID   uint64                          `tlb:"## 64"`
-	Transfers tlbe.Array[WithdrawFeeTransfer] `tlb:"."`
+	_         tlb.Magic             `tlb:"#0d00995c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID   uint64                `tlb:"## 64"`
+	Transfers []WithdrawFeeTransfer `tlb:"array ."`
 }
 
 // --- Bounce/context types ---

@@ -52,10 +52,10 @@ describe('Router', () => {
     // Track initial balance to verify fees are handled correctly
     const initialOnRampBalance = (await blockchain.getContract(onRamp.address)).balance
     const ccipSend = rt.Router_CCIPSend.create({
-      queryID: 1n,
+      queryId: 1n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_ADDRESS,
-      data: Cell.EMPTY,
+      data: [],
       tokenAmounts: [],
       feeToken: NATIVE_GRAM,
       extraArgs: rt.GenericExtraArgsV2.create({ gasLimit: 100n, allowOutOfOrderExecution: true }),
@@ -186,7 +186,7 @@ describe('Router', () => {
         body(x) {
           return verifyBodyIsRouterCCIPSendACK(x, {
             validation: (ccipSendACK) => {
-              return ccipSendACK.queryID == ccipSend.queryID && ccipSendACK.messageId != 0n
+              return ccipSendACK.queryId == ccipSend.queryId && ccipSendACK.messageId != 0n
             },
           })
         },
@@ -199,10 +199,10 @@ describe('Router', () => {
     // parse them and apply the default gas limit from the dest chain config.
     // The OnRamp should then emit a CCIPMessageSent event with the validated extra args.
     const ccipSendWithEmptyExtraArgs = rt.Router_CCIPSend.create({
-      queryID: 2n,
+      queryId: 2n,
       destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
       receiver: EVM_ADDRESS,
-      data: Cell.EMPTY,
+      data: [],
       tokenAmounts: [],
       feeToken: NATIVE_GRAM,
       extraArgs: rt.GenericExtraArgsV2.create({

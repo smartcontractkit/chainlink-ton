@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -28,13 +30,14 @@ type testTxLoader struct {
 	err error
 }
 
+// LoadTxsForAddress emits all configured txs, then the configured error (if any),
+// mimicking a loader that fails part-way through a range.
 func (l *testTxLoader) LoadTxsForAddress(_ context.Context, _ *models.BlockRange, _ *address.Address, _ uint32, txOut chan<- models.Tx, errOut chan<- error) error {
-	if l.err != nil {
-		errOut <- l.err
-		return nil
-	}
 	for _, tx := range l.txs {
 		txOut <- tx
+	}
+	if l.err != nil {
+		errOut <- l.err
 	}
 	return nil
 }
@@ -43,9 +46,33 @@ func (l *testTxLoader) GetTxsForAddress(_ context.Context, _ *models.BlockRange,
 	return nil, errors.New("not implemented")
 }
 
+// endlessTxLoader keeps emitting tx until its context is cancelled, then closes done.
+type endlessTxLoader struct {
+	tx   models.Tx
+	done chan struct{}
+}
+
+func (l *endlessTxLoader) LoadTxsForAddress(ctx context.Context, _ *models.BlockRange, _ *address.Address, _ uint32, txOut chan<- models.Tx, _ chan<- error) error {
+	defer close(l.done)
+	for {
+		select {
+		case txOut <- l.tx:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func (l *endlessTxLoader) GetTxsForAddress(_ context.Context, _ *models.BlockRange, _ *address.Address, _ uint32) ([]models.Tx, error) {
+	return nil, errors.New("not implemented")
+}
+
 type testLogStore struct {
-	mu   sync.Mutex
-	logs []models.Log
+	mu          sync.Mutex
+	logs        []models.Log // committed logs
+	rolledBack  []models.Log // logs saved inside a Transact call whose fn failed
+	transactErr error        // when set, Transact fails without calling fn (e.g. BEGIN failed)
+	commitErr   error        // when set, Transact calls fn and then fails without committing (e.g. COMMIT failed)
 }
 
 func (s *testLogStore) SaveLogs(_ context.Context, logs []models.Log, _, _ uint32) (int64, error) {
@@ -53,6 +80,27 @@ func (s *testLogStore) SaveLogs(_ context.Context, logs []models.Log, _, _ uint3
 	defer s.mu.Unlock()
 	s.logs = append(s.logs, logs...)
 	return int64(len(logs)), nil
+}
+
+// Transact stages logs saved through tx and commits them only if fn succeeds.
+func (s *testLogStore) Transact(_ context.Context, fn func(tx LogStore) error) error {
+	if s.transactErr != nil {
+		return s.transactErr
+	}
+	tx := &testLogStore{}
+	err := fn(tx)
+	if err == nil {
+		err = s.commitErr
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err != nil {
+		s.rolledBack = append(s.rolledBack, tx.logs...)
+		return err
+	}
+	s.logs = append(s.logs, tx.logs...)
+	return nil
 }
 
 func (s *testLogStore) QueryLogs(context.Context, *query.LogQuery) ([]models.Log, bool, string, error) {
@@ -170,11 +218,81 @@ func TestProcessBlockRange(t *testing.T) {
 
 	t.Run("loader error blocks checkpoint", func(t *testing.T) {
 		t.Parallel()
-		svc := makeTestService(t, &testTxLoader{err: errors.New("liteserver failure")}, &testLogStore{})
+		loaderErr := errors.New("liteserver failure")
+		svc := makeTestService(t, &testTxLoader{err: loaderErr}, &testLogStore{})
 
 		err := svc.processBlockRange(t.Context(), blockRange, addrs, filterIndex)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "loader error")
+		require.ErrorIs(t, err, loaderErr, "the loader error must be reachable by callers")
+	})
+
+	t.Run("loader errors beyond the limit are counted but not included", func(t *testing.T) {
+		t.Parallel()
+		loaderErr := errors.New("liteserver failure")
+		svc := makeTestService(t, &testTxLoader{err: loaderErr}, &testLogStore{})
+
+		// every address's loader fails, producing one loader error per address
+		const failing = maxReportedLoadErrs + 2
+		manyAddrs := make([]*address.Address, failing)
+		for i := range manyAddrs {
+			data := make([]byte, 32)
+			data[31] = byte(i)
+			manyAddrs[i] = address.NewAddress(0, 0, data)
+		}
+
+		err := svc.processBlockRange(t.Context(), blockRange, manyAddrs, filterIndex)
+		require.Error(t, err)
+		require.ErrorIs(t, err, loaderErr)
+		require.Contains(t, err.Error(), fmt.Sprintf("had %d loader error(s)", failing))
+		require.Equal(t, maxReportedLoadErrs, strings.Count(err.Error(), loaderErr.Error()), "only the first maxReportedLoadErrs causes are included")
+		require.Contains(t, err.Error(), "and 2 more")
+	})
+
+	t.Run("loader error rolls back logs already saved for the range", func(t *testing.T) {
+		t.Parallel()
+
+		validTx, err := makeTestValidTx(testAddr, eventSig)
+		require.NoError(t, err)
+
+		loaderErr := errors.New("liteserver failure")
+		logStore := &testLogStore{}
+		svc := makeTestService(t, &testTxLoader{
+			txs: []models.Tx{validTx},
+			err: loaderErr,
+		}, logStore)
+		// flush every log as its own chunk so it is written before the loader error is known
+		svc.saveThreshold = 1
+
+		err = svc.processBlockRange(t.Context(), blockRange, addrs, filterIndex)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "loader error")
+		require.ErrorIs(t, err, loaderErr, "the loader error must be reachable by callers")
+
+		logStore.mu.Lock()
+		defer logStore.mu.Unlock()
+		require.NotEmpty(t, logStore.rolledBack, "valid tx log must have been saved inside the range transaction")
+		require.Empty(t, logStore.logs, "no log from a range with loader errors may be committed")
+	})
+
+	t.Run("transaction start failure releases the pipeline", func(t *testing.T) {
+		t.Parallel()
+
+		validTx, err := makeTestValidTx(testAddr, eventSig)
+		require.NoError(t, err)
+
+		beginErr := errors.New("failed to begin transaction")
+		loader := &endlessTxLoader{tx: validTx, done: make(chan struct{})}
+		svc := makeTestService(t, loader, &testLogStore{transactErr: beginErr})
+
+		err = svc.processBlockRange(t.Context(), blockRange, addrs, filterIndex)
+		require.ErrorIs(t, err, beginErr)
+
+		select {
+		case <-loader.done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("loader still blocked on the undrained pipeline after processBlockRange returned")
+		}
 	})
 
 	t.Run("parse error does not block checkpoint", func(t *testing.T) {

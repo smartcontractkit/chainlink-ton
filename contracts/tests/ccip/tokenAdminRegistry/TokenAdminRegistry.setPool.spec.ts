@@ -282,7 +282,7 @@ describe('TokenAdminRegistry - Set Pool', () => {
         body: tar.TokenAdminRegistry_RequestFailed.toCell(
           tar.TokenAdminRegistry_RequestFailed.create({
             queryId: 7n,
-            exitCode: BigInt(EntryErrors['TokenAdminRegistryEntry_Error.Unauthorized']),
+            errorCode: BigInt(EntryErrors['TokenAdminRegistryEntry_Error.Unauthorized']),
             request: messageFromRoot(
               tare.TokenAdminRegistryEntry_SetPool.create({
                 actor: actor.address,

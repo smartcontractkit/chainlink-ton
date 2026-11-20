@@ -14,4 +14,6 @@ enum OnRamp_Error {
     FeePaymentsWithJettonsNotSupported
     TokenAdminRegistryNotSet
     TokenAdminRegistryAlreadySet
+    /// A legacy 256-bit bounce other than the fee-aggregator withdrawal's.
+    UnhandledLegacyBounce
 }

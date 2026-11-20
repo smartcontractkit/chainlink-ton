@@ -22,14 +22,14 @@ func _() {
 	_ = x[ErrorForwardPayloadIsNotCCIPSend-57111]
 	_ = x[ErrorSourceChainSelectorMismatch-57112]
 	_ = x[ErrorSenderIsNotDepositAccount-57113]
-	_ = x[ErrorSenderIsNotOnRampAccount-57114]
+	_ = x[ErrorSenderIsNotSenderAccount-57114]
 	_ = x[ErrorDepositAccountWalletUnavailable-57115]
 	_ = x[ErrorWithdrawExecutorMismatch-57116]
-	_ = x[ErrorOnRampAccountWithdrawFailed-57117]
+	_ = x[ErrorSenderAccountWithdrawFailed-57117]
 	_ = x[ErrorFeePaymentsWithJettonsNotSupported-57118]
 }
 
-const _ExitCode_name = "ErrorDestChainNotEnabledErrorSourceChainNotEnabledSenderIsNotOffRampOffRampNotSetForSelectorOffRampAddressMismatchErrorSubjectCursedErrorNotOnRampErrorMissingTokenAmountsErrorNoMultiTokenTransfersErrorInsufficientFeeErrorTokenAmountMismatchErrorForwardPayloadIsNotCCIPSendErrorSourceChainSelectorMismatchErrorSenderIsNotDepositAccountErrorSenderIsNotOnRampAccountErrorDepositAccountWalletUnavailableErrorWithdrawExecutorMismatchErrorOnRampAccountWithdrawFailedErrorFeePaymentsWithJettonsNotSupported"
+const _ExitCode_name = "ErrorDestChainNotEnabledErrorSourceChainNotEnabledSenderIsNotOffRampOffRampNotSetForSelectorOffRampAddressMismatchErrorSubjectCursedErrorNotOnRampErrorMissingTokenAmountsErrorNoMultiTokenTransfersErrorInsufficientFeeErrorTokenAmountMismatchErrorForwardPayloadIsNotCCIPSendErrorSourceChainSelectorMismatchErrorSenderIsNotDepositAccountErrorSenderIsNotSenderAccountErrorDepositAccountWalletUnavailableErrorWithdrawExecutorMismatchErrorSenderAccountWithdrawFailedErrorFeePaymentsWithJettonsNotSupported"
 
 var _ExitCode_index = [...]uint16{0, 24, 50, 68, 92, 114, 132, 146, 170, 196, 216, 240, 272, 304, 334, 363, 399, 428, 460, 499}
 

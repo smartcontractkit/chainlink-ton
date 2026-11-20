@@ -77,7 +77,6 @@ func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.
 			break
 		}
 		if err != nil {
-			l.lggr.Errorw("failed to list transactions for address", "address", addr.String(), "error", err)
 			errOut <- fmt.Errorf("failed to list transactions for address %s: %w", addr.String(), err)
 			return nil // don't block other addresses
 		}

@@ -15,6 +15,7 @@ import {
   JettonLockBox_WithdrawFailed,
   JettonLockBox_Deposited,
   JettonLockBox_DepositFailed,
+  JettonLockBox_Initialized,
   JettonWithdrawable_Withdraw,
   JettonWithdrawable_WithdrawFeeTransfer,
   AccessControl_RoleData,
@@ -219,8 +220,8 @@ describe('JettonLockBox', () => {
   })
 
   describe('deposit', () => {
-    it('confirms an authenticated deposit with little value, without a value check', async () => {
-      const forwardTonAmount = toNano('0.005')
+    it('confirms an authenticated deposit above the minimum value', async () => {
+      const forwardTonAmount = toNano('0.03')
       const payload = JettonLockBox_Deposit.toCell(
         JettonLockBox_Deposit.create({
           queryId: 220n,
@@ -258,6 +259,45 @@ describe('JettonLockBox', () => {
         op: JettonLockBox_DepositFailed.PREFIX,
       })
       expect(await lockboxWallet.getJettonBalance()).toEqual(1n)
+    })
+
+    it('returns instead of confirming a deposit below the minimum value', async () => {
+      // 0.004 TON is below the deposit budget plus the rent top-up from a 0.005 TON balance,
+      // so the valid deposit must take the failure path instead of queuing an unfunded reserve.
+      const lockboxAccount = await blockchain.getContract(lockbox.address)
+      lockboxAccount.balance = toNano('0.005')
+      const payload = JettonLockBox_Deposit.toCell(
+        JettonLockBox_Deposit.create({
+          queryId: 225n,
+          token: jettonMinter.address,
+          remoteChainSelector,
+          amount: 1n,
+          context: null,
+          extra: null,
+        }),
+      )
+      const result = await operatorWallet.sendTransfer(operator.getSender(), {
+        value: toNano('0.2'),
+        message: {
+          queryId: 225,
+          jettonAmount: 1n,
+          destination: lockbox.address,
+          responseDestination: operator.address,
+          customPayload: null,
+          forwardTonAmount: toNano('0.004'),
+          forwardPayload: payload,
+        },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: lockbox.address,
+        to: lockboxWallet.address,
+        op: AskToTransfer.PREFIX,
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        from: lockbox.address,
+        to: operator.address,
+        op: JettonLockBox_Deposited.PREFIX,
+      })
     })
 
     it('returns rejected deposits without a failure report when failureValue is zero', async () => {
@@ -1087,8 +1127,8 @@ describe('JettonLockBox', () => {
       )
       const poorWalletAddress = await jettonMinter.getWalletAddress(poorLockbox.address)
 
-      // Deploy with a small balance and init with a value below MIN_GRAM_TO_RESERVE + MIN_GRAM_TO_INIT
-      // (0.05 + 0.05 = 0.1 TON), so the combined original balance is under the minimum.
+      // Deploy with a small balance and init with a value below the rent reserve plus the init
+      // execution budget (0.05 + 0.05 = 0.1 TON), so the combined original balance is below it.
       await poorLockbox.sendDeploy(deployer.getSender(), toNano('0.05'))
       const result = await poorLockbox.sendJettonLockBoxInit(deployer.getSender(), toNano('0.04'), {
         queryId: 700n,
@@ -1105,7 +1145,7 @@ describe('JettonLockBox', () => {
       })
     })
 
-    it('should reserve the rent and return the excess value to the deployer', async () => {
+    it('should keep the deploy and init funds by default', async () => {
       const refundLockbox = blockchain.openContract(
         JettonLockBox.fromStorage(
           {
@@ -1121,11 +1161,14 @@ describe('JettonLockBox', () => {
       const refundWalletAddress = await jettonMinter.getWalletAddress(refundLockbox.address)
 
       await refundLockbox.sendDeploy(deployer.getSender(), toNano('3'))
-      const result = await refundLockbox.sendJettonLockBoxInit(deployer.getSender(), toNano('1'), {
+      const deployBalance = (await blockchain.getContract(refundLockbox.address)).balance
+      const initValue = toNano('1')
+      const result = await refundLockbox.sendJettonLockBoxInit(deployer.getSender(), initValue, {
         queryId: 701n,
         minterAddress: jettonMinter.address,
         walletAddress: refundWalletAddress,
         admin: deployer.address,
+        returnExcess: false,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -1134,10 +1177,165 @@ describe('JettonLockBox', () => {
         success: true,
       })
 
-      // The lockbox keeps only the rent reserve (0.05 TON); the excess is returned to the deployer.
+      // Both the deploy balance and the init value stay; only init costs are spent.
       const balance = (await blockchain.getContract(refundLockbox.address)).balance
+      expect(balance).toBeGreaterThan(deployBalance + initValue - toNano('0.01'))
+      expect(balance).toBeLessThan(deployBalance + initValue + toNano('0.01'))
+
+      // Completion is notified with a fixed budget, not by returning the init value.
+      expect(result.transactions).toHaveTransaction({
+        from: refundLockbox.address,
+        to: deployer.address,
+        op: JettonLockBox_Initialized.PREFIX,
+        value: (value) => value !== undefined && value < toNano('0.05'),
+      })
+    })
+
+    it('should return the excess when returnExcess is true', async () => {
+      const refundLockbox = blockchain.openContract(
+        JettonLockBox.fromStorage(
+          {
+            minterAddress: jettonMinter.address,
+            walletAddress: null,
+            id: 6n,
+            initializer: deployer.address,
+            rbac: emptyAccessControlData(),
+          },
+          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+        ),
+      )
+      const refundWalletAddress = await jettonMinter.getWalletAddress(refundLockbox.address)
+
+      await refundLockbox.sendDeploy(deployer.getSender(), toNano('3'))
+      const deployBalance = (await blockchain.getContract(refundLockbox.address)).balance
+      const initValue = toNano('1')
+      const result = await refundLockbox.sendJettonLockBoxInit(deployer.getSender(), initValue, {
+        queryId: 702n,
+        minterAddress: jettonMinter.address,
+        walletAddress: refundWalletAddress,
+        admin: deployer.address,
+        returnExcess: true,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: refundLockbox.address,
+        success: true,
+      })
+
+      // The deploy balance stays; only the remaining init value is returned.
+      const balance = (await blockchain.getContract(refundLockbox.address)).balance
+      expect(balance).toBeGreaterThan(deployBalance - toNano('0.01'))
+      expect(balance).toBeLessThan(deployBalance + toNano('0.01'))
+      expect(result.transactions).toHaveTransaction({
+        from: refundLockbox.address,
+        to: deployer.address,
+        op: JettonLockBox_Initialized.PREFIX,
+        value: (value) =>
+          value !== undefined && value >= initValue - toNano('0.01') && value <= initValue,
+      })
+    })
+
+    it('should keep the value when deployed and initialized in one message', async () => {
+      const code = await contractCode.ccip.local('ccip.pool.JettonLockBox')
+      const lockbox = JettonLockBox.fromStorage(
+        {
+          minterAddress: jettonMinter.address,
+          walletAddress: null,
+          id: 7n,
+          initializer: deployer.address,
+          rbac: emptyAccessControlData(),
+        },
+        { overrideContractCode: code },
+      )
+      const lockboxWalletAddress = await jettonMinter.getWalletAddress(lockbox.address)
+      const initValue = toNano('1')
+
+      const result = await blockchain.sendMessage(
+        internal({
+          from: deployer.address,
+          to: lockbox.address,
+          value: initValue,
+          body: JettonLockBox_Init.toCell(
+            JettonLockBox_Init.create({
+              queryId: 703n,
+              minterAddress: jettonMinter.address,
+              walletAddress: lockboxWalletAddress,
+              admin: deployer.address,
+              returnExcess: false,
+            }),
+          ),
+          stateInit: lockbox.init!,
+        }),
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: lockbox.address,
+        deploy: true,
+        success: true,
+      })
+
+      const balance = (await blockchain.getContract(lockbox.address)).balance
+      expect(balance).toBeGreaterThan(initValue - toNano('0.01'))
+      expect(balance).toBeLessThan(initValue + toNano('0.01'))
+      expect(result.transactions).toHaveTransaction({
+        from: lockbox.address,
+        to: deployer.address,
+        op: JettonLockBox_Initialized.PREFIX,
+        value: (value) => value !== undefined && value < toNano('0.05'),
+      })
+    })
+
+    it('should return the message excess when deployed and initialized in one message', async () => {
+      const code = await contractCode.ccip.local('ccip.pool.JettonLockBox')
+      const lockbox = JettonLockBox.fromStorage(
+        {
+          minterAddress: jettonMinter.address,
+          walletAddress: null,
+          id: 8n,
+          initializer: deployer.address,
+          rbac: emptyAccessControlData(),
+        },
+        { overrideContractCode: code },
+      )
+      const lockboxWalletAddress = await jettonMinter.getWalletAddress(lockbox.address)
+      const initValue = toNano('1')
+
+      const result = await blockchain.sendMessage(
+        internal({
+          from: deployer.address,
+          to: lockbox.address,
+          value: initValue,
+          body: JettonLockBox_Init.toCell(
+            JettonLockBox_Init.create({
+              queryId: 704n,
+              minterAddress: jettonMinter.address,
+              walletAddress: lockboxWalletAddress,
+              admin: deployer.address,
+              returnExcess: true,
+            }),
+          ),
+          stateInit: lockbox.init!,
+        }),
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: lockbox.address,
+        deploy: true,
+        success: true,
+      })
+
+      const balance = (await blockchain.getContract(lockbox.address)).balance
       expect(balance).toBeGreaterThanOrEqual(toNano('0.05'))
       expect(balance).toBeLessThan(toNano('0.1'))
+      expect(result.transactions).toHaveTransaction({
+        from: lockbox.address,
+        to: deployer.address,
+        op: JettonLockBox_Initialized.PREFIX,
+        value: (value) => value !== undefined && value >= toNano('0.9'),
+      })
     })
   })
 
@@ -1184,6 +1382,8 @@ describe('JettonLockBox', () => {
 
   describe('message routing', () => {
     it('should accept empty messages (top-up pattern)', async () => {
+      const balanceBefore = (await blockchain.getContract(lockbox.address)).balance
+
       // Send an empty internal message from deployer to lockbox
       // This should be accepted as a top-up (contract accepts empty messages)
       const result = await deployer.send({
@@ -1199,6 +1399,7 @@ describe('JettonLockBox', () => {
         to: lockbox.address,
         success: true,
       })
+      expect((await blockchain.getContract(lockbox.address)).balance).toBeGreaterThan(balanceBefore)
     })
 
     it('should reject unknown message opcodes', async () => {

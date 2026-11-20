@@ -31,6 +31,22 @@ const (
 	Finalized
 )
 
+// TraceStatus represents how much of a message's trace has been received.
+// It can be one of the following:
+//   - TraceReceived: The message has been received and has outgoing messages,
+//     none of them received yet.
+//   - TraceCascading: Some outgoing messages have been received, but messages
+//     are still pending somewhere in the trace.
+//   - TraceFinalized: Every message of the trace has been received, or skipped
+//     by a FollowCondition.
+type TraceStatus int
+
+const (
+	TraceReceived TraceStatus = iota
+	TraceCascading
+	TraceFinalized
+)
+
 // SentMessage represents a message that has been sent from one contract to another
 // in the TON blockchain. It contains information about the internal message,
 // the amount transferred, the Lamport time when the message was sent, and the
@@ -41,6 +57,10 @@ type SentMessage struct {
 	Amount      *big.Int
 	LamportTime uint64   // Lamport time of sender when emitting the message
 	FwdFee      *big.Int // Of sending this message. This is paid by the sender of the message. It is 0 on external messages.
+
+	// receiptSearch is how far the search for the transaction receiving this message has got, so
+	// a search cut short resumes where it stopped.
+	receiptSearch receiptCursor
 }
 
 // NewSentMessage creates a SentMessage from an internal message.
@@ -82,6 +102,7 @@ type ReceivedMessage struct {
 	Description                      *tlb.TransactionDescriptionOrdinary // Description of the transaction (if ordinary)
 	OutgoingInternalSentMessages     []*SentMessage                      // Internal messages sent as a result of this message
 	OutgoingInternalReceivedMessages []*ReceivedMessage                  // Internal messages that have been received by their recipients
+	OutgoingInternalSkippedMessages  []*SentMessage                      // Internal messages a FollowCondition excluded from the trace; their reception is not tracked
 	OutgoingExternalMessages         []OutgoingExternalMessages
 }
 
@@ -122,6 +143,9 @@ func (m *ReceivedMessage) TotalActionPhaseFees() *big.Int {
 	for _, receivedMessage := range m.OutgoingInternalReceivedMessages {
 		total.Add(total, receivedMessage.FwdFee)
 	}
+	for _, skippedMessage := range m.OutgoingInternalSkippedMessages {
+		total.Add(total, skippedMessage.FwdFee)
+	}
 	return total
 }
 
@@ -152,6 +176,9 @@ func (m *ReceivedMessage) TotalTransactionExecutionFee() *big.Int {
 // Status returns the current status of the message based on its outgoing messages.
 // Returns Finalized if no outgoing messages exist, Cascading if some outgoing messages
 // have been received, or Received if outgoing messages exist but none have been received yet.
+//
+// It only considers the message's own outgoing messages: use TraceStatus for the status of
+// the whole trace.
 func (m *ReceivedMessage) Status() MsgStatus {
 	if len(m.OutgoingInternalSentMessages) == 0 {
 		return Finalized
@@ -160,6 +187,34 @@ func (m *ReceivedMessage) Status() MsgStatus {
 		return Cascading
 	}
 	return Received
+}
+
+// TraceStatus returns the status of the message's whole trace: TraceFinalized if no message is
+// pending anywhere in the trace, TraceCascading if messages are pending but some outgoing message has
+// been received, or TraceReceived if outgoing messages are pending and none has been received yet.
+// Messages a FollowCondition skipped are not pending.
+func (m *ReceivedMessage) TraceStatus() TraceStatus {
+	if !m.hasPendingMessages() {
+		return TraceFinalized
+	}
+	if len(m.OutgoingInternalReceivedMessages) != 0 {
+		return TraceCascading
+	}
+	return TraceReceived
+}
+
+// hasPendingMessages reports whether a message of m's trace has been sent but not received yet.
+func (m *ReceivedMessage) hasPendingMessages() bool {
+	stack := []*ReceivedMessage{m}
+	for len(stack) > 0 {
+		curr := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if len(curr.OutgoingInternalSentMessages) != 0 {
+			return true
+		}
+		stack = append(stack, curr.OutgoingInternalReceivedMessages...)
+	}
+	return false
 }
 
 // NetCreditResult calculates the net amount credited to the recipient after
@@ -179,6 +234,9 @@ func (m *ReceivedMessage) OutgoingAmount() *big.Int {
 	}
 	for _, receivedMessage := range m.OutgoingInternalReceivedMessages {
 		base.Add(base, receivedMessage.Amount)
+	}
+	for _, skippedMessage := range m.OutgoingInternalSkippedMessages {
+		base.Add(base, skippedMessage.Amount)
 	}
 	return base
 }
@@ -335,64 +393,43 @@ func (m *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.Interna
 
 // WaitForOutgoingMessagesToBeReceived waits for all outgoing messages to be
 // received by their respective recipients and blocks until completion. It
-// subscribes to transactions for each recipient address and matches incoming
-// transactions with the sent messages. The OutgoingInternalMessagesReceived
-// field is updated with the received messages.
+// searches the blocks of each recipient's shard for the transaction receiving
+// each sent message. The OutgoingInternalMessagesReceived field is updated with
+// the received messages.
 //
 // Returns an error if any of the outgoing messages failed to be processed
 // or if there are issues with transaction monitoring.
 func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ctx context.Context, c ton.APIClientWrapped) error {
+	return m.waitForOutgoingMessages(ctx, c, []*ReceivedMessage{m}, FollowAll)
+}
+
+// waitForOutgoingMessages waits for the outgoing messages of m, the last message of path, that
+// follow accepts. Messages follow declines are moved to OutgoingInternalSkippedMessages without
+// waiting for them.
+func (m *ReceivedMessage) waitForOutgoingMessages(ctx context.Context, c ton.APIClientWrapped, path []*ReceivedMessage, follow FollowCondition) error {
 	for len(m.OutgoingInternalSentMessages) != 0 {
 		sentMessage := m.OutgoingInternalSentMessages[0]
-		m.OutgoingInternalSentMessages = m.OutgoingInternalSentMessages[1:]
-		transactionsReceived := make(chan *tlb.Transaction)
 
-		// Cancelable context per goroutine to prevent leaks from SubscribeOnTransactions
-		subCtx, cancel := context.WithCancel(ctx)
-		go c.SubscribeOnTransactions(subCtx, sentMessage.InternalMsg.DstAddr, m.LamportTime, transactionsReceived)
+		ok, err := follow(path, sentMessage)
+		if err != nil {
+			return fmt.Errorf("failed to evaluate follow condition: %w", err)
+		}
+		if !ok {
+			m.OutgoingInternalSentMessages = m.OutgoingInternalSentMessages[1:]
+			m.OutgoingInternalSkippedMessages = append(m.OutgoingInternalSkippedMessages, sentMessage)
+			continue
+		}
 
-		receivedMessage, err := waitForMatchingMessage(subCtx, transactionsReceived, sentMessage)
-
-		// Cancel context and drain the channel so the SubscribeOnTransactions goroutine
-		// can unblock from its bare `channel <- tx` send, reach the `workerCtx.Done()`
-		// select, and exit. Without draining, the goroutine leaks forever.
-		cancel()
-		go func() {
-			for tx := range transactionsReceived {
-				_ = tx // intentionally draining channel to unblock sender goroutine
-			}
-		}()
-
+		// The message stays pending until it is found, so a wait cut short by ctx can be resumed.
+		receivedMessage, err := findReceipt(ctx, c, sentMessage)
 		if err != nil {
 			return err
 		}
+		m.OutgoingInternalSentMessages = m.OutgoingInternalSentMessages[1:]
 		m.OutgoingInternalReceivedMessages = append(m.OutgoingInternalReceivedMessages, receivedMessage)
 	}
 
 	return nil
-}
-
-func waitForMatchingMessage(ctx context.Context, transactionsReceived chan *tlb.Transaction, sentMessage *SentMessage) (*ReceivedMessage, error) {
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case rTX, ok := <-transactionsReceived:
-			if !ok {
-				return nil, errors.New("transaction channel closed")
-			}
-
-			if rTX.IO.In != nil && rTX.IO.In.MsgType == tlb.MsgTypeInternal {
-				receivedMessage, err := sentMessage.MapToReceivedMessageIfMatches(rTX)
-				if err != nil {
-					return nil, fmt.Errorf("failed to process incoming message: %w", err)
-				}
-				if receivedMessage != nil {
-					return receivedMessage, nil
-				}
-			}
-		}
-	}
 }
 
 // MapToReceivedMessageIfMatches checks if a transaction corresponds to the reception
@@ -448,28 +485,59 @@ func (m SentMessage) MatchesReceived(incomingMessage *tlb.InternalMessage) bool 
 // It modifies the OutgoingInternalMessagesReceived field and returns an error
 // if any part of the trace fails to process.
 //
-// The function returns immediately if the message is already in Finalized state.
+// The function returns immediately if the message's trace is already in Finalized state.
 // Otherwise, it processes all cascading messages until the entire trace is complete.
+// If ctx ends first, the trace keeps the messages received so far and those still
+// pending, and waiting again resumes from there.
 func (m *ReceivedMessage) WaitForTrace(ctx context.Context, c ton.APIClientWrapped) error {
-	if m.Status() == Finalized {
+	return m.WaitForTraceWith(ctx, c, FollowAll)
+}
+
+// WaitForTraceWith waits for the execution trace of a message like WaitForTrace, but only for the
+// outgoing messages that follow accepts. follow is evaluated before waiting for each message, so a
+// declined message's branch is never waited for: the message is moved to
+// OutgoingInternalSkippedMessages and the trace completes without it. A nil follow waits for every
+// message.
+func (m *ReceivedMessage) WaitForTraceWith(ctx context.Context, c ton.APIClientWrapped, follow FollowCondition) error {
+	if m.TraceStatus() == TraceFinalized {
 		return nil
 	}
+	if follow == nil {
+		follow = FollowAll
+	}
 
-	messagesWithUnconfirmedOutgoingMessages := make([]*ReceivedMessage, 0)
-	messagesWithUnconfirmedOutgoingMessages = append(messagesWithUnconfirmedOutgoingMessages, m)
+	// Each entry is the path from m down to a message whose outgoing messages are awaited.
+	pending := [][]*ReceivedMessage{{m}}
 
-	for len(messagesWithUnconfirmedOutgoingMessages) != 0 {
-		cascadingMessage := messagesWithUnconfirmedOutgoingMessages[0]
+	for len(pending) != 0 {
+		path := pending[0]
+		pending = pending[1:]
 
-		messagesWithUnconfirmedOutgoingMessages = messagesWithUnconfirmedOutgoingMessages[1:]
-		err := cascadingMessage.WaitForOutgoingMessagesToBeReceived(ctx, c)
+		cascadingMessage := path[len(path)-1]
+		err := cascadingMessage.waitForOutgoingMessages(ctx, c, path, follow)
 		if err != nil {
 			return fmt.Errorf("failed to wait for outgoing messages: %w", err)
 		}
-		messagesWithUnconfirmedOutgoingMessages = append(messagesWithUnconfirmedOutgoingMessages, cascadingMessage.OutgoingInternalReceivedMessages...)
+		for _, received := range cascadingMessage.OutgoingInternalReceivedMessages {
+			childPath := make([]*ReceivedMessage, len(path), len(path)+1)
+			copy(childPath, path)
+			pending = append(pending, append(childPath, received))
+		}
 	}
 	return nil
 }
+
+// FollowCondition decides, before a trace waits for an outgoing internal message, whether the
+// message and its branch belong to the trace. path holds the received messages from the trace root
+// down to the message that sent out, which is last. Returning false skips the message: the trace
+// does not wait for it to be received.
+//
+// Unlike StopCondition, it only sees the sent message, so it can bound a trace whose excluded
+// branches never complete (e.g. contracts messaging each other indefinitely).
+type FollowCondition func(path []*ReceivedMessage, out *SentMessage) (bool, error)
+
+// FollowAll is a FollowCondition that waits for every outgoing message.
+var FollowAll FollowCondition = func(_ []*ReceivedMessage, _ *SentMessage) (bool, error) { return true, nil }
 
 // StopCondition is a function type that defines a condition to determine when to stop
 // traversing the message trace. It takes a parent and current ReceivedMessage as input
@@ -495,8 +563,26 @@ func (m *ReceivedMessage) TraceExitCode() (tvm.ExitCode, error) {
 //
 // If all messages within the boundary succeeded, it returns the success exit code.
 func (m *ReceivedMessage) TraceExitCodeWith(boundary StopCondition) (tvm.ExitCode, error) {
+	_, exitCode, err := m.TraceResultWith(boundary)
+	return exitCode, err
+}
+
+// TraceResult returns the result of the first failed message found in this message or any of
+// its outgoing internal messages, as reported by Result. If all messages succeeded, it returns
+// ResultSuccess and the success exit code. On error it returns ResultUnknown.
+func (m *ReceivedMessage) TraceResult() (Result, tvm.ExitCode, error) {
+	return m.TraceResultWith(NoBound)
+}
+
+// TraceResultWith returns the result of the first failed message found in this message or any
+// of its outgoing internal messages, as reported by Result, stopping the search to progress in
+// trace branches where the provided boundary condition is met (continues searching other branches).
+//
+// If all messages within the boundary succeeded, it returns ResultSuccess and the success exit code.
+// On error it returns ResultUnknown.
+func (m *ReceivedMessage) TraceResultWith(boundary StopCondition) (Result, tvm.ExitCode, error) {
 	if m == nil {
-		return 0, errors.New("cannot get trace exit code from nil ReceivedMessage")
+		return ResultUnknown, 0, errors.New("cannot get trace result from nil ReceivedMessage")
 	}
 
 	if boundary == nil {
@@ -510,12 +596,12 @@ func (m *ReceivedMessage) TraceExitCodeWith(boundary StopCondition) (tvm.ExitCod
 		curr := stack[n]
 
 		stack = stack[:n]
-		exitCode, err := curr.ExitCode()
+		result, exitCode, err := curr.Result()
 		if err != nil {
-			return 0, fmt.Errorf("failed to get exit code: %w", err)
+			return ResultUnknown, 0, fmt.Errorf("failed to get exit code: %w", err)
 		}
-		if exitCode != tvm.ExitCodeSuccess {
-			return exitCode, nil
+		if result != ResultSuccess {
+			return result, exitCode, nil
 		}
 
 		for i := len(curr.OutgoingInternalReceivedMessages) - 1; i >= 0; i-- {
@@ -523,7 +609,7 @@ func (m *ReceivedMessage) TraceExitCodeWith(boundary StopCondition) (tvm.ExitCod
 
 			stop, err := boundary(curr, msg)
 			if err != nil {
-				return 0, fmt.Errorf("failed to evaluate stop condition: %w", err)
+				return ResultUnknown, 0, fmt.Errorf("failed to evaluate stop condition: %w", err)
 			}
 			if stop {
 				continue // Skip traversing further in this branch if the stop condition is met
@@ -533,42 +619,98 @@ func (m *ReceivedMessage) TraceExitCodeWith(boundary StopCondition) (tvm.ExitCod
 		}
 	}
 
-	return tvm.ExitCodeSuccess, nil
+	return ResultSuccess, tvm.ExitCodeSuccess, nil
 }
 
+// Succeeded reports whether the transaction that received this message fully executed.
+// It relies on the transaction's Aborted flag, which the node sets unless both the compute
+// phase and the action phase succeeded (a skipped compute phase counts as not succeeded).
+// A successful compute phase alone is not enough, since the action phase can still fail
+// (e.g. a non-ignored send that cannot pay its value), which aborts the transaction and
+// discards its state changes and outgoing messages.
 func (m *ReceivedMessage) Succeeded() bool {
-	if m.Description == nil {
-		return false // Expected compute phase
-	}
-	computePhase, ok := m.Description.ComputePhase.Phase.(tlb.ComputePhaseVM)
-	if !ok {
-		return false // Expected VM compute phase
-	}
-	return computePhase.Success
+	return m.Description != nil && !m.Description.Aborted
 }
 
-func (m *ReceivedMessage) ExitCode() (tvm.ExitCode, error) {
+// Result is the outcome of a transaction: success, or the phase that made it fail.
+// Compute phase exit codes and action phase result codes share the same numeric range
+// (e.g. 37 is both a possible contract throw and the action phase's "not enough Toncoin"),
+// so the result is needed to interpret an exit code unambiguously.
+type Result int
+
+const (
+	ResultUnknown        Result = iota // the outcome could not be determined (returned alongside an error)
+	ResultSuccess                      // the transaction succeeded
+	ResultComputeSkipped               // the compute phase did not run (exit code is an ExitCodeComputeSkipReason* pseudo code)
+	ResultComputeFailed                // the compute phase ran and failed (exit code is the VM exit code)
+	ResultActionFailed                 // the compute phase succeeded but the action phase failed (exit code is the action result code)
+)
+
+func (r Result) String() string {
+	switch r {
+	case ResultUnknown:
+		return "Unknown"
+	case ResultSuccess:
+		return "Success"
+	case ResultComputeSkipped:
+		return "ComputeSkipped"
+	case ResultComputeFailed:
+		return "ComputeFailed"
+	case ResultActionFailed:
+		return "ActionFailed"
+	default:
+		return fmt.Sprintf("Result(%d)", int(r))
+	}
+}
+
+// Result reports the outcome of the transaction that received this message, together with
+// the exit code describing it:
+//   - ResultSuccess: the compute phase exit code of the successful transaction
+//   - ResultComputeSkipped: the ExitCodeComputeSkipReason* pseudo code for the skip reason
+//   - ResultComputeFailed: the compute phase exit code
+//   - ResultActionFailed: the action phase result code
+//
+// On error it returns ResultUnknown.
+func (m *ReceivedMessage) Result() (Result, tvm.ExitCode, error) {
 	if m.Description == nil {
-		return 0, errors.New("no description in transaction")
+		return ResultUnknown, 0, errors.New("no description in transaction")
 	}
-	computePhase, ok := m.Description.ComputePhase.Phase.(tlb.ComputePhaseVM)
-	if !ok {
-		skipped, ok := m.Description.ComputePhase.Phase.(tlb.ComputePhaseSkipped)
-		if !ok {
-			return 0, fmt.Errorf("compute phase is %T, not a VM phase; cannot extract exit code", m.Description.ComputePhase.Phase)
-		}
-		switch skipped.Reason.Type {
+
+	switch phase := m.Description.ComputePhase.Phase.(type) {
+	case tlb.ComputePhaseSkipped:
+		switch phase.Reason.Type {
 		case tlb.ComputeSkipReasonNoState:
-			return tvm.ExitCodeComputeSkipReasonNoState, nil
+			return ResultComputeSkipped, tvm.ExitCodeComputeSkipReasonNoState, nil
 		case tlb.ComputeSkipReasonBadState:
-			return tvm.ExitCodeComputeSkipReasonBadState, nil
+			return ResultComputeSkipped, tvm.ExitCodeComputeSkipReasonBadState, nil
 		case tlb.ComputeSkipReasonNoGas:
-			return tvm.ExitCodeComputeSkipReasonNoGas, nil
+			return ResultComputeSkipped, tvm.ExitCodeComputeSkipReasonNoGas, nil
 		case tlb.ComputeSkipReasonSuspended:
-			return tvm.ExitCodeComputeSkipReasonSuspended, nil
+			return ResultComputeSkipped, tvm.ExitCodeComputeSkipReasonSuspended, nil
+		default:
+			return ResultUnknown, 0, fmt.Errorf("compute phase skipped for unknown reason %q; cannot extract exit code", phase.Reason.Type)
 		}
+	case tlb.ComputePhaseVM:
+		computeExitCode := tvm.ExitCode(phase.Details.ExitCode)
+		if !phase.Success {
+			return ResultComputeFailed, computeExitCode, nil
+		}
+		// the action phase is always present when the compute phase succeeded
+		if actionPhase := m.Description.ActionPhase; actionPhase != nil && !actionPhase.Success {
+			return ResultActionFailed, tvm.ExitCode(actionPhase.ResultCode), nil
+		}
+		return ResultSuccess, computeExitCode, nil
+	default:
+		return ResultUnknown, 0, fmt.Errorf("compute phase is %T, not a VM phase; cannot extract exit code", m.Description.ComputePhase.Phase)
 	}
-	return tvm.ExitCode(computePhase.Details.ExitCode), nil
+}
+
+// ExitCode returns the exit code describing how the transaction that received this message
+// executed. See Result for which code is reported for each outcome, and use Result when the
+// outcome is needed to interpret the code.
+func (m *ReceivedMessage) ExitCode() (tvm.ExitCode, error) {
+	_, exitCode, err := m.Result()
+	return exitCode, err
 }
 
 // FindMessageTo searches this message's trace for a received message addressed to dst,

@@ -17,7 +17,7 @@ contract WgramCostHarness {
 }
 
 fun onInternalMessage(in: InMessage) {
-    assert (in.body.isEmpty()) throw 0xFFFF
+    assert (in.body.isEmpty()) throw (0xFFFF)
 }
 
 /* === wGRAM wallet / minter gas constants (wgram/fees-management) === */

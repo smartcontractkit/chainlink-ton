@@ -19,14 +19,15 @@ import { JettonWallet } from '../../../../wrappers/gen/ccip/cct/JettonWallet'
 import { setup } from '../../../ccip/router/Router.Setup'
 import { ChainFamilySelectors, ChainSelectors } from '../../../utils/Selectors'
 import EVM_ADDRESS from '../../../utils/evmAddress'
-import { AddressBook, GasReport, gasReportConfig } from '../../utils'
+import { AddressBook, BalanceRule, GasReport, gasReportConfig } from '../../utils'
 import {
   createExtraArgs,
-  createPayload,
+  createPayloadBytes,
   HARD_MAX_DATA_BYTES,
   SEND_DATA_SIZE_SWEEP,
 } from '../messaging/config'
 import { deployTokenWithPool, POOL_KINDS, TokenWithPool } from './pools'
+import { onRampRetains } from '../onRampRetains'
 
 const DEST_CHAIN_SELECTOR = ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001
 const TOKEN_AMOUNT = toNano('5')
@@ -54,6 +55,8 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create({ config: await gasReportConfig() })
+    // Frozen time: no storage fees, so per-transaction balance deltas are exact.
+    blockchain.now = 1
     report = new GasReport('tokens-onramp', blockchain)
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
@@ -117,7 +120,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       remoteChainSelector: DEST_CHAIN_SELECTOR,
       remotePoolAddress: EVM_ADDRESS,
       remoteTokenAddress: FromBuffer(Buffer.concat([Buffer.alloc(12), Buffer.alloc(20, 0xab)])),
-      allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+      allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
       mints: [{ to: sender.address, amount: TOKEN_AMOUNT * 20n }],
     })
 
@@ -169,14 +172,14 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
   }
 
   async function addressBook(token: TokenWithPool) {
-    const onRampAccount = await router.getOnRampAccountAddress(sender.address, token.minter.address)
+    const senderAccount = await router.getSenderAccountAddress(sender.address, token.minter.address)
     const wallet = (owner: Address) => token.minter.getWalletAddress(owner)
     const book = new AddressBook({
       Sender: [sender, 'external'],
       Router: [router, 'ccip'],
       OnRamp: [onRamp, 'ccip'],
       FeeQuoter: [feeQuoter, 'ccip'],
-      OnRampAccount: [onRampAccount, 'ccip'],
+      SenderAccount: [senderAccount, 'ccip'],
       TokenAdminRegistry: [tokenAdminRegistry, 'registry'],
       TokenAdminRegistryEntry: [
         deriveAddress(
@@ -190,7 +193,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       [`${token.kind}Pool`]: [token.pool, 'token'],
       Minter: [token.minter, 'token'],
       SenderWallet: [await wallet(sender.address), 'token'],
-      OnRampAccountWallet: [await wallet(onRampAccount), 'token'],
+      SenderAccountWallet: [await wallet(senderAccount), 'token'],
       PoolWallet: [await wallet(token.pool), 'token'],
     })
     if (token.lockbox) {
@@ -198,16 +201,16 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
         .set('LockBox', token.lockbox, 'token')
         .set('LockBoxWallet', await wallet(token.lockbox.address), 'token')
     }
-    return { book, onRampAccount }
+    return { book, senderAccount }
   }
 
-  async function deposit(token: TokenWithPool, onRampAccount: Address) {
+  async function deposit(token: TokenWithPool, senderAccount: Address) {
     const senderWallet = blockchain.openContract(
       JettonWallet.fromAddress(await token.minter.getWalletAddress(sender.address)),
     )
     const result = await senderWallet.sendAskToTransfer(sender.getSender(), toNano('0.2'), {
       jettonAmount: TOKEN_AMOUNT,
-      transferRecipient: onRampAccount,
+      transferRecipient: senderAccount,
       sendExcessesTo: sender.address,
       customPayload: null,
       forwardTonAmount: 0n,
@@ -217,9 +220,9 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
     return result
   }
 
-  async function ccipSend(token: TokenWithPool, data: Cell, amount = TOKEN_AMOUNT) {
+  async function ccipSend(token: TokenWithPool, data: bigint[], amount = TOKEN_AMOUNT) {
     const msg = rt.Router_CCIPSend.create({
-      queryID: 1n,
+      queryId: 1n,
       destChainSelector: DEST_CHAIN_SELECTOR,
       receiver: EVM_ADDRESS,
       data,
@@ -284,88 +287,92 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
   describe.each(POOL_KINDS)('%s pool', (kind) => {
     let token: TokenWithPool
     let book: AddressBook
-    let onRampAccount: Address
+    let senderAccount: Address
 
     beforeAll(async () => {
       token = await deployRegisteredToken(kind)
-      ;({ book, onRampAccount } = await addressBook(token))
+      ;({ book, senderAccount } = await addressBook(token))
     })
 
-    // The pool's jetton wallet returns the jetton excesses to the Router, which has no handler for
-    // them (exit 65535, non-bounceable), so the Router keeps that TON on every token send.
     // The registry query and the pool value are budgeted by their own contracts.
     const ccipSendBudget =
       Costs.ccipSendWithTokens -
       RegistryCosts.getTokenInfo -
       Costs.poolLockOrBurnAdmission -
       Costs.tokenPoolFinalization
-    const sendFlow = (data: Cell) => ({
+
+    const sendRetains: BalanceRule[] = onRampRetains.tokenSend.successful(kind)
+    const poolRejectedRetains = onRampRetains.tokenSend.poolRejected
+    const withdrawFailedRetains = onRampRetains.tokenSend.withdrawFailed
+    const sendFlow = (data: bigint[]) => ({
       run: () => ccipSend(token, data),
       book,
       discover: nameExecutor,
+      retains: sendRetains,
       budget: ccipSendBudget,
     })
 
-    it('should measure OnRamp account deployment', async () => {
-      const { result } = await report.measure(`${kind}: Get OnRamp Account`, {
+    it('should measure Sender account deployment', async () => {
+      const { result } = await report.measure(`${kind}: Get Sender Account`, {
         run: () =>
-          router.sendRouterGetOnRampAccount(sender.getSender(), Costs.getOnRampAccount, {
+          router.sendRouterGetSenderAccount(sender.getSender(), Costs.getSenderAccount, {
             token: token.minter.address,
           }),
         book,
-        budget: Costs.getOnRampAccount - Costs.depositAccountReserve,
+        retains: onRampRetains.getAccount,
+        budget: Costs.getSenderAccount - Costs.depositAccountReserve,
       })
       expect(result.transactions).toHaveTransaction({
         from: router.address,
-        to: onRampAccount,
+        to: senderAccount,
         deploy: true,
         success: true,
       })
     })
 
-    it('should measure token deposit into the OnRamp account', async () => {
+    it('should measure token deposit into the Sender account', async () => {
       await report.measure(`${kind}: Token Deposit`, {
-        run: () => deposit(token, onRampAccount),
+        run: () => deposit(token, senderAccount),
         book,
+        retains: onRampRetains.deposit,
       })
     })
 
     it('should measure token transfer without data', async () => {
-      const { result } = await report.measure(
-        `${kind}: CCIPSend Token Transfer`,
-        sendFlow(Cell.EMPTY),
-      )
+      const { result } = await report.measure(`${kind}: CCIPSend Token Transfer`, sendFlow([]))
       expectACK(result)
     })
 
     it(`should measure token transfer with ${HARD_MAX_DATA_BYTES} bytes of data`, async () => {
-      await deposit(token, onRampAccount)
+      await deposit(token, senderAccount)
       const { result } = await report.measure(
         `${kind}: CCIPSend Token Transfer + Max Payload`,
-        sendFlow(createPayload(HARD_MAX_DATA_BYTES)),
+        sendFlow(createPayloadBytes(HARD_MAX_DATA_BYTES)),
       )
       expectACK(result)
     })
 
     it('should measure how the token transfer cost scales with data size', async () => {
       for (const size of SEND_DATA_SIZE_SWEEP) {
-        await deposit(token, onRampAccount)
+        await deposit(token, senderAccount)
         const { result } = await report.measure(
           `sweep: ${kind}: CCIPSend Token Transfer + ${size} bytes`,
-          sendFlow(createPayload(size)),
+          sendFlow(createPayloadBytes(size)),
         )
         expectACK(result)
       }
     })
 
-    // The rate limit makes the pool throw, so the relay bounces back to the Router.
+    // The rate limit makes the pool throw, so the relay bounces back to the Router. The pool
+    // abort happens before the withdraw, so the OnRamp account is never reached in this flow.
     it(`should measure a token transfer with ${HARD_MAX_DATA_BYTES} bytes of data rejected by the pool`, async () => {
-      await deposit(token, onRampAccount)
+      await deposit(token, senderAccount)
       await setOutboundCapacity(token, 1n)
       const { result } = await report.measure(
         `${kind}: CCIPSend Token Transfer + Max Payload rejected by pool`,
         {
-          ...sendFlow(createPayload(HARD_MAX_DATA_BYTES)),
+          ...sendFlow(createPayloadBytes(HARD_MAX_DATA_BYTES)),
+          retains: poolRejectedRetains,
           aborts: [`Router->${kind}Pool`],
         },
       )
@@ -383,9 +390,10 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       const { result } = await report.measure(
         `${kind}: CCIPSend Token Transfer + Max Payload withdraw failed`,
         {
-          ...sendFlow(createPayload(HARD_MAX_DATA_BYTES)),
-          run: () => ccipSend(token, createPayload(HARD_MAX_DATA_BYTES), TOKEN_AMOUNT * 1000n),
-          aborts: ['OnRampAccount->OnRampAccountWallet'],
+          ...sendFlow(createPayloadBytes(HARD_MAX_DATA_BYTES)),
+          run: () => ccipSend(token, createPayloadBytes(HARD_MAX_DATA_BYTES), TOKEN_AMOUNT * 1000n),
+          retains: withdrawFailedRetains,
+          aborts: ['SenderAccount->SenderAccountWallet'],
         },
       )
       expect(result.transactions).toHaveTransaction({

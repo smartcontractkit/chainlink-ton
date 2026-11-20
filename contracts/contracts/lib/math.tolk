@@ -112,7 +112,7 @@ fun safePow10(n: uint8): (uint256, Math_Result) {
     while (n > 0) {
         if ((n & 1) == 1) {
             // Check for potential overflow before multiplication (UNREACHABLE)
-            assert(result == 0 || base <= MAX_UINT256 / result, TVMError.IntegerOverflow);
+            assert (result == 0 || base <= MAX_UINT256 / result) throw (TVMError.IntegerOverflow);
             result *= base;
         }
         n >>= 1;

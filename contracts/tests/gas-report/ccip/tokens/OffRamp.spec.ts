@@ -2,6 +2,7 @@ import { Blockchain } from '@ton/sandbox'
 import { Address, Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
 
+import { offRampRetains } from '../offRampRetains'
 import * as of from '../../../../wrappers/gen/ccip/OffRamp'
 import { Costs } from '../../../../wrappers/ccip/OffRamp'
 import * as rt from '../../../../wrappers/gen/ccip/Router'
@@ -12,7 +13,7 @@ import {
   OffRampWithTokenPoolTestSetup,
 } from '../../../ccip/offramp/OffRamp.Setup'
 import { AddressBook, GasReport, gasReportConfig } from '../../utils'
-import { createPayload, LANE_MAX_DATA_BYTES } from '../messaging/config'
+import { createPayloadBytes, LANE_MAX_DATA_BYTES } from '../messaging/config'
 import { deployTokenWithPool, POOL_KINDS, TokenWithPool } from './pools'
 
 const jestConsole = console
@@ -35,6 +36,8 @@ describe('CCIP OffRamp Token Transfer Gas Estimation', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create({ config: await gasReportConfig() })
+    // Frozen time: no storage fees, so per-transaction balance deltas are exact.
+    blockchain.now = 1
     report = new GasReport('tokens-offramp', blockchain)
     setup = await OffRampWithTokenPoolTestSetup.Init(blockchain)
     await setup.SetupContracts()
@@ -88,7 +91,7 @@ describe('CCIP OffRamp Token Transfer Gas Estimation', () => {
     label: string,
     token: TokenWithPool,
     book: AddressBook,
-    opts: { data?: Cell; gasLimit?: bigint; aborts?: string[]; poolRejects?: boolean } = {},
+    opts: { data?: bigint[]; gasLimit?: bigint; aborts?: string[]; poolRejects?: boolean } = {},
   ) {
     const message = setup.createTestMessageWithToken({
       token: token.minter.address,
@@ -111,10 +114,20 @@ describe('CCIP OffRamp Token Transfer Gas Estimation', () => {
       .set('MerkleRoot', setup.merkleRootAddress(root), 'ccip')
       .set('ReceiveExecutor', setup.receiveExecutorAddress(message), 'ccip')
 
+    // The token flows' rules live in `offRampRetains.tokenExecute`, grouped by phase; pick the
+    // composition matching this run.
+    const { tokenExecute } = offRampRetains
     const { result } = await report.measure(label, {
       run: () => setup.executeReport(setup.createExecuteReport([message]), reportSequence++),
       book,
       aborts: opts.aborts,
+      retains: opts.poolRejects
+        ? tokenExecute.poolRejected
+        : opts.gasLimit === 0n
+          ? tokenExecute.gasLimitZero(token.kind)
+          : opts.aborts === undefined
+            ? tokenExecute.newAccount(token.kind)
+            : tokenExecute.successful(token.kind),
       budget: Costs.executeBudget(true),
     })
     if (opts.poolRejects) {
@@ -211,7 +224,7 @@ describe('CCIP OffRamp Token Transfer Gas Estimation', () => {
         `${kind}: Execute Token Transfer + Max Payload`,
         token,
         book,
-        { data: createPayload(LANE_MAX_DATA_BYTES), ...existingAccount },
+        { data: createPayloadBytes(LANE_MAX_DATA_BYTES), ...existingAccount },
       )
       expect(result.transactions).toHaveTransaction({
         from: setup.router.address,
@@ -229,7 +242,7 @@ describe('CCIP OffRamp Token Transfer Gas Estimation', () => {
         token,
         book,
         {
-          data: createPayload(LANE_MAX_DATA_BYTES),
+          data: createPayloadBytes(LANE_MAX_DATA_BYTES),
           aborts: [...existingAccount.aborts, `Router->${kind}Pool`],
           poolRejects: true,
         },

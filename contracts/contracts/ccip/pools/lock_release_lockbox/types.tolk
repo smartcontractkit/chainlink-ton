@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/gas-payments"
 
-import "../../../lib/jetton/jetton_client"
+import "../../../lib/gas"
 
 import "../lib/token_pool/messages"
 import "../lib/token_pool/budget"
@@ -15,25 +15,45 @@ const LockReleaseLockboxTokenPool_FACILITY_ID = LockReleaseLockboxTokenPool_FACI
 /// LockOrBurn safety: one custody phase. Covers success finalization or the best-effort return.
 /// The first transfer carries `2S + F`; the lockbox deposit forwards `S + F`.
 const LockReleaseLockboxTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS = 525_000; // ~0.035 TON
-/// LockOrBurn admission: the entry, the withdraw relay and the custody transfer, which carries three
-/// custody phases' safety (`3 * S`, ~0.105 TON).
-const LockReleaseLockboxTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 1_575_000; // ~0.105 TON
+/// LockOrBurn admission: entry, withdraw relay, and three custody phases (`3 * S`).
+const LockReleaseLockboxTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS = 1_575_000; // ~0.105 TON base
 /// ReleaseOrMint safety: the lockbox transfer plus the pool's post-delivery finalization.
 const LockReleaseLockboxTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS = 375_000; // ~0.025 TON
 /// ReleaseOrMint admission: pool -> lockbox -> recipient wallet (~0.015 TON); ~3.9x. Includes the
 /// finalization safety; the caller's delivery forward is added on top.
 const LockReleaseLockboxTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS = 875_000; // ~0.058 TON
 
-fun LockReleaseLockboxTokenPool_defaultBudget(): TokenPool_Budget {
+struct LockReleaseLockboxTokenPool_Costs{}
+
+fun LockReleaseLockboxTokenPool_Costs.lockOrBurnAdmission(): coins {
     val w = contract.getAddress().getWorkchain();
+    return calculateGasFee(w, LockReleaseLockboxTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS)
+}
+
+fun LockReleaseLockboxTokenPool_Costs.lockOrBurnSafety(): coins {
+    val w = contract.getAddress().getWorkchain();
+    return calculateGasFee(w, LockReleaseLockboxTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS);
+}
+
+fun LockReleaseLockboxTokenPool_Costs.releaseOrMintAdmission(): coins {
+    val w = contract.getAddress().getWorkchain();
+    return calculateGasFee(w, LockReleaseLockboxTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS)
+}
+
+fun LockReleaseLockboxTokenPool_Costs.releaseOrMintSafety(): coins {
+    val w = contract.getAddress().getWorkchain();
+    return calculateGasFee(w, LockReleaseLockboxTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS);
+}
+
+fun LockReleaseLockboxTokenPool_defaultBudget(): TokenPool_Budget {
     return {
         lockOrBurn: {
-            admission: calculateGasFee(w, LockReleaseLockboxTokenPool_LOCK_OR_BURN_ADMISSION_GAS_UNITS),
-            safety: calculateGasFee(w, LockReleaseLockboxTokenPool_LOCK_OR_BURN_SAFETY_GAS_UNITS),
+            admission: LockReleaseLockboxTokenPool_Costs.lockOrBurnAdmission(),
+            safety: LockReleaseLockboxTokenPool_Costs.lockOrBurnSafety(),
         },
         releaseOrMint: {
-            admission: calculateGasFee(w, LockReleaseLockboxTokenPool_RELEASE_OR_MINT_ADMISSION_GAS_UNITS),
-            safety: calculateGasFee(w, LockReleaseLockboxTokenPool_RELEASE_OR_MINT_SAFETY_GAS_UNITS),
+            admission: LockReleaseLockboxTokenPool_Costs.releaseOrMintAdmission(),
+            safety: LockReleaseLockboxTokenPool_Costs.releaseOrMintSafety(),
         },
     };
 }
@@ -45,7 +65,7 @@ struct (0x60fdb63b) LockReleaseLockboxTokenPool_LockContext {
     transferInitiator: address; // incoming transfer notification's initiator (the source DA)
 }
 
-/// @notice Context passed to OffRampAccount for release (withdraw) operations.
+/// @notice Context passed to ReceiverAccount for release (withdraw) operations.
 /// Carries the full forward payload for post-release finalization.
 struct (0x90230477) LockReleaseLockboxTokenPool_ReleaseContext {
     forwardPayload: Cell<TokenPool_ReleaseOrMintForwardPayload>;
@@ -57,9 +77,9 @@ enum LockReleaseLockBoxTokenPool_Error {
     UnexpectedLockboxConfirmationSender // 20901
 
     UnexpectedLockBounce // 20902
-    InvalidOffRampAccountReply // 20903
-    InvalidOffRampAccountNotification // 20904
-    OffRampAccountDeployFailed // 20905
+    InvalidReceiverAccountReply // 20903
+    InvalidReceiverAccountNotification // 20904
+    ReceiverAccountDeployFailed // 20905
     // The lockbox reported that the jetton transfer for a release (withdraw) bounced.
     LockBoxWithdrawFailed // 20906
 }

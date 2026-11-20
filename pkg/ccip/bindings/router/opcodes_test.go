@@ -11,5 +11,9 @@ func TestRouterMessageOpcodes(t *testing.T) {
 	tvmtest.CheckOpcodes(t, TLBs, tvmtest.OpcodeSpec{
 		Prefix:  "Router_",
 		Package: reflect.TypeFor[Storage]().PkgPath(),
+		// The Go name avoids clashing with the GetReceiverAccountAddress getter in reader.go.
+		TolkNames: map[string]string{
+			"GetReceiverAccountAddressMessage": "Router_GetReceiverAccountAddress",
+		},
 	})
 }

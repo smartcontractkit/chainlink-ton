@@ -45,7 +45,7 @@ fun onInternalMessage(in: InMessage) {
         InternalTransferStep => {
             var storage = lazy WalletStorage.load();
             if (in.senderAddress != storage.minterAddress) {
-                assert (in.senderAddress == calcAddressOfJettonWallet(msg.transferInitiator!, storage.minterAddress, contract.getCode())) throw ERROR_NOT_VALID_WALLET;
+                assert (in.senderAddress == calcAddressOfJettonWallet(msg.transferInitiator!, storage.minterAddress, contract.getCode())) throw (ERROR_NOT_VALID_WALLET);
             }
             storage.jettonBalance += msg.jettonAmount;
             storage.save();
@@ -67,7 +67,7 @@ fun onInternalMessage(in: InMessage) {
 
             if (msg.sendExcessesTo != null) {
                 var toLeaveOnBalance = contract.getOriginalBalance() - in.valueCoins + contract.getStorageDuePayment();
-                reserveGramsOnBalance(max(toLeaveOnBalance, calculateJettonWalletMinStorageFee()), RESERVE_MODE_AT_MOST);
+                reserveGramsOnBalance(max(toLeaveOnBalance, calculateJettonWalletMinStorageFee()), RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
 
                 val excessesMsg = createMessage({
                     bounce: BounceMode.NoBounce,
@@ -84,12 +84,12 @@ fun onInternalMessage(in: InMessage) {
 
         AskToTransfer => {
             msg.forwardPayload.checkIsCorrectTLBEither();
-            assert (msg.transferRecipient.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
+            assert (msg.transferRecipient.getWorkchain() == MY_WORKCHAIN) throw (ERROR_WRONG_WORKCHAIN);
             checkAmountIsEnoughToTransfer(in.valueCoins, msg.forwardTonAmount, in.originalForwardFee);
 
             var storage = lazy WalletStorage.load();
-            assert (in.senderAddress == storage.ownerAddress) throw ERROR_NOT_OWNER;
-            assert (storage.jettonBalance >= msg.jettonAmount) throw ERROR_BALANCE_ERROR;
+            assert (in.senderAddress == storage.ownerAddress) throw (ERROR_NOT_OWNER);
+            assert (storage.jettonBalance >= msg.jettonAmount) throw (ERROR_BALANCE_ERROR);
             storage.jettonBalance -= msg.jettonAmount;
             storage.save();
 
@@ -113,8 +113,8 @@ fun onInternalMessage(in: InMessage) {
             checkAmountIsEnoughToBurn(in.valueCoins, in.originalForwardFee, msg.sendExcessesTo != null);
 
             var storage = lazy WalletStorage.load();
-            assert (in.senderAddress == storage.ownerAddress) throw ERROR_NOT_OWNER;
-            assert (storage.jettonBalance >= msg.jettonAmount) throw ERROR_BALANCE_ERROR;
+            assert (in.senderAddress == storage.ownerAddress) throw (ERROR_NOT_OWNER);
+            assert (storage.jettonBalance >= msg.jettonAmount) throw (ERROR_BALANCE_ERROR);
             storage.jettonBalance -= msg.jettonAmount;
             storage.save();
 

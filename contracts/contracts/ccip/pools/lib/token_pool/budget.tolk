@@ -4,9 +4,6 @@ import "@stdlib/gas-payments"
 
 import "../../../../lib/gas"
 
-/// Rent reserve kept on the pool.
-const MIN_GRAM_TO_RESERVE: int = grams("0.05");
-
 /// Initial CCIP budgets; calibration against success and recovery traces is still required.
 
 struct TokenPool_Costs{}
@@ -17,7 +14,8 @@ fun TokenPool_Costs.admin(): coins {
     return calculateGasFee(w, BUDGET_UNITS_LVL3_HIGH);
 }
 
-/// Default flow-admission threshold for a token pool (≈0.042 TON at mainnet gas).
+/// Default flow-admission threshold for a token pool (≈0.042 TON at mainnet gas). Configured
+/// admissions are total values.
 fun TokenPool_Costs.admission(): coins {
     val w = contract.getAddress().getWorkchain();
     return calculateGasFee(w, BUDGET_UNITS_LVL4_XHIGH);
@@ -42,8 +40,8 @@ fun TokenPool_Costs.callerFinalization(): coins {
 /// instance can raise (`TokenPool_SetBudget`). In storage, a zero field means "use the default".
 /// See docs/contracts/overview/ccip/budget/TP-VALUE-BUDGET-AUDIT.md.
 
-/// - `admission`: checked at the entrypoint and published to CCIP. Covers the pre-custody path and
-///   `lockOrBurnCustodyMoves * safety`. The separate failure continuation `F` is not included.
+/// - `admission`: checked at the entrypoint and published to CCIP. Covers the pre-custody path
+///   and `lockOrBurnCustodyMoves * safety`. The separate caller continuation `F` is not included.
 /// - `safety`: one custody phase's budget. The first custody transfer carries
 ///   `lockOrBurnCustodyMoves * safety + F`; pays finalization or the best-effort return.
 struct TokenPool_LockOrBurnBudget {

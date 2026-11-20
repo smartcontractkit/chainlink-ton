@@ -118,7 +118,6 @@ async function lockOrBurn(
       queryId,
       request: TokenPool_LockOrBurnInV1.create({
         transfer: TokenPool_Transfer.create({
-          id: queryId,
           details: TokenPool_TransferDetails.create({
             receiver: DEST_TOKEN_ADDRESS,
             remoteChainSelector: REMOTE_CHAIN_SELECTOR,
@@ -132,7 +131,7 @@ async function lockOrBurn(
       tokenArgs: null,
       replyTo: deployer.address,
       finalizationValue: FINALIZATION_VALUE,
-      onRampNamespaces: new Set([BigInt(CCIPNamespace.OnRampAccount)]),
+      onRampNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
     },
   )
 
@@ -198,7 +197,6 @@ async function releaseOrMint(
       queryId,
       request: TokenPool_ReleaseOrMintInV1.create({
         transfer: TokenPool_Transfer.create({
-          id: queryId,
           details: TokenPool_TransferDetails.create({
             originalSender: SOURCE_POOL_ADDRESS,
             remoteChainSelector: REMOTE_CHAIN_SELECTOR,

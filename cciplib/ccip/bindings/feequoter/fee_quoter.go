@@ -254,7 +254,7 @@ type Fee struct {
 // Context is `cell?` on-chain: a presence bit followed by the cell in a ref when present.
 type MessageValidationFailed struct {
 	_         tlb.Magic  `tlb:"#4785cb72" json:"-"` //nolint:revive // Ignore opcode tag
-	ErrorCode *big.Int   `tlb:"## 256"`
+	ErrorCode int32      `tlb:"## 32"`
 	Msg       *cell.Cell `tlb:"^"`       // Original message
 	Context   *cell.Cell `tlb:"maybe ^"` // Optional context cell
 }

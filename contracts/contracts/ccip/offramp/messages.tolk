@@ -44,13 +44,16 @@ type OffRamp_InMessage =
     | ReturnExcessesBack
     | Withdrawable_Withdraw
     | OffRamp_ReturnExcessToExecutor
-    | MerkleRoot_StateMarked;
+    | MerkleRoot_ExecutionStateChanged;
 
 type OffRamp_InMessageBounced = 
     | ReceiveExecutor_InitExecute
     | Deployable_Initialize
     | Router_RelayReleaseOrMint
-    | Router_RouteMessage;
+    | Router_RouteMessage
+    | ReceiveExecutor_CCIPReceiveConfirm
+    | MerkleRoot_Validate
+    | FeeQuoter_UpdatePrices;
 
 struct (0x9d431905) OffRamp_Commit {
     queryId: uint64;
@@ -70,9 +73,11 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     message: Cell<Any2TVMRampMessage>;
     root: MerkleRootId;
     metadataHash: uint256;
-    gasOverride: GasOverride? = null;
-    executionState: ExecutionState;
-    offchainTokenData: lisp_list<lisp_list<cell>>;
+    /// The ReceiveExecutor is not deployed yet: this attempt deploys it and funds its init value.
+    /// True on the first attempt, and on any attempt after one whose deploy was reverted or did not take place.
+    deployExecutor: bool;
+    /// OffRamp_ExecutionContext parsed by onExecuteSingleReport, relayed unchanged by the root.
+    context: cell;
     /// Caller of the execution, refunded with the flow's excesses
     excessesTo: address;
 }
@@ -81,6 +86,14 @@ struct (0xa00785cf) OffRamp_ManuallyExecute {
     queryId: uint64;
     report: ExecutionReport;
     gasOverride: GasOverride;
+}
+
+/// Sent by the OffRamp to the caller of Execute/ManuallyExecute when the MerkleRoot rejected
+/// MerkleRoot_Validate (root not committed, already executed, or manual execution not yet
+/// enabled). Carries only the queryId plus the remaining value; the cause is in the MerkleRoot's
+/// failed transaction. NoBounce: a refund, so a bounce could not unwind anything.
+struct (0x0d518f57) OffRamp_MerkleRootValidateRejected {
+    queryId: uint64;
 }
 
 //Must be sent by owner
@@ -107,19 +120,19 @@ struct (0x58cfcb02) OffRamp_DispatchValidated {
 
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
     queryId: uint64;
-    execId: ReceiveExecutorId;
+    execId: ReceiveExecutionID;
     receiver: address;
 }
 
 struct (0x2dcf2a43) OffRamp_CCIPReceiveBounced {
-    execId: ReceiveExecutorId;
+    execId: ReceiveExecutionID;
     receiver: address;
 }
 
 struct (0x59e56170) OffRamp_NotifySuccess {
     queryId: uint64;
-    header: Cell<RampMessageHeader>;
-    execId: ReceiveExecutorId;
+    messageRef: RampMessageRef;
+    execId: ReceiveExecutionID;
     root: address;
     /// Set for token-only messages: the token transfer delivery to relay to the pool.
     delivered: Cell<OffRamp_DeliveredTransfer>? = null;
@@ -131,7 +144,7 @@ struct (0x59e56170) OffRamp_NotifySuccess {
 /// (messages without data carry this in `OffRamp_NotifySuccess` instead).
 struct (0xb4b39784) OffRamp_TokenTransferDelivered {
     queryId: uint64;
-    execId: ReceiveExecutorId;
+    execId: ReceiveExecutionID;
     delivered: Cell<OffRamp_DeliveredTransfer>;
 }
 
@@ -142,11 +155,13 @@ struct OffRamp_DeliveredTransfer {
 
 struct (0x177ebd03) OffRamp_NotifyFailure {
     queryId: uint64;
-    header: Cell<RampMessageHeader>;
-    execId: ReceiveExecutorId;
+    messageRef: RampMessageRef;
+    execId: ReceiveExecutionID;
     root: address;
     /// Caller of the execution attempt and whether it funded the executor's init value.
     excesses: Cell<ReceiveExecutor_Excesses>;
+    /// Why the execution failed
+    errorCode: int32;
 }
 
 struct (0x4ca1bcb3) OffRamp_UpdateCursedSubjects {
@@ -166,7 +181,7 @@ struct (0x453736a5) OffRamp_SetTokenAdminRegistry {
 
 struct (0x7deaf076) OffRamp_ReleaseOrMint {
     queryId: uint64
-    execId: ReceiveExecutorId
+    execId: ReceiveExecutionID
     tokenPool: address
     destGasAmount: coins
     requestedFinalityConfig: uint32
@@ -175,7 +190,7 @@ struct (0x7deaf076) OffRamp_ReleaseOrMint {
 
 struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
     queryId: uint64;
-    execId: ReceiveExecutorId;
+    execId: ReceiveExecutionID;
 }
 
 /// Relays between the executor and the pool, on top of `destGasAmount`: the OffRamp and Router
@@ -235,11 +250,13 @@ fun OffRamp_Costs.execute(hasTokens: bool): int {
     return baseFee + MerkleRoot_Costs.validate(hasTokens);
 }
 
-// OffRamp_Execute: hashing a 2000-byte message, a 6-sibling proof (64-message commit) and the
-// Validate fwdFee.
-const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.0145");
+// OffRamp_Execute: hashing a 2000-byte message, a 6-sibling proof (64-message commit), the report
+// checks and OffRamp_ExecutionContext parsing, and the Validate fwdFee.
+const OFFRAMP_COSTS_EXECUTE_FEE = grams("0.015");
 // OffRamp_ExecuteValidated: event and InitExecute fwdFee carrying the message, executor deploy.
-const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = grams("0.0155");
+// If it throws, the bounce returns this message's value minus the compute spent, which pays for
+// the root's bounce handler and the OffRamp's ExecutionStateChanged.
+const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = grams("0.0145");
 const OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE = grams("0.005");
 const OFFRAMP_COSTS_RELEASE_OR_MINT_FEE = grams("0.0025");
 const ROUTER_COSTS_RELAY_RELEASE_OR_MINT_FEE = grams("0.006");
@@ -249,5 +266,5 @@ const OFFRAMP_COSTS_TOKEN_TRANSFER_DELIVERED_FEE = grams("0.008");
 const OFFRAMP_COSTS_NOTIFY_FEE = grams("0.003");
 const OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE = grams("0.002");
 // OffRamp_Commit with a root and price updates, signature verification included, and the excesses refund to the transmitter.
-const OFFRAMP_COSTS_COMMIT_FEE = grams("0.0105");
+const OFFRAMP_COSTS_COMMIT_FEE = grams("0.011");
 const OFFRAMP_COSTS_MERKLE_ROOT_INIT_FEE = grams("0.0005");

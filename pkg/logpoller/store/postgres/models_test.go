@@ -3,6 +3,7 @@ package postgres
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"math"
 	"math/big"
 	"testing"
 	"time"
@@ -423,5 +424,64 @@ func TestLogModel_BOCHeaderPayloadSplit(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, originalCell.Hash(), reconstructed.Data.Hash())
 		})
+	}
+}
+
+func TestLogModel_ToLogRejectsOutOfRangeValues(t *testing.T) {
+	testAddr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+	require.NoError(t, err)
+
+	validLog := func(t *testing.T) logModel {
+		t.Helper()
+		dbLog, err := (&logModel{}).FromLog(models.Log{
+			ChainID: "test-chain",
+			Address: testAddr,
+			Data:    cell.BeginCell().MustStoreUInt(1, 32).EndCell(),
+			Block: &ton.BlockIDExt{
+				Shard:    -1,
+				SeqNo:    100,
+				RootHash: make([]byte, 32),
+				FileHash: make([]byte, 32),
+			},
+			MCBlockSeqno: 200,
+		})
+		require.NoError(t, err)
+		_, err = dbLog.ToLog()
+		require.NoError(t, err)
+		return dbLog
+	}
+
+	tests := []struct {
+		name   string
+		modify func(*logModel)
+		field  string
+	}{
+		{"workchain above int32", func(l *logModel) { l.BlockWorkchain = math.MaxInt32 + 1 }, "block_workchain"},
+		{"workchain below int32", func(l *logModel) { l.BlockWorkchain = math.MinInt32 - 1 }, "block_workchain"},
+		{"block seqno negative", func(l *logModel) { l.BlockSeqno = -1 }, "block_seqno"},
+		{"block seqno above uint32", func(l *logModel) { l.BlockSeqno = math.MaxUint32 + 1 }, "block_seqno"},
+		{"master block seqno negative", func(l *logModel) { l.MCBlockSeqno = -1 }, "master_block_seqno"},
+		{"master block seqno above uint32", func(l *logModel) { l.MCBlockSeqno = math.MaxUint32 + 1 }, "master_block_seqno"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dbLog := validLog(t)
+			tt.modify(&dbLog)
+			_, err := dbLog.ToLog()
+			require.ErrorContains(t, err, tt.field)
+		})
+	}
+}
+
+func TestFilterModel_ToFilterRejectsOutOfRangeStartingSeqNo(t *testing.T) {
+	testAddr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+	require.NoError(t, err)
+
+	for _, v := range []int64{-1, math.MaxUint32 + 1} {
+		dbFilter, err := (&filterModel{}).FromFilter(models.Filter{Address: testAddr, MsgType: tlb.MsgTypeInternal})
+		require.NoError(t, err)
+		dbFilter.StartingSeqNo = v
+		_, err = dbFilter.ToFilter()
+		require.ErrorContains(t, err, "starting_seq_no")
 	}
 }

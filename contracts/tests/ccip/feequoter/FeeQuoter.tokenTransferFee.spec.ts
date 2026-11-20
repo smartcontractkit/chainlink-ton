@@ -129,7 +129,7 @@ describe('FeeQuoter Token Transfer Fee', () => {
     return rt.Router_CCIPSend.create({
       destChainSelector: DEST_CHAIN,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
-      data: Cell.EMPTY,
+      data: [],
       tokenAmounts: tokens.map((t) => rt.TokenAmount.create({ token: t.token, amount: t.amount })),
       feeToken,
       extraArgs: rt.GenericExtraArgsV2.create({

@@ -415,7 +415,7 @@ export class OffRampTestSetup {
     sequenceNumber = 1n,
     messageId = 1n,
     receiverAddress = generateMockTonAddress(),
-    data: Cell = Cell.EMPTY,
+    data: bigint[] = [],
   ): of.Any2TVMRampMessage {
     const header = of.RampMessageHeader.create({
       messageId,
@@ -1077,7 +1077,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
       sequenceNumber?: bigint
       messageId?: bigint
       receiverAddress?: Address
-      data?: Cell
+      data?: bigint[]
       sourcePoolAddress?: of.CrossChainAddress
       extraData?: Cell
       destGasAmount?: bigint
@@ -1087,7 +1087,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
       opts.sequenceNumber ?? 1n,
       opts.messageId ?? 1n,
       opts.receiverAddress ?? this.receiver.address,
-      opts.data ?? Cell.EMPTY,
+      opts.data ?? [],
     )
 
     message.tokenAmounts = [

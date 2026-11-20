@@ -1,6 +1,12 @@
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import {
+  Blockchain,
+  createShardAccount,
+  SandboxContract,
+  SendMessageResult,
+  TreasuryContract,
+} from '@ton/sandbox'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
-import '@ton/test-utils'
+import { findTransactionRequired } from '@ton/test-utils'
 import { crc32 } from 'zlib'
 
 import { expectFailedTransaction } from '../../Logs'
@@ -23,6 +29,14 @@ import {
   Costs,
 } from '../../../wrappers/ccip/OffRamp'
 import { Costs as RegistryCosts } from '../../../wrappers/ccip/TokenAdminRegistry'
+import { snakeData } from '../../utils/snakeData'
+
+const toMessageRef = ({
+  messageId,
+  sourceChainSelector,
+  sequenceNumber,
+}: rx.RampMessageHeader): rx.RampMessageRef =>
+  rx.RampMessageRef.create({ messageId, sourceChainSelector, sequenceNumber })
 
 // What a registry reply carries back: the query value minus the registry's fees.
 const REGISTRY_REPLY_VALUE = toNano('0.006')
@@ -40,9 +54,7 @@ describe('ReceiveExecutor - Execution', () => {
   let nonOwner: SandboxContract<TreasuryContract>
   let receiveExecutorCode: Cell
   let defaultInitExecute: {
-    sequenceNumber: bigint
-    sourceChainSelector: bigint
-    messageId: bigint
+    messageRef: rx.RampMessageRef
     effectiveGasLimit: bigint
     excesses: rx.ReceiveExecutor_Excesses
   }
@@ -60,6 +72,42 @@ describe('ReceiveExecutor - Execution', () => {
     receiveExecutorCode = await contractCode.ccip.local('ReceiveExecutor')
   })
 
+  /**
+   * Runs `fn` while the owner (the OffRamp in these tests) rejects every message, then restores
+   * it. Inside `fn`, send as the owner with `blockchain.sender(deployer.address)`.
+   */
+  async function withRejectingOwner<T>(fn: () => Promise<T>): Promise<T> {
+    const owner = await blockchain.getContract(deployer.address)
+    const ownerAccount = owner.account
+    await blockchain.setShardAccount(
+      deployer.address,
+      createShardAccount({
+        address: deployer.address,
+        code: await contractCode.ccip.local('tests.mock.Bouncer'),
+        data: Cell.EMPTY,
+        balance: owner.balance,
+      }),
+    )
+    try {
+      return await fn()
+    } finally {
+      await blockchain.setShardAccount(deployer.address, ownerAccount)
+    }
+  }
+
+  /**
+   * Sends the bounce that `to` received in `result` once more. The executor has already left the
+   * step the bounce belongs to, so it must reject the copy.
+   */
+  async function replayBounce(result: SendMessageResult, to: Address) {
+    const bounce = findTransactionRequired(result.transactions, {
+      to,
+      inMessageBounced: true,
+      success: true,
+    })
+    return blockchain.sendMessage(bounce.inMessage!)
+  }
+
   describe('ReceiveExecutor - Arbitrary Messaging', () => {
     let receiveExecutor: SandboxContract<rx.ReceiveExecutor>
     let arbMessage: of.Any2TVMRampMessage
@@ -74,9 +122,7 @@ describe('ReceiveExecutor - Execution', () => {
       )
 
       defaultInitExecute = {
-        sequenceNumber: arbMessage.header.sequenceNumber,
-        sourceChainSelector: arbMessage.header.sourceChainSelector,
-        messageId: arbMessage.header.messageId,
+        messageRef: toMessageRef(arbMessage.header),
         effectiveGasLimit: arbMessage.gasLimit,
         excesses: rx.ReceiveExecutor_Excesses.create({
           to: deployer.address,
@@ -165,6 +211,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: deployer.address,
+          execId: 0n, // unused by the executor
         },
       )
       expect(result.transactions).toHaveTransaction({
@@ -187,6 +234,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: deployer.address,
+          execId: 0n, // unused by the executor
         },
       )
       expectFailedTransaction(
@@ -203,6 +251,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: deployer.address,
+          execId: 0n, // unused by the executor
         },
       )
       expectFailedTransaction(
@@ -221,6 +270,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: wrongReceiver,
+          execId: 0n, // unused by the executor
         },
       )
       expectFailedTransaction(
@@ -233,6 +283,60 @@ describe('ReceiveExecutor - Execution', () => {
 
     // --- Bounced Tests ---
 
+    it('should send NotifyFailure when the OffRamp bounces DispatchValidated, and dispatch again on retry', async () => {
+      const result = await withRejectingOwner(() =>
+        receiveExecutor.sendReceiveExecutorInitExecute(
+          blockchain.sender(deployer.address),
+          toNano('0.05'),
+          { ...defaultInitExecute, root: deployer.address },
+        ),
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: receiveExecutor.address,
+        to: deployer.address,
+        success: false,
+        op: of.OffRamp_DispatchValidated.PREFIX,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiveExecutor.address,
+        success: true,
+        op: 0xfffffffe,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: receiveExecutor.address,
+        to: deployer.address,
+        op: of.OffRamp_NotifyFailure.PREFIX,
+        inMessageBounceable: false,
+      })
+
+      // ExecuteFailed: the retry dispatches again.
+      const retry = await transitionToExecuteState()
+      expect(retry.transactions).toHaveTransaction({
+        from: receiveExecutor.address,
+        to: deployer.address,
+        success: true,
+        op: of.OffRamp_DispatchValidated.PREFIX,
+      })
+    })
+
+    it('should reject a DispatchValidated bounce once the execution has failed', async () => {
+      const first = await withRejectingOwner(() =>
+        receiveExecutor.sendReceiveExecutorInitExecute(
+          blockchain.sender(deployer.address),
+          toNano('0.05'),
+          { ...defaultInitExecute, root: deployer.address },
+        ),
+      )
+      const result = await replayBounce(first, receiveExecutor.address)
+      expectFailedTransaction(
+        result,
+        deployer.address,
+        receiveExecutor.address,
+        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage'],
+      )
+    })
+
     it('should handle Bounced and send NotifyFailure to owner', async () => {
       await transitionToExecuteState()
       const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
@@ -240,7 +344,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: deployer.address,
-          reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
+          errorCode: null,
         },
       )
       expect(result.transactions).toHaveTransaction({
@@ -254,8 +358,43 @@ describe('ReceiveExecutor - Execution', () => {
         to: deployer.address,
         success: true,
         op: of.OffRamp_NotifyFailure.PREFIX,
+        body(body) {
+          if (!body) return false
+          const msg = of.OffRamp_NotifyFailure.fromSlice(body.beginParse())
+          return msg.errorCode === rx.ReceiveExecutor_FailureErrors.ReceiverBounced
+        },
       })
     })
+
+    it.each([
+      ['zero', 0n],
+      ['a positive exit code', 22127n],
+      ['a negative exit code (OOG)', -14n],
+    ])(
+      'should preserve the supplied errorCode (%s) in NotifyFailure',
+      async (_label, errorCode) => {
+        await transitionToExecuteState()
+        const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
+          deployer.getSender(),
+          toNano('0.05'),
+          {
+            receiver: deployer.address,
+            errorCode,
+          },
+        )
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutor.address,
+          to: deployer.address,
+          success: true,
+          op: of.OffRamp_NotifyFailure.PREFIX,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_NotifyFailure.fromSlice(body.beginParse())
+            return msg.errorCode === errorCode
+          },
+        })
+      },
+    )
 
     it('should reject Bounced from non-owner', async () => {
       const result = await receiveExecutor.sendReceiveExecutorCCIPReceiveFailed(
@@ -263,7 +402,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: deployer.address,
-          reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
+          errorCode: null,
         },
       )
       expectFailedTransaction(
@@ -280,7 +419,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: deployer.address,
-          reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
+          errorCode: null,
         },
       )
       expectFailedTransaction(
@@ -299,7 +438,7 @@ describe('ReceiveExecutor - Execution', () => {
         toNano('0.05'),
         {
           receiver: wrongReceiver,
-          reason: rx.ReceiveExecutor_FailedReason.BouncedFromReceiver,
+          errorCode: null,
         },
       )
       expectFailedTransaction(
@@ -446,9 +585,7 @@ describe('ReceiveExecutor - Execution', () => {
           messageWithTT,
         )
         defaultInitExecute = {
-          sequenceNumber: messageWithTT.header.sequenceNumber,
-          sourceChainSelector: messageWithTT.header.sourceChainSelector,
-          messageId: messageWithTT.header.messageId,
+          messageRef: toMessageRef(messageWithTT.header),
           effectiveGasLimit: messageWithTT.gasLimit,
           excesses: rx.ReceiveExecutor_Excesses.create({
             to: deployer.address,
@@ -537,6 +674,11 @@ describe('ReceiveExecutor - Execution', () => {
           from: receiveExecutorWithToken.address,
           to: deployer.address,
           op: of.OffRamp_NotifyFailure.PREFIX,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_NotifyFailure.fromSlice(body.beginParse())
+            return msg.errorCode === rx.ReceiveExecutor_FailureErrors.TokenAdmissionNotMet
+          },
         })
         expect(result.transactions).not.toHaveTransaction({
           from: receiveExecutorWithToken.address,
@@ -568,6 +710,11 @@ describe('ReceiveExecutor - Execution', () => {
           success: true,
           op: of.OffRamp_NotifyFailure.PREFIX,
           value: (v) => v! >= OFFRAMP_NOTIFY_COST,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_NotifyFailure.fromSlice(body.beginParse())
+            return msg.errorCode === rx.ReceiveExecutor_FailureErrors.TokenNotEnabledInTokenRegistry
+          },
         })
         expect((await blockchain.getContract(receiveExecutorWithToken.address)).balance).toBe(
           Costs.executorDeployment,
@@ -593,6 +740,11 @@ describe('ReceiveExecutor - Execution', () => {
           success: true,
           op: of.OffRamp_NotifyFailure.PREFIX,
           value: (v) => v! >= OFFRAMP_NOTIFY_COST,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_NotifyFailure.fromSlice(body.beginParse())
+            return msg.errorCode === rx.ReceiveExecutor_FailureErrors.TokenNotEnabledInTokenRegistry
+          },
         })
         expect((await blockchain.getContract(receiveExecutorWithToken.address)).balance).toBe(
           Costs.executorDeployment,
@@ -688,6 +840,88 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
+      it('should reject a TokenAdminRegistry query bounce once the query has failed', async () => {
+        const missingRegistry = await generateRandomTonAddress()
+        const first = await initExecute(
+          receiveExecutorWithToken,
+          tokenTransferOf(undefined, missingRegistry),
+        )
+        const result = await replayBounce(first, receiveExecutorWithToken.address)
+        expectFailedTransaction(
+          result,
+          missingRegistry,
+          receiveExecutorWithToken.address,
+          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse'],
+        )
+      })
+
+      it('should send NotifyFailure when the OffRamp bounces ReleaseOrMint, and re-query on retry', async () => {
+        await initExecuteQueriesRegistry(receiveExecutorWithToken)
+
+        const result = await withRejectingOwner(() =>
+          receiveExecutorWithToken.sendTokenAdminRegistryTokenInfo(
+            tokenAdminRegistry.getSender(),
+            REGISTRY_REPLY_VALUE,
+            {
+              token: messageWithTT.tokenAmounts![0].token,
+              version: 1n,
+              poolInfo: rx.TokenAdminRegistry_PoolInfo.create({
+                tokenPool: tokenPool.address,
+                transferInitiator: tokenPool.address,
+                admission: TEST_ADMISSION,
+              }),
+            },
+          ),
+        )
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          to: deployer.address,
+          success: false,
+          op: of.OffRamp_ReleaseOrMint.PREFIX,
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: deployer.address,
+          to: receiveExecutorWithToken.address,
+          success: true,
+          op: 0xfffffffe,
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          to: deployer.address,
+          op: of.OffRamp_NotifyFailure.PREFIX,
+          inMessageBounceable: false,
+        })
+
+        // ReleaseOrMintFailed: the retry restarts from the registry query.
+        await transitionToReleaseOrMint(receiveExecutorWithToken)
+      })
+
+      it('should reject a ReleaseOrMint bounce once the release/mint has failed', async () => {
+        await initExecuteQueriesRegistry(receiveExecutorWithToken)
+        const first = await withRejectingOwner(() =>
+          receiveExecutorWithToken.sendTokenAdminRegistryTokenInfo(
+            tokenAdminRegistry.getSender(),
+            REGISTRY_REPLY_VALUE,
+            {
+              token: messageWithTT.tokenAmounts![0].token,
+              version: 1n,
+              poolInfo: rx.TokenAdminRegistry_PoolInfo.create({
+                tokenPool: tokenPool.address,
+                transferInitiator: tokenPool.address,
+                admission: TEST_ADMISSION,
+              }),
+            },
+          ),
+        )
+        const result = await replayBounce(first, receiveExecutorWithToken.address)
+        expectFailedTransaction(
+          result,
+          deployer.address,
+          receiveExecutorWithToken.address,
+          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenPoolUnexpectedResponse'],
+        )
+      })
+
       // --- Delivery to the receiver's deposit account ---
 
       it('should send NotifySuccess carrying the delivered transfer once the account receives the amount', async () => {
@@ -735,9 +969,7 @@ describe('ReceiveExecutor - Execution', () => {
           messageWithTT,
         )
         defaultInitExecute = {
-          sequenceNumber: messageWithTT.header.sequenceNumber,
-          sourceChainSelector: messageWithTT.header.sourceChainSelector,
-          messageId: messageWithTT.header.messageId,
+          messageRef: toMessageRef(messageWithTT.header),
           effectiveGasLimit: messageWithTT.gasLimit,
           excesses: rx.ReceiveExecutor_Excesses.create({
             to: deployer.address,
@@ -954,7 +1186,7 @@ describe('ReceiveExecutor - Execution', () => {
           deployer.getSender(),
           toNano('0.05'),
           {
-            reason: rx.ReleaseOrMintBounced.create({ exitCode: 1n }),
+            errorCode: 1n,
           },
         )
         expect(result.transactions).toHaveTransaction({
@@ -968,6 +1200,11 @@ describe('ReceiveExecutor - Execution', () => {
           to: deployer.address,
           success: true,
           op: of.OffRamp_NotifyFailure.PREFIX,
+          body(body) {
+            if (!body) return false
+            const msg = of.OffRamp_NotifyFailure.fromSlice(body.beginParse())
+            return msg.errorCode === 1n
+          },
         })
       })
 
@@ -977,7 +1214,7 @@ describe('ReceiveExecutor - Execution', () => {
           nonOwner.getSender(),
           toNano('0.05'),
           {
-            reason: rx.ReleaseOrMintBounced.create({ exitCode: 1n }),
+            errorCode: 1n,
           },
         )
         expectFailedTransaction(
@@ -993,7 +1230,7 @@ describe('ReceiveExecutor - Execution', () => {
           deployer.getSender(),
           toNano('0.05'),
           {
-            reason: rx.ReleaseOrMintBounced.create({ exitCode: 1n }),
+            errorCode: 1n,
           },
         )
         expectFailedTransaction(
@@ -1142,7 +1379,7 @@ describe('ReceiveExecutor - Execution', () => {
       beforeEach(async () => {
         messageWithTT = createTestMessageWithToken({
           receiver: deployer.address,
-          data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
+          data: snakeData('0xdeadbeef'),
           gasLimit: toNano('0.03'),
         })
         receiveExecutorPtt = await setupTestReceiveExecutor(
@@ -1153,9 +1390,7 @@ describe('ReceiveExecutor - Execution', () => {
         )
 
         defaultInitExecute = {
-          sequenceNumber: messageWithTT.header.sequenceNumber,
-          sourceChainSelector: messageWithTT.header.sourceChainSelector,
-          messageId: messageWithTT.header.messageId,
+          messageRef: toMessageRef(messageWithTT.header),
           effectiveGasLimit: messageWithTT.gasLimit,
           excesses: rx.ReceiveExecutor_Excesses.create({
             to: deployer.address,
@@ -1217,7 +1452,7 @@ describe('ReceiveExecutor - Execution', () => {
         // is covered by the OffRamp e2e suite.
         messageWithTT = createTestMessageWithToken({
           receiver: deployer.address,
-          data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
+          data: snakeData('0xdeadbeef'),
           gasLimit: 0n,
         })
         receiveExecutorPtt = await setupTestReceiveExecutor(
@@ -1227,9 +1462,7 @@ describe('ReceiveExecutor - Execution', () => {
           messageWithTT,
         )
         defaultInitExecute = {
-          sequenceNumber: messageWithTT.header.sequenceNumber,
-          sourceChainSelector: messageWithTT.header.sourceChainSelector,
-          messageId: messageWithTT.header.messageId,
+          messageRef: toMessageRef(messageWithTT.header),
           effectiveGasLimit: messageWithTT.gasLimit,
           excesses: rx.ReceiveExecutor_Excesses.create({
             to: deployer.address,
@@ -1260,7 +1493,7 @@ describe('ReceiveExecutor - Execution', () => {
         const token = (await blockchain.treasury('localToken')).address
         messageWithTT = createTestMessageWithToken({
           receiver: deployer.address,
-          data: beginCell().storeUint(0xdeadbeef, 32).endCell(),
+          data: snakeData('0xdeadbeef'),
           amount: sourceAmount,
           token,
           gasLimit: toNano('0.03'),
@@ -1271,7 +1504,10 @@ describe('ReceiveExecutor - Execution', () => {
           receiveExecutorCode,
           messageWithTT,
         )
-        defaultInitExecute = { ...defaultInitExecute, messageId: messageWithTT.header.messageId }
+        defaultInitExecute = {
+          ...defaultInitExecute,
+          messageRef: toMessageRef(messageWithTT.header),
+        }
 
         await transitionToReleaseOrMint(receiveExecutorPtt)
         const result = await forwardNotification(receiveExecutorPtt, destinationAmount)
@@ -1298,6 +1534,7 @@ describe('ReceiveExecutor - Execution', () => {
           toNano('0.05'),
           {
             receiver: deployer.address,
+            execId: 0n, // unused by the executor
           },
         )
         expect(result.transactions).toHaveTransaction({
@@ -1319,7 +1556,7 @@ describe('ReceiveExecutor - Execution', () => {
           toNano('0.05'),
           {
             receiver: deployer.address,
-            reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
+            errorCode: null,
           },
         )
         expect(result.transactions).toHaveTransaction({
@@ -1338,7 +1575,7 @@ describe('ReceiveExecutor - Execution', () => {
           toNano('0.05'),
           {
             receiver: deployer.address,
-            reason: rx.ReceiveExecutor_FailedReason.NotEnoughGas,
+            errorCode: null,
           },
         )
 

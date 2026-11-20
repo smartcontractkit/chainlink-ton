@@ -61,6 +61,13 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		return [32]byte{}, fmt.Errorf("parse extra args map to get gas limit: %w", err)
 	}
 
+	// parseExtraArgsMapAndRetrieveGasLimit type-asserts to *big.Int, which a typed
+	// nil satisfies while still being nil, and MustStoreBigCoins below would panic
+	// on it. The codec rejects such a value, but the hasher must not rely on that.
+	if gasLimit == nil {
+		return [32]byte{}, errors.New("extra args gas limit is nil")
+	}
+
 	// use the reference from contracts/contracts/ccip/offramp/types.tolk generateMessageId()
 	/* Top level cell contains:
 	 * - LEAF_DOMAIN_SEPARATOR 256 bits
@@ -105,14 +112,15 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		MustStoreSlice(metadataHash, 256)
 
 	// storing header
-	builder.MustStoreRef(
-		cell.BeginCell().
-			MustStoreSlice(header.MessageID, 256).
-			MustStoreAddr(receiver).
-			MustStoreUInt(header.SequenceNumber, 64).
-			MustStoreBigCoins(gasLimit).
-			MustStoreUInt(header.Nonce, 64).
-			EndCell())
+	headerCell := cell.BeginCell().
+		MustStoreSlice(header.MessageID, 256).
+		MustStoreAddr(receiver).
+		MustStoreUInt(header.SequenceNumber, 64)
+	if err = headerCell.StoreBigCoins(gasLimit); err != nil {
+		return [32]byte{}, fmt.Errorf("store gas limit in header cell: %w", err)
+	}
+	headerCell.MustStoreUInt(header.Nonce, 64)
+	builder.MustStoreRef(headerCell.EndCell())
 
 	sender := common.CrossChainAddress(msg.Sender)
 	// storing sender ref

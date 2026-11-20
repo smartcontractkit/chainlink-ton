@@ -86,7 +86,7 @@ fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: 
         calculateGasFee(MY_WORKCHAIN, sendTransferGasConsumption) +
         calculateGasFee(MY_WORKCHAIN, receiveTransferGasConsumption) +
         calculateJettonWalletMinStorageFee()
-    ) throw ERROR_NOT_ENOUGH_GAS;
+    ) throw (ERROR_NOT_ENOUGH_GAS);
 }
 
 fun checkAmountIsEnoughToMint(msgValue: int, jettonAmount: int, tonAmount: int, fwdFee: int) {
@@ -97,7 +97,7 @@ fun checkAmountIsEnoughToMint(msgValue: int, jettonAmount: int, tonAmount: int, 
         tonAmount +
         fwdFee +
         forwardInitStateOverhead() // additional fwd fees related to initstate in internal_transfer
-    ) throw ERROR_NOT_ENOUGH_GAS;
+    ) throw (ERROR_NOT_ENOUGH_GAS);
 }
 
 fun checkAmountIsEnoughToBurn(msgValue: int) {
@@ -112,5 +112,5 @@ fun checkAmountIsEnoughToBurn(msgValue: int) {
         calculateForwardFee(MY_WORKCHAIN, MESSAGE_SIZE_ReturnExcesses_bits, MESSAGE_SIZE_ReturnExcesses_cells) +
         calculateGasFee(MY_WORKCHAIN, sendBurnGasConsumption) +
         calculateGasFee(MY_WORKCHAIN, GAS_CONSUMPTION_BurnNotification)
-    ) throw ERROR_NOT_ENOUGH_GAS;
+    ) throw (ERROR_NOT_ENOUGH_GAS);
 }

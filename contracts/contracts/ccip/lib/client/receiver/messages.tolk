@@ -10,6 +10,9 @@ struct (0x5b4bc7a6) Receiver_CCIPReceiveV2 {
     /// Value to attach to Router_CCIPReceiveConfirm, set by the Router.
     confirmValue: coins;
     message: Cell<Any2TVMMessage>;
+    /// Router-owned receiver accounts (deposit accounts) the tokens were delivered to,
+    /// index-aligned with `message.tokenAmounts`. Empty when the message carries no tokens.
+    receiverAccounts: array<address>;
 }
 
 struct Receiver_InMessagePartial { // Tolk compiler doesn't allow passing builtin InMessage as argument of a function
@@ -50,7 +53,7 @@ fun Receiver_CCIPReceiveV2.validateAndConfirm(self, opts: Receiver_ValidateOptio
 
     // 3. Enqueue CCIPReceiveConfirm to msg.callback
     val receiveConfirm = createMessage({
-        bounce: true,
+        bounce: BounceMode.Only256BitsOfBody,
         value: opts.confirmationMsg.value ?? self.confirmValue,
         dest: opts.inMsg.senderAddress,
         body: Router_CCIPReceiveConfirm {
@@ -58,11 +61,11 @@ fun Receiver_CCIPReceiveV2.validateAndConfirm(self, opts: Receiver_ValidateOptio
             execId: self.execId,
         }
     });
-    receiveConfirm.send(opts.confirmationMsg.sendMode);
+    receiveConfirm.send(opts.confirmationMsg.sendMode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Confirmation message sent back to the router after accepting a CCIP message
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
     queryId: uint64;
-    execId: ReceiveExecutorId;
+    execId: ReceiveExecutionID;
 }

@@ -121,7 +121,7 @@ describe('OffRamp - Message ID', () => {
       const message = of.Any2TVMRampMessage.create({
         header: rampMessageHeader,
         sender: EVM_SENDER_ADDRESS_TEST,
-        data: Cell.EMPTY,
+        data: [],
         receiver: Address.parse(msg.receiver),
         gasLimit: BigInt(msg.gasLimit),
         tokenAmounts,

@@ -68,9 +68,9 @@ fun onInternalMessage(in: InMessage) {
             // But, consider that a minimum of 0.02 TON is required for the Router to process your confirmation message,
             // and you should probably send more than that (~0.025 TON) to make sure the message goes through
             // even if there are some fluctuations in the fees.
-            reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+            reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
             val receiveConfirm = createMessage({
-                bounce: true,
+                bounce: BounceMode.Only256BitsOfBody,
                 value: 0,
                 dest: in.senderAddress,
                 body: Router_CCIPReceiveConfirm {
@@ -78,7 +78,7 @@ fun onInternalMessage(in: InMessage) {
                     execId: msg.execId,
                 }
             });
-            receiveConfirm.send(SEND_MODE_CARRY_ALL_BALANCE);
+            receiveConfirm.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
            
         }
         TestReceiver_UpdateAuthorizedCaller => {
@@ -94,7 +94,7 @@ fun onInternalMessage(in: InMessage) {
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF
+            assert (in.body.isEmpty()) throw (0xFFFF)
         }
     }
 }
@@ -137,7 +137,7 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
 
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell { 
-    assert(version.bitsEqual("1.6.0".literalSlice()), Upgradeable_Error.VersionMismatch);
+    assert (version.bitsEqual("1.6.0".literalSlice())) throw (Upgradeable_Error.VersionMismatch);
     return storage;
 }
 

@@ -147,12 +147,11 @@ type Metadata struct {
 }
 
 type ExecutorFinishedSuccessfully struct {
-	_                   tlb.Magic     `tlb:"#CFA6B336" json:"-"` //nolint:revive // Ignore opcode tag
-	MsgId               *big.Int      `tlb:"## 224"`             // Message ID
-	Fee                 feequoter.Fee `tlb:"."`                  // Fee amount
-	Msg                 *cell.Cell    `tlb:"^"`                  // Original CCIPSend message
-	Metadata            Metadata      `tlb:"."`                  // Metadata
-	ChainFamilySelector uint32        `tlb:"## 32"`              // Destination chain family echoed from the FeeQuoter
+	_          tlb.Magic     `tlb:"#CFA6B336" json:"-"` //nolint:revive // Ignore opcode tag
+	ExecutorID *big.Int      `tlb:"## 224"`
+	Fee        feequoter.Fee `tlb:"."` // Fee amount
+	Msg        *cell.Cell    `tlb:"^"` // Original CCIPSend message
+	Metadata   Metadata      `tlb:"."` // Metadata
 	// Pool-supplied token transfer details the OnRamp folds into the emitted
 	// CCIPMessageSent event. Nil when the message carries no token transfer.
 	TokenTransfer *ExecutorTokenTransfer `tlb:"maybe ^"`
@@ -163,19 +162,31 @@ type ExecutorFinishedSuccessfully struct {
 type ExecutorTokenTransfer struct {
 	// SourcePoolAddress is an optional address on the contract side: addr_none when the
 	// message carries no token transfer.
-	SourcePoolAddress *address.Address         `tlb:"addr"`
-	Amount            *big.Int                 `tlb:"## 256"`
-	DestTokenAddress  common.CrossChainAddress `tlb:"^"`
-	ExtraData         *cell.Cell               `tlb:"^"`
-	DestExecData      *cell.Cell               `tlb:"^"`
+	SourcePoolAddress *address.Address `tlb:"addr"`
+	Amount            *big.Int         `tlb:"## 256"`
+	LockOrBurnOut     LockOrBurnOutV1  `tlb:"^"`
+	DestExecData      *cell.Cell       `tlb:"^"`
 }
 
+// LockOrBurnOutV1 mirrors the contract's TokenPool_LockOrBurnOutV1: what the token pool
+// returns from a lock or burn.
+type LockOrBurnOutV1 struct {
+	// DestTokenAddress is UNTRUSTED: any pool owner can return any value.
+	DestTokenAddress common.CrossChainAddress `tlb:"^"`
+	DestPoolData     *cell.Cell               `tlb:"^"`
+}
+
+// ExecutorFinishedWithError mirrors the contract's OnRamp_ExecutorFinishedWithError: the
+// executor's final report for a failed send.
 type ExecutorFinishedWithError struct {
-	_        tlb.Magic  `tlb:"#C4068E21" json:"-"` //nolint:revive // Ignore opcode tag
-	MsgId    *big.Int   `tlb:"## 224"`             // Message ID
-	Error    *big.Int   `tlb:"## 256"`             // Error reason
-	Msg      *cell.Cell `tlb:"^"`                  // Original CCIPSend message
-	Metadata Metadata   `tlb:"."`                  // Metadata
+	_                 tlb.Magic        `tlb:"#C4068E21" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID           uint64           `tlb:"## 64"`
+	ExecutorID        *big.Int         `tlb:"## 224"`
+	DestChainSelector uint64           `tlb:"## 64"`
+	Sender            *address.Address `tlb:"addr"`
+	ErrorCode         int32            `tlb:"## 32"` // TVM exit code (signed)
+	// Fee charged before the failure, refunded to the sender. Nil when nothing was charged.
+	Refund *tlb.Coins `tlb:"maybe ^"`
 }
 
 type SetDynamicConfigMessage struct {

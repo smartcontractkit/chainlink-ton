@@ -7,6 +7,7 @@ import * as common from '../common'
 // the store/load expressions.
 const PRIMITIVE_SNAKE_ITEMS: Record<string, [store: string, load: string]> = {
   uint8: ['(v, b) => b.storeUint(v, 8)', '(s) => s.loadUintBig(8)'],
+  byte: ['(v, b) => b.storeUint(v, 8)', '(s) => s.loadUintBig(8)'],
   uint64: ['(v, b) => b.storeUint(v, 64)', '(s) => s.loadUintBig(64)'],
   uint128: ['(v, b) => b.storeUint(v, 128)', '(s) => s.loadUintBig(128)'],
   uint160: ['(v, b) => b.storeUint(v, 160)', '(s) => s.loadUintBig(160)'],
@@ -57,8 +58,9 @@ function storeSnakedCellOf<T>(v: SnakedCell<T>, b: c.Builder, storeFn_T: StoreCa
 function loadSnakedCellOf<T>(s: c.Slice, loadFn_T: LoadCallback<T>): SnakedCell<T> {
     let outArr = [] as T[];
     let head = s.loadRef().beginParse();
-    while (head.remainingBits > 0 || head.remainingRefs > 0) {
-        if (head.remainingBits > 0) {
+    while (true) {
+        // Drain every item packed into the current cell before following the chain ref.
+        while (head.remainingBits > 0) {
             outArr.push(loadFn_T(head));
         }
         if (head.remainingRefs > 0) {

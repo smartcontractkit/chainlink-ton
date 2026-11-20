@@ -31,6 +31,7 @@ type Router_InMsg =
     | Router_WithdrawToTokenPool
     | Router_WithdrawToTokenPoolFailed
     | Router_CCIPReceiveConfirm
+    | Router_CCIPReceiveConfirmRejectedByExecutor
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
     | Router_RMNRemoteCurse
@@ -44,24 +45,25 @@ type Router_InMsg =
     | Router_RelayReleaseOrMint
     | Router_RMNOwnableMessage
     | Router_TokenTransferDelivered
-    | Router_GetOnRampAccount
+    | Router_GetSenderAccount
+    | Router_GetReceiverAccountAddress
     | DepositAccount_Initialized
     | DepositAccount_WalletUnavailable
     | DepositAccount_WithdrawFailed
     | TransferNotificationForRecipient
     | ReturnExcessesBack;
 
-type Router_BouncedMessage = 
-    | Receiver_CCIPReceiveV2
-    | OffRamp_CCIPReceiveConfirm
-    | OffRamp_CCIPReceiveBounced;
-
 type Router_RichBouncedMessage =
+    | OnRamp_Send
+    | OnRamp_GetValidatedFee
     | TokenPool_LockOrBurn
     | TokenPool_ReleaseOrMint
     | Deployable_Initialize
     | DepositAccount_Init
-    | DepositAccount_Withdraw;
+    | DepositAccount_Withdraw
+    | Receiver_CCIPReceiveV2
+    | OffRamp_CCIPReceiveConfirm
+    | OffRamp_CCIPReceiveBounced;
 
 // update multiple chain selectors in batch to the same onramp/offramp address
 struct (0x7db6745d) Router_ApplyRampUpdates {
@@ -71,16 +73,33 @@ struct (0x7db6745d) Router_ApplyRampUpdates {
     offRampRemoves: OffRamps? = null;
 }
 
+/// From the OffRamp: the ReceiveExecutor rejected the confirmation `receiver` sent. Relayed to
+/// `receiver` as Router_CCIPReceiveConfirmRejected. `sourceChainSelector` authenticates the OffRamp.
+struct (0xfe1f013c) Router_CCIPReceiveConfirmRejectedByExecutor {
+    queryId: uint64;
+    sourceChainSelector: uint64;
+    receiver: address;
+}
+
+/// Sent by the Router when the ReceiveExecutor rejected a Router_CCIPReceiveConfirm: the sender is
+/// not the message's receiver, or the message is not awaiting a confirmation. Carries the
+/// confirmation's remaining value back to its sender; the exit code is in the executor's
+/// transaction. Defined here, not in the receiver library: a correct receiver confirms its own
+/// messages and never gets it.
+struct (0xe3c98863) Router_CCIPReceiveConfirmRejected {
+    queryId: uint64;
+}
+
 struct (0xfc69c50b) Router_RouteMessage {
     queryId: uint64;
     message: Cell<Any2TVMMessage>;
-    execId: ReceiveExecutorId;
+    execId: ReceiveExecutionID;
     receiver: address;
     gasLimit: coins;
 }
 
 struct (0x19f0098f) Router_WithdrawToTokenPool {
-    queryID: uint64;
+    queryId: uint64;
     destChainSelector: uint64;
     /// The CCIPSendExecutor requesting the withdraw, authenticated by the OnRamp.
     executor: address;
@@ -88,8 +107,8 @@ struct (0x19f0098f) Router_WithdrawToTokenPool {
 }
 
 struct Router_WithdrawRequest {
-    /// The Router derives the on-ramp account to withdraw from.
-    onRampAccount: Cell<Router_DepositAccountID>;
+    /// The Router derives the sender account to withdraw from.
+    senderAccount: Cell<Router_DepositAccountID>;
     amount: coins;
     tokenPool: address;
     /// TON the pool's custody notification carries (`TokenPool_LockOrBurnWithdraw.forwardTonAmount`).
@@ -97,40 +116,68 @@ struct Router_WithdrawRequest {
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
-/// Permissionless: deploys (or re-confirms) the sender's onramp account for `token`.
-/// The account is a deposit account owned by the Router in the OnRampAccount namespace, keyed by
-/// the (sender, token) pair. The Router answers with Router_UseOnRampAccount once the account
+/// Permissionless: deploys (or re-confirms) the caller's sender account for `token`.
+/// The account is a deposit account owned by the Router in the SenderAccount namespace, keyed by
+/// the (sender, token) pair. The Router answers with Router_UseSenderAccount once the account
 /// learned its jetton wallet and confirmed initialization (DepositAccount_Initialized), or with
-/// Router_OnRampAccountFailed otherwise (e.g. the token can't report the wallet, or another request
+/// Router_SenderAccountFailed otherwise (e.g. the token can't report the wallet, or another request
 /// for the same new account is still waiting for it).
-struct (0x0e24d5ba) Router_GetOnRampAccount {
+struct (0x6cafd96f) Router_GetSenderAccount {
     queryId: uint64;
     /// Jetton master the account will escrow. One account per (sender, token).
     token: address;
+    /// Opaque caller data, echoed back in Router_UseSenderAccount / Router_SenderAccountFailed.
+    context: cell? = null;
 }
 
-/// Sent to a user once their onramp account confirmed initialization: `account` is the
+/// Sent to a user once their sender account confirmed initialization: `account` is the
 /// address the user must send `token` jettons to (via its jetton wallet).
-struct (0xf28658e0) Router_UseOnRampAccount {
+struct (0x900d5435) Router_UseSenderAccount {
     queryId: uint64;
     account: address;
     token: address;
+    /// `Router_GetSenderAccount.context`, echoed back.
+    context: cell?;
 }
 
-/// Sent to a user whose Router_GetOnRampAccount failed. `error` is the failure's exit code.
-struct (0x2c734db9) Router_OnRampAccountFailed {
+/// Sent to a user whose Router_GetSenderAccount failed. `error` is the failure's exit code.
+struct (0xda7b0350) Router_SenderAccountFailed {
     queryId: uint64;
-    error: uint256;
+    errorCode: int32;
+    /// `Router_GetSenderAccount.context`, echoed back.
+    context: cell?;
+}
+
+/// Permissionless, read-only: asks for the caller's receiver account for `token`, the deposit
+/// account (in the ReceiverAccount namespace, keyed by the (receiver, token) pair) where tokens
+/// sent to the caller from other chains are delivered. Nothing is deployed; the Router answers
+/// with Router_ReceiverAccountAddress, carrying back the remaining value.
+struct (0x0d5421b4) Router_GetReceiverAccountAddress {
+    queryId: uint64;
+    /// Jetton master the account escrows. One account per (receiver, token).
+    token: address;
+    /// Opaque caller data, echoed back in Router_ReceiverAccountAddress.
+    context: cell? = null;
+}
+
+/// Reply to Router_GetReceiverAccountAddress: `account` is the caller's receiver account for
+/// `token` (same as the `receiverAccountAddress` getter). It may not be deployed yet.
+struct (0xf540f227) Router_ReceiverAccountAddress {
+    queryId: uint64;
+    account: address;
+    token: address;
+    /// `Router_GetReceiverAccountAddress.context`, echoed back.
+    context: cell?;
 }
 
 /// Sent by the OnRamp when it rejects a `Router_WithdrawToTokenPool` request before the
 /// Router moves custody. The Router relays the failure to the token pool so it can reinstate
 /// the rate limit consumed at admission and fail the send.
 struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
-    queryID: uint64;
+    queryId: uint64;
     destChainSelector: uint64;
     withdrawRequest: Cell<Router_WithdrawRequest>;
-    error: int32;                                   // Raw TVM exit code (signed).
+    errorCode: int32;                                   // Raw TVM exit code (signed).
 }
 
 // curse/uncurse/verify uncursed (also as getter)
@@ -162,17 +209,17 @@ struct (0x0fdd7b0f) Router_RMNRemoteSyncOffRamps {
 }
 
 struct (0x6513f8e1) Router_MessageSent {
-    queryID: uint64;
+    queryId: uint64;
     messageId: uint256;
     destChainSelector: uint64;
     sender: address;
 }
 
 struct (0x8ae25114) Router_MessageRejected {
-    queryID: uint64;
+    queryId: uint64;
     destChainSelector: uint64;
     sender: address;
-    error: uint256;
+    errorCode: int32;
 }
 
 struct (0xaf7a9ac6) Router_RMNOwnableMessage {
@@ -185,16 +232,6 @@ struct (0xf9123a10) Router_RMNAccessControlMessage {
     content: Cell<AccessControl_InMessage>;
 }
 
-struct (0x78d0f21e) Router_CCIPSendACK {
-    queryID: uint64;
-    messageId: uint256;
-}
-
-struct (0x5a45d434) Router_CCIPSendNACK {
-    queryID: uint64;
-    error: uint256;
-}
-
 @deprecated("use Router_GetValidatedFee instead")
 // nolint:opcode : crc32('Router_GetValidatedFee')
 struct (0x4dd6aa82) Router_GetValidatedFee_V1 {
@@ -204,12 +241,13 @@ struct (0x4dd6aa82) Router_GetValidatedFee_V1 {
 
 // nolint:opcode : crc32('Router_GetValidatedFee_V2')
 struct (0x657ef7ec) Router_GetValidatedFee {
+    queryId: uint64;
     ccipSend: Cell<Router_CCIPSend>;
     context: cell? = null;
 }
 
 struct (0x6f2d00df) Router_LockOrBurn {
-    queryID: uint64,
+    queryId: uint64,
     tokenPool: address,
     request: Cell<TokenPool_LockOrBurnInV1>,
     executorAddress: address,
@@ -221,7 +259,7 @@ struct (0x6f2d00df) Router_LockOrBurn {
 /// The Router binds the authenticated OffRamp selector to the selector encoded
 /// in the pool request and applies its own RMN policy before dispatch.
 struct (0xb19862a3) Router_RelayReleaseOrMint {
-    queryID: uint64;
+    queryId: uint64;
     sourceChainSelector: uint64;
     tokenPool: address;
     request: Cell<TokenPool_ReleaseOrMintInV1>;
@@ -239,21 +277,23 @@ struct (0xddfdefa8) Router_TokenTransferDelivered {
     transfer: Cell<TokenPool_DeliveredTransfer>;
 }
 
-/// Context echoed through a user's on-ramp account `DepositAccount_Init`, so the Router can tell
+/// Context echoed through a user's sender account `DepositAccount_Init`, so the Router can tell
 /// that leg apart from the inbound relay leg when the account replies.
-struct (0x9e339227) Router_OnRampAccountContext {
+struct (0x4713c0b5) Router_SenderAccountContext {
     user: address;
     token: address;
+    userContext: cell?;
 }
 
 /// The two contexts the Router carries in a `DepositAccount_Init.context` and gets back in
 /// the account's `DepositAccount_Initialized`: the inbound release/mint relay to resume, or the
-/// user-initiated on-ramp account deployment to confirm.
+/// user-initiated sender account deployment to confirm.
 type Router_DepositAccountInitContext =
     | Router_RelayReleaseOrMint
-    | Router_OnRampAccountContext;
+    | Router_SenderAccountContext;
 
 struct Router_GetValidatedFeeContext {
+    queryId: uint64
     routerContext: address // sender
     oldContextVersion: bool
     userContext: cell?
@@ -272,7 +312,7 @@ struct (0x9e2155ec) Router_MessageValidated_V1 {
 @deprecated("use Router_MessageValidationFailed instead")
 // nolint:opcode : crc32('Router_MessageValidationFailed')
 struct (0xec23c562) Router_MessageValidationFailed_V1 {
-    error: uint256,
+    errorCode: uint256,
     msg: Cell<Router_CCIPSend>,
     context: RemainingBitsAndRefs,
 }
@@ -281,6 +321,7 @@ struct (0xec23c562) Router_MessageValidationFailed_V1 {
 
 // nolint:opcode : crc32('Router_MessageValidated_V2')
 struct (0x97ca8bd8) Router_MessageValidated {
+    queryId: uint64
     fee: coins
     msg: Cell<Router_CCIPSend>
     context: cell?
@@ -288,7 +329,8 @@ struct (0x97ca8bd8) Router_MessageValidated {
 
 // nolint:opcode : crc32('Router_MessageValidationFailed_V2')
 struct (0xe32e5616) Router_MessageValidationFailed {
-    error: uint256,
+    queryId: uint64,
+    errorCode: int32,
     msg: Cell<Router_CCIPSend>,
     context: cell?
 }
@@ -296,9 +338,9 @@ struct (0xe32e5616) Router_MessageValidationFailed {
 /// Canonical Router failure returned when a LockOrBurn request bounced before
 /// the token pool admitted it.
 struct (0xb76e3a84) Router_TokenPoolLockOrBurnFailed {
-    queryID: uint64;
+    queryId: uint64;
     tokenPool: address;
-    exitCode: int32;
+    errorCode: int32;
 }
 
 /// Canonical Router failure for an inbound release/mint that the Router could
@@ -308,11 +350,11 @@ struct (0xb76e3a84) Router_TokenPoolLockOrBurnFailed {
 /// authority allowed to fail a ReceiveExecutor. The OffRamp authenticates the
 /// Router by `sourceChainSelector` and forwards the failure to `replyTo`.
 struct (0xb980cb4e) Router_TokenPoolReleaseOrMintFailed {
-    queryID: uint64;
+    queryId: uint64;
     sourceChainSelector: uint64;
     replyTo: address;
     tokenPool: address;
-    exitCode: int32;
+    errorCode: int32;
 }
 
 // Costs associated with Router operations
@@ -372,10 +414,10 @@ fun Router_Costs.receiveConfirm(): int {
     return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
 }
 
-// Minimum value for calling Router_GetOnRampAccount: the Router's own compute and the two
+// Minimum value for calling Router_GetSenderAccount: the Router's own compute and the two
 // deployment messages, the account's storage reserve, its init (including the TEP-89 wallet
-// query) and the DepositAccount_Initialized -> Router_UseOnRampAccount round trip.
-fun Router_Costs.GetOnRampAccount(): int {
+// query) and the DepositAccount_Initialized -> Router_UseSenderAccount round trip.
+fun Router_Costs.GetSenderAccount(): int {
     return
         + grams("0.0055") // computeFee + Deployable_Initialize and DepositAccount_Init fwdFees
         + DepositAccount_MIN_GRAM_TO_RESERVE
@@ -397,6 +439,3 @@ fun Router_Costs.forwardCursedSubjects(): int {
 
 const ROUTER_RECEIVE_CONFIRM_FEE = grams("0.0015");
 
-/// Value receivers attach to Router_CCIPReceiveConfirm: `Router_Costs.receiveConfirm()` with
-/// headroom for later changes.
-const ROUTER_RECEIVE_CONFIRM_VALUE = grams("0.015");

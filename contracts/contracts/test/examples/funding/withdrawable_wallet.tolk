@@ -42,7 +42,7 @@ fun onInternalMessage(in: InMessage) {
             }.withdraw(msg);
         }
         else => {
-            assert (in.body.isEmpty()) throw 63;
+            assert (in.body.isEmpty()) throw (63);
         },
     }
 }

@@ -80,6 +80,7 @@ type LogTypeMap = {
   [CCIPLogs.LogTypes.RouteMessageBounced]: DeepPartial<of.OffRamp_RouteMessageBounced>
   [CCIPLogs.LogTypes.MessageToOffRampBounced]: DeepPartial<rt.MessageToOffRampBounced>
   [CCIPLogs.LogTypes.TokenPoolWithdrawBounced]: DeepPartial<rt.TokenPoolWithdrawBounced>
+  [CCIPLogs.LogTypes.UpdatePricesBounced]: DeepPartial<of.OffRamp_UpdatePricesBounced>
 }
 
 // union of the keys of that map
@@ -217,6 +218,15 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
       CCIPLogs.LogTypes.RouteMessageBounced,
       expected,
       of.OffRamp_RouteMessageBounced,
+    ),
+
+  [CCIPLogs.LogTypes.UpdatePricesBounced]: (actual, from, expected) =>
+    testLogGen(
+      actual,
+      from,
+      CCIPLogs.LogTypes.UpdatePricesBounced,
+      expected,
+      of.OffRamp_UpdatePricesBounced,
     ),
 
   [CCIPLogs.LogTypes.MessageToOffRampBounced]: (actual, from, expected) =>

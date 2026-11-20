@@ -38,8 +38,8 @@ fun CrossChainAddress.validateEVMAddress(self) {
     } catch {
         throw DestFamilyAddressValidation_Error.InvalidEVMAddress;
     }
-    assert (evmAddr.value <= TYPE_UINT160_MAX) throw DestFamilyAddressValidation_Error.InvalidEVMAddress;
-    assert (evmAddr.value >= EVM_PRECOMPILE_SPACE) throw DestFamilyAddressValidation_Error.InvalidEVMAddress;
+    assert (evmAddr.value <= TYPE_UINT160_MAX) throw (DestFamilyAddressValidation_Error.InvalidEVMAddress);
+    assert (evmAddr.value >= EVM_PRECOMPILE_SPACE) throw (DestFamilyAddressValidation_Error.InvalidEVMAddress);
 }
 
 struct a32ByteAddress {
@@ -54,7 +54,7 @@ fun CrossChainAddress.validate32ByteAddress(self, minValue: uint256) {
         throw DestFamilyAddressValidation_Error.Invalid32ByteAddress;
     }
     if (minValue > 0) {
-        assert (addr.value >= minValue) throw DestFamilyAddressValidation_Error.Invalid32ByteAddress;
+        assert (addr.value >= minValue) throw (DestFamilyAddressValidation_Error.Invalid32ByteAddress);
     }
 }
 

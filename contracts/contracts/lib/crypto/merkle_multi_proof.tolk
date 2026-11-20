@@ -34,12 +34,12 @@ fun merkleRoot<I>(
     val leavesLen = leaves.size(32 * 8);
     val proofsLen = proofs.size(32 * 8);
 
-    assert (leavesLen != 0, MerkleMultiProof_Error.InvalidProofLeavesCannotBeEmpty);
-    assert (leavesLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofLeavesTooLarge);
-    assert (proofsLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofProofsTooLarge);
+    assert (leavesLen != 0) throw (MerkleMultiProof_Error.InvalidProofLeavesCannotBeEmpty);
+    assert (leavesLen <= MAX_NUM_HASHES) throw (MerkleMultiProof_Error.InvalidProofLeavesTooLarge);
+    assert (proofsLen <= MAX_NUM_HASHES) throw (MerkleMultiProof_Error.InvalidProofProofsTooLarge);
 
     val totalHashes: int = leavesLen + proofsLen - 1;
-    assert (totalHashes <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofTotalHashesExceededMax);
+    assert (totalHashes <= MAX_NUM_HASHES) throw (MerkleMultiProof_Error.InvalidProofTotalHashesExceededMax);
 
     if (totalHashes == 0) {
         return leaves.next();
@@ -59,13 +59,13 @@ fun merkleRoot<I>(
             if (! leaves.empty()) {
                 a = leaves.next();
             } else {
-                assert(hashPos<i, MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
+                assert (hashPos<i) throw (MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
                 a = hashes.get(hashPos);
                 hashPos += 1;
             }
         } else {
             // Use the next supplied proof.
-            assert(! proofs.empty(), MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
+            assert (! proofs.empty()) throw (MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
             a = proofs.next();
         }
 
@@ -74,7 +74,7 @@ fun merkleRoot<I>(
         if (! leaves.empty()) {
             b = leaves.next();
         } else {
-            assert(hashPos<i, MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
+            assert (hashPos<i) throw (MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
             b = hashes.get(hashPos);
             hashPos += 1;
         }

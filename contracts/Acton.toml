@@ -141,9 +141,9 @@ src = "contracts/ccip/token_admin_registry_entry/contract.tolk"
 domain = "ccip"
 depends = []
 
-[contracts.TokenAdminRegistryEntryUpgradeTarget]
-display-name = "link.chain.ton.ccip.test.TokenAdminRegistryEntryUpgradeTarget"
-src = "contracts/ccip/test/token_admin_registry_entry_upgrade_target/contract.tolk"
+[contracts.UpgradeTarget]
+display-name = "link.chain.ton.ccip.test.UpgradeTarget"
+src = "contracts/ccip/test/upgrade_target/contract.tolk"
 domain = "test"
 depends = []
 
@@ -268,6 +268,11 @@ display-name = "tests.mock.Bouncer"
 src = "contracts/test/mock/bouncer.tolk"
 depends = []
 
+[contracts."tests.mock.TraceProbe"]
+display-name = "tests.mock.TraceProbe"
+src = "contracts/test/mock/trace_probe.tolk"
+depends = []
+
 [contracts.TestLispList]
 display-name = "link.chain.ton.test.examples.LispList"
 src = "contracts/test/examples/lisp_list.tolk"
@@ -286,6 +291,12 @@ depends = []
 [contracts.WgramCostHarness]
 display-name = "link.chain.ton.test.gas.WgramCostHarness"
 src = "contracts/test/gas/wgram_cost_harness.tolk"
+domain = "test/gas"
+depends = []
+
+[contracts.JettonLockBoxCostHarness]
+display-name = "link.chain.ton.test.gas.JettonLockBoxCostHarness"
+src = "contracts/test/gas/jetton_lockbox_cost_harness.tolk"
 domain = "test/gas"
 depends = []
 

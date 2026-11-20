@@ -620,8 +620,8 @@ fun AccessControl<T>.sendNotification<B>(
     // Skip notification if account == sender
     if (account != sender) {
         // Create and send the message (notification) to the account that was updated
-        val n = createMessage({ bounce: false, value, dest: account, body });
-        n.send(SEND_MODE_PAY_FEES_SEPARATELY);
+        val n = createMessage({ bounce: BounceMode.NoBounce, value, dest: account, body });
+        n.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
     }
 }
 
@@ -637,10 +637,10 @@ fun AccessControl<T>.sendReply<B>(
     // Create and send the message (reply) to the sender
     value = returnExcess ? grams("0") : value; // return all, or fixed compute budget
 
-    val reply = createMessage({bounce: false, value, dest: sender, body });
-    reply.send(returnExcess
+    val reply = createMessage({bounce: BounceMode.NoBounce, value, dest: sender, body });
+    reply.send((returnExcess
         ? SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE
-        : SEND_MODE_PAY_FEES_SEPARATELY);
+        : SEND_MODE_PAY_FEES_SEPARATELY) | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 // --- Getters ---

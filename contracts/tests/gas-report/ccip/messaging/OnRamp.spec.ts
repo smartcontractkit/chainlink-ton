@@ -8,12 +8,18 @@ import * as deployable from '../../../../wrappers/libraries/Deployable'
 import '@ton/test-utils'
 import { NATIVE_GRAM } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
-import { createExtraArgs, createPayload, HARD_MAX_DATA_BYTES, SEND_DATA_SIZE_SWEEP } from './config'
+import {
+  createExtraArgs,
+  createPayloadBytes,
+  HARD_MAX_DATA_BYTES,
+  SEND_DATA_SIZE_SWEEP,
+} from './config'
 import { AddressBook, GasReport, gasReportConfig } from '../../utils'
 import { getValidatedFee } from '../../../../src/ccipSend/fee'
 import { contractCode } from '../../../../wrappers/codeLoader'
 import { ChainFamilySelectors, ChainSelectors } from '../../../utils/Selectors'
 import EVM_ADDRESS from '../../../utils/evmAddress'
+import { onRampRetains } from '../onRampRetains'
 
 const jestConsole = console
 
@@ -37,6 +43,8 @@ describe('CCIP OnRamp Gas Estimation', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create({ config: await gasReportConfig() })
+    // Frozen time: no storage fees, so per-transaction balance deltas are exact.
+    blockchain.now = 1
     report = new GasReport('messaging-onramp', blockchain)
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
@@ -155,11 +163,11 @@ describe('CCIP OnRamp Gas Estimation', () => {
     })
   })
 
-  function ccipSendMessage(data: Cell, gasLimit?: bigint) {
+  function ccipSendMessage(data: bigint[], gasLimit?: bigint) {
     const extraArgs = rt.GenericExtraArgsV2.fromSlice(createExtraArgs().beginParse())
     if (gasLimit !== undefined) extraArgs.gasLimit = gasLimit
     return rt.Router_CCIPSend.create({
-      queryID: 1n,
+      queryId: 1n,
       destChainSelector: ChainSelectors.testnet.evm,
       receiver: EVM_ADDRESS,
       data,
@@ -169,14 +177,14 @@ describe('CCIP OnRamp Gas Estimation', () => {
     })
   }
 
-  async function ccipSend(data: Cell) {
+  async function ccipSend(data: bigint[]) {
     const msg = ccipSendMessage(data)
     const fee = await getValidatedFee(blockchain, router.address, msg)
     return router.sendRouterCCIPSend(sender.getSender(), fee + Costs.ccipSend, msg)
   }
 
   // gasLimit over maxPerMsgGasLimit; sent with the value a valid message would get.
-  async function ccipSendRejectedByFeeQuoter(data: Cell) {
+  async function ccipSendRejectedByFeeQuoter(data: bigint[]) {
     const fee = await getValidatedFee(blockchain, router.address, ccipSendMessage(data))
     const msg = ccipSendMessage(data, 200_000n)
     return router.sendRouterCCIPSend(sender.getSender(), fee + Costs.ccipSend, msg)
@@ -208,9 +216,10 @@ describe('CCIP OnRamp Gas Estimation', () => {
 
   it(`should measure message passing with ${HARD_MAX_DATA_BYTES} bytes of data`, async () => {
     const { result } = await report.measure('CCIPSend + Max Payload', {
-      run: () => ccipSend(createPayload(HARD_MAX_DATA_BYTES)),
+      run: () => ccipSend(createPayloadBytes(HARD_MAX_DATA_BYTES)),
       book,
       discover: nameExecutor,
+      retains: onRampRetains.executor.successful,
       budget: Costs.ccipSend,
     })
     expectACK(result)
@@ -218,9 +227,10 @@ describe('CCIP OnRamp Gas Estimation', () => {
 
   it(`should measure a message with ${HARD_MAX_DATA_BYTES} bytes of data rejected by the FeeQuoter`, async () => {
     const { result } = await report.measure('CCIPSend + Max Payload rejected by FeeQuoter', {
-      run: () => ccipSendRejectedByFeeQuoter(createPayload(HARD_MAX_DATA_BYTES)),
+      run: () => ccipSendRejectedByFeeQuoter(createPayloadBytes(HARD_MAX_DATA_BYTES)),
       book,
       discover: nameExecutor,
+      retains: onRampRetains.executor.rejected,
       budget: Costs.ccipSend,
     })
     expect(result.transactions).toHaveTransaction({
@@ -238,9 +248,10 @@ describe('CCIP OnRamp Gas Estimation', () => {
   it('should measure how the message cost scales with data size', async () => {
     for (const size of SEND_DATA_SIZE_SWEEP) {
       const { result } = await report.measure(`sweep: CCIPSend + ${size} bytes`, {
-        run: () => ccipSend(createPayload(size)),
+        run: () => ccipSend(createPayloadBytes(size)),
         book,
         discover: nameExecutor,
+        retains: onRampRetains.executor.successful,
         budget: Costs.ccipSend,
       })
       expectACK(result)

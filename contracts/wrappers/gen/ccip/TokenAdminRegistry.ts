@@ -700,14 +700,14 @@ export const TokenAdminRegistry_GetTokenInfoFailed = {
 /**
  > struct (0xe73a39de) TokenAdminRegistry_RequestFailed {
  >     queryId: uint64
- >     exitCode: int32
+ >     errorCode: int32
  >     request: Cell<TokenAdminRegistryEntry_MessageFromRoot>
  > }
  */
 export interface TokenAdminRegistry_RequestFailed {
     readonly $: 'TokenAdminRegistry_RequestFailed'
     queryId: uint64
-    exitCode: int32
+    errorCode: int32
     request: TokenAdminRegistryEntry_MessageFromRoot
 }
 
@@ -716,7 +716,7 @@ export const TokenAdminRegistry_RequestFailed = {
 
     create(args: {
         queryId?: uint64
-        exitCode: int32
+        errorCode: int32
         request: TokenAdminRegistryEntry_MessageFromRoot
     }): TokenAdminRegistry_RequestFailed {
         return {
@@ -730,14 +730,14 @@ export const TokenAdminRegistry_RequestFailed = {
         return {
             $: 'TokenAdminRegistry_RequestFailed',
             queryId: s.loadUintBig(64),
-            exitCode: s.loadIntBig(32),
+            errorCode: s.loadIntBig(32),
             request: loadCellRef<TokenAdminRegistryEntry_MessageFromRoot>(s, TokenAdminRegistryEntry_MessageFromRoot.fromSlice),
         }
     },
     store(self: TokenAdminRegistry_RequestFailed, b: c.Builder): void {
         b.storeUint(0xe73a39de, 32);
         b.storeUint(self.queryId, 64);
-        b.storeInt(self.exitCode, 32);
+        b.storeInt(self.errorCode, 32);
         storeCellRef<TokenAdminRegistryEntry_MessageFromRoot>(self.request, b, TokenAdminRegistryEntry_MessageFromRoot.store);
     },
     toCell(self: TokenAdminRegistry_RequestFailed): c.Cell {

@@ -575,7 +575,7 @@ export async function deployRouterContract(
 }
 
 // unit192 where 64 first bits are chain selector
-export function genExecID(opts: {
+export function genexecId(opts: {
   sourceChainSelector: bigint // 64 bits
   messageID: bigint // 128 bits
 }): bigint {

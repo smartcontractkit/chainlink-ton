@@ -2,9 +2,9 @@ import { Address, beginCell, Cell } from '@ton/core'
 
 import * as NameSpace from './NameSpace'
 
-/// Derives the Router-owned OnRampAccount address for (user, token), matching
-/// `Router.onRampAccountAddress` and the pool's `deriveDepositAccount` deposit auth.
-export function deriveOnRampAccountAddress(opts: {
+/// Derives the Router-owned SenderAccount address for (user, token), matching
+/// `Router.senderAccountAddress` and the pool's `deriveDepositAccount` deposit auth.
+export function deriveSenderAccountAddress(opts: {
   /// The pool's configured Router (the account's owner).
   router: Address
   user: Address
@@ -13,7 +13,7 @@ export function deriveOnRampAccountAddress(opts: {
 }): Address {
   return NameSpace.deriveAddress(
     opts.router,
-    NameSpace.CCIPNamespace.OnRampAccount,
+    NameSpace.CCIPNamespace.SenderAccount,
     beginCell().storeAddress(opts.user).storeAddress(opts.token),
     opts.deployableCode,
   )

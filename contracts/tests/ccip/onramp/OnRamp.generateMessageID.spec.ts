@@ -1,21 +1,21 @@
 import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import * as coverage from '../../coverage/coverage'
+import { ChainSelectors } from '../../utils/Selectors'
 import { NATIVE_GRAM } from '../../../src/utils'
+import { testSnakeData } from '../../utils/snakeData'
+import * as coverage from '../../coverage/coverage'
+import EVM_ADDRESS from '../../utils/evmAddress'
 
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
 import * as ex from '../../../wrappers/gen/ccip/CCIPSendExecutor'
 import * as dep from '../../../wrappers/libraries/Deployable'
-import { setup } from './OnRamp.Setup'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { ChainSelectors } from '../../utils/Selectors'
 import * as on from '../../../wrappers/gen/ccip/OnRamp'
 import generateMessageID, { getMetadataHash } from '../../../src/onramp/generateMessageID'
 import * as tmh from '../../../wrappers/gen/test/TestMsgHasher'
-import EVM_ADDRESS from '../../utils/evmAddress'
-import * as cca from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { onrampSendCost } from '../../../wrappers/ccip/OnRamp'
+import { setup } from './OnRamp.Setup'
 
 describe('OnRamp - generate message id', () => {
   let blockchain: Blockchain
@@ -26,13 +26,13 @@ describe('OnRamp - generate message id', () => {
   let mockRouter: SandboxContract<TreasuryContract>
   let mockFeeQuoter: SandboxContract<TreasuryContract>
   let executorSender: Sender
-  let executorID: bigint
+  let executorId: bigint
 
   const ccipSend = or.Router_CCIPSend.create({
-    queryID: 1n,
+    queryId: 1n,
     destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
     receiver: EVM_ADDRESS,
-    data: Cell.EMPTY,
+    data: [],
     tokenAmounts: [],
     feeToken: NATIVE_GRAM,
     extraArgs: or.GenericExtraArgsV2.create({
@@ -146,7 +146,7 @@ describe('OnRamp - generate message id', () => {
     const storage = ex.CCIPSendExecutor_InitialData.fromSlice(
       deployMessage.stateInit.data.beginParse(),
     )
-    executorID = storage.id
+    executorId = storage.id
   })
 
   it('should generate same message id with same message', async () => {
@@ -155,7 +155,7 @@ describe('OnRamp - generate message id', () => {
     // otherwise the report is rejected with PendingFeeReservationsUnderflow.
     const fee = 1n
     await onramp.sendOnRampExecutorReserveFee(executorSender, fee + toNano('0.05'), {
-      executorID: executorID,
+      executorId: executorId,
       fee,
     })
 
@@ -163,7 +163,7 @@ describe('OnRamp - generate message id', () => {
       executorSender,
       toNano('0.5'),
       {
-        executorID: executorID,
+        executorId: executorId,
         fee: or.Fee.create({
           feeTokenAmount: 1n,
           feeValueJuels: 1n,
@@ -288,6 +288,61 @@ describe('OnRamp - generate message id', () => {
         }
       }
     }
+  })
+
+  it('generates matching message id for a multi-cell data payload', async () => {
+    // A payload larger than one cell (127 bytes) forces the snake encoding to span
+    // multiple cells, exercising the data path that the empty case cannot reach.
+    const multiCellData = testSnakeData(2000, 0xab)
+
+    const ccipSendWithData = or.Router_CCIPSend.create({
+      ...ccipSend,
+      data: multiCellData,
+    })
+
+    const rampMessage = on.TVM2AnyRampMessage.create({
+      header: on.RampMessageHeader.create({
+        messageId: 0n,
+        sourceChainSelector: ChainSelectors.testnet.ton,
+        destChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        nonce: 0n,
+      }),
+      sender: senderAddress,
+      body: on.TVM2AnyRampMessageBody.create({
+        receiver: ccipSendWithData.receiver,
+        data: ccipSendWithData.data,
+        extraArgs: ccipSendWithData.extraArgs,
+        tokenTransfer: [],
+        feeToken: ccipSendWithData.feeToken!,
+        feeTokenAmount: 1n,
+      }),
+      feeValueJuels: 0n,
+    })
+
+    const metadataHash = getMetadataHash(
+      rampMessage.header.sourceChainSelector,
+      rampMessage.header.destChainSelector,
+      onramp.address,
+    )
+
+    const localMessageId = generateMessageID(rampMessage, metadataHash)
+
+    const onChainMessageId = await msgHasher.getTVM2AnyRampMessageID(
+      tmh.TVM2AnyRampMessage.create({
+        header: tmh.RampMessageHeader.fromSlice(
+          on.RampMessageHeader.toCell(rampMessage.header).beginParse(),
+        ),
+        sender: rampMessage.sender,
+        body: tmh.TVM2AnyRampMessageBody.fromSlice(
+          on.TVM2AnyRampMessageBody.toCell(rampMessage.body).beginParse(),
+        ),
+        feeValueJuels: rampMessage.feeValueJuels,
+      }),
+      metadataHash,
+    )
+
+    expect(onChainMessageId).toBe(localMessageId)
   })
 
   it('getMetadataHash matches the on-chain msg_hasher implementation', async () => {
