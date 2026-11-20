@@ -115,7 +115,7 @@ func (b *broadcast) run(ctx context.Context) (*tracetracking.ReceivedMessage, er
 	if found != nil || err != nil {
 		return found, err
 	}
-	return nil, b.failed(ctx, lastErr)
+	return nil, b.failed(ctx, fmt.Errorf("failed after %d attempts: %w", b.t.config.MaxSendRetryAttempts, lastErr))
 }
 
 // settle finds out what happened to sent, the last message sent, once the broadcast will not send
@@ -147,27 +147,18 @@ func (b *broadcast) settle(ctx context.Context, sent *signedMessage) (*tracetrac
 
 // outcomeUnknown records that it is unknown whether the transaction was executed, and returns
 // errOutcomeUnknown with err, the reason. The broadcast is counted as failed, though the
-// transaction may have been executed; it is logged apart from a definite failure.
+// transaction may have been executed; the caller logs errOutcomeUnknown apart from a definite
+// failure.
 func (b *broadcast) outcomeUnknown(ctx context.Context, err error) error {
-	err = fmt.Errorf("%w: %w", errOutcomeUnknown, err)
 	b.t.metrics.IncrementFailedToBroadcastTxs(ctx)
-	b.t.logger.Errorw("broadcast outcome unknown, the transaction is not tracked",
-		"txID", b.txID,
-		"err", err,
-		"to", b.tx.To.String())
-	return err
+	return fmt.Errorf("%w: %w", errOutcomeUnknown, err)
 }
 
 func (b *broadcast) checkExpired() error {
 	if time.Now().Before(b.tx.Expiration) {
 		return nil
 	}
-	b.t.logger.Warnw("transaction expired",
-		"txID", b.txID,
-		"to", b.tx.To.String(),
-		"amount", b.tx.Amount.Nano().String(),
-		"expiration", b.tx.Expiration.String())
-	return errTxExpired
+	return fmt.Errorf("%w: expired at %s", errTxExpired, b.tx.Expiration.UTC().Format(time.RFC3339))
 }
 
 // nextMessage returns the message the next send must use, given the message sent by earlier
@@ -281,13 +272,10 @@ func (b *broadcast) checkRejection(ctx context.Context, attempt uint, sent *sign
 	return found, nil
 }
 
-// failed records that the transaction could not be broadcast and returns err.
+// failed records that the transaction could not be broadcast and returns err. It does not log
+// err: the caller does.
 func (b *broadcast) failed(ctx context.Context, err error) error {
 	b.t.metrics.IncrementFailedToBroadcastTxs(ctx)
-	b.t.logger.Errorw("failed to broadcast tx after retries",
-		"txID", b.txID,
-		"err", err,
-		"to", b.tx.To.String())
 	return err
 }
 
