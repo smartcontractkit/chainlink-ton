@@ -45,7 +45,7 @@ describe('Router.withdrawToTokenPool', () => {
     }
     feeQuoter = await blockchain.treasury('feeQuoter')
     onRamp = await blockchain.treasury('onRamp')
-    depositAccountCode = await contractCode.ccip.local('ccip.account.DepositAccount')
+    depositAccountCode = await contractCode.ccip.local('DepositAccount')
     deployableCode = await contractCode.ccip.local('Deployable')
     token = (await blockchain.treasury('jettonMaster')).address
   })

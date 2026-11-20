@@ -74,9 +74,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
   beforeAll(async () => {
     minterCode = await contractCode.ccip.local('wgram.JettonMinter')
     walletCode = await contractCode.ccip.local('wgram.JettonWallet')
-    lockReleaseTokenPoolCode = await contractCode.ccip.local(
-      'ccip.pool.LockReleaseLockboxTokenPool',
-    )
+    lockReleaseTokenPoolCode = await contractCode.ccip.local('LockReleaseLockboxTokenPool')
     deployableCode = await contractCode.ccip.local('Deployable')
   })
 

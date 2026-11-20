@@ -755,7 +755,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         feeQuoter: await contractCode.ccip.local('FeeQuoter'),
         receiveExecutor: await contractCode.ccip.local('ReceiveExecutor'),
         tokenRegistry: await contractCode.ccip.local('TokenAdminRegistryEntry'),
-        tokenPool: await contractCode.ccip.local('ccip.pool.LockReleaseLockboxTokenPool'),
+        tokenPool: await contractCode.ccip.local('LockReleaseLockboxTokenPool'),
         jettonMinter: await contractCode.ccip.local('ccip.cct.JettonMinter'),
         jettonWallet: await contractCode.ccip.local('ccip.cct.JettonWallet'),
       },

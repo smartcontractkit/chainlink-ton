@@ -111,23 +111,23 @@ const CONTRACTS: ContractSource[] = [
   // Deposit accounts
   {
     contractType: 'link.chain.ton.ccip.account.DepositAccount',
-    compiledFile: 'ccip.account.DepositAccount.compiled.json',
+    compiledFile: 'DepositAccount.compiled.json',
     tolkSource: 'contracts/ccip/accounts/deposit/contract.tolk',
   },
   // TP contracts (version mirrors the <Name>_CONTRACT_VERSION const in each contract's types.tolk)
   {
     contractType: 'link.chain.ton.ccip.pool.JettonLockBox',
-    compiledFile: 'ccip.pool.JettonLockBox.compiled.json',
+    compiledFile: 'JettonLockBox.compiled.json',
     tolkSource: 'contracts/ccip/pools/lockbox/JettonLockBox.tolk',
   },
   {
     contractType: 'link.chain.ton.ccip.pool.LockReleaseLockboxTokenPool',
-    compiledFile: 'ccip.pool.LockReleaseLockboxTokenPool.compiled.json',
+    compiledFile: 'LockReleaseLockboxTokenPool.compiled.json',
     tolkSource: 'contracts/ccip/pools/lock_release_lockbox/contract.tolk',
   },
   {
     contractType: 'link.chain.ton.ccip.pool.BurnMintTokenPool',
-    compiledFile: 'ccip.pool.BurnMintTokenPool.compiled.json',
+    compiledFile: 'BurnMintTokenPool.compiled.json',
     tolkSource: 'contracts/ccip/pools/burn_mint/contract.tolk',
   },
   // MCMS contracts
@@ -149,7 +149,7 @@ const CONTRACTS: ContractSource[] = [
   },
   {
     contractType: 'link.chain.ton.ccip.test.MockAdvancedPoolHooks',
-    compiledFile: 'ccip.test.mockAdvancedPoolHooks.compiled.json',
+    compiledFile: 'MockAdvancedPoolHooks.compiled.json',
     tolkSource: 'contracts/ccip/test/mock_advanced_pool_hooks.tolk',
   },
 ]

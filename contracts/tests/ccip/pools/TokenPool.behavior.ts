@@ -482,9 +482,7 @@ export function runTokenPoolBehaviorTests(
           MockAdvancedPoolHooks.fromStorage(
             { id: 255n },
             {
-              overrideContractCode: await contractCode.ccip.local(
-                'ccip.test.mockAdvancedPoolHooks',
-              ),
+              overrideContractCode: await contractCode.ccip.local('MockAdvancedPoolHooks'),
             },
           ),
         )

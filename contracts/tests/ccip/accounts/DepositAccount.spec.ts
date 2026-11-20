@@ -184,7 +184,7 @@ describe('DepositAccount', () => {
     blockchain = await Blockchain.create()
     code = {
       deployable: await contractCode.ccip.local('Deployable'),
-      depositAccount: await contractCode.ccip.local('ccip.account.DepositAccount'),
+      depositAccount: await contractCode.ccip.local('DepositAccount'),
     }
   })
 

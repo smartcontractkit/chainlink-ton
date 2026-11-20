@@ -174,7 +174,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           initializer: deployer.address,
           rbac: emptyAccessControlData(),
         },
-        { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+        { overrideContractCode: await contractCode.ccip.local('JettonLockBox') },
       ),
     )
     await jettonLockBox.sendDeploy(deployer.getSender(), toNano('3'))
@@ -201,9 +201,7 @@ describe('LockReleaseLockboxTokenPool', () => {
     // Deploy LockReleaseLockboxTokenPool (need pool address for role grant below)
     lockReleaseLockboxPool = blockchain.openContract(
       LockReleaseLockboxTokenPool.fromStorage(createPoolStorage(jettonLockBox.address), {
-        overrideContractCode: await contractCode.ccip.local(
-          'ccip.pool.LockReleaseLockboxTokenPool',
-        ),
+        overrideContractCode: await contractCode.ccip.local('LockReleaseLockboxTokenPool'),
       }),
     )
     await lockReleaseLockboxPool.sendDeploy(deployer.getSender(), toNano('5'))
@@ -436,7 +434,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       MockAdvancedPoolHooks.fromStorage(
         { id: 0n },
         {
-          overrideContractCode: await contractCode.ccip.local('ccip.test.mockAdvancedPoolHooks'),
+          overrideContractCode: await contractCode.ccip.local('MockAdvancedPoolHooks'),
         },
       ),
     )
@@ -638,9 +636,7 @@ describe('LockReleaseLockboxTokenPool', () => {
     it('rejects a zero lockbox address', async () => {
       const zeroLockboxPool = blockchain.openContract(
         LockReleaseLockboxTokenPool.fromStorage(createPoolStorage(ZERO_ADDRESS), {
-          overrideContractCode: await contractCode.ccip.local(
-            'ccip.pool.LockReleaseLockboxTokenPool',
-          ),
+          overrideContractCode: await contractCode.ccip.local('LockReleaseLockboxTokenPool'),
         }),
       )
       await zeroLockboxPool.sendDeploy(deployer.getSender(), toNano('5'))
@@ -1508,7 +1504,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       )
       const deployRes = await deployable.sendInitialize(deployer.getSender(), toNano('0.5'), {
         stateInit: {
-          code: await contractCode.ccip.local('ccip.account.DepositAccount'),
+          code: await contractCode.ccip.local('DepositAccount'),
           data: da.DepositAccount_Data.toCell(
             da.DepositAccount_Data.create({
               owner: deployer.address,

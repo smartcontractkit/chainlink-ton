@@ -115,7 +115,7 @@ describe('BurnMintTokenPool', () => {
 
     cctWalletCode = await contractCode.ccip.local('ccip.cct.JettonWallet')
     const cctMinterCode = await contractCode.ccip.local('ccip.cct.JettonMinter')
-    const burnMintPoolCode = await contractCode.ccip.local('ccip.pool.BurnMintTokenPool')
+    const burnMintPoolCode = await contractCode.ccip.local('BurnMintTokenPool')
     deployableCode = await contractCode.ccip.local('Deployable')
 
     cctMinter = blockchain.openContract(
@@ -327,7 +327,7 @@ describe('BurnMintTokenPool', () => {
     const hooks = blockchain.openContract(
       MockAdvancedPoolHooks.fromStorage(
         { id: 0n },
-        { overrideContractCode: await contractCode.ccip.local('ccip.test.mockAdvancedPoolHooks') },
+        { overrideContractCode: await contractCode.ccip.local('MockAdvancedPoolHooks') },
       ),
     )
     await hooks.sendDeploy(deployer.getSender(), toNano('0.1'))
@@ -372,7 +372,7 @@ describe('BurnMintTokenPool', () => {
     const costlyHooks = blockchain.openContract(
       MockAdvancedPoolHooks.fromStorage(
         { id: 252n },
-        { overrideContractCode: await contractCode.ccip.local('ccip.test.mockAdvancedPoolHooks') },
+        { overrideContractCode: await contractCode.ccip.local('MockAdvancedPoolHooks') },
       ),
     )
     await costlyHooks.sendDeploy(deployer.getSender(), toNano('0.1'))
@@ -820,7 +820,7 @@ describe('BurnMintTokenPool', () => {
     )
     const deployRes = await deployable.sendInitialize(deployer.getSender(), toNano('0.5'), {
       stateInit: {
-        code: await contractCode.ccip.local('ccip.account.DepositAccount'),
+        code: await contractCode.ccip.local('DepositAccount'),
         data: da.DepositAccount_Data.toCell(
           da.DepositAccount_Data.create({
             owner: deployer.address,

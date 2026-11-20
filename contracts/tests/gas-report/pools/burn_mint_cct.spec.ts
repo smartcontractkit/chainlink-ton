@@ -30,7 +30,7 @@ runTokenPoolGasCalibration({
   setup: async (blockchain: Blockchain, deployer: SandboxContract<TreasuryContract>) => {
     const cctWalletCode = await contractCode.ccip.local('ccip.cct.JettonWallet')
     const cctMinterCode = await contractCode.ccip.local('ccip.cct.JettonMinter')
-    const burnMintPoolCode = await contractCode.ccip.local('ccip.pool.BurnMintTokenPool')
+    const burnMintPoolCode = await contractCode.ccip.local('BurnMintTokenPool')
 
     const cctMinter = blockchain.openContract(
       cct.JettonMinter.fromStorage(

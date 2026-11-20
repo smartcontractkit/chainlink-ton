@@ -17,7 +17,7 @@ describe('lisp_list generated wrapper compatibility', () => {
   it('round-trips a non-empty lisp_list encoded by Tolk', async () => {
     const blockchain = await Blockchain.create()
     const deployer = await blockchain.treasury('deployer')
-    const code = await contractCode.ccip.local('tests.examples.LispList')
+    const code = await contractCode.ccip.local('TestLispList')
     const contract = blockchain.openContract(LispListContract.create(code))
 
     await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
