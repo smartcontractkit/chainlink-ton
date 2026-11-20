@@ -510,9 +510,6 @@ enum MCMS_Error {
 
 // --- Constants - storage ---
 
-/// Prefix of a rich bounce body (see `RichBounceBody` in the Tolk stdlib).
-const RICH_BOUNCE_PREFIX = 0xfffffffe;
-
 // --- Data structures ---
 
 // Signer information
@@ -1586,18 +1583,10 @@ fun onBouncedMessage(in: InMessageBounced) {
     // Note: make sure opFinalizationTimeout is a large enough value to avoid races here.
     // Check the bounced message against the stored pending operation. If the bounce matches the currently
     // pending op treat it as a retry signal. Otherwise, expire the root based on conditions below.
-    val isRichBounce = in.bouncedBody.preloadUint(32) == RICH_BOUNCE_PREFIX;
-    var body = in.bouncedBody;
-    var bouncedCreatedLt: uint64 = 0;
-    if (isRichBounce) {
-        val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
-        body = rich.originalBody.beginParse();
-        bouncedCreatedLt = rich.originalInfo.load().createdLt;
-    } else {
-        // All op messages are sent with a rich bounce. A non-rich bounce cannot be
-        // attributed safely, so treat it as mismatched and expire the root.
-        body = body.skipBouncedPrefix();
-    }
+    // MCMS sends op messages with rich bounces only.
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val body = rich.originalBody.beginParse();
+    val bouncedCreatedLt = rich.originalInfo.load().createdLt;
 
     var opcode: uint32? = null;
     if (body.remainingBitsCount() >= 32) {
@@ -1608,7 +1597,6 @@ fun onBouncedMessage(in: InMessageBounced) {
     val nonce = rootInfo.expiringRootAndOpCount.opCount;
 
     val matchesPendingOp = true
-        && isRichBounce
         && blockchain.now() <= opPendingInfo.validAfter
         && opPendingInfo.opPendingReceiver != null
         && opPendingInfo.opPendingReceiver! == in.senderAddress

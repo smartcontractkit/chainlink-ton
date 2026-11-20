@@ -530,42 +530,6 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     })
   })
 
-  it('expires the root on an unexpected non-rich bounce', async () => {
-    const finalizationTimeout = 200
-    await baseTest.executeOperationsUpTo(1, finalizationTimeout)
-    expect(await baseTest.bind.mcms.getOpCount()).toEqual(1n)
-
-    const opData = baseTest.testOps[0].data
-    const bits = Math.min(256, opData.bits.length)
-    const shortBody = beginCell()
-      .storeUint(0xffffffff, 32)
-      .storeBits(opData.beginParse().loadBits(bits))
-      .endCell()
-
-    const result = await baseTest.blockchain.sendMessage(
-      internal({
-        from: baseTest.bind.counter.address,
-        to: baseTest.bind.mcms.address,
-        value: toNano('0.1'),
-        bounced: true,
-        body: shortBody,
-      }),
-    )
-
-    expect(result.transactions).toHaveTransaction({
-      from: baseTest.bind.counter.address,
-      to: baseTest.bind.mcms.address,
-      success: true,
-    })
-    expectBounceHandledOpcode(result, opData.beginParse().preloadUint(32))
-
-    // Non-rich bounces are not attributable, so they expire the root instead of
-    // rolling back opCount.
-    expect(await baseTest.bind.mcms.getOpCount()).toEqual(1n)
-    const [, validUntil] = await baseTest.bind.mcms.getRoot()
-    expect(validUntil).toEqual(BigInt(baseTest.blockchain.now!) - 1n)
-  })
-
   function expectBounceHandledOpcode(result: SendMessageResult, expected: number) {
     const event = result.externals.find(
       (e) =>
