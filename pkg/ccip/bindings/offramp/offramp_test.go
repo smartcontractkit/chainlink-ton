@@ -12,6 +12,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 func TestCommit_EncodingAndDecoding(t *testing.T) {
@@ -146,7 +147,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		SourceChainSelector: 1,
 		Message:             rampMessage,
 		OffChainTokenData:   common.LispList[common.LispList[common.SnakeBytes]]{},
-		Proofs:              common.SnakedCell[common.Proof]{{Value: big.NewInt(0)}, {Value: big.NewInt(0)}},
+		Proofs:              common.SnakedCell[common.Proof]{{Value: &tlbe.Uint256{}}, {Value: &tlbe.Uint256{}}},
 		ProofFlagBits:       big.NewInt(0),
 	}
 

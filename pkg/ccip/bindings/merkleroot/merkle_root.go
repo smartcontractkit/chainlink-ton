@@ -5,11 +5,12 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
 type Storage struct {
-	Root                  *big.Int         `tlb:"## 256"`
+	Root                  *tlbe.Uint256    `tlb:"."`
 	Owner                 *address.Address `tlb:"addr"`
 	Timestamp             uint64           `tlb:"## 64"`
 	MinMsgNr              uint64           `tlb:"## 64"`

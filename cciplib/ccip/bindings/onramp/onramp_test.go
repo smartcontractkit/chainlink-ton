@@ -15,6 +15,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 )
 
 func TestTopicCRC32Values(t *testing.T) {
@@ -348,7 +349,7 @@ func TestExecutorFinishedWithErrorLayout(t *testing.T) {
 		var decoded ExecutorFinishedWithError
 		require.NoError(t, tlb.Parse(&decoded, packed))
 		require.Equal(t, uint64(7), decoded.QueryID)
-		require.Equal(t, int64(42), decoded.ExecutorID.Int64())
+		require.Equal(t, *tlbe.NewUint224(big.NewInt(42)), *decoded.ExecutorID)
 		require.Equal(t, uint64(5009297550715157269), decoded.DestChainSelector)
 		require.True(t, decoded.Sender.Equals(sender))
 		require.Equal(t, int32(-14), decoded.ErrorCode)
@@ -408,7 +409,7 @@ func TestExecutorFinishedSuccessfullyLayout(t *testing.T) {
 
 		var decoded ExecutorFinishedSuccessfully
 		require.NoError(t, tlb.Parse(&decoded, packed))
-		require.Equal(t, int64(42), decoded.ExecutorID.Int64())
+		require.Equal(t, *tlbe.NewUint224(big.NewInt(42)), *decoded.ExecutorID)
 		require.Equal(t, uint64(5_000), decoded.Fee.FeeTokenAmount.Nano().Uint64())
 		require.Equal(t, int64(6_000), decoded.Fee.FeeValueJuels.Int64())
 		require.Equal(t, ccipSend.Hash(), decoded.Msg.Hash())

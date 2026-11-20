@@ -370,7 +370,7 @@ type ApplyTokenTransferFeeConfigUpdates struct {
 
 // Subject is a wrapper for uint128 to support SnakedCell encoding.
 type Subject struct {
-	Value *big.Int `tlb:"## 128"`
+	Value *tlbe.Uint128 `tlb:"."`
 }
 
 // Curse adds the given subjects to the pool-local curse policy. The sender must

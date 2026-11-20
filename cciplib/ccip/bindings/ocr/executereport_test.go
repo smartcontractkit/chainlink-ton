@@ -10,6 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
@@ -121,7 +122,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		SourceChainSelector: 1,
 		Message:             rampMessageSlice,
 		OffChainTokenData:   common.LispList[common.LispList[common.SnakeBytes]]{},
-		Proofs:              common.SnakedCell[common.Proof]{{Value: big.NewInt(0)}, {Value: big.NewInt(0)}},
+		Proofs:              common.SnakedCell[common.Proof]{{Value: &tlbe.Uint256{}}, {Value: &tlbe.Uint256{}}},
 		ProofFlagBits:       big.NewInt(0),
 	}
 

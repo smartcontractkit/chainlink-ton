@@ -19,6 +19,7 @@ import (
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
@@ -375,7 +376,7 @@ func (a *TonCurseAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.O
 			// Convert api.CurseInput.Subjects ([]Subject) to []router.Subject
 			subjects := make([]router.Subject, len(in.Subjects))
 			for i, subject := range in.Subjects {
-				subjects[i] = router.Subject{Value: new(big.Int).SetBytes(subject[:])}
+				subjects[i] = router.Subject{Value: &tlbe.Uint128{F: subject}}
 			}
 
 			// Create uncurse message
@@ -459,7 +460,7 @@ func (a *TonCurseAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences
 			// Convert api.CurseInput.Subjects ([]Subject) to []router.Subject
 			subjects := make([]router.Subject, len(in.Subjects))
 			for i, subject := range in.Subjects {
-				subjects[i] = router.Subject{Value: new(big.Int).SetBytes(subject[:])}
+				subjects[i] = router.Subject{Value: &tlbe.Uint128{F: subject}}
 			}
 
 			// Create uncurse message

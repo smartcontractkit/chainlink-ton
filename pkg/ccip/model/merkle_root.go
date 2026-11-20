@@ -1,6 +1,8 @@
 package model
 
 import (
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -130,10 +132,10 @@ func (b *MerkleRootStorageBuilder) Build() (*MerkleRootStorage, error) {
 }
 
 func (s *MerkleRootStorage) FromBinding(raw *merkleroot.Storage) error {
-	root, err := bigIntToHex(raw.Root, 32)
-	if err != nil {
-		return err
+	if raw.Root == nil {
+		return errors.New("nil merkle root")
 	}
+	root := hex.EncodeToString(raw.Root.F[:])
 
 	b := NewMerkleRootStorageBuilder().
 		WithRoot(root).
@@ -201,7 +203,7 @@ func (s *MerkleRootStorage) FromBinding(raw *merkleroot.Storage) error {
 }
 
 func (s *MerkleRootStorage) ToBinding() (*merkleroot.Storage, error) {
-	root, err := hexToBigInt(s.Root)
+	root, err := hexToUint256(s.Root)
 	if err != nil {
 		return nil, err
 	}

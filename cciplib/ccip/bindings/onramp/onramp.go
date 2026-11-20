@@ -12,6 +12,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 )
 
@@ -148,7 +149,7 @@ type Metadata struct {
 
 type ExecutorFinishedSuccessfully struct {
 	_          tlb.Magic     `tlb:"#CFA6B336" json:"-"` //nolint:revive // Ignore opcode tag
-	ExecutorID *big.Int      `tlb:"## 224"`
+	ExecutorID *tlbe.Uint224 `tlb:"."`
 	Fee        feequoter.Fee `tlb:"."` // Fee amount
 	Msg        *cell.Cell    `tlb:"^"` // Original CCIPSend message
 	Metadata   Metadata      `tlb:"."` // Metadata
@@ -181,7 +182,7 @@ type LockOrBurnOutV1 struct {
 type ExecutorFinishedWithError struct {
 	_                 tlb.Magic        `tlb:"#C4068E21" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID           uint64           `tlb:"## 64"`
-	ExecutorID        *big.Int         `tlb:"## 224"`
+	ExecutorID        *tlbe.Uint224    `tlb:"."`
 	DestChainSelector uint64           `tlb:"## 64"`
 	Sender            *address.Address `tlb:"addr"`
 	ErrorCode         int32            `tlb:"## 32"` // TVM exit code (signed)

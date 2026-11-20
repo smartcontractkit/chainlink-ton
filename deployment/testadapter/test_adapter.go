@@ -41,6 +41,7 @@ import (
 	cciplibonramp "github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/hash"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
@@ -971,7 +972,7 @@ func (a *TONAdapter) RMNCursed(t *testing.T, chainSelector uint64, cursed bool) 
 	}
 	subjects := common.SnakedCell[router.Subject]{
 		router.Subject{
-			Value: new(big.Int).SetUint64(chainSelector),
+			Value: tlbe.NewUint128(new(big.Int).SetUint64(chainSelector)),
 		},
 	}
 
