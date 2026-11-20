@@ -79,7 +79,6 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 	if (ocrConfig == null) {
 		ocrConfig = newOCRConfig();
 	} 
-	ocrConfig = ocrConfig;
 
 	// If F is 0, then the config is not yet set.
 	if (ocrConfig.configInfo.bigF == 0) {
@@ -132,9 +131,8 @@ fun OCR3Base.transmit(
     report: cell,
     signatures: SnakedCell<SignatureEd25519>,
 ) {
-    var ocrConfig = self.getConfig(ocrPluginType);
+    val ocrConfig = self.getConfig(ocrPluginType);
     assert (ocrConfig != null) throw (MultiOCR3Base_Error.NonExistentOcrPluginType);
-    ocrConfig = ocrConfig;
     val configInfo: ConfigInfo = ocrConfig.configInfo;
     
     // EVM checks transaction data length here, it's probably too expensive to do this in TON 
