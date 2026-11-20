@@ -14,10 +14,10 @@ import (
 	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	ocrbindings "github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ocr"
-	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/test_logger"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/balance"
@@ -25,6 +25,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/ocr"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
 	tonchainpkg "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
+	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 
@@ -65,7 +66,8 @@ func TestTransmitterLocal(t *testing.T) {
 			accounts := make([]connection, count)
 
 			for i := range count {
-				w, err := tvm.NewRandomV5R1TestWallet(tonChain.Client, -217)
+				// the TXM requires the relayer's HighloadV3 wallet
+				w, err := wallet.FromSeedWithOptions(tonChain.Client, wallet.NewSeed(), tonconfig.WalletVersion)
 				require.NoError(t, err)
 
 				// Each account gets its own independent client connection so that

@@ -2,8 +2,15 @@ package config
 
 import (
 	"context"
+	"crypto/ed25519"
 	"sync"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 func TestMessageBuilderQueryIDStaysBelowMax(t *testing.T) {
@@ -60,4 +67,37 @@ func TestMessageBuilderConcurrentIDsAreDistinct(t *testing.T) {
 		}
 		seen[id] = struct{}{}
 	}
+}
+
+func TestHighloadV3MessageWindow(t *testing.T) {
+	t.Parallel()
+	const createdAt int64 = 1_700_000_000
+	const ttl = 77
+
+	_, key, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+	w, err := wallet.FromPrivateKeyWithOptions(key, wallet.ConfigHighloadV3{
+		MessageTTL: ttl,
+		MessageBuilder: func(context.Context, uint32) (uint32, int64, error) {
+			return 42, createdAt, nil
+		},
+	})
+	require.NoError(t, err)
+	msg := &wallet.Message{
+		Mode:            wallet.PayGasSeparately,
+		InternalMessage: &tlb.InternalMessage{DstAddr: w.WalletAddress(), Amount: tlb.MustFromTON("0.1")},
+	}
+
+	for _, withStateInit := range []bool{false, true} {
+		ext, prepareErr := w.PrepareExternalMessageForMany(t.Context(), withStateInit, []*wallet.Message{msg})
+		require.NoError(t, prepareErr)
+
+		gotCreatedAt, gotExpiresAt, windowErr := HighloadV3MessageWindow(ext)
+		require.NoError(t, windowErr)
+		require.Equal(t, time.Unix(createdAt, 0), gotCreatedAt)
+		require.Equal(t, time.Unix(createdAt+ttl, 0), gotExpiresAt)
+	}
+
+	_, _, err = HighloadV3MessageWindow(&tlb.ExternalMessage{Body: cell.BeginCell().EndCell()})
+	require.Error(t, err)
 }
