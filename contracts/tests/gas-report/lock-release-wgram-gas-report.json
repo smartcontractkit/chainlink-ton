@@ -1,7 +1,7 @@
 [
   {
     "label": "current",
-    "createdAt": "2026-11-21T15:33:39.050Z",
+    "createdAt": "2026-11-21T15:58:01.217Z",
     "result": {
       "JettonMinter": {
         "sendTopUpTons": {
@@ -197,11 +197,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "403"
+            "value": "402"
           },
           "bits": {
             "kind": "init",
-            "value": "211772"
+            "value": "211180"
           }
         },
         "send": {
@@ -211,11 +211,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "403"
+            "value": "402"
           },
           "bits": {
             "kind": "init",
-            "value": "211772"
+            "value": "211180"
           }
         },
         "sendTokenPoolInit": {
@@ -225,11 +225,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "403"
+            "value": "402"
           },
           "bits": {
             "kind": "init",
-            "value": "211772"
+            "value": "211180"
           }
         },
         "0xf5e23895": {
@@ -239,11 +239,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "403"
+            "value": "402"
           },
           "bits": {
             "kind": "init",
-            "value": "211772"
+            "value": "211180"
           }
         },
         "0xf25b3b9a": {
@@ -253,11 +253,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "403"
+            "value": "402"
           },
           "bits": {
             "kind": "init",
-            "value": "211772"
+            "value": "211180"
           }
         }
       },
@@ -269,11 +269,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "403"
+            "value": "402"
           },
           "bits": {
             "kind": "init",
-            "value": "211772"
+            "value": "211180"
           }
         },
         "sendTokenPoolApplyChainUpdates": {
@@ -283,11 +283,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "411"
+            "value": "410"
           },
           "bits": {
             "kind": "init",
-            "value": "213131"
+            "value": "212539"
           }
         },
         "0x56f73d37": {
@@ -297,11 +297,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "411"
+            "value": "410"
           },
           "bits": {
             "kind": "init",
-            "value": "213131"
+            "value": "212539"
           }
         },
         "0xad7833d7": {
@@ -311,11 +311,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "411"
+            "value": "410"
           },
           "bits": {
             "kind": "init",
-            "value": "213131"
+            "value": "212539"
           }
         },
         "sendTokenPoolLockOrBurn": {
@@ -325,11 +325,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "413"
+            "value": "412"
           },
           "bits": {
             "kind": "init",
-            "value": "213588"
+            "value": "212996"
           }
         },
         "0xfa7da444": {
@@ -339,11 +339,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "413"
+            "value": "412"
           },
           "bits": {
             "kind": "init",
-            "value": "213588"
+            "value": "212996"
           }
         },
         "0xe7a35041": {
@@ -353,11 +353,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "413"
+            "value": "412"
           },
           "bits": {
             "kind": "init",
-            "value": "213588"
+            "value": "212996"
           }
         },
         "sendTokenPoolReleaseOrMint": {
@@ -367,11 +367,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "412"
+            "value": "411"
           },
           "bits": {
             "kind": "init",
-            "value": "213548"
+            "value": "212956"
           }
         },
         "0x351f77e3": {
@@ -381,11 +381,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "412"
+            "value": "411"
           },
           "bits": {
             "kind": "init",
-            "value": "213548"
+            "value": "212956"
           }
         },
         "0xd065c306": {
@@ -395,11 +395,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "412"
+            "value": "411"
           },
           "bits": {
             "kind": "init",
-            "value": "213548"
+            "value": "212956"
           }
         },
         "0xf8a7ea5": {
@@ -409,11 +409,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "412"
+            "value": "411"
           },
           "bits": {
             "kind": "init",
-            "value": "213548"
+            "value": "212956"
           }
         },
         "0x178d4519": {
@@ -423,11 +423,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "412"
+            "value": "411"
           },
           "bits": {
             "kind": "init",
-            "value": "213548"
+            "value": "212956"
           }
         },
         "0x7362d09c": {
@@ -437,11 +437,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "412"
+            "value": "411"
           },
           "bits": {
             "kind": "init",
-            "value": "213548"
+            "value": "212956"
           }
         },
         "0xd53276db": {
@@ -451,11 +451,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "412"
+            "value": "411"
           },
           "bits": {
             "kind": "init",
-            "value": "213548"
+            "value": "212956"
           }
         }
       },

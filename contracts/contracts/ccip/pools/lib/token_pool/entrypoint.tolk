@@ -1727,7 +1727,6 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     msg: TransferNotificationForRecipient,
 ): void {
     if (self.hooks != null && self.hooks.onLockOrBurnTransfer != null) {
-        self.requireInitialized();
         self.context = self.hooks.onLockOrBurnTransfer(self.context!, sender, msg);
 
         return;

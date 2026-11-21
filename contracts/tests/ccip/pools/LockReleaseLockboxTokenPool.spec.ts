@@ -829,7 +829,6 @@ describe('LockReleaseLockboxTokenPool', () => {
         from: uninitializedLockbox.address,
         to: pool.address,
         inMessageBounced: true,
-        success: true,
       })
       expect(await pool.getIsInitialized()).toBe(false)
     })
