@@ -141,6 +141,8 @@ export async function deployTokenWithPool(opts: {
     deploy: true,
     success: true,
   })
+  await pool.sendTokenPoolInit(deployer.getSender(), toNano('0.1'), { queryId: 0n })
+  expect(await pool.getIsInitialized()).toBe(true)
 
   if (kind === 'BurnMint') {
     await minter.sendChangeMinterAdmin(deployer.getSender(), toNano('0.2'), {

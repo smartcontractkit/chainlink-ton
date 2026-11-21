@@ -205,15 +205,14 @@ fun onLockOrBurnTransferContinue(
 }
 
 fun onReleaseOrMintContinue(
-    ctx: Storage?,
+    st: Storage?,
     _sender: address,
     initiator: address,
     msgValue: coins,
     msg: TokenPool_ReleaseOrMint,
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
-    assert (ctx != null) throw (TokenPool_Error.UnsupportedOperation);
-    val st = ctx;
+    assert (st != null) throw (TokenPool_Error.UnsupportedOperation);
     val delivery = msg.delivery.load();
     val forwardPayload = TokenPool_ReleaseOrMintForwardPayload {
         initiator,
@@ -357,6 +356,10 @@ fun Storage.TokenPool(self): TokenPool<Storage> {
 
 get fun getAccruedFees(): coins {
     return Storage.load().TokenPool().getAccruedFees();
+}
+
+get fun isInitialized(): bool {
+    return Storage.load().TokenPool().isInitialized();
 }
 
 get fun typeAndVersion(): (slice, slice) {

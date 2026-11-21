@@ -576,18 +576,33 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to grant lockbox OPERATOR_ROLE to pool: %w", err)
 			}
 
-			addrRef, err := operation.InvokeDeployContractOperation(
+			poolInitQueryID, err := ton_tvm.RandomQueryID()
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to generate token pool init query id: %w", err)
+			}
+			poolInitBody, err := tlb.ToCell(tokenpool.Init{QueryID: poolInitQueryID})
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to pack token pool init body: %w", err)
+			}
+			deployResult, err := operation.InvokeDeployContractOperationWithTrace(
 				b,
 				dp,
 				input.ChainSelector,
 				compiled,
 				storage,
-				nil,
+				poolInitBody,
 				defaultJettonDeployCoin,
 			)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy lock-release token pool: %w", err)
 			}
+			if deployResult.TraceExitCode != ton_tvm.ExitCodeSuccess {
+				return sequences.OnChainOutput{}, fmt.Errorf(
+					"token pool %s did not initialize: lockbox %s handshake failed (trace exit code %d: %s)",
+					poolAddr.String(), lockBoxAddr.String(), deployResult.TraceExitCode, deployResult.TraceExitCode.Describe(),
+				)
+			}
+			addrRef := deployResult.AddressRef
 
 			// Surface the lockbox alongside the pool so callers can fund/upgrade it.
 			if lockBoxAddrRef != nil {

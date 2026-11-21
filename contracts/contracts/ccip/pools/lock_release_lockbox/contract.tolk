@@ -6,6 +6,7 @@ import "../../../lib/access/access_control"
 import "../../../lib/access/ownable_2step"
 import "../../../lib/jetton/messages"
 import "../../../lib/jetton/jetton_client"
+import "../../../lib/jetton/jetton-utils"
 import "../../../lib/jetton/forward_payload_wrap"
 import "../../../lib/versioning/upgradeable"
 import "../../lib/cross_chain_address/types"
@@ -84,6 +85,10 @@ fun onInternalMessage(in: InMessage): void {
         }
         JettonLockBox_WithdrawFailed => {
             onWithdrawFailed(mutate st, in.senderAddress, in.valueCoins, msg);
+            st.store();
+        }
+        JettonLockBox_Info => {
+            onLockboxInfo(mutate st, in.senderAddress, msg);
             st.store();
         }
         ReturnExcessesBack => {
@@ -333,15 +338,14 @@ fun onLockboxTransferBounced(
  */
 
 fun onReleaseOrMintContinue(
-    ctx: Storage?,
+    st: Storage?,
     sender: address,
     initiator: address,
     _msgValue: coins,
     msg: TokenPool_ReleaseOrMint,
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
-    assert (ctx != null) throw (TokenPool_Error.UnsupportedOperation);
-    val st = ctx;
+    assert (st != null) throw (TokenPool_Error.UnsupportedOperation);
     assert(!isZeroAddress(st.lockbox)) throw (LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
 
     // Caller-selected excess recipient; default to the flow initiator.
@@ -453,6 +457,41 @@ fun recoverReleaseFromLockboxWithdraw(
     st.poolData = pool.data.toCell();
 }
 
+/* === Init === */
+
+/// Defers pool initialization until the lockbox confirms it holds the pool's token, uses the
+/// wallet derived from (lockbox, token, walletCode), and grants the pool OPERATOR_ROLE.
+fun onInit(st: Storage, _sender: address, _msgValue: coins, msg: TokenPool_Init): (Storage, bool) {
+    assert (!isZeroAddress(st.lockbox)) throw (LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
+
+    createMessage({
+        bounce: BounceMode.Only256BitsOfBody,
+        value: 0,
+        dest: st.lockbox,
+        body: JettonLockBox_GetInfo { queryId: msg.queryId },
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+
+    return (st, true); // deferred until JettonLockBox_Info arrives
+}
+
+/// Accepts the lockbox probe result. Only the configured lockbox may answer, and the answer must
+/// match the pool's token, derived wallet, and operator role.
+fun onLockboxInfo(mutate st: Storage, sender: address, msg: JettonLockBox_Info) {
+    assert (sender == st.lockbox) throw (LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
+
+    val jc = st.poolData.load().jettonClient();
+    val expectedWallet = calcAddressOfJettonWallet(st.lockbox, jc.masterAddress, jc.jettonWalletCode);
+    assert (
+        msg.token == jc.masterAddress
+        && msg.wallet == expectedWallet
+        && msg.isOperator
+    ) throw (LockReleaseLockBoxTokenPool_Error.LockboxVerificationFailed);
+
+    var pool = st.TokenPool();
+    pool.markInitialized();
+    st.poolData = pool.data.toCell();
+}
+
 /* === Pool loader === */
 
 fun defaultBudget(_ctx: Storage?): TokenPool_Budget {
@@ -470,6 +509,7 @@ fun Storage.TokenPool(self): TokenPool<Storage> {
         data: self.poolData.load(),
         context: self,
         hooks: TokenPool_Hooks<Storage> {
+            onInit,
             onLockOrBurnTransferContinue,
             onReleaseOrMintContinue,
             defaultBudget,
@@ -482,6 +522,10 @@ fun Storage.TokenPool(self): TokenPool<Storage> {
 
 get fun getAccruedFees(): coins {
     return Storage.load().TokenPool().getAccruedFees();
+}
+
+get fun isInitialized(): bool {
+    return Storage.load().TokenPool().isInitialized();
 }
 
 get fun typeAndVersion(): (slice, slice) {

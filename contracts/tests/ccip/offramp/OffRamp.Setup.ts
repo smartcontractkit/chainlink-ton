@@ -1030,6 +1030,8 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
       success: true,
       deploy: true,
     })
+    await tokenPool.sendTokenPoolInit(this.deployer.getSender(), toNano('0.1'), { queryId: 0n })
+    expect(await tokenPool.getIsInitialized()).toBe(true)
 
     const chainUpdateResult = await tokenPool.sendTokenPoolApplyChainUpdates(
       this.deployer.getSender(),

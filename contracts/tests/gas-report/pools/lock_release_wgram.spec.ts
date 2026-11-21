@@ -123,6 +123,8 @@ runTokenPoolGasCalibration({
       role: OPERATOR_ROLE,
       account: lockReleasePool.address,
     })
+    await lockReleasePool.sendTokenPoolInit(deployer.getSender(), toNano('0.1'), { queryId: 0n })
+    expect(await lockReleasePool.getIsInitialized()).toBe(true)
 
     // wGRAM is GRAM-backed: the mint value must cover the hosted backing plus transfer budget.
     const mintWgram = (destination: Address, jettonAmount: bigint) =>

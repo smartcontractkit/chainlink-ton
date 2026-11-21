@@ -58,6 +58,10 @@ import {
 } from './TokenPool.behavior'
 import { runTokenPoolAsyncHookBehaviorTests } from './TokenPool.asyncHook.behavior'
 import { runTokenPoolWithdrawFeeTokensBehaviorTests } from './TokenPool.withdrawFeeTokens.behavior'
+import {
+  TokenPoolPreInitBehaviorContext,
+  runTokenPoolPreInitBehaviorTests,
+} from './TokenPool.init.behavior'
 import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
 import { runTokenPoolContinuationBehaviorTests } from './TokenPool.continuation.behavior'
 import { runTokenPoolMinValueBehaviorTests } from './TokenPool.minValue.behavior'
@@ -92,6 +96,43 @@ describe('BurnMintTokenPool', () => {
   let deployableCode: Cell
 
   let userWallet: (address: Address) => Promise<SandboxContract<JettonWallet>>
+
+  function createBurnMintPool(
+    tokenDecimals: bigint,
+    code: Cell,
+  ): SandboxContract<BurnMintTokenPool> {
+    return blockchain.openContract(
+      BurnMintTokenPool.fromStorage(
+        {
+          poolData: TokenPool_Data.create({
+            adminConfig: TokenPool_AdminConfig.create({
+              ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
+              dynamicConfig: TokenPool_DynamicConfig.create({
+                router: deployer.address,
+                rateLimitAdmin: null,
+                feeAdmin: null,
+              }),
+              allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
+              jettonClient: JettonClient.create({
+                masterAddress: cctMinter.address,
+                jettonWalletCode: cctWalletCode,
+              }),
+              allowedFinalityConfig: 0n,
+              advancedPoolHooks: null,
+            }),
+            localPolicy: TokenPool_LocalPolicy.create({
+              cursePolicy: createEmptyCursePolicy(deployer.address),
+            }),
+            tokenDecimals,
+            remoteChainConfigs: new Map(),
+            tokenTransferFeeConfigs: new Map(),
+            accruedFees: 0n,
+          }),
+        },
+        { overrideContractCode: code },
+      ),
+    )
+  }
 
   const remoteChainSelector = 91000001n
 
@@ -133,38 +174,10 @@ describe('BurnMintTokenPool', () => {
     await cctMinter.sendDeploy(deployer.getSender(), toNano('1'))
     cctMinterRuntime = blockchain.openContract(JettonMinter.createFromAddress(cctMinter.address))
 
-    burnMintPool = blockchain.openContract(
-      BurnMintTokenPool.fromStorage(
-        {
-          poolData: TokenPool_Data.create({
-            adminConfig: TokenPool_AdminConfig.create({
-              ownable: Ownable2Step.create({ owner: deployer.address, pendingOwner: null }),
-              dynamicConfig: TokenPool_DynamicConfig.create({
-                router: deployer.address,
-                rateLimitAdmin: null,
-                feeAdmin: null,
-              }),
-              allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
-              jettonClient: JettonClient.create({
-                masterAddress: cctMinter.address,
-                jettonWalletCode: cctWalletCode,
-              }),
-              allowedFinalityConfig: 0n,
-              advancedPoolHooks: null,
-            }),
-            localPolicy: TokenPool_LocalPolicy.create({
-              cursePolicy: createEmptyCursePolicy(deployer.address),
-            }),
-            tokenDecimals: 9n,
-            remoteChainConfigs: new Map(),
-            tokenTransferFeeConfigs: new Map(),
-            accruedFees: 0n,
-          }),
-        },
-        { overrideContractCode: burnMintPoolCode },
-      ),
-    )
+    burnMintPool = createBurnMintPool(9n, burnMintPoolCode)
     await burnMintPool.sendDeploy(deployer.getSender(), toNano('2'))
+    await burnMintPool.sendTokenPoolInit(deployer.getSender(), toNano('0.1'), { queryId: 0n })
+    expect(await burnMintPool.getIsInitialized()).toBe(true)
 
     // Standard TokenPool interface
     pool = blockchain.openContract(TokenPool.fromAddress(burnMintPool.address))
@@ -274,6 +287,32 @@ describe('BurnMintTokenPool', () => {
       )
     }
   })
+
+  runTokenPoolPreInitBehaviorTests(
+    'BurnMintTokenPool',
+    async (): Promise<TokenPoolPreInitBehaviorContext> => {
+      const uninitialized = createBurnMintPool(
+        8n,
+        await contractCode.ccip.local('BurnMintTokenPool'),
+      )
+      await uninitialized.sendDeploy(deployer.getSender(), toNano('2'))
+
+      return {
+        pool: blockchain.openContract(TokenPool.fromAddress(uninitialized.address)),
+        blockchain,
+        deployer,
+        offRamp,
+        unauthorized,
+        recipient,
+        onRampAddress: deployer.address,
+        remoteChainSelector,
+        destTokenAddress,
+        sourcePoolAddress,
+        localToken: cctMinter.address,
+        deployerWallet: await userWallet(deployer.address),
+      }
+    },
+  )
 
   runTokenPoolBehaviorTests('BurnMintTokenPool', async () => ({
     pool,

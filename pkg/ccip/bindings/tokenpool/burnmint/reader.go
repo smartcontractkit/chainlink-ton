@@ -36,6 +36,7 @@ var (
 	GetFee                     = tokenpool.GetFee
 	GetCCVAmount               = tokenpool.GetCCVAmount
 	GetAccruedFees             = tokenpool.GetAccruedFees
+	GetIsInitialized           = tokenpool.GetIsInitialized
 )
 
 // --- Re-export argument types for convenience ---
