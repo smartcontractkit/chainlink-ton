@@ -996,7 +996,7 @@ describe('JettonLockBox', () => {
             initializer: deployer.address,
             rbac: emptyAccessControlData(),
           },
-          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+          { overrideContractCode: await contractCode.ccip.local('JettonLockBox') },
         ),
       )
       await mismatchedLockbox.sendDeploy(deployer.getSender(), toNano('3'))

@@ -632,7 +632,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           createPoolStorage(jettonLockBox.address, owner.address),
           {
             overrideContractCode: await contractCode.ccip.local(
-              'ccip.pool.LockReleaseLockboxTokenPool',
+              'LockReleaseLockboxTokenPool',
             ),
           },
         ),
@@ -658,7 +658,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           createPoolStorage(jettonLockBox.address, owner.address),
           {
             overrideContractCode: await contractCode.ccip.local(
-              'ccip.pool.LockReleaseLockboxTokenPool',
+              'LockReleaseLockboxTokenPool',
             ),
           },
         ),
@@ -695,7 +695,7 @@ describe('LockReleaseLockboxTokenPool', () => {
             initializer: deployer.address,
             rbac: emptyAccessControlData(),
           },
-          { overrideContractCode: await contractCode.ccip.local('ccip.pool.JettonLockBox') },
+          { overrideContractCode: await contractCode.ccip.local('JettonLockBox') },
         ),
       )
       await wrongLockbox.sendDeploy(deployer.getSender(), toNano('3'))
@@ -710,7 +710,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       const pool = blockchain.openContract(
         LockReleaseLockboxTokenPool.fromStorage(createPoolStorage(wrongLockbox.address), {
           overrideContractCode: await contractCode.ccip.local(
-            'ccip.pool.LockReleaseLockboxTokenPool',
+            'LockReleaseLockboxTokenPool',
           ),
         }),
       )
@@ -740,7 +740,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           createPoolStorage(jettonLockBox.address, owner.address),
           {
             overrideContractCode: await contractCode.ccip.local(
-              'ccip.pool.LockReleaseLockboxTokenPool',
+              'LockReleaseLockboxTokenPool',
             ),
           },
         ),
