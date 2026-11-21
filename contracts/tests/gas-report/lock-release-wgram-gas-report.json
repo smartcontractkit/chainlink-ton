@@ -1,7 +1,7 @@
 [
   {
     "label": "current",
-    "createdAt": "2026-11-21T13:51:55.197Z",
+    "createdAt": "2026-11-21T14:31:11.524Z",
     "result": {
       "JettonMinter": {
         "sendTopUpTons": {
@@ -101,7 +101,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "36846"
+            "value": "36918"
           }
         },
         "send": {
@@ -115,7 +115,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "36846"
+            "value": "36918"
           }
         },
         "sendJettonLockBoxInit": {
@@ -129,7 +129,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "36846"
+            "value": "36918"
           }
         },
         "0xffa6eeb9": {
@@ -143,7 +143,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "36846"
+            "value": "36918"
           }
         },
         "0xbd7e8bce": {
@@ -157,7 +157,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "36846"
+            "value": "36918"
           }
         },
         "0xcf3ca837": {
@@ -171,7 +171,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "36846"
+            "value": "36918"
           }
         },
         "0xe9f4e311": {
@@ -185,7 +185,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "36846"
+            "value": "36918"
           }
         }
       },
@@ -201,7 +201,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "211252"
+            "value": "211180"
           }
         },
         "send": {
@@ -215,7 +215,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "211252"
+            "value": "211180"
           }
         },
         "sendTokenPoolInit": {
@@ -229,7 +229,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "211252"
+            "value": "211180"
           }
         },
         "0xf5e23895": {
@@ -243,13 +243,13 @@
           },
           "bits": {
             "kind": "init",
-            "value": "211252"
+            "value": "211180"
           }
         },
         "0xf25b3b9a": {
           "gasUsed": {
             "kind": "init",
-            "value": "13583"
+            "value": "13444"
           },
           "cells": {
             "kind": "init",
@@ -257,7 +257,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "211252"
+            "value": "211180"
           }
         }
       },
@@ -265,7 +265,7 @@
         "0xc6ac6ade": {
           "gasUsed": {
             "kind": "init",
-            "value": "6958"
+            "value": "7061"
           },
           "cells": {
             "kind": "init",
@@ -273,7 +273,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "211252"
+            "value": "211180"
           }
         },
         "sendTokenPoolApplyChainUpdates": {
@@ -287,7 +287,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "212611"
+            "value": "212539"
           }
         },
         "0x56f73d37": {
@@ -301,7 +301,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "212611"
+            "value": "212539"
           }
         },
         "0xad7833d7": {
@@ -315,7 +315,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "212611"
+            "value": "212539"
           }
         },
         "sendTokenPoolLockOrBurn": {
@@ -329,7 +329,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "213068"
+            "value": "212996"
           }
         },
         "0xfa7da444": {
@@ -343,7 +343,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "213068"
+            "value": "212996"
           }
         },
         "0xe7a35041": {
@@ -357,7 +357,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "213068"
+            "value": "212996"
           }
         },
         "sendTokenPoolReleaseOrMint": {
@@ -371,7 +371,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "213028"
+            "value": "212956"
           }
         },
         "0x351f77e3": {
@@ -385,7 +385,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "213028"
+            "value": "212956"
           }
         },
         "0xd065c306": {
@@ -399,7 +399,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "213028"
+            "value": "212956"
           }
         },
         "0xf8a7ea5": {
@@ -413,7 +413,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "213028"
+            "value": "212956"
           }
         },
         "0x178d4519": {
@@ -427,7 +427,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "213028"
+            "value": "212956"
           }
         },
         "0x7362d09c": {
@@ -441,7 +441,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "213028"
+            "value": "212956"
           }
         },
         "0xd53276db": {
@@ -455,7 +455,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "213028"
+            "value": "212956"
           }
         }
       },

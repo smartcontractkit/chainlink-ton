@@ -987,6 +987,34 @@ describe('JettonLockBox', () => {
       expect(wallet).toEqualAddress(lockboxWallet.address)
     })
 
+    it('rejects GetInfo before initialization', async () => {
+      const uninitializedLockbox = blockchain.openContract(
+        JettonLockBox.fromStorage(
+          {
+            minterAddress: jettonMinter.address,
+            walletAddress: null,
+            id: 43n,
+            initializer: deployer.address,
+            rbac: emptyAccessControlData(),
+          },
+          { overrideContractCode: await contractCode.ccip.local('JettonLockBox') },
+        ),
+      )
+      await uninitializedLockbox.sendDeploy(deployer.getSender(), toNano('3'))
+
+      const result = await uninitializedLockbox.sendJettonLockBoxGetInfo(
+        deployer.getSender(),
+        toNano('0.05'),
+        { queryId: 43n },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: uninitializedLockbox.address,
+        success: false,
+        exitCode: JettonLockBox.Errors['JettonLockBox_Error.ContractNotInitialized'],
+      })
+    })
+
     it('rejects init whose minter differs from the stateInit commitment', async () => {
       const otherMinter = await deployMinter('other-lockbox-token')
       const mismatchedLockbox = blockchain.openContract(

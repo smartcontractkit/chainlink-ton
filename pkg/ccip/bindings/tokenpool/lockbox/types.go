@@ -114,7 +114,7 @@ type Info struct {
 	_          tlb.Magic        `tlb:"#f25b3b9a" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID    uint64           `tlb:"## 64"`
 	Token      *address.Address `tlb:"addr required"` // The jetton minter held by the lockbox.
-	Wallet     *address.Address `tlb:"addr"`          // The lockbox's jetton wallet.
+	Wallet     *address.Address `tlb:"addr required"` // The lockbox's jetton wallet.
 	IsOperator bool             `tlb:"bool"`          // Whether the probe sender holds OPERATOR_ROLE.
 }
 

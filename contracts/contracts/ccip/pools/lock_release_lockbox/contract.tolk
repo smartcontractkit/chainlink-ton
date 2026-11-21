@@ -483,8 +483,7 @@ fun onLockboxInfo(mutate st: Storage, sender: address, msg: JettonLockBox_Info) 
     val expectedWallet = calcAddressOfJettonWallet(st.lockbox, jc.masterAddress, jc.jettonWalletCode);
     assert (
         msg.token == jc.masterAddress
-        && msg.wallet != null
-        && msg.wallet! == expectedWallet
+        && msg.wallet == expectedWallet
         && msg.isOperator
     ) throw (LockReleaseLockBoxTokenPool_Error.LockboxVerificationFailed);
 

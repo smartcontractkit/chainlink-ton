@@ -73,7 +73,7 @@ struct (0xf25b3b9a) JettonLockBox_Info {
     /// Jetton minter held by this lockbox.
     token: address;
     /// Jetton wallet used by this lockbox.
-    wallet: address?;
+    wallet: address;
     /// Whether the probe sender holds OPERATOR_ROLE on this lockbox.
     isOperator: bool;
 }

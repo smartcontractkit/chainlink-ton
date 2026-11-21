@@ -5850,7 +5850,7 @@ export const JettonLockBox_GetInfo = {
  > struct (0xf25b3b9a) JettonLockBox_Info {
  >     queryId: uint64
  >     token: address
- >     wallet: address?
+ >     wallet: address
  >     isOperator: bool
  > }
  */
@@ -5858,7 +5858,7 @@ export interface JettonLockBox_Info {
     readonly $: 'JettonLockBox_Info'
     queryId: uint64
     token: c.Address
-    wallet: c.Address | null
+    wallet: c.Address
     isOperator: boolean
 }
 
@@ -5868,7 +5868,7 @@ export const JettonLockBox_Info = {
     create(args: {
         queryId?: uint64
         token: c.Address
-        wallet: c.Address | null
+        wallet: c.Address
         isOperator: boolean
     }): JettonLockBox_Info {
         return {
@@ -5883,7 +5883,7 @@ export const JettonLockBox_Info = {
             $: 'JettonLockBox_Info',
             queryId: s.loadUintBig(64),
             token: s.loadAddress(),
-            wallet: s.loadMaybeAddress(),
+            wallet: s.loadAddress(),
             isOperator: s.loadBoolean(),
         }
     },
@@ -6840,7 +6840,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     static createCellOfJettonLockBoxInfo(body: {
         queryId?: uint64
         token: c.Address
-        wallet: c.Address | null
+        wallet: c.Address
         isOperator: boolean
     }) {
         return JettonLockBox_Info.toCell(JettonLockBox_Info.create(body));
@@ -7286,7 +7286,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     async sendJettonLockBoxInfo(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         token: c.Address
-        wallet: c.Address | null
+        wallet: c.Address
         isOperator: boolean
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
