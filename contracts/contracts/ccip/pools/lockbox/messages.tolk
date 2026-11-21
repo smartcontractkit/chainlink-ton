@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 /// JettonLockBox message types for deposit, withdrawal, and initialization.
 
+import "@stdlib/reflection"
+
 import "../../../lib/jetton/messages"
 import "../../../lib/funding/withdrawable"
 import "../../../lib/funding/jetton_withdrawable"
@@ -76,6 +78,21 @@ struct (0xf25b3b9a) JettonLockBox_Info {
     wallet: address;
     /// Whether the probe sender holds OPERATOR_ROLE on this lockbox.
     isOperator: bool;
+}
+
+/// Whether a short bounced body is a `JettonLockBox_GetInfo` probe. The probe fits in the
+/// first 256 bits, so a plain `BounceMode.Only256BitsOfBody` is enough to identify it.
+fun isShortJettonLockBoxGetInfoBounce(bouncedBody: slice): bool {
+    if (bouncedBody.remainingBitsCount() < 64) {
+        return false;
+    }
+    if (bouncedBody.preloadUint(32) != 0xffffffff) {
+        return false;
+    }
+    val originalBody = bouncedBody.skipBouncedPrefix();
+    val (opcode, opcodeBits) = reflect.serializationPrefixOf<JettonLockBox_GetInfo>();
+    return originalBody.remainingBitsCount() >= opcodeBits
+        && originalBody.preloadUint(opcodeBits) == opcode;
 }
 
 /// Bounced message types handled by `onBouncedMessage`.

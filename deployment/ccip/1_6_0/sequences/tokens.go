@@ -598,8 +598,9 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			}
 
 			// The pool defers initialization until the lockbox confirms the token, wallet, and
-			// OPERATOR role. Fail the deployment if that handshake did not complete.
-			initialized, err := ton_tvm.CallGetterLatest(b.GetContext(), chain.Client, poolAddr, tokenpool.GetIsInitialized)
+			// OPERATOR role. The trace only proves the shard receipts; poll until the masterchain
+			// snapshot used by getters includes the handshake result.
+			initialized, err := waitForTokenPoolInitialized(b.GetContext(), chain.Client, poolAddr)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to read token pool init state: %w", err)
 			}
@@ -875,6 +876,41 @@ func applyRemoteChainUpdates(
 }
 
 // disabledRateLimitConfigPair returns a fully-disabled rate limiter pair.
+// waitForTokenPoolInitialized polls the pool getter until the masterchain snapshot includes the
+// initialization result. DeployAndWaitForTrace only waits for shard receipts, which may not yet be
+// reflected in the latest masterchain state used by getters.
+func waitForTokenPoolInitialized(
+	ctx context.Context,
+	client ton.APIClientWrapped,
+	poolAddr *address.Address,
+) (bool, error) {
+	const (
+		timeout  = 20 * time.Second
+		interval = 500 * time.Millisecond
+	)
+	deadline := time.Now().Add(timeout)
+	var lastErr error
+	for {
+		initialized, err := ton_tvm.CallGetterLatest(ctx, client, poolAddr, tokenpool.GetIsInitialized)
+		if err == nil {
+			if initialized {
+				return true, nil
+			}
+			lastErr = nil
+		} else {
+			lastErr = err
+		}
+		if time.Now().After(deadline) {
+			return false, lastErr
+		}
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case <-time.After(interval):
+		}
+	}
+}
+
 func disabledRateLimitConfigPair() tokenpool.RateLimitConfigPair {
 	disabled := tokenpool.RateLimitConfig{
 		IsEnabled: false,

@@ -109,6 +109,13 @@ fun onInternalMessage(in: InMessage): void {
 fun onBouncedMessage(in: InMessageBounced) {
     var st = Storage.load();
 
+    // A rejected init probe returns its unused value. The pool stays uninitialized; the owner
+    // can retry TokenPool_Init.
+    if (isShortJettonLockBoxGetInfoBounce(in.bouncedBody)) {
+        assert (in.senderAddress == st.lockbox) throw (TokenPool_Error.Unauthorized);
+        return;
+    }
+
     // Base library first recovers the messages it emits (GetCCVs query, LockOrBurnWithdraw).
     var basePool = st.TokenPool();
     if (basePool.onBouncedMessage(in.senderAddress, in.valueCoins, in.bouncedBody)) {
@@ -465,7 +472,7 @@ fun onInit(st: Storage, _sender: address, _msgValue: coins, msg: TokenPool_Init)
     assert (!isZeroAddress(st.lockbox)) throw (LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
 
     createMessage({
-        bounce: BounceMode.NoBounce,
+        bounce: BounceMode.Only256BitsOfBody,
         value: 0,
         dest: st.lockbox,
         body: JettonLockBox_GetInfo { queryId: msg.queryId },

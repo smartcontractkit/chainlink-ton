@@ -1726,8 +1726,8 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     msgValue: coins,
     msg: TransferNotificationForRecipient,
 ): void {
-    self.requireInitialized();
     if (self.hooks != null && self.hooks.onLockOrBurnTransfer != null) {
+        self.requireInitialized();
         self.context = self.hooks.onLockOrBurnTransfer(self.context!, sender, msg);
 
         return;
@@ -1739,6 +1739,10 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     assert (self.data.jettonClient().isWallet(sender)) throw (TokenPool_Error.Unauthorized);
 
     try {
+        // The wallet has already credited custody. If the pool is not initialized, fail inside
+        // the recovery try so the tokens are returned instead of being stranded in the wallet.
+        self.requireInitialized();
+
         // Only callable by authorized router-owned deployables (see assertAuthorizedDepositInitiator).
 
         val wrapper = Jetton_ForwardPayloadWrap.from(msg.forwardPayload)!;
