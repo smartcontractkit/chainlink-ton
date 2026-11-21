@@ -1,5 +1,5 @@
 import '@ton/test-utils'
-import { Address, toNano } from '@ton/core'
+import { toNano } from '@ton/core'
 
 import {
   AskToTransfer,
@@ -22,25 +22,17 @@ export type TokenPoolPreInitBehaviorContext = TokenPoolBehaviorContext & {
 function expectNotInitialized(
   result: { transactions: any[] },
   ctx: TokenPoolPreInitBehaviorContext,
-  extra?: Address,
 ) {
-  const tx = {
+  expect(result.transactions).toHaveTransaction({
     from: ctx.deployer.address,
     to: ctx.pool.address,
     success: false,
     exitCode: BurnMintTokenPool.Errors['TokenPool_Error.ContractNotInitialized'],
-  }
-  expect(result.transactions).toHaveTransaction(tx)
-  if (extra) {
-    expect(result.transactions).toHaveTransaction({ ...tx, to: extra })
-  }
+  })
 
-  // The guard runs before any operational custody, hook, or reply message.
   const emitted = result.transactions.some((candidate) => {
     const info = candidate.inMessage?.info
-    return (
-      info?.type === 'internal' && info.src.equals(ctx.pool.address) && !info.bounced // the failed request itself is bounced back normally
-    )
+    return info?.type === 'internal' && info.src.equals(ctx.pool.address) && !info.bounced
   })
   expect(emitted).toBe(false)
 }

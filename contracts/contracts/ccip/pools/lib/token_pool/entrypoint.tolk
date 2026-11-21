@@ -229,14 +229,9 @@ struct TokenPool_Hooks<T> {
     // Init
     // ----------------------------------------------------------------------
 
-    /// One-time initialization hook, called on `TokenPool_Init`.
-    /// @param sender The init caller (the pool owner).
-    /// @param msgValue The init message value after the base minimum-value check.
-    /// @param msg The init request; concrete pools may decode `extra`.
-    /// @return (newContext, deferred). Return `true` to defer initialization after sending an
-    ///         async request; the concrete pool must later set `initialized` itself once the
-    ///         async result validates. Return `false` for synchronous success.
-    /// @dev Base behavior when unset: synchronous success.
+    /// One-time initialization hook. Return `true` to defer success after sending an async
+    /// request; the concrete pool must then call `markInitialized`. Return `false` for
+    /// synchronous success.
     onInit: ((T, address, coins, TokenPool_Init) -> (T, bool))? = null;
 
     // ----------------------------------------------------------------------
@@ -1738,8 +1733,7 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     assert (self.data.jettonClient().isWallet(sender)) throw (TokenPool_Error.Unauthorized);
 
     try {
-        // The wallet has already credited custody. If the pool is not initialized, fail inside
-        // the recovery try so the tokens are returned instead of being stranded in the wallet.
+        // Custody is already credited: fail here so the catch returns it.
         self.requireInitialized();
 
         // Only callable by authorized router-owned deployables (see assertAuthorizedDepositInitiator).

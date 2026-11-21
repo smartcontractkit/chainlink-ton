@@ -597,10 +597,8 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy lock-release token pool: %w", err)
 			}
 
-			// The pool defers initialization until the lockbox confirms the token, wallet, and
-			// OPERATOR role. A successful trace is not enough: a rejected probe bounces, and the
-			// pool intentionally accepts that bounce to recover funding without initializing.
-			// Poll the authoritative getter until the masterchain snapshot includes the result.
+			// A rejected probe bounces and leaves the pool uninitialized even when the deployment
+			// trace succeeds. Poll the getter until the masterchain snapshot reflects the result.
 			initialized, err := waitForTokenPoolInitialized(b.GetContext(), chain.Client, poolAddr)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to read token pool init state: %w", err)
@@ -876,7 +874,6 @@ func applyRemoteChainUpdates(
 	return err
 }
 
-// disabledRateLimitConfigPair returns a fully-disabled rate limiter pair.
 // waitForTokenPoolInitialized polls the pool getter until the masterchain snapshot includes the
 // initialization result. DeployAndWaitForTrace only waits for shard receipts, which may not yet be
 // reflected in the latest masterchain state used by getters.
@@ -912,6 +909,7 @@ func waitForTokenPoolInitialized(
 	}
 }
 
+// disabledRateLimitConfigPair returns a fully-disabled rate limiter pair.
 func disabledRateLimitConfigPair() tokenpool.RateLimitConfigPair {
 	disabled := tokenpool.RateLimitConfig{
 		IsEnabled: false,

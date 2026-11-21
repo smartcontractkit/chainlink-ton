@@ -676,30 +676,6 @@ describe('LockReleaseLockboxTokenPool', () => {
   )
 
   describe('init handshake', () => {
-    it('rejects operational queries before init', async () => {
-      const owner = lockboxOperator
-      const pool = blockchain.openContract(
-        LockReleaseLockboxTokenPool.fromStorage(
-          createPoolStorage(jettonLockBox.address, owner.address),
-          {
-            overrideContractCode: await contractCode.ccip.local('LockReleaseLockboxTokenPool'),
-          },
-        ),
-      )
-      await pool.sendDeploy(deployer.getSender(), toNano('5'))
-      expect(await pool.getIsInitialized()).toBe(false)
-
-      const result = await pool.sendTokenPoolGetConfig(deployer.getSender(), toNano('0.05'), {
-        queryId: 1n,
-      })
-      expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: pool.address,
-        success: false,
-        exitCode: LockReleaseLockboxTokenPool.Errors['TokenPool_Error.ContractNotInitialized'],
-      })
-    })
-
     it('requires OPERATOR_ROLE and succeeds on retry after the grant', async () => {
       const owner = lockboxOperator
       const pool = blockchain.openContract(
@@ -822,14 +798,18 @@ describe('LockReleaseLockboxTokenPool', () => {
       )
       await pool.sendDeploy(deployer.getSender(), toNano('5'))
 
+      const balanceBefore = (await blockchain.getContract(pool.address)).balance
       const result = await pool.sendTokenPoolInit(deployer.getSender(), toNano('1'), {
         queryId: 77n,
       })
+      const balanceAfter = (await blockchain.getContract(pool.address)).balance
+
       expect(result.transactions).toHaveTransaction({
         from: uninitializedLockbox.address,
         to: pool.address,
         inMessageBounced: true,
       })
+      expect(balanceAfter).toBeGreaterThan(balanceBefore + toNano('0.5'))
       expect(await pool.getIsInitialized()).toBe(false)
     })
 
