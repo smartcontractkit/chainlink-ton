@@ -663,7 +663,18 @@ describe('LockReleaseLockboxTokenPool', () => {
       )
       await pool.sendDeploy(deployer.getSender(), toNano('5'))
 
-      await pool.sendTokenPoolInit(owner.getSender(), toNano('0.1'), { queryId: 10n })
+      const rejected = await pool.sendTokenPoolInit(owner.getSender(), toNano('0.1'), {
+        queryId: 10n,
+      })
+      expect(rejected.transactions).toHaveTransaction({
+        from: jettonLockBox.address,
+        to: pool.address,
+        success: false,
+        exitCode:
+          LockReleaseLockboxTokenPool.Errors[
+            'LockReleaseLockBoxTokenPool_Error.LockboxVerificationFailed'
+          ],
+      })
       expect(await pool.getIsInitialized()).toBe(false)
 
       const { crc32 } = require('zlib')
@@ -725,7 +736,18 @@ describe('LockReleaseLockboxTokenPool', () => {
         account: pool.address,
       })
 
-      await pool.sendTokenPoolInit(deployer.getSender(), toNano('0.1'), { queryId: 12n })
+      const rejected = await pool.sendTokenPoolInit(deployer.getSender(), toNano('0.1'), {
+        queryId: 12n,
+      })
+      expect(rejected.transactions).toHaveTransaction({
+        from: wrongLockbox.address,
+        to: pool.address,
+        success: false,
+        exitCode:
+          LockReleaseLockboxTokenPool.Errors[
+            'LockReleaseLockBoxTokenPool_Error.LockboxVerificationFailed'
+          ],
+      })
       expect(await pool.getIsInitialized()).toBe(false)
     })
 
