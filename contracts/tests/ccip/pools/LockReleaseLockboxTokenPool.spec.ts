@@ -50,6 +50,7 @@ import {
   JettonLockBox_WithdrawFailed,
   JettonLockBox_Deposit,
   JettonLockBox_DepositFailed,
+  JettonLockBox_Info,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 
@@ -749,6 +750,41 @@ describe('LockReleaseLockboxTokenPool', () => {
           ],
       })
       expect(await pool.getIsInitialized()).toBe(false)
+    })
+
+    it('rejects a lockbox probe reply from a non-lockbox sender', async () => {
+      const owner = lockboxOperator
+      const pool = blockchain.openContract(
+        LockReleaseLockboxTokenPool.fromStorage(
+          createPoolStorage(jettonLockBox.address, owner.address),
+          {
+            overrideContractCode: await contractCode.ccip.local('LockReleaseLockboxTokenPool'),
+          },
+        ),
+      )
+      await pool.sendDeploy(deployer.getSender(), toNano('5'))
+
+      const forged = await pool.send(
+        deployer.getSender(),
+        toNano('0.05'),
+        JettonLockBox_Info.toCell(
+          JettonLockBox_Info.create({
+            queryId: 20n,
+            token: jettonMinter.address,
+            wallet: await jettonMinter.getWalletAddress(jettonLockBox.address),
+            isOperator: true,
+          }),
+        ),
+      )
+      expect(forged.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: pool.address,
+        success: false,
+        exitCode:
+          LockReleaseLockboxTokenPool.Errors[
+            'LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxProbeReply'
+          ],
+      })
     })
 
     it('rejects a non-owner init and a second init', async () => {
