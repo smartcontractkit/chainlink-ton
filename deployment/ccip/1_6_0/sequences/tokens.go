@@ -598,8 +598,9 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			}
 
 			// The pool defers initialization until the lockbox confirms the token, wallet, and
-			// OPERATOR role. The trace only proves the shard receipts; poll until the masterchain
-			// snapshot used by getters includes the handshake result.
+			// OPERATOR role. A successful trace is not enough: a rejected probe bounces, and the
+			// pool intentionally accepts that bounce to recover funding without initializing.
+			// Poll the authoritative getter until the masterchain snapshot includes the result.
 			initialized, err := waitForTokenPoolInitialized(b.GetContext(), chain.Client, poolAddr)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to read token pool init state: %w", err)
