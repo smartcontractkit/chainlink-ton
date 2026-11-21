@@ -782,7 +782,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         success: false,
         exitCode:
           LockReleaseLockboxTokenPool.Errors[
-            'LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxProbeReply'
+            'LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender'
           ],
       })
     })

@@ -477,7 +477,7 @@ fun onInit(st: Storage, _sender: address, _msgValue: coins, msg: TokenPool_Init)
 /// Accepts the lockbox probe result. Only the configured lockbox may answer, and the answer must
 /// match the pool's token, derived wallet, and operator role.
 fun onLockboxInfo(mutate st: Storage, sender: address, msg: JettonLockBox_Info) {
-    assert (sender == st.lockbox) throw (LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxProbeReply);
+    assert (sender == st.lockbox) throw (LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender);
 
     val jc = st.poolData.load().jettonClient();
     val expectedWallet = calcAddressOfJettonWallet(st.lockbox, jc.masterAddress, jc.jettonWalletCode);

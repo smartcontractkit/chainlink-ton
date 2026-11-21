@@ -61,7 +61,6 @@ const (
 	ExitCodeInvalidReceiverAccountNotification
 	ExitCodeReceiverAccountDeployFailed
 	ExitCodeLockboxWithdrawFailed
-	ExitCodeUnexpectedLockboxProbeReply
 	ExitCodeLockboxVerificationFailed
 )
 
