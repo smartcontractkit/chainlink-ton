@@ -134,9 +134,6 @@ fun onBouncedMessage(in: InMessageBounced) {
             recoverReleaseFromLockboxWithdraw(mutate st, msg, in.valueCoins);
             st.store();
         }
-        JettonLockBox_GetInfo => {
-            // Init probe bounced: the pool stays uninitialized; the owner can retry TokenPool_Init.
-        }
     }
 }
 
@@ -341,15 +338,14 @@ fun onLockboxTransferBounced(
  */
 
 fun onReleaseOrMintContinue(
-    ctx: Storage?,
+    st: Storage?,
     sender: address,
     initiator: address,
     _msgValue: coins,
     msg: TokenPool_ReleaseOrMint,
     prepared: TokenPool_ReleaseOrMintPrepared,
 ): Storage? {
-    assert (ctx != null) throw (TokenPool_Error.UnsupportedOperation);
-    val st = ctx;
+    assert (st != null) throw (TokenPool_Error.UnsupportedOperation);
     assert(!isZeroAddress(st.lockbox)) throw (LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
 
     // Caller-selected excess recipient; default to the flow initiator.
@@ -465,37 +461,32 @@ fun recoverReleaseFromLockboxWithdraw(
 
 /// Defers pool initialization until the lockbox confirms it holds the pool's token, uses the
 /// wallet derived from (lockbox, token, walletCode), and grants the pool OPERATOR_ROLE.
-fun onInit(ctx: Storage, _sender: address, msgValue: coins, _msg: TokenPool_Init): (Storage, bool) {
-    val st = ctx;
+fun onInit(st: Storage, _sender: address, _msgValue: coins, msg: TokenPool_Init): (Storage, bool) {
     assert (!isZeroAddress(st.lockbox)) throw (LockReleaseLockBoxTokenPool_Error.LockBoxNotConfigured);
 
     createMessage({
-        bounce: BounceMode.RichBounce,
+        bounce: BounceMode.NoBounce,
         value: 0,
         dest: st.lockbox,
-        body: JettonLockBox_GetInfo {},
-    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+        body: JettonLockBox_GetInfo { queryId: msg.queryId },
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
     return (st, true); // deferred until JettonLockBox_Info arrives
 }
 
-/// Accepts the lockbox probe result. Only the configured lockbox may answer. A mismatch leaves
-/// the pool uninitialized (the owner can retry); a valid answer marks it initialized.
+/// Accepts the lockbox probe result. Only the configured lockbox may answer, and the answer must
+/// match the pool's token, derived wallet, and operator role.
 fun onLockboxInfo(mutate st: Storage, sender: address, msg: JettonLockBox_Info) {
-    if (sender != st.lockbox) {
-        return;
-    }
+    assert (sender == st.lockbox) throw (LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxProbeReply);
 
     val jc = st.poolData.load().jettonClient();
     val expectedWallet = calcAddressOfJettonWallet(st.lockbox, jc.masterAddress, jc.jettonWalletCode);
-    val valid = msg.token == jc.masterAddress
+    assert (
+        msg.token == jc.masterAddress
         && msg.wallet != null
         && msg.wallet! == expectedWallet
-        && msg.isOperator;
-
-    if (!valid) {
-        return;
-    }
+        && msg.isOperator
+    ) throw (LockReleaseLockBoxTokenPool_Error.LockboxVerificationFailed);
 
     var pool = st.TokenPool();
     pool.markInitialized();

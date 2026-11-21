@@ -4375,37 +4375,36 @@ export const TokenPool_AdvancedPoolHooksSetNotification = {
 
 /**
  > struct (0xf5e23895) TokenPool_Init {
- >     extra: cell?
+ >     queryId: uint64
  > }
  */
 export interface TokenPool_Init {
     readonly $: 'TokenPool_Init'
-    extra: c.Cell | null
+    queryId: uint64
 }
 
 export const TokenPool_Init = {
     PREFIX: 0xf5e23895,
 
     create(args: {
-        extra: c.Cell | null
+        queryId?: uint64
     }): TokenPool_Init {
         return {
             $: 'TokenPool_Init',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_Init {
         loadAndCheckPrefix32(s, 0xf5e23895, 'TokenPool_Init');
         return {
             $: 'TokenPool_Init',
-            extra: s.loadBoolean() ? s.loadRef() : null,
+            queryId: s.loadUintBig(64),
         }
     },
     store(self: TokenPool_Init, b: c.Builder): void {
         b.storeUint(0xf5e23895, 32);
-        storeTolkNullable<c.Cell>(self.extra, b,
-            (v,b) => b.storeRef(v)
-        );
+        b.storeUint(self.queryId, 64);
     },
     toCell(self: TokenPool_Init): c.Cell {
         return makeCellFrom<TokenPool_Init>(self, TokenPool_Init.store);
@@ -6516,7 +6515,7 @@ export class BurnMintTokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolInit(body: {
-        extra: c.Cell | null
+        queryId?: uint64
     }) {
         return TokenPool_Init.toCell(TokenPool_Init.create(body));
     }
@@ -6880,7 +6879,7 @@ export class BurnMintTokenPool implements c.Contract {
     }
 
     async sendTokenPoolInit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        extra: c.Cell | null
+        queryId?: uint64
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,

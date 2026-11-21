@@ -61,6 +61,8 @@ const (
 	ExitCodeInvalidReceiverAccountNotification
 	ExitCodeReceiverAccountDeployFailed
 	ExitCodeLockboxWithdrawFailed
+	ExitCodeUnexpectedLockboxProbeReply
+	ExitCodeLockboxVerificationFailed
 )
 
 // New converts an ExitCode to a tvm.ExitCode.

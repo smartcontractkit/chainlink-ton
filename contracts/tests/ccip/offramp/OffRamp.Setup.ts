@@ -25,7 +25,6 @@ import * as deployable from '../../../wrappers/libraries/Deployable'
 import { ChainSelectors } from '../../utils/Selectors'
 import { setupTestFeeQuoter } from '../helpers/SetUp'
 import { buildJettonLockBox, grantLockBoxOperatorRole, initJettonLockBox } from '../helpers/lockbox'
-import { initTokenPool } from '../helpers/tokenPool'
 
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
@@ -1031,7 +1030,8 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
       success: true,
       deploy: true,
     })
-    await initTokenPool({ pool: tokenPool, sender: this.deployer })
+    await tokenPool.sendTokenPoolInit(this.deployer.getSender(), toNano('0.1'), { queryId: 0n })
+    expect(await tokenPool.getIsInitialized()).toBe(true)
 
     const chainUpdateResult = await tokenPool.sendTokenPoolApplyChainUpdates(
       this.deployer.getSender(),

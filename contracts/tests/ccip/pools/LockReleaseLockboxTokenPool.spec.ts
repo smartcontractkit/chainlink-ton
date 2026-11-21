@@ -56,7 +56,6 @@ import { ContractClient as AccessControlClient } from '../../../wrappers/lib/acc
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { initTokenPool, sendTokenPoolInit } from '../helpers/tokenPool'
 import {
   deliveryTo,
   parseDepositAccountNotify,
@@ -225,7 +224,10 @@ describe('LockReleaseLockboxTokenPool', () => {
       exitCode: 0,
     })
 
-    await initTokenPool({ pool: lockReleaseLockboxPool, sender: deployer })
+    await lockReleaseLockboxPool.sendTokenPoolInit(deployer.getSender(), toNano('0.1'), {
+      queryId: 1n,
+    })
+    expect(await lockReleaseLockboxPool.getIsInitialized()).toBe(true)
 
     // Standard TokenPool interface
     pool = blockchain.openContract(TokenPool.fromAddress(lockReleaseLockboxPool.address))
@@ -631,9 +633,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         LockReleaseLockboxTokenPool.fromStorage(
           createPoolStorage(jettonLockBox.address, owner.address),
           {
-            overrideContractCode: await contractCode.ccip.local(
-              'LockReleaseLockboxTokenPool',
-            ),
+            overrideContractCode: await contractCode.ccip.local('LockReleaseLockboxTokenPool'),
           },
         ),
       )
@@ -657,15 +657,13 @@ describe('LockReleaseLockboxTokenPool', () => {
         LockReleaseLockboxTokenPool.fromStorage(
           createPoolStorage(jettonLockBox.address, owner.address),
           {
-            overrideContractCode: await contractCode.ccip.local(
-              'LockReleaseLockboxTokenPool',
-            ),
+            overrideContractCode: await contractCode.ccip.local('LockReleaseLockboxTokenPool'),
           },
         ),
       )
       await pool.sendDeploy(deployer.getSender(), toNano('5'))
 
-      await sendTokenPoolInit({ pool, sender: owner })
+      await pool.sendTokenPoolInit(owner.getSender(), toNano('0.1'), { queryId: 10n })
       expect(await pool.getIsInitialized()).toBe(false)
 
       const { crc32 } = require('zlib')
@@ -681,7 +679,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         account: pool.address,
       })
 
-      await sendTokenPoolInit({ pool, sender: owner })
+      await pool.sendTokenPoolInit(owner.getSender(), toNano('0.1'), { queryId: 11n })
       expect(await pool.getIsInitialized()).toBe(true)
     })
 
@@ -709,9 +707,7 @@ describe('LockReleaseLockboxTokenPool', () => {
 
       const pool = blockchain.openContract(
         LockReleaseLockboxTokenPool.fromStorage(createPoolStorage(wrongLockbox.address), {
-          overrideContractCode: await contractCode.ccip.local(
-            'LockReleaseLockboxTokenPool',
-          ),
+          overrideContractCode: await contractCode.ccip.local('LockReleaseLockboxTokenPool'),
         }),
       )
       await pool.sendDeploy(deployer.getSender(), toNano('5'))
@@ -729,7 +725,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         account: pool.address,
       })
 
-      await sendTokenPoolInit({ pool, sender: deployer })
+      await pool.sendTokenPoolInit(deployer.getSender(), toNano('0.1'), { queryId: 12n })
       expect(await pool.getIsInitialized()).toBe(false)
     })
 
@@ -739,15 +735,15 @@ describe('LockReleaseLockboxTokenPool', () => {
         LockReleaseLockboxTokenPool.fromStorage(
           createPoolStorage(jettonLockBox.address, owner.address),
           {
-            overrideContractCode: await contractCode.ccip.local(
-              'LockReleaseLockboxTokenPool',
-            ),
+            overrideContractCode: await contractCode.ccip.local('LockReleaseLockboxTokenPool'),
           },
         ),
       )
       await pool.sendDeploy(deployer.getSender(), toNano('5'))
 
-      const nonOwner = await sendTokenPoolInit({ pool, sender: deployer })
+      const nonOwner = await pool.sendTokenPoolInit(deployer.getSender(), toNano('0.1'), {
+        queryId: 13n,
+      })
       expect(nonOwner.transactions).toHaveTransaction({
         from: deployer.address,
         to: pool.address,
@@ -759,7 +755,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       const second = await lockReleaseLockboxPool.sendTokenPoolInit(
         deployer.getSender(),
         toNano('0.1'),
-        { extra: null },
+        { queryId: 14n },
       )
       expect(second.transactions).toHaveTransaction({
         from: deployer.address,
@@ -791,7 +787,7 @@ describe('LockReleaseLockboxTokenPool', () => {
       await zeroLockboxPool.sendDeploy(deployer.getSender(), toNano('5'))
 
       const result = await zeroLockboxPool.sendTokenPoolInit(deployer.getSender(), toNano('0.1'), {
-        extra: null,
+        queryId: 15n,
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,

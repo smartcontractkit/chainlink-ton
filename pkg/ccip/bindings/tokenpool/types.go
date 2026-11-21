@@ -436,8 +436,8 @@ type ReleaseOrMint struct {
 
 // Init is the one-time owner-only pool initialization.
 type Init struct {
-	_     tlb.Magic  `tlb:"#f5e23895" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	Extra *cell.Cell `tlb:"maybe ^"`            // Optional pool-specific payload.
+	_       tlb.Magic `tlb:"#f5e23895" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64    `tlb:"## 64"`
 }
 
 // GetConfig asks a pool for the configuration CCIP caches in the token admin registry.

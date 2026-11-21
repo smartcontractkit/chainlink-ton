@@ -80,4 +80,8 @@ enum LockReleaseLockBoxTokenPool_Error {
     ReceiverAccountDeployFailed // 20905
     // The lockbox reported that the jetton transfer for a release (withdraw) bounced.
     LockBoxWithdrawFailed // 20906
+    // `JettonLockBox_Info` arrived from an address other than the configured lockbox.
+    UnexpectedLockboxProbeReply // 20907
+    // The lockbox did not match the pool's token, derived wallet, or OPERATOR_ROLE.
+    LockboxVerificationFailed // 20908
 }

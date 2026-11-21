@@ -227,7 +227,7 @@ describe('JettonLockBox', () => {
       const asOperator = await lockbox.sendJettonLockBoxGetInfo(
         operator.getSender(),
         toNano('0.05'),
-        {},
+        { queryId: 1n },
       )
       const operatorInfoTx = asOperator.transactions.find(
         (tx) =>
@@ -239,6 +239,7 @@ describe('JettonLockBox', () => {
       const operatorInfo = JettonLockBox_Info.fromSlice(
         operatorInfoTx!.inMessage!.body.beginParse(),
       )
+      expect(operatorInfo.queryId).toBe(1n)
       expect(operatorInfo.token).toEqualAddress(jettonMinter.address)
       expect(operatorInfo.wallet).toEqualAddress(walletAddress)
       expect(operatorInfo.isOperator).toBe(true)
@@ -246,7 +247,7 @@ describe('JettonLockBox', () => {
       const asOther = await lockbox.sendJettonLockBoxGetInfo(
         unauthorized.getSender(),
         toNano('0.05'),
-        {},
+        { queryId: 2n },
       )
       const otherInfoTx = asOther.transactions.find(
         (tx) =>
@@ -256,6 +257,7 @@ describe('JettonLockBox', () => {
       )
       expect(otherInfoTx).toBeDefined()
       const otherInfo = JettonLockBox_Info.fromSlice(otherInfoTx!.inMessage!.body.beginParse())
+      expect(otherInfo.queryId).toBe(2n)
       expect(otherInfo.isOperator).toBe(false)
     })
   })

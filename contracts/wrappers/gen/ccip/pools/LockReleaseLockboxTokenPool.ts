@@ -4444,37 +4444,36 @@ export const TokenPool_AdvancedPoolHooksSetNotification = {
 
 /**
  > struct (0xf5e23895) TokenPool_Init {
- >     extra: cell?
+ >     queryId: uint64
  > }
  */
 export interface TokenPool_Init {
     readonly $: 'TokenPool_Init'
-    extra: c.Cell | null
+    queryId: uint64
 }
 
 export const TokenPool_Init = {
     PREFIX: 0xf5e23895,
 
     create(args: {
-        extra: c.Cell | null
+        queryId?: uint64
     }): TokenPool_Init {
         return {
             $: 'TokenPool_Init',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): TokenPool_Init {
         loadAndCheckPrefix32(s, 0xf5e23895, 'TokenPool_Init');
         return {
             $: 'TokenPool_Init',
-            extra: s.loadBoolean() ? s.loadRef() : null,
+            queryId: s.loadUintBig(64),
         }
     },
     store(self: TokenPool_Init, b: c.Builder): void {
         b.storeUint(0xf5e23895, 32);
-        storeTolkNullable<c.Cell>(self.extra, b,
-            (v,b) => b.storeRef(v)
-        );
+        b.storeUint(self.queryId, 64);
     },
     toCell(self: TokenPool_Init): c.Cell {
         return makeCellFrom<TokenPool_Init>(self, TokenPool_Init.store);
@@ -5811,28 +5810,36 @@ export const JettonLockBox_Withdraw = {
 
 /**
  > struct (0xc6ac6ade) JettonLockBox_GetInfo {
+ >     queryId: uint64
  > }
  */
 export interface JettonLockBox_GetInfo {
     readonly $: 'JettonLockBox_GetInfo'
+    queryId: uint64
 }
 
 export const JettonLockBox_GetInfo = {
     PREFIX: 0xc6ac6ade,
 
-    create(): JettonLockBox_GetInfo {
+    create(args: {
+        queryId?: uint64
+    }): JettonLockBox_GetInfo {
         return {
             $: 'JettonLockBox_GetInfo',
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_GetInfo {
         loadAndCheckPrefix32(s, 0xc6ac6ade, 'JettonLockBox_GetInfo');
         return {
             $: 'JettonLockBox_GetInfo',
+            queryId: s.loadUintBig(64),
         }
     },
     store(self: JettonLockBox_GetInfo, b: c.Builder): void {
         b.storeUint(0xc6ac6ade, 32);
+        b.storeUint(self.queryId, 64);
     },
     toCell(self: JettonLockBox_GetInfo): c.Cell {
         return makeCellFrom<JettonLockBox_GetInfo>(self, JettonLockBox_GetInfo.store);
@@ -5841,6 +5848,7 @@ export const JettonLockBox_GetInfo = {
 
 /**
  > struct (0xf25b3b9a) JettonLockBox_Info {
+ >     queryId: uint64
  >     token: address
  >     wallet: address?
  >     isOperator: bool
@@ -5848,6 +5856,7 @@ export const JettonLockBox_GetInfo = {
  */
 export interface JettonLockBox_Info {
     readonly $: 'JettonLockBox_Info'
+    queryId: uint64
     token: c.Address
     wallet: c.Address | null
     isOperator: boolean
@@ -5857,19 +5866,22 @@ export const JettonLockBox_Info = {
     PREFIX: 0xf25b3b9a,
 
     create(args: {
+        queryId?: uint64
         token: c.Address
         wallet: c.Address | null
         isOperator: boolean
     }): JettonLockBox_Info {
         return {
             $: 'JettonLockBox_Info',
-            ...args
+            ...args,
+            queryId: args.queryId ?? 0n
         }
     },
     fromSlice(s: c.Slice): JettonLockBox_Info {
         loadAndCheckPrefix32(s, 0xf25b3b9a, 'JettonLockBox_Info');
         return {
             $: 'JettonLockBox_Info',
+            queryId: s.loadUintBig(64),
             token: s.loadAddress(),
             wallet: s.loadMaybeAddress(),
             isOperator: s.loadBoolean(),
@@ -5877,6 +5889,7 @@ export const JettonLockBox_Info = {
     },
     store(self: JettonLockBox_Info, b: c.Builder): void {
         b.storeUint(0xf25b3b9a, 32);
+        b.storeUint(self.queryId, 64);
         b.storeAddress(self.token);
         b.storeAddress(self.wallet);
         b.storeBit(self.isOperator);
@@ -6468,6 +6481,8 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
         'LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender': 20901,
         'LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce': 20902,
         'LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed': 20906,
+        'LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxProbeReply': 20907,
+        'LockReleaseLockBoxTokenPool_Error.LockboxVerificationFailed': 20908,
         'RateLimiter_Error.BucketOverfilled': 29700,
         'RateLimiter_Error.TokenMaxCapacityExceeded': 29701,
         'RateLimiter_Error.TokenRateLimitReached': 29702,
@@ -6728,7 +6743,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfTokenPoolInit(body: {
-        extra: c.Cell | null
+        queryId?: uint64
     }) {
         return TokenPool_Init.toCell(TokenPool_Init.create(body));
     }
@@ -6824,6 +6839,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     static createCellOfJettonLockBoxInfo(body: {
+        queryId?: uint64
         token: c.Address
         wallet: c.Address | null
         isOperator: boolean
@@ -7121,7 +7137,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendTokenPoolInit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        extra: c.Cell | null
+        queryId?: uint64
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -7269,6 +7285,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     }
 
     async sendJettonLockBoxInfo(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
         token: c.Address
         wallet: c.Address | null
         isOperator: boolean

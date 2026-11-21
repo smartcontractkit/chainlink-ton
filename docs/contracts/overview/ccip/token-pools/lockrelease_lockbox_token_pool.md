@@ -27,7 +27,7 @@ initialized when the reply confirms all of:
 - the lockbox wallet is `calcAddressOfJettonWallet(lockbox, token, walletCode)`;
 - the pool holds `OPERATOR_ROLE` on the lockbox.
 
-A mismatch or a bounced probe leaves the pool uninitialized; the owner can retry
+A mismatch or a failed probe leaves the pool uninitialized; the owner can retry
 `TokenPool_Init` after fixing the lockbox state. Init is synchronous for pool types
 with no handshake. The init value funds the probe/response and any remainder stays
 on the pool; the owner can recover excess TON with the standard TON withdraw.

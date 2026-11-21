@@ -576,7 +576,11 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to grant lockbox OPERATOR_ROLE to pool: %w", err)
 			}
 
-			poolInitBody, err := tlb.ToCell(tokenpool.Init{})
+			poolInitQueryID, err := ton_tvm.RandomQueryID()
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to generate token pool init query id: %w", err)
+			}
+			poolInitBody, err := tlb.ToCell(tokenpool.Init{QueryID: poolInitQueryID})
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to pack token pool init body: %w", err)
 			}

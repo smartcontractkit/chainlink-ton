@@ -454,10 +454,10 @@ type TokenPool_BouncedMessage =
     | TokenPool_PostflightCheck
     | AskToTransfer;
 
-/// One-time owner-only initialization. Concrete pools may decode `extra` in their `onInit` hook
-/// and defer success until an async handshake completes.
+/// One-time owner-only initialization. Concrete pools may defer success until an async
+/// handshake completes.
 struct (0xf5e23895) TokenPool_Init {
-    extra: cell?;
+    queryId: uint64;
 }
 
 /// Asks a pool for the configuration the token admin registry caches: the initiator of its

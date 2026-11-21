@@ -105,15 +105,17 @@ type Initialized struct {
 
 // GetInfo is the read-only probe a pool sends at init.
 type GetInfo struct {
-	_ tlb.Magic `tlb:"#c6ac6ade" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	_       tlb.Magic `tlb:"#c6ac6ade" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64    `tlb:"## 64"`
 }
 
 // Info answers GetInfo with the lockbox's token, wallet, and the caller's operator status.
 type Info struct {
 	_          tlb.Magic        `tlb:"#f25b3b9a" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	Token      *address.Address `tlb:"addr required"`      // The jetton minter held by the lockbox.
-	Wallet     *address.Address `tlb:"addr"`               // The lockbox's jetton wallet.
-	IsOperator bool             `tlb:"bool"`               // Whether the probe sender holds OPERATOR_ROLE.
+	QueryID    uint64           `tlb:"## 64"`
+	Token      *address.Address `tlb:"addr required"` // The jetton minter held by the lockbox.
+	Wallet     *address.Address `tlb:"addr"`          // The lockbox's jetton wallet.
+	IsOperator bool             `tlb:"bool"`          // Whether the probe sender holds OPERATOR_ROLE.
 }
 
 // WithdrawFailed is sent when a withdrawal bounce is detected.

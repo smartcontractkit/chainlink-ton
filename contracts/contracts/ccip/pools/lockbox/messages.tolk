@@ -63,10 +63,13 @@ struct (0x0440d11a) JettonLockBox_WithdrawRescue {
 }
 
 /// Read-only probe used by a pool at init to bind itself to this lockbox.
-struct (0xc6ac6ade) JettonLockBox_GetInfo {}
+struct (0xc6ac6ade) JettonLockBox_GetInfo {
+    queryId: uint64;
+}
 
 /// Answer to `JettonLockBox_GetInfo`.
 struct (0xf25b3b9a) JettonLockBox_Info {
+    queryId: uint64;
     /// Jetton minter held by this lockbox.
     token: address;
     /// Jetton wallet used by this lockbox.
