@@ -309,21 +309,7 @@ describe('BurnMintTokenPool', () => {
         destTokenAddress,
         sourcePoolAddress,
         localToken: cctMinter.address,
-        fundPool: async (amount) => {
-          const wallet = await userWallet(deployer.address)
-          return wallet.sendTransfer(deployer.getSender(), {
-            value: toNano('1'),
-            message: {
-              queryId: 9001,
-              jettonAmount: amount,
-              destination: uninitialized.address,
-              responseDestination: deployer.address,
-              customPayload: null,
-              forwardTonAmount: toNano('0.05'),
-              forwardPayload: null,
-            },
-          })
-        },
+        deployerWallet: await userWallet(deployer.address),
       }
     },
   )

@@ -146,11 +146,8 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
 
 /// Read-only init probe: returns the token, the lockbox wallet, and whether the caller is an
 /// authorized operator. Used by a pool to bind itself to this lockbox at init.
-fun onGetInfo(st: Storage, sender: address, msgValue: coins, msg: JettonLockBox_GetInfo) {
+fun onGetInfo(st: Storage, sender: address, _msgValue: coins, msg: JettonLockBox_GetInfo) {
     assert (st.walletAddress != null) throw (JettonLockBox_Error.ContractNotInitialized);
-
-    // Reserve the pre-existing balance; only the probe's value funds the reply.
-    reserveBalanceBeforeInMessage(msgValue, 0, RESERVE_MODE_AT_MOST);
 
     val rbac = hookTrait__AccessControl(st);
     val reply = createMessage({

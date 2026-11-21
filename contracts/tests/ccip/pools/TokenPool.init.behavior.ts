@@ -14,9 +14,12 @@ import { BurnMintTokenPool } from '../../../wrappers/gen/ccip/pools/BurnMintToke
 import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 import { TokenPoolBehaviorContext, releaseRequest } from './TokenPool.behavior'
 
+type JettonWalletClient = {
+  sendTransfer: (via: any, body: any) => Promise<{ transactions: any[] }>
+}
+
 export type TokenPoolPreInitBehaviorContext = TokenPoolBehaviorContext & {
-  /** Sends `amount` jettons to the uninitialized pool with a transfer notification. */
-  fundPool: (amount: bigint) => Promise<{ transactions: any[] }>
+  deployerWallet: JettonWalletClient
 }
 
 function expectNotInitialized(
@@ -135,7 +138,18 @@ export function runTokenPoolPreInitBehaviorTests(
       const ctx = await makeContext()
       const amount = toNano('1')
 
-      const result = await ctx.fundPool(amount)
+      const result = await ctx.deployerWallet.sendTransfer(ctx.deployer.getSender(), {
+        value: toNano('1'),
+        message: {
+          queryId: 9002,
+          jettonAmount: amount,
+          destination: ctx.pool.address,
+          responseDestination: ctx.deployer.address,
+          customPayload: null,
+          forwardTonAmount: toNano('0.05'),
+          forwardPayload: null,
+        },
+      })
 
       const askTx = result.transactions.find((candidate) => {
         if (candidate.inMessage?.info.type !== 'internal') return false
