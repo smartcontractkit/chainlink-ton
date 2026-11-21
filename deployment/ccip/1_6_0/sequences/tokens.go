@@ -584,7 +584,7 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to pack token pool init body: %w", err)
 			}
-			addrRef, err := operation.InvokeDeployContractOperation(
+			deployResult, err := operation.InvokeDeployContractOperationWithTrace(
 				b,
 				dp,
 				input.ChainSelector,
@@ -596,19 +596,13 @@ func (a *TonTokenAdapter) DeployTokenPoolForToken() *cldf_ops.Sequence[tokensapi
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy lock-release token pool: %w", err)
 			}
-
-			// A rejected probe bounces and leaves the pool uninitialized even when the deployment
-			// trace succeeds. Poll the getter until the masterchain snapshot reflects the result.
-			initialized, err := waitForTokenPoolInitialized(b.GetContext(), chain.Client, poolAddr)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to read token pool init state: %w", err)
-			}
-			if !initialized {
+			if deployResult.TraceExitCode != ton_tvm.ExitCodeSuccess {
 				return sequences.OnChainOutput{}, fmt.Errorf(
-					"token pool %s did not initialize: lockbox %s handshake failed",
-					poolAddr.String(), lockBoxAddr.String(),
+					"token pool %s did not initialize: lockbox %s handshake failed (trace exit code %d: %s)",
+					poolAddr.String(), lockBoxAddr.String(), deployResult.TraceExitCode, deployResult.TraceExitCode.Describe(),
 				)
 			}
+			addrRef := deployResult.AddressRef
 
 			// Surface the lockbox alongside the pool so callers can fund/upgrade it.
 			if lockBoxAddrRef != nil {
@@ -872,41 +866,6 @@ func applyRemoteChainUpdates(
 		},
 	})
 	return err
-}
-
-// waitForTokenPoolInitialized polls the pool getter until the masterchain snapshot includes the
-// initialization result. DeployAndWaitForTrace only waits for shard receipts, which may not yet be
-// reflected in the latest masterchain state used by getters.
-func waitForTokenPoolInitialized(
-	ctx context.Context,
-	client ton.APIClientWrapped,
-	poolAddr *address.Address,
-) (bool, error) {
-	const (
-		timeout  = 20 * time.Second
-		interval = 500 * time.Millisecond
-	)
-	deadline := time.Now().Add(timeout)
-	var lastErr error
-	for {
-		initialized, err := ton_tvm.CallGetterLatest(ctx, client, poolAddr, tokenpool.GetIsInitialized)
-		if err == nil {
-			if initialized {
-				return true, nil
-			}
-			lastErr = nil
-		} else {
-			lastErr = err
-		}
-		if time.Now().After(deadline) {
-			return false, lastErr
-		}
-		select {
-		case <-ctx.Done():
-			return false, ctx.Err()
-		case <-time.After(interval):
-		}
-	}
 }
 
 // disabledRateLimitConfigPair returns a fully-disabled rate limiter pair.
