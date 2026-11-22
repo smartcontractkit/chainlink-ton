@@ -346,6 +346,60 @@ export function runTokenPoolAsyncHookBehaviorTests(
       })
     })
 
+    it('accepts a callback from the previous hooks until the owner clears it', async () => {
+      const ctx = await setup()
+      const previousHooks = ctx.hooks
+      const nextHooks = await deployMockHooks(ctx, 250n)
+
+      await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 6002n,
+        advancedPoolHooks: nextHooks.address,
+        clearPrevious: false,
+      })
+
+      const forwardPayload = TokenPool_LockOrBurnForwardPayload.fromSlice(
+        lockOrBurnForwardPayload(ctx, lockOrBurnIn(ctx)).beginParse(),
+      )
+      const finalizationValue = toNano('0.01')
+      const callbackValue = (await ctx.pool.getBudget()).lockOrBurn.safety * 3n + finalizationValue
+      const callback = () =>
+        ctx.blockchain.sendMessage(
+          internal({
+            from: previousHooks.address,
+            to: ctx.pool.address,
+            value: callbackValue,
+            body: TokenPool_PreflightCheckFinished.toCell(
+              TokenPool_PreflightCheckFinished.create({
+                queryId: 2n,
+                forwardPayload,
+              }),
+            ),
+          }),
+        )
+
+      // The rotated-out hook can still finish an in-flight callback.
+      const accepted = await callback()
+      expect(accepted.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.deployer.address,
+        op: TokenPool_LockOrBurnWithdraw.PREFIX,
+        success: true,
+      })
+
+      // Setting the flag clears the old hook; it is rejected afterwards.
+      await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 6003n,
+        advancedPoolHooks: nextHooks.address,
+        clearPrevious: true,
+      })
+      const rejected = await callback()
+      expect(rejected.transactions).toHaveTransaction({
+        from: previousHooks.address,
+        to: ctx.pool.address,
+        success: false,
+      })
+    })
+
     // === Preflight Check — Success Flow (queryId even) ===
 
     it('completes LockOrBurn after async preflight check succeeds (queryId=2)', async () => {

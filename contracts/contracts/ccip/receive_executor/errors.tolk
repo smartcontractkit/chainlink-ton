@@ -11,6 +11,8 @@ enum ReceiveExecutor_Error {
     TokenPoolUnexpectedResponse
     /// A legacy 256-bit bounce. Every executor send is RichBounce or NoBounce, so none is expected.
     UnhandledLegacyBounce
+    /// A deposit-account notification that does not match the executor's in-flight token transfer.
+    UnexpectedDepositNotification
 }
 
 

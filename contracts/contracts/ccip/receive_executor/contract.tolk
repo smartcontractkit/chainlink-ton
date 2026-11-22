@@ -3,6 +3,7 @@ import "@stdlib/gas-payments"
 
 import "../../lib/utils"
 import "../../lib/jetton/messages"
+import "../../lib/jetton/forward_payload_wrap"
 import "../lib/client/common/types"
 
 import "../offramp/types"
@@ -81,15 +82,21 @@ fun onInternalMessage(in: InMessage) {
             var st = ReceiveExecutor_Storage.load();
             val ttInfo = st.state.tokenTransfer.loadOpt();
             assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_ReleaseOrMint) throw (ReceiveExecutor_Error.TokenPoolUnexpectedResponse);
+            // Only the pool selected for this message may report a failure.
             assert (in.senderAddress == ttInfo.state.tokenPool) throw (ReceiveExecutor_Error.Unauthorized);
             // TokenPool returns a small remainder of the destGasAmount set
             setGasLimitToMaximum();
             onReleaseOrMintFailure(mutate st, ttInfo, ttInfo.state, msg.errorCode);
             st.store();
         }
-        // Permissionless. Execution may already be final, so the value goes to the OffRamp.
+        // Only the pool that delivered this transfer may return its remaining value.
         TokenPool_ReleaseOrMintFinalized => {
             val st = lazy ReceiveExecutor_Storage.load();
+            val ttInfo = st.state.tokenTransfer.loadOpt();
+            assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_Success)
+                throw (ReceiveExecutor_Error.TokenPoolUnexpectedResponse);
+            val success = ttInfo.state as ReceiveExecutor_TokenTransferState_Success;
+            assert (in.senderAddress == success.tokenPool) throw (ReceiveExecutor_Error.Unauthorized);
             val forwardToOffRamp = createMessage({
                 bounce: BounceMode.NoBounce,
                 value: 0,
@@ -392,10 +399,10 @@ fun onDepositAccountNotification(sender: address, msg: DepositAccount_ForwardNot
     var st = ReceiveExecutor_Storage.load();
     val ttInfo = st.state.tokenTransfer.loadOpt();
     if (ttInfo == null || ttInfo.state !is ReceiveExecutor_TokenTransferState_ReleaseOrMint) {
-        return;
+        throw ReceiveExecutor_Error.UnexpectedDepositNotification;
     }
     if (sender != ttInfo.receiverAccount) {
-        return;
+        throw ReceiveExecutor_Error.UnexpectedDepositNotification;
     }
     val notification = lazy msg.notification.load();
     val expected = ttInfo.state.transferInitiator;
@@ -403,7 +410,13 @@ fun onDepositAccountNotification(sender: address, msg: DepositAccount_ForwardNot
         ? notification.transferInitiator == null
         : notification.transferInitiator != null && notification.transferInitiator == expected.load();
     if (!matches) {
-        return;
+        throw ReceiveExecutor_Error.UnexpectedDepositNotification;
+    }
+
+    if (expected != null && expected!.load() != ttInfo.state.tokenPool) {
+        val wrap = Jetton_ForwardPayloadWrap.from(notification.forwardPayload);
+        assert (wrap != null) throw (ReceiveExecutor_Error.UnexpectedDepositNotification);
+        assert (wrap!.initiator == ttInfo.state.tokenPool) throw (ReceiveExecutor_Error.UnexpectedDepositNotification);
     }
 
     // Authentication passed: let the funded executor finish delivery and execution.
@@ -413,7 +426,7 @@ fun onDepositAccountNotification(sender: address, msg: DepositAccount_ForwardNot
 }
 
 fun onTokenTransferDelivered(mutate st: ReceiveExecutor_Storage, ttInfo: ReceiveExecutor_TokenTransferInfo, tokenPool: address, amount: coins) {
-    ttInfo.state = ReceiveExecutor_TokenTransferState_Success { destinationAmount: amount };
+    ttInfo.state = ReceiveExecutor_TokenTransferState_Success { tokenPool, destinationAmount: amount };
     st.state.tokenTransfer = ttInfo.toCell();
     val ccipMessage = lazy st.message.load();
     val transfer = lazy ttInfo.transfer.load();
