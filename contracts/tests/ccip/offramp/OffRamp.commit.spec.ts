@@ -3,7 +3,6 @@ import { Blockchain } from '@ton/sandbox'
 
 import { generateMockTonAddress, bigIntToBuffer } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
-import { expectFailedTransaction } from '../../Logs'
 import { ChainSelectors } from '../../utils/Selectors'
 import generateMessageID from '../../../src/offramp/generateMessageID'
 
@@ -67,12 +66,12 @@ describe('OffRamp - Commit and OCR3 validations', () => {
         },
       )
 
-      expectFailedTransaction(
-        result,
-        setup.transmitters[0].address,
-        setup.offRamp.address,
-        of.OffRamp.Errors['OffRamp_Error.EmptyCommitReport'],
-      )
+      expect(result.transactions).toHaveTransaction({
+        from: setup.transmitters[0].address,
+        to: setup.offRamp.address,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.EmptyCommitReport'],
+        success: false,
+      })
     })
 
     it('rejects a commit one nanoton below OffRamp_Costs.commit', async () => {
@@ -429,12 +428,12 @@ describe('OffRamp - Commit and OCR3 validations', () => {
         },
       )
 
-      expectFailedTransaction(
-        result,
-        setup.transmitters[0].address,
-        setup.offRamp.address,
-        of.OffRamp.Errors['OffRamp_Error.SourceChainNotEnabled'],
-      )
+      expect(result.transactions).toHaveTransaction({
+        from: setup.transmitters[0].address,
+        to: setup.offRamp.address,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.SourceChainNotEnabled'],
+        success: false,
+      })
     })
 
     it('should fail with more than 64 messages', async () => {

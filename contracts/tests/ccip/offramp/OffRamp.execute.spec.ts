@@ -5,7 +5,7 @@ import { findTransaction } from '@ton/test-utils'
 import { generateMockTonAddress } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
-import { assertLog, expectFailedTransaction } from '../../Logs'
+import { assertLog } from '../../Logs'
 import { ChainSelectors } from '../../utils/Selectors'
 import { snakeData, testSnakeData } from '../../utils/snakeData'
 import { sendMessageAsync, captureAccountChanges } from '../../utils/sendInternalMessage'
@@ -1278,12 +1278,12 @@ describe('OffRamp - Execute', () => {
 
       // Rejected by the OffRamp before the root is asked to validate (and mark) the message.
       const result4 = await setup.manualExecuteReport(report, gasOverride, false)
-      expectFailedTransaction(
-        result4,
-        setup.transmitters[0].address,
-        setup.offRamp.address,
-        of.OffRamp.Errors['OffRamp_Error.InvalidManualExecutionGasLimit'],
-      )
+      expect(result4.transactions).toHaveTransaction({
+        from: setup.transmitters[0].address,
+        to: setup.offRamp.address,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.InvalidManualExecutionGasLimit'],
+        success: false,
+      })
       expect(result4.transactions).not.toHaveTransaction({ op: mr.MerkleRoot_Validate.PREFIX })
     })
 
@@ -1311,12 +1311,12 @@ describe('OffRamp - Execute', () => {
       //    The OffRamp rejects it before the root is asked to validate the message.
       const badGasOverride = { receiverExecutionGasLimit: message.gasLimit - 100n }
       const badResult = await setup.manualExecuteReport(report, badGasOverride, false)
-      expectFailedTransaction(
-        badResult,
-        setup.transmitters[0].address,
-        setup.offRamp.address,
-        of.OffRamp.Errors['OffRamp_Error.InvalidManualExecutionGasLimit'],
-      )
+      expect(badResult.transactions).toHaveTransaction({
+        from: setup.transmitters[0].address,
+        to: setup.offRamp.address,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.InvalidManualExecutionGasLimit'],
+        success: false,
+      })
       expect(badResult.transactions).not.toHaveTransaction({ op: mr.MerkleRoot_Validate.PREFIX })
 
       await setup.receiver.sendTestReceiverUpdateBehavior(
@@ -1376,12 +1376,12 @@ describe('OffRamp - Execute', () => {
           }),
         },
       )
-      expectFailedTransaction(
-        first,
-        setup.transmitters[0].address,
-        setup.offRamp.address,
-        of.OffRamp.Errors['OffRamp_Error.ManualExecutionGasAmountCountMismatch'],
-      )
+      expect(first.transactions).toHaveTransaction({
+        from: setup.transmitters[0].address,
+        to: setup.offRamp.address,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.ManualExecutionGasAmountCountMismatch'],
+        success: false,
+      })
       expect(first.transactions).not.toHaveTransaction({ op: mr.MerkleRoot_Validate.PREFIX })
 
       // 2. Retry without an override: the message must reach the receiver and succeed.
@@ -2962,12 +2962,12 @@ describe('OffRamp - Execute', () => {
         [offchainTokenData],
       ])
       const manualResult = await setup.manualExecuteReport(retryReport, undefined, false)
-      expectFailedTransaction(
-        manualResult,
-        setup.transmitters[0].address,
-        setup.offRamp.address,
-        of.OffRamp.Errors['OffRamp_Error.UnexpectedTokenData'],
-      )
+      expect(manualResult.transactions).toHaveTransaction({
+        from: setup.transmitters[0].address,
+        to: setup.offRamp.address,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.UnexpectedTokenData'],
+        success: false,
+      })
     })
 
     it('executes a PTT (token transfer + data) end to end', async () => {
@@ -3390,12 +3390,12 @@ describe('OffRamp - Execute', () => {
       )
 
       // Rejected by the OffRamp before the root is asked to validate (and mark) the message.
-      expectFailedTransaction(
-        result,
-        setup.transmitters[0].address,
-        setup.offRamp.address,
-        of.OffRamp.Errors['OffRamp_Error.ManualExecutionGasAmountCountMismatch'],
-      )
+      expect(result.transactions).toHaveTransaction({
+        from: setup.transmitters[0].address,
+        to: setup.offRamp.address,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.ManualExecutionGasAmountCountMismatch'],
+        success: false,
+      })
       expect(result.transactions).not.toHaveTransaction({ op: mr.MerkleRoot_Validate.PREFIX })
     })
 
@@ -3435,12 +3435,12 @@ describe('OffRamp - Execute', () => {
       )
 
       // Rejected by the OffRamp before the root is asked to validate (and mark) the message.
-      expectFailedTransaction(
-        result,
-        setup.transmitters[0].address,
-        setup.offRamp.address,
-        of.OffRamp.Errors['OffRamp_Error.ManualExecutionGasAmountCountMismatch'],
-      )
+      expect(result.transactions).toHaveTransaction({
+        from: setup.transmitters[0].address,
+        to: setup.offRamp.address,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.ManualExecutionGasAmountCountMismatch'],
+        success: false,
+      })
       expect(result.transactions).not.toHaveTransaction({ op: mr.MerkleRoot_Validate.PREFIX })
     })
 
@@ -3485,12 +3485,12 @@ describe('OffRamp - Execute', () => {
       )
 
       // Rejected by the OffRamp before the root is asked to validate (and mark) the message.
-      expectFailedTransaction(
-        result,
-        setup.transmitters[0].address,
-        setup.offRamp.address,
-        of.OffRamp.Errors['OffRamp_Error.InvalidManualExecutionGasLimit'],
-      )
+      expect(result.transactions).toHaveTransaction({
+        from: setup.transmitters[0].address,
+        to: setup.offRamp.address,
+        exitCode: of.OffRamp.Errors['OffRamp_Error.InvalidManualExecutionGasLimit'],
+        success: false,
+      })
       expect(result.transactions).not.toHaveTransaction({ op: mr.MerkleRoot_Validate.PREFIX })
     })
 

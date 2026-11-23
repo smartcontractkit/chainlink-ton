@@ -3,7 +3,6 @@ import { Blockchain } from '@ton/sandbox'
 
 import { generateMockTonAddress } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
-import { expectSuccessfulTransaction, expectFailedTransaction } from '../../Logs'
 
 import * as ocr from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 
@@ -48,12 +47,12 @@ describe('OffRamp - Set OCR3 Config', () => {
       }),
     )
 
-    expectFailedTransaction(
-      result,
-      setup.deployer.address,
-      setup.offRamp.address,
-      of.OffRamp.Errors['OffRamp_Error.SignatureVerificationRequiredInCommitPlugin'],
-    )
+    expect(result.transactions).toHaveTransaction({
+      from: setup.deployer.address,
+      to: setup.offRamp.address,
+      exitCode: of.OffRamp.Errors['OffRamp_Error.SignatureVerificationRequiredInCommitPlugin'],
+      success: false,
+    })
   })
 
   it('should fail for execute plugin config with signature verification', async () => {
@@ -66,12 +65,12 @@ describe('OffRamp - Set OCR3 Config', () => {
       }),
     )
 
-    expectFailedTransaction(
-      result,
-      setup.deployer.address,
-      setup.offRamp.address,
-      of.OffRamp.Errors['OffRamp_Error.SignatureVerificationNotAllowedInExecutionPlugin'],
-    )
+    expect(result.transactions).toHaveTransaction({
+      from: setup.deployer.address,
+      to: setup.offRamp.address,
+      exitCode: of.OffRamp.Errors['OffRamp_Error.SignatureVerificationNotAllowedInExecutionPlugin'],
+      success: false,
+    })
   })
 
   it('should succeed for commit plugin config with signature verification enabled', async () => {
@@ -83,7 +82,11 @@ describe('OffRamp - Set OCR3 Config', () => {
       }),
     )
 
-    expectSuccessfulTransaction(result, setup.deployer.address, setup.offRamp.address)
+    expect(result.transactions).toHaveTransaction({
+      from: setup.deployer.address,
+      to: setup.offRamp.address,
+      success: true,
+    })
   })
 
   it('should succeed for execute plugin config without signature verification', async () => {
@@ -96,7 +99,11 @@ describe('OffRamp - Set OCR3 Config', () => {
       }),
     )
 
-    expectSuccessfulTransaction(result, setup.deployer.address, setup.offRamp.address)
+    expect(result.transactions).toHaveTransaction({
+      from: setup.deployer.address,
+      to: setup.offRamp.address,
+      success: true,
+    })
   })
 
   it('should reset latestPriceSequenceNumber when commit config changes', async () => {
@@ -123,7 +130,11 @@ describe('OffRamp - Set OCR3 Config', () => {
         configDigest: newConfigDigest,
       }),
     )
-    expectSuccessfulTransaction(result, setup.deployer.address, setup.offRamp.address)
+    expect(result.transactions).toHaveTransaction({
+      from: setup.deployer.address,
+      to: setup.offRamp.address,
+      success: true,
+    })
 
     // Price sequence number should be reset to 0
     latestSeq = await setup.offRamp.getLatestPriceSequenceNumber()
@@ -155,7 +166,11 @@ describe('OffRamp - Set OCR3 Config', () => {
         signers: [],
       }),
     )
-    expectSuccessfulTransaction(result, setup.deployer.address, setup.offRamp.address)
+    expect(result.transactions).toHaveTransaction({
+      from: setup.deployer.address,
+      to: setup.offRamp.address,
+      success: true,
+    })
 
     // Price sequence number should remain unchanged
     latestSeq = await setup.offRamp.getLatestPriceSequenceNumber()

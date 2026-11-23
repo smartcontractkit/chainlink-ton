@@ -48,7 +48,7 @@ import * as CCIPLogs from '../../../wrappers/ccip/Logs'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 import generateMessageID, { getMetadataHash } from '../../../src/offramp/generateMessageID'
 import { MerkleHelper } from '../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
-import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../../Logs'
+import { assertLog } from '../../Logs'
 import {
   executeValue,
   Costs as OffRampCosts,
@@ -462,7 +462,11 @@ export class OffRampTestSetup {
       this.deployer.getSender(),
       ...this.createDefaultOCRConfig({ ocrPluginType, ...overrides }),
     )
-    expectSuccessfulTransaction(result, this.deployer.address, this.offRamp.address)
+    expect(result.transactions).toHaveTransaction({
+      from: this.deployer.address,
+      to: this.offRamp.address,
+      success: true,
+    })
 
     assertLog(result.transactions, this.offRamp.address, OCR3Logs.LogTypes.OCR3BaseConfigSet, {
       ocrPluginType,
@@ -487,7 +491,11 @@ export class OffRampTestSetup {
         configs,
       },
     )
-    expectSuccessfulTransaction(result, this.deployer.address, this.offRamp.address)
+    expect(result.transactions).toHaveTransaction({
+      from: this.deployer.address,
+      to: this.offRamp.address,
+      success: true,
+    })
 
     if (isInitialSetup) {
       for (const config of configs) {
@@ -556,14 +564,23 @@ export class OffRampTestSetup {
       signatures,
     })
     if (expectSuccess) {
-      expectSuccessfulTransaction(result, this.transmitters[0].address, this.offRamp.address)
+      expect(result.transactions).toHaveTransaction({
+        from: this.transmitters[0].address,
+        to: this.offRamp.address,
+        success: true,
+      })
 
       assertLog(result.transactions, this.offRamp.address, CCIPLogs.LogTypes.CommitReportAccepted, {
         merkleRoot: merkleRoots[0] ?? null,
         priceUpdates,
       })
     } else {
-      expectFailedTransaction(result, this.transmitters[0].address, this.offRamp.address, exitCode)
+      expect(result.transactions).toHaveTransaction({
+        from: this.transmitters[0].address,
+        to: this.offRamp.address,
+        exitCode: exitCode,
+        success: false,
+      })
     }
 
     return result
@@ -615,7 +632,11 @@ export class OffRampTestSetup {
     )
 
     if (expectSuccess) {
-      expectSuccessfulTransaction(result, this.transmitters[0].address, this.offRamp.address)
+      expect(result.transactions).toHaveTransaction({
+        from: this.transmitters[0].address,
+        to: this.offRamp.address,
+        success: true,
+      })
     }
 
     return result
@@ -652,7 +673,11 @@ export class OffRampTestSetup {
     )
 
     if (expectSuccess) {
-      expectSuccessfulTransaction(result, this.transmitters[0].address, this.offRamp.address)
+      expect(result.transactions).toHaveTransaction({
+        from: this.transmitters[0].address,
+        to: this.offRamp.address,
+        success: true,
+      })
     }
 
     return result
@@ -664,12 +689,12 @@ export class OffRampTestSetup {
     sequenceBytes = 0x02,
   ) {
     const result = await this.executeReport(report, sequenceBytes, false)
-    expectFailedTransaction(
-      result,
-      this.transmitters[0].address,
-      this.offRamp.address,
-      expectedErrorCode,
-    )
+    expect(result.transactions).toHaveTransaction({
+      from: this.transmitters[0].address,
+      to: this.offRamp.address,
+      exitCode: expectedErrorCode,
+      success: false,
+    })
     return result
   }
 
