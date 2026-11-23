@@ -54,7 +54,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-/// Replies to a pool `TokenPool_GetCCVs` with a `TokenPool_QueryCCVsReply`, preserving the
+/// Replies to a pool `TokenPool_QueryCCVs` with a `TokenPool_CCVs`, preserving the
 /// context in `forwardPayload` so the pool can assemble the final `TokenPool_CCVsAndFees`.
 /// The CCV set is driven by the mock's storage `id`:
 ///   - `id == 0` (default): empty CCV set, signaling "use lane defaults".
@@ -94,7 +94,7 @@ fun replyGetCCVs(msg: TokenPool_GetCCVs, sender: address) {
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: sender,
-        body: TokenPool_QueryCCVsReply {
+        body: TokenPool_CCVs {
             queryId: msg.queryId,
             requiredCCVs,
             forwardPayload: msg.forwardPayload,

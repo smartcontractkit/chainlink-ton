@@ -3773,60 +3773,6 @@ export const TokenPool_GetCCVsFailed = {
 }
 
 /**
- > struct (0x30612b17) TokenPool_QueryCCVsReply {
- >     queryId: uint64
- >     requiredCCVs: array<address>
- >     forwardPayload: cell?
- > }
- */
-export interface TokenPool_QueryCCVsReply {
-    readonly $: 'TokenPool_QueryCCVsReply'
-    queryId: uint64
-    requiredCCVs: array<c.Address>
-    forwardPayload: c.Cell | null
-}
-
-export const TokenPool_QueryCCVsReply = {
-    PREFIX: 0x30612b17,
-
-    create(args: {
-        queryId?: uint64
-        requiredCCVs: array<c.Address>
-        forwardPayload: c.Cell | null
-    }): TokenPool_QueryCCVsReply {
-        return {
-            $: 'TokenPool_QueryCCVsReply',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_QueryCCVsReply {
-        loadAndCheckPrefix32(s, 0x30612b17, 'TokenPool_QueryCCVsReply');
-        return {
-            $: 'TokenPool_QueryCCVsReply',
-            queryId: s.loadUintBig(64),
-            requiredCCVs: loadArrayOf<c.Address>(s,
-                (s) => s.loadAddress()
-            ),
-            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
-        }
-    },
-    store(self: TokenPool_QueryCCVsReply, b: c.Builder): void {
-        b.storeUint(0x30612b17, 32);
-        b.storeUint(self.queryId, 64);
-        storeArrayOf<c.Address>(self.requiredCCVs, b,
-            (v,b) => b.storeAddress(v)
-        );
-        storeTolkNullable<c.Cell>(self.forwardPayload, b,
-            (v,b) => b.storeRef(v)
-        );
-    },
-    toCell(self: TokenPool_QueryCCVsReply): c.Cell {
-        return makeCellFrom<TokenPool_QueryCCVsReply>(self, TokenPool_QueryCCVsReply.store);
-    }
-}
-
-/**
  > struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
  >     queryId: uint64
  >     forwardTonAmount: coins
@@ -6555,12 +6501,12 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
         return TokenPool_GetCCVsAndFees.toCell(TokenPool_GetCCVsAndFees.create(body));
     }
 
-    static createCellOfTokenPoolQueryCCVsReply(body: {
+    static createCellOfTokenPoolCCVs(body: {
         queryId?: uint64
         requiredCCVs: array<c.Address>
         forwardPayload: c.Cell | null
     }) {
-        return TokenPool_QueryCCVsReply.toCell(TokenPool_QueryCCVsReply.create(body));
+        return TokenPool_CCVs.toCell(TokenPool_CCVs.create(body));
     }
 
     static createCellOfTokenPoolApplyChainUpdates(body: {
@@ -6894,14 +6840,14 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
         });
     }
 
-    async sendTokenPoolQueryCCVsReply(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendTokenPoolCCVs(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         requiredCCVs: array<c.Address>
         forwardPayload: c.Cell | null
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: TokenPool_QueryCCVsReply.toCell(TokenPool_QueryCCVsReply.create(body)),
+            body: TokenPool_CCVs.toCell(TokenPool_CCVs.create(body)),
             ...extraOptions
         });
     }

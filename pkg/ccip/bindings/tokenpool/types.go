@@ -585,7 +585,8 @@ type GetCCVsContext struct {
 	Fees           *cell.Cell       `tlb:"maybe ^"` // Cell<FeeContext>; null for CCVs-only
 }
 
-// CCVs is the reply to a `GetCCVs` request, carrying only the required CCVs.
+// CCVs is the required-CCV reply: from the pool to a `GetCCVs` caller, and from
+// AdvancedPoolHooks to the pool's `QueryCCVs`.
 // `ForwardPayload` echoes the caller's per-request context.
 //
 // On-chain: struct (0x6c70b2dd) TokenPool_CCVs
@@ -619,17 +620,6 @@ type GetCCVsFailed struct {
 	QueryID        uint64     `tlb:"## 64"`
 	ErrorCode      int32      `tlb:"## 32"`
 	ForwardPayload *cell.Cell `tlb:"maybe ^"`
-}
-
-// QueryCCVsReply replies to a pool-forwarded `GetCCVs` with the required CCV set. An empty
-// `RequiredCCVs` list signals "use the lane defaults".
-//
-// On-chain: struct (0x30612b17) TokenPool_QueryCCVsReply
-type QueryCCVsReply struct {
-	_              tlb.Magic          `tlb:"#30612b17" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64             `tlb:"## 64"`
-	RequiredCCVs   []*address.Address `tlb:"array addr"`
-	ForwardPayload *cell.Cell         `tlb:"maybe ^"`
 }
 
 // --- Messages - outgoing ---
@@ -906,7 +896,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	// CCV/fee query + reply
 	GetCCVs{},
 	GetCCVsAndFees{},
-	QueryCCVsReply{},
 	// Config + budget
 	GetConfig{},
 	SetBudget{},

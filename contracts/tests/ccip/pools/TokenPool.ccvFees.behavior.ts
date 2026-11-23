@@ -7,7 +7,6 @@ import {
   TokenPool_CCVsAndFees,
   TokenPool_GetCCVs,
   TokenPool_GetCCVsFailed,
-  TokenPool_QueryCCVsReply,
   TokenPool_TokenTransferFeeConfig,
   TokenPool_TokenTransferFeeConfigArgs,
 } from '../../../wrappers/gen/ccip/pools/TokenPool'
@@ -399,7 +398,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
         op: TokenPool_GetCCVs.PREFIX,
       })
 
-      // Hook replies QueryCCVsReply (empty) -> pool replies TokenPool_CCVs to the sender.
+      // Hook replies TokenPool_CCVs (empty) -> pool replies TokenPool_CCVs to the sender.
       expect(result.transactions).toHaveTransaction({
         from: ctx.pool.address,
         to: ctx.deployer.address,
@@ -539,17 +538,17 @@ export function runTokenPoolCcvFeesBehaviorTests(
 
     // ======= onQueryCCVsReply access control (pool side) =======
 
-    it('rejects onQueryCCVsReply from a non-hook sender', async () => {
+    it('rejects a hook CCVs reply from a non-hook sender', async () => {
       await deployHooks(Number(MOCK_HOOKS_DEFAULT_ID))
 
-      // An unauthorized sender sends a QueryCCVsReply to the pool — must revert (sender != hooks).
+      // An unauthorized sender sends a hook CCVs reply to the pool — must revert (sender != hooks).
       const result = await ctx.blockchain.sendMessage(
         internal({
           from: ctx.unauthorized.address,
           to: ctx.pool.address,
           value: toNano('0.3'),
-          body: TokenPool_QueryCCVsReply.toCell(
-            TokenPool_QueryCCVsReply.create({
+          body: TokenPool_CCVs.toCell(
+            TokenPool_CCVs.create({
               queryId: 23n,
               requiredCCVs: [ctx.pool.address],
               forwardPayload: Cell.EMPTY,
@@ -565,7 +564,7 @@ export function runTokenPoolCcvFeesBehaviorTests(
       })
     })
 
-    it('rejects onQueryCCVsReply from hooks with a missing forwardPayload', async () => {
+    it('rejects a hook CCVs reply with a missing forwardPayload', async () => {
       const hooks = await deployHooks(Number(MOCK_HOOKS_DEFAULT_ID))
 
       // Sender is the registered hooks (passes auth) but the forwarded context is missing.
@@ -574,8 +573,8 @@ export function runTokenPoolCcvFeesBehaviorTests(
           from: hooks.address,
           to: ctx.pool.address,
           value: toNano('0.3'),
-          body: TokenPool_QueryCCVsReply.toCell(
-            TokenPool_QueryCCVsReply.create({
+          body: TokenPool_CCVs.toCell(
+            TokenPool_CCVs.create({
               queryId: 24n,
               requiredCCVs: [],
               forwardPayload: null,

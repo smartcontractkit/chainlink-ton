@@ -793,7 +793,7 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         TokenPool_GetCCVsAndFees => {
             self.onGetCCVsAndFees(msgSender, msgValue, msg);
         }
-        TokenPool_QueryCCVsReply => {
+        TokenPool_CCVs => {
             self.onQueryCCVsReply(msgSender, msgValue, msg);
         }
         TokenPool_ApplyChainUpdates => {
@@ -1359,7 +1359,7 @@ fun TokenPool<T>.validateGetCCVsRequest(
 
 /// Handles an on-chain `TokenPool_GetCCVs` query: validates, then replies directly with an empty
 /// CCV set (no hooks) or forwards to `advancedPoolHooks` and assembles the reply on the
-/// `TokenPool_QueryCCVsReply` callback. `fees` selects the reply variant (null → CCVs, else CCVsAndFees).
+/// `TokenPool_CCVs` callback. `fees` selects the reply variant (null → CCVs, else CCVsAndFees).
 fun TokenPool<T>.onGetCCVs(
     mutate self,
     sender: address,
@@ -1483,13 +1483,13 @@ fun TokenPool<T>.sendCCVsFailed(
     failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
-/// Handles the async `TokenPool_QueryCCVsReply` from `advancedPoolHooks`, assembling the final
+/// Handles the async `TokenPool_CCVs` reply from `advancedPoolHooks`, assembling the final
 /// reply to the original requester from the echoed context.
 fun TokenPool<T>.onQueryCCVsReply(
     self,
     sender: address,
     msgValue: coins,
-    msg: TokenPool_QueryCCVsReply,
+    msg: TokenPool_CCVs,
 ): void {
     val adminConfig = lazy self.data.adminConfig.load();
     val hooks = adminConfig.advancedPoolHooks;

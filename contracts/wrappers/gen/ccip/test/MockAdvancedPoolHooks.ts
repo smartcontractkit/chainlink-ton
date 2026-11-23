@@ -180,37 +180,37 @@ export const MockAdvancedPoolHooks_Data = {
 }
 
 /**
- > struct (0x30612b17) TokenPool_QueryCCVsReply {
+ > struct (0x6c70b2dd) TokenPool_CCVs {
  >     queryId: uint64
  >     requiredCCVs: array<address>
  >     forwardPayload: cell?
  > }
  */
-export interface TokenPool_QueryCCVsReply {
-    readonly $: 'TokenPool_QueryCCVsReply'
+export interface TokenPool_CCVs {
+    readonly $: 'TokenPool_CCVs'
     queryId: uint64
     requiredCCVs: array<c.Address>
     forwardPayload: c.Cell | null
 }
 
-export const TokenPool_QueryCCVsReply = {
-    PREFIX: 0x30612b17,
+export const TokenPool_CCVs = {
+    PREFIX: 0x6c70b2dd,
 
     create(args: {
         queryId?: uint64
         requiredCCVs: array<c.Address>
         forwardPayload: c.Cell | null
-    }): TokenPool_QueryCCVsReply {
+    }): TokenPool_CCVs {
         return {
-            $: 'TokenPool_QueryCCVsReply',
+            $: 'TokenPool_CCVs',
             ...args,
             queryId: args.queryId ?? 0n
         }
     },
-    fromSlice(s: c.Slice): TokenPool_QueryCCVsReply {
-        loadAndCheckPrefix32(s, 0x30612b17, 'TokenPool_QueryCCVsReply');
+    fromSlice(s: c.Slice): TokenPool_CCVs {
+        loadAndCheckPrefix32(s, 0x6c70b2dd, 'TokenPool_CCVs');
         return {
-            $: 'TokenPool_QueryCCVsReply',
+            $: 'TokenPool_CCVs',
             queryId: s.loadUintBig(64),
             requiredCCVs: loadArrayOf<c.Address>(s,
                 (s) => s.loadAddress()
@@ -218,8 +218,8 @@ export const TokenPool_QueryCCVsReply = {
             forwardPayload: s.loadBoolean() ? s.loadRef() : null,
         }
     },
-    store(self: TokenPool_QueryCCVsReply, b: c.Builder): void {
-        b.storeUint(0x30612b17, 32);
+    store(self: TokenPool_CCVs, b: c.Builder): void {
+        b.storeUint(0x6c70b2dd, 32);
         b.storeUint(self.queryId, 64);
         storeArrayOf<c.Address>(self.requiredCCVs, b,
             (v,b) => b.storeAddress(v)
@@ -228,8 +228,8 @@ export const TokenPool_QueryCCVsReply = {
             (v,b) => b.storeRef(v)
         );
     },
-    toCell(self: TokenPool_QueryCCVsReply): c.Cell {
-        return makeCellFrom<TokenPool_QueryCCVsReply>(self, TokenPool_QueryCCVsReply.store);
+    toCell(self: TokenPool_CCVs): c.Cell {
+        return makeCellFrom<TokenPool_CCVs>(self, TokenPool_CCVs.store);
     }
 }
 
