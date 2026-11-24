@@ -543,16 +543,6 @@ fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, msgValue
     reply.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
-fun sameAddress(left: address?, right: address?): bool {
-    if (left == null) {
-        return right == null;
-    }
-    if (right == null) {
-        return false;
-    }
-    return left == right;
-}
-
 fun TokenPool<T>.setAdvancedPoolHooks(
     mutate self,
     sender: address,
@@ -567,9 +557,12 @@ fun TokenPool<T>.setAdvancedPoolHooks(
     adminConfig.ownable.load().requireOwner(sender);
 
     val oldHook = adminConfig.advancedPoolHooks;
+    val sameHook = advancedPoolHooks == null
+        ? oldHook == null
+        : oldHook != null && advancedPoolHooks == oldHook;
     if (clearPrevious) {
         adminConfig.advancedPoolHooksPrevious = null;
-    } else if (!sameAddress(advancedPoolHooks, oldHook)) {
+    } else if (!sameHook) {
         adminConfig.advancedPoolHooksPrevious = oldHook;
     }
     adminConfig.advancedPoolHooks = advancedPoolHooks;
