@@ -735,23 +735,32 @@ export function runTokenPoolBehaviorTests(
           true,
         )
 
-        await ctx.pool.sendTokenPoolLockOrBurnWithdrawFailed(
-          ctx.deployer.getSender(),
-          toNano('1'),
-          {
-            queryId: 3n,
-            forwardPayload: withdraw.forwardPayload,
-            errorCode: 1n,
-          },
-        )
+        const { transactions: refundTransactions } =
+          await ctx.pool.sendTokenPoolLockOrBurnWithdrawFailed(
+            ctx.deployer.getSender(),
+            toNano('1'),
+            {
+              queryId: 3n,
+              forwardPayload: withdraw.forwardPayload,
+              errorCode: 1n,
+            },
+          )
 
         const standardAfter = await ctx.pool.getCurrentRateLimiterState(
           ctx.remoteChainSelector,
           false,
         )
         const fastAfter = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, true)
-        // A disabled bucket cannot accept refunds, but the refund must not be misrouted to the
-        // standard bucket. The old code did exactly that on the disabled->fallback path.
+        // A disabled bucket cannot accept token refunds, but the refund must still target the
+        // fast bucket (the event proves it) and never be misrouted to the standard bucket.
+        expect(eventCount(transactions, ctx.pool.address, topics.outboundFastConsumed)).toBe(1)
+        expect(eventCount(transactions, ctx.pool.address, topics.outboundStandardConsumed)).toBe(0)
+        expect(eventCount(refundTransactions, ctx.pool.address, topics.outboundFastRefunded)).toBe(
+          1,
+        )
+        expect(
+          eventCount(refundTransactions, ctx.pool.address, topics.outboundStandardRefunded),
+        ).toBe(0)
         expect(fastAfter.outbound.tokens).toEqual(fastAfterDisable.outbound.tokens)
         expect(standardAfter.outbound.tokens).toEqual(standardBefore.outbound.tokens)
       })
