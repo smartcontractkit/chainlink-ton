@@ -55,13 +55,13 @@ struct TokenPool<T> {
 /// accepted by the sender and the truncated body is intentionally not parsed.
 @inline
 fun isShortAskToTransferBounce(bouncedBody: slice): bool {
-    if (bouncedBody.remainingBitsCount() < 64) {
+    if (bouncedBody.remainingBitsCount() < 32) {
         return false;
     }
-    if (bouncedBody.preloadUint(32) != 0xffffffff) {
+    if (bouncedBody.loadUint(32) != 0xffffffff) {
         return false;
     }
-    val originalBody = bouncedBody.skipBouncedPrefix();
+    val originalBody = bouncedBody;
     val (askOpcode, askOpcodeBits) = reflect.serializationPrefixOf<AskToTransfer>();
     return originalBody.remainingBitsCount() >= askOpcodeBits
         && originalBody.preloadUint(askOpcodeBits) == askOpcode;
@@ -550,7 +550,7 @@ fun sameAddress(left: address?, right: address?): bool {
     if (right == null) {
         return false;
     }
-    return left! == right!;
+    return left == right;
 }
 
 fun TokenPool<T>.setAdvancedPoolHooks(

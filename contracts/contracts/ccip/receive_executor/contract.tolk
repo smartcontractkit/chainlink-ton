@@ -95,8 +95,7 @@ fun onInternalMessage(in: InMessage) {
             val ttInfo = st.state.tokenTransfer.loadOpt();
             assert (ttInfo != null && ttInfo.state is ReceiveExecutor_TokenTransferState_Success)
                 throw (ReceiveExecutor_Error.TokenPoolUnexpectedResponse);
-            val success = ttInfo.state as ReceiveExecutor_TokenTransferState_Success;
-            assert (in.senderAddress == success.tokenPool) throw (ReceiveExecutor_Error.Unauthorized);
+            assert (in.senderAddress == ttInfo.state.tokenPool) throw (ReceiveExecutor_Error.Unauthorized);
             val forwardToOffRamp = createMessage({
                 bounce: BounceMode.NoBounce,
                 value: 0,
@@ -413,10 +412,10 @@ fun onDepositAccountNotification(sender: address, msg: DepositAccount_ForwardNot
         throw ReceiveExecutor_Error.UnexpectedDepositNotification;
     }
 
-    if (expected != null && expected!.load() != ttInfo.state.tokenPool) {
+    if (expected != null && expected.load() != ttInfo.state.tokenPool) {
         val wrap = Jetton_ForwardPayloadWrap.from(notification.forwardPayload);
         assert (wrap != null) throw (ReceiveExecutor_Error.UnexpectedDepositNotification);
-        assert (wrap!.initiator == ttInfo.state.tokenPool) throw (ReceiveExecutor_Error.UnexpectedDepositNotification);
+        assert (wrap.initiator == ttInfo.state.tokenPool) throw (ReceiveExecutor_Error.UnexpectedDepositNotification);
     }
 
     // Authentication passed: let the funded executor finish delivery and execution.
