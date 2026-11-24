@@ -558,12 +558,6 @@ fun onSenderAccountReady(context: Router_SenderAccountContext, msg: DepositAccou
 fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: address) {
     assert (sender == senderAccountAddress(msg.user, msg.token)) throw (Router_Error.SenderIsNotSenderAccount);
     val request = lazy msg.request.load();
-    emit(TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC, TokenPoolWithdrawBounced {
-        wallet: msg.walletAddress,
-        tokenPool: request.ask.transferRecipient,
-        queryId: msg.queryId,
-        exitCode: 0,
-    });
     failWithdrawToTokenPool(request, Router_Error.SenderAccountWithdrawFailed as int32);
 }
 

@@ -5353,55 +5353,6 @@ export const MessageToOffRampBounced = {
 }
 
 /**
- > struct TokenPoolWithdrawBounced {
- >     wallet: address
- >     tokenPool: address
- >     queryId: uint64
- >     exitCode: int32
- > }
- */
-export interface TokenPoolWithdrawBounced {
-    readonly $: 'TokenPoolWithdrawBounced'
-    wallet: c.Address
-    tokenPool: c.Address
-    queryId: uint64
-    exitCode: int32
-}
-
-export const TokenPoolWithdrawBounced = {
-    create(args: {
-        wallet: c.Address
-        tokenPool: c.Address
-        queryId?: uint64
-        exitCode: int32
-    }): TokenPoolWithdrawBounced {
-        return {
-            $: 'TokenPoolWithdrawBounced',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPoolWithdrawBounced {
-        return {
-            $: 'TokenPoolWithdrawBounced',
-            wallet: s.loadAddress(),
-            tokenPool: s.loadAddress(),
-            queryId: s.loadUintBig(64),
-            exitCode: s.loadIntBig(32),
-        }
-    },
-    store(self: TokenPoolWithdrawBounced, b: c.Builder): void {
-        b.storeAddress(self.wallet);
-        b.storeAddress(self.tokenPool);
-        b.storeUint(self.queryId, 64);
-        b.storeInt(self.exitCode, 32);
-    },
-    toCell(self: TokenPoolWithdrawBounced): c.Cell {
-        return makeCellFrom<TokenPoolWithdrawBounced>(self, TokenPoolWithdrawBounced.store);
-    }
-}
-
-/**
  > type CrossChainAddress = slice
  */
 export type CrossChainAddress = c.Slice

@@ -3,8 +3,6 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 
 import * as coverage from '../../coverage/coverage'
-import { assertLog } from '../../Logs'
-import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as deposit from '../../../wrappers/gen/ccip/DepositAccount'
@@ -283,7 +281,7 @@ describe('Router.withdrawToTokenPool', () => {
     })
   })
 
-  it('emits TokenPoolWithdrawBounced when the deposit account reports a failed withdraw', async () => {
+  it('fails the CCIPSend when the deposit account reports a failed withdraw', async () => {
     const tokenPool = await blockchain.treasury('tokenPool')
     const accountAddress = await deployDepositAccount(sender)
     const walletAddress = await blockchain.treasury('accountWallet')
@@ -311,11 +309,6 @@ describe('Router.withdrawToTokenPool', () => {
       success: true,
     })
 
-    assertLog(result.transactions, router.address, LogTypes.TokenPoolWithdrawBounced, {
-      wallet: walletAddress.address,
-      tokenPool: tokenPool.address,
-      exitCode: 0n,
-    })
     expectPoolWithdrawFailed(result, tokenPool.address)
     expectExecutorFailed(result, tokenPool.address, 'Router_Error.SenderAccountWithdrawFailed')
   })
