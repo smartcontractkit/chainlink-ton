@@ -54,6 +54,7 @@ import {
   Costs as OffRampCosts,
   DEFAULT_MIN_GASLIMIT,
   DEFAULT_MIN_TT_GASLIMIT,
+  DEFAULT_TOKEN_DEST_GAS_AMOUNT,
 } from '../../../wrappers/ccip/OffRamp'
 
 export async function deployOffRampContract(
@@ -1097,7 +1098,7 @@ export class OffRampWithTokenPoolTestSetup extends OffRampTestSetup {
         sourcePoolAddress:
           opts.sourcePoolAddress ?? CrossChainAddressCodec.FromBuffer(Buffer.from('source-pool')),
         token: opts.token ?? this.token,
-        destGasAmount: opts.destGasAmount ?? DEFAULT_MIN_TT_GASLIMIT,
+        destGasAmount: opts.destGasAmount ?? DEFAULT_TOKEN_DEST_GAS_AMOUNT,
         extraData: opts.extraData ?? null,
         amount: opts.amount ?? this.DEFAULT_TOKEN_AMOUNT,
       }),

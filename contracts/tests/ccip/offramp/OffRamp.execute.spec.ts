@@ -33,7 +33,11 @@ import {
   OffRampWithTokenPoolTestSetup,
   PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
 } from './OffRamp.Setup'
-import { DEFAULT_MIN_TT_GASLIMIT, executeValue } from '../../../wrappers/ccip/OffRamp'
+import {
+  DEFAULT_MIN_TT_GASLIMIT,
+  DEFAULT_TOKEN_DEST_GAS_AMOUNT,
+  executeValue,
+} from '../../../wrappers/ccip/OffRamp'
 
 import { codec } from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 
@@ -3274,7 +3278,7 @@ describe('OffRamp - Execute', () => {
       const report = setup.createExecuteReport([message])
       const executorAddress = setup.receiveExecutorAddress(message)
 
-      // Raise the pool's release admission above the message's source destGasAmount (0.2 TON).
+      // Raise the pool's release admission above the message's source destGasAmount (0.1005 TON).
       await setup.tokenPool.sendTokenPoolSetBudget(setup.deployer.getSender(), toNano('0.1'), {
         queryId: 900n,
         budget: tp.TokenPool_Budget.create({
@@ -3294,7 +3298,7 @@ describe('OffRamp - Execute', () => {
         toNano('0.5'),
       )
 
-      // 1. Normal execution: 0.2 TON destGasAmount is below the 0.5 TON pool admission. The
+      // 1. Normal execution: 0.1005 TON destGasAmount is below the 0.5 TON pool admission. The
       // ReceiveExecutor must fail before calling the pool, leaving the executor in Failure.
       const first = await setup.executeReport(report)
       expect(first.transactions).toHaveTransaction({
@@ -3524,7 +3528,7 @@ describe('OffRamp - Execute', () => {
     })
 
     it('blocks token transfers with gas below minTTGasLimit and allows retry above it', async () => {
-      // Create a message with a destGasAmount below minTTGasLimit (0.025 TON).
+      // Create a message with a destGasAmount below minTTGasLimit (0.05 TON).
       const message = setup.createTestMessageWithToken({
         destGasAmount: toNano('0.001'),
       })
@@ -3569,10 +3573,10 @@ describe('OffRamp - Execute', () => {
         },
       )
 
-      // 3. Manual exec with a tokenGasOverride above minTTGasLimit — should succeed.
+      // 3. Manual exec with a tokenGasOverride covering the pool admission — should succeed.
       const successResult = await setup.manualExecuteReport(
         report,
-        { tokenGasOverrides: [DEFAULT_MIN_TT_GASLIMIT] },
+        { tokenGasOverrides: [DEFAULT_TOKEN_DEST_GAS_AMOUNT] },
         true,
       )
       expect(successResult.transactions).toHaveTransaction({

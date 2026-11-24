@@ -139,8 +139,8 @@ export const offRampRetains = (() => {
               contract: 'BurnMintPool',
               op: 'TokenPool_ReleaseOrMint',
               kind: 'deltaRange',
-              min: toNano('0.1'),
-              max: toNano('0.2'),
+              min: toNano('0.05'),
+              max: toNano('0.12'),
             },
           ]
         : []
