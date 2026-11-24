@@ -1,6 +1,7 @@
 package ton // alias: opston
 
 import (
+	"encoding/base64"
 	"fmt"
 	"reflect"
 
@@ -106,12 +107,23 @@ var Deploy = operations.NewOperation(
 //
 // The function handles the following cases:
 //   - If data is already a *cell.Cell, it is returned as is.
+//   - If data is a string, it is decoded as a base64 BOC (the JSON form of a *cell.Cell, e.g. the output
+//     of the "codec.resolvers.contract-data-to-cell" resolver after the input is unmarshaled).
 //   - If data is a struct (or pointer to struct), it is directly converted to a cell.
 //   - Or else, an error is returned.
 func encodeDataCellFor(data any) (*cell.Cell, error) {
+	if p, ok := data.(*any); ok && p != nil {
+		data = *p
+	}
 	switch d := data.(type) {
 	case *cell.Cell:
-		return d, nil // already a cell, supports resolver: "codec.resolvers.contract-data-to-cell"
+		return d, nil
+	case string:
+		boc, err := base64.StdEncoding.DecodeString(d)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode data cell base64 BOC: %w", err)
+		}
+		return cell.FromBOC(boc)
 	default:
 		// Check if it's a struct (or pointer to struct)
 		rv := reflect.ValueOf(data)
