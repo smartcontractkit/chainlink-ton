@@ -154,19 +154,3 @@ export const FEE_QUOTER_CONTRACT_VERSION = '1.7.0'
 export const FACILITY_NAME = 'link.chain.ton.ccip.FeeQuoter'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
-
-export const opcodes = {
-  in: {
-    updatePrices: 0xde852b1b,
-    updateFeeTokens: 0xd0984986,
-    updateTransferFeeConfigs: 0xb2826316,
-    updateDestChainConfig: 0x2d2410f6,
-    getValidatedFee: 0x7496ff56,
-    addPriceUpdater: crc32('FeeQuoter_AddPriceUpdater'),
-    removePriceUpdater: crc32('FeeQuoter_RemovePriceUpdater'),
-  },
-  out: {
-    messageValidated: 0x1fa60374,
-    messageValidationFailed: 0xbcf0ab0f,
-  },
-}
