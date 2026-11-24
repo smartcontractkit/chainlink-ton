@@ -130,8 +130,15 @@ export const onRampRetains = (() => {
     // custody value until the Router reports WithdrawFailed and it drains; the pool and
     // message-sent hops are gone. The withdraw hop itself is a pass-through (the bounce returns
     // its value), so it needs no rule.
-    const withdrawFailed: BalanceRule[] = [
+    const withdrawFailed = (kind: PoolKind): BalanceRule[] => [
       ...upToTokenInfo,
+      {
+        contract: `${kind}Pool`,
+        op: 'TokenPool_LockOrBurnWithdrawFailed',
+        kind: 'deltaRange',
+        min: 0n,
+        max: toNano('0.005'), // The pool keeps the refund notification after compute/event fees.
+      },
       {
         contract: 'SendExecutor',
         op: 'Router_LockOrBurnWithdrawFailed',

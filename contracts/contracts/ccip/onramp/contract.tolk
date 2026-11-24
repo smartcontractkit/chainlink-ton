@@ -486,7 +486,7 @@ fun settleWithdrawFailure(
     reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
     val refund = createMessage({
         bounce: BounceMode.NoBounce,
-        value: Router_Costs.tokenPoolRefund(),
+        value: Router_Costs.tokenPoolRefund() + Router_Costs.tokenPoolRefundRelay(),
         dest: router,
         body: Router_LockOrBurnWithdrawFailedForwardTP {
             queryId,

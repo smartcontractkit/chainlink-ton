@@ -124,6 +124,9 @@ fun onInternalMessage(in: InMessage) {
         Router_LockOrBurnWithdrawFailedForwardTP => {
             val st = lazy Storage.load();
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
+            // The OnRamp budgets the relay fee, but only the Router's pre-message balance is
+            // guaranteed to stay here; never use it to cover the refund relay.
+            reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
             sendTPLockOrBurnWithdrawFailure(msg.tokenPool, msg.forwardPayload);
         }
         // Permissionless (authorization is handle at the ReceiverExecutor)

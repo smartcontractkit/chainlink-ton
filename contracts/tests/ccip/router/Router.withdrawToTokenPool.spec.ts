@@ -492,6 +492,30 @@ describe('Router.withdrawToTokenPool', () => {
     })
   })
 
+  it('does not spend Router balance on the refund relay', async () => {
+    const tokenPool = await blockchain.treasury('tokenPool')
+    const before = (await blockchain.getContract(router.address)).balance
+
+    const result = await router.sendRouterLockOrBurnWithdrawFailedForwardTP(
+      onRamp.getSender(),
+      toNano('0.0075'),
+      {
+        queryId: 1n,
+        destChainSelector,
+        tokenPool: tokenPool.address,
+        forwardPayload: buildLockOrBurnForwardPayload(),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: tokenPool.address,
+      op: rt.TokenPool_LockOrBurnWithdrawFailed.PREFIX,
+    })
+    const after = (await blockchain.getContract(router.address)).balance
+    expect(after).toBeGreaterThanOrEqual(before)
+  })
+
   it('rejects a refund-only withdraw failure from a non-OnRamp', async () => {
     const tokenPool = await blockchain.treasury('tokenPool')
 

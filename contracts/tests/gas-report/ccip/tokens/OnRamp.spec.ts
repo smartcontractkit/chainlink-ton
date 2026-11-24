@@ -303,7 +303,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
 
     const sendRetains: BalanceRule[] = onRampRetains.tokenSend.successful(kind)
     const poolRejectedRetains = onRampRetains.tokenSend.poolRejected
-    const withdrawFailedRetains = onRampRetains.tokenSend.withdrawFailed
+    const withdrawFailedRetains = onRampRetains.tokenSend.withdrawFailed(kind)
     const sendFlow = (data: bigint[]) => ({
       run: () => ccipSend(token, data),
       book,
