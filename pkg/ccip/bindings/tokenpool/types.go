@@ -350,7 +350,7 @@ type SetAdvancedPoolHooks struct {
 	_                 tlb.Magic        `tlb:"#3f5c9f57" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID           uint64           `tlb:"## 64"`
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
-	ClearPrevious     bool             `tlb:"## 1"`
+	ClearPrevious     bool             `tlb:"bool"`
 }
 
 // SetRateLimitConfig sets the rate limit configurations.
@@ -732,7 +732,7 @@ type AdvancedPoolHooksSetNotification struct {
 	_                 tlb.Magic        `tlb:"#f63f3401" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID           uint64           `tlb:"## 64"`
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
-	ClearPrevious     bool             `tlb:"## 1"`
+	ClearPrevious     bool             `tlb:"bool"`
 }
 
 // --- Events ---
