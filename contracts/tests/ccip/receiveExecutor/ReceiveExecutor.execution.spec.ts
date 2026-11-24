@@ -41,7 +41,7 @@ const toMessageRef = ({
 // What a registry reply carries back: the query value minus the registry's fees.
 const REGISTRY_REPLY_VALUE = toNano('0.006')
 
-/** A realistic admission below the 0.2 TON test destGasAmount, so the check is exercised. */
+/** A realistic admission below the 0.1005 TON test destGasAmount, so the check is exercised. */
 const TEST_ADMISSION = rx.TokenPool_AdmissionBudget.create({
   lockOrBurn: toNano('0.1'),
   releaseOrMint: toNano('0.1'),

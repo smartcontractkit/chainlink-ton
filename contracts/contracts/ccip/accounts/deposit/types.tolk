@@ -7,6 +7,8 @@ const DepositAccount_MIN_GRAM_TO_RESERVE: int = DEPLOYABLE_INIT_VALUE;
 const DepositAccount_MIN_GRAM_TO_INIT: int = grams("0.005")
 /// Attached to the TEP-89 wallet query; the token's response returns the unspent part.
 const DepositAccount_WALLET_QUERY_VALUE: int = grams("0.005")
+/// Forwarded with released/minted jettons so the account can notify the receive executor.
+const DepositAccount_DELIVERY_FORWARD_VALUE: int = grams("0.01")
 
 /// A deposit account escrows a single jetton (`token`) for a single `user`. A fixed set of
 /// `beneficiaries` may withdraw it. Transfer notifications from the account's own jetton wallet are
