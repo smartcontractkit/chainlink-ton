@@ -253,12 +253,13 @@ type JettonClient struct {
 
 // AdminConfig holds the admin configuration for the pool.
 type AdminConfig struct {
-	Ownable                  ownable2step.Storage         `tlb:"^"`
-	DynamicConfig            DynamicConfig                `tlb:"^"`
-	AllowedDepositNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
-	JettonClient             JettonClient                 `tlb:"."`
-	AllowedFinalityConfig    uint32                       `tlb:"## 32"`
-	AdvancedPoolHooks        *address.Address             `tlb:"addr"`
+	Ownable                   ownable2step.Storage         `tlb:"^"`
+	DynamicConfig             DynamicConfig                `tlb:"^"`
+	AllowedDepositNamespaces  *tlbe.Dict[uint32, struct{}] `tlb:"."`
+	JettonClient              JettonClient                 `tlb:"."`
+	AllowedFinalityConfig     uint32                       `tlb:"## 32"`
+	AdvancedPoolHooks         *address.Address             `tlb:"addr"`
+	AdvancedPoolHooksPrevious *address.Address             `tlb:"addr"`
 }
 
 // LockOrBurnBudget is the pool's LockOrBurn budget. Admission is checked at the entrypoint and
@@ -349,6 +350,7 @@ type SetAdvancedPoolHooks struct {
 	_                 tlb.Magic        `tlb:"#3f5c9f57" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID           uint64           `tlb:"## 64"`
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
+	ClearPrevious     bool             `tlb:"## 1"`
 }
 
 // SetRateLimitConfig sets the rate limit configurations.
@@ -730,6 +732,7 @@ type AdvancedPoolHooksSetNotification struct {
 	_                 tlb.Magic        `tlb:"#f63f3401" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID           uint64           `tlb:"## 64"`
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
+	ClearPrevious     bool             `tlb:"## 1"`
 }
 
 // --- Events ---

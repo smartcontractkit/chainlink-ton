@@ -543,6 +543,16 @@ fun TokenPool<T>.setAllowedFinalityConfig(mutate self, sender: address, msgValue
     reply.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
+fun sameAddress(left: address?, right: address?): bool {
+    if (left == null) {
+        return right == null;
+    }
+    if (right == null) {
+        return false;
+    }
+    return left! == right!;
+}
+
 fun TokenPool<T>.setAdvancedPoolHooks(
     mutate self,
     sender: address,
@@ -557,7 +567,11 @@ fun TokenPool<T>.setAdvancedPoolHooks(
     adminConfig.ownable.load().requireOwner(sender);
 
     val oldHook = adminConfig.advancedPoolHooks;
-    adminConfig.advancedPoolHooksPrevious = clearPrevious ? null : oldHook;
+    if (clearPrevious) {
+        adminConfig.advancedPoolHooksPrevious = null;
+    } else if (!sameAddress(advancedPoolHooks, oldHook)) {
+        adminConfig.advancedPoolHooksPrevious = oldHook;
+    }
     adminConfig.advancedPoolHooks = advancedPoolHooks;
     self.data.adminConfig = adminConfig.toCell();
 
@@ -1518,9 +1532,7 @@ fun TokenPool<T>.onQueryCCVsReply(
     msgValue: coins,
     msg: TokenPool_QueryCCVsReply,
 ): void {
-    val adminConfig = lazy self.data.adminConfig.load();
-    val hooks = adminConfig.advancedPoolHooks;
-    assert(hooks != null && hooks == sender) throw (TokenPool_Error.Unauthorized);
+    self.onlyAdvancedPoolHooks(sender);
     assert(msg.forwardPayload != null) throw (TokenPool_Error.MissingForwardPayload);
 
     val context = lazy (msg.forwardPayload as Cell<TokenPool_GetCCVsContext>).load();
@@ -2162,12 +2174,15 @@ fun TokenPool<T>.onlyRouter(self, sender: address) {
 /// Authenticates asynchronous pool-hook continuations. Without this boundary,
 /// an arbitrary sender could forge a success/failure continuation after the
 /// Router-authenticated operation returned to the async flow.
-fun TokenPool<T>.onlyAdvancedPoolHooks(self, sender: address) {
+fun TokenPool<T>.isAdvancedPoolHooks(self, sender: address): bool {
     val adminConfig = lazy self.data.adminConfig.load();
     val hooks = adminConfig.advancedPoolHooks;
     val previous = adminConfig.advancedPoolHooksPrevious;
-    assert ((hooks != null && sender == hooks) || (previous != null && sender == previous))
-        throw (TokenPool_Error.Unauthorized);
+    return (hooks != null && sender == hooks) || (previous != null && sender == previous);
+}
+
+fun TokenPool<T>.onlyAdvancedPoolHooks(self, sender: address) {
+    assert (self.isAdvancedPoolHooks(sender)) throw (TokenPool_Error.Unauthorized);
 }
 
 /// Checks the pool-local RMN policy at admission.

@@ -346,26 +346,32 @@ export function runTokenPoolAsyncHookBehaviorTests(
       })
     })
 
-    it('accepts a callback from the previous hooks until the owner clears it', async () => {
+    it('retains the immediately previous hook across rotations until cleared', async () => {
       const ctx = await setup()
-      const previousHooks = ctx.hooks
-      const nextHooks = await deployMockHooks(ctx, 250n)
+      const hooksA = ctx.hooks
+      const hooksB = await deployMockHooks(ctx, 250n)
+      const hooksC = await deployMockHooks(ctx, 251n)
 
-      await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
-        queryId: 6002n,
-        advancedPoolHooks: nextHooks.address,
-        clearPrevious: false,
-      })
+      const setHooks = (
+        hooks: SandboxContract<MockAdvancedPoolHooks>,
+        clearPrevious: boolean,
+        queryId: bigint,
+      ) =>
+        ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
+          queryId,
+          advancedPoolHooks: hooks.address,
+          clearPrevious,
+        })
 
       const forwardPayload = TokenPool_LockOrBurnForwardPayload.fromSlice(
         lockOrBurnForwardPayload(ctx, lockOrBurnIn(ctx)).beginParse(),
       )
       const finalizationValue = toNano('0.01')
       const callbackValue = (await ctx.pool.getBudget()).lockOrBurn.safety * 3n + finalizationValue
-      const callback = () =>
+      const callbackFrom = (hooks: SandboxContract<MockAdvancedPoolHooks>) =>
         ctx.blockchain.sendMessage(
           internal({
-            from: previousHooks.address,
+            from: hooks.address,
             to: ctx.pool.address,
             value: callbackValue,
             body: TokenPool_PreflightCheckFinished.toCell(
@@ -376,28 +382,85 @@ export function runTokenPoolAsyncHookBehaviorTests(
             ),
           }),
         )
+      const expectCallbackAccepted = async (hooks: SandboxContract<MockAdvancedPoolHooks>) => {
+        const result = await callbackFrom(hooks)
+        expect(result.transactions).toHaveTransaction({
+          from: ctx.pool.address,
+          to: ctx.deployer.address,
+          op: TokenPool_LockOrBurnWithdraw.PREFIX,
+          success: true,
+        })
+      }
 
-      // The rotated-out hook can still finish an in-flight callback.
-      const accepted = await callback()
-      expect(accepted.transactions).toHaveTransaction({
-        from: ctx.pool.address,
-        to: ctx.deployer.address,
-        op: TokenPool_LockOrBurnWithdraw.PREFIX,
-        success: true,
-      })
+      // A -> B: A remains a valid retiring hook.
+      await setHooks(hooksB, false, 6002n)
+      await expectCallbackAccepted(hooksA)
 
-      // Setting the flag clears the old hook; it is rejected afterwards.
-      await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
-        queryId: 6003n,
-        advancedPoolHooks: nextHooks.address,
-        clearPrevious: true,
-      })
-      const rejected = await callback()
-      expect(rejected.transactions).toHaveTransaction({
-        from: previousHooks.address,
+      // Re-applying B preserves the retiring A.
+      await setHooks(hooksB, false, 6003n)
+      await expectCallbackAccepted(hooksA)
+
+      // B -> C: only the immediately previous hook (B) is retained; A is retired.
+      await setHooks(hooksC, false, 6004n)
+      await expectCallbackAccepted(hooksB)
+      const rejectedA = await callbackFrom(hooksA)
+      expect(rejectedA.transactions).toHaveTransaction({
+        from: hooksA.address,
         to: ctx.pool.address,
         success: false,
       })
+
+      // Clearing the previous hook retires B.
+      await setHooks(hooksC, true, 6005n)
+      const rejectedB = await callbackFrom(hooksB)
+      expect(rejectedB.transactions).toHaveTransaction({
+        from: hooksB.address,
+        to: ctx.pool.address,
+        success: false,
+      })
+    })
+
+    it('does not drain the pool balance for a postflight callback from the previous hook', async () => {
+      const ctx = await setup()
+      const previousHooks = ctx.hooks
+      const nextHooks = await deployMockHooks(ctx, 250n)
+
+      await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 6006n,
+        advancedPoolHooks: nextHooks.address,
+        clearPrevious: false,
+      })
+
+      const forwardPayload = TokenPool_ReleaseOrMintForwardPayload.fromSlice(
+        releaseOrMintForwardPayload(ctx, releaseRequest(ctx)).beginParse(),
+      )
+      const finalizationValue = toNano('0.01')
+      const callbackValue =
+        (await ctx.pool.getBudget()).releaseOrMint.safety + finalizationValue + toNano('0.05')
+      const poolBefore = (await ctx.blockchain.getContract(ctx.pool.address)).balance
+
+      const result = await ctx.blockchain.sendMessage(
+        internal({
+          from: previousHooks.address,
+          to: ctx.pool.address,
+          value: callbackValue,
+          body: TokenPool_PostflightCheckFinished.toCell(
+            TokenPool_PostflightCheckFinished.create({
+              queryId: 2n,
+              forwardPayload,
+            }),
+          ),
+        }),
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: previousHooks.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+      expect((await ctx.blockchain.getContract(ctx.pool.address)).balance).toBeGreaterThanOrEqual(
+        poolBefore,
+      )
     })
 
     // === Preflight Check — Success Flow (queryId even) ===

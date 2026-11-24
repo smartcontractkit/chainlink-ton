@@ -130,8 +130,9 @@ func TestAdminConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
 			MasterAddress    *address.Address `tlb:"addr required"`
 			JettonWalletCode *cell.Cell       `tlb:"^"`
 		} `tlb:"."`
-		AllowedFinalityConfig uint32           `tlb:"## 32"`
-		AdvancedPoolHooks     *address.Address `tlb:"addr"`
+		AllowedFinalityConfig     uint32           `tlb:"## 32"`
+		AdvancedPoolHooks         *address.Address `tlb:"addr"`
+		AdvancedPoolHooksPrevious *address.Address `tlb:"addr"`
 	}{
 		DynamicConfig: struct {
 			Router         *address.Address `tlb:"addr"`
