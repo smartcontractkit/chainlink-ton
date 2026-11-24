@@ -43,6 +43,10 @@ struct (0x3c50a39b) TokenPool_SetAllowedFinalityConfig {
 struct (0x3f5c9f57) TokenPool_SetAdvancedPoolHooks {
     queryId: uint64;
     advancedPoolHooks: address?;
+    /// When true, stop accepting callbacks from the previous hooks contract. Use this after the
+    /// old hook's in-flight operations have drained. When false, the old current hook is kept as
+    /// the previous hook so its in-flight callbacks can finish.
+    clearPrevious: bool = false;
 }
 
 struct (0x4fe2d26c) TokenPool_SetRateLimitConfig {
@@ -422,6 +426,7 @@ struct (0x28cbcc64) TokenPool_FeeConfigApplied {
 struct (0xf63f3401) TokenPool_AdvancedPoolHooksSetNotification {
     queryId: uint64;
     advancedPoolHooks: address?;
+    clearPrevious: bool = false;
 }
 
 type TokenPool_OutMessage = 

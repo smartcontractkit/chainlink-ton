@@ -411,7 +411,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     // A failed best-effort return: accept its value in the lockbox. The truncated body is
     // intentionally not parsed; jettons remain in the lockbox wallet.
-    if (isShortAskToTransferBounce(in.bouncedBody)) {
+    if (in.bouncedBody.remainingBitsCount() >= 32 && in.bouncedBody.preloadUint(32) == 0xffffffff) {
         return;
     }
 

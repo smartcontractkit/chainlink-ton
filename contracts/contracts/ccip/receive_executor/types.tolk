@@ -57,6 +57,8 @@ type ReceiveExecutor_TokenTransferState =
     | ReceiveExecutor_TokenTransferState_Pending;
 
 struct ReceiveExecutor_TokenTransferState_Success {
+    // Pool that released or minted the tokens.
+    tokenPool: address;
     // Amount released or minted by the pool, in local token decimals.
     destinationAmount: coins;
 }

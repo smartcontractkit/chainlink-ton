@@ -2052,16 +2052,19 @@ export const ReceiveExecutor_TokenTransferState = {
 
 /**
  > struct ReceiveExecutor_TokenTransferState_Success {
+ >     tokenPool: address
  >     destinationAmount: coins
  > }
  */
 export interface ReceiveExecutor_TokenTransferState_Success {
     readonly $: 'ReceiveExecutor_TokenTransferState_Success'
+    tokenPool: c.Address
     destinationAmount: coins
 }
 
 export const ReceiveExecutor_TokenTransferState_Success = {
     create(args: {
+        tokenPool: c.Address
         destinationAmount: coins
     }): ReceiveExecutor_TokenTransferState_Success {
         return {
@@ -2072,10 +2075,12 @@ export const ReceiveExecutor_TokenTransferState_Success = {
     fromSlice(s: c.Slice): ReceiveExecutor_TokenTransferState_Success {
         return {
             $: 'ReceiveExecutor_TokenTransferState_Success',
+            tokenPool: s.loadAddress(),
             destinationAmount: s.loadCoins(),
         }
     },
     store(self: ReceiveExecutor_TokenTransferState_Success, b: c.Builder): void {
+        b.storeAddress(self.tokenPool);
         b.storeCoins(self.destinationAmount);
     },
     toCell(self: ReceiveExecutor_TokenTransferState_Success): c.Cell {
@@ -2272,7 +2277,7 @@ export const ReceiveExecutor_MessageExecutionState = {
 }
 
 /**
- > enum ReceiveExecutor_Error { 8 variants }
+ > enum ReceiveExecutor_Error { 9 variants }
  */
 export type ReceiveExecutor_Error = bigint
 
@@ -2285,6 +2290,7 @@ export const ReceiveExecutor_Error = {
     TokenAdminRegistryUnexpectedResponse: 37605n,
     TokenPoolUnexpectedResponse: 37606n,
     UnhandledLegacyBounce: 37607n,
+    UnexpectedDepositNotification: 37608n,
 
     fromSlice(s: c.Slice): ReceiveExecutor_Error {
         return s.loadUintBig(16);
@@ -2440,6 +2446,7 @@ export class ReceiveExecutor implements c.Contract {
         'ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse': 37605,
         'ReceiveExecutor_Error.TokenPoolUnexpectedResponse': 37606,
         'ReceiveExecutor_Error.UnhandledLegacyBounce': 37607,
+        'ReceiveExecutor_Error.UnexpectedDepositNotification': 37608,
     }
 
     readonly address: c.Address

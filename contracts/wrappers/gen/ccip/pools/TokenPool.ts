@@ -1433,6 +1433,7 @@ export const TokenPool_AdmissionBudget = {
  >     jettonClient: JettonClient
  >     allowedFinalityConfig: uint32
  >     advancedPoolHooks: address?
+ >     advancedPoolHooksPrevious: address?
  > }
  */
 export interface TokenPool_AdminConfig {
@@ -1443,6 +1444,7 @@ export interface TokenPool_AdminConfig {
     jettonClient: JettonClient
     allowedFinalityConfig: uint32 /* = 0 as uint32 */
     advancedPoolHooks: c.Address | null /* = null */
+    advancedPoolHooksPrevious: c.Address | null /* = null */
 }
 
 export const TokenPool_AdminConfig = {
@@ -1453,11 +1455,13 @@ export const TokenPool_AdminConfig = {
         jettonClient: JettonClient
         allowedFinalityConfig?: uint32 /* = 0 as uint32 */
         advancedPoolHooks?: c.Address | null /* = null */
+        advancedPoolHooksPrevious?: c.Address | null /* = null */
     }): TokenPool_AdminConfig {
         return {
             $: 'TokenPool_AdminConfig',
             allowedFinalityConfig: 0n,
             advancedPoolHooks: null,
+            advancedPoolHooksPrevious: null,
             ...args
         }
     },
@@ -1473,6 +1477,7 @@ export const TokenPool_AdminConfig = {
             jettonClient: JettonClient.fromSlice(s),
             allowedFinalityConfig: s.loadUintBig(32),
             advancedPoolHooks: s.loadMaybeAddress(),
+            advancedPoolHooksPrevious: s.loadMaybeAddress(),
         }
     },
     store(self: TokenPool_AdminConfig, b: c.Builder): void {
@@ -1488,6 +1493,7 @@ export const TokenPool_AdminConfig = {
         JettonClient.store(self.jettonClient, b);
         b.storeUint(self.allowedFinalityConfig, 32);
         b.storeAddress(self.advancedPoolHooks);
+        b.storeAddress(self.advancedPoolHooksPrevious);
     },
     toCell(self: TokenPool_AdminConfig): c.Cell {
         return makeCellFrom<TokenPool_AdminConfig>(self, TokenPool_AdminConfig.store);
@@ -1811,12 +1817,14 @@ export const TokenPool_SetAllowedFinalityConfig = {
  > struct (0x3f5c9f57) TokenPool_SetAdvancedPoolHooks {
  >     queryId: uint64
  >     advancedPoolHooks: address?
+ >     clearPrevious: bool
  > }
  */
 export interface TokenPool_SetAdvancedPoolHooks {
     readonly $: 'TokenPool_SetAdvancedPoolHooks'
     queryId: uint64
     advancedPoolHooks: c.Address | null
+    clearPrevious: boolean /* = false */
 }
 
 export const TokenPool_SetAdvancedPoolHooks = {
@@ -1825,9 +1833,11 @@ export const TokenPool_SetAdvancedPoolHooks = {
     create(args: {
         queryId?: uint64
         advancedPoolHooks: c.Address | null
+        clearPrevious?: boolean /* = false */
     }): TokenPool_SetAdvancedPoolHooks {
         return {
             $: 'TokenPool_SetAdvancedPoolHooks',
+            clearPrevious: false,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -1838,12 +1848,14 @@ export const TokenPool_SetAdvancedPoolHooks = {
             $: 'TokenPool_SetAdvancedPoolHooks',
             queryId: s.loadUintBig(64),
             advancedPoolHooks: s.loadMaybeAddress(),
+            clearPrevious: s.loadBoolean(),
         }
     },
     store(self: TokenPool_SetAdvancedPoolHooks, b: c.Builder): void {
         b.storeUint(0x3f5c9f57, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.advancedPoolHooks);
+        b.storeBit(self.clearPrevious);
     },
     toCell(self: TokenPool_SetAdvancedPoolHooks): c.Cell {
         return makeCellFrom<TokenPool_SetAdvancedPoolHooks>(self, TokenPool_SetAdvancedPoolHooks.store);
@@ -3827,12 +3839,14 @@ export const TokenPool_FeeConfigApplied = {
  > struct (0xf63f3401) TokenPool_AdvancedPoolHooksSetNotification {
  >     queryId: uint64
  >     advancedPoolHooks: address?
+ >     clearPrevious: bool
  > }
  */
 export interface TokenPool_AdvancedPoolHooksSetNotification {
     readonly $: 'TokenPool_AdvancedPoolHooksSetNotification'
     queryId: uint64
     advancedPoolHooks: c.Address | null
+    clearPrevious: boolean /* = false */
 }
 
 export const TokenPool_AdvancedPoolHooksSetNotification = {
@@ -3841,9 +3855,11 @@ export const TokenPool_AdvancedPoolHooksSetNotification = {
     create(args: {
         queryId?: uint64
         advancedPoolHooks: c.Address | null
+        clearPrevious?: boolean /* = false */
     }): TokenPool_AdvancedPoolHooksSetNotification {
         return {
             $: 'TokenPool_AdvancedPoolHooksSetNotification',
+            clearPrevious: false,
             ...args,
             queryId: args.queryId ?? 0n
         }
@@ -3854,12 +3870,14 @@ export const TokenPool_AdvancedPoolHooksSetNotification = {
             $: 'TokenPool_AdvancedPoolHooksSetNotification',
             queryId: s.loadUintBig(64),
             advancedPoolHooks: s.loadMaybeAddress(),
+            clearPrevious: s.loadBoolean(),
         }
     },
     store(self: TokenPool_AdvancedPoolHooksSetNotification, b: c.Builder): void {
         b.storeUint(0xf63f3401, 32);
         b.storeUint(self.queryId, 64);
         b.storeAddress(self.advancedPoolHooks);
+        b.storeBit(self.clearPrevious);
     },
     toCell(self: TokenPool_AdvancedPoolHooksSetNotification): c.Cell {
         return makeCellFrom<TokenPool_AdvancedPoolHooksSetNotification>(self, TokenPool_AdvancedPoolHooksSetNotification.store);
@@ -6142,6 +6160,7 @@ export class TokenPool implements c.Contract {
     static createCellOfTokenPoolSetAdvancedPoolHooks(body: {
         queryId?: uint64
         advancedPoolHooks: c.Address | null
+        clearPrevious?: boolean /* = false */
     }) {
         return TokenPool_SetAdvancedPoolHooks.toCell(TokenPool_SetAdvancedPoolHooks.create(body));
     }
@@ -6482,6 +6501,7 @@ export class TokenPool implements c.Contract {
     async sendTokenPoolSetAdvancedPoolHooks(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         advancedPoolHooks: c.Address | null
+        clearPrevious?: boolean /* = false */
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
@@ -6843,7 +6863,7 @@ export class TokenPool implements c.Contract {
     }
 
     async getAdminConfig(provider: ContractProvider): Promise<TokenPool_AdminConfig> {
-        const r = StackReader.fromGetMethod(7, await provider.get('getAdminConfig', []));
+        const r = StackReader.fromGetMethod(8, await provider.get('getAdminConfig', []));
         return ({
             $: 'TokenPool_AdminConfig',
             ownable: r.readCellRef<Ownable2Step>(Ownable2Step.fromSlice),
@@ -6859,6 +6879,9 @@ export class TokenPool implements c.Contract {
             }),
             allowedFinalityConfig: r.readBigInt(),
             advancedPoolHooks: r.readNullable<c.Address>(
+                (r) => r.readSlice().loadAddress()
+            ),
+            advancedPoolHooksPrevious: r.readNullable<c.Address>(
                 (r) => r.readSlice().loadAddress()
             ),
         });

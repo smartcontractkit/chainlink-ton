@@ -130,8 +130,9 @@ func TestAdminConfig_AllowedDepositNamespaces_WireFormat(t *testing.T) {
 			MasterAddress    *address.Address `tlb:"addr required"`
 			JettonWalletCode *cell.Cell       `tlb:"^"`
 		} `tlb:"."`
-		AllowedFinalityConfig uint32           `tlb:"## 32"`
-		AdvancedPoolHooks     *address.Address `tlb:"addr"`
+		AllowedFinalityConfig     uint32           `tlb:"## 32"`
+		AdvancedPoolHooks         *address.Address `tlb:"addr"`
+		AdvancedPoolHooksPrevious *address.Address `tlb:"addr"`
 	}{
 		DynamicConfig: struct {
 			Router         *address.Address `tlb:"addr"`
@@ -264,6 +265,24 @@ func TestAdminConfig_AllowedDepositNamespaces_RoundTrip(t *testing.T) {
 	var decodedEmpty AdminConfig
 	require.NoError(t, tlb.LoadFromCell(&decodedEmpty, emptyCell.MustBeginParse()))
 	require.Empty(t, decodedEmpty.AllowedDepositNamespaces.AsMap())
+}
+
+// TestSetAdvancedPoolHooks_WireFormat pins the clearPrevious bit added to the setter.
+func TestSetAdvancedPoolHooks_WireFormat(t *testing.T) {
+	hooks := address.NewAddress(0, 0, bytes.Repeat([]byte{2}, 32))
+	msg := SetAdvancedPoolHooks{
+		QueryID:           9,
+		AdvancedPoolHooks: hooks,
+		ClearPrevious:     true,
+	}
+	c, err := tlb.ToCell(msg)
+	require.NoError(t, err)
+
+	var decoded SetAdvancedPoolHooks
+	require.NoError(t, tlb.LoadFromCell(&decoded, c.MustBeginParse()))
+	require.Equal(t, uint64(9), decoded.QueryID)
+	require.Equal(t, hooks.String(), decoded.AdvancedPoolHooks.String())
+	require.True(t, decoded.ClearPrevious)
 }
 
 // TestConfig_WireFormat pins TokenPool_Config: opcode, query id, token, transfer initiator, then

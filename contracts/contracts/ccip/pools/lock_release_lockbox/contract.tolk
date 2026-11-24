@@ -353,8 +353,8 @@ fun onReleaseOrMintContinue(
     val forwardTonAmount = st.TokenPool().releaseOrMintForward(msg.finalizationValue());
 
     // Direct hook callbacks carry only their value; entrypoint continuations carry the remaining balance.
-    val hooks = st.poolData.load().adminConfig.load().advancedPoolHooks;
-    val sendMode = hooks != null && sender == hooks
+    // Accept both the current and the retiring hook, so a previous-hook callback cannot drain the pool balance.
+    val sendMode = st.TokenPool().isAdvancedPoolHooks(sender)
         ? SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL
         : SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL;
 

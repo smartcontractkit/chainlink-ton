@@ -9,13 +9,14 @@ import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { findTransactionRequired } from '@ton/test-utils'
 import { crc32 } from 'zlib'
 
-import { expectFailedTransaction } from '../../Logs'
 import { generateRandomTonAddress } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
 import * as of from '../../../wrappers/gen/ccip/OffRamp'
 import * as rx from '../../../wrappers/gen/ccip/ReceiveExecutor'
 import { TransferNotificationForRecipient } from '../../../wrappers/gen/ccip/pools/TokenPool'
+import { Jetton_ForwardPayloadWrap } from '../../../wrappers/gen/ccip/DepositAccount'
+import { JettonLockBox_Withdraw } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { contractCode } from '../../../wrappers/codeLoader'
 import {
   createTestMessage,
@@ -194,12 +195,12 @@ describe('ReceiveExecutor - Execution', () => {
           root: deployer.address,
         },
       )
-      expectFailedTransaction(
-        result,
-        nonOwner.address,
-        receiveExecutor.address,
-        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
-      )
+      expect(result.transactions).toHaveTransaction({
+        from: nonOwner.address,
+        to: receiveExecutor.address,
+        exitCode: rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
+        success: false,
+      })
     })
 
     // --- Confirm Tests ---
@@ -237,12 +238,12 @@ describe('ReceiveExecutor - Execution', () => {
           execId: 0n, // unused by the executor
         },
       )
-      expectFailedTransaction(
-        result,
-        nonOwner.address,
-        receiveExecutor.address,
-        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
-      )
+      expect(result.transactions).toHaveTransaction({
+        from: nonOwner.address,
+        to: receiveExecutor.address,
+        exitCode: rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
+        success: false,
+      })
     })
 
     it('should reject Confirm when state is not Execute', async () => {
@@ -254,12 +255,13 @@ describe('ReceiveExecutor - Execution', () => {
           execId: 0n, // unused by the executor
         },
       )
-      expectFailedTransaction(
-        result,
-        deployer.address,
-        receiveExecutor.address,
-        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage'],
-      )
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiveExecutor.address,
+        exitCode:
+          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage'],
+        success: false,
+      })
     })
 
     it('should reject Confirm with wrong receiver', async () => {
@@ -273,12 +275,13 @@ describe('ReceiveExecutor - Execution', () => {
           execId: 0n, // unused by the executor
         },
       )
-      expectFailedTransaction(
-        result,
-        deployer.address,
-        receiveExecutor.address,
-        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.NotificationFromInvalidReceiver'],
-      )
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiveExecutor.address,
+        exitCode:
+          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.NotificationFromInvalidReceiver'],
+        success: false,
+      })
     })
 
     // --- Bounced Tests ---
@@ -329,12 +332,13 @@ describe('ReceiveExecutor - Execution', () => {
         ),
       )
       const result = await replayBounce(first, receiveExecutor.address)
-      expectFailedTransaction(
-        result,
-        deployer.address,
-        receiveExecutor.address,
-        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage'],
-      )
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiveExecutor.address,
+        exitCode:
+          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage'],
+        success: false,
+      })
     })
 
     it('should handle Bounced and send NotifyFailure to owner', async () => {
@@ -405,12 +409,12 @@ describe('ReceiveExecutor - Execution', () => {
           errorCode: null,
         },
       )
-      expectFailedTransaction(
-        result,
-        nonOwner.address,
-        receiveExecutor.address,
-        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
-      )
+      expect(result.transactions).toHaveTransaction({
+        from: nonOwner.address,
+        to: receiveExecutor.address,
+        exitCode: rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
+        success: false,
+      })
     })
 
     it('should reject Bounced when state is not Execute', async () => {
@@ -422,12 +426,13 @@ describe('ReceiveExecutor - Execution', () => {
           errorCode: null,
         },
       )
-      expectFailedTransaction(
-        result,
-        deployer.address,
-        receiveExecutor.address,
-        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage'],
-      )
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiveExecutor.address,
+        exitCode:
+          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UpdatingStateOfNonExecutedMessage'],
+        success: false,
+      })
     })
 
     it('should reject Bounced with wrong receiver', async () => {
@@ -441,12 +446,13 @@ describe('ReceiveExecutor - Execution', () => {
           errorCode: null,
         },
       )
-      expectFailedTransaction(
-        result,
-        deployer.address,
-        receiveExecutor.address,
-        rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.NotificationFromInvalidReceiver'],
-      )
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiveExecutor.address,
+        exitCode:
+          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.NotificationFromInvalidReceiver'],
+        success: false,
+      })
     })
   })
 
@@ -537,12 +543,48 @@ describe('ReceiveExecutor - Execution', () => {
     }
 
     /** A jetton notification forwarded by a deposit account (`via`). */
+    /** Builds the lockbox-authored delivery context carried by a real LR delivery. */
+    const lockboxForwardPayload = (
+      amount: bigint,
+      overrides: {
+        initiator?: Address
+        queryId?: bigint
+        amount?: bigint
+        recipient?: Address
+        token?: Address
+      } = {},
+    ) => {
+      const withdraw = JettonLockBox_Withdraw.create({
+        queryId: overrides.queryId ?? 0n,
+        token: overrides.token ?? messageWithTT.tokenAmounts![0].token,
+        remoteChainSelector: messageWithTT.header.sourceChainSelector,
+        amount: overrides.amount ?? amount,
+        recipient: overrides.recipient ?? receiverAccount.address,
+        extra: null,
+      })
+      return beginCell()
+        .storeMaybeRef(
+          Jetton_ForwardPayloadWrap.toCell(
+            Jetton_ForwardPayloadWrap.create({
+              initiator: overrides.initiator ?? tokenPool.address,
+              context: JettonLockBox_Withdraw.toCell(withdraw),
+              forwardPayload: null,
+            }),
+          ),
+        )
+        .endCell()
+        .asSlice()
+    }
+
     const forwardNotification = (
       executor: SandboxContract<rx.ReceiveExecutor>,
       amount: bigint,
       opts: {
         via?: SandboxContract<TreasuryContract>
         initiator?: Address | null
+        /** The pool the executor resolved from TAR (the wrap initiator). */
+        pool?: Address
+        forwardPayload?: ReturnType<typeof lockboxForwardPayload>
       } = {},
     ) =>
       executor.sendDepositAccountForwardNotification(
@@ -553,7 +595,11 @@ describe('ReceiveExecutor - Execution', () => {
             queryId: 0n,
             jettonAmount: amount,
             transferInitiator: opts.initiator === undefined ? tokenPool.address : opts.initiator,
-            forwardPayload: beginCell().storeMaybeRef(null).asSlice(),
+            forwardPayload:
+              opts.forwardPayload ??
+              (opts.initiator === null
+                ? beginCell().storeMaybeRef(null).asSlice()
+                : lockboxForwardPayload(amount, { initiator: opts.pool })),
           }),
         },
       )
@@ -610,23 +656,23 @@ describe('ReceiveExecutor - Execution', () => {
             tokenTransfer: tokenTransferOf(),
           },
         )
-        expectFailedTransaction(
-          result,
-          nonOwner.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
-        )
+        expect(result.transactions).toHaveTransaction({
+          from: nonOwner.address,
+          to: receiveExecutorWithToken.address,
+          exitCode: rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
+          success: false,
+        })
       })
 
       it('should reject InitExecute while the release/mint is in progress', async () => {
         await transitionToReleaseOrMint(receiveExecutorWithToken)
         const result = await initExecute(receiveExecutorWithToken)
-        expectFailedTransaction(
-          result,
-          deployer.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.ExecutionAlreadyInProgress'],
-        )
+        expect(result.transactions).toHaveTransaction({
+          from: deployer.address,
+          to: receiveExecutorWithToken.address,
+          exitCode: rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.ExecutionAlreadyInProgress'],
+          success: false,
+        })
       })
 
       // --- TokenAdminRegistry response ---
@@ -758,12 +804,12 @@ describe('ReceiveExecutor - Execution', () => {
           toNano('0.05'),
           { token: messageWithTT.tokenAmounts![0].token },
         )
-        expectFailedTransaction(
-          result,
-          nonOwner.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
-        )
+        expect(result.transactions).toHaveTransaction({
+          from: nonOwner.address,
+          to: receiveExecutorWithToken.address,
+          exitCode: rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
+          success: false,
+        })
       })
 
       it('should reject TokenInfo from non-tokenAdminRegistry', async () => {
@@ -781,12 +827,12 @@ describe('ReceiveExecutor - Execution', () => {
             }),
           },
         )
-        expectFailedTransaction(
-          result,
-          nonOwner.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
-        )
+        expect(result.transactions).toHaveTransaction({
+          from: nonOwner.address,
+          to: receiveExecutorWithToken.address,
+          exitCode: rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
+          success: false,
+        })
       })
 
       it('should reject TokenInfo when state is not TokenAdminRegistryQuery', async () => {
@@ -803,12 +849,13 @@ describe('ReceiveExecutor - Execution', () => {
             }),
           },
         )
-        expectFailedTransaction(
-          result,
-          tokenAdminRegistry.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse'],
-        )
+        expect(result.transactions).toHaveTransaction({
+          from: tokenAdminRegistry.address,
+          to: receiveExecutorWithToken.address,
+          exitCode:
+            rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse'],
+          success: false,
+        })
       })
 
       it('should send NotifyFailure when the TokenAdminRegistry query bounces, and re-query it on retry', async () => {
@@ -847,12 +894,13 @@ describe('ReceiveExecutor - Execution', () => {
           tokenTransferOf(undefined, missingRegistry),
         )
         const result = await replayBounce(first, receiveExecutorWithToken.address)
-        expectFailedTransaction(
-          result,
-          missingRegistry,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse'],
-        )
+        expect(result.transactions).toHaveTransaction({
+          from: missingRegistry,
+          to: receiveExecutorWithToken.address,
+          exitCode:
+            rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenAdminRegistryUnexpectedResponse'],
+          success: false,
+        })
       })
 
       it('should send NotifyFailure when the OffRamp bounces ReleaseOrMint, and re-query on retry', async () => {
@@ -914,12 +962,12 @@ describe('ReceiveExecutor - Execution', () => {
           ),
         )
         const result = await replayBounce(first, receiveExecutorWithToken.address)
-        expectFailedTransaction(
-          result,
-          deployer.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenPoolUnexpectedResponse'],
-        )
+        expect(result.transactions).toHaveTransaction({
+          from: deployer.address,
+          to: receiveExecutorWithToken.address,
+          exitCode: rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenPoolUnexpectedResponse'],
+          success: false,
+        })
       })
 
       // --- Delivery to the receiver's deposit account ---
@@ -1007,7 +1055,43 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
-      it('should ignore notifications not forwarded by the receiver account', async () => {
+      it('should only accept ReleaseOrMintFinalized from the selected pool', async () => {
+        await transitionToReleaseOrMint(receiveExecutorWithToken)
+        const amount = messageWithTT.tokenAmounts![0].amount
+        await forwardNotification(receiveExecutorWithToken, amount)
+
+        const out = rx.TokenPool_ReleaseOrMintOutV1.create({ destinationAmount: amount })
+        const spoofed = await receiveExecutorWithToken.sendTokenPoolReleaseOrMintFinalized(
+          nonOwner.getSender(),
+          toNano('0.05'),
+          { queryId: 0n, out },
+        )
+        expect(spoofed.transactions).toHaveTransaction({
+          from: nonOwner.address,
+          to: receiveExecutorWithToken.address,
+          exitCode: rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
+          success: false,
+        })
+
+        const genuine = await receiveExecutorWithToken.sendTokenPoolReleaseOrMintFinalized(
+          tokenPool.getSender(),
+          toNano('0.05'),
+          { queryId: 0n, out },
+        )
+        expect(genuine.transactions).toHaveTransaction({
+          from: tokenPool.address,
+          to: receiveExecutorWithToken.address,
+          success: true,
+        })
+        expect(genuine.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          to: deployer.address,
+          success: true,
+          body: (body) => !!body && body.beginParse().remainingBits === 0,
+        })
+      })
+
+      it('should reject notifications not forwarded by the receiver account', async () => {
         await transitionToReleaseOrMint(receiveExecutorWithToken)
         const amount = messageWithTT.tokenAmounts![0].amount
         const spoofed = await forwardNotification(receiveExecutorWithToken, amount, {
@@ -1016,7 +1100,9 @@ describe('ReceiveExecutor - Execution', () => {
         expect(spoofed.transactions).toHaveTransaction({
           from: nonOwner.address,
           to: receiveExecutorWithToken.address,
-          success: true,
+          exitCode:
+            rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UnexpectedDepositNotification'],
+          success: false,
         })
         expect(spoofed.transactions).not.toHaveTransaction({
           from: receiveExecutorWithToken.address,
@@ -1031,7 +1117,7 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
-      it('should ignore notifications from a transfer initiator other than the registered one', async () => {
+      it('should reject notifications from a transfer initiator other than the registered one', async () => {
         await transitionToReleaseOrMint(receiveExecutorWithToken)
         const amount = messageWithTT.tokenAmounts![0].amount
         for (const initiator of [nonOwner.address, null]) {
@@ -1039,7 +1125,9 @@ describe('ReceiveExecutor - Execution', () => {
           expect(result.transactions).toHaveTransaction({
             from: receiverAccount.address,
             to: receiveExecutorWithToken.address,
-            success: true,
+            exitCode:
+              rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UnexpectedDepositNotification'],
+            success: false,
           })
           expect(result.transactions).not.toHaveTransaction({
             from: receiveExecutorWithToken.address,
@@ -1048,6 +1136,38 @@ describe('ReceiveExecutor - Execution', () => {
         }
 
         const genuine = await forwardNotification(receiveExecutorWithToken, amount)
+        expect(genuine.transactions).toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
+      })
+
+      it('should reject a custody delivery that is not tagged by the selected pool', async () => {
+        const custody = await blockchain.treasury('custody')
+        await transitionToReleaseOrMint(receiveExecutorWithToken, custody.address)
+        const amount = messageWithTT.tokenAmounts![0].amount
+
+        // The custody contract produced the transfer, but its wrap names a different pool.
+        const spoof = await forwardNotification(receiveExecutorWithToken, amount, {
+          initiator: custody.address,
+          forwardPayload: lockboxForwardPayload(amount, { initiator: nonOwner.address }),
+        })
+        expect(spoof.transactions).toHaveTransaction({
+          from: receiverAccount.address,
+          to: receiveExecutorWithToken.address,
+          exitCode:
+            rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UnexpectedDepositNotification'],
+          success: false,
+        })
+        expect(spoof.transactions).not.toHaveTransaction({
+          from: receiveExecutorWithToken.address,
+          op: of.OffRamp_NotifySuccess.PREFIX,
+        })
+
+        // The genuine custody delivery is tagged with the selected pool.
+        const genuine = await forwardNotification(receiveExecutorWithToken, amount, {
+          initiator: custody.address,
+        })
         expect(genuine.transactions).toHaveTransaction({
           from: receiveExecutorWithToken.address,
           op: of.OffRamp_NotifySuccess.PREFIX,
@@ -1093,16 +1213,18 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
-      it('should ignore notifications before the release/mint was sent', async () => {
+      it('should reject notifications before the release/mint was sent', async () => {
         await initExecuteQueriesRegistry(receiveExecutorWithToken)
         const result = await forwardNotification(
           receiveExecutorWithToken,
           messageWithTT.tokenAmounts![0].amount,
         )
         expect(result.transactions).toHaveTransaction({
+          from: receiverAccount.address,
           to: receiveExecutorWithToken.address,
-          op: rx.DepositAccount_ForwardNotification.PREFIX,
-          success: true,
+          exitCode:
+            rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UnexpectedDepositNotification'],
+          success: false,
         })
         expect(result.transactions).not.toHaveTransaction({
           from: receiveExecutorWithToken.address,
@@ -1110,15 +1232,17 @@ describe('ReceiveExecutor - Execution', () => {
         })
       })
 
-      it('should ignore notifications after the transfer was delivered', async () => {
+      it('should reject notifications after the transfer was delivered', async () => {
         await transitionToReleaseOrMint(receiveExecutorWithToken)
         const amount = messageWithTT.tokenAmounts![0].amount
         await forwardNotification(receiveExecutorWithToken, amount)
         const again = await forwardNotification(receiveExecutorWithToken, amount)
         expect(again.transactions).toHaveTransaction({
+          from: receiverAccount.address,
           to: receiveExecutorWithToken.address,
-          op: rx.DepositAccount_ForwardNotification.PREFIX,
-          success: true,
+          exitCode:
+            rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.UnexpectedDepositNotification'],
+          success: false,
         })
         expect(again.transactions).not.toHaveTransaction({
           from: receiveExecutorWithToken.address,
@@ -1154,12 +1278,12 @@ describe('ReceiveExecutor - Execution', () => {
             errorCode: 1n,
           },
         )
-        expectFailedTransaction(
-          result,
-          nonOwner.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
-        )
+        expect(result.transactions).toHaveTransaction({
+          from: nonOwner.address,
+          to: receiveExecutorWithToken.address,
+          exitCode: rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
+          success: false,
+        })
       })
 
       it('should reject ReleaseOrMintFailure when state is not TokenTransfer', async () => {
@@ -1170,12 +1294,12 @@ describe('ReceiveExecutor - Execution', () => {
             errorCode: 1n,
           },
         )
-        expectFailedTransaction(
-          result,
-          tokenPool.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenPoolUnexpectedResponse'],
-        )
+        expect(result.transactions).toHaveTransaction({
+          from: tokenPool.address,
+          to: receiveExecutorWithToken.address,
+          exitCode: rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenPoolUnexpectedResponse'],
+          success: false,
+        })
       })
 
       // --- ReleaseOrMintBounced (from owner) ---
@@ -1217,12 +1341,12 @@ describe('ReceiveExecutor - Execution', () => {
             errorCode: 1n,
           },
         )
-        expectFailedTransaction(
-          result,
-          nonOwner.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
-        )
+        expect(result.transactions).toHaveTransaction({
+          from: nonOwner.address,
+          to: receiveExecutorWithToken.address,
+          exitCode: rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.Unauthorized'],
+          success: false,
+        })
       })
 
       it('should reject ReleaseOrMintBounced when state is not ReleaseOrMint', async () => {
@@ -1233,12 +1357,12 @@ describe('ReceiveExecutor - Execution', () => {
             errorCode: 1n,
           },
         )
-        expectFailedTransaction(
-          result,
-          deployer.address,
-          receiveExecutorWithToken.address,
-          rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenPoolUnexpectedResponse'],
-        )
+        expect(result.transactions).toHaveTransaction({
+          from: deployer.address,
+          to: receiveExecutorWithToken.address,
+          exitCode: rx.ReceiveExecutor.Errors['ReceiveExecutor_Error.TokenPoolUnexpectedResponse'],
+          success: false,
+        })
       })
 
       // --- Retry flows ---
@@ -1670,7 +1794,7 @@ describe('ReceiveExecutor - Execution', () => {
         const finishedResult = await forwardNotification(
           receiveExecutorPtt,
           messageWithTT.tokenAmounts![0].amount,
-          { initiator: newTokenPool.address },
+          { initiator: newTokenPool.address, pool: newTokenPool.address },
         )
         expect(finishedResult.transactions).toHaveTransaction({
           from: receiveExecutorPtt.address,
