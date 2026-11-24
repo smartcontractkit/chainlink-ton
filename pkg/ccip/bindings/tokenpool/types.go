@@ -218,9 +218,10 @@ type ReleaseOrMintOutV1 struct {
 
 // LockOrBurnPrepared holds the prepared data for a lock/burn operation.
 type LockOrBurnPrepared struct {
-	FeeAmount       tlb.Coins       `tlb:"."`
-	DestTokenAmount tlb.Coins       `tlb:"."`
-	Out             LockOrBurnOutV1 `tlb:"."`
+	FeeAmount            tlb.Coins       `tlb:"."`
+	DestTokenAmount      tlb.Coins       `tlb:"."`
+	Out                  LockOrBurnOutV1 `tlb:"."`
+	FastFinalityConsumed bool            `tlb:"bool"`
 }
 
 // ReleaseOrMintPrepared holds the prepared data for a release/mint operation.
@@ -228,6 +229,7 @@ type ReleaseOrMintPrepared struct {
 	RequestedFinalityConfig uint32             `tlb:"## 32"`
 	LocalAmount             tlb.Coins          `tlb:"."`
 	Out                     ReleaseOrMintOutV1 `tlb:"."`
+	FastFinalityConsumed    bool               `tlb:"bool"`
 }
 
 // LockOrBurnForwardPayload holds the forward payload for lock/burn operations.
