@@ -14,7 +14,7 @@ export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<Cell>> = {
   '1.6.0': () => contractCode.ccip.release_1_6_2(ARTIFACT_NAME), // Last bundle with version 1.6.0
 }
-export const CONTRACT_VERSION = '1.7.0'
+export const CONTRACT_VERSION = '1.7.0-rc.1'
 
 /** Value a Router forwards with an OnRamp_Send that may carry a token transfer. */
 export const onrampSendCost = Costs.onRampSendWithTokens

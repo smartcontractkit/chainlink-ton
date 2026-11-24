@@ -12,7 +12,7 @@ export const ARTIFACT_NAME = 'Router'
 export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<Cell>> = {
   '1.6.0': () => contractCode.ccip.release_1_6_2(ARTIFACT_NAME), // Last bundle with version 1.6.0
 }
-export const ROUTER_CONTRACT_VERSION = '1.7.0'
+export const ROUTER_CONTRACT_VERSION = '1.7.0-rc.1'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.Router'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))

@@ -24,7 +24,7 @@ tolk 1.5.0
 
 contract FeeQuoter {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.7.0"
+    version: "1.7.0-rc.1"
     description: "link.chain.ton.ccip.FeeQuoter"
 
     storage: Storage
@@ -32,7 +32,7 @@ contract FeeQuoter {
     thrownErrors: FeeQuoter_Error | Ownable2Step_Error | Upgradeable_Error | Withdrawable_Error | Utils_Error | DestFamilyAddressValidation_Error
 }
 
-const CONTRACT_VERSION = "1.7.0".literalSlice();
+const CONTRACT_VERSION = "1.7.0-rc.1".literalSlice();
 const RESERVE = ton("1");
 
 fun requireSupportedVersion(version: slice) {

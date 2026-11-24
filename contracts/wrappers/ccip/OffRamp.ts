@@ -9,7 +9,7 @@ export const ARTIFACT_NAME = 'OffRamp'
 export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<Cell>> = {
   '1.6.2': () => contractCode.ccip.release_1_6_2(ARTIFACT_NAME),
 }
-export const OFFRAMP_CONTRACT_VERSION = '1.7.0'
+export const OFFRAMP_CONTRACT_VERSION = '1.7.0-rc.1'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.OffRamp'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
