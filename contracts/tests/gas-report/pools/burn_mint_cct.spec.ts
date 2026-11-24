@@ -81,6 +81,8 @@ runTokenPoolGasCalibration({
       ),
     )
     await burnMintPool.sendDeploy(deployer.getSender(), toNano('2'))
+    await burnMintPool.sendTokenPoolInit(deployer.getSender(), toNano('0.1'), { queryId: 0n })
+    expect(await burnMintPool.getIsInitialized()).toBe(true)
 
     // Seed deployer balance before handing minter admin to the pool.
     await cctMinterRuntime.sendMint(deployer.getSender(), {

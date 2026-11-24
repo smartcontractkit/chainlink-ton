@@ -129,3 +129,6 @@ get fun getBudget(): TokenPool_Budget
 
 /// Fees retained in the pool's own Jetton wallet on successful locks/burns.
 get fun getAccruedFees(): coins
+
+/// Whether the pool completed its one-time initialization.
+get fun isInitialized(): bool

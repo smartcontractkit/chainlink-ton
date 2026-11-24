@@ -1120,6 +1120,7 @@ export const TokenPool_AdminConfig = {
  >     tokenTransferFeeConfigs: map<uint64, TokenPool_TokenTransferFeeConfig>
  >     budget: TokenPool_Budget
  >     accruedFees: coins
+ >     initialized: bool
  > }
  */
 export interface TokenPool_Data {
@@ -1131,6 +1132,7 @@ export interface TokenPool_Data {
     tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
     budget: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins, 0 as coins } as TokenPool_ReleaseOrMintBudget } */
     accruedFees: coins /* = 0 */
+    initialized: boolean /* = false */
 }
 
 export const TokenPool_Data = {
@@ -1142,11 +1144,13 @@ export const TokenPool_Data = {
         tokenTransferFeeConfigs: Map<uint64, TokenPool_TokenTransferFeeConfig> /* = [] as map<uint64, TokenPool_TokenTransferFeeConfig> */
         budget?: TokenPool_Budget /* = TokenPool_Budget { TokenPool_LockOrBurnBudget { 0 as coins, 0 as coins } as TokenPool_LockOrBurnBudget, TokenPool_ReleaseOrMintBudget { 0 as coins, 0 as coins } as TokenPool_ReleaseOrMintBudget } */
         accruedFees?: coins /* = 0 */
+        initialized?: boolean /* = false */
     }): TokenPool_Data {
         return {
             $: 'TokenPool_Data',
             budget: { $: 'TokenPool_Budget', lockOrBurn: { $: 'TokenPool_LockOrBurnBudget', admission: 0n, safety: 0n }, releaseOrMint: { $: 'TokenPool_ReleaseOrMintBudget', admission: 0n, safety: 0n } },
             accruedFees: 0n,
+            initialized: false,
             ...args
         }
     },
@@ -1160,6 +1164,7 @@ export const TokenPool_Data = {
             tokenTransferFeeConfigs: dictToMap(c.Dictionary.load<uint64, TokenPool_TokenTransferFeeConfig>(c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store), s)),
             budget: TokenPool_Budget.fromSlice(s),
             accruedFees: s.loadCoins(),
+            initialized: s.loadBoolean(),
         }
     },
     store(self: TokenPool_Data, b: c.Builder): void {
@@ -1170,6 +1175,7 @@ export const TokenPool_Data = {
         b.storeDict<uint64, TokenPool_TokenTransferFeeConfig>(mapToDict(self.tokenTransferFeeConfigs, c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store)), c.Dictionary.Keys.BigUint(64), createDictionaryValue<TokenPool_TokenTransferFeeConfig>(TokenPool_TokenTransferFeeConfig.fromSlice, TokenPool_TokenTransferFeeConfig.store));
         TokenPool_Budget.store(self.budget, b);
         b.storeCoins(self.accruedFees);
+        b.storeBit(self.initialized);
     },
     toCell(self: TokenPool_Data): c.Cell {
         return makeCellFrom<TokenPool_Data>(self, TokenPool_Data.store);
@@ -4437,6 +4443,44 @@ export const TokenPool_AdvancedPoolHooksSetNotification = {
 }
 
 /**
+ > struct (0xf5e23895) TokenPool_Init {
+ >     queryId: uint64
+ > }
+ */
+export interface TokenPool_Init {
+    readonly $: 'TokenPool_Init'
+    queryId: uint64
+}
+
+export const TokenPool_Init = {
+    PREFIX: 0xf5e23895,
+
+    create(args: {
+        queryId?: uint64
+    }): TokenPool_Init {
+        return {
+            $: 'TokenPool_Init',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): TokenPool_Init {
+        loadAndCheckPrefix32(s, 0xf5e23895, 'TokenPool_Init');
+        return {
+            $: 'TokenPool_Init',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: TokenPool_Init, b: c.Builder): void {
+        b.storeUint(0xf5e23895, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: TokenPool_Init): c.Cell {
+        return makeCellFrom<TokenPool_Init>(self, TokenPool_Init.store);
+    }
+}
+
+/**
  > struct (0x480060f1) TokenPool_GetConfig {
  >     queryId: uint64
  > }
@@ -5765,6 +5809,97 @@ export const JettonLockBox_Withdraw = {
 }
 
 /**
+ > struct (0xc6ac6ade) JettonLockBox_GetInfo {
+ >     queryId: uint64
+ > }
+ */
+export interface JettonLockBox_GetInfo {
+    readonly $: 'JettonLockBox_GetInfo'
+    queryId: uint64
+}
+
+export const JettonLockBox_GetInfo = {
+    PREFIX: 0xc6ac6ade,
+
+    create(args: {
+        queryId?: uint64
+    }): JettonLockBox_GetInfo {
+        return {
+            $: 'JettonLockBox_GetInfo',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): JettonLockBox_GetInfo {
+        loadAndCheckPrefix32(s, 0xc6ac6ade, 'JettonLockBox_GetInfo');
+        return {
+            $: 'JettonLockBox_GetInfo',
+            queryId: s.loadUintBig(64),
+        }
+    },
+    store(self: JettonLockBox_GetInfo, b: c.Builder): void {
+        b.storeUint(0xc6ac6ade, 32);
+        b.storeUint(self.queryId, 64);
+    },
+    toCell(self: JettonLockBox_GetInfo): c.Cell {
+        return makeCellFrom<JettonLockBox_GetInfo>(self, JettonLockBox_GetInfo.store);
+    }
+}
+
+/**
+ > struct (0xf25b3b9a) JettonLockBox_Info {
+ >     queryId: uint64
+ >     token: address
+ >     wallet: address
+ >     isOperator: bool
+ > }
+ */
+export interface JettonLockBox_Info {
+    readonly $: 'JettonLockBox_Info'
+    queryId: uint64
+    token: c.Address
+    wallet: c.Address
+    isOperator: boolean
+}
+
+export const JettonLockBox_Info = {
+    PREFIX: 0xf25b3b9a,
+
+    create(args: {
+        queryId?: uint64
+        token: c.Address
+        wallet: c.Address
+        isOperator: boolean
+    }): JettonLockBox_Info {
+        return {
+            $: 'JettonLockBox_Info',
+            ...args,
+            queryId: args.queryId ?? 0n
+        }
+    },
+    fromSlice(s: c.Slice): JettonLockBox_Info {
+        loadAndCheckPrefix32(s, 0xf25b3b9a, 'JettonLockBox_Info');
+        return {
+            $: 'JettonLockBox_Info',
+            queryId: s.loadUintBig(64),
+            token: s.loadAddress(),
+            wallet: s.loadAddress(),
+            isOperator: s.loadBoolean(),
+        }
+    },
+    store(self: JettonLockBox_Info, b: c.Builder): void {
+        b.storeUint(0xf25b3b9a, 32);
+        b.storeUint(self.queryId, 64);
+        b.storeAddress(self.token);
+        b.storeAddress(self.wallet);
+        b.storeBit(self.isOperator);
+    },
+    toCell(self: JettonLockBox_Info): c.Cell {
+        return makeCellFrom<JettonLockBox_Info>(self, JettonLockBox_Info.store);
+    }
+}
+
+/**
  > struct (0x6d077f2e) JettonLockBox_Deposited {
  >     queryId: uint64
  >     token: address
@@ -6015,23 +6150,6 @@ export const LockReleaseLockboxTokenPool_ReleaseContext = {
     },
     toCell(self: LockReleaseLockboxTokenPool_ReleaseContext): c.Cell {
         return makeCellFrom<LockReleaseLockboxTokenPool_ReleaseContext>(self, LockReleaseLockboxTokenPool_ReleaseContext.store);
-    }
-}
-
-/**
- > type LockReleaseLockboxTokenPool_OutMessage = AskToTransfer
- */
-export type LockReleaseLockboxTokenPool_OutMessage = AskToTransfer
-
-export const LockReleaseLockboxTokenPool_OutMessage = {
-    fromSlice(s: c.Slice): LockReleaseLockboxTokenPool_OutMessage {
-        return AskToTransfer.fromSlice(s);
-    },
-    store(self: LockReleaseLockboxTokenPool_OutMessage, b: c.Builder): void {
-        AskToTransfer.store(self, b);
-    },
-    toCell(self: LockReleaseLockboxTokenPool_OutMessage): c.Cell {
-        return makeCellFrom<LockReleaseLockboxTokenPool_OutMessage>(self, LockReleaseLockboxTokenPool_OutMessage.store);
     }
 }
 
@@ -6363,6 +6481,7 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
         'LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender': 20901,
         'LockReleaseLockBoxTokenPool_Error.UnexpectedLockBounce': 20902,
         'LockReleaseLockBoxTokenPool_Error.LockBoxWithdrawFailed': 20906,
+        'LockReleaseLockBoxTokenPool_Error.LockboxVerificationFailed': 20907,
         'RateLimiter_Error.BucketOverfilled': 29700,
         'RateLimiter_Error.TokenMaxCapacityExceeded': 29701,
         'RateLimiter_Error.TokenRateLimitReached': 29702,
@@ -6392,6 +6511,8 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
         'TokenPool_Error.AmountMismatch': 51720,
         'TokenPool_Error.InvalidRequestedFinality': 51721,
         'TokenPool_Error.InsufficientMessageValue': 51725,
+        'TokenPool_Error.ContractNotInitialized': 51726,
+        'TokenPool_Error.AlreadyInitialized': 51727,
         'JettonWithdrawable_Error.ZeroAddressNotAllowed': 55700,
         'JettonWithdrawable_Error.UnallowedRecipient': 55701,
         'JettonWithdrawable_Error.MaxAmountExceeded': 55702,
@@ -6620,6 +6741,12 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
         return TokenPool_SetBudget.toCell(TokenPool_SetBudget.create(body));
     }
 
+    static createCellOfTokenPoolInit(body: {
+        queryId?: uint64
+    }) {
+        return TokenPool_Init.toCell(TokenPool_Init.create(body));
+    }
+
     static createCellOfTokenPoolGetConfig(body: {
         queryId?: uint64
     }) {
@@ -6708,6 +6835,15 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
         context: JettonLockBox_Withdraw | null
     }) {
         return JettonLockBox_WithdrawFailed.toCell(JettonLockBox_WithdrawFailed.create(body));
+    }
+
+    static createCellOfJettonLockBoxInfo(body: {
+        queryId?: uint64
+        token: c.Address
+        wallet: c.Address
+        isOperator: boolean
+    }) {
+        return JettonLockBox_Info.toCell(JettonLockBox_Info.create(body));
     }
 
     static createCellOfUpgradeableUpgrade(body: {
@@ -6999,6 +7135,16 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
         });
     }
 
+    async sendTokenPoolInit(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: TokenPool_Init.toCell(TokenPool_Init.create(body)),
+            ...extraOptions
+        });
+    }
+
     async sendTokenPoolGetConfig(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
     }, extraOptions?: ExtraSendOptions) {
@@ -7137,6 +7283,19 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
         });
     }
 
+    async sendJettonLockBoxInfo(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+        queryId?: uint64
+        token: c.Address
+        wallet: c.Address
+        isOperator: boolean
+    }, extraOptions?: ExtraSendOptions) {
+        return provider.internal(via, {
+            value: msgValue,
+            body: JettonLockBox_Info.toCell(JettonLockBox_Info.create(body)),
+            ...extraOptions
+        });
+    }
+
     async sendUpgradeableUpgrade(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         code: c.Cell
@@ -7151,6 +7310,11 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
     async getAccruedFees(provider: ContractProvider): Promise<coins> {
         const r = StackReader.fromGetMethod(1, await provider.get('getAccruedFees', []));
         return r.readBigInt();
+    }
+
+    async getIsInitialized(provider: ContractProvider): Promise<boolean> {
+        const r = StackReader.fromGetMethod(1, await provider.get('isInitialized', []));
+        return r.readBoolean();
     }
 
     async getTypeAndVersion(provider: ContractProvider): Promise<[

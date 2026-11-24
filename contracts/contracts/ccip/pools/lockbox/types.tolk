@@ -41,9 +41,10 @@ struct Storage {
     /// Address allowed to initialize this lockbox, bound at deployment (stateInit).
     initializer: address;
 
-    /// Minter address of the token this lockbox holds.
+    /// Minter address of the token this lockbox holds. Known at deployment.
     minterAddress: address;
-    /// Jetton wallet address belonging to this lockbox instance.
+    /// Jetton wallet of this lockbox. Null until `onInit`: it is derived from the lockbox
+    /// address, which commits this storage, so it cannot be set in stateInit.
     walletAddress: address?;
 
     rbac: AccessControl_Data;

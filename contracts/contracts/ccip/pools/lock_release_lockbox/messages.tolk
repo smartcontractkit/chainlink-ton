@@ -10,10 +10,12 @@ type LockReleaseLockboxTokenPool_InMessage =
     | JettonLockBox_Deposited
     | JettonLockBox_DepositFailed
     | JettonLockBox_WithdrawFailed
+    | JettonLockBox_Info
     | Upgradeable_Upgrade;
 
 type LockReleaseLockboxTokenPool_OutMessage =
-    | AskToTransfer;
+    | AskToTransfer
+    | JettonLockBox_GetInfo;
 
 type LockReleaseLockboxTokenPool_BouncedMessage =
     | AskToTransfer
