@@ -37,11 +37,11 @@ import "utils"
 
 tolk 1.5.0
 
-const CONTRACT_VERSION = "1.7.0".literalSlice();
+const CONTRACT_VERSION = "1.7.0-rc.1".literalSlice();
 const RESERVE = grams("1");
 contract Router {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.7.0"
+    version: "1.7.0-rc.1"
     description: "link.chain.ton.ccip.Router"
 
     storage: Storage
