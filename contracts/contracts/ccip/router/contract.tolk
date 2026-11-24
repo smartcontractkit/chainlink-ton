@@ -124,7 +124,7 @@ fun onInternalMessage(in: InMessage) {
         Router_LockOrBurnWithdrawFailedForwardTP => {
             val st = lazy Storage.load();
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
-            sendTokenPoolWithdrawFailure(msg.tokenPool, msg.forwardPayload);
+            sendTPLockOrBurnWithdrawFailure(msg.tokenPool, msg.forwardPayload);
         }
         // Permissionless (authorization is handle at the ReceiverExecutor)
         Router_CCIPReceiveConfirm => {
@@ -565,7 +565,7 @@ fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: a
 /// notification: the Router settles the executor directly, so a pool that ignores or rejects this
 /// message cannot leave the send stuck. The fixed value is funded from the inbound value; the
 /// source-side budget includes its cost, so a normal failure callback never starves settlement.
-fun sendTokenPoolWithdrawFailure(tokenPool: address, forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>) {
+fun sendTPLockOrBurnWithdrawFailure(tokenPool: address, forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>) {
     val refund = createMessage({
         bounce: BounceMode.NoBounce,
         value: Router_Costs.tokenPoolRefund(),
@@ -592,7 +592,7 @@ fun settleWithdrawFailure(
     errorCode: int32,
 ) {
     reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
-    sendTokenPoolWithdrawFailure(tokenPool, forwardPayload);
+    sendTPLockOrBurnWithdrawFailure(tokenPool, forwardPayload);
     sendLockOrBurnWithdrawFailure(executor, queryId, tokenPool, errorCode);
 }
 
