@@ -6,10 +6,3 @@ export const CONTRACT_VERSION = '1.7.0'
 export const FACILITY_NAME = 'link.chain.ton.ccip.MerkleRoot'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
-
-export const opcodes = {
-  in: {
-    validate: 0x038ede91,
-    markState: 0x019f4cd2,
-  },
-}
