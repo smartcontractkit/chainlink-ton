@@ -111,7 +111,10 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
     expect(configResult.transactions).toHaveTransaction({ to: feeQuoter.address, success: true })
   })
 
-  async function deployRegisteredToken(kind: (typeof POOL_KINDS)[number]) {
+  async function deployRegisteredToken(
+    kind: (typeof POOL_KINDS)[number],
+    remoteTokenAddress = FromBuffer(Buffer.concat([Buffer.alloc(12), Buffer.alloc(20, 0xab)])),
+  ) {
     const token = await deployTokenWithPool({
       blockchain,
       deployer,
@@ -119,7 +122,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
       router: router.address,
       remoteChainSelector: DEST_CHAIN_SELECTOR,
       remotePoolAddress: EVM_ADDRESS,
-      remoteTokenAddress: FromBuffer(Buffer.concat([Buffer.alloc(12), Buffer.alloc(20, 0xab)])),
+      remoteTokenAddress,
       allowedDepositNamespaces: new Set([BigInt(CCIPNamespace.SenderAccount)]),
       mints: [{ to: sender.address, amount: TOKEN_AMOUNT * 20n }],
     })
@@ -304,6 +307,7 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
     const sendRetains: BalanceRule[] = onRampRetains.tokenSend.successful(kind)
     const poolRejectedRetains = onRampRetains.tokenSend.poolRejected
     const withdrawFailedRetains = onRampRetains.tokenSend.withdrawFailed(kind)
+    const onRampRejectedRetains = onRampRetains.tokenSend.onRampRejected(kind)
     const sendFlow = (data: bigint[]) => ({
       run: () => ccipSend(token, data),
       book,
@@ -400,6 +404,37 @@ describe('CCIP OnRamp Token Transfer Gas Estimation', () => {
         to: router.address,
         op: rt.DepositAccount_WithdrawFailed.PREFIX,
         success: true,
+      })
+      expectNACK(result)
+    })
+
+    // The OnRamp rejects the pool's prepared dest data after pool admission. The executor is
+    // settled by the OnRamp directly and the refund-only TP notification is relayed through the
+    // Router; this exercises OnRamp.settleWithdrawFailure's reserve/send ordering.
+    it('should measure a token transfer rejected by OnRamp validation', async () => {
+      const badToken = await deployRegisteredToken(kind, FromBuffer(Buffer.alloc(20, 0xab)))
+      const { book: badBook, senderAccount: badSenderAccount } = await addressBook(badToken)
+      await deposit(badToken, badSenderAccount)
+
+      const { result } = await report.measure(
+        `${kind}: CCIPSend Token Transfer rejected by OnRamp validation`,
+        {
+          run: () => ccipSend(badToken, createPayloadBytes(HARD_MAX_DATA_BYTES)),
+          book: badBook,
+          discover: nameExecutor,
+          retains: onRampRejectedRetains,
+          aborts: [],
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        to: onRamp.address,
+        op: or.OnRamp_ExecutorRequestsWithdraw.PREFIX,
+        success: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: onRamp.address,
+        to: router.address,
+        op: rt.Router_LockOrBurnWithdrawFailedForwardTP.PREFIX,
       })
       expectNACK(result)
     })

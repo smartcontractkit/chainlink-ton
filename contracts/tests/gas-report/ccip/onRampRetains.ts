@@ -130,15 +130,17 @@ export const onRampRetains = (() => {
     // custody value until the Router reports WithdrawFailed and it drains; the pool and
     // message-sent hops are gone. The withdraw hop itself is a pass-through (the bounce returns
     // its value), so it needs no rule.
+    const poolRefund = (kind: PoolKind): BalanceRule => ({
+      contract: `${kind}Pool`,
+      op: 'TokenPool_LockOrBurnWithdrawFailed',
+      kind: 'deltaRange',
+      min: 0n,
+      max: toNano('0.005'), // The pool keeps the refund notification after compute/event fees.
+    })
+
     const withdrawFailed = (kind: PoolKind): BalanceRule[] => [
       ...upToTokenInfo,
-      {
-        contract: `${kind}Pool`,
-        op: 'TokenPool_LockOrBurnWithdrawFailed',
-        kind: 'deltaRange',
-        min: 0n,
-        max: toNano('0.005'), // The pool keeps the refund notification after compute/event fees.
-      },
+      poolRefund(kind),
       {
         contract: 'SendExecutor',
         op: 'Router_LockOrBurnWithdrawFailed',
@@ -146,7 +148,27 @@ export const onRampRetains = (() => {
       },
     ]
 
-    return { upToTokenInfo, successful, poolRejected, withdrawFailed }
+    // The OnRamp-validation failure settles the executor directly and forwards a refund-only
+    // notification through the Router. The Router keeps the relay remainder (bounded) and must
+    // never fund this hop from its own balance.
+    const onRampRejected = (kind: PoolKind): BalanceRule[] => [
+      ...upToTokenInfo,
+      poolRefund(kind),
+      {
+        contract: 'Router',
+        op: 'Router_LockOrBurnWithdrawFailedForwardTP',
+        kind: 'deltaRange',
+        min: 0n,
+        max: toNano('0.0025'), // Relay budget remaining after compute/forward fees.
+      },
+      {
+        contract: 'SendExecutor',
+        op: 'Router_LockOrBurnWithdrawFailed',
+        kind: 'drain',
+      },
+    ]
+
+    return { upToTokenInfo, successful, poolRejected, withdrawFailed, onRampRejected }
   })()
 
   // The Get Sender Account flow: the account is deployed with its storage reserve, the init
