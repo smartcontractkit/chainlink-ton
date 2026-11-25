@@ -222,7 +222,9 @@ fun createLockboxTransfer(
         transferInitiator,
     };
 
-    // Budget amount to return to the pool to cover failure finalization costs.
+    // Failure budget returned by the lockbox: the pool's finalization buffer plus the caller's
+    // finalization value. The failure report consumes the latter; the remaining `finalization()`
+    // funds the best-effort fee refund (see onDepositFailed).
     val failureValue =
         TokenPool_Costs.finalization() + requestMsg.finalizationValue;
 
@@ -290,7 +292,14 @@ fun onDepositFailed(
     assert (details.localToken == msg.token && prepared.destTokenAmount == msg.amount)
         throw (LockReleaseLockBoxTokenPool_Error.InvalidDepositPayload);
 
-    // The lockbox returns the post-fee custody directly to the depositor, and the pool returns the reserved fee.
+    // On rejection, the lockbox returns the post-fee custody to `returnTo` (the deposit extra's
+    // override, defaulting to the transfer initiator); the pool refunds the retained fee to the
+    // same recipient.
+    //
+    // Best-effort: the refund is funded by what remains of `failureValue` after the failure report
+    // (≈ finalization()). If that does not cover the jetton transfer, the fee stays in the pool
+    // wallet unaccrued and is recoverable only via the owner rescue. The finalization budget is
+    // pinned above the reference transfer cost by the gas harness.
     val feeReturn = prepared.feeAmount > 0
         ? TokenPool<void>.createCustodyReturn(operation, context.transferInitiator, prepared.feeAmount)
         : null;
