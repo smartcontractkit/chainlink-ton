@@ -67,7 +67,7 @@ var (
 		ChainFamilySelector:             config.TVMFamilySelector,
 		EnforceOutOfOrder:               false,
 		DefaultTokenFeeUSDCents:         0,
-		// Must be >= the OffRamp's minTTGasLimit (config.DefaultOffRampMinTTGasLimit).
+		// Must cover the pool's releaseOrMint admission and the OffRamp's minTTGasLimit.
 		DefaultTokenDestGasOverhead: config.DefaultTokenDestGasOverheadTON,
 		// Set to the OffRamp's minGasLimit to verify the minimum is sufficient.
 		DefaultTxGasLimit:          config.DefaultOffRampMinGasLimitNanoTON,

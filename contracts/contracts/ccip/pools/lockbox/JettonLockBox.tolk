@@ -56,6 +56,9 @@ fun onInternalMessage(in: InMessage) {
         JettonLockBox_Init => {
             onInit(mutate st, in.senderAddress, in.valueCoins, msg);
         }
+        JettonLockBox_GetInfo => {
+            onGetInfo(st, in.senderAddress, in.valueCoins, msg);
+        }
         Withdrawable_Withdraw => {
             onWithdrawableWithdraw(st, in.senderAddress, in.valueCoins, msg);
         }
@@ -92,6 +95,9 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
 
     // Only the initializer bound at construction (stateInit) may initialize.
     assert (sender == st.initializer) throw (JettonLockBox_Error.UnauthorizedInitializer);
+
+    // The minter is committed by the stateInit; init must not overwrite it.
+    assert (msg.minterAddress == st.minterAddress) throw (JettonLockBox_Error.UnsupportedToken);
 
     // Validate addresses are not zero
     assert (!isZeroAddress(msg.minterAddress)) throw (JettonLockBox_Error.UnsupportedToken);
@@ -136,6 +142,26 @@ fun onInit(mutate st: Storage, sender: address, msgValue: coins, msg: JettonLock
     reply.send(msg.returnExcess
         ? SEND_MODE_CARRY_ALL_BALANCE
         : SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+/// Read-only init probe: returns the token, the lockbox wallet, and whether the caller is an
+/// authorized operator. Used by a pool to bind itself to this lockbox at init.
+fun onGetInfo(st: Storage, sender: address, _msgValue: coins, msg: JettonLockBox_GetInfo) {
+    assert (st.walletAddress != null) throw (JettonLockBox_Error.ContractNotInitialized);
+
+    val rbac = hookTrait__AccessControl(st);
+    val reply = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: sender,
+        body: JettonLockBox_Info {
+            queryId: msg.queryId,
+            token: st.minterAddress,
+            wallet: st.walletAddress!,
+            isOperator: rbac.hasRole(OPERATOR_ROLE, sender),
+        },
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Handles jetton transfer notifications — treats them as deposits.
@@ -385,7 +411,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     // A failed best-effort return: accept its value in the lockbox. The truncated body is
     // intentionally not parsed; jettons remain in the lockbox wallet.
-    if (isShortAskToTransferBounce(in.bouncedBody)) {
+    if (in.bouncedBody.remainingBitsCount() >= 32 && in.bouncedBody.preloadUint(32) == 0xffffffff) {
         return;
     }
 

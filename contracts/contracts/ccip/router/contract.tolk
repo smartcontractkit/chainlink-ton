@@ -37,13 +37,11 @@ import "utils"
 
 tolk 1.5.0
 
-const CONTRACT_VERSION = "1.7.0".literalSlice();
+const CONTRACT_VERSION = "1.7.0-rc.1".literalSlice();
 const RESERVE = grams("1");
-/// Forwarded with released/minted tokens so the deposit account gets a transfer notification.
-const ROUTER_DELIVERY_FORWARD_TON_AMOUNT = grams("0.01");
 contract Router {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.7.0"
+    version: "1.7.0-rc.1"
     description: "link.chain.ton.ccip.Router"
 
     storage: Storage
@@ -1266,7 +1264,7 @@ fun onReceiverAccountReady(relay: Router_RelayReleaseOrMint, sender: address) {
             replyTo: relay.replyTo,
             delivery: TokenPool_ReleaseOrMintDelivery {
                 recipient: sender,
-                forwardTonAmount: ROUTER_DELIVERY_FORWARD_TON_AMOUNT,
+                forwardTonAmount: DepositAccount_DELIVERY_FORWARD_VALUE,
                 // The account routes the transfer notification to the ReceiveExecutor.
                 forwardPayload: DepositAccount_Notify { notify: relay.replyTo }.toCell(),
             }.toCell(),

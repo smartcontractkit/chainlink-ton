@@ -90,7 +90,8 @@ func (a *TonCurseAdapter) Initialize(e cldf.Environment, selector uint64) error 
 
 // curseAuthorityVersion is the first Router release where curse authority is a
 // role rather than plain RMN ownership. Older Routers only expose rmn_owner.
-var curseAuthorityVersion = semver.MustParse("1.7.0")
+// The "-0" suffix makes 1.7.0 prereleases (e.g. 1.7.0-rc.1) compare as >= this.
+var curseAuthorityVersion = semver.MustParse("1.7.0-0")
 
 // effectiveSender is the address that will actually deliver the message: the
 // deployer key on a direct send, or the executing timelock when the caller

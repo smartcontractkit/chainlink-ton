@@ -11,8 +11,6 @@ on:
 jobs:
   run-ton-smoke-tests:
     name: Run TON Smoke Tests in Chainlink CCIP
-    # Temporarily skipped while the smoke tests are unstable; a skipped job satisfies the required check.
-    if: false
     runs-on: ubuntu-24.04
     permissions:
       id-token: write

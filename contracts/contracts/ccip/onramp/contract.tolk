@@ -26,11 +26,11 @@ import "messages"
 
 tolk 1.5.0
 
-const CONTRACT_VERSION = "1.7.0".literalSlice();
+const CONTRACT_VERSION = "1.7.0-rc.1".literalSlice();
 
 contract OnRamp {
     author: "SmartContract Chainlink Limited SEZC"
-    version: "1.7.0"
+    version: "1.7.0-rc.1"
     description: "link.chain.ton.ccip.OnRamp"
 
     storage: OnRamp_Storage

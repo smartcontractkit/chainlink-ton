@@ -34,7 +34,13 @@ type DeployContractInput struct {
 }
 
 type DeployContractOutput struct {
-	Address *address.Address
+	Address       *address.Address
+	TraceExitCode tvm.ExitCode
+}
+
+type DeployContractResult struct {
+	AddressRef    *ds.AddressRef
+	TraceExitCode tvm.ExitCode
 }
 
 var DeployTONContractOp = cldfops.NewOperation(
@@ -64,6 +70,16 @@ func (i *DeployContractInput) Validate() error {
 // InvokeDeployContractOperation invokes the generic TON contract deployment operation.
 // It always executes the deployment operation and returns an error if the deployment fails.
 func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider, chainSelector uint64, compiledContract ton.CompiledContract, storage any, messageBody any, coin string) (*ds.AddressRef, error) {
+	result, err := InvokeDeployContractOperationWithTrace(b, dp, chainSelector, compiledContract, storage, messageBody, coin)
+	if err != nil {
+		return nil, err
+	}
+	return result.AddressRef, nil
+}
+
+// InvokeDeployContractOperationWithTrace is InvokeDeployContractOperation plus the deployment
+// trace's first non-success exit code.
+func InvokeDeployContractOperationWithTrace(b cldfops.Bundle, dp *dep.DependencyProvider, chainSelector uint64, compiledContract ton.CompiledContract, storage any, messageBody any, coin string) (*DeployContractResult, error) {
 	deployContractInput := DeployContractInput{
 		Name:         compiledContract.Metadata.ID,
 		Storage:      storage,
@@ -86,12 +102,16 @@ func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider,
 
 	contractAddress := *deployContractReport.Output.Address
 	// TODO[TOOLING-TT-DEPLOYMENT]: [NONEVM-6573] Qualifier not used here (fix)
-	return &ds.AddressRef{
+	ref := &ds.AddressRef{
 		Address:       contractAddress.String(),
 		ChainSelector: chainSelector,
 		Type:          contractType,
 		Version:       compiledContract.Version,
 		Labels:        ds.NewLabelSet(fmt.Sprintf("package:%v", compiledContract.Metadata.Package)),
+	}
+	return &DeployContractResult{
+		AddressRef:    ref,
+		TraceExitCode: deployContractReport.Output.TraceExitCode,
 	}, nil
 }
 
@@ -153,12 +173,17 @@ func deployTONContract(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployCo
 
 	b.Logger.Infow("Initializing contract with body", "contract name", in.Name, "body data hash", hex.EncodeToString(bodyCell.Hash()), "body bits size", bodyCell.BitsSize())
 
-	addr, _, err := conn.DeployAndWaitForTrace(ctx, in.ContractCode, initData, value, bodyCell)
+	addr, receivedMessage, err := conn.DeployAndWaitForTrace(ctx, in.ContractCode, initData, value, bodyCell)
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy contract: %w", err)
+	}
+	traceExitCode, err := receivedMessage.TraceExitCode()
+	if err != nil {
+		return output, fmt.Errorf("failed to read deployment trace exit code: %w", err)
 	}
 	b.Logger.Infow("Contract deployed", "contract name", in.Name, "addr", addr, "deployer wallet addr", chain.WalletAddress.String())
 
 	output.Address = addr
+	output.TraceExitCode = traceExitCode
 	return output, nil
 }

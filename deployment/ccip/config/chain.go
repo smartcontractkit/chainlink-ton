@@ -26,12 +26,10 @@ const (
 	AptosFamilySelector uint32 = 0xac77ffec
 	TVMFamilySelector   uint32 = 0x647e2ba9
 
-	// DefaultTokenDestGasOverheadTON is the nanoTON budget the FeeQuoter assigns
-	// for Any2TON token transfers. It must be >= the OffRamp's minTTGasLimit
-	// (DefaultOffRampMinTTGasLimit), which is seeded into the dynamic config
-	// during migration and can be updated via OffRamp_SetDynamicConfig.
-	// In tests we set it equal to the floor to verify the minimum is sufficient.
-	DefaultTokenDestGasOverheadTON uint32 = 200_000_000
+	// DefaultTokenDestGasOverheadTON is the nanoTON destGasAmount for Any2TON token transfers
+	// without a per-token destGasOverhead. It must cover the pool's releaseOrMint admission
+	// (BurnMint 0.100000008 TON at mainnet gas, rounded up here) and minTTGasLimit.
+	DefaultTokenDestGasOverheadTON uint32 = 100_500_000
 
 	// DefaultTxGasLimitTON is the nanoTON gas limit the FeeQuoter assigns to a
 	// tx by default. It must be >= the OffRamp's minGasLimit
@@ -41,7 +39,9 @@ const (
 	DefaultTxGasLimitTON uint32 = 100_000_000
 
 	// DefaultOffRampMinGasLimit is the default minimum gas limit (in TON) for
-	// message execution on the OffRamp. It is seeded into the OffRamp dynamic
+	// message execution on the OffRamp. gasLimit only funds the receiver, which must
+	// attach the Router's confirmValue (0.0225 TON) to its CCIPReceiveConfirm; the
+	// floor adds a minimal receiver's own fees. It is seeded into the OffRamp dynamic
 	// config at deployment / migration time. DefaultTxGasLimitTON must be >= this.
 	DefaultOffRampMinGasLimit = "0.025"
 
@@ -51,13 +51,10 @@ const (
 	// minimum is sufficient.
 	DefaultOffRampMinGasLimitNanoTON uint32 = 25_000_000
 
-	// DefaultOffRampMinTTGasLimit is the default minimum gas limit (in TON) for
-	// token transfers on the OffRamp. It must be >= LockReleaseTokenPool_RECEIVER_ACCOUNT_DEPLOY_VALUE
-	// (ton("0.2") = 200_000_000 nanoTON), which is the value the LockRelease_LockBox
-	// pool needs to deploy its receiver account. It is seeded into the OffRamp dynamic
-	// config at deployment / migration time.
-	// DefaultTokenDestGasOverheadTON must be >= this.
-	DefaultOffRampMinTTGasLimit = "0.2"
+	// DefaultOffRampMinTTGasLimit is the global destGasAmount floor (in TON). The ReceiveExecutor
+	// checks each pool's own admission, so this stays below the lowest one (LockRelease 0.0583 TON
+	// at mainnet gas). Seeded into the OffRamp dynamic config; DefaultTokenDestGasOverheadTON must be >= this.
+	DefaultOffRampMinTTGasLimit = "0.05"
 )
 
 // ConnectionConfig defines how a chain should connect with other chains.

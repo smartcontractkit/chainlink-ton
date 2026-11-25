@@ -194,7 +194,8 @@ struct (0x5397c75e) OffRamp_ReturnExcessToExecutor {
 }
 
 /// Relays between the executor and the pool, on top of `destGasAmount`: the OffRamp and Router
-/// hops, the receiver's deposit account (deploy, init, wallet query, reply) and its storage reserve.
+/// hops, the receiver's deposit account (deploy, init, wallet query, reply), its storage reserve and
+/// the delivery forward the pool checks on top of its admission.
 fun OffRamp_ReleaseOrMint.cost(): coins {
     return
         + OFFRAMP_COSTS_RELEASE_OR_MINT_FEE
@@ -202,6 +203,7 @@ fun OffRamp_ReleaseOrMint.cost(): coins {
         + OFFRAMP_COSTS_DEPOSIT_ACCOUNT_FEE
         + DepositAccount_MIN_GRAM_TO_RESERVE
         + DepositAccount_WALLET_QUERY_VALUE
+        + DepositAccount_DELIVERY_FORWARD_VALUE
         ;
 }
 

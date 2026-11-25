@@ -255,12 +255,13 @@ type JettonClient struct {
 
 // AdminConfig holds the admin configuration for the pool.
 type AdminConfig struct {
-	Ownable                  ownable2step.Storage         `tlb:"^"`
-	DynamicConfig            DynamicConfig                `tlb:"^"`
-	AllowedDepositNamespaces *tlbe.Dict[uint32, struct{}] `tlb:"."`
-	JettonClient             JettonClient                 `tlb:"."`
-	AllowedFinalityConfig    uint32                       `tlb:"## 32"`
-	AdvancedPoolHooks        *address.Address             `tlb:"addr"`
+	Ownable                   ownable2step.Storage         `tlb:"^"`
+	DynamicConfig             DynamicConfig                `tlb:"^"`
+	AllowedDepositNamespaces  *tlbe.Dict[uint32, struct{}] `tlb:"."`
+	JettonClient              JettonClient                 `tlb:"."`
+	AllowedFinalityConfig     uint32                       `tlb:"## 32"`
+	AdvancedPoolHooks         *address.Address             `tlb:"addr"`
+	AdvancedPoolHooksPrevious *address.Address             `tlb:"addr"`
 }
 
 // LockOrBurnBudget is the pool's LockOrBurn budget. Admission is checked at the entrypoint and
@@ -302,6 +303,7 @@ type Storage struct {
 	TokenTransferFeeConfigs *cell.Dictionary `tlb:"dict 64"`
 	Budget                  Budget           `tlb:"."`
 	AccruedFees             tlb.Coins        `tlb:"."`
+	Initialized             bool             `tlb:"bool"`
 }
 
 // --- Messages - incoming ---
@@ -351,6 +353,7 @@ type SetAdvancedPoolHooks struct {
 	_                 tlb.Magic        `tlb:"#3f5c9f57" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID           uint64           `tlb:"## 64"`
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
+	ClearPrevious     bool             `tlb:"bool"`
 }
 
 // SetRateLimitConfig sets the rate limit configurations.
@@ -433,6 +436,12 @@ type ReleaseOrMint struct {
 	Delivery                *ReleaseOrMintDelivery `tlb:"maybe ^"`
 	// SendExcessesTo is where jetton wallets return unused TON; nil keeps the pool default.
 	SendExcessesTo *address.Address `tlb:"addr"`
+}
+
+// Init is the one-time owner-only pool initialization.
+type Init struct {
+	_       tlb.Magic `tlb:"#f5e23895" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64    `tlb:"## 64"`
 }
 
 // GetConfig asks a pool for the configuration CCIP caches in the token admin registry.
@@ -722,6 +731,7 @@ type AdvancedPoolHooksSetNotification struct {
 	_                 tlb.Magic        `tlb:"#f63f3401" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID           uint64           `tlb:"## 64"`
 	AdvancedPoolHooks *address.Address `tlb:"addr"`
+	ClearPrevious     bool             `tlb:"bool"`
 }
 
 // --- Events ---
@@ -901,6 +911,8 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	// Config + budget
 	GetConfig{},
 	SetBudget{},
+	// Init
+	Init{},
 	// Outgoing
 	LockOrBurnWithdraw{},
 	LockOrBurnFinished{},

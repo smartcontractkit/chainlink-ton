@@ -43,6 +43,10 @@ struct (0x3c50a39b) TokenPool_SetAllowedFinalityConfig {
 struct (0x3f5c9f57) TokenPool_SetAdvancedPoolHooks {
     queryId: uint64;
     advancedPoolHooks: address?;
+    /// When true, stop accepting callbacks from the previous hooks contract. Use this after the
+    /// old hook's in-flight operations have drained. When false, the old current hook is kept as
+    /// the previous hook so its in-flight callbacks can finish.
+    clearPrevious: bool = false;
 }
 
 struct (0x4fe2d26c) TokenPool_SetRateLimitConfig {
@@ -323,6 +327,7 @@ type TokenPool_InMessage =
     | TokenPool_SetRateLimitConfig
     | TokenPool_ApplyTokenTransferFeeConfigUpdates
     | TokenPool_SetBudget
+    | TokenPool_Init
     | TokenPool_GetConfig
     | TokenPool_Curse
     | TokenPool_Uncurse
@@ -418,6 +423,7 @@ struct (0x28cbcc64) TokenPool_FeeConfigApplied {
 struct (0xf63f3401) TokenPool_AdvancedPoolHooksSetNotification {
     queryId: uint64;
     advancedPoolHooks: address?;
+    clearPrevious: bool = false;
 }
 
 type TokenPool_OutMessage = 
@@ -449,6 +455,12 @@ type TokenPool_BouncedMessage =
     | TokenPool_PreflightCheck
     | TokenPool_PostflightCheck
     | AskToTransfer;
+
+/// One-time owner-only initialization. Concrete pools may defer success until an async
+/// handshake completes.
+struct (0xf5e23895) TokenPool_Init {
+    queryId: uint64;
+}
 
 /// Asks a pool for the configuration the token admin registry caches: the initiator of its
 /// release/mint deliveries and its admission budgets. Sent when a pool is set or refreshed, e.g.

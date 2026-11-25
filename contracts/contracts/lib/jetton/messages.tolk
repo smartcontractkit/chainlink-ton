@@ -1,26 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Imported from https://github.com/ton-blockchain/tolk-bench/blob/57e1009743bfc19748caa95d76180d9e9793e4c5/contracts_Tolk/03_notcoin/messages.tolk
 
-import "@stdlib/reflection"
-
 type ForwardPayloadRemainder = RemainingBitsAndRefs
-
-/// Detects a cheap (`Only256BitsOfBody`) bounce of a return `AskToTransfer`.
-/// Such bounces are used only for best-effort custody returns, where the extra value is
-/// accepted by the sender and the truncated body is intentionally not parsed.
-@inline
-fun isShortAskToTransferBounce(bouncedBody: slice): bool {
-    if (bouncedBody.remainingBitsCount() < 64) {
-        return false;
-    }
-    if (bouncedBody.preloadUint(32) != 0xffffffff) {
-        return false;
-    }
-    val originalBody = bouncedBody.skipBouncedPrefix();
-    val (askOpcode, askOpcodeBits) = reflect.serializationPrefixOf<AskToTransfer>();
-    return originalBody.remainingBitsCount() >= askOpcodeBits
-        && originalBody.preloadUint(askOpcodeBits) == askOpcode;
-}
 
 // nolint:opcode
 struct (0x0f8a7ea5) AskToTransfer {

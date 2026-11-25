@@ -454,6 +454,49 @@ export function runTokenPoolCcvFeesBehaviorTests(
       })
     })
 
+    it('accepts a CCV reply from the previous hook after rotation', async () => {
+      const hooksA = await deployHooks(Number(MOCK_HOOKS_DEFAULT_ID))
+      const hooksB = ctx.blockchain.openContract(
+        MockAdvancedPoolHooks.fromStorage(
+          { id: 251n },
+          { overrideContractCode: await contractCode.ccip.local('MockAdvancedPoolHooks') },
+        ),
+      )
+      await hooksB.sendDeploy(ctx.deployer.getSender(), toNano('0.1'))
+      await ctx.pool.sendTokenPoolSetAdvancedPoolHooks(ctx.deployer.getSender(), toNano('0.2'), {
+        queryId: 7001n,
+        advancedPoolHooks: hooksB.address,
+        clearPrevious: false,
+      })
+
+      const context = beginCell()
+        .storeAddress(ctx.deployer.address)
+        .storeMaybeRef(null)
+        .storeMaybeRef(null)
+        .endCell()
+      const reply = TokenPool_CCVs.create({
+        queryId: 7002n,
+        requiredCCVs: [],
+        forwardPayload: context,
+      })
+
+      const result = await ctx.blockchain.sendMessage(
+        internal({
+          from: hooksA.address,
+          to: ctx.pool.address,
+          value: toNano('0.1'),
+          body: TokenPool_CCVs.toCell(reply),
+        }),
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.deployer.address,
+        op: TokenPool_CCVs.PREFIX,
+        success: true,
+      })
+    })
+
     it('GetCCVsToHooks bounce finalizes with TokenPool_GetCCVsFailed to the requester, echoing forwardPayload', async () => {
       const hooks = await deployHooks(Number(MOCK_HOOKS_BOUNCE_ID))
 

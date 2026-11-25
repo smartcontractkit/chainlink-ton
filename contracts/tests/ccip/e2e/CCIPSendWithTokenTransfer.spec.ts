@@ -219,6 +219,8 @@ describe('CCIPSend with token transfer (e2e)', () => {
       success: true,
       deploy: true,
     })
+    await tokenPool.sendTokenPoolInit(deployer.getSender(), toNano('0.1'), { queryId: 0n })
+    expect(await tokenPool.getIsInitialized()).toBe(true)
 
     // Register chain config
     const chainUpdateResult = await tokenPool.sendTokenPoolApplyChainUpdates(

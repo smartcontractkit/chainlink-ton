@@ -64,9 +64,8 @@ func (a *TonLaneAdapter) GetFeeQuoterDestChainConfig() lanes.FeeQuoterDestChainC
 		ChainFamilySelector:       config.TVMFamilySelector,
 		DefaultTokenFeeUSDCents:   0,
 		// DefaultTokenDestGasOverhead is the nanoTON value budgeted for the releaseOrMint
-		// flow on TON. The OffRamp rejects releases with destGasAmount < minTTGasLimit
-		// (config.DefaultOffRampMinTTGasLimit = ton("0.2") = 200_000_000 nanoTON),
-		// so the lane default must be at least that high.
+		// flow on TON. It must cover the pool's releaseOrMint admission and the OffRamp's
+		// minTTGasLimit (config.DefaultOffRampMinTTGasLimit).
 		DefaultTokenDestGasOverhead: config.DefaultTokenDestGasOverheadTON,
 		// DefaultTxGasLimit is the nanoTON gas limit for a tx on TON. It must be >= the
 		// OffRamp's minGasLimit (config.DefaultOffRampMinGasLimit = ton("0.025") = 25_000_000 nanoTON).

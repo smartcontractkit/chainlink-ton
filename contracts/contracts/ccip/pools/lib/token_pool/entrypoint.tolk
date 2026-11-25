@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "@stdlib/lisp-lists"
+import "@stdlib/reflection"
 
 import "../../../../../gen/Deployable.code"
 
@@ -49,6 +50,23 @@ struct TokenPool<T> {
     hooks: TokenPool_Hooks<T>? = null;
 }
 
+/// Detects a cheap (`Only256BitsOfBody`) bounce of a return `AskToTransfer`.
+/// Such bounces are used only for best-effort custody returns, where the extra value is
+/// accepted by the sender and the truncated body is intentionally not parsed.
+@inline
+fun isShortAskToTransferBounce(bouncedBody: slice): bool {
+    if (bouncedBody.remainingBitsCount() < 32) {
+        return false;
+    }
+    if (bouncedBody.loadUint(32) != 0xffffffff) {
+        return false;
+    }
+    val originalBody = bouncedBody;
+    val (askOpcode, askOpcodeBits) = reflect.serializationPrefixOf<AskToTransfer>();
+    return originalBody.remainingBitsCount() >= askOpcodeBits
+        && originalBody.preloadUint(askOpcodeBits) == askOpcode;
+}
+
 struct TokenPool_AdminConfig {
     ownable: Cell<Ownable2Step>;
     dynamicConfig: Cell<TokenPool_DynamicConfig>;
@@ -70,6 +88,9 @@ struct TokenPool_AdminConfig {
     ///      verbatim. The pool authenticates the hook as the sender but does not bind the reply to
     ///      the request it admitted; this is an owner-trust assumption, not a protocol guarantee.
     advancedPoolHooks: address? = null;
+    /// The hook active before the latest rotation. Kept only so in-flight async callbacks can
+    /// finish; the owner clears it once those flows have drained.
+    advancedPoolHooksPrevious: address? = null;
 }
 
 struct TokenPool_Data {
@@ -87,6 +108,8 @@ struct TokenPool_Data {
     /// Normal withdrawals cap at this value, so they cannot sweep in-flight custody.
     /// Any unledgered balance is recoverable through the explicit owner-only rescue opcode.
     accruedFees: coins = 0;
+    /// One-time init flag. False until `TokenPool_Init` completes successfully.
+    initialized: bool = false;
 }
 
 @inline
@@ -224,6 +247,15 @@ struct TokenPool_Hooks<T> {
     onWithdrawFeeTokens: ((T?, address, coins, JettonWithdrawable_Withdraw) -> T?)? = null;
 
     // ----------------------------------------------------------------------
+    // Init
+    // ----------------------------------------------------------------------
+
+    /// One-time initialization hook. Return `true` to defer success after sending an async
+    /// request; the concrete pool must then call `markInitialized`. Return `false` for
+    /// synchronous success.
+    onInit: ((T, address, coins, TokenPool_Init) -> (T, bool))? = null;
+
+    // ----------------------------------------------------------------------
     // Configuration
     // ----------------------------------------------------------------------
 
@@ -296,6 +328,41 @@ fun TokenPool<T>.releaseOrMintForward(self, finalizationValue: coins): coins {
 /// failure. These handlers are atomic, so this is not part of the flow budget.
 fun TokenPool<T>.requireMinValue(self, msgValue: coins) {
     assert (msgValue >= TokenPool_Costs.admin()) throw (TokenPool_Error.InsufficientMessageValue);
+}
+
+/// Whether the pool completed its one-time initialization.
+@inline
+fun TokenPool<T>.isInitialized(self): bool {
+    return self.data.initialized;
+}
+
+/// Rejects operational flows until the pool completed initialization.
+@inline
+fun TokenPool<T>.requireInitialized(self) {
+    assert (self.data.initialized) throw (TokenPool_Error.ContractNotInitialized);
+}
+
+/// Marks the pool initialized. Concrete pools call this after an async init validates.
+fun TokenPool<T>.markInitialized(mutate self) {
+    self.data.initialized = true;
+}
+
+/// One-time owner-only initialization. Concrete pools can replace the default synchronous success
+/// with an async handshake by implementing the `onInit` hook and returning `deferred = true`.
+fun TokenPool<T>.onInit(mutate self, sender: address, msgValue: coins, msg: TokenPool_Init) {
+    self.data.adminConfig.load().ownable.load().requireOwner(sender);
+    assert (!self.data.initialized) throw (TokenPool_Error.AlreadyInitialized);
+    self.requireMinValue(msgValue);
+
+    if (self.hooks != null && self.hooks.onInit != null) {
+        val (ctx, deferred) = self.hooks.onInit(self.context!, sender, msgValue, msg);
+        self.context = ctx;
+        if (deferred) {
+            return;
+        }
+    }
+
+    self.markInitialized();
 }
 
 /// Return the JettonClient for the pool, which contains the
@@ -434,6 +501,7 @@ fun TokenPool<T>.setBudget(mutate self, sender: address, msgValue: coins, queryI
 /// Answers the registry probe with the configuration it caches. No value gate: the answer
 /// carries the probe's own value back and changes no state.
 fun TokenPool<T>.onGetConfig(self, sender: address, queryId: uint64) {
+    self.requireInitialized();
     val transferInitiator = self.hooks != null && self.hooks.transferInitiator != null
         ? self.hooks.transferInitiator(self.context)
         : null;
@@ -528,6 +596,7 @@ fun TokenPool<T>.setAdvancedPoolHooks(
     msgValue: coins,
     queryId: uint64,
     advancedPoolHooks: address?,
+    clearPrevious: bool,
 ) {
     self.requireMinValue(msgValue);
 
@@ -535,6 +604,14 @@ fun TokenPool<T>.setAdvancedPoolHooks(
     adminConfig.ownable.load().requireOwner(sender);
 
     val oldHook = adminConfig.advancedPoolHooks;
+    val sameHook = advancedPoolHooks == null
+        ? oldHook == null
+        : oldHook != null && advancedPoolHooks == oldHook;
+    if (clearPrevious) {
+        adminConfig.advancedPoolHooksPrevious = null;
+    } else if (!sameHook) {
+        adminConfig.advancedPoolHooksPrevious = oldHook;
+    }
     adminConfig.advancedPoolHooks = advancedPoolHooks;
     self.data.adminConfig = adminConfig.toCell();
 
@@ -550,6 +627,7 @@ fun TokenPool<T>.setAdvancedPoolHooks(
         body: TokenPool_AdvancedPoolHooksSetNotification {
             queryId,
             advancedPoolHooks,
+            clearPrevious,
         },
     });
     reply.send(SEND_MODE_CARRY_ALL_BALANCE);
@@ -812,7 +890,7 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
             self.setAllowedFinalityConfig(msgSender, msgValue, msg.queryId, msg.allowedFinalityConfig);
         }
         TokenPool_SetAdvancedPoolHooks => {
-            self.setAdvancedPoolHooks(msgSender, msgValue, msg.queryId, msg.advancedPoolHooks);
+            self.setAdvancedPoolHooks(msgSender, msgValue, msg.queryId, msg.advancedPoolHooks, msg.clearPrevious);
         }
         TokenPool_SetRateLimitConfig => {
             self.setRateLimitConfig(msgSender, msgValue, msg.queryId, msg.updates);
@@ -843,6 +921,9 @@ fun TokenPool<T>.onInternalMessage(mutate self, msgSender: address, msgValue: co
         }
         TokenPool_SetBudget => {
             self.setBudget(msgSender, msgValue, msg.queryId, msg.budget);
+        }
+        TokenPool_Init => {
+            self.onInit(msgSender, msgValue, msg);
         }
         TokenPool_GetConfig => {
             self.onGetConfig(msgSender, msg.queryId);
@@ -1367,6 +1448,7 @@ fun TokenPool<T>.onGetCCVs(
     msg: TokenPool_GetCCVs,
     fees: cell?,
 ): void {
+    self.requireInitialized();
     self.requireMinValue(msgValue);
 
     self.validateGetCCVsRequest(msg.localToken, msg.remoteChainSelector, msg.requestedFinalityConfig);
@@ -1416,6 +1498,7 @@ fun TokenPool<T>.onGetCCVsAndFees(
     msgValue: coins,
     msg: TokenPool_GetCCVsAndFees,
 ): void {
+    self.requireInitialized();
     self.requireMinValue(msgValue);
 
     self.validateGetCCVsRequest(msg.localToken, msg.remoteChainSelector, msg.requestedFinalityConfig);
@@ -1491,9 +1574,7 @@ fun TokenPool<T>.onQueryCCVsReply(
     msgValue: coins,
     msg: TokenPool_CCVs,
 ): void {
-    val adminConfig = lazy self.data.adminConfig.load();
-    val hooks = adminConfig.advancedPoolHooks;
-    assert(hooks != null && hooks == sender) throw (TokenPool_Error.Unauthorized);
+    self.onlyAdvancedPoolHooks(sender);
     assert(msg.forwardPayload != null) throw (TokenPool_Error.MissingForwardPayload);
 
     val context = lazy (msg.forwardPayload as Cell<TokenPool_GetCCVsContext>).load();
@@ -1580,6 +1661,7 @@ fun TokenPool<T>.onLockOrBurn(
     msgValue: coins,
     msg: TokenPool_LockOrBurn,
 ): void {
+    self.requireInitialized();
     // The inbound value must cover admission plus the caller-provided finalization.
     // @dev `budget()` clamps `A >= 3S`, so this is also the pre-withdraw `3S + F` gate.
     // Reserve rent; the remaining inbound value must still cover the flow budget.
@@ -1679,6 +1761,9 @@ fun TokenPool<T>.onLockOrBurnTransfer(
     assert (self.data.jettonClient().isWallet(sender)) throw (TokenPool_Error.Unauthorized);
 
     try {
+        // Custody is already credited: fail here so the catch returns it.
+        self.requireInitialized();
+
         // Only callable by authorized router-owned deployables (see assertAuthorizedDepositInitiator).
 
         val wrapper = Jetton_ForwardPayloadWrap.from(msg.forwardPayload)!;
@@ -1980,6 +2065,7 @@ fun TokenPool<T>.onReleaseOrMint(
     msgValue: coins,
     msg: TokenPool_ReleaseOrMint,
 ): void {
+    self.requireInitialized();
     // The message value is checked for admission plus the caller's finalization.
     // @dev `budget()` clamps `A >= 2S`, so this is also the pre-withdraw `2S + F` gate.
     // Reserve rent; the remaining inbound value must still cover the flow budget.
@@ -2139,10 +2225,15 @@ fun TokenPool<T>.onlyRouter(self, sender: address) {
 /// Authenticates asynchronous pool-hook continuations. Without this boundary,
 /// an arbitrary sender could forge a success/failure continuation after the
 /// Router-authenticated operation returned to the async flow.
-fun TokenPool<T>.onlyAdvancedPoolHooks(self, sender: address) {
+fun TokenPool<T>.isAdvancedPoolHooks(self, sender: address): bool {
     val adminConfig = lazy self.data.adminConfig.load();
     val hooks = adminConfig.advancedPoolHooks;
-    assert (hooks != null && sender == hooks) throw (TokenPool_Error.Unauthorized);
+    val previous = adminConfig.advancedPoolHooksPrevious;
+    return (hooks != null && sender == hooks) || (previous != null && sender == previous);
+}
+
+fun TokenPool<T>.onlyAdvancedPoolHooks(self, sender: address) {
+    assert (self.isAdvancedPoolHooks(sender)) throw (TokenPool_Error.Unauthorized);
 }
 
 /// Checks the pool-local RMN policy at admission.

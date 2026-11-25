@@ -116,7 +116,7 @@ get fun config(): Config {
 		permissionlessExecutionThresholdSeconds: 10,
 		tokenAdminRegistry: st.controlAddress,
 		minGasLimit: ton("0.025"),
-		minTTGasLimit: ton("0.15"),
+		minTTGasLimit: ton("0.05"),
 	};
 }
 

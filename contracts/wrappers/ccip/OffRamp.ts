@@ -9,15 +9,19 @@ export const ARTIFACT_NAME = 'OffRamp'
 export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<Cell>> = {
   '1.6.2': () => contractCode.ccip.release_1_6_2(ARTIFACT_NAME),
 }
-export const OFFRAMP_CONTRACT_VERSION = '1.7.0'
+export const OFFRAMP_CONTRACT_VERSION = '1.7.0-rc.1'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.OffRamp'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
+/** Receiver budget floor: the Router's suggested `confirmValue` plus a minimal receiver's own fees. */
 export const DEFAULT_MIN_GASLIMIT = toNano('0.025')
-// LockRelease_LockBox needs LockReleaseTokenPool_RECEIVER_ACCOUNT_DEPLOY_VALUE
-export const DEFAULT_MIN_TT_GASLIMIT = toNano('0.2')
+/** Global `destGasAmount` floor, below every shipped pool's release admission at mainnet gas
+ * (LockRelease 0.0583, BurnMint 0.1); the executor checks the pool's own admission. */
+export const DEFAULT_MIN_TT_GASLIMIT = toNano('0.05')
+/** Mirrors the lane's `DefaultTokenDestGasOverhead`: the BurnMint release admission, rounded up. */
+export const DEFAULT_TOKEN_DEST_GAS_AMOUNT = toNano('0.1005')
 
 /** Mirrors the receive-path cost functions in Tolk (OffRamp_Costs, MerkleRoot_Costs,
  * ReceiveExecutor_Costs, the Router receive costs): 3x the compute and 2x the forward fees measured
@@ -33,7 +37,9 @@ export const Costs = (() => {
   const routeMessage = toNano('0.007') + receiveConfirm
   const dispatchValidated = toNano('0.005') + routeMessage
   const depositAccount = RouterCosts.depositAccountReserve + RouterCosts.depositAccountWalletQuery
-  const releaseOrMint = toNano('0.0025') + toNano('0.006') + toNano('0.0065') + depositAccount
+  const deliveryForward = toNano('0.01')
+  const releaseOrMint =
+    toNano('0.0025') + toNano('0.006') + toNano('0.0065') + depositAccount + deliveryForward
   const tokenTransferDelivered = toNano('0.008')
   const tokenTransfer =
     RegistryCosts.getTokenInfo +
