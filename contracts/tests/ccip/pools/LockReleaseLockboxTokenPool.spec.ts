@@ -75,7 +75,6 @@ import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 import * as Deployable from '../../../wrappers/libraries/Deployable'
-import { matchLockOrBurnFailure } from '../../utils/verifyMessageBody'
 
 // `LockReleaseLockBoxTokenPool_Error.LockBoxDepositFailed`. The pool relays it as a failure code
 // instead of throwing it, so it is intentionally absent from the generated `Errors` map.
@@ -1032,8 +1031,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         op: AskToTransfer.PREFIX,
         success: true,
         body(body) {
-          if (!body) return false
-          const transfer = AskToTransfer.fromSlice(body.beginParse())
+          const transfer = AskToTransfer.fromSlice(body!.beginParse())
           return (
             transfer.jettonAmount === toNano('10') &&
             transfer.transferRecipient.equals(jettonLockBox.address)
@@ -1128,7 +1126,9 @@ describe('LockReleaseLockboxTokenPool', () => {
         to: deployer.address,
         op: TokenPool_LockOrBurnFailure.PREFIX,
         success: true,
-        body: matchLockOrBurnFailure(LOCKBOX_DEPOSIT_FAILED),
+        body: (body) =>
+          TokenPool_LockOrBurnFailure.fromSlice(body!.beginParse()).errorCode ===
+          LOCKBOX_DEPOSIT_FAILED,
       })
     })
 
@@ -1303,8 +1303,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         to: offRamp.address,
         op: TokenPool_ReleaseOrMintFailure.PREFIX,
         body(body) {
-          if (!body) return false
-          return TokenPool_ReleaseOrMintFailure.fromSlice(body.beginParse()).queryId === queryId
+          return TokenPool_ReleaseOrMintFailure.fromSlice(body!.beginParse()).queryId === queryId
         },
       })
     })
@@ -1419,8 +1418,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         to: offRamp.address,
         op: TokenPool_ReleaseOrMintFailure.PREFIX,
         body(body) {
-          if (!body) return false
-          return TokenPool_ReleaseOrMintFailure.fromSlice(body.beginParse()).queryId === queryId
+          return TokenPool_ReleaseOrMintFailure.fromSlice(body!.beginParse()).queryId === queryId
         },
       })
       expect(
@@ -1625,8 +1623,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           op: JettonLockBox_DepositFailed.PREFIX,
           success: true,
           body(body) {
-            if (!body) return false
-            const failure = JettonLockBox_DepositFailed.fromSlice(body.beginParse())
+            const failure = JettonLockBox_DepositFailed.fromSlice(body!.beginParse())
             return failure.queryId === queryId
           },
         })
@@ -2049,9 +2046,9 @@ describe('LockReleaseLockboxTokenPool', () => {
             from: lockReleaseLockboxPool.address,
             to: deployer.address,
             op: TokenPool_LockOrBurnFailure.PREFIX,
-            body: matchLockOrBurnFailure(
+            body: (body) =>
+              TokenPool_LockOrBurnFailure.fromSlice(body!.beginParse()).errorCode ===
               BigInt(TokenPool.Errors['TokenPool_Error.InsufficientMessageValue']),
-            ),
           })
           expect(await poolWallet.getJettonBalance()).toEqual(toNano('8'))
           expect(await lockboxWallet.getJettonBalance()).toEqual(initialLockboxBalance)
@@ -2065,8 +2062,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           success: true,
           op: AskToTransfer.PREFIX,
           body(body) {
-            if (!body) return false
-            const transfer = AskToTransfer.fromSlice(body.beginParse())
+            const transfer = AskToTransfer.fromSlice(body!.beginParse())
             return (
               transfer.forwardTonAmount === safety + lockOrBurn.finalizationValue &&
               transfer.sendExcessesTo?.equals(recipient.address) === true
@@ -2161,8 +2157,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         op: TransferNotificationForRecipient.PREFIX,
         success: true,
         body(body) {
-          if (!body) return false
-          const notification = TransferNotificationForRecipient.fromSlice(body.beginParse())
+          const notification = TransferNotificationForRecipient.fromSlice(body!.beginParse())
           return (
             notification.jettonAmount === toNano('5') &&
             parseDepositAccountNotify(notification.forwardPayload)?.equals(deployer.address) ===
@@ -2223,8 +2218,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         op: JettonLockBox_WithdrawFailed.PREFIX,
         success: true,
         body(body) {
-          if (!body) return false
-          const failure = JettonLockBox_WithdrawFailed.fromSlice(body.beginParse())
+          const failure = JettonLockBox_WithdrawFailed.fromSlice(body!.beginParse())
           return (
             failure.queryId === 401n &&
             failure.context?.queryId === 401n &&

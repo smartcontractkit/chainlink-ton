@@ -1,7 +1,6 @@
 import { Cell, Slice } from '@ton/core'
 import * as manualJettonWallet from '../../wrappers/jetton/JettonWallet'
 import * as jetton from '../../wrappers/gen/ccip/cct/JettonWallet'
-import * as tp from '../../wrappers/gen/ccip/pools/TokenPool'
 import * as rt from '../../wrappers/gen/ccip/Router'
 import { CellCodec } from '../../wrappers/gen'
 
@@ -24,15 +23,6 @@ export function verifyBodyMessage<T>(
   }
 
   return validations.every((validate) => validate(message))
-}
-
-/// Matcher for `toHaveTransaction({ body })` that accepts a `TokenPool_LockOrBurnFailure`
-/// carrying `errorCode`. The query id is deliberately not matched.
-export function matchLockOrBurnFailure(errorCode: bigint): (body: Cell | undefined) => boolean {
-  return (body) =>
-    verifyBodyMessage(body, tp.TokenPool_LockOrBurnFailure, [
-      (failure) => failure.errorCode === errorCode,
-    ])
 }
 
 export function verifyBodyIsTransferRequest(

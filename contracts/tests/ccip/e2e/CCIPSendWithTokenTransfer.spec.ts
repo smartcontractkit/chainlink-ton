@@ -530,9 +530,8 @@ describe('CCIPSend with token transfer (e2e)', () => {
       op: exe.CCIPSendExecutor_Execute.PREFIX,
       success: true,
       body(x) {
-        if (!x) return false
         return (
-          exe.CCIPSendExecutor_Execute.fromSlice(x.beginParse()).config.tokenRegistry?.equals(
+          exe.CCIPSendExecutor_Execute.fromSlice(x!.beginParse()).config.tokenRegistry?.equals(
             tokenAdminRegistry.address,
           ) ?? false
         )
@@ -735,9 +734,8 @@ describe('CCIPSend with token transfer (e2e)', () => {
       op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
       success: true,
       body(x) {
-        if (!x) return false
         return (
-          or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse()).errorCode ===
+          or.OnRamp_ExecutorFinishedWithError.fromSlice(x!.beginParse()).errorCode ===
           BigInt(exe.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenNotEnabled'])
         )
       },

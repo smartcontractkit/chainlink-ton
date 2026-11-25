@@ -25,7 +25,6 @@ import {
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { setTokenPoolSafetyFloor } from '../../utils/minValue'
-import { matchLockOrBurnFailure } from '../../utils/verifyMessageBody'
 import { TokenPoolBehaviorContext, deliveryTo, releaseRequest } from './TokenPool.behavior'
 import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 // Async Hook Behavior Tests (TON-TP/6)
@@ -609,8 +608,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         success: true,
         op: TokenPool_ReleaseOrMintFailure.PREFIX,
         body(body) {
-          if (!body) return false
-          const failure = TokenPool_ReleaseOrMintFailure.fromSlice(body.beginParse())
+          const failure = TokenPool_ReleaseOrMintFailure.fromSlice(body!.beginParse())
           return failure.queryId === 1n
         },
       })
@@ -953,13 +951,14 @@ export function runTokenPoolAsyncHookBehaviorTests(
       const bucketBefore = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
       expect(bucketBefore.outbound.tokens).toBe(toNano('99'))
 
+      const relayedErrorCode = 4242n
       const result = await ctx.pool.sendTokenPoolLockOrBurnWithdrawFailed(
         ctx.deployer.getSender(), // the pool's configured Router is the deployer in this setup
         toNano('1'),
         {
           queryId: 9n,
           forwardPayload: fwdp,
-          errorCode: 4242n,
+          errorCode: relayedErrorCode,
         },
       )
 
@@ -974,7 +973,8 @@ export function runTokenPoolAsyncHookBehaviorTests(
         to: ctx.deployer.address,
         success: true,
         op: TokenPool_LockOrBurnFailure.PREFIX,
-        body: matchLockOrBurnFailure(4242n),
+        body: (body) =>
+          TokenPool_LockOrBurnFailure.fromSlice(body!.beginParse()).errorCode === relayedErrorCode,
       })
     })
 
