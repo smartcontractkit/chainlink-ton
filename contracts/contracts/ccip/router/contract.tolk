@@ -117,15 +117,22 @@ fun onInternalMessage(in: InMessage) {
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
             onWithdrawToTokenPool(msg);
         }
-        // Refund-only request from the OnRamp: relay the pool refund. Executor settlement is
-        // done by the OnRamp directly.
+        // OnRamp refund-only request: forward the full inbound value to the pool.
         Router_LockOrBurnWithdrawFailedForwardTP => {
             val st = lazy Storage.load();
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
-            // The OnRamp budgets the relay fee, but only the Router's pre-message balance is
-            // guaranteed to stay here; never use it to cover the refund relay.
-            reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
-            sendTPLockOrBurnWithdrawFailure(msg.tokenPool, msg.forwardPayload);
+
+            val refund = createMessage({
+                bounce: BounceMode.NoBounce,
+                value: 0,
+                dest: msg.tokenPool,
+                body: TokenPool_LockOrBurnWithdrawFailed {
+                    queryId: 0,
+                    forwardPayload: msg.forwardPayload,
+                    errorCode: 0,
+                },
+            });
+            refund.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
         }
         // Permissionless (authorization is handle at the ReceiverExecutor)
         Router_CCIPReceiveConfirm => {
@@ -562,29 +569,7 @@ fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: a
     failWithdrawToTokenPool(request, Router_Error.SenderAccountWithdrawFailed as int32);
 }
 
-/// Asks the pool to reinstate the outbound rate limit consumed at admission. This is a refund-only
-/// notification: the Router settles the executor directly, so a pool that ignores or rejects this
-/// message cannot leave the send stuck. The fixed value is funded from the inbound value; the
-/// source-side budget includes its cost, so a normal failure callback never starves settlement.
-fun sendTPLockOrBurnWithdrawFailure(tokenPool: address, forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>) {
-    val refund = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: Router_Costs.tokenPoolRefund(),
-        dest: tokenPool,
-        body: TokenPool_LockOrBurnWithdrawFailed {
-            // The pool only uses `forwardPayload` to identify the operation and refund capacity.
-            queryId: 0,
-            forwardPayload,
-            errorCode: 0,
-        },
-    });
-    // Best-effort: a pool that rejects the notification cannot roll back executor settlement.
-    refund.send(SEND_MODE_REGULAR | SEND_MODE_IGNORE_ERRORS);
-}
-
-/// Settles a pre-custody withdraw failure using only the inbound value. Reserves the Router's
-/// pre-message balance, sends the best-effort pool failure notification, then sends the
-/// executor failure with the remainder.
+/// Settles a pre-custody withdraw failure with a fixed pool refund and an executor failure.
 fun settleWithdrawFailure(
     executor: address,
     queryId: uint64,
@@ -593,8 +578,26 @@ fun settleWithdrawFailure(
     errorCode: int32,
 ) {
     reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
-    sendTPLockOrBurnWithdrawFailure(tokenPool, forwardPayload);
-    sendLockOrBurnWithdrawFailure(executor, queryId, tokenPool, errorCode);
+
+    val refund = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: Router_Costs.tokenPoolRefund(),
+        dest: tokenPool,
+        body: TokenPool_LockOrBurnWithdrawFailed {
+            queryId: 0,
+            forwardPayload,
+            errorCode: 0,
+        },
+    });
+    refund.send(SEND_MODE_REGULAR | SEND_MODE_IGNORE_ERRORS);
+
+    val failed = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: executor,
+        body: Router_LockOrBurnWithdrawFailed { queryId, tokenPool, errorCode },
+    });
+    failed.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Fails the CCIPSend whose withdraw from the sender's sender account did not go through. `ask`
@@ -1390,22 +1393,6 @@ fun sendLockOrBurnFailure(
         value: 0,
         dest: executor,
         body: Router_LockOrBurnFailed { queryId, tokenPool, errorCode },
-    });
-    failed.send(mode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-}
-
-fun sendLockOrBurnWithdrawFailure(
-    executor: address,
-    queryId: uint64,
-    tokenPool: address,
-    errorCode: int32,
-    mode: int = SEND_MODE_CARRY_ALL_BALANCE,
-) {
-    val failed = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: executor,
-        body: Router_LockOrBurnWithdrawFailed { queryId, tokenPool, errorCode },
     });
     failed.send(mode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }

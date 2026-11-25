@@ -430,13 +430,6 @@ fun Router_Costs.tokenPoolRefund(): int {
     return grams("0.005");
 }
 
-/// Router compute and forwarding fee for relaying the refund-only notification to the pool.
-/// The OnRamp budgets this in addition to `tokenPoolRefund()` so the Router never funds the relay
-/// from its own balance.
-fun Router_Costs.tokenPoolRefundRelay(): int {
-    return grams("0.0025");
-}
-
 // Minimum value for calling Router_GetSenderAccount: the Router's own compute and the two
 // deployment messages, the account's storage reserve, its init (including the TEP-89 wallet
 // query) and the DepositAccount_Initialized -> Router_UseSenderAccount round trip.

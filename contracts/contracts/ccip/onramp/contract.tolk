@@ -481,12 +481,10 @@ fun settleWithdrawFailure(
 ) {
     val withdrawRequest = lazy withdrawRequestCell.load();
 
-    // Fund both sends from the inbound value; the OnRamp's pre-message balance stays reserved.
-    // The refund is best-effort; the executor receives the remainder.
     reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
     val refund = createMessage({
         bounce: BounceMode.NoBounce,
-        value: Router_Costs.tokenPoolRefund() + Router_Costs.tokenPoolRefundRelay(),
+        value: Router_Costs.tokenPoolRefund(),
         dest: router,
         body: Router_LockOrBurnWithdrawFailedForwardTP {
             queryId,

@@ -149,18 +149,11 @@ export const onRampRetains = (() => {
     ]
 
     // The OnRamp-validation failure settles the executor directly and forwards a refund-only
-    // notification through the Router. The Router keeps the relay remainder (bounded) and must
-    // never fund this hop from its own balance.
+    // notification through the Router. The Router forwards its full inbound value to the pool and
+    // must never keep a relay remainder or fund this hop from its own balance.
     const onRampRejected = (kind: PoolKind): BalanceRule[] => [
       ...upToTokenInfo,
       poolRefund(kind),
-      {
-        contract: 'Router',
-        op: 'Router_LockOrBurnWithdrawFailedForwardTP',
-        kind: 'deltaRange',
-        min: 0n,
-        max: toNano('0.0025'), // Relay budget remaining after compute/forward fees.
-      },
       {
         contract: 'SendExecutor',
         op: 'Router_LockOrBurnWithdrawFailed',
