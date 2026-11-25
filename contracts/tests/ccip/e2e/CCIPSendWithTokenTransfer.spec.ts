@@ -24,7 +24,13 @@ import { WGRAM_MINT_OPCODE } from '../../../wrappers/wgram'
 
 import { setup } from '../router/Router.Setup'
 import { getValidatedFee } from '../../../src/ccipSend/fee'
-import { buildJettonLockBox, grantLockBoxOperatorRole, initJettonLockBox } from '../helpers/lockbox'
+import {
+  buildJettonLockBox,
+  grantLockBoxOperatorRole,
+  initJettonLockBox,
+  OPERATOR_ROLE_VALUE,
+} from '../helpers/lockbox'
+import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
 import EVM_ADDRESS from '../../utils/evmAddress'
 import { ChainSelectors } from '../../utils/Selectors'
 import { contractCode } from '../../../wrappers/codeLoader'
@@ -296,6 +302,52 @@ describe('CCIPSend with token transfer (e2e)', () => {
     })
   }
 
+  async function enablePoolFee(bps: bigint) {
+    const result = await tokenPool.sendTokenPoolApplyTokenTransferFeeConfigUpdates(
+      deployer.getSender(),
+      toNano('0.2'),
+      {
+        queryId: 3n,
+        updates: [
+          tp.TokenPool_TokenTransferFeeConfigArgs.create({
+            destChainSelector: DestChainSelector,
+            tokenTransferFeeConfig: tp.TokenPool_TokenTransferFeeConfig.create({
+              destGasOverhead: 1n,
+              destBytesOverhead: 0n,
+              finalityFeeUSDCents: 0n,
+              fastFinalityFeeUSDCents: 0n,
+              finalityTransferFeeBps: bps,
+              fastFinalityTransferFeeBps: bps,
+              isEnabled: true,
+            }),
+          }),
+        ],
+        disableChainSelectors: [],
+      },
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: tokenPool.address,
+      success: true,
+    })
+  }
+
+  async function revokePoolOperator() {
+    const accessControl = blockchain.openContract(
+      AccessControlClient.createFromAddress(jettonLockBox.address),
+    )
+    const result = await accessControl.sendRevokeRole(deployer.getSender(), toNano('0.1'), {
+      queryId: 0n,
+      role: OPERATOR_ROLE_VALUE,
+      account: tokenPool.address,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: jettonLockBox.address,
+      success: true,
+    })
+  }
+
   async function sendTokenTransfer() {
     // Register a per-token TokenTransferFeeConfig whose destGasOverhead differs from the lane
     // default: the executor must forward the FeeQuoter's per-token value into destExecData,
@@ -478,9 +530,8 @@ describe('CCIPSend with token transfer (e2e)', () => {
       op: exe.CCIPSendExecutor_Execute.PREFIX,
       success: true,
       body(x) {
-        if (!x) return false
         return (
-          exe.CCIPSendExecutor_Execute.fromSlice(x.beginParse()).config.tokenRegistry?.equals(
+          exe.CCIPSendExecutor_Execute.fromSlice(x!.beginParse()).config.tokenRegistry?.equals(
             tokenAdminRegistry.address,
           ) ?? false
         )
@@ -617,6 +668,45 @@ describe('CCIPSend with token transfer (e2e)', () => {
     })
   })
 
+  it('refunds the full amount when the lockbox rejects the deposit (fee included)', async () => {
+    await registerToken()
+    const feeBps = 100n // 1%
+    await enablePoolFee(feeBps)
+    await revokePoolOperator()
+
+    const { result, executorAddress } = await sendTokenTransfer()
+
+    // The executor cannot complete the lock, so the Router NACKs the send.
+    expect(result.transactions).toHaveTransaction({
+      from: executorAddress,
+      to: onRamp.address,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.Router_CCIPSendNACK.PREFIX,
+      success: true,
+    })
+
+    const fee = (TOKEN_AMOUNT * feeBps) / 10000n
+    const accountAddress = await router.getSenderAccountAddress(sender.address, minter.address)
+    const accountWallet = blockchain.openContract(
+      jw.JettonWallet.createFromAddress(await minter.getWalletAddress(accountAddress)),
+    )
+    const poolWallet = blockchain.openContract(
+      jw.JettonWallet.createFromAddress(await minter.getWalletAddress(tokenPool.address)),
+    )
+
+    // The lockbox returns the post-fee custody; the pool must return the retained fee to the
+    // same account so the rejected send is refunded in full and nothing stays off-ledger.
+    expect(await accountWallet.getJettonBalance()).toBe(TOKEN_AMOUNT)
+    expect(await poolWallet.getJettonBalance()).toBe(0n)
+    expect(await tokenPool.getAccruedFees()).toBe(0n)
+    expect(fee).toBe(toNano('0.05'))
+  })
+
   it('fails the CCIP send when the token is not registered', async () => {
     const { result, executorAddress } = await sendTokenTransfer()
 
@@ -644,9 +734,8 @@ describe('CCIPSend with token transfer (e2e)', () => {
       op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
       success: true,
       body(x) {
-        if (!x) return false
         return (
-          or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse()).errorCode ===
+          or.OnRamp_ExecutorFinishedWithError.fromSlice(x!.beginParse()).errorCode ===
           BigInt(exe.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.TokenNotEnabled'])
         )
       },

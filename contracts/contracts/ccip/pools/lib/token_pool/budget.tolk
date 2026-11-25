@@ -26,6 +26,9 @@ fun TokenPool_Costs.safety(): coins {
     return calculateGasFee(w, BUDGET_UNITS_LVL3_HIGH);
 }
 
+/// Pool finalization budget. On a rejected lockbox deposit this is what remains after the failure
+/// report, so it must also cover the reference-cost fee-refund transfer. The gas harness pins it
+/// above `0.01 TON + reference transfer fee`.
 fun TokenPool_Costs.finalization(): coins {
     val w = contract.getAddress().getWorkchain();
     return calculateGasFee(w, BUDGET_UNITS_LVL3_HIGH);

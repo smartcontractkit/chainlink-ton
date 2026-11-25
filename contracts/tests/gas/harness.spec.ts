@@ -4,8 +4,10 @@ import { toNano } from '@ton/core'
 
 import {
   CctHarnessContract,
+  TokenPoolHarnessContract,
   WgramHarnessContract,
   deployCctHarness,
+  deployTokenPoolHarness,
   deployWgramHarness,
 } from '../gas-report/harness'
 
@@ -17,12 +19,14 @@ describe('gas calibration harness', () => {
   let deployer: SandboxContract<TreasuryContract>
   let cct: CctHarnessContract
   let wgram: WgramHarnessContract
+  let tokenPool: TokenPoolHarnessContract
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
     deployer = await blockchain.treasury('deployer')
     cct = await deployCctHarness(blockchain, deployer)
     wgram = await deployWgramHarness(blockchain, deployer)
+    tokenPool = await deployTokenPoolHarness(blockchain, deployer)
   })
 
   it('exposes the CCT token + token-pool cost model', async () => {
@@ -64,6 +68,19 @@ describe('gas calibration harness', () => {
     expect(generic).toBe((withForward - margin) * multiplier + margin)
 
     expect(await cct.getCctMintOpBudget(fwdFee)).toBeGreaterThan(fwdFee)
+  })
+
+  it('pins the pool finalization budget above the reference fee refund', async () => {
+    // Conservative inbound fee for the fee-refund AskToTransfer.
+    const fwdFee = toNano('0.001')
+    const finalization = await tokenPool.getFinalization()
+    const referenceTransfer = await tokenPool.getReferenceTransferValue(0n, fwdFee)
+
+    expect(finalization).toBeGreaterThan(0n)
+    expect(await tokenPool.getCallerFinalization()).toBeGreaterThan(0n)
+    // 0.01 TON is the conservative pool failure-path buffer; the caller's finalizationValue
+    // is separate.
+    expect(finalization).toBeGreaterThanOrEqual(toNano('0.01') + referenceTransfer)
   })
 
   it('exposes the wGRAM token cost model', async () => {

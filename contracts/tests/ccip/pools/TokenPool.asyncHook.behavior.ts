@@ -608,8 +608,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         success: true,
         op: TokenPool_ReleaseOrMintFailure.PREFIX,
         body(body) {
-          if (!body) return false
-          const failure = TokenPool_ReleaseOrMintFailure.fromSlice(body.beginParse())
+          const failure = TokenPool_ReleaseOrMintFailure.fromSlice(body!.beginParse())
           return failure.queryId === 1n
         },
       })
@@ -952,13 +951,14 @@ export function runTokenPoolAsyncHookBehaviorTests(
       const bucketBefore = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
       expect(bucketBefore.outbound.tokens).toBe(toNano('99'))
 
+      const relayedErrorCode = 4242n
       const result = await ctx.pool.sendTokenPoolLockOrBurnWithdrawFailed(
         ctx.deployer.getSender(), // the pool's configured Router is the deployer in this setup
         toNano('1'),
         {
           queryId: 9n,
           forwardPayload: fwdp,
-          errorCode: 4242n,
+          errorCode: relayedErrorCode,
         },
       )
 
@@ -973,11 +973,8 @@ export function runTokenPoolAsyncHookBehaviorTests(
         to: ctx.deployer.address,
         success: true,
         op: TokenPool_LockOrBurnFailure.PREFIX,
-        body(x) {
-          if (!x) return false
-          const failure = TokenPool_LockOrBurnFailure.fromSlice(x.beginParse())
-          return failure.queryId === 9n && failure.errorCode === 4242n
-        },
+        body: (body) =>
+          TokenPool_LockOrBurnFailure.fromSlice(body!.beginParse()).errorCode === relayedErrorCode,
       })
     })
 
