@@ -54,14 +54,12 @@ type ExitCode tvm.ExitCode
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.50.0 -type=ExitCode -trimprefix=ExitCode -output=exitcode_string.go
 
 const (
-	ExitCodeLockboxNotConfigured ExitCode = iota + 20900 // Facility ID 209 * 100
-	ExitCodeUnexpectedLockboxConfirmationSender
-	ExitCodeUnexpectedLockBounce
-	ExitCodeInvalidReceiverAccountReply
-	ExitCodeInvalidReceiverAccountNotification
-	ExitCodeReceiverAccountDeployFailed
-	ExitCodeLockboxWithdrawFailed
-	ExitCodeLockboxVerificationFailed
+	ExitCodeLockBoxNotConfigured      ExitCode = 20900 // Facility ID 209 * 100
+	ExitCodeLockBoxDepositFailed      ExitCode = 20902
+	ExitCodeLockBoxWithdrawFailed     ExitCode = 20906
+	ExitCodeLockBoxVerificationFailed ExitCode = 20907
+	ExitCodeInvalidDepositPayload     ExitCode = 20908
+	ExitCodeInvalidWithdrawPayload    ExitCode = 20909
 )
 
 // New converts an ExitCode to a tvm.ExitCode.

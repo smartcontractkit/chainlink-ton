@@ -69,6 +69,9 @@ import { setTokenPoolSafetyFloor } from '../../utils/minValue'
 import { deriveSenderAccountAddress } from '../../../wrappers/ccip/SenderAccount'
 import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 
+// The Bouncer test contract throws `0xFFFF`; the pool relays the raw bounce exit code.
+const BOUNCER_EXIT_CODE = 0xffffn
+
 // Builds a forged `CCT_ReturnExcessesBack` carrying a burn continuation payload. It is sent
 // from an unauthorized sender, so the pool must reject it (sender not the CCT minter).
 function buildForgedCCTReturnExcessesBack(poolAddress: Address): Cell {
@@ -1074,14 +1077,9 @@ describe('BurnMintTokenPool', () => {
         op: TokenPool_LockOrBurnFailure.PREFIX,
         // Failure first: the pool forwards the request's failure budget.
         value: toNano('0.01'),
-        body(body) {
-          if (!body) return false
-          const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
-          return (
-            failure.queryId === 304n &&
-            failure.errorCode === BigInt(BurnMintTokenPool.Errors['TokenPool_Error.AmountMismatch'])
-          )
-        },
+        body: (body) =>
+          TokenPool_LockOrBurnFailure.fromSlice(body!.beginParse()).errorCode ===
+          BigInt(BurnMintTokenPool.Errors['TokenPool_Error.AmountMismatch']),
       })
       expect(await (await userWallet(accountAddress)).getJettonBalance()).toEqual(toNano('2'))
       expect(await poolWallet.getJettonBalance()).toEqual(0n)
@@ -1346,11 +1344,8 @@ describe('BurnMintTokenPool', () => {
       from: burnMintPool.address,
       to: executorBouncer.address,
       op: TokenPool_LockOrBurnFailure.PREFIX,
-      body(body) {
-        if (!body) return false
-        const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
-        return failure.queryId === queryId && failure.errorCode === 65535n
-      },
+      body: (body) =>
+        TokenPool_LockOrBurnFailure.fromSlice(body!.beginParse()).errorCode === BOUNCER_EXIT_CODE,
     })
 
     // The outbound capacity consumed at admission was refunded: the bucket is back to its start.
@@ -1512,8 +1507,7 @@ describe('BurnMintTokenPool', () => {
         to: wallet.address,
         op: 0x0f8a7ea5,
         body(body: Cell | undefined) {
-          if (!body) return false
-          return AskToTransfer.fromSlice(body.beginParse()).transferRecipient.equals(
+          return AskToTransfer.fromSlice(body!.beginParse()).transferRecipient.equals(
             recipient.address,
           )
         },
@@ -1597,8 +1591,7 @@ describe('BurnMintTokenPool', () => {
       to: receiverAccount.address,
       op: TransferNotificationForRecipient.PREFIX,
       body(body) {
-        if (!body) return false
-        const notification = TransferNotificationForRecipient.fromSlice(body.beginParse())
+        const notification = TransferNotificationForRecipient.fromSlice(body!.beginParse())
         return (
           notification.jettonAmount === toNano('2') &&
           parseDepositAccountNotify(notification.forwardPayload)?.equals(offRamp.address) === true

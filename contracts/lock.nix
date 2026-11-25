@@ -1,7 +1,7 @@
 # Notice: `pkgs.lib.fakeHash` can be used as a placeholder,
 #   but `lock-nix-tidy` will only replace actual hashes.
 {pkgs}: {
-  contracts = "sha256-zIAvWn0FB2Y5Q4lr48bCU8c9jkRHJrbtu8tnFyhFWkk=";
+  contracts = "sha256-DtXzE1hFtNn9C6hgdZAQWs4GyQrPm/DRoH0i4Op4JBM=";
   contracts-jetton = "sha256-EZtvTf19MjSKTWNir6pcP9XHwUIpE4ILSlhS+cQD/7w=";
 
   # Published release tarballs (GH release `contracts/<version>`).

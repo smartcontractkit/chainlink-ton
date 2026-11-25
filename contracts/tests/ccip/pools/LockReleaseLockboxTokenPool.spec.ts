@@ -53,7 +53,6 @@ import {
   JettonLockBox_Info,
 } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { ContractClient as AccessControlClient } from '../../../wrappers/lib/access/AccessControl'
-
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import * as CrossChainAddressCodec from '../../../wrappers/ccip/common/CrossChainAddressCodec'
 import { contractCode } from '../../../wrappers/codeLoader'
@@ -76,6 +75,10 @@ import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 import * as Deployable from '../../../wrappers/libraries/Deployable'
+
+// `LockReleaseLockBoxTokenPool_Error.LockBoxDepositFailed`. The pool relays it as a failure code
+// instead of throwing it, so it is intentionally absent from the generated `Errors` map.
+const LOCKBOX_DEPOSIT_FAILED = 20902n
 
 function emptyAccessControlData(): AccessControl_Data {
   return {
@@ -683,7 +686,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         success: false,
         exitCode:
           LockReleaseLockboxTokenPool.Errors[
-            'LockReleaseLockBoxTokenPool_Error.LockboxVerificationFailed'
+            'LockReleaseLockBoxTokenPool_Error.LockBoxVerificationFailed'
           ],
       })
       expect(await pool.getIsInitialized()).toBe(false)
@@ -756,7 +759,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         success: false,
         exitCode:
           LockReleaseLockboxTokenPool.Errors[
-            'LockReleaseLockBoxTokenPool_Error.LockboxVerificationFailed'
+            'LockReleaseLockBoxTokenPool_Error.LockBoxVerificationFailed'
           ],
       })
       expect(await pool.getIsInitialized()).toBe(false)
@@ -827,10 +830,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         from: deployer.address,
         to: pool.address,
         success: false,
-        exitCode:
-          LockReleaseLockboxTokenPool.Errors[
-            'LockReleaseLockBoxTokenPool_Error.UnexpectedLockboxConfirmationSender'
-          ],
+        exitCode: TokenPool.Errors['TokenPool_Error.Unauthorized'],
       })
     })
 
@@ -1031,8 +1031,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         op: AskToTransfer.PREFIX,
         success: true,
         body(body) {
-          if (!body) return false
-          const transfer = AskToTransfer.fromSlice(body.beginParse())
+          const transfer = AskToTransfer.fromSlice(body!.beginParse())
           return (
             transfer.jettonAmount === toNano('10') &&
             transfer.transferRecipient.equals(jettonLockBox.address)
@@ -1127,6 +1126,9 @@ describe('LockReleaseLockboxTokenPool', () => {
         to: deployer.address,
         op: TokenPool_LockOrBurnFailure.PREFIX,
         success: true,
+        body: (body) =>
+          TokenPool_LockOrBurnFailure.fromSlice(body!.beginParse()).errorCode ===
+          LOCKBOX_DEPOSIT_FAILED,
       })
     })
 
@@ -1301,8 +1303,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         to: offRamp.address,
         op: TokenPool_ReleaseOrMintFailure.PREFIX,
         body(body) {
-          if (!body) return false
-          return TokenPool_ReleaseOrMintFailure.fromSlice(body.beginParse()).queryId === queryId
+          return TokenPool_ReleaseOrMintFailure.fromSlice(body!.beginParse()).queryId === queryId
         },
       })
     })
@@ -1325,6 +1326,33 @@ describe('LockReleaseLockboxTokenPool', () => {
         from: unauthorized.address,
         to: lockReleaseLockboxPool.address,
         success: false,
+      })
+      expect(result.transactions).not.toHaveTransaction({
+        op: TokenPool_ReleaseOrMintFailure.PREFIX,
+      })
+    })
+
+    it('rejects a lockbox withdraw failure that does not match the admitted release', async () => {
+      const queryId = 612n
+      const withdraw = await releaseAndCaptureWithdraw(queryId)
+
+      const result = await lockReleaseLockboxPool.sendJettonLockBoxWithdrawFailed(
+        blockchain.sender(jettonLockBox.address),
+        toNano('0.2'),
+        {
+          queryId: queryId + 1n,
+          token: jettonMinter.address,
+          context: withdraw,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: jettonLockBox.address,
+        to: lockReleaseLockboxPool.address,
+        success: false,
+        exitCode:
+          LockReleaseLockboxTokenPool.Errors[
+            'LockReleaseLockBoxTokenPool_Error.InvalidWithdrawPayload'
+          ],
       })
       expect(result.transactions).not.toHaveTransaction({
         op: TokenPool_ReleaseOrMintFailure.PREFIX,
@@ -1390,8 +1418,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         to: offRamp.address,
         op: TokenPool_ReleaseOrMintFailure.PREFIX,
         body(body) {
-          if (!body) return false
-          return TokenPool_ReleaseOrMintFailure.fromSlice(body.beginParse()).queryId === queryId
+          return TokenPool_ReleaseOrMintFailure.fromSlice(body!.beginParse()).queryId === queryId
         },
       })
       expect(
@@ -1596,8 +1623,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           op: JettonLockBox_DepositFailed.PREFIX,
           success: true,
           body(body) {
-            if (!body) return false
-            const failure = JettonLockBox_DepositFailed.fromSlice(body.beginParse())
+            const failure = JettonLockBox_DepositFailed.fromSlice(body!.beginParse())
             return failure.queryId === queryId
           },
         })
@@ -1625,10 +1651,17 @@ describe('LockReleaseLockboxTokenPool', () => {
         })
         expect(custodyReceipts).toHaveLength(0)
         // The deposit account sent the custody to the pool; the lockbox returns it to that
-        // account on rejection. The one-jetton token fee stays in the pool wallet.
+        // account on rejection. The pool then returns the retained fee to the same recipient, so
+        // the sender is refunded in full instead of losing the fee to an unledgered balance.
+        expect(result.transactions).toHaveTransaction({
+          from: lockReleaseLockboxPool.address,
+          to: poolWallet.address,
+          op: AskToTransfer.PREFIX,
+          success: true,
+        })
         expect(await onRampWallet.getJettonBalance()).toEqual(userBalance - toNano('10'))
-        expect(await accountWallet.getJettonBalance()).toEqual(toNano('9'))
-        expect(await poolWallet.getJettonBalance()).toEqual(toNano('1'))
+        expect(await accountWallet.getJettonBalance()).toEqual(toNano('10'))
+        expect(await poolWallet.getJettonBalance()).toEqual(0n)
         expect(await (await userWallet(jettonLockBox.address)).getJettonBalance()).toEqual(0n)
         expect(
           (await pool.getCurrentRateLimiterState(remoteChainSelector, false)).outbound.tokens,
@@ -1651,47 +1684,34 @@ describe('LockReleaseLockboxTokenPool', () => {
         )
         expect(failures).toHaveLength(1)
 
-        // The rejected deposit left the fee in the pool wallet without accruing it. The owner
-        // can recover it with the explicit rescue opcode; the normal fee path is capped by the
-        // zero ledger and cannot.
-        expect(await lockReleaseLockboxPool.getAccruedFees()).toBe(0n)
-        const recipientWallet = await userWallet(recipient.address)
-        const recipientBefore = await recipientWallet.getJettonBalance().catch(() => 0n)
-        const rescue = await pool.sendTokenPoolWithdrawRescue(
-          deployer.getSender(), // owner
-          toNano('0.5'),
-          {
-            withdrawMsg: JettonWithdrawable_Withdraw.create({
-              queryId: 302n,
-              transfers: [
-                JettonWithdrawable_WithdrawFeeTransfer.create({
-                  wallet: poolWallet.address,
-                  value: toNano('0.2'),
-                  msg: AskToTransfer.create({
-                    queryId: 302n,
-                    jettonAmount: toNano('1'),
-                    transferRecipient: recipient.address,
-                    sendExcessesTo: lockReleaseLockboxPool.address,
-                    customPayload: null,
-                    forwardTonAmount: 0n,
-                    forwardPayload: beginCell().storeBit(0).endCell().beginParse(),
-                  }),
-                }),
-              ],
-            }),
-          },
-        )
-        expect(rescue.transactions).toHaveTransaction({
-          from: lockReleaseLockboxPool.address,
-          to: poolWallet.address,
-          success: true,
-          op: AskToTransfer.PREFIX,
-        })
-        expect(await poolWallet.getJettonBalance()).toBe(0n)
-        expect(await recipientWallet.getJettonBalance()).toBe(recipientBefore + toNano('1'))
+        // The refund consumed the fee from the wallet; nothing is left off-ledger.
         expect(await lockReleaseLockboxPool.getAccruedFees()).toBe(0n)
       },
     )
+
+    it('rejects a malformed deposit failure from the lockbox', async () => {
+      const result = await lockReleaseLockboxPool.sendJettonLockBoxDepositFailed(
+        blockchain.sender(jettonLockBox.address),
+        toNano('0.2'),
+        {
+          queryId: 1n,
+          token: jettonMinter.address,
+          depositor: lockReleaseLockboxPool.address,
+          amount: 1n,
+          context: null,
+          errorCode: 0n,
+        },
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: jettonLockBox.address,
+        to: lockReleaseLockboxPool.address,
+        success: false,
+        exitCode:
+          LockReleaseLockboxTokenPool.Errors[
+            'LockReleaseLockBoxTokenPool_Error.InvalidDepositPayload'
+          ],
+      })
+    })
 
     it('rejects a beneficiary withdrawal from the derived account whose nested wrapper falsely claims the Router as initiator', async () => {
       const attacker = recipient
@@ -2026,11 +2046,9 @@ describe('LockReleaseLockboxTokenPool', () => {
             from: lockReleaseLockboxPool.address,
             to: deployer.address,
             op: TokenPool_LockOrBurnFailure.PREFIX,
-            body(body) {
-              if (!body) return false
-              const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
-              return failure.queryId === 300n && failure.errorCode === 51725n
-            },
+            body: (body) =>
+              TokenPool_LockOrBurnFailure.fromSlice(body!.beginParse()).errorCode ===
+              BigInt(TokenPool.Errors['TokenPool_Error.InsufficientMessageValue']),
           })
           expect(await poolWallet.getJettonBalance()).toEqual(toNano('8'))
           expect(await lockboxWallet.getJettonBalance()).toEqual(initialLockboxBalance)
@@ -2044,8 +2062,7 @@ describe('LockReleaseLockboxTokenPool', () => {
           success: true,
           op: AskToTransfer.PREFIX,
           body(body) {
-            if (!body) return false
-            const transfer = AskToTransfer.fromSlice(body.beginParse())
+            const transfer = AskToTransfer.fromSlice(body!.beginParse())
             return (
               transfer.forwardTonAmount === safety + lockOrBurn.finalizationValue &&
               transfer.sendExcessesTo?.equals(recipient.address) === true
@@ -2140,8 +2157,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         op: TransferNotificationForRecipient.PREFIX,
         success: true,
         body(body) {
-          if (!body) return false
-          const notification = TransferNotificationForRecipient.fromSlice(body.beginParse())
+          const notification = TransferNotificationForRecipient.fromSlice(body!.beginParse())
           return (
             notification.jettonAmount === toNano('5') &&
             parseDepositAccountNotify(notification.forwardPayload)?.equals(deployer.address) ===
@@ -2202,8 +2218,7 @@ describe('LockReleaseLockboxTokenPool', () => {
         op: JettonLockBox_WithdrawFailed.PREFIX,
         success: true,
         body(body) {
-          if (!body) return false
-          const failure = JettonLockBox_WithdrawFailed.fromSlice(body.beginParse())
+          const failure = JettonLockBox_WithdrawFailed.fromSlice(body!.beginParse())
           return (
             failure.queryId === 401n &&
             failure.context?.queryId === 401n &&

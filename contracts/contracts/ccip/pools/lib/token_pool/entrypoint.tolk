@@ -1902,11 +1902,13 @@ fun TokenPool<T>.onLockOrBurnTransferContinue(
 }
 
 /// Builds a best-effort return of custody to the authenticated source.
+/// @param amount Amount to return; defaults to the full transfer amount.
 /// @dev The optional `extra.returnTo` and `extra.sendExcessesTo` override is read from
 /// the operation, defaults to transfer initiator and original sender respectively.
 fun TokenPool<T>.createCustodyReturn(
     forwardPayload: TokenPool_LockOrBurnForwardPayload,
     transferInitiator: address,
+    amount: coins? = null,
 ): AskToTransfer {
     val requestMsg = lazy forwardPayload.requestMsg.load();
     val details = lazy requestMsg.request.load().transfer.details.load();
@@ -1921,7 +1923,7 @@ fun TokenPool<T>.createCustodyReturn(
 
     return AskToTransfer {
         queryId: requestMsg.queryId,
-        jettonAmount: details.amount,
+        jettonAmount: amount != null ? amount : details.amount,
         transferRecipient,
         sendExcessesTo,
         customPayload: null,
