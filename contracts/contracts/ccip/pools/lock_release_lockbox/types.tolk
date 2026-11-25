@@ -72,14 +72,14 @@ struct (0x90230477) LockReleaseLockboxTokenPool_ReleaseContext {
 /// Error codes for LockReleaseLockboxTokenPool. FACILITY_ID = 209, so codes start at 20900.
 enum LockReleaseLockBoxTokenPool_Error {
     LockBoxNotConfigured = LockReleaseLockboxTokenPool_FACILITY_ID * 100 // 20900
-    UnexpectedLockboxConfirmationSender // 20901
-
-    UnexpectedLockBounce // 20902
-    InvalidReceiverAccountReply // 20903
-    InvalidReceiverAccountNotification // 20904
-    ReceiverAccountDeployFailed // 20905
+    // The jetton transfer carrying the deposit bounced, so custody never reached the lockbox.
+    LockBoxDepositFailed = 20902
     // The lockbox reported that the jetton transfer for a release (withdraw) bounced.
-    LockBoxWithdrawFailed // 20906
+    LockBoxWithdrawFailed = 20906
     // The lockbox did not match the pool's token, derived wallet, or OPERATOR_ROLE.
-    LockboxVerificationFailed // 20907
+    LockBoxVerificationFailed = 20907
+    // A lockbox deposit confirmation does not match the pool's admitted operation.
+    InvalidDepositPayload = 20908
+    // A lockbox withdraw confirmation does not match the pool's admitted release.
+    InvalidWithdrawPayload = 20909
 }

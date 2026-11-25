@@ -66,6 +66,7 @@ import { runTokenPoolCcvFeesBehaviorTests } from './TokenPool.ccvFees.behavior'
 import { runTokenPoolContinuationBehaviorTests } from './TokenPool.continuation.behavior'
 import { runTokenPoolMinValueBehaviorTests } from './TokenPool.minValue.behavior'
 import { setTokenPoolSafetyFloor } from '../../utils/minValue'
+import { matchLockOrBurnFailure } from '../../utils/verifyMessageBody'
 import { deriveSenderAccountAddress } from '../../../wrappers/ccip/SenderAccount'
 import * as da from '../../../wrappers/gen/ccip/DepositAccount'
 
@@ -1074,14 +1075,9 @@ describe('BurnMintTokenPool', () => {
         op: TokenPool_LockOrBurnFailure.PREFIX,
         // Failure first: the pool forwards the request's failure budget.
         value: toNano('0.01'),
-        body(body) {
-          if (!body) return false
-          const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
-          return (
-            failure.queryId === 304n &&
-            failure.errorCode === BigInt(BurnMintTokenPool.Errors['TokenPool_Error.AmountMismatch'])
-          )
-        },
+        body: matchLockOrBurnFailure(
+          BigInt(BurnMintTokenPool.Errors['TokenPool_Error.AmountMismatch']),
+        ),
       })
       expect(await (await userWallet(accountAddress)).getJettonBalance()).toEqual(toNano('2'))
       expect(await poolWallet.getJettonBalance()).toEqual(0n)
@@ -1346,11 +1342,7 @@ describe('BurnMintTokenPool', () => {
       from: burnMintPool.address,
       to: executorBouncer.address,
       op: TokenPool_LockOrBurnFailure.PREFIX,
-      body(body) {
-        if (!body) return false
-        const failure = TokenPool_LockOrBurnFailure.fromSlice(body.beginParse())
-        return failure.queryId === queryId && failure.errorCode === 65535n
-      },
+      body: matchLockOrBurnFailure(65535n),
     })
 
     // The outbound capacity consumed at admission was refunded: the bucket is back to its start.

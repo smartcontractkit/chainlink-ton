@@ -25,6 +25,7 @@ import {
 import { MockAdvancedPoolHooks } from '../../../wrappers/gen/ccip/test/MockAdvancedPoolHooks'
 import { contractCode } from '../../../wrappers/codeLoader'
 import { setTokenPoolSafetyFloor } from '../../utils/minValue'
+import { matchLockOrBurnFailure } from '../../utils/verifyMessageBody'
 import { TokenPoolBehaviorContext, deliveryTo, releaseRequest } from './TokenPool.behavior'
 import { CCIPNamespace } from '../../../wrappers/ccip/NameSpace'
 // Async Hook Behavior Tests (TON-TP/6)
@@ -973,11 +974,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
         to: ctx.deployer.address,
         success: true,
         op: TokenPool_LockOrBurnFailure.PREFIX,
-        body(x) {
-          if (!x) return false
-          const failure = TokenPool_LockOrBurnFailure.fromSlice(x.beginParse())
-          return failure.queryId === 9n && failure.errorCode === 4242n
-        },
+        body: matchLockOrBurnFailure(4242n),
       })
     })
 
