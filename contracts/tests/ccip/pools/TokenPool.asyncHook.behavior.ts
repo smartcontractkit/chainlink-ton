@@ -907,7 +907,7 @@ export function runTokenPoolAsyncHookBehaviorTests(
       expect(after.inbound.tokens).toEqual(before.inbound.tokens)
     })
 
-    it('refunds the outbound rate limit and fails the executor on LockOrBurnWithdrawFailed', async () => {
+    it('refunds the outbound rate limit on LockOrBurnWithdrawFailed without notifying the executor', async () => {
       const ctx = await setup()
 
       const request = lockOrBurnIn(ctx)
@@ -966,15 +966,12 @@ export function runTokenPoolAsyncHookBehaviorTests(
       const bucketAfter = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
       expect(bucketAfter.outbound.tokens).toBe(bucketBefore.outbound.tokens + toNano('1'))
 
-      // ...and notify the executor (replyTo) with a LockOrBurnFailure carrying the
-      // OnRamp's relayed error code.
-      expect(result.transactions).toHaveTransaction({
+      // The Router settles the executor directly on this path, so the pool must not emit a
+      // second failure notification (the error code in the refund message is informational).
+      expect(result.transactions).not.toHaveTransaction({
         from: ctx.pool.address,
         to: ctx.deployer.address,
-        success: true,
         op: TokenPool_LockOrBurnFailure.PREFIX,
-        body: (body) =>
-          TokenPool_LockOrBurnFailure.fromSlice(body!.beginParse()).errorCode === relayedErrorCode,
       })
     })
 

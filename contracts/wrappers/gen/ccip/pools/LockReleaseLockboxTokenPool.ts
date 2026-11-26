@@ -1695,6 +1695,7 @@ export const TokenPool_TokenTransferFeeConfigArgs = {
  >     feeAmount: coins
  >     destTokenAmount: coins
  >     out: TokenPool_LockOrBurnOutV1
+ >     fastFinalityConsumed: bool
  > }
  */
 export interface TokenPool_LockOrBurnPrepared {
@@ -1702,6 +1703,7 @@ export interface TokenPool_LockOrBurnPrepared {
     feeAmount: coins
     destTokenAmount: coins
     out: TokenPool_LockOrBurnOutV1
+    fastFinalityConsumed: boolean /* = false */
 }
 
 export const TokenPool_LockOrBurnPrepared = {
@@ -1709,9 +1711,11 @@ export const TokenPool_LockOrBurnPrepared = {
         feeAmount: coins
         destTokenAmount: coins
         out: TokenPool_LockOrBurnOutV1
+        fastFinalityConsumed?: boolean /* = false */
     }): TokenPool_LockOrBurnPrepared {
         return {
             $: 'TokenPool_LockOrBurnPrepared',
+            fastFinalityConsumed: false,
             ...args
         }
     },
@@ -1721,12 +1725,14 @@ export const TokenPool_LockOrBurnPrepared = {
             feeAmount: s.loadCoins(),
             destTokenAmount: s.loadCoins(),
             out: TokenPool_LockOrBurnOutV1.fromSlice(s),
+            fastFinalityConsumed: s.loadBoolean(),
         }
     },
     store(self: TokenPool_LockOrBurnPrepared, b: c.Builder): void {
         b.storeCoins(self.feeAmount);
         b.storeCoins(self.destTokenAmount);
         TokenPool_LockOrBurnOutV1.store(self.out, b);
+        b.storeBit(self.fastFinalityConsumed);
     },
     toCell(self: TokenPool_LockOrBurnPrepared): c.Cell {
         return makeCellFrom<TokenPool_LockOrBurnPrepared>(self, TokenPool_LockOrBurnPrepared.store);
@@ -1738,6 +1744,7 @@ export const TokenPool_LockOrBurnPrepared = {
  >     requestedFinalityConfig: uint32
  >     localAmount: coins
  >     out: TokenPool_ReleaseOrMintOutV1
+ >     fastFinalityConsumed: bool
  > }
  */
 export interface TokenPool_ReleaseOrMintPrepared {
@@ -1745,6 +1752,7 @@ export interface TokenPool_ReleaseOrMintPrepared {
     requestedFinalityConfig: uint32
     localAmount: coins
     out: TokenPool_ReleaseOrMintOutV1
+    fastFinalityConsumed: boolean /* = false */
 }
 
 export const TokenPool_ReleaseOrMintPrepared = {
@@ -1752,9 +1760,11 @@ export const TokenPool_ReleaseOrMintPrepared = {
         requestedFinalityConfig: uint32
         localAmount: coins
         out: TokenPool_ReleaseOrMintOutV1
+        fastFinalityConsumed?: boolean /* = false */
     }): TokenPool_ReleaseOrMintPrepared {
         return {
             $: 'TokenPool_ReleaseOrMintPrepared',
+            fastFinalityConsumed: false,
             ...args
         }
     },
@@ -1764,12 +1774,14 @@ export const TokenPool_ReleaseOrMintPrepared = {
             requestedFinalityConfig: s.loadUintBig(32),
             localAmount: s.loadCoins(),
             out: TokenPool_ReleaseOrMintOutV1.fromSlice(s),
+            fastFinalityConsumed: s.loadBoolean(),
         }
     },
     store(self: TokenPool_ReleaseOrMintPrepared, b: c.Builder): void {
         b.storeUint(self.requestedFinalityConfig, 32);
         b.storeCoins(self.localAmount);
         TokenPool_ReleaseOrMintOutV1.store(self.out, b);
+        b.storeBit(self.fastFinalityConsumed);
     },
     toCell(self: TokenPool_ReleaseOrMintPrepared): c.Cell {
         return makeCellFrom<TokenPool_ReleaseOrMintPrepared>(self, TokenPool_ReleaseOrMintPrepared.store);
@@ -3775,60 +3787,6 @@ export const TokenPool_GetCCVsFailed = {
     },
     toCell(self: TokenPool_GetCCVsFailed): c.Cell {
         return makeCellFrom<TokenPool_GetCCVsFailed>(self, TokenPool_GetCCVsFailed.store);
-    }
-}
-
-/**
- > struct (0x30612b17) TokenPool_QueryCCVsReply {
- >     queryId: uint64
- >     requiredCCVs: array<address>
- >     forwardPayload: cell?
- > }
- */
-export interface TokenPool_QueryCCVsReply {
-    readonly $: 'TokenPool_QueryCCVsReply'
-    queryId: uint64
-    requiredCCVs: array<c.Address>
-    forwardPayload: c.Cell | null
-}
-
-export const TokenPool_QueryCCVsReply = {
-    PREFIX: 0x30612b17,
-
-    create(args: {
-        queryId?: uint64
-        requiredCCVs: array<c.Address>
-        forwardPayload: c.Cell | null
-    }): TokenPool_QueryCCVsReply {
-        return {
-            $: 'TokenPool_QueryCCVsReply',
-            ...args,
-            queryId: args.queryId ?? 0n
-        }
-    },
-    fromSlice(s: c.Slice): TokenPool_QueryCCVsReply {
-        loadAndCheckPrefix32(s, 0x30612b17, 'TokenPool_QueryCCVsReply');
-        return {
-            $: 'TokenPool_QueryCCVsReply',
-            queryId: s.loadUintBig(64),
-            requiredCCVs: loadArrayOf<c.Address>(s,
-                (s) => s.loadAddress()
-            ),
-            forwardPayload: s.loadBoolean() ? s.loadRef() : null,
-        }
-    },
-    store(self: TokenPool_QueryCCVsReply, b: c.Builder): void {
-        b.storeUint(0x30612b17, 32);
-        b.storeUint(self.queryId, 64);
-        storeArrayOf<c.Address>(self.requiredCCVs, b,
-            (v,b) => b.storeAddress(v)
-        );
-        storeTolkNullable<c.Cell>(self.forwardPayload, b,
-            (v,b) => b.storeRef(v)
-        );
-    },
-    toCell(self: TokenPool_QueryCCVsReply): c.Cell {
-        return makeCellFrom<TokenPool_QueryCCVsReply>(self, TokenPool_QueryCCVsReply.store);
     }
 }
 
@@ -6681,12 +6639,12 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
         return TokenPool_GetCCVsAndFees.toCell(TokenPool_GetCCVsAndFees.create(body));
     }
 
-    static createCellOfTokenPoolQueryCCVsReply(body: {
+    static createCellOfTokenPoolCCVs(body: {
         queryId?: uint64
         requiredCCVs: array<c.Address>
         forwardPayload: c.Cell | null
     }) {
-        return TokenPool_QueryCCVsReply.toCell(TokenPool_QueryCCVsReply.create(body));
+        return TokenPool_CCVs.toCell(TokenPool_CCVs.create(body));
     }
 
     static createCellOfTokenPoolApplyChainUpdates(body: {
@@ -7036,14 +6994,14 @@ export class LockReleaseLockboxTokenPool implements c.Contract {
         });
     }
 
-    async sendTokenPoolQueryCCVsReply(provider: ContractProvider, via: Sender, msgValue: coins, body: {
+    async sendTokenPoolCCVs(provider: ContractProvider, via: Sender, msgValue: coins, body: {
         queryId?: uint64
         requiredCCVs: array<c.Address>
         forwardPayload: c.Cell | null
     }, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: TokenPool_QueryCCVsReply.toCell(TokenPool_QueryCCVsReply.create(body)),
+            body: TokenPool_CCVs.toCell(TokenPool_CCVs.create(body)),
             ...extraOptions
         });
     }

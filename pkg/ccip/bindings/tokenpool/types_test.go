@@ -10,6 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/tokenpool/lockbox"
@@ -312,4 +313,68 @@ func TestConfig_WireFormat(t *testing.T) {
 	var decoded Config
 	require.NoError(t, tlb.LoadFromCell(&decoded, c.MustBeginParse()))
 	require.Equal(t, msg.Admission, decoded.Admission)
+}
+
+func TestPreparedFastFinalityConsumed_WireFormat(t *testing.T) {
+	payload := cell.BeginCell().MustStoreUInt(0xab, 8).EndCell()
+
+	for _, consumed := range []bool{false, true} {
+		lockOrBurn := LockOrBurnPrepared{
+			FeeAmount:       tlb.MustFromTON("0.25"),
+			DestTokenAmount: tlb.MustFromTON("1.5"),
+			Out: LockOrBurnOutV1{
+				DestTokenAddress: common.CrossChainAddress{0x01, 0x02, 0x03},
+				DestPoolData:     payload,
+			},
+			FastFinalityConsumed: consumed,
+		}
+		encoded, err := tlb.ToCell(lockOrBurn)
+		require.NoError(t, err)
+
+		var decoded LockOrBurnPrepared
+		require.NoError(t, tlb.LoadFromCell(&decoded, encoded.MustBeginParse()))
+		require.Equal(t, consumed, decoded.FastFinalityConsumed)
+
+		// Pin the appended bit against the pre-flag layout.
+		var v0 struct {
+			FeeAmount       tlb.Coins       `tlb:"."`
+			DestTokenAmount tlb.Coins       `tlb:"."`
+			Out             LockOrBurnOutV1 `tlb:"."`
+		}
+		slice := encoded.MustBeginParse()
+		require.NoError(t, tlb.LoadFromCell(&v0, slice))
+		bit, err := slice.LoadBoolBit()
+		require.NoError(t, err)
+		require.Equal(t, consumed, bit)
+		require.Zero(t, slice.BitsLeft())
+		require.Zero(t, slice.RefsNum())
+
+		releaseOrMint := ReleaseOrMintPrepared{
+			RequestedFinalityConfig: 7,
+			LocalAmount:             tlb.MustFromTON("2"),
+			Out: ReleaseOrMintOutV1{
+				DestinationAmount: tlb.MustFromTON("2"),
+			},
+			FastFinalityConsumed: consumed,
+		}
+		encoded, err = tlb.ToCell(releaseOrMint)
+		require.NoError(t, err)
+
+		var decodedRelease ReleaseOrMintPrepared
+		require.NoError(t, tlb.LoadFromCell(&decodedRelease, encoded.MustBeginParse()))
+		require.Equal(t, consumed, decodedRelease.FastFinalityConsumed)
+
+		var releaseV0 struct {
+			RequestedFinalityConfig uint32             `tlb:"## 32"`
+			LocalAmount             tlb.Coins          `tlb:"."`
+			Out                     ReleaseOrMintOutV1 `tlb:"."`
+		}
+		slice = encoded.MustBeginParse()
+		require.NoError(t, tlb.LoadFromCell(&releaseV0, slice))
+		bit, err = slice.LoadBoolBit()
+		require.NoError(t, err)
+		require.Equal(t, consumed, bit)
+		require.Zero(t, slice.BitsLeft())
+		require.Zero(t, slice.RefsNum())
+	}
 }

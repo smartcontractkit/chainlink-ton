@@ -29,7 +29,7 @@ type Router_InMsg =
     | OnRamp_MessageValidationFailed
     | Router_RouteMessage
     | Router_WithdrawToTokenPool
-    | Router_WithdrawToTokenPoolFailed
+    | Router_LockOrBurnWithdrawFailedForwardTP
     | Router_CCIPReceiveConfirm
     | Router_CCIPReceiveConfirmRejectedByExecutor
     | Upgradeable_Upgrade
@@ -168,16 +168,6 @@ struct (0xf540f227) Router_ReceiverAccountAddress {
     token: address;
     /// `Router_GetReceiverAccountAddress.context`, echoed back.
     context: cell?;
-}
-
-/// Sent by the OnRamp when it rejects a `Router_WithdrawToTokenPool` request before the
-/// Router moves custody. The Router relays the failure to the token pool so it can reinstate
-/// the rate limit consumed at admission and fail the send.
-struct (0xee40ec65) Router_WithdrawToTokenPoolFailed {
-    queryId: uint64;
-    destChainSelector: uint64;
-    withdrawRequest: Cell<Router_WithdrawRequest>;
-    errorCode: int32;                                   // Raw TVM exit code (signed).
 }
 
 // curse/uncurse/verify uncursed (also as getter)
@@ -335,12 +325,31 @@ struct (0xe32e5616) Router_MessageValidationFailed {
     context: cell?
 }
 
-/// Canonical Router failure returned when a LockOrBurn request bounced before
-/// the token pool admitted it.
-struct (0xb76e3a84) Router_TokenPoolLockOrBurnFailed {
+/// Sent by the Router or OnRamp when the lock/burn phase fails: curse policy,
+/// a pre-admission pool bounce, or a bounced `Router_LockOrBurn` request.
+struct (0x6b9cf345) Router_LockOrBurnFailed {
     queryId: uint64;
     tokenPool: address;
     errorCode: int32;
+}
+
+/// Sent by the Router or OnRamp to fail a pre-custody withdraw:
+/// deposit-account withdraw, executor mismatch, OnRamp rejection, or a bounced
+/// `Router_WithdrawToTokenPool`.
+struct (0x7b2c2b80) Router_LockOrBurnWithdrawFailed {
+    queryId: uint64;
+    tokenPool: address;
+    errorCode: int32;
+}
+
+/// Sent by the OnRamp to the Router to relay a refund-only rate-limit notification to the
+/// token pool. Executor settlement is handled by the OnRamp directly; the Router only needs to
+/// authenticate the lane and forward the payload to the pool.
+struct (0x1b2d6c58) Router_LockOrBurnWithdrawFailedForwardTP {
+    queryId: uint64;
+    destChainSelector: uint64;
+    tokenPool: address;
+    forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
 }
 
 /// Canonical Router failure for an inbound release/mint that the Router could
@@ -412,6 +421,13 @@ fun Router_Costs.routeMessage(): int {
 fun Router_Costs.receiveConfirm(): int {
     val baseFee = ROUTER_RECEIVE_CONFIRM_FEE;
     return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
+}
+
+/// Value attached to the refund-only pool notification sent on a pre-custody withdraw failure.
+/// Covers the pool's compute and the best-effort rate-limit refund event; the executor is settled
+/// by the Router directly, so a non-cooperative pool cannot strand the send.
+fun Router_Costs.tokenPoolRefund(): int {
+    return grams("0.005");
 }
 
 // Minimum value for calling Router_GetSenderAccount: the Router's own compute and the two

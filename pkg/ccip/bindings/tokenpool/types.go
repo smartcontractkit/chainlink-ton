@@ -218,9 +218,10 @@ type ReleaseOrMintOutV1 struct {
 
 // LockOrBurnPrepared holds the prepared data for a lock/burn operation.
 type LockOrBurnPrepared struct {
-	FeeAmount       tlb.Coins       `tlb:"."`
-	DestTokenAmount tlb.Coins       `tlb:"."`
-	Out             LockOrBurnOutV1 `tlb:"."`
+	FeeAmount            tlb.Coins       `tlb:"."`
+	DestTokenAmount      tlb.Coins       `tlb:"."`
+	Out                  LockOrBurnOutV1 `tlb:"."`
+	FastFinalityConsumed bool            `tlb:"bool"`
 }
 
 // ReleaseOrMintPrepared holds the prepared data for a release/mint operation.
@@ -228,6 +229,7 @@ type ReleaseOrMintPrepared struct {
 	RequestedFinalityConfig uint32             `tlb:"## 32"`
 	LocalAmount             tlb.Coins          `tlb:"."`
 	Out                     ReleaseOrMintOutV1 `tlb:"."`
+	FastFinalityConsumed    bool               `tlb:"bool"`
 }
 
 // LockOrBurnForwardPayload holds the forward payload for lock/burn operations.
@@ -594,7 +596,8 @@ type GetCCVsContext struct {
 	Fees           *cell.Cell       `tlb:"maybe ^"` // Cell<FeeContext>; null for CCVs-only
 }
 
-// CCVs is the reply to a `GetCCVs` request, carrying only the required CCVs.
+// CCVs is the required-CCV reply: from the pool to a `GetCCVs` caller, and from
+// AdvancedPoolHooks to the pool's `QueryCCVs`.
 // `ForwardPayload` echoes the caller's per-request context.
 //
 // On-chain: struct (0x6c70b2dd) TokenPool_CCVs
@@ -628,17 +631,6 @@ type GetCCVsFailed struct {
 	QueryID        uint64     `tlb:"## 64"`
 	ErrorCode      int32      `tlb:"## 32"`
 	ForwardPayload *cell.Cell `tlb:"maybe ^"`
-}
-
-// QueryCCVsReply replies to a pool-forwarded `GetCCVs` with the required CCV set. An empty
-// `RequiredCCVs` list signals "use the lane defaults".
-//
-// On-chain: struct (0x30612b17) TokenPool_QueryCCVsReply
-type QueryCCVsReply struct {
-	_              tlb.Magic          `tlb:"#30612b17" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID        uint64             `tlb:"## 64"`
-	RequiredCCVs   []*address.Address `tlb:"array addr"`
-	ForwardPayload *cell.Cell         `tlb:"maybe ^"`
 }
 
 // --- Messages - outgoing ---
@@ -916,7 +908,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	// CCV/fee query + reply
 	GetCCVs{},
 	GetCCVsAndFees{},
-	QueryCCVsReply{},
 	// Config + budget
 	GetConfig{},
 	SetBudget{},

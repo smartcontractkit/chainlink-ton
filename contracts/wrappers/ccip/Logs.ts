@@ -22,7 +22,6 @@ export const LogTypes = {
   DeployableInitializeBounced: 'DeployableInitializeBounced',
   RouteMessageBounced: 'RouteMessageBounced',
   MessageToOffRampBounced: 'MessageToOffRampBounced',
-  TokenPoolWithdrawBounced: 'TokenPoolWithdrawBounced',
   UpdatePricesBounced: 'UpdatePricesBounced',
 } as const
 
@@ -49,7 +48,6 @@ export const LOG_TOPIC: Record<CombinedLogType, number> = {
   DeployableInitializeBounced: crc32('DeployableInitializeBounced'),
   RouteMessageBounced: crc32('RouteMessageBounced'),
   MessageToOffRampBounced: crc32('MessageToOffRampBounced'),
-  TokenPoolWithdrawBounced: crc32('TokenPoolWithdrawBounced'),
   UpdatePricesBounced: crc32('UpdatePricesBounced'),
 }
 

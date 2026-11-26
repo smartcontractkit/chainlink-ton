@@ -162,7 +162,7 @@ describe('Router.cursing', () => {
       from: router.address,
       to: sender.address,
       success: true,
-      op: 0xb76e3a84, // Router_TokenPoolLockOrBurnFailed
+      op: 0x6b9cf345, // Router_LockOrBurnFailed
     })
     expect(result.transactions).not.toHaveTransaction({
       from: router.address,

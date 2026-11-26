@@ -87,6 +87,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
   let mockTokenPool: SandboxContract<TreasuryContract>
   let mockToken: SandboxContract<TreasuryContract>
   let executorSender: Sender
+  let executorAddress: Address
   let executorId: bigint
 
   beforeAll(async () => {
@@ -180,6 +181,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
       deployMessage.stateInit.data.beginParse(),
     ).id
 
+    executorAddress = dest
     return blockchain.sender(dest)
   }
 
@@ -204,6 +206,42 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
         originalSender: deployer.address,
       }),
     })
+
+  const expectWithdrawFailure = (
+    result: Awaited<ReturnType<typeof sendWithdraw>>,
+    errorCode?: bigint,
+  ) => {
+    // The failure is settled directly with the executor; the Router only gets the refund-only
+    // request for the pool.
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: executorAddress,
+      op: rt.Router_LockOrBurnWithdrawFailed.PREFIX,
+      body(x) {
+        if (!x) return false
+        const failure = rt.Router_LockOrBurnWithdrawFailed.fromSlice(x.beginParse())
+        return (
+          failure.queryId === 1n &&
+          failure.tokenPool.equals(mockTokenPool.address) &&
+          (errorCode === undefined || failure.errorCode === errorCode)
+        )
+      },
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: mockRouter.address,
+      op: rt.Router_LockOrBurnWithdrawFailedForwardTP.PREFIX,
+      body(x) {
+        if (!x) return false
+        const refund = rt.Router_LockOrBurnWithdrawFailedForwardTP.fromSlice(x.beginParse())
+        return (
+          refund.queryId === 1n &&
+          refund.tokenPool.equals(mockTokenPool.address) &&
+          refund.destChainSelector === BigInt(DEST_CHAIN_SELECTOR)
+        )
+      },
+    })
+  }
 
   it('forwards the withdrawal to the router when the dest token address is valid', async () => {
     const result = await sendWithdraw(VALID_EVM_TOKEN_ADDRESS)
@@ -239,7 +277,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
     })
   })
 
-  it('notifies the router when destPoolData exceeds the destBytesOverhead limit', async () => {
+  it('settles the executor when destPoolData exceeds the destBytesOverhead limit', async () => {
     // 64 bytes of pool data against a 32-byte limit: the size check must reject with
     // SourceTokenDataTooLarge before any withdrawal reaches the router.
     const result = await sendWithdraw(
@@ -249,20 +287,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
       32n,
     )
 
-    expect(result.transactions).toHaveTransaction({
-      from: onramp.address,
-      to: mockRouter.address,
-      success: true,
-      op: rt.Router_WithdrawToTokenPoolFailed.PREFIX,
-      body(x) {
-        if (!x) return false
-        const failure = rt.Router_WithdrawToTokenPoolFailed.fromSlice(x.beginParse())
-        return (
-          failure.queryId === 1n &&
-          failure.errorCode === BigInt(or.OnRamp.Errors['OnRamp_Error.SourceTokenDataTooLarge'])
-        )
-      },
-    })
+    expectWithdrawFailure(result, BigInt(or.OnRamp.Errors['OnRamp_Error.SourceTokenDataTooLarge']))
     // No withdrawal must reach the router.
     expect(result.transactions).not.toHaveTransaction({
       from: onramp.address,
@@ -271,7 +296,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
     })
   })
 
-  it('notifies the router for a 20-byte dest token address', async () => {
+  it('settles the executor for a 20-byte dest token address', async () => {
     const result = await sendWithdraw(VALID_EVM_TOKEN_ADDRESS.subarray(12))
 
     expect(result.transactions).toHaveTransaction({
@@ -279,20 +304,7 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
       success: true,
       op: or.OnRamp_ExecutorRequestsWithdraw.PREFIX,
     })
-    expect(result.transactions).toHaveTransaction({
-      from: onramp.address,
-      to: mockRouter.address,
-      success: true,
-      op: rt.Router_WithdrawToTokenPoolFailed.PREFIX,
-      body(x) {
-        if (!x) return false
-        const failure = rt.Router_WithdrawToTokenPoolFailed.fromSlice(x.beginParse())
-        return (
-          failure.queryId === 1n &&
-          failure.errorCode === BigInt(or.OnRamp.Errors['OnRamp_Error.InvalidDestTokenAddress'])
-        )
-      },
-    })
+    expectWithdrawFailure(result, BigInt(or.OnRamp.Errors['OnRamp_Error.InvalidDestTokenAddress']))
     // No withdrawal must reach the router.
     expect(result.transactions).not.toHaveTransaction({
       from: onramp.address,
@@ -301,57 +313,35 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
     })
   })
 
-  it('notifies the router for a zero dest token address', async () => {
+  it('settles the executor for a zero dest token address', async () => {
     const result = await sendWithdraw(Buffer.alloc(32))
 
-    expect(result.transactions).toHaveTransaction({
-      from: onramp.address,
-      to: mockRouter.address,
-      success: true,
-      op: rt.Router_WithdrawToTokenPoolFailed.PREFIX,
-    })
+    expectWithdrawFailure(result)
   })
 
-  it('notifies the router for a dest token address in the EVM precompile space', async () => {
+  it('settles the executor for a dest token address in the EVM precompile space', async () => {
     const precompile = Buffer.from(
       '00000000000000000000000000000000000000000000000000000000000000ff',
       'hex',
     )
     const result = await sendWithdraw(precompile)
 
-    expect(result.transactions).toHaveTransaction({
-      from: onramp.address,
-      to: mockRouter.address,
-      success: true,
-      op: rt.Router_WithdrawToTokenPoolFailed.PREFIX,
-    })
+    expectWithdrawFailure(result)
   })
 
-  it('notifies the router for a dest token address above uint160', async () => {
+  it('settles the executor for a dest token address above uint160', async () => {
     const result = await sendWithdraw(Buffer.alloc(32, 0x01))
 
-    expect(result.transactions).toHaveTransaction({
-      from: onramp.address,
-      to: mockRouter.address,
-      success: true,
-      op: rt.Router_WithdrawToTokenPoolFailed.PREFIX,
-    })
+    expectWithdrawFailure(result)
   })
 
-  it('notifies the router when the relayed family selector is unsupported', async () => {
+  it('settles the executor when the relayed family selector is unsupported', async () => {
     const result = await sendWithdraw(VALID_EVM_TOKEN_ADDRESS, 0x99999999n)
 
-    expect(result.transactions).toHaveTransaction({
-      from: onramp.address,
-      to: mockRouter.address,
-      success: true,
-      op: rt.Router_WithdrawToTokenPoolFailed.PREFIX,
-    })
+    expectWithdrawFailure(result)
   })
 
-  // TODO: the bounced withdraw is not reported yet; the OnRamp's bounce arm throws 0xFFFF until
-  // its failure path lands.
-  it('throws when the router bounces the withdrawal', async () => {
+  it('reports the bounced withdrawal to the executor and asks the router to refund', async () => {
     // The executor was deployed through the mock Router; now the lane's Router rejects everything.
     const routerBouncer = blockchain.openContract(
       bouncer.ContractClient.createFromConfig(await contractCode.ccip.local('tests.mock.Bouncer')),
@@ -370,13 +360,35 @@ describe('OnRamp - ExecutorRequestsWithdraw address validation', () => {
     expect(result.transactions).toHaveTransaction({
       from: routerBouncer.address,
       to: onramp.address,
-      success: false,
-      exitCode: 0xffff,
+      success: true,
       op: 0xfffffffe,
     })
-    expect(result.transactions).not.toHaveTransaction({
+    // Settlement is reported directly to the executor. This test executor is not in the
+    // TokenPool_Withdraw state, so the executor rejects it; the settlement itself is covered
+    // by the SendExecutor unit test.
+    expect(result.transactions).toHaveTransaction({
       from: onramp.address,
-      op: or.OnRamp_LockOrBurnFailed.PREFIX,
+      to: executorAddress,
+      op: rt.Router_LockOrBurnWithdrawFailed.PREFIX,
+      body(x) {
+        if (!x) return false
+        const failure = rt.Router_LockOrBurnWithdrawFailed.fromSlice(x.beginParse())
+        return failure.queryId === 1n && failure.tokenPool.equals(mockTokenPool.address)
+      },
+    })
+    // ...and the pool refund travels separately through the router.
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: routerBouncer.address,
+      op: rt.Router_LockOrBurnWithdrawFailedForwardTP.PREFIX,
+      body(x) {
+        if (!x) return false
+        const refund = rt.Router_LockOrBurnWithdrawFailedForwardTP.fromSlice(x.beginParse())
+        return (
+          refund.tokenPool.equals(mockTokenPool.address) &&
+          refund.destChainSelector === BigInt(DEST_CHAIN_SELECTOR)
+        )
+      },
     })
   })
 })

@@ -26,6 +26,7 @@ import {
   ERROR_CODE,
 } from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as or from '../../../wrappers/gen/ccip/OnRamp'
+import * as tp from '../../../wrappers/gen/ccip/pools/TokenPool'
 import * as fq from '../../../wrappers/gen/ccip/FeeQuoter'
 import * as dep from '../../../wrappers/libraries/Deployable'
 import * as bouncer from '../../../wrappers/test/mock/Bouncer'
@@ -1144,12 +1145,17 @@ describe('SendExecutor - Unit tests', () => {
 
   // Drives a token transfer to the lock-or-burn request: the registry reports a pool, so the
   // executor asks the OnRamp to lock or burn and waits in the TokenPool_LockOrBurn state.
-  async function afterLockOrBurnRequested(): Promise<SandboxContract<sx.CCIPSendExecutor>> {
+  async function afterLockOrBurnRequested(): Promise<{
+    sendExecutor: SandboxContract<sx.CCIPSendExecutor>
+    tokenPool: Address
+    tokenPoolMock: SandboxContract<TreasuryContract>
+  }> {
     const { sendExecutor } = await afterFeeReserved({
       send: tokenOnrampSend,
       tokenRegistry: tokenRegistryMock.address,
     })
-    const tokenPool = (await blockchain.treasury('tokenPoolMock')).address
+    const tokenPoolMock = await blockchain.treasury('tokenPoolMock')
+    const tokenPool = tokenPoolMock.address
     const result = await sendExecutor.sendTokenAdminRegistryTokenInfo(
       tokenRegistryMock.getSender(),
       toNano('0.3'),
@@ -1170,16 +1176,64 @@ describe('SendExecutor - Unit tests', () => {
       success: true,
       op: or.OnRamp_ExecutorRequestsLockOrBurn.PREFIX,
     })
-    return sendExecutor
+    return { sendExecutor, tokenPool, tokenPoolMock }
+  }
+
+  // Drives the lock/burn request one step further: the pool is ready to accept the jettons, so
+  // the executor snapshots the prepared data and waits in the TokenPool_Withdraw state.
+  async function afterWithdrawRequested(): Promise<{
+    sendExecutor: SandboxContract<sx.CCIPSendExecutor>
+    tokenPool: Address
+    tokenPoolMock: SandboxContract<TreasuryContract>
+  }> {
+    const { sendExecutor, tokenPool, tokenPoolMock } = await afterLockOrBurnRequested()
+    const prepared = tp.TokenPool_LockOrBurnPrepared.create({
+      feeAmount: 0n,
+      destTokenAmount: AmountOfTokens,
+      out: tp.TokenPool_LockOrBurnOutV1.create({
+        destTokenAddress: EVM_ADDRESS,
+        destPoolData: Cell.EMPTY,
+      }),
+    })
+    const requestMsg = tp.TokenPool_LockOrBurn.create({
+      queryId: 1n,
+      request: tp.TokenPool_LockOrBurnInV1.create({
+        transfer: tp.TokenPool_Transfer.create({
+          details: tp.TokenPool_TransferDetails.create({
+            receiver: EVM_ADDRESS,
+            remoteChainSelector: ChainSelectors.testselectors.CHAINSEL_EVM_TEST_90000001,
+            originalSender: deployer.address,
+            amount: AmountOfTokens,
+            localToken: NATIVE_GRAM,
+          }),
+        }),
+      }),
+      requestedFinalityConfig: 0n,
+      tokenArgs: null,
+      replyTo: deployer.address,
+      finalizationValue: toNano('0.01'),
+      onRampNamespaces: new Set(),
+    })
+    const forwardPayload = tp.TokenPool_LockOrBurnForwardPayload.create({
+      initiator: deployer.address,
+      requestMsg,
+      prepared,
+    })
+    await sendExecutor.sendTokenPoolLockOrBurnWithdraw(tokenPoolMock.getSender(), toNano('0.1'), {
+      queryId: 1n,
+      forwardTonAmount: 0n,
+      forwardPayload,
+    })
+    return { sendExecutor, tokenPool, tokenPoolMock }
   }
 
   it('should exit with the relayed error and refund the charged fee when the OnRamp reports a Router bounce', async () => {
-    const sendExecutor = await afterLockOrBurnRequested()
+    const { sendExecutor, tokenPool } = await afterLockOrBurnRequested()
 
-    const result = await sendExecutor.sendOnRampLockOrBurnFailed(
+    const result = await sendExecutor.sendRouterLockOrBurnFailed(
       onRampMock.getSender(),
       toNano('0.1'),
-      { queryId: 1n, errorCode: 0xffffn },
+      { queryId: 1n, tokenPool, errorCode: 0xffffn },
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -1200,10 +1254,10 @@ describe('SendExecutor - Unit tests', () => {
   })
 
   it('should exit with the Router error and refund the charged fee when the Router reports a lock-or-burn failure', async () => {
-    const sendExecutor = await afterLockOrBurnRequested()
+    const { sendExecutor } = await afterLockOrBurnRequested()
     const tokenPool = (await blockchain.treasury('tokenPoolMock')).address
 
-    const result = await sendExecutor.sendRouterTokenPoolLockOrBurnFailed(
+    const result = await sendExecutor.sendRouterLockOrBurnFailed(
       routerMock.getSender(),
       toNano('0.1'),
       { queryId: 1n, tokenPool, errorCode: -14n },
@@ -1224,6 +1278,75 @@ describe('SendExecutor - Unit tests', () => {
           finished.refund === FeeTokenAmount
         )
       },
+    })
+  })
+
+  it('rejects a duplicate failure after finalization without a second terminal message', async () => {
+    const { sendExecutor, tokenPool } = await afterLockOrBurnRequested()
+
+    const first = await sendExecutor.sendRouterLockOrBurnFailed(
+      routerMock.getSender(),
+      toNano('0.1'),
+      { queryId: 1n, tokenPool, errorCode: -14n },
+    )
+    expect(first.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+    })
+
+    const second = await sendExecutor.sendRouterLockOrBurnFailed(
+      routerMock.getSender(),
+      toNano('0.1'),
+      { queryId: 1n, tokenPool, errorCode: -14n },
+    )
+    // The state machine rejects the duplicate; it cannot emit a second terminal message.
+    expect(second.transactions).not.toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+    })
+    expect(second.transactions).toHaveTransaction({
+      from: routerMock.address,
+      to: sendExecutor.address,
+      success: false,
+    })
+  })
+
+  it('settles the executor in TokenPool_Withdraw when the OnRamp reports a bounced withdraw', async () => {
+    const { sendExecutor, tokenPool } = await afterWithdrawRequested()
+
+    const result = await sendExecutor.sendRouterLockOrBurnWithdrawFailed(
+      onRampMock.getSender(),
+      toNano('0.1'),
+      { queryId: 1n, tokenPool, errorCode: -14n },
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      op: or.OnRamp_ExecutorFinishedWithError.PREFIX,
+      body(x) {
+        if (!x) return false
+        const finished = or.OnRamp_ExecutorFinishedWithError.fromSlice(x.beginParse())
+        return finished.errorCode === -14n && finished.refund === FeeTokenAmount
+      },
+    })
+  })
+
+  it('should throw on Router_LockOrBurnWithdrawFailed with a mismatched tokenPool', async () => {
+    const { sendExecutor } = await afterWithdrawRequested()
+    const otherPool = (await blockchain.treasury('otherPool')).address
+
+    const result = await sendExecutor.sendRouterLockOrBurnWithdrawFailed(
+      routerMock.getSender(),
+      toNano('0.1'),
+      { queryId: 1n, tokenPool: otherPool, errorCode: -14n },
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: routerMock.address,
+      to: sendExecutor.address,
+      success: false,
+      exitCode: sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.Unauthorized'],
     })
   })
 
@@ -1294,13 +1417,31 @@ describe('SendExecutor - Unit tests', () => {
     }
   })
 
-  it('should throw on OnRamp_LockOrBurnFailed from non-onramp', async () => {
-    const sendExecutor = await afterLockOrBurnRequested()
+  it('should throw on Router_LockOrBurnFailed from an unauthorized sender', async () => {
+    const { sendExecutor, tokenPool } = await afterLockOrBurnRequested()
 
-    const result = await sendExecutor.sendOnRampLockOrBurnFailed(
+    const result = await sendExecutor.sendRouterLockOrBurnFailed(
+      deployer.getSender(),
+      toNano('0.1'),
+      { queryId: 1n, tokenPool, errorCode: 0xffffn },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: sendExecutor.address,
+      success: false,
+      exitCode: sx.CCIPSendExecutor.Errors['CCIPSendExecutor_Error.Unauthorized'],
+    })
+  })
+
+  it('should throw on Router_LockOrBurnFailed with a mismatched tokenPool', async () => {
+    const { sendExecutor } = await afterLockOrBurnRequested()
+    const otherPool = (await blockchain.treasury('otherPool')).address
+
+    const result = await sendExecutor.sendRouterLockOrBurnFailed(
       routerMock.getSender(),
       toNano('0.1'),
-      { queryId: 1n, errorCode: 0xffffn },
+      { queryId: 1n, tokenPool: otherPool, errorCode: 0xffffn },
     )
 
     expect(result.transactions).toHaveTransaction({

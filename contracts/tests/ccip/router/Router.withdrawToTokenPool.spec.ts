@@ -3,8 +3,6 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 
 import * as coverage from '../../coverage/coverage'
-import { assertLog } from '../../Logs'
-import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { contractCode } from '../../../wrappers/codeLoader'
 import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as deposit from '../../../wrappers/gen/ccip/DepositAccount'
@@ -183,20 +181,31 @@ describe('Router.withdrawToTokenPool', () => {
       }),
     })
 
-  const expectCCIPSendFailed = (
+  const expectPoolWithdrawFailed = (
     result: Awaited<ReturnType<typeof router.sendRouterWithdrawToTokenPool>>,
     tokenPool: Address,
-    error: string,
+  ) =>
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: tokenPool,
+      op: rt.TokenPool_LockOrBurnWithdrawFailed.PREFIX,
+    })
+
+  const expectExecutorFailed = (
+    result: Awaited<ReturnType<typeof router.sendRouterWithdrawToTokenPool>>,
+    tokenPool: Address,
+    error?: keyof typeof rt.Router.Errors,
   ) =>
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: executor.address,
-      op: rt.Router_TokenPoolLockOrBurnFailed.PREFIX,
+      op: rt.Router_LockOrBurnWithdrawFailed.PREFIX,
       body(body) {
         if (!body) return false
-        const failed = rt.Router_TokenPoolLockOrBurnFailed.fromSlice(body.beginParse())
+        const failed = rt.Router_LockOrBurnWithdrawFailed.fromSlice(body.beginParse())
         return (
-          failed.tokenPool.equals(tokenPool) && failed.errorCode === BigInt(rt.Router.Errors[error])
+          failed.tokenPool.equals(tokenPool) &&
+          (error === undefined || failed.errorCode === BigInt(rt.Router.Errors[error]))
         )
       },
     })
@@ -272,7 +281,7 @@ describe('Router.withdrawToTokenPool', () => {
     })
   })
 
-  it('emits TokenPoolWithdrawBounced when the deposit account reports a failed withdraw', async () => {
+  it('fails the CCIPSend when the deposit account reports a failed withdraw', async () => {
     const tokenPool = await blockchain.treasury('tokenPool')
     const accountAddress = await deployDepositAccount(sender)
     const walletAddress = await blockchain.treasury('accountWallet')
@@ -300,12 +309,8 @@ describe('Router.withdrawToTokenPool', () => {
       success: true,
     })
 
-    assertLog(result.transactions, router.address, LogTypes.TokenPoolWithdrawBounced, {
-      wallet: walletAddress.address,
-      tokenPool: tokenPool.address,
-      exitCode: 0n,
-    })
-    expectCCIPSendFailed(result, tokenPool.address, 'Router_Error.SenderAccountWithdrawFailed')
+    expectPoolWithdrawFailed(result, tokenPool.address)
+    expectExecutorFailed(result, tokenPool.address, 'Router_Error.SenderAccountWithdrawFailed')
   })
 
   it('fails the CCIPSend when the account transfer to the pool bounces', async () => {
@@ -329,7 +334,8 @@ describe('Router.withdrawToTokenPool', () => {
       op: deposit.DepositAccount_WithdrawFailed.PREFIX,
       success: true,
     })
-    expectCCIPSendFailed(result, tokenPool.address, 'Router_Error.SenderAccountWithdrawFailed')
+    expectPoolWithdrawFailed(result, tokenPool.address)
+    expectExecutorFailed(result, tokenPool.address, 'Router_Error.SenderAccountWithdrawFailed')
   })
 
   it('fails the CCIPSend when the account rejects the withdraw', async () => {
@@ -346,17 +352,47 @@ describe('Router.withdrawToTokenPool', () => {
         tokenPool: tokenPool.address,
       }),
     })
+    expectPoolWithdrawFailed(result, tokenPool.address)
+    expectExecutorFailed(result, tokenPool.address)
+  })
+
+  it('settles the executor even when the pool refund notification fails', async () => {
+    // The Router rejects the refund notification (unknown opcode), so its action fails. The
+    // executor failure must still go out: settlement cannot depend on third-party pool behaviour.
+    const result = await router.sendRouterWithdrawToTokenPool(onRamp.getSender(), withdrawValue, {
+      destChainSelector,
+      executor: executor.address,
+      withdrawRequest: buildWithdrawRequest({
+        user: sender.address,
+        amount: toNano('5'),
+        tokenPool: router.address,
+      }),
+    })
+
     expect(result.transactions).toHaveTransaction({
       from: router.address,
-      to: executor.address,
-      op: rt.Router_TokenPoolLockOrBurnFailed.PREFIX,
-      body(body) {
-        if (!body) return false
-        return rt.Router_TokenPoolLockOrBurnFailed.fromSlice(body.beginParse()).tokenPool.equals(
-          tokenPool.address,
-        )
-      },
+      to: router.address,
+      op: rt.TokenPool_LockOrBurnWithdrawFailed.PREFIX,
+      success: false,
     })
+    expectExecutorFailed(result, router.address)
+  })
+
+  it('settles the executor and refunds the pool with a short failure callback', async () => {
+    const tokenPool = await blockchain.treasury('tokenPool')
+    // No sender account: the withdraw bounces at the Router. The callback carries just enough
+    // for the refund and the executor settlement.
+    const result = await router.sendRouterWithdrawToTokenPool(onRamp.getSender(), toNano('0.03'), {
+      destChainSelector,
+      executor: executor.address,
+      withdrawRequest: buildWithdrawRequest({
+        user: sender.address,
+        amount: toNano('5'),
+        tokenPool: tokenPool.address,
+      }),
+    })
+    expectPoolWithdrawFailed(result, tokenPool.address)
+    expectExecutorFailed(result, tokenPool.address)
   })
 
   it('fails the CCIPSend without withdrawing when the payload names another executor', async () => {
@@ -378,7 +414,8 @@ describe('Router.withdrawToTokenPool', () => {
       to: accountAddress,
       op: deposit.DepositAccount_Withdraw.PREFIX,
     })
-    expectCCIPSendFailed(result, tokenPool.address, 'Router_Error.WithdrawExecutorMismatch')
+    expectPoolWithdrawFailed(result, tokenPool.address)
+    expectExecutorFailed(result, tokenPool.address, 'Router_Error.WithdrawExecutorMismatch')
   })
 
   it('rejects a DepositAccount_WithdrawFailed from an address that is not the claimed deposit account', async () => {
@@ -431,6 +468,73 @@ describe('Router.withdrawToTokenPool', () => {
       to: router.address,
       success: false,
       exitCode: rt.Router.Errors['Router_Error.SenderIsNotSenderAccount'],
+    })
+  })
+
+  it('forwards an OnRamp pool refund request to the pool', async () => {
+    const tokenPool = await blockchain.treasury('tokenPool')
+
+    const result = await router.sendRouterLockOrBurnWithdrawFailedForwardTP(
+      onRamp.getSender(),
+      toNano('0.1'),
+      {
+        queryId: 1n,
+        destChainSelector,
+        tokenPool: tokenPool.address,
+        forwardPayload: buildLockOrBurnForwardPayload(),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: tokenPool.address,
+      op: rt.TokenPool_LockOrBurnWithdrawFailed.PREFIX,
+    })
+  })
+
+  it('does not spend Router balance on the refund relay', async () => {
+    const tokenPool = await blockchain.treasury('tokenPool')
+    const before = (await blockchain.getContract(router.address)).balance
+
+    const result = await router.sendRouterLockOrBurnWithdrawFailedForwardTP(
+      onRamp.getSender(),
+      toNano('0.0075'),
+      {
+        queryId: 1n,
+        destChainSelector,
+        tokenPool: tokenPool.address,
+        forwardPayload: buildLockOrBurnForwardPayload(),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: tokenPool.address,
+      op: rt.TokenPool_LockOrBurnWithdrawFailed.PREFIX,
+    })
+    const after = (await blockchain.getContract(router.address)).balance
+    expect(after).toBeGreaterThanOrEqual(before)
+  })
+
+  it('rejects a refund-only withdraw failure from a non-OnRamp', async () => {
+    const tokenPool = await blockchain.treasury('tokenPool')
+
+    const result = await router.sendRouterLockOrBurnWithdrawFailedForwardTP(
+      sender.getSender(),
+      toNano('0.1'),
+      {
+        queryId: 1n,
+        destChainSelector,
+        tokenPool: tokenPool.address,
+        forwardPayload: buildLockOrBurnForwardPayload(),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: sender.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.Router.Errors['Router_Error.NotOnRamp'],
     })
   })
 

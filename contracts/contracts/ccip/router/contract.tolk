@@ -117,11 +117,22 @@ fun onInternalMessage(in: InMessage) {
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
             onWithdrawToTokenPool(msg);
         }
-        // Sender must be OnRamp
-        Router_WithdrawToTokenPoolFailed => {
+        // OnRamp refund-only request: forward the full inbound value to the pool.
+        Router_LockOrBurnWithdrawFailedForwardTP => {
             val st = lazy Storage.load();
             assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
-            onWithdrawToTokenPoolFailed(msg);
+
+            val refund = createMessage({
+                bounce: BounceMode.NoBounce,
+                value: 0,
+                dest: msg.tokenPool,
+                body: TokenPool_LockOrBurnWithdrawFailed {
+                    queryId: 0,
+                    forwardPayload: msg.forwardPayload,
+                    errorCode: 0,
+                },
+            });
+            refund.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_IGNORE_ERRORS);
         }
         // Permissionless (authorization is handle at the ReceiverExecutor)
         Router_CCIPReceiveConfirm => {
@@ -220,7 +231,7 @@ fun onInternalMessage(in: InMessage) {
             val details = lazy request.transfer.details.load();
             assertSenderIsOnRamp(st, details.remoteChainSelector, in.senderAddress);
             if (isCursed(st, details.remoteChainSelector)) {
-                return sendLockOrBurnRelayFailure(
+                return sendLockOrBurnFailure(
                     msg.executorAddress,
                     msg.queryId,
                     msg.tokenPool,
@@ -323,7 +334,7 @@ fun onBouncedMessage(in: InMessageBounced) {
             onOnRampGetValidatedFeeBounced(richMsg, rich.exitCode);
         }
         TokenPool_LockOrBurn => {
-            sendLockOrBurnRelayFailure(
+            sendLockOrBurnFailure(
                 richMsg.replyTo,
                 richMsg.queryId,
                 in.senderAddress,
@@ -434,20 +445,22 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Cell<Any2TVMMessage>, offr
 }
 
 /// Asks the sender's sender account to transfer the jettons to the pool. A rejected or bounced
-/// transfer fails the CCIPSend through `failWithdrawToTokenPool`, which finds the executor in the
-/// transfer's forward payload, so that payload must name the executor requesting the withdraw.
+/// transfer fails the CCIPSend through `failWithdrawToTokenPool`, which settles the executor
+/// directly and asks the pool to refund the outbound rate limit.
 fun onWithdrawToTokenPool(msg: Router_WithdrawToTokenPool) {
     val withdrawRequest = lazy msg.withdrawRequest.load();
     val account = withdrawRequest.senderAccount.load();
     val fwdp = lazy withdrawRequest.forwardPayload.load();
     val request = lazy fwdp.requestMsg.load();
     if (request.replyTo != msg.executor) {
-        return sendLockOrBurnRelayFailure(
+        settleWithdrawFailure(
             msg.executor,
             msg.queryId,
             withdrawRequest.tokenPool,
+            withdrawRequest.forwardPayload,
             Router_Error.WithdrawExecutorMismatch as int32,
         );
+        return;
     }
 
     // The notification carries what the pool asked for; the wallet rejects an underfunded transfer
@@ -553,24 +566,56 @@ fun onSenderAccountReady(context: Router_SenderAccountContext, msg: DepositAccou
 fun onDepositAccountWithdrawFailed(msg: DepositAccount_WithdrawFailed, sender: address) {
     assert (sender == senderAccountAddress(msg.user, msg.token)) throw (Router_Error.SenderIsNotSenderAccount);
     val request = lazy msg.request.load();
-    emit(TOKEN_POOL_WITHDRAW_BOUNCED_TOPIC, TokenPoolWithdrawBounced {
-        wallet: msg.walletAddress,
-        tokenPool: request.ask.transferRecipient,
-        queryId: msg.queryId,
-        exitCode: 0,
-    });
-    // The event's forward fee comes out of the inbound value, not the Router's balance.
+    failWithdrawToTokenPool(request, Router_Error.SenderAccountWithdrawFailed as int32);
+}
+
+/// Settles a pre-custody withdraw failure with a fixed pool refund and an executor failure.
+fun settleWithdrawFailure(
+    executor: address,
+    queryId: uint64,
+    tokenPool: address,
+    forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>,
+    errorCode: int32,
+) {
     reserveGramsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
-    failWithdrawToTokenPool(request, Router_Error.SenderAccountWithdrawFailed as int32, SEND_MODE_CARRY_ALL_BALANCE);
+
+    val refund = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: Router_Costs.tokenPoolRefund(),
+        dest: tokenPool,
+        body: TokenPool_LockOrBurnWithdrawFailed {
+            queryId: 0,
+            forwardPayload,
+            errorCode: 0,
+        },
+    });
+    refund.send(SEND_MODE_REGULAR | SEND_MODE_IGNORE_ERRORS);
+
+    val failed = createMessage({
+        bounce: BounceMode.NoBounce,
+        value: 0,
+        dest: executor,
+        body: Router_LockOrBurnWithdrawFailed { queryId, tokenPool, errorCode },
+    });
+    failed.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Fails the CCIPSend whose withdraw from the sender's sender account did not go through. `ask`
 /// was built by `onWithdrawToTokenPool`, which checked that its forward payload names the executor.
-fun failWithdrawToTokenPool(request: DepositAccount_Withdraw, errorCode: int32, mode: int = SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE) {
+/// The executor is notified directly (it is the only one that can release the fee reservation),
+/// and the pool is asked separately to refund the bucket. The pool is third-party code, so it must
+/// not be on the critical path for executor settlement.
+fun failWithdrawToTokenPool(request: DepositAccount_Withdraw, errorCode: int32) {
     val fwpCell = loadForwardPayloadAsCell(request.ask.forwardPayload)!;
     val fwdp = lazy TokenPool_LockOrBurnForwardPayload.fromCell(fwpCell);
     val lockOrBurn = lazy fwdp.requestMsg.load();
-    sendLockOrBurnRelayFailure(lockOrBurn.replyTo, lockOrBurn.queryId, request.ask.transferRecipient, errorCode, mode);
+    settleWithdrawFailure(
+        lockOrBurn.replyTo,
+        lockOrBurn.queryId,
+        request.ask.transferRecipient,
+        fwpCell as Cell<TokenPool_LockOrBurnForwardPayload>,
+        errorCode,
+    );
 }
 
 /// Returns accidentally transferred jettons to the transfer initiator. The Router's own jetton
@@ -624,28 +669,7 @@ fun senderAccount(user: address, token: address): AutoDeployAddress {
     return Router.senderAccount(contract.getAddress(), user, token, deployableCompiledCode());
 }
 
-/*
-Relays an OnRamp withdrawal rejection to the token pool so it can reinstate the rate limit
-consumed at admission and fail the send.
-*/
-fun onWithdrawToTokenPoolFailed(msg: Router_WithdrawToTokenPoolFailed) {
-    val withdrawRequest = lazy msg.withdrawRequest.load();
-    val failure = createMessage({
-        bounce: BounceMode.NoBounce,
-        value: 0,
-        dest: withdrawRequest.tokenPool,
-        body: TokenPool_LockOrBurnWithdrawFailed {
-            queryId: msg.queryId,
-            forwardPayload: withdrawRequest.forwardPayload,
-            errorCode: msg.errorCode,
-        },
-    });
-    failure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-}
-
-/*
-Applies OnRamp and OffRamp updates. Restricted to contract owner.
-*/
+/// Applies OnRamp and OffRamp updates. Restricted to contract owner.
 fun onApplyRampUpdates(mutate st: Storage, msg: Router_ApplyRampUpdates) {
     updateOnRamps(mutate st, msg.onRampUpdates);
     updateOffRamps(mutate st, msg.offRampAdds, msg.offRampRemoves);
@@ -1357,7 +1381,7 @@ fun isCursed(st: Storage, remoteChainSelector: uint64): bool {
     return st.rmnRemote.load().policy.cursedSubjects.isCursed(remoteChainSelector as uint128);
 }
 
-fun sendLockOrBurnRelayFailure(
+fun sendLockOrBurnFailure(
     executor: address,
     queryId: uint64,
     tokenPool: address,
@@ -1368,7 +1392,7 @@ fun sendLockOrBurnRelayFailure(
         bounce: BounceMode.NoBounce,
         value: 0,
         dest: executor,
-        body: Router_TokenPoolLockOrBurnFailed { queryId, tokenPool, errorCode },
+        body: Router_LockOrBurnFailed { queryId, tokenPool, errorCode },
     });
     failed.send(mode | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
