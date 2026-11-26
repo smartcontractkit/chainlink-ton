@@ -86,12 +86,18 @@ struct TokenPool_LockOrBurnPrepared {
     /// Token amount in local token decimals after deducting the fee.
     destTokenAmount: coins; 
     out: TokenPool_LockOrBurnOutV1;
+    /// Whether admission consumed the fast-finality outbound bucket. The refund must restore the
+    /// same bucket even if the fast-finality config was disabled in the meantime.
+    fastFinalityConsumed: bool = false;
 }
 
 struct TokenPool_ReleaseOrMintPrepared {
     requestedFinalityConfig: uint32;
     localAmount: coins;
     out: TokenPool_ReleaseOrMintOutV1;
+    /// Whether admission consumed the fast-finality inbound bucket. The refund must restore the
+    /// same bucket even if the fast-finality config was disabled in the meantime.
+    fastFinalityConsumed: bool = false;
 }
 
 // IPoolV2

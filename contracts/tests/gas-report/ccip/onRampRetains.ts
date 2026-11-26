@@ -122,7 +122,7 @@ export const onRampRetains = (() => {
       ...upToTokenInfo,
       {
         contract: 'SendExecutor',
-        op: 'Router_TokenPoolLockOrBurnFailed',
+        op: 'Router_LockOrBurnFailed',
         kind: 'drain', // The executor exits returning all held balance to the OnRamp
       },
     ]
@@ -130,16 +130,38 @@ export const onRampRetains = (() => {
     // custody value until the Router reports WithdrawFailed and it drains; the pool and
     // message-sent hops are gone. The withdraw hop itself is a pass-through (the bounce returns
     // its value), so it needs no rule.
-    const withdrawFailed: BalanceRule[] = [
+    const poolRefund = (kind: PoolKind): BalanceRule => ({
+      contract: `${kind}Pool`,
+      op: 'TokenPool_LockOrBurnWithdrawFailed',
+      kind: 'deltaRange',
+      min: 0n,
+      max: toNano('0.005'), // The pool keeps the refund notification after compute/event fees.
+    })
+
+    const withdrawFailed = (kind: PoolKind): BalanceRule[] => [
       ...upToTokenInfo,
+      poolRefund(kind),
       {
         contract: 'SendExecutor',
-        op: 'Router_TokenPoolLockOrBurnFailed',
+        op: 'Router_LockOrBurnWithdrawFailed',
         kind: 'drain', // The executor exits returning all held balance to the OnRamp
       },
     ]
 
-    return { upToTokenInfo, successful, poolRejected, withdrawFailed }
+    // The OnRamp-validation failure settles the executor directly and forwards a refund-only
+    // notification through the Router. The Router forwards its full inbound value to the pool and
+    // must never keep a relay remainder or fund this hop from its own balance.
+    const onRampRejected = (kind: PoolKind): BalanceRule[] => [
+      ...upToTokenInfo,
+      poolRefund(kind),
+      {
+        contract: 'SendExecutor',
+        op: 'Router_LockOrBurnWithdrawFailed',
+        kind: 'drain',
+      },
+    ]
+
+    return { upToTokenInfo, successful, poolRejected, withdrawFailed, onRampRejected }
   })()
 
   // The Get Sender Account flow: the account is deployed with its storage reserve, the init

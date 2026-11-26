@@ -172,11 +172,15 @@ describe('OnRamp - ExecutorRequestsLockOrBurn', () => {
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
       to: executorAddress,
-      op: or.OnRamp_LockOrBurnFailed.PREFIX,
+      op: rt.Router_LockOrBurnFailed.PREFIX,
       body(x) {
         if (!x) return false
-        const failed = or.OnRamp_LockOrBurnFailed.fromSlice(x.beginParse())
-        return failed.queryId === 7n && failed.errorCode === 0xffffn
+        const failed = rt.Router_LockOrBurnFailed.fromSlice(x.beginParse())
+        return (
+          failed.queryId === 7n &&
+          failed.tokenPool.equals(mockTokenPool.address) &&
+          failed.errorCode === 0xffffn
+        )
       },
     })
   })

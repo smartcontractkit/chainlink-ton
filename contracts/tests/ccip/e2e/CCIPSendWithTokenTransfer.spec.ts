@@ -348,7 +348,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     })
   }
 
-  async function sendTokenTransfer() {
+  async function sendTokenTransfer(deposit = true) {
     // Register a per-token TokenTransferFeeConfig whose destGasOverhead differs from the lane
     // default: the executor must forward the FeeQuoter's per-token value into destExecData,
     // and asserting the default would not catch a regression to the old hardcoded default
@@ -424,7 +424,7 @@ describe('CCIPSend with token transfer (e2e)', () => {
     }
 
     // User transfers wGRAM to the router-owned wallet, carrying the CCIPSend payload.
-    {
+    if (deposit) {
       const result = await senderWallet.sendTransfer(sender.getSender(), {
         value: toNano('2'),
         message: {
@@ -492,6 +492,31 @@ describe('CCIPSend with token transfer (e2e)', () => {
     sendExecutor = blockchain.openContract(exe.CCIPSendExecutor.fromAddress(executorAddress))
     return { result, executorAddress, senderWallet, destGasOverheadOverride }
   }
+
+  it('refunds the outbound rate limit when the sender account withdraw fails (C-1)', async () => {
+    await registerToken()
+    const before = await tokenPool.getCurrentRateLimiterState(DestChainSelector, false)
+
+    // The sender account is deployed but left empty, so the pool admits the send and then the
+    // account withdraw fails. The Router must refund the pool's outbound bucket.
+    const { result } = await sendTokenTransfer(false)
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.Router_CCIPSendNACK.PREFIX,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: tokenPool.address,
+      op: tp.TokenPool_LockOrBurnWithdrawFailed.PREFIX,
+      success: true,
+    })
+
+    const after = await tokenPool.getCurrentRateLimiterState(DestChainSelector, false)
+    expect(after.outbound.tokens).toEqual(before.outbound.tokens)
+  })
 
   it('propagates a token-transfer-initiated CCIP send end to end', async () => {
     await registerToken()

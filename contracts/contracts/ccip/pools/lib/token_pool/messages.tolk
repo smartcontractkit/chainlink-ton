@@ -271,7 +271,9 @@ struct (0xd22944d5) TokenPool_GetCCVsAndFees {
     forwardPayload: cell?;                          // Per-request context echoed back in the reply.
 }
 
-/// Reply to `TokenPool_GetCCVs`: required CCVs only; `forwardPayload` echoes the caller's context.
+/// Reply carrying a required CCV set. Sent by the pool to a `TokenPool_GetCCVs` caller, and by
+/// AdvancedPoolHooks to the pool's `TokenPool_QueryCCVs`. `forwardPayload` echoes the requester's
+/// context in both directions.
 struct (0x6c70b2dd) TokenPool_CCVs {
     queryId: uint64;
     requiredCCVs: array<address>;                   // Max 255; empty = use lane defaults.
@@ -303,14 +305,6 @@ struct TokenPool_GetCCVsContext {
     fees: cell?;                                    // Cell<TokenPool_FeeContext>; null for CCVs-only.
 }
 
-/// Reply from AdvancedPoolHooks carrying the required CCV set for a `TokenPool_GetCCVs`
-/// forwarded by the pool. An empty `requiredCCVs` list signals "use the lane defaults".
-struct (0x30612b17) TokenPool_QueryCCVsReply {
-    queryId: uint64;
-    requiredCCVs: array<address>;                   // Max 255.
-    forwardPayload: cell?;                          // Cell<TokenPool_GetCCVsContext> echoed back.
-}
-
 type TokenPool_InMessage =
     | TokenPool_LockOrBurn
     | TransferNotificationForRecipient // forwardPayload = TokenPool_LockOrBurnForwardPayload
@@ -323,7 +317,7 @@ type TokenPool_InMessage =
     | TokenPool_PostflightCheckFailed
     | TokenPool_GetCCVs
     | TokenPool_GetCCVsAndFees
-    | TokenPool_QueryCCVsReply
+    | TokenPool_CCVs
     | TokenPool_ApplyChainUpdates
     | TokenPool_AddRemotePool
     | TokenPool_RemoveRemotePool
@@ -352,6 +346,9 @@ struct (0xe7a35041) TokenPool_LockOrBurnWithdraw {
     forwardPayload: TokenPool_LockOrBurnForwardPayload;
 }
 
+/// Sent by the Router on a pre-custody withdraw failure. Refund-only: the pool reinstates the
+/// outbound rate limit but does not notify the executor, because the Router settles it directly.
+/// `queryId` and `errorCode` are retained for compatibility/observability.
 struct (0x9643c08d) TokenPool_LockOrBurnWithdrawFailed {
     queryId: uint64;
     forwardPayload: Cell<TokenPool_LockOrBurnForwardPayload>;
