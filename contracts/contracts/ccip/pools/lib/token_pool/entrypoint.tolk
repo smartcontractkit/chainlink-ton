@@ -416,6 +416,7 @@ fun TokenPool<T>.getDynamicConfig(self): TokenPool_DynamicConfig {
 /// Gets the finality config as defined in the FinalityCodec library. This value does NOT 1:1 translate to
 /// a block depth. The finality config contains special flags and should only be encoded/decoded using the
 /// FinalityCodec library. Checks must happen by calling `FinalityCodec._ensureRequestedFinalityAllowed`.
+/// Mirrors EVM: this is an outbound/fee policy. It is not enforced on inbound releases or CCVs-only queries.
 @inline
 fun TokenPool<T>.getAllowedFinalityConfig(self): uint32 {
     val ac = lazy self.data.adminConfig.load();
@@ -1426,15 +1427,14 @@ fun TokenPool<T>.getCCVAmount(
     return self.calculateLocalAmount(sourceDenominatedAmount as uint256, remoteDecimals);
 }
 
-/// Validate a CCV query's finality/token/chain, shared by `onGetCCVs`/`onGetCCVsAndFees`.
+/// Validate a CCV query's token/chain, shared by `onGetCCVs`/`onGetCCVsAndFees`.
+/// Finality is intentionally not validated here: EVM `getRequiredCCVs` performs no finality check.
+/// The fee variant validates it separately to mirror EVM `getFee`.
 fun TokenPool<T>.validateGetCCVsRequest(
     self,
     localToken: address,
     remoteChainSelector: uint64,
-    requestedFinalityConfig: uint32,
 ): void {
-    val adminConfig = lazy self.data.adminConfig.load();
-    TokenPool<T>.ensureRequestedFinalityAllowed(requestedFinalityConfig, adminConfig.allowedFinalityConfig);
     assert (self.isSupportedToken(localToken)) throw (TokenPool_Error.InvalidToken);
     self.requireSupportedChain(remoteChainSelector);
 }
@@ -1452,7 +1452,7 @@ fun TokenPool<T>.onGetCCVs(
     self.requireInitialized();
     self.requireMinValue(msgValue);
 
-    self.validateGetCCVsRequest(msg.localToken, msg.remoteChainSelector, msg.requestedFinalityConfig);
+    self.validateGetCCVsRequest(msg.localToken, msg.remoteChainSelector);
 
     val replyTo = msg.replyTo == null ? sender : msg.replyTo;
     if (replyTo != sender) {
@@ -1502,7 +1502,10 @@ fun TokenPool<T>.onGetCCVsAndFees(
     self.requireInitialized();
     self.requireMinValue(msgValue);
 
-    self.validateGetCCVsRequest(msg.localToken, msg.remoteChainSelector, msg.requestedFinalityConfig);
+    // This query also quotes fees, so it mirrors EVM `getFee` and enforces the pool's allowed
+    // finality. The CCVs-only query mirrors `getRequiredCCVs` and does not.
+    val adminConfig = lazy self.data.adminConfig.load();
+    TokenPool<T>.ensureRequestedFinalityAllowed(msg.requestedFinalityConfig, adminConfig.allowedFinalityConfig);
 
     val fees = self.getFeeParamsAndPostFeeAmount(
         msg.remoteChainSelector, msg.amount, msg.requestedFinalityConfig, msg.direction
@@ -2032,10 +2035,10 @@ fun TokenPool<T>.validateReleaseOrMint(
 
     // Consume rate limit BEFORE hook check — _consume throws BucketOverfilled
     // designed to bounce to the original sender, not to the hooks contract.
+    // EVM `_validateReleaseOrMint` does not enforce `allowedFinality` on the destination; it only
+    // selects the fast-finality bucket. Destination finality policy is the source/CCV responsibility.
     var fastFinalityConsumed = false;
     if (msg.requestedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
-        val adminConfig = lazy self.data.adminConfig.load();
-        TokenPool<T>.ensureRequestedFinalityAllowed(msg.requestedFinalityConfig, adminConfig.allowedFinalityConfig);
         fastFinalityConsumed = self.consumeFastFinalityInboundRateLimit(details.remoteChainSelector, localAmount);
     } else {
         self.consumeInboundRateLimit(details.remoteChainSelector, localAmount);

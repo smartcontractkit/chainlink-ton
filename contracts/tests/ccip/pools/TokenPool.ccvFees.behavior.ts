@@ -260,40 +260,13 @@ export function runTokenPoolCcvFeesBehaviorTests(
       })
     })
 
-    it('GetCCVs reverts for a disallowed finality config', async () => {
+    it('GetCCVs does not enforce allowedFinality (EVM getRequiredCCVs parity)', async () => {
       const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.3'), {
         queryId: 14n,
         localToken: ctx.localToken,
         remoteChainSelector: ctx.remoteChainSelector,
         amount: toNano('1'),
         requestedFinalityConfig: 123n, // non-zero, not the allowed finality (0)
-        direction: 0n,
-        extraData: null,
-        replyTo: ctx.deployer.address,
-        forwardPayload: null,
-      })
-
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.deployer.address,
-        to: ctx.pool.address,
-        success: false,
-      })
-    })
-
-    it('GetCCVs accepts a deeper block depth than the allowed minimum (FinalityCodec)', async () => {
-      const allowedDepth = 10n
-      await ctx.pool.sendTokenPoolSetAllowedFinalityConfig(
-        ctx.deployer.getSender(),
-        toNano('0.2'),
-        { queryId: 141n, allowedFinalityConfig: allowedDepth },
-      )
-
-      const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.3'), {
-        queryId: 142n,
-        localToken: ctx.localToken,
-        remoteChainSelector: ctx.remoteChainSelector,
-        amount: toNano('1'),
-        requestedFinalityConfig: allowedDepth + 2n,
         direction: 0n,
         extraData: null,
         replyTo: ctx.deployer.address,
@@ -308,36 +281,47 @@ export function runTokenPoolCcvFeesBehaviorTests(
       })
     })
 
-    it('GetCCVs rejects a structurally invalid finality request (FinalityCodec)', async () => {
-      const waitForSafe = 0x00010000n
-      await ctx.pool.sendTokenPoolSetAllowedFinalityConfig(
-        ctx.deployer.getSender(),
-        toNano('0.2'),
-        { queryId: 143n, allowedFinalityConfig: waitForSafe },
-      )
-
-      const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.3'), {
-        queryId: 144n,
-        localToken: ctx.localToken,
-        remoteChainSelector: ctx.remoteChainSelector,
-        amount: toNano('1'),
-        // SAFE flag combined with a block depth is two active modes; requesters may only signal one.
-        requestedFinalityConfig: waitForSafe | 7n,
-        direction: 0n,
-        extraData: null,
-        replyTo: ctx.deployer.address,
-        forwardPayload: null,
-      })
-
-      expect(result.transactions).toHaveTransaction({
-        from: ctx.deployer.address,
-        to: ctx.pool.address,
-        success: false,
-        exitCode: 50301, // FinalityCodec_Error.RequestedFinalityCanOnlyHaveOneMode
-      })
-    })
-
     // ======= TokenPool_GetCCVsAndFees (CCVs + fee) =======
+
+    it.each([
+      {
+        name: 'a disallowed finality config',
+        requestedFinalityConfig: 123n, // non-zero, not the allowed finality (0)
+        exitCode: 50300, // FinalityCodec_Error.InvalidRequestedFinality
+      },
+      {
+        name: 'a structurally invalid finality request',
+        // SAFE flag combined with a block depth is two active modes; requesters may only signal one.
+        requestedFinalityConfig: 0x00010000n | 7n,
+        exitCode: 50301, // FinalityCodec_Error.RequestedFinalityCanOnlyHaveOneMode
+      },
+    ])(
+      'GetCCVsAndFees reverts for $name (mirrors EVM getFee)',
+      async ({ requestedFinalityConfig, exitCode }) => {
+        const result = await ctx.pool.sendTokenPoolGetCCVsAndFees(
+          ctx.deployer.getSender(),
+          toNano('0.3'),
+          {
+            queryId: 140n,
+            localToken: ctx.localToken,
+            remoteChainSelector: ctx.remoteChainSelector,
+            amount: toNano('1'),
+            requestedFinalityConfig,
+            direction: 0n,
+            extraData: null,
+            replyTo: ctx.deployer.address,
+            forwardPayload: null,
+          },
+        )
+
+        expect(result.transactions).toHaveTransaction({
+          from: ctx.deployer.address,
+          to: ctx.pool.address,
+          success: false,
+          exitCode,
+        })
+      },
+    )
 
     it('GetCCVsAndFees (enabled 1% fee) replies TokenPool_CCVsAndFees with post-fee amount + fee config', async () => {
       const fwd = beginCell().storeUint(0xcafe, 16).endCell()

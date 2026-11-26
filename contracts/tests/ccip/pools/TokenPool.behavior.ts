@@ -833,6 +833,30 @@ export function runTokenPoolBehaviorTests(
       })
     })
 
+    it('accepts fast-finality inbound even when allowedFinality is default (EVM parity)', async () => {
+      const ctx = await setup()
+
+      // allowedFinality defaults to 0. Fast-finality buckets are disabled by default, so the
+      // pool falls back to the standard inbound bucket; the request must not be rejected.
+      const result = await ctx.pool.sendTokenPoolReleaseOrMint(
+        ctx.deployer.getSender(),
+        toNano('0.3'),
+        {
+          queryId: 933n,
+          request: releaseRequest(ctx),
+          requestedFinalityConfig: 1n,
+          replyTo: ctx.deployer.address,
+          delivery: deliveryTo(ctx.recipient.address, ctx.deployer.address),
+        },
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        success: true,
+      })
+    })
+
     it('refills elapsed capacity and caps at capacity (EVM 2.0)', async () => {
       const ctx = await setup()
 
