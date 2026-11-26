@@ -43,7 +43,16 @@ var GetTypeAndVersion = common.GetTypeAndVersion
 var (
 	GetOwner                   = tokenpool.GetOwner
 	GetPendingOwner            = tokenpool.GetPendingOwner
+	GetFacilityId              = tokenpool.GetFacilityId
+	GetErrorCode               = tokenpool.GetErrorCode
+	GetRMNOwner                = tokenpool.GetRMNOwner
+	GetRMNPendingOwner         = tokenpool.GetRMNPendingOwner
+	GetRMNHasRole              = tokenpool.GetRMNHasRole
+	GetRMNRoleAdmin            = tokenpool.GetRMNRoleAdmin
+	GetRMNCanCurse             = tokenpool.GetRMNCanCurse
+	GetRMNCanUncurse           = tokenpool.GetRMNCanUncurse
 	GetToken                   = tokenpool.GetToken
+	GetIsSupportedToken        = tokenpool.GetIsSupportedToken
 	GetTokenDecimals           = tokenpool.GetTokenDecimals
 	GetIsSupportedChain        = tokenpool.GetIsSupportedChain
 	GetSupportedChains         = tokenpool.GetSupportedChains
@@ -61,6 +70,7 @@ var (
 	GetAdminConfig             = tokenpool.GetAdminConfig
 	GetRemoteChainConfig       = tokenpool.GetRemoteChainConfig
 	GetFee                     = tokenpool.GetFee
+	GetFeeAmount               = tokenpool.GetFeeAmount
 	GetCCVAmount               = tokenpool.GetCCVAmount
 	GetAccruedFees             = tokenpool.GetAccruedFees
 	GetIsInitialized           = tokenpool.GetIsInitialized
@@ -76,6 +86,9 @@ type GetCurrentRateLimiterStateArgs = tokenpool.GetCurrentRateLimiterStateArgs
 
 // GetFeeArgs holds the arguments for the getFee getter.
 type GetFeeArgs = tokenpool.GetFeeArgs
+
+// GetFeeAmountArgs holds the arguments for the getFeeAmount getter.
+type GetFeeAmountArgs = tokenpool.GetFeeAmountArgs
 
 // GetCCVAmountArgs holds the arguments for the getCCVAmount getter.
 type GetCCVAmountArgs = tokenpool.GetCCVAmountArgs
