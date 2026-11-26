@@ -37,7 +37,6 @@ const (
 	ErrorMissingForwardPayload
 	ErrorMissingTransferInitiator
 	ErrorAmountMismatch
-	ErrorInvalidRequestedFinality
 	ErrorRateLimitExceeded
 	ErrorPreflightCheckFailed
 	ErrorPostflightCheckFailed

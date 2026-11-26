@@ -6,6 +6,7 @@ import { JettonMinter, JettonWallet } from '../../../wrappers/examples/jetton'
 import { JettonLockBox_Withdraw } from '../../../wrappers/gen/ccip/pools/JettonLockBox'
 import { MintNewJettons } from '../../../wrappers/gen/ccip/cct/JettonMinter'
 import {
+  TokenPool,
   TokenPool_LockOrBurnFailure,
   TokenPool_LockOrBurnFinished,
   TokenPool_LockOrBurnForwardPayload,
@@ -23,7 +24,9 @@ import { deriveSenderAccountAddress } from '../../../wrappers/ccip/SenderAccount
 import { contractCode } from '../../../wrappers/codeLoader'
 import { deliveryTo, releaseRequest, TokenPoolBehaviorContext } from './TokenPool.behavior'
 
-const INSUFFICIENT_MESSAGE_VALUE = 51725n // TokenPool_Error.InsufficientMessageValue
+const INSUFFICIENT_MESSAGE_VALUE = BigInt(
+  TokenPool.Errors['TokenPool_Error.InsufficientMessageValue'],
+)
 
 // Policy regressions on real message chains, not gas calibration. Each floor is fixed
 // before the operation; callback-value assertions establish which side of it was exercised.

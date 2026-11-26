@@ -228,7 +228,7 @@ export function runTokenPoolBehaviorTests(
               to: ctx.pool.address,
               op: TokenPool_LockOrBurn.PREFIX,
               success: false,
-              exitCode: 51725, // TokenPool_Error.InsufficientMessageValue
+              exitCode: TokenPool.Errors['TokenPool_Error.InsufficientMessageValue'],
             })
             const after = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
             expect(after.outbound.tokens).toEqual(before.outbound.tokens)
@@ -274,7 +274,7 @@ export function runTokenPoolBehaviorTests(
               to: ctx.pool.address,
               op: TokenPool_ReleaseOrMint.PREFIX,
               success: false,
-              exitCode: 51725, // TokenPool_Error.InsufficientMessageValue
+              exitCode: TokenPool.Errors['TokenPool_Error.InsufficientMessageValue'],
             })
             const after = await ctx.pool.getCurrentRateLimiterState(ctx.remoteChainSelector, false)
             expect(after.outbound.tokens).toEqual(before.outbound.tokens)

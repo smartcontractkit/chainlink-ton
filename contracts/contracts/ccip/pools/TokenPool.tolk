@@ -2,6 +2,7 @@
 
 import "../../lib/access/ownable_2step"
 import "../lib/cross_chain_address/types"
+import "../lib/finality_codec"
 
 import "lib/token_pool/types"
 import "lib/token_pool/budget"
@@ -19,7 +20,7 @@ contract TokenPool {
     incomingMessages: TokenPool_InMessage | Ownable2Step_Messages
     outgoingMessages: TokenPool_OutMessage
     emittedEvents: TokenPool_Events
-    thrownErrors: TokenPool_Error
+    thrownErrors: TokenPool_Error | FinalityCodec_Error
 }
 
 // --- Getters matching Go bindings in pkg/ccip/bindings/tokenpool/reader.go ---

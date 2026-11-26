@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../../../lib/utils"
 import "../../../lib/cross_chain_address/types"
+import "../../../lib/finality_codec"
 import "../../../rmn_remote/lib"
 
 import "../rate_limiter"
 
-const TOKEN_POOL_WAIT_FOR_FINALITY_FLAG: uint32 = 0;
+const TOKEN_POOL_WAIT_FOR_FINALITY_FLAG: uint32 = FinalityCodec_WAIT_FOR_FINALITY_FLAG;
 const TOKEN_POOL_DEFAULT_FINALITY: uint32 = TOKEN_POOL_WAIT_FOR_FINALITY_FLAG;
 /// The division factor for bps. This also represents the maximum bps fee.
 const TOKEN_POOL_BPS_DIVIDER: uint256 = 10000;

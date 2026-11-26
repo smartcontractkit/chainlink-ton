@@ -29,18 +29,17 @@ func _() {
 	_ = x[ErrorMissingForwardPayload-51718]
 	_ = x[ErrorMissingTransferInitiator-51719]
 	_ = x[ErrorAmountMismatch-51720]
-	_ = x[ErrorInvalidRequestedFinality-51721]
-	_ = x[ErrorRateLimitExceeded-51722]
-	_ = x[ErrorPreflightCheckFailed-51723]
-	_ = x[ErrorPostflightCheckFailed-51724]
-	_ = x[ErrorInsufficientMessageValue-51725]
-	_ = x[ErrorContractNotInitialized-51726]
-	_ = x[ErrorAlreadyInitialized-51727]
+	_ = x[ErrorRateLimitExceeded-51721]
+	_ = x[ErrorPreflightCheckFailed-51722]
+	_ = x[ErrorPostflightCheckFailed-51723]
+	_ = x[ErrorInsufficientMessageValue-51724]
+	_ = x[ErrorContractNotInitialized-51725]
+	_ = x[ErrorAlreadyInitialized-51726]
 }
 
-const _ExitCode_name = "ErrorInvalidTransferFeeBpsErrorInvalidTokenTransferFeeConfigErrorCallerIsNotARampOnRouterErrorZeroAddressInvalidErrorNonExistentChainErrorChainNotAllowedErrorCursedByRMNErrorChainAlreadyExistsErrorInvalidSourcePoolAddressErrorInvalidTokenErrorUnauthorizedErrorPoolAlreadyAddedErrorInvalidRemotePoolForChainErrorInvalidRemoteChainDecimalsErrorOverflowDetectedErrorInvalidDecimalArgsErrorCallerIsNotOwnerOrFeeAdminErrorUnsupportedOperationErrorMissingForwardPayloadErrorMissingTransferInitiatorErrorAmountMismatchErrorInvalidRequestedFinalityErrorRateLimitExceededErrorPreflightCheckFailedErrorPostflightCheckFailedErrorInsufficientMessageValueErrorContractNotInitializedErrorAlreadyInitialized"
+const _ExitCode_name = "ErrorInvalidTransferFeeBpsErrorInvalidTokenTransferFeeConfigErrorCallerIsNotARampOnRouterErrorZeroAddressInvalidErrorNonExistentChainErrorChainNotAllowedErrorCursedByRMNErrorChainAlreadyExistsErrorInvalidSourcePoolAddressErrorInvalidTokenErrorUnauthorizedErrorPoolAlreadyAddedErrorInvalidRemotePoolForChainErrorInvalidRemoteChainDecimalsErrorOverflowDetectedErrorInvalidDecimalArgsErrorCallerIsNotOwnerOrFeeAdminErrorUnsupportedOperationErrorMissingForwardPayloadErrorMissingTransferInitiatorErrorAmountMismatchErrorRateLimitExceededErrorPreflightCheckFailedErrorPostflightCheckFailedErrorInsufficientMessageValueErrorContractNotInitializedErrorAlreadyInitialized"
 
-var _ExitCode_index = [...]uint16{0, 26, 60, 89, 112, 133, 153, 169, 192, 221, 238, 255, 276, 306, 337, 358, 381, 412, 437, 463, 492, 511, 540, 562, 587, 613, 642, 669, 692}
+var _ExitCode_index = [...]uint16{0, 26, 60, 89, 112, 133, 153, 169, 192, 221, 238, 255, 276, 306, 337, 358, 381, 412, 437, 463, 492, 511, 533, 558, 584, 613, 640, 663}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 51700

@@ -41,7 +41,9 @@ export function runTokenPoolAsyncHookBehaviorTests(
   describe(`${name} async hook behavior`, () => {
     describe('callback value shortfall', () => {
       const floor = toNano('1')
-      const insufficientMessageValue = 51725n // TokenPool_Error.InsufficientMessageValue
+      const insufficientMessageValue = BigInt(
+        TokenPool.Errors['TokenPool_Error.InsufficientMessageValue'],
+      )
       const MOCK_HOOKS_COSTLY_ID = 253n // Replies with half of the request's value.
 
       it('aborts LockOrBurn locally when a successful preflight reply is below the custody forward', async () => {

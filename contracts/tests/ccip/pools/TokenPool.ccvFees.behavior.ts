@@ -280,6 +280,63 @@ export function runTokenPoolCcvFeesBehaviorTests(
       })
     })
 
+    it('GetCCVs accepts a deeper block depth than the allowed minimum (FinalityCodec)', async () => {
+      const allowedDepth = 10n
+      await ctx.pool.sendTokenPoolSetAllowedFinalityConfig(
+        ctx.deployer.getSender(),
+        toNano('0.2'),
+        { queryId: 141n, allowedFinalityConfig: allowedDepth },
+      )
+
+      const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.3'), {
+        queryId: 142n,
+        localToken: ctx.localToken,
+        remoteChainSelector: ctx.remoteChainSelector,
+        amount: toNano('1'),
+        requestedFinalityConfig: allowedDepth + 2n,
+        direction: 0n,
+        extraData: null,
+        replyTo: ctx.deployer.address,
+        forwardPayload: null,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.pool.address,
+        to: ctx.deployer.address,
+        success: true,
+        op: TokenPool_CCVs.PREFIX,
+      })
+    })
+
+    it('GetCCVs rejects a structurally invalid finality request (FinalityCodec)', async () => {
+      const waitForSafe = 0x00010000n
+      await ctx.pool.sendTokenPoolSetAllowedFinalityConfig(
+        ctx.deployer.getSender(),
+        toNano('0.2'),
+        { queryId: 143n, allowedFinalityConfig: waitForSafe },
+      )
+
+      const result = await ctx.pool.sendTokenPoolGetCCVs(ctx.deployer.getSender(), toNano('0.3'), {
+        queryId: 144n,
+        localToken: ctx.localToken,
+        remoteChainSelector: ctx.remoteChainSelector,
+        amount: toNano('1'),
+        // SAFE flag combined with a block depth is two active modes; requesters may only signal one.
+        requestedFinalityConfig: waitForSafe | 7n,
+        direction: 0n,
+        extraData: null,
+        replyTo: ctx.deployer.address,
+        forwardPayload: null,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: ctx.deployer.address,
+        to: ctx.pool.address,
+        success: false,
+        exitCode: 50301, // FinalityCodec_Error.RequestedFinalityCanOnlyHaveOneMode
+      })
+    })
+
     // ======= TokenPool_GetCCVsAndFees (CCVs + fee) =======
 
     it('GetCCVsAndFees (enabled 1% fee) replies TokenPool_CCVsAndFees with post-fee amount + fee config', async () => {

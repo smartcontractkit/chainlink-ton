@@ -171,6 +171,12 @@ src = "contracts/test/lib/math.tolk"
 domain = "test"
 depends = []
 
+[contracts.TestLibFinalityCodec]
+display-name = "link.chain.ton.test.lib.FinalityCodec"
+src = "contracts/test/lib/finality_codec.tolk"
+domain = "test"
+depends = []
+
 [contracts.TestMsgHasher]
 display-name = "link.chain.ton.test.lib.MsgHasher"
 src = "contracts/test/lib/msg_hasher.tolk"

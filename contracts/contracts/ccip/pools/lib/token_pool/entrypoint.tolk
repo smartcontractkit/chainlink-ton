@@ -15,6 +15,7 @@ import "../../../../lib/deployable/namespace"
 import "../../../../lib/funding/jetton_withdrawable"
 import "../../../../lib/funding/withdrawable"
 import "../../../lib/cross_chain_address/types"
+import "../../../lib/finality_codec"
 
 import "../../../rmn_remote/lib"
 import "../../../router/types"
@@ -2722,10 +2723,7 @@ fun TokenPool<T>.onlyOwnerOrFeeAdmin(self, sender: address): bool {
 
 /// Ensures a requested finality config is allowed by the pool's allowed finality (see `FinalityCodec`).
 fun TokenPool<T>.ensureRequestedFinalityAllowed(requestedFinalityConfig: uint32, allowedFinalityConfig: uint32): void {
-    if (requestedFinalityConfig == TOKEN_POOL_WAIT_FOR_FINALITY_FLAG) {
-        return;
-    }
-    assert (allowedFinalityConfig != TOKEN_POOL_WAIT_FOR_FINALITY_FLAG && requestedFinalityConfig == allowedFinalityConfig) throw (TokenPool_Error.InvalidRequestedFinality);
+    FinalityCodec_ensureRequestedFinalityAllowed(requestedFinalityConfig, allowedFinalityConfig);
 }
 
 fun TokenPool<T>.isEmptyCrossChainAddress(value: Cell<CrossChainAddress>): bool {

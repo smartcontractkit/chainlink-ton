@@ -27,11 +27,10 @@ enum TokenPool_Error {
     MissingForwardPayload // 51718
     MissingTransferInitiator // 51719
     AmountMismatch // 51720
-    InvalidRequestedFinality // 51721
-    RateLimitExceeded // 51722
-    PreflightCheckFailed // 51723
-    PostflightCheckFailed // 51724
-    InsufficientMessageValue // 51725
-    ContractNotInitialized // 51726
-    AlreadyInitialized // 51727
+    RateLimitExceeded // 51721
+    PreflightCheckFailed // 51722
+    PostflightCheckFailed // 51723
+    InsufficientMessageValue // 51724
+    ContractNotInitialized // 51725
+    AlreadyInitialized // 51726
 }

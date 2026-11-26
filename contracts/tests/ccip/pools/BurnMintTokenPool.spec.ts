@@ -1630,7 +1630,7 @@ describe('BurnMintTokenPool', () => {
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: burnMintPool.address,
-      exitCode: 51725, // TokenPool_Error.InsufficientMessageValue
+      exitCode: TokenPool.Errors['TokenPool_Error.InsufficientMessageValue'],
     })
     expect(result.transactions).not.toHaveTransaction({
       from: burnMintPool.address,

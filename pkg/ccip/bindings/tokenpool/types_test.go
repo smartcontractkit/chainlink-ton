@@ -17,7 +17,7 @@ import (
 )
 
 func TestInsufficientMessageValueExitCode(t *testing.T) {
-	decoded, err := ErrorInsufficientMessageValue.NewFrom(51725)
+	decoded, err := ErrorInsufficientMessageValue.NewFrom(51724)
 	require.NoError(t, err)
 	require.Equal(t, ErrorInsufficientMessageValue, decoded)
 	require.Equal(t, "ErrorInsufficientMessageValue", decoded.String())

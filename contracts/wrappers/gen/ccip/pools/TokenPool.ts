@@ -467,6 +467,26 @@ export const CrossChainAddress = {
 }
 
 /**
+ > enum FinalityCodec_Error { 2 variants }
+ */
+export type FinalityCodec_Error = bigint
+
+export const FinalityCodec_Error = {
+    InvalidRequestedFinality: 50300n,
+    RequestedFinalityCanOnlyHaveOneMode: 50301n,
+
+    fromSlice(s: c.Slice): FinalityCodec_Error {
+        return s.loadUintBig(16);
+    },
+    store(self: FinalityCodec_Error, b: c.Builder): void {
+        b.storeUint(self, 16);
+    },
+    toCell(self: FinalityCodec_Error): c.Cell {
+        return makeCellFrom<FinalityCodec_Error>(self, FinalityCodec_Error.store);
+    }
+}
+
+/**
  > struct TokenPool_DynamicConfig {
  >     router: address
  >     rateLimitAdmin: address?
@@ -4985,7 +5005,7 @@ export const TokenPool_AdvancedPoolHooksUpdated = {
 }
 
 /**
- > enum TokenPool_Error { 28 variants }
+ > enum TokenPool_Error { 27 variants }
  */
 export type TokenPool_Error = bigint
 
@@ -5011,13 +5031,12 @@ export const TokenPool_Error = {
     MissingForwardPayload: 51718n,
     MissingTransferInitiator: 51719n,
     AmountMismatch: 51720n,
-    InvalidRequestedFinality: 51721n,
-    RateLimitExceeded: 51722n,
-    PreflightCheckFailed: 51723n,
-    PostflightCheckFailed: 51724n,
-    InsufficientMessageValue: 51725n,
-    ContractNotInitialized: 51726n,
-    AlreadyInitialized: 51727n,
+    RateLimitExceeded: 51721n,
+    PreflightCheckFailed: 51722n,
+    PostflightCheckFailed: 51723n,
+    InsufficientMessageValue: 51724n,
+    ContractNotInitialized: 51725n,
+    AlreadyInitialized: 51726n,
 
     fromSlice(s: c.Slice): TokenPool_Error {
         return s.loadUintBig(16);
@@ -5888,6 +5907,8 @@ function calculateDeployedAddress(code: c.Cell, data: c.Cell, options: DeployedA
 
 export class TokenPool implements c.Contract {
     static Errors = {
+        'FinalityCodec_Error.InvalidRequestedFinality': 50300,
+        'FinalityCodec_Error.RequestedFinalityCanOnlyHaveOneMode': 50301,
         'TokenPool_Error.InvalidTransferFeeBps': 51700,
         'TokenPool_Error.InvalidTokenTransferFeeConfig': 51701,
         'TokenPool_Error.CallerIsNotARampOnRouter': 51702,
@@ -5909,13 +5930,12 @@ export class TokenPool implements c.Contract {
         'TokenPool_Error.MissingForwardPayload': 51718,
         'TokenPool_Error.MissingTransferInitiator': 51719,
         'TokenPool_Error.AmountMismatch': 51720,
-        'TokenPool_Error.InvalidRequestedFinality': 51721,
-        'TokenPool_Error.RateLimitExceeded': 51722,
-        'TokenPool_Error.PreflightCheckFailed': 51723,
-        'TokenPool_Error.PostflightCheckFailed': 51724,
-        'TokenPool_Error.InsufficientMessageValue': 51725,
-        'TokenPool_Error.ContractNotInitialized': 51726,
-        'TokenPool_Error.AlreadyInitialized': 51727,
+        'TokenPool_Error.RateLimitExceeded': 51721,
+        'TokenPool_Error.PreflightCheckFailed': 51722,
+        'TokenPool_Error.PostflightCheckFailed': 51723,
+        'TokenPool_Error.InsufficientMessageValue': 51724,
+        'TokenPool_Error.ContractNotInitialized': 51725,
+        'TokenPool_Error.AlreadyInitialized': 51726,
     }
 
     readonly address: c.Address
