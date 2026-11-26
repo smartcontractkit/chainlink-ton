@@ -14,7 +14,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/parser"
+	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 )
 
 // --- Shared getters from token_pool.tolk (library) ---
@@ -30,6 +32,53 @@ var GetPendingOwner = ownable2step.GetPendingOwner
 
 // GetTypeAndVersion gets the contract type and version (delegates to common).
 var GetTypeAndVersion = common.GetTypeAndVersion
+
+// GetFacilityID gets the pool's facility ID, used to derive its error codes.
+//
+// On-chain: get fun facilityId(): uint16
+var GetFacilityID = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint16]{
+	Name: "facilityId",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint16, error) {
+		v, err := r.Int(0)
+		if err != nil {
+			return 0, fmt.Errorf("error getting Int(0) - facilityId: %w", err)
+		}
+		return uint16(v.Uint64()), nil
+	}),
+})
+
+// GetErrorCode gets the full error code for a local (facility-scoped) error code.
+//
+// On-chain: get fun errorCode(local: uint16): uint16
+var GetErrorCode = tvm.Getter[uint16, uint16]{
+	Name: "errorCode",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint16, error) {
+		v, err := r.Int(0)
+		if err != nil {
+			return 0, fmt.Errorf("error getting Int(0) - errorCode: %w", err)
+		}
+		return uint16(v.Uint64()), nil
+	}),
+}
+
+// --- Pool-local curse policy (RMN) getters ---
+
+// GetRMNOwner gets the RMN (curse policy) owner, distinct from the pool owner.
+var GetRMNOwner = ownable2step.MakeGetOwner("rmn")
+
+// GetRMNPendingOwner gets the RMN (curse policy) pending owner.
+var GetRMNPendingOwner = ownable2step.MakeGetPendingOwner("rmn")
+
+// Raw AccessControl view of the pool-local curse policy. Note that these
+// under-report authority: the RMN owner is an implicit bearer of every curse
+// role without holding an explicit role entry. Use GetRMNCanCurse /
+// GetRMNCanUncurse to answer "may this account curse?".
+var (
+	GetRMNHasRole    = rbac.MakeGetHasRole("rmn")
+	GetRMNRoleAdmin  = rbac.MakeGetRoleAdmin("rmn")
+	GetRMNCanCurse   = makeCanGetter("rmn_canCurse")
+	GetRMNCanUncurse = makeCanGetter("rmn_canUncurse")
+)
 
 // GetToken gets the Jetton token address that this pool serves.
 //
@@ -68,6 +117,20 @@ var GetIsSupportedChain = tvm.Getter[uint64, bool]{
 		v, err := r.Int(0)
 		if err != nil {
 			return false, fmt.Errorf("error getting Int(0) - isSupportedChain: %w", err)
+		}
+		return v.Cmp(big.NewInt(0)) != 0, nil
+	}),
+}
+
+// GetIsSupportedToken checks whether the given token is supported by the pool.
+//
+// On-chain: get fun isSupportedToken(token: address): bool
+var GetIsSupportedToken = tvm.Getter[*address.Address, bool]{
+	Name: "isSupportedToken",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
+		v, err := r.Int(0)
+		if err != nil {
+			return false, fmt.Errorf("error getting Int(0) - isSupportedToken: %w", err)
 		}
 		return v.Cmp(big.NewInt(0)) != 0, nil
 	}),
@@ -220,6 +283,13 @@ var GetAdvancedPoolHooks = tvm.NewNoArgsGetter(tvm.NoArgsOpts[*address.Address]{
 // On-chain: fun TokenPool<T>.isRemotePool(self, remoteChainSelector: uint64, remotePoolAddress: Cell<CrossChainAddress>): bool
 var GetIsRemotePool = tvm.Getter[IsRemotePoolArgs, bool]{
 	Name: "isRemotePool",
+	Encoder: tvm.NewArgsEncoder(func(args IsRemotePoolArgs) ([]any, error) {
+		poolCell, err := args.RemotePoolAddress.ToCell()
+		if err != nil {
+			return nil, fmt.Errorf("error encoding remote pool address: %w", err)
+		}
+		return []any{args.RemoteChainSelector, poolCell}, nil
+	}),
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
 		v, err := r.Int(0)
 		if err != nil {
@@ -352,6 +422,14 @@ var GetTokenTransferFeeConfig = tvm.Getter[uint64, GetTokenTransferFeeConfigResu
 // On-chain: get fun getCurrentRateLimiterState(remoteChainSelector: uint64, fastFinality: bool): TokenPool_RateLimiterPair
 var GetCurrentRateLimiterState = tvm.Getter[GetCurrentRateLimiterStateArgs, RateLimiterPair]{
 	Name: "getCurrentRateLimiterState",
+	Encoder: tvm.NewArgsEncoder(func(args GetCurrentRateLimiterStateArgs) ([]any, error) {
+		// TVM booleans are -1/0; a Go bool is not a stack value.
+		fastFinality := int64(0)
+		if args.FastFinality {
+			fastFinality = -1
+		}
+		return []any{args.RemoteChainSelector, fastFinality}, nil
+	}),
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (RateLimiterPair, error) {
 		outboundCell, err := r.Cell(0)
 		if err != nil {
@@ -402,14 +480,69 @@ var GetCursedSubjects = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]*big.Int]{
 var GetAdminConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[AdminConfig]{
 	Name: "getAdminConfig",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (AdminConfig, error) {
-		c, err := r.Cell(0)
+		var cfg AdminConfig
+
+		ownableCell, err := r.Cell(0)
 		if err != nil {
-			return AdminConfig{}, fmt.Errorf("error getting Cell(0) - adminConfig: %w", err)
+			return AdminConfig{}, fmt.Errorf("error getting Cell(0) - ownable: %w", err)
+		}
+		if err = tlb.LoadFromCell(&cfg.Ownable, ownableCell.MustBeginParse()); err != nil {
+			return AdminConfig{}, fmt.Errorf("error decoding ownable: %w", err)
 		}
 
-		var cfg AdminConfig
-		if err := tlb.LoadFromCell(&cfg, c.MustBeginParse()); err != nil {
-			return AdminConfig{}, fmt.Errorf("error decoding AdminConfig: %w", err)
+		dynamicConfigCell, err := r.Cell(1)
+		if err != nil {
+			return AdminConfig{}, fmt.Errorf("error getting Cell(1) - dynamicConfig: %w", err)
+		}
+		if err = tlb.LoadFromCell(&cfg.DynamicConfig, dynamicConfigCell.MustBeginParse()); err != nil {
+			return AdminConfig{}, fmt.Errorf("error decoding dynamicConfig: %w", err)
+		}
+
+		namespaces := tlbe.NewEmptyDict[uint32, struct{}]()
+		isNil, err := r.IsNil(2)
+		if err != nil {
+			return AdminConfig{}, fmt.Errorf("error checking IsNil(2) - allowedDepositNamespaces: %w", err)
+		}
+		if !isNil {
+			var namespacesCell *cell.Cell
+			namespacesCell, err = r.Cell(2)
+			if err != nil {
+				return AdminConfig{}, fmt.Errorf("error getting Cell(2) - allowedDepositNamespaces: %w", err)
+			}
+			namespaces, err = tlbe.NewDictFromDictionary[uint32, struct{}](namespacesCell.AsDict(32))
+			if err != nil {
+				return AdminConfig{}, fmt.Errorf("error decoding allowedDepositNamespaces: %w", err)
+			}
+		}
+		cfg.AllowedDepositNamespaces = namespaces
+
+		masterAddressSlice, err := r.Slice(3)
+		if err != nil {
+			return AdminConfig{}, fmt.Errorf("error getting Slice(3) - jettonClient.masterAddress: %w", err)
+		}
+		cfg.JettonClient.MasterAddress, err = masterAddressSlice.LoadAddr()
+		if err != nil {
+			return AdminConfig{}, fmt.Errorf("error loading jettonClient.masterAddress: %w", err)
+		}
+
+		cfg.JettonClient.JettonWalletCode, err = r.Cell(4)
+		if err != nil {
+			return AdminConfig{}, fmt.Errorf("error getting Cell(4) - jettonClient.jettonWalletCode: %w", err)
+		}
+
+		allowedFinalityConfig, err := r.Int(5)
+		if err != nil {
+			return AdminConfig{}, fmt.Errorf("error getting Int(5) - allowedFinalityConfig: %w", err)
+		}
+		cfg.AllowedFinalityConfig = uint32(allowedFinalityConfig.Uint64())
+
+		cfg.AdvancedPoolHooks, err = decodeOptionalAddress(r, 6, "advancedPoolHooks")
+		if err != nil {
+			return AdminConfig{}, err
+		}
+		cfg.AdvancedPoolHooksPrevious, err = decodeOptionalAddress(r, 7, "advancedPoolHooksPrevious")
+		if err != nil {
+			return AdminConfig{}, err
 		}
 
 		return cfg, nil
@@ -422,23 +555,62 @@ var GetAdminConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[AdminConfig]{
 var GetRemoteChainConfig = tvm.Getter[uint64, GetRemoteChainConfigResult]{
 	Name: "getRemoteChainConfig",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (GetRemoteChainConfigResult, error) {
-		// Check if result is null (config not found)
-		isNil, err := r.IsNil(0)
+		// The presence discriminator lives in the last of the 5 stack slots.
+		present, err := r.Int(4)
 		if err != nil {
-			return GetRemoteChainConfigResult{}, fmt.Errorf("error checking IsNil(0): %w", err)
+			return GetRemoteChainConfigResult{}, fmt.Errorf("error getting Int(4) - presence discriminator: %w", err)
 		}
-		if isNil {
+		if present.Sign() == 0 {
 			return GetRemoteChainConfigResult{IsFound: false}, nil
 		}
 
-		c, err := r.Cell(0)
+		var cfg RemoteChainConfig
+
+		remoteTokenCell, err := r.Cell(0)
 		if err != nil {
-			return GetRemoteChainConfigResult{}, fmt.Errorf("error getting Cell(0): %w", err)
+			return GetRemoteChainConfigResult{}, fmt.Errorf("error getting Cell(0) - remoteTokenAddress: %w", err)
+		}
+		remoteToken, err := loadCrossChainAddressFromCell(remoteTokenCell)
+		if err != nil {
+			return GetRemoteChainConfigResult{}, fmt.Errorf("error loading remoteTokenAddress: %w", err)
+		}
+		cfg.RemoteTokenAddress, err = tlbe.NewCellFrom(remoteToken)
+		if err != nil {
+			return GetRemoteChainConfigResult{}, fmt.Errorf("error wrapping remoteTokenAddress: %w", err)
 		}
 
-		var cfg RemoteChainConfig
-		if err := tlb.LoadFromCell(&cfg, c.MustBeginParse()); err != nil {
-			return GetRemoteChainConfigResult{}, fmt.Errorf("error decoding RemoteChainConfig: %w", err)
+		remotePools := tlbe.NewEmptyDict[tlbe.Uint256, RemotePoolRef]()
+		isNil, err := r.IsNil(1)
+		if err != nil {
+			return GetRemoteChainConfigResult{}, fmt.Errorf("error checking IsNil(1) - remotePools: %w", err)
+		}
+		if !isNil {
+			var remotePoolsCell *cell.Cell
+			remotePoolsCell, err = r.Cell(1)
+			if err != nil {
+				return GetRemoteChainConfigResult{}, fmt.Errorf("error getting Cell(1) - remotePools: %w", err)
+			}
+			remotePools, err = tlbe.NewDictFromDictionary[tlbe.Uint256, RemotePoolRef](remotePoolsCell.AsDict(256))
+			if err != nil {
+				return GetRemoteChainConfigResult{}, fmt.Errorf("error decoding remotePools: %w", err)
+			}
+		}
+		cfg.RemotePools = remotePools
+
+		rateLimitersCell, err := r.Cell(2)
+		if err != nil {
+			return GetRemoteChainConfigResult{}, fmt.Errorf("error getting Cell(2) - rateLimiters: %w", err)
+		}
+		if err = tlb.LoadFromCell(&cfg.RateLimiters, rateLimitersCell.MustBeginParse()); err != nil {
+			return GetRemoteChainConfigResult{}, fmt.Errorf("error decoding rateLimiters: %w", err)
+		}
+
+		fastFinalityCell, err := r.Cell(3)
+		if err != nil {
+			return GetRemoteChainConfigResult{}, fmt.Errorf("error getting Cell(3) - fastFinalityRateLimiters: %w", err)
+		}
+		if err = tlb.LoadFromCell(&cfg.FastFinalityRateLimiters, fastFinalityCell.MustBeginParse()); err != nil {
+			return GetRemoteChainConfigResult{}, fmt.Errorf("error decoding fastFinalityRateLimiters: %w", err)
 		}
 
 		return GetRemoteChainConfigResult{
@@ -464,6 +636,39 @@ func loadCrossChainAddressFromCell(c *cell.Cell) (common.CrossChainAddress, erro
 	var addr common.CrossChainAddress
 	if err := tlb.LoadFromCell(&addr, c.MustBeginParse()); err != nil {
 		return nil, fmt.Errorf("error loading CrossChainAddress from cell: %w", err)
+	}
+	return addr, nil
+}
+
+func makeCanGetter(name string) tvm.Getter[*address.Address, bool] {
+	return tvm.Getter[*address.Address, bool]{
+		Name: name,
+		Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
+			v, err := r.Int(0)
+			if err != nil {
+				return false, fmt.Errorf("failed to parse %s result: %w", name, err)
+			}
+			return v.Cmp(big.NewInt(0)) != 0, nil
+		}),
+	}
+}
+
+// decodeOptionalAddress reads a nullable address stack value at the given index.
+func decodeOptionalAddress(r *ton.ExecutionResult, index uint, name string) (*address.Address, error) {
+	isNil, err := r.IsNil(index)
+	if err != nil {
+		return nil, fmt.Errorf("error checking IsNil(%d) - %s: %w", index, name, err)
+	}
+	if isNil {
+		return nil, nil
+	}
+	addrSlice, err := r.Slice(index)
+	if err != nil {
+		return nil, fmt.Errorf("error getting Slice(%d) - %s: %w", index, name, err)
+	}
+	addr, err := addrSlice.LoadAddr()
+	if err != nil {
+		return nil, fmt.Errorf("error loading %s: %w", name, err)
 	}
 	return addr, nil
 }
@@ -527,6 +732,34 @@ var GetFee = tvm.Getter[GetFeeArgs, GetFeeResult]{
 			TokenFeeBps:       uint16(tokenFeeBpsVal.Uint64()),
 			IsEnabled:         enabledVal.Cmp(big.NewInt(0)) != 0,
 		}, nil
+	}),
+}
+
+// GetFeeAmountArgs holds the arguments for the getFeeAmount getter.
+type GetFeeAmountArgs struct {
+	Transfer                LockOrBurnTransferDetails
+	RequestedFinalityConfig uint32
+}
+
+// GetFeeAmount calculates the transfer fee amount in the source token decimals.
+// It returns 0 when no enabled fee config exists for the destination chain.
+//
+// On-chain: fun TokenPool<T>.getFeeAmount(self, transfer: TokenPool_LockOrBurnTransfer, requestedFinalityConfig: uint32): coins
+var GetFeeAmount = tvm.Getter[GetFeeAmountArgs, tlb.Coins]{
+	Name: "getFeeAmount",
+	Encoder: tvm.NewArgsEncoder(func(args GetFeeAmountArgs) ([]any, error) {
+		transferCell, err := tlb.ToCell(args.Transfer)
+		if err != nil {
+			return nil, fmt.Errorf("error encoding transfer details: %w", err)
+		}
+		return []any{transferCell, args.RequestedFinalityConfig}, nil
+	}),
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (tlb.Coins, error) {
+		n, err := r.Int(0)
+		if err != nil {
+			return tlb.Coins{}, fmt.Errorf("error getting Int(0) - feeAmount: %w", err)
+		}
+		return tlb.FromNanoTON(n), nil
 	}),
 }
 
