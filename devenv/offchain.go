@@ -25,6 +25,7 @@ import (
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/simple_node_set"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/testadapter"
 	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 )
@@ -32,8 +33,18 @@ import (
 type CCIP16TON struct {
 	e            *deployment.Environment
 	chainDetails chain_selectors.ChainDetails
-	testadapters.TestAdapter
+	// The concrete adapter is embedded rather than testadapters.TestAdapter so that its optional interfaces
+	// (e.g. the extra-args ones used by testadapters.BuildExtraArgs) are promoted to CCIP16TON.
+	*testadapter.TONAdapter
 }
+
+// Embedding testadapters.TestAdapter instead would still compile but silently send every lane through the
+// GetExtraArgs fallback.
+var (
+	_ testadapters.ExtraArgsDataSource = (*CCIP16TON)(nil)
+	_ testadapters.EVMExtraArgsV2      = (*CCIP16TON)(nil)
+	_ testadapters.SVMExtraArgsV1      = (*CCIP16TON)(nil)
+)
 
 func NewEmptyCCIP16TON(chainDetails chain_selectors.ChainDetails) *CCIP16TON {
 	return &CCIP16TON{
@@ -55,7 +66,12 @@ func (m *CCIP16TON) SetCLDF(e *deployment.Environment) {
 	if !found {
 		panic("failed to find testadapter factory for " + chain_selectors.FamilyTon)
 	}
-	m.TestAdapter = factory(e, m.chainDetails.ChainSelector)
+	adapter := factory(e, m.chainDetails.ChainSelector)
+	tonAdapter, ok := adapter.(*testadapter.TONAdapter)
+	if !ok {
+		panic(fmt.Sprintf("unexpected %s testadapter type %T", chain_selectors.FamilyTon, adapter))
+	}
+	m.TONAdapter = tonAdapter
 }
 
 func (m *CCIP16TON) ChainSelector() uint64 {

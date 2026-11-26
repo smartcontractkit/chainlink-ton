@@ -43,6 +43,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/hash"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/cciplib/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
@@ -260,57 +261,108 @@ func (a *TONAdapter) NativeFeeToken() string {
 	return tvm.NativeGRAMAddr.String()
 }
 
-func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...testadapters.ExtraArgOpt) ([]byte, error) {
+var (
+	_ testadapters.ExtraArgsDataSource = (*TONAdapter)(nil)
+	_ testadapters.EVMExtraArgsV2      = (*TONAdapter)(nil)
+	_ testadapters.SVMExtraArgsV1      = (*TONAdapter)(nil)
+)
+
+// The lane's own default (what the FeeQuoter applies when no gas limit is given), in nanoTON: the Router
+// forwards it to the receiver as message value.
+const defaultTONDestGasLimit = config.DefaultTxGasLimitTON
+
+func (a *TONAdapter) ExtraArgsData(_ []byte, opts ...testadapters.ExtraArgOpt) (testadapters.ExtraArgsDataProvider, error) {
+	return a.extraArgsData(opts...)
+}
+
+func (a *TONAdapter) extraArgsData(opts ...testadapters.ExtraArgOpt) (testadapters.EVMExtraArgsV2Data, error) {
+	gasLimit, allowOOO, err := testadapters.ParseGasLimitAndOOOExtraArgs(new(big.Int).SetUint64(uint64(defaultTONDestGasLimit)), true, opts...)
+	if err != nil {
+		return testadapters.EVMExtraArgsV2Data{}, err
+	}
+	// TL-B could express an absent gas limit, but ABI and Borsh sources cannot, so reject it for every source.
+	if gasLimit == nil {
+		return testadapters.EVMExtraArgsV2Data{}, errors.New("gas limit must not be nil")
+	}
+	return testadapters.EVMExtraArgsV2Data{GasLimit: gasLimit, AllowOutOfOrderExecution: allowOOO}, nil
+}
+
+// BuildEVMExtraArgsV2 encodes TL-B GenericExtraArgsV2 as a BOC: the TON router takes extra args as a cell, and
+// its fee quoter parses this format for EVM and TON destinations.
+func (a *TONAdapter) BuildEVMExtraArgsV2(provider testadapters.ExtraArgsDataProvider) ([]byte, error) {
+	data, ok := provider.(testadapters.EVMExtraArgsV2Data)
+	if !ok {
+		return nil, fmt.Errorf("provider is not a EVMExtraArgsV2Data: %T", provider)
+	}
+	extraArgs := cciplibonramp.GenericExtraArgsV2{AllowOutOfOrderExecution: data.AllowOutOfOrderExecution}
+	if data.GasLimit != nil {
+		extraArgs.GasLimit = &tlbe.BigUint256{Int: data.GasLimit}
+	}
+	c, err := tlb.ToCell(extraArgs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode GenericExtraArgsV2: %w", err)
+	}
+	return c.ToBOC(), nil
+}
+
+func (a *TONAdapter) BuildSVMExtraArgsV1(provider testadapters.ExtraArgsDataProvider) ([]byte, error) {
+	data, ok := provider.(testadapters.SVMExtraArgsV1Data)
+	if !ok {
+		return nil, fmt.Errorf("provider is not a SVMExtraArgsV1Data: %T", provider)
+	}
+	accounts := make([]cciplibonramp.Account256, len(data.Accounts))
+	for i, acc := range data.Accounts {
+		accounts[i] = cciplibonramp.Account256{Value: acc[:]}
+	}
+	c, err := tlb.ToCell(cciplibonramp.SVMExtraArgsV1{
+		ComputeUnits:             data.ComputeUnits,
+		AccountIsWritableBitmap:  data.AccountIsWritableBitmap,
+		AllowOutOfOrderExecution: data.AllowOutOfOrderExecution,
+		TokenReceiver:            data.TokenReceiver[:],
+		Accounts:                 accounts,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode SVMExtraArgsV1: %w", err)
+	}
+	return c.ToBOC(), nil
+}
+
+// GetExtraArgs is kept for callers that have not moved to testadapters.BuildExtraArgs yet, and as its fallback
+// for Solana sources.
+func (a *TONAdapter) GetExtraArgs(_ []byte, sourceFamily string, opts ...testadapters.ExtraArgOpt) ([]byte, error) {
+	data, err := a.extraArgsData(opts...)
+	if err != nil {
+		return nil, err
+	}
+
 	switch sourceFamily {
 	case chain_selectors.FamilyEVM:
-		// defaults
-		extraArgs := extraargs.ClientGenericExtraArgsV2{
-			GasLimit:                 new(big.Int).SetUint64(100_000_000),
-			AllowOutOfOrderExecution: true,
-		}
-		// override via options
-		for _, opt := range opts {
-			switch opt.Name {
-			case testadapters.ExtraArgGasLimit:
-				extraArgs.GasLimit = opt.Value.(*big.Int)
-			case testadapters.ExtraArgOOO:
-				extraArgs.AllowOutOfOrderExecution = opt.Value.(bool)
-			default:
-				return nil, fmt.Errorf("unsupported extra arg: %s", opt.Name)
-			}
-		}
-		return extraargs.SerializeClientGenericExtraArgsV2(extraArgs)
+		return extraargs.SerializeClientGenericExtraArgsV2(extraargs.ClientGenericExtraArgsV2{
+			GasLimit:                 data.GasLimit,
+			AllowOutOfOrderExecution: data.AllowOutOfOrderExecution,
+		})
 	case chain_selectors.FamilyTon:
-		return nil, nil
+		return a.BuildEVMExtraArgsV2(data)
 	case chain_selectors.FamilySolana:
-		// Solana -> TON: Solana fee quoter expects Borsh-encoded GenericExtraArgsV2 with OOO=true
-		// for non-SVM destinations. Format: [4-byte BE tag][Borsh data]
-		gasLimit := ag_binary.Uint128{Lo: 100_000_000}
-		ooo := true
-		for _, opt := range opts {
-			switch opt.Name {
-			case testadapters.ExtraArgGasLimit:
-				gasLimit = ag_binary.Uint128{Lo: opt.Value.(*big.Int).Uint64()}
-			case testadapters.ExtraArgOOO:
-				ooo = opt.Value.(bool)
-			default:
-				return nil, fmt.Errorf("unsupported extra arg: %s", opt.Name)
-			}
+		// TODO: remove once chainlink-ccip's Solana adapter implements testadapters.EVMExtraArgsV2.
+		// The Solana fee quoter expects Borsh-encoded GenericExtraArgsV2 for non-SVM destinations:
+		// [4-byte BE tag][Borsh data].
+		if !data.GasLimit.IsUint64() {
+			return nil, fmt.Errorf("gas limit does not fit in uint64: %s", data.GasLimit)
 		}
 		type borshGenericExtraArgsV2 struct {
 			GasLimit                 ag_binary.Uint128
 			AllowOutOfOrderExecution bool
 		}
-		data, err := ag_binary.MarshalBorsh(borshGenericExtraArgsV2{
-			GasLimit:                 gasLimit,
-			AllowOutOfOrderExecution: ooo,
+		encoded, err := ag_binary.MarshalBorsh(borshGenericExtraArgsV2{
+			GasLimit:                 ag_binary.Uint128{Lo: data.GasLimit.Uint64()},
+			AllowOutOfOrderExecution: data.AllowOutOfOrderExecution,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to borsh-serialize extra args: %w", err)
 		}
 		// Tag: bytes4(keccak256("CCIP EVMExtraArgsV2")) = 0x181dcf10
-		tag := []byte{0x18, 0x1d, 0xcf, 0x10} //nolint:prealloc //  - TODO(lint-migration): golangci-lint 2.11 rule tightened
-		return append(tag, data...), nil
+		return append([]byte{0x18, 0x1d, 0xcf, 0x10}, encoded...), nil
 	default:
 		return nil, fmt.Errorf("unsupported source family: %s", sourceFamily)
 	}
