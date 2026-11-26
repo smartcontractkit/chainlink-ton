@@ -229,13 +229,14 @@ func TestGetAdminConfig_AbsentOptionalFields(t *testing.T) {
 	require.Nil(t, got.AdvancedPoolHooksPrevious)
 }
 
-func testRateLimiterPair(tokens int64) RateLimiterPair {
+func testRateLimiterPair(tokens uint32) RateLimiterPair {
+	n := int64(tokens)
 	bucket := RateLimiterTokenBucket{
-		Tokens:      tlbe.BigUint128{Int: big.NewInt(tokens)},
-		LastUpdated: uint32(tokens),
+		Tokens:      tlbe.BigUint128{Int: big.NewInt(n)},
+		LastUpdated: tokens,
 		IsEnabled:   true,
-		Capacity:    tlbe.BigUint128{Int: big.NewInt(tokens + 1)},
-		Rate:        tlbe.BigUint128{Int: big.NewInt(tokens + 2)},
+		Capacity:    tlbe.BigUint128{Int: big.NewInt(n + 1)},
+		Rate:        tlbe.BigUint128{Int: big.NewInt(n + 2)},
 	}
 	return RateLimiterPair{Outbound: bucket, Inbound: bucket}
 }
@@ -383,7 +384,7 @@ func TestGetters_ArgumentEncoders(t *testing.T) {
 }
 
 func TestFacilityMetadataGetters(t *testing.T) {
-	facilityID, err := GetFacilityId.Decoder.Decode(ton.NewExecutionResult([]any{big.NewInt(450)}))
+	facilityID, err := GetFacilityID.Decoder.Decode(ton.NewExecutionResult([]any{big.NewInt(450)}))
 	require.NoError(t, err)
 	require.Equal(t, uint16(450), facilityID)
 

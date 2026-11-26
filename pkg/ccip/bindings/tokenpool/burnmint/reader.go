@@ -16,7 +16,7 @@ var GetTypeAndVersion = common.GetTypeAndVersion
 var (
 	GetOwner                   = tokenpool.GetOwner
 	GetPendingOwner            = tokenpool.GetPendingOwner
-	GetFacilityId              = tokenpool.GetFacilityId
+	GetFacilityID              = tokenpool.GetFacilityID
 	GetErrorCode               = tokenpool.GetErrorCode
 	GetRMNOwner                = tokenpool.GetRMNOwner
 	GetRMNPendingOwner         = tokenpool.GetRMNPendingOwner

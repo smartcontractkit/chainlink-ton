@@ -33,10 +33,10 @@ var GetPendingOwner = ownable2step.GetPendingOwner
 // GetTypeAndVersion gets the contract type and version (delegates to common).
 var GetTypeAndVersion = common.GetTypeAndVersion
 
-// GetFacilityId gets the pool's facility ID, used to derive its error codes.
+// GetFacilityID gets the pool's facility ID, used to derive its error codes.
 //
 // On-chain: get fun facilityId(): uint16
-var GetFacilityId = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint16]{
+var GetFacilityID = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint16]{
 	Name: "facilityId",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint16, error) {
 		v, err := r.Int(0)
@@ -504,7 +504,8 @@ var GetAdminConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[AdminConfig]{
 			return AdminConfig{}, fmt.Errorf("error checking IsNil(2) - allowedDepositNamespaces: %w", err)
 		}
 		if !isNil {
-			namespacesCell, err := r.Cell(2)
+			var namespacesCell *cell.Cell
+			namespacesCell, err = r.Cell(2)
 			if err != nil {
 				return AdminConfig{}, fmt.Errorf("error getting Cell(2) - allowedDepositNamespaces: %w", err)
 			}
@@ -584,7 +585,8 @@ var GetRemoteChainConfig = tvm.Getter[uint64, GetRemoteChainConfigResult]{
 			return GetRemoteChainConfigResult{}, fmt.Errorf("error checking IsNil(1) - remotePools: %w", err)
 		}
 		if !isNil {
-			remotePoolsCell, err := r.Cell(1)
+			var remotePoolsCell *cell.Cell
+			remotePoolsCell, err = r.Cell(1)
 			if err != nil {
 				return GetRemoteChainConfigResult{}, fmt.Errorf("error getting Cell(1) - remotePools: %w", err)
 			}
