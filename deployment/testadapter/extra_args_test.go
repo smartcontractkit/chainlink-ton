@@ -59,6 +59,11 @@ func TestTONAdapterExtraArgsData(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, testadapters.EVMExtraArgsV2Data{GasLimit: big.NewInt(1), AllowOutOfOrderExecution: false}, data)
 	})
+
+	t.Run("nil gas limit", func(t *testing.T) {
+		_, err := a.ExtraArgsData(nil, testadapters.NewGasLimitExtraArg(nil))
+		require.ErrorContains(t, err, "gas limit must not be nil")
+	})
 }
 
 func TestTONAdapterBuildEVMExtraArgsV2(t *testing.T) {
@@ -161,6 +166,13 @@ func TestTONAdapterGetExtraArgs(t *testing.T) {
 		_, err := a.GetExtraArgs(nil, chain_selectors.FamilySolana, testadapters.NewGasLimitExtraArg(new(big.Int).Lsh(big.NewInt(1), 64)))
 		require.ErrorContains(t, err, "does not fit in uint64")
 	})
+
+	for _, family := range []string{chain_selectors.FamilyEVM, chain_selectors.FamilyTon, chain_selectors.FamilySolana} {
+		t.Run(family+" source with nil gas limit", func(t *testing.T) {
+			_, err := a.GetExtraArgs(nil, family, testadapters.NewGasLimitExtraArg(nil))
+			require.ErrorContains(t, err, "gas limit must not be nil")
+		})
+	}
 
 	t.Run("unsupported source", func(t *testing.T) {
 		_, err := a.GetExtraArgs(nil, chain_selectors.FamilyAptos)

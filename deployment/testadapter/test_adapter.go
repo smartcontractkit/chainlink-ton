@@ -276,6 +276,10 @@ func (a *TONAdapter) ExtraArgsData(_ []byte, opts ...testadapters.ExtraArgOpt) (
 	if err != nil {
 		return nil, err
 	}
+	// TL-B could express an absent gas limit, but ABI and Borsh sources cannot, so reject it for every source.
+	if gasLimit == nil {
+		return nil, errors.New("gas limit must not be nil")
+	}
 	return testadapters.EVMExtraArgsV2Data{GasLimit: gasLimit, AllowOutOfOrderExecution: allowOOO}, nil
 }
 
