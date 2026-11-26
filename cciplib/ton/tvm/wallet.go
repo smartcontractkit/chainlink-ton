@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -55,6 +56,11 @@ func NewV5R1Wallet(api wallet.TonAPI, networkGlobalID int32, privateKey ed25519.
 
 func NewRandomHighloadV3TestWallet(client ton.APIClientWrapped) (*wallet.Wallet, error) {
 	seed := wallet.NewSeed()
+	// Highload V3 tracks recent query IDs for replay protection. A timestamp-derived ID is only
+	// unique up to one send per second and can jump or repeat under rapid/parallel test sends,
+	// which intermittently corrupts the wallet's query window (cell underflow). Use the monotonic
+	// iterator recommended by tonutils instead, wrapping before the 23-bit limit.
+	var queryID atomic.Uint32
 	w, err := wallet.FromSeedWithOptions(client, seed, wallet.ConfigHighloadV3{
 		MessageTTL: 60 * 5,
 		MessageBuilder: func(ctx context.Context, subWalletId uint32) (id uint32, createdAt int64, err error) {
@@ -64,10 +70,7 @@ func NewRandomHighloadV3TestWallet(client ton.APIClientWrapped) (*wallet.Wallet,
 			// hope it will be fixed in the next LS versions
 			createdAt = time.Now().Unix() - 30
 
-			// example query id which will allow you to send 1 tx per second
-			// but you better to implement your own iterator in database, then you can send unlimited
-			// but make sure id is less than 1 << 23, when it is higher start from 0 again
-			return uint32(createdAt % (1 << 23)), createdAt, nil //nolint:gosec // test wallet
+			return queryID.Add(1) % (1 << 23), createdAt, nil
 		},
 	})
 	if err != nil {
